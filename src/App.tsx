@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
-import { AppsWindow } from '@/components/windows/AppsWindow'
-import { SystemWindow } from '@/components/windows/SystemWindow'
-import { LoginScreen } from '@/components/windows/LoginScreen'
-import { HostTerminalWindow } from '@/components/windows/HostTerminalWindow'
 import { useWindowStore } from '@/store/windowStore'
 import { getMe } from '@/api/agent'
 import type { WindowKind } from '@/types'
-import { DebugPanel } from '@/components/debug/DebugPanel'
-import { DebugGrid } from './components/debug/DebugGrid'
+
+const AppsWindow = lazy(() => import('@/components/windows/AppsWindow').then((module) => ({ default: module.AppsWindow })))
+const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
+const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
+const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
+const DebugPanel = lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
+const DebugGrid = lazy(() => import('@/components/debug/DebugGrid').then((module) => ({ default: module.DebugGrid })))
 
 const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 
@@ -87,6 +88,14 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   ),
 }
 
+function WindowFallback() {
+  return (
+    <div className="flex min-h-[140px] items-center justify-center text-sm" style={{ color: 'var(--sand-400)' }}>
+      Memuat modul window...
+    </div>
+  )
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 5_000 } },
 })
@@ -102,9 +111,11 @@ function Desktop({ onLogout }: { onLogout: () => void }) {
           const renderContent = WINDOW_CONTENT[win.kind]
           return (
             <Window key={win.id} win={win}>
-              {renderContent ? renderContent() : (
-                <p className="text-sm" style={{ color: 'var(--sand-400)' }}>No content.</p>
-              )}
+              <Suspense fallback={<WindowFallback />}>
+                {renderContent ? renderContent() : (
+                  <p className="text-sm" style={{ color: 'var(--sand-400)' }}>No content.</p>
+                )}
+              </Suspense>
             </Window>
           )
         })}
@@ -183,19 +194,31 @@ function AppShell() {
   }
 
   if (!authenticated) {
-    return <LoginScreen onLoginSuccess={() => {
-      setAuthenticated(true)
-      if (window.location.pathname === LOGIN_PATH) {
-        window.history.replaceState({}, '', '/')
-      }
-    }} />
+    return (
+      <Suspense fallback={(
+        <div className="min-h-screen grid place-items-center text-white login-shell">
+          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
+            Memuat login panel...
+          </div>
+        </div>
+      )}>
+        <LoginScreen onLoginSuccess={() => {
+          setAuthenticated(true)
+          if (window.location.pathname === LOGIN_PATH) {
+            window.history.replaceState({}, '', '/')
+          }
+        }} />
+      </Suspense>
+    )
   }
 
   return (
     <>
       <Desktop onLogout={handleLogout} />
-      <DebugPanel />
-      <DebugGrid />
+      <Suspense fallback={null}>
+        <DebugPanel />
+        <DebugGrid />
+      </Suspense>
     </>
   )
 }

@@ -15,6 +15,25 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
     },
+    build: {
+      target: 'es2020',
+      cssCodeSplit: true,
+      sourcemap: false,
+      chunkSizeWarningLimit: 800,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined
+            if (id.includes('xterm')) return 'vendor_xterm'
+            if (id.includes('framer-motion') || id.includes('motion-dom')) return 'vendor_motion'
+            if (id.includes('@tanstack/react-query')) return 'vendor_query'
+            if (id.includes('lucide-react')) return 'vendor_icons'
+            if (id.includes('react-dom') || id.includes('react/jsx-runtime') || id.includes('react')) return 'vendor_react'
+            return 'vendor_misc'
+          },
+        },
+      },
+    },
     server: {
       host: '0.0.0.0',
       port: 8770,

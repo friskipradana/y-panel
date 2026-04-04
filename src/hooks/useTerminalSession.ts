@@ -18,6 +18,42 @@ function resolveTerminalSocketUrl(sessionId: string) {
   return `${protocol}//${window.location.host}${normalizedBase}/terminal/sessions/${sessionId}/ws`
 }
 
+function filterInternalTerminalNoise(input: string) {
+  return input
+    .replace(/^.*stty cols \d+ rows \d+ 2>\/dev\/null; export COLUMNS=\d+ LINES=\d+\r?\n?/gm, '')
+    .replace(/\u001b\]633;.*?(?:\u0007|\u001b\\)/g, '')
+    .replace(/\u001b\]133;.*?(?:\u0007|\u001b\\)/g, '')
+    .replace(/\u001bP\$q.*?\u001b\\/g, '')
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, '')
+}
+
+const TERMINAL_RESET_PATTERNS = [
+  /\u001bc/g,
+  /\u001b\[H\u001b\[2J(?:\u001b\[3J)?/g,
+  /\u001b\[2J\u001b\[H(?:\u001b\[3J)?/g,
+  /\u001b\[3J\u001b\[H\u001b\[2J/g,
+  /\u001b\[\?1049h/g,
+  /\u001b\[\?1049l/g,
+]
+
+function accumulateTerminalOutput(previous: string, chunk: string) {
+  let resetAt = -1
+
+  for (const pattern of TERMINAL_RESET_PATTERNS) {
+    pattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(chunk)) !== null) {
+      resetAt = Math.max(resetAt, match.index)
+    }
+  }
+
+  if (resetAt >= 0) {
+    return chunk.slice(resetAt)
+  }
+
+  return previous + chunk
+}
+
 function mapKeyToTerminalInput(event: KeyboardEvent) {
   if (event.ctrlKey && event.key.toLowerCase() === 'c') return '\u0003'
   if (event.ctrlKey && event.key.toLowerCase() === 'd') return '\u0004'
@@ -34,56 +70,6 @@ function mapKeyToTerminalInput(event: KeyboardEvent) {
   return null
 }
 
-function normalizeTerminalOutput(input: string) {
-  const stripped = input
-    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
-    .replace(/\u001B\[[0-9;?]*[ -/]*[@-~]/g, '')
-    .replace(/\u001B[@-_]/g, '')
-
-  let result = ''
-  let lineStart = 0
-
-  for (let index = 0; index < stripped.length; index += 1) {
-    const char = stripped[index]
-
-    if (char === '\r') {
-      if (stripped[index + 1] === '\n') {
-        continue
-      }
-      result = result.slice(0, lineStart)
-      continue
-    }
-
-    if (char === '\b' || char === '\u007f') {
-      if (result.length > lineStart) {
-        result = result.slice(0, -1)
-      }
-      continue
-    }
-
-    if (char === '\n') {
-      result += char
-      lineStart = result.length
-      continue
-    }
-
-    if (char === '\t') {
-      result += char
-      continue
-    }
-
-    if (char < ' ' || char === '\u009b') {
-      continue
-    }
-
-    result += char
-  }
-
-  return result
-    .replace(/^.*stty cols \d+ rows \d+ 2>\/dev\/null; export COLUMNS=\d+ LINES=\d+\r?\n?/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-}
-
 export function useTerminalSession() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [output, setOutput] = useState('')
@@ -98,6 +84,7 @@ export function useTerminalSession() {
   const manualCloseRef = useRef(false)
   const startInFlightRef = useRef(false)
   const terminalSizeRef = useRef({ cols: 120, rows: 32 })
+  const outputListenerRef = useRef<((chunk: string) => void) | null>(null)
 
   const cleanupSocket = useCallback((closeActiveSocket = true) => {
     const socket = socketRef.current
@@ -156,7 +143,10 @@ export function useTerminalSession() {
       try {
         const message = JSON.parse(event.data) as TerminalSocketMessage
         if (message.type === 'output' && message.data) {
-          setOutput((prev) => normalizeTerminalOutput(prev + message.data))
+          const chunk = filterInternalTerminalNoise(message.data)
+          if (!chunk) return
+          outputListenerRef.current?.(chunk)
+          setOutput((prev) => accumulateTerminalOutput(prev, chunk))
           return
         }
         if (message.type === 'closed') {
@@ -169,7 +159,10 @@ export function useTerminalSession() {
           return
         }
       } catch {
-        setOutput((prev) => normalizeTerminalOutput(prev + String(event.data ?? '')))
+        const chunk = filterInternalTerminalNoise(String(event.data ?? ''))
+        if (!chunk) return
+        outputListenerRef.current?.(chunk)
+        setOutput((prev) => accumulateTerminalOutput(prev, chunk))
       }
     }
 
@@ -263,6 +256,10 @@ export function useTerminalSession() {
     }
   }, [cleanupSocket, releaseSession])
 
+  const setOutputListener = useCallback((listener: ((chunk: string) => void) | null) => {
+    outputListenerRef.current = listener
+  }, [])
+
   return {
     sessionId,
     output,
@@ -275,6 +272,7 @@ export function useTerminalSession() {
     sendInput,
     handleTerminalKey,
     updateTerminalSize,
+    setOutputListener,
     close,
   }
 }

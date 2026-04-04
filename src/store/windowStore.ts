@@ -48,6 +48,9 @@ interface WindowStore {
   windows: WindowState[];
   focusedId: string | null;
   autoHideDock: boolean;
+  globalContentZoom: number;
+  globalFontIndex: number;
+  globalTerminalFontSize: number;
 
   openWindow: (kind: WindowKind) => string;
   closeWindow: (id: string) => void;
@@ -56,6 +59,9 @@ interface WindowStore {
   maximizeWindow: (id: string) => void;
   moveWindow: (id: string, x: number, y: number) => void;
   resizeWindow: (id: string, width: number, height: number) => void;
+  setGlobalContentZoom: (value: number) => void;
+  setGlobalFontIndex: (value: number) => void;
+  setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
   resetWindows: () => void;
 }
@@ -63,6 +69,9 @@ interface WindowStore {
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
 export const selectWindows = (s: WindowStore) => s.windows;
 export const selectAutoHideDock = (s: WindowStore) => s.autoHideDock;
+export const selectGlobalContentZoom = (s: WindowStore) => s.globalContentZoom;
+export const selectGlobalFontIndex = (s: WindowStore) => s.globalFontIndex;
+export const selectGlobalTerminalFontSize = (s: WindowStore) => s.globalTerminalFontSize;
 export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
 
@@ -71,6 +80,9 @@ export const useWindowStore = create<WindowStore>()(
     windows: [],
     focusedId: null,
     autoHideDock: false,
+    globalContentZoom: 1,
+    globalFontIndex: 2,
+    globalTerminalFontSize: 9,
 
     openWindow: (kind) => {
       let openedId = '';
@@ -185,6 +197,21 @@ export const useWindowStore = create<WindowStore>()(
           win.width = width;
           win.height = height;
         }
+      }),
+
+    setGlobalContentZoom: (value) =>
+      set((state) => {
+        state.globalContentZoom = Math.min(2, Math.max(0.75, Number(value.toFixed(2))));
+      }),
+
+    setGlobalFontIndex: (value) =>
+      set((state) => {
+        state.globalFontIndex = Math.max(0, Math.min(2, Math.round(value)));
+      }),
+
+    setGlobalTerminalFontSize: (value) =>
+      set((state) => {
+        state.globalTerminalFontSize = Math.min(18, Math.max(7, Math.round(value)));
       }),
 
     toggleDockAutoHide: () =>

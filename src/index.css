@@ -426,18 +426,18 @@ body {
 .host-terminal-shell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .host-terminal-shell--themed {
-  border-radius: 28px;
-  padding: 12px;
+  border-radius: 24px;
+  padding: 8px;
   background:
     radial-gradient(circle at top left, rgba(249, 115, 22, 0.08), transparent 22%),
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 22%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62));
   border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 56px rgba(15, 23, 42, 0.08);
 }
 
 .host-terminal-hero {
@@ -653,14 +653,12 @@ body {
   position: relative;
   z-index: 1;
   min-height: 360px;
-  max-height: 480px;
-  overflow: auto;
+  max-height: 540px;
+  overflow: hidden;
   margin: 0;
-  padding: 20px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-  line-height: 1.7;
+  padding: 10px;
+  font-size: 10px;
+  line-height: 1.45;
   font-family: 'JetBrains Mono', monospace;
   color: #dbeafe;
   outline: none;
@@ -668,11 +666,37 @@ body {
 }
 
 .host-terminal-console--compact {
-  min-height: 220px;
-  max-height: 320px;
-  padding: 16px 18px;
-  font-size: 11px;
-  line-height: 1.6;
+  min-height: 310px;
+  max-height: 420px;
+  padding: 6px 8px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.host-terminal-console--xterm {
+  display: flex;
+  align-items: stretch;
+}
+
+.host-terminal-console--xterm .xterm {
+  flex: 1;
+  height: 100%;
+  padding: 0;
+}
+
+.host-terminal-console--xterm .xterm-viewport {
+  overflow-y: auto !important;
+  border-radius: 12px;
+}
+
+.host-terminal-console--xterm .xterm-screen,
+.host-terminal-console--xterm .xterm-helpers,
+.host-terminal-console--xterm .xterm-scroll-area {
+  inset: 0;
+}
+
+.host-terminal-console--xterm .xterm-screen canvas {
+  border-radius: 12px;
 }
 
 .host-terminal-console:focus {

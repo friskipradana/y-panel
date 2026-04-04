@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Minus, Square, X, ChevronDown } from 'lucide-react'
-import { useWindowStore, selectFocusedId } from '@/store/windowStore'
+import { useWindowStore, selectFocusedId, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
 import type { WindowState } from '@/types'
 
 type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
@@ -12,13 +12,24 @@ interface Props {
 }
 
 export function Window({ win, children }: Props) {
-  const { closeWindow, minimizeWindow, maximizeWindow, focusWindow, moveWindow, resizeWindow } = useWindowStore()
+  const {
+    closeWindow,
+    minimizeWindow,
+    maximizeWindow,
+    focusWindow,
+    moveWindow,
+    resizeWindow,
+    setGlobalContentZoom,
+    setGlobalFontIndex,
+    setGlobalTerminalFontSize,
+  } = useWindowStore()
   const dragRef = useRef<{ ox: number; oy: number } | null>(null)
   const [textAccent, setTextAccent] = useState({ bold: false, italic: false, underline: false })
-  const [fontIndex, setFontIndex] = useState(0)
-  const [zoomIndex, setZoomIndex] = useState(1)
 
   const focusedId = useWindowStore(selectFocusedId)
+  const globalContentZoom = useWindowStore(selectGlobalContentZoom)
+  const globalFontIndex = useWindowStore(selectGlobalFontIndex)
+  const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
   const isFocused = win.id === focusedId
 
   const animation = useMemo(() => {
@@ -135,8 +146,8 @@ export function Window({ win, children }: Props) {
     window.addEventListener('mouseup', onUp)
   }
 
-  const contentFontFamily = FONT_OPTIONS[fontIndex] ?? FONT_OPTIONS[0]
-  const contentZoom = ZOOM_OPTIONS[zoomIndex] ?? ZOOM_OPTIONS[1]
+  const contentFontFamily = FONT_OPTIONS[globalFontIndex] ?? FONT_OPTIONS[0]
+  const contentZoom = globalContentZoom
 
   const style = win.isMaximized
     ? { left: 0, top: 44, width: '100vw', height: 'calc(100vh - 44px)', zIndex: win.zIndex }
@@ -251,19 +262,20 @@ export function Window({ win, children }: Props) {
             </div>
           </div>
 
-          {win.kind !== 'terminal' && (
-            <div
-              style={{
-                height: 34,
-                background: 'rgba(250,250,250,0.72)',
-                borderBottom: '1px solid rgba(240,240,240,0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
+          <div
+            style={{
+              minHeight: 42,
+              background: 'rgba(250,250,250,0.76)',
+              borderBottom: '1px solid rgba(240,240,240,0.82)',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '6px 10px',
+              gap: 8,
+              flexShrink: 0,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={toolbarToolsGroupStyle}>
               {[
                 { key: 'bold', label: 'B' },
                 { key: 'italic', label: 'I' },
@@ -298,24 +310,75 @@ export function Window({ win, children }: Props) {
                   </button>
                 )
               })}
-              <div style={{ width: 1, height: 16, background: '#e5e5e5', margin: '0 4px' }} />
+            </div>
+
+            <div style={toolbarToolsGroupStyle}>
               <button
                 type="button"
                 style={toolbarChipStyle}
-                onClick={() => setFontIndex((current) => (current + 1) % FONT_OPTIONS.length)}
+                onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
               >
-                Font · {FONT_LABELS[fontIndex]}
+                Font · {FONT_LABELS[globalFontIndex]}
               </button>
-              <div style={{ width: 1, height: 16, background: '#e5e5e5', margin: '0 4px' }} />
               <button
                 type="button"
-                style={toolbarChipStyle}
-                onClick={() => setZoomIndex((current) => (current + 1) % ZOOM_OPTIONS.length)}
+                style={toolbarValueChipStyle}
+                onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
               >
-                Zoom · {Math.round(contentZoom * 100)}%
+                Family {globalFontIndex + 1}/{FONT_OPTIONS.length}
               </button>
             </div>
-          )}
+
+            <div style={toolbarToolsGroupStyle}>
+              <button
+                type="button"
+                style={toolbarChipStyle}
+                onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
+              >
+                Zoom · {contentZoom.toFixed(2)}x
+              </button>
+              <button
+                type="button"
+                style={toolbarValueChipStyle}
+                onClick={() => setGlobalContentZoom(Math.max(0.75, globalContentZoom - 0.05))}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                style={toolbarValueChipStyle}
+                onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
+              >
+                +
+              </button>
+            </div>
+
+            {win.kind === 'host-terminal' && (
+              <div style={toolbarToolsGroupStyle}>
+                <button
+                  type="button"
+                  style={toolbarChipStyle}
+                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                >
+                  Terminal · {globalTerminalFontSize}px
+                </button>
+                <button
+                  type="button"
+                  style={toolbarValueChipStyle}
+                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  style={toolbarValueChipStyle}
+                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize + 1)}
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
 
           <div
             style={{
@@ -335,7 +398,7 @@ export function Window({ win, children }: Props) {
                 fontWeight: textAccent.bold ? 600 : 400,
                 fontStyle: textAccent.italic ? 'italic' : 'normal',
                 textDecoration: textAccent.underline ? 'underline' : 'none',
-                zoom: contentZoom,
+                zoom: win.kind === 'host-terminal' ? 1 : contentZoom,
                 transformOrigin: 'top left',
               }}
             >
@@ -376,11 +439,11 @@ const controlButtonStyle: React.CSSProperties = {
 }
 
 const toolbarToggleStyle: React.CSSProperties = {
-  width: 26,
-  height: 26,
+  width: 24,
+  height: 24,
   border: 'none',
   background: 'transparent',
-  borderRadius: 4,
+  borderRadius: 6,
   cursor: 'pointer',
   color: '#737373',
   transition: 'background .1s, color .1s, box-shadow .1s',
@@ -393,14 +456,44 @@ const activeToolbarToggleStyle: React.CSSProperties = {
   boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.18)',
 }
 
+const toolbarToolsGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  paddingRight: 8,
+  marginRight: 2,
+  borderRight: '1px solid rgba(229,229,229,0.9)',
+  flexWrap: 'wrap',
+  minHeight: 24,
+}
+
 const toolbarChipStyle: React.CSSProperties = {
-  fontSize: 11,
+  minHeight: 24,
+  fontSize: 10,
+  lineHeight: 1.1,
   color: '#64748b',
-  padding: '4px 8px',
+  padding: '3px 8px',
   border: '1px solid #e5e5e5',
   borderRadius: 999,
   cursor: 'pointer',
   background: 'rgba(255,255,255,0.85)',
+  whiteSpace: 'nowrap',
+}
+
+const toolbarValueChipStyle: React.CSSProperties = {
+  minWidth: 24,
+  height: 24,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 11,
+  color: '#475569',
+  padding: '0 7px',
+  border: '1px solid #e5e5e5',
+  borderRadius: 999,
+  cursor: 'pointer',
+  background: 'rgba(255,255,255,0.92)',
+  whiteSpace: 'nowrap',
 }
 
 const FONT_OPTIONS = [
@@ -410,7 +503,6 @@ const FONT_OPTIONS = [
 ]
 
 const FONT_LABELS = ['Outfit', 'Inter', 'Mono']
-const ZOOM_OPTIONS = [0.85, 0.95, 1, 1.1, 1.2]
 
 function applyHover(element: HTMLButtonElement) {
   element.style.background = '#f5f5f5'

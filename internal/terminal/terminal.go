@@ -8,14 +8,20 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+
+	"github.com/creack/pty"
 )
 
-const maxBufferedOutput = 256 * 1024
+const (
+	maxBufferedOutput = 256 * 1024
+	defaultCols       = 120
+	defaultRows       = 32
+)
 
 type Session struct {
 	id     string
 	cmd    *exec.Cmd
-	stdin  io.WriteCloser
+	pty    *os.File
 	closed bool
 
 	mu         sync.RWMutex
@@ -42,39 +48,30 @@ func (m *Manager) Start() (string, error) {
 		return "", err
 	}
 
-	cmd := exec.Command("script", "-qfc", "export TERM=xterm-256color COLORTERM=truecolor COLUMNS=120 LINES=32; stty cols 120 rows 32 2>/dev/null; exec /bin/bash -i", "/dev/null")
+	cmd := exec.Command("/bin/bash", "-i")
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
-		"COLUMNS=120",
-		"LINES=32",
+		fmt.Sprintf("COLUMNS=%d", defaultCols),
+		fmt.Sprintf("LINES=%d", defaultRows),
 	)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", fmt.Errorf("terminal stdin: %w", err)
-	}
 
-	stdout, err := cmd.StdoutPipe()
+	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})
 	if err != nil {
-		return "", fmt.Errorf("terminal stdout: %w", err)
+		return "", fmt.Errorf("start pty shell: %w", err)
 	}
-	cmd.Stderr = cmd.Stdout
 
 	session := &Session{
-		id:    id,
-		cmd:   cmd,
-		stdin: stdin,
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("start shell: %w", err)
+		id:  id,
+		cmd: cmd,
+		pty: ptyFile,
 	}
 
 	m.mu.Lock()
 	m.sessions[id] = session
 	m.mu.Unlock()
 
-	go m.captureOutput(session, stdout)
+	go m.captureOutput(session, ptyFile)
 	go m.waitForExit(session)
 
 	return id, nil
@@ -93,7 +90,7 @@ func (m *Manager) Write(id, input string) error {
 		return fmt.Errorf("terminal session closed")
 	}
 
-	if _, err := io.WriteString(session.stdin, input); err != nil {
+	if _, err := io.WriteString(session.pty, input); err != nil {
 		return fmt.Errorf("write terminal input: %w", err)
 	}
 	return nil
@@ -161,8 +158,7 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 		rows = 8
 	}
 
-	command := fmt.Sprintf("stty cols %d rows %d 2>/dev/null; export COLUMNS=%d LINES=%d\n", cols, rows, cols, rows)
-	if _, err := io.WriteString(session.stdin, command); err != nil {
+	if err := pty.Setsize(session.pty, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)}); err != nil {
 		return fmt.Errorf("resize terminal: %w", err)
 	}
 	return nil
@@ -210,7 +206,9 @@ func (m *Manager) closeSession(session *Session) {
 		session.closed = true
 		session.mu.Unlock()
 
-		_ = session.stdin.Close()
+		if session.pty != nil {
+			_ = session.pty.Close()
+		}
 		if session.cmd.Process != nil {
 			_ = session.cmd.Process.Kill()
 		}

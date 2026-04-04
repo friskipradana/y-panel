@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { AlertCircle, LoaderCircle, Power, RefreshCcw, TerminalSquare } from 'lucide-react'
+import { Terminal } from 'xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import 'xterm/css/xterm.css'
+import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
 import { useTerminalSession } from '@/hooks/useTerminalSession'
 
 const PRESETS = [
@@ -13,76 +17,208 @@ const PRESETS = [
   'journalctl -u ui-panel -n 50 --no-pager',
 ]
 
+const TERMINAL_FONT_OPTIONS = [
+  'Outfit, system-ui, sans-serif',
+  'Inter, Outfit, system-ui, sans-serif',
+  'JetBrains Mono, monospace',
+]
+
 export function HostTerminalWindow() {
-  const terminal = useTerminalSession()
-  const viewportRef = useRef<HTMLPreElement | null>(null)
+  const {
+    sessionId,
+    output,
+    starting,
+    connected,
+    closed,
+    closedByUser,
+    error,
+    start,
+    sendInput,
+    updateTerminalSize,
+    setOutputListener,
+    close,
+  } = useTerminalSession()
+  const globalContentZoom = useWindowStore(selectGlobalContentZoom)
+  const globalFontIndex = useWindowStore(selectGlobalFontIndex)
+  const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
+  const computedTerminalFontSize = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
+
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+  const xtermRef = useRef<Terminal | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const lastRenderedOutputRef = useRef('')
 
   useEffect(() => {
-    if (
-      !terminal.sessionId
-      && !terminal.starting
-      && !terminal.connected
-      && !terminal.closedByUser
-    ) {
-      void terminal.start()
+    if (!sessionId && !starting && !connected && !closedByUser) {
+      void start()
     }
-  }, [terminal.closedByUser, terminal.connected, terminal.sessionId, terminal.starting, terminal.start])
+  }, [closedByUser, connected, sessionId, starting, start])
 
   useEffect(() => {
-    if (viewportRef.current) {
-      viewportRef.current.scrollTop = viewportRef.current.scrollHeight
-    }
-  }, [terminal.output])
+    const host = viewportRef.current
+    if (!host || xtermRef.current) return
 
-  useEffect(() => {
-    const viewport = viewportRef.current
-    if (!viewport) return
-
-    const syncSize = () => {
-      const styles = window.getComputedStyle(viewport)
-      const fontSize = Number.parseFloat(styles.fontSize) || 12
-      const lineHeight = Number.parseFloat(styles.lineHeight) || fontSize * 1.7
-      const horizontalPadding = (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0)
-      const verticalPadding = (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0)
-      const charWidth = fontSize * 0.62
-      const cols = Math.max(20, Math.floor((viewport.clientWidth - horizontalPadding) / charWidth))
-      const rows = Math.max(8, Math.floor((viewport.clientHeight - verticalPadding) / lineHeight))
-      terminal.updateTerminalSize(cols, rows)
-    }
-
-    syncSize()
-
-    const observer = new ResizeObserver(() => {
-      syncSize()
+    const xterm = new Terminal({
+      cursorBlink: true,
+      fontFamily: TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2],
+      fontSize: computedTerminalFontSize,
+      lineHeight: 1.2,
+      convertEol: false,
+      scrollback: 4000,
+      allowTransparency: true,
+      theme: {
+        background: '#071120',
+        foreground: '#dbeafe',
+        cursor: '#93c5fd',
+        selectionBackground: 'rgba(147, 197, 253, 0.28)',
+        black: '#0f172a',
+        red: '#f87171',
+        green: '#4ade80',
+        yellow: '#fbbf24',
+        blue: '#60a5fa',
+        magenta: '#c084fc',
+        cyan: '#22d3ee',
+        white: '#e2e8f0',
+        brightBlack: '#334155',
+        brightRed: '#fb7185',
+        brightGreen: '#86efac',
+        brightYellow: '#fde047',
+        brightBlue: '#93c5fd',
+        brightMagenta: '#d8b4fe',
+        brightCyan: '#67e8f9',
+        brightWhite: '#f8fafc',
+      },
     })
 
-    observer.observe(viewport)
+    const fitAddon = new FitAddon()
+    fitAddonRef.current = fitAddon
+    xterm.loadAddon(fitAddon)
+    xterm.open(host)
+    xtermRef.current = xterm
+
+    const syncSize = () => {
+      if (!xtermRef.current || !fitAddonRef.current || !viewportRef.current?.isConnected) return
+      fitAddonRef.current.fit()
+      updateTerminalSize(xtermRef.current.cols, xtermRef.current.rows)
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      window.requestAnimationFrame(syncSize)
+    })
+
+    resizeObserver.observe(host)
     window.addEventListener('resize', syncSize)
 
+    const dataDisposable = xterm.onData((value: string) => {
+      void sendInput(value)
+    })
+
+    window.requestAnimationFrame(() => {
+      syncSize()
+      xterm.focus()
+    })
+
     return () => {
-      observer.disconnect()
+      resizeObserver.disconnect()
       window.removeEventListener('resize', syncSize)
+      dataDisposable.dispose()
+      setOutputListener(null)
+      fitAddonRef.current = null
+      xterm.dispose()
+      xtermRef.current = null
+      lastRenderedOutputRef.current = ''
     }
-  }, [terminal])
+  }, [sendInput, setOutputListener, updateTerminalSize])
+
+  useEffect(() => {
+    const xterm = xtermRef.current
+    if (!xterm) return
+
+    if (output === '') {
+      xterm.reset()
+      lastRenderedOutputRef.current = ''
+      if (connected) {
+        window.requestAnimationFrame(() => {
+          fitAddonRef.current?.fit()
+          updateTerminalSize(xterm.cols, xterm.rows)
+        })
+      }
+      return
+    }
+
+    if (output === lastRenderedOutputRef.current) {
+      return
+    }
+
+    if (!output.startsWith(lastRenderedOutputRef.current)) {
+      xterm.reset()
+      xterm.write(output)
+      lastRenderedOutputRef.current = output
+    }
+  }, [connected, output, updateTerminalSize])
+
+  useEffect(() => {
+    setOutputListener((chunk) => {
+      const xterm = xtermRef.current
+      if (!xterm) return
+      xterm.write(chunk)
+      lastRenderedOutputRef.current += chunk
+    })
+
+    return () => {
+      setOutputListener(null)
+    }
+  }, [setOutputListener])
+
+  useEffect(() => {
+    if (connected) {
+      window.requestAnimationFrame(() => {
+        fitAddonRef.current?.fit()
+        const xterm = xtermRef.current
+        if (!xterm) return
+        updateTerminalSize(xterm.cols, xterm.rows)
+        xterm.focus()
+      })
+    }
+  }, [connected, updateTerminalSize])
+
+  useEffect(() => {
+    if (!connected && xtermRef.current && !starting) {
+      xtermRef.current.blur()
+    }
+  }, [connected, starting])
+
+  useEffect(() => {
+    const xterm = xtermRef.current
+    if (!xterm) return
+
+    xterm.options.fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
+    xterm.options.fontSize = computedTerminalFontSize
+
+    window.requestAnimationFrame(() => {
+      fitAddonRef.current?.fit()
+      updateTerminalSize(xterm.cols, xterm.rows)
+    })
+  }, [computedTerminalFontSize, globalFontIndex, updateTerminalSize])
 
   const status = useMemo(() => {
-    if (terminal.starting) return 'Menyambungkan shell...'
-    if (terminal.error) return terminal.error
-    if (terminal.closed) return 'Session ditutup'
-    if (terminal.connected) return 'Session aktif'
+    if (starting) return 'Menyambungkan shell...'
+    if (error) return error
+    if (closed) return 'Session ditutup'
+    if (connected) return 'Session aktif'
     return 'Menunggu koneksi'
-  }, [terminal.closed, terminal.connected, terminal.error, terminal.starting])
+  }, [closed, connected, error, starting])
 
   const statusTone = useMemo(() => {
-    if (terminal.error) return 'danger'
-    if (terminal.connected) return 'success'
-    if (terminal.starting) return 'warning'
+    if (error) return 'danger'
+    if (connected) return 'success'
+    if (starting) return 'warning'
     return 'muted'
-  }, [terminal.connected, terminal.error, terminal.starting])
+  }, [connected, error, starting])
 
   const runPreset = async (command: string) => {
-    await terminal.sendInput(`${command}\n`)
-    viewportRef.current?.focus()
+    await sendInput(`${command}\n`)
+    xtermRef.current?.focus()
   }
 
   return (
@@ -98,15 +234,15 @@ export function HostTerminalWindow() {
 
           <div className="host-terminal-console-meta">
             <div className={`host-terminal-badge host-terminal-badge--${statusTone}`}>
-              {terminal.error ? <AlertCircle size={14} /> : terminal.starting ? <LoaderCircle size={14} className="animate-spin" /> : <TerminalSquare size={14} />}
+              {error ? <AlertCircle size={14} /> : starting ? <LoaderCircle size={14} className="animate-spin" /> : <TerminalSquare size={14} />}
               {status}
             </div>
 
             <button
               id="host-terminal-reconnect"
               className="host-terminal-secondary"
-              onClick={() => void terminal.start()}
-              disabled={terminal.starting}
+              onClick={() => void start()}
+              disabled={starting}
             >
               <RefreshCcw size={14} /> Reconnect
             </button>
@@ -114,27 +250,20 @@ export function HostTerminalWindow() {
             <button
               id="host-terminal-close"
               className="host-terminal-secondary host-terminal-secondary--danger"
-              onClick={() => void terminal.close()}
-              disabled={!terminal.sessionId}
+              onClick={() => void close()}
+              disabled={!sessionId}
             >
               <Power size={14} /> Close session
             </button>
           </div>
         </div>
 
-        <pre
+        <div
           id="host-terminal-output"
           ref={viewportRef}
-          className="host-terminal-console host-terminal-console--compact"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            terminal.handleTerminalKey(event.nativeEvent)
-          }}
-          onClick={() => viewportRef.current?.focus()}
-        >
-          {terminal.output || 'Membuka shell host...\n'}
-          <span className="host-terminal-caret" aria-hidden="true">█</span>
-        </pre>
+          className="host-terminal-console host-terminal-console--compact host-terminal-console--xterm"
+          onClick={() => xtermRef.current?.focus()}
+        />
       </div>
 
       <div className="host-terminal-footer host-terminal-footer--stacked">
@@ -145,7 +274,7 @@ export function HostTerminalWindow() {
               id={`host-terminal-preset-${preset.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
               className="host-terminal-preset"
               onClick={() => void runPreset(preset)}
-              disabled={!terminal.connected}
+              disabled={!connected}
             >
               {preset}
             </button>
@@ -153,7 +282,7 @@ export function HostTerminalWindow() {
         </div>
 
         <p className="host-terminal-hint">
-          Klik area terminal lalu ketik langsung. Enter, Backspace, Tab, tombol panah, Ctrl+C, Ctrl+D, dan Ctrl+L didukung.
+          Terminal sekarang memakai xterm.js. Aplikasi interaktif seperti htop, btop, vim, dan navigasi panah akan tampil jauh lebih normal.
         </p>
       </div>
     </div>
