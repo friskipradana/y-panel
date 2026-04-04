@@ -1,99 +1,107 @@
 import { create } from "zustand";
 import { withMutative } from "./middleware/mutative";
-import type { WindowId, WindowState } from "@/types";
-
-// ========================
-// DEFAULT CONFIG
-// ========================
+import type { WindowKind, WindowState } from "@/types";
 
 const BASE_Z = 100;
 const DEFAULTS: Record<
-  WindowId,
-  { title: string; icon: string; width: number; height: number }
+  WindowKind,
+  { title: string; icon: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "My Apps", icon: "📁", width: 460, height: 380 },
-  terminal: { title: "Terminal", icon: "💻", width: 500, height: 320 },
-  system: { title: "System Info", icon: "⚙️", width: 360, height: 320 },
-  docs: { title: "Docs", icon: "📚", width: 380, height: 340 },
-  changelog: { title: "Changelog", icon: "🔔", width: 340, height: 300 },
-  portainer: { title: "Portainer", icon: "🐋", width: 500, height: 420 },
-  settings: { title: "Settings", icon: "🔧", width: 360, height: 300 },
-  trash: { title: "Trash", icon: "🗑️", width: 300, height: 180 },
+  apps: { title: "My Apps", icon: "📁", width: 460, height: 380, singleton: true },
+  terminal: { title: "Terminal", icon: "💻", width: 500, height: 320, singleton: true },
+  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 860, height: 620 },
+  system: { title: "System Info", icon: "⚙️", width: 420, height: 520, singleton: true },
+  docs: { title: "Docs", icon: "📚", width: 380, height: 340, singleton: true },
+  changelog: { title: "Changelog", icon: "🔔", width: 340, height: 300, singleton: true },
+  portainer: { title: "Portainer", icon: "🐋", width: 500, height: 420, singleton: true },
+  settings: { title: "Settings", icon: "🔧", width: 360, height: 300, singleton: true },
+  trash: { title: "Trash", icon: "🗑️", width: 300, height: 180, singleton: true },
 };
 
-// ========================
-// HELPER — recalculate semua zIndex dari posisi array
-// ========================
 function reorder(windows: WindowState[]) {
   windows.forEach((w, i) => {
     w.zIndex = BASE_Z + i;
   });
 }
 
-// ========================
-// HELPER — angkat window ke posisi terakhir (paling depan)
-// ========================
-function bringToFront(windows: WindowState[], id: WindowId) {
+function bringToFront(windows: WindowState[], id: string) {
   const index = windows.findIndex((w) => w.id === id);
   if (index === -1) return;
-  if (index === windows.length - 1) return; // ✅ skip kalau sudah paling depan
+  if (index === windows.length - 1) return;
   const [win] = windows.splice(index, 1);
   windows.push(win);
   reorder(windows);
 }
 
+function nextWindowTitle(kind: WindowKind, windows: WindowState[]) {
+  const def = DEFAULTS[kind];
+  if (def.singleton) return def.title;
+  const count = windows.filter((w) => w.kind === kind).length + 1;
+  return count === 1 ? def.title : `${def.title} ${count}`;
+}
+
+function createWindowId(kind: WindowKind) {
+  return `${kind}:${Math.random().toString(36).slice(2, 8)}`;
+}
+
 interface WindowStore {
   windows: WindowState[];
-  focusedId: WindowId | null; // ✅ track focused window secara eksplisit
+  focusedId: string | null;
+  autoHideDock: boolean;
 
-  openWindow: (id: WindowId) => void;
-  closeWindow: (id: WindowId) => void;
-  focusWindow: (id: WindowId) => void;
-  minimizeWindow: (id: WindowId) => void;
-  maximizeWindow: (id: WindowId) => void;
-  moveWindow: (id: WindowId, x: number, y: number) => void;
-  resizeWindow: (id: WindowId, width: number, height: number) => void;
+  openWindow: (kind: WindowKind) => string;
+  closeWindow: (id: string) => void;
+  focusWindow: (id: string) => void;
+  minimizeWindow: (id: string) => void;
+  maximizeWindow: (id: string) => void;
+  moveWindow: (id: string, x: number, y: number) => void;
+  resizeWindow: (id: string, width: number, height: number) => void;
+  toggleDockAutoHide: () => void;
   resetWindows: () => void;
 }
 
-// ========================
-// SELECTORS
-// ========================
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
 export const selectWindows = (s: WindowStore) => s.windows;
-export const selectTopZ = (s: WindowStore) =>
-  s.windows.length > 0 ? BASE_Z + s.windows.length - 1 : BASE_Z;
+export const selectAutoHideDock = (s: WindowStore) => s.autoHideDock;
+export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
+  s.windows.filter((w) => w.kind === kind).length;
 
-// ========================
-// STORE
-// ========================
 export const useWindowStore = create<WindowStore>()(
   withMutative<WindowStore>((set) => ({
     windows: [],
     focusedId: null,
+    autoHideDock: false,
 
-    openWindow: (id) =>
+    openWindow: (kind) => {
+      let openedId = '';
       set((state) => {
-        const existing = state.windows.find((w) => w.id === id);
+        const def = DEFAULTS[kind];
+        const existing = def.singleton
+          ? state.windows.find((w) => w.kind === kind)
+          : undefined;
 
         if (existing) {
           existing.isMinimized = false;
-          bringToFront(state.windows, id);
-          state.focusedId = id; // ✅
-          console.log("[ACTION] focus existing window:", id);
+          existing.lastAction = 'restore';
+          bringToFront(state.windows, existing.id);
+          state.focusedId = existing.id;
+          openedId = existing.id;
           return;
         }
 
-        const def = DEFAULTS[id];
         const pad = 16;
         const width = Math.min(def.width, window.innerWidth - pad * 2);
-        const height = Math.min(def.height, window.innerHeight - pad * 2);
-        const x = Math.max(pad, (window.innerWidth - width) / 2);
-        const y = Math.max(pad, (window.innerHeight - height) / 2);
+        const height = Math.min(def.height, window.innerHeight - 72);
+        const offset = state.windows.filter((w) => w.kind === kind).length * 26;
+        const x = Math.max(pad, (window.innerWidth - width) / 2 + offset);
+        const y = Math.max(54, (window.innerHeight - height) / 2 + Math.min(offset, 64));
+        const id = createWindowId(kind);
+        openedId = id;
 
         state.windows.push({
           id,
-          title: def.title,
+          kind,
+          title: nextWindowTitle(kind, state.windows),
           icon: def.icon,
           x,
           y,
@@ -102,11 +110,13 @@ export const useWindowStore = create<WindowStore>()(
           zIndex: BASE_Z + state.windows.length,
           isMinimized: false,
           isMaximized: false,
+          lastAction: 'open',
         });
 
-        state.focusedId = id; // ✅
-        console.log("[ACTION] open new window:", id);
-      }),
+        state.focusedId = id;
+      });
+      return openedId;
+    },
 
     closeWindow: (id) =>
       set((state) => {
@@ -114,48 +124,49 @@ export const useWindowStore = create<WindowStore>()(
         if (index !== -1) {
           state.windows.splice(index, 1);
           reorder(state.windows);
-          // ✅ auto-focus ke window terakhir setelah close
-          state.focusedId =
-            state.windows.length > 0
-              ? state.windows[state.windows.length - 1].id
-              : null;
-          console.log("[ACTION] close window:", id);
+          const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+          state.focusedId = lastVisible?.id ?? null;
         }
       }),
 
     focusWindow: (id) =>
       set((state) => {
-        if (state.focusedId === id) return; // ✅ skip kalau sudah fokus
+        const win = state.windows.find((w) => w.id === id);
+        if (!win) return;
+        if (win.isMinimized) {
+          win.isMinimized = false;
+          win.lastAction = 'restore';
+        }
         bringToFront(state.windows, id);
         state.focusedId = id;
-        console.log("[ACTION] focus window:", id);
       }),
 
     minimizeWindow: (id) =>
       set((state) => {
         const win = state.windows.find((w) => w.id === id);
-        if (win) {
-          win.isMinimized = !win.isMinimized;
-          // ✅ auto-focus ke window visible berikutnya saat minimize
-          if (win.isMinimized) {
-            const lastVisible = [...state.windows]
-              .reverse()
-              .find((w) => !w.isMinimized && w.id !== id);
-            state.focusedId = lastVisible?.id ?? null;
-          } else {
-            state.focusedId = id;
-          }
-          console.log("[ACTION] toggle minimize:", id);
+        if (!win) return;
+        win.isMinimized = !win.isMinimized;
+        win.lastAction = win.isMinimized ? 'minimize' : 'restore';
+
+        if (win.isMinimized) {
+          const lastVisible = [...state.windows]
+            .reverse()
+            .find((w) => !w.isMinimized && w.id !== id);
+          state.focusedId = lastVisible?.id ?? null;
+          return;
         }
+
+        bringToFront(state.windows, id);
+        state.focusedId = id;
       }),
 
     maximizeWindow: (id) =>
       set((state) => {
         const win = state.windows.find((w) => w.id === id);
-        if (win) {
-          win.isMaximized = !win.isMaximized;
-          console.log("[ACTION] toggle maximize:", id);
-        }
+        if (!win) return;
+        win.isMaximized = !win.isMaximized;
+        bringToFront(state.windows, id);
+        state.focusedId = id;
       }),
 
     moveWindow: (id, x, y) =>
@@ -176,18 +187,19 @@ export const useWindowStore = create<WindowStore>()(
         }
       }),
 
+    toggleDockAutoHide: () =>
+      set((state) => {
+        state.autoHideDock = !state.autoHideDock;
+      }),
+
     resetWindows: () =>
       set((state) => {
         state.windows = [];
         state.focusedId = null;
-        console.log("[ACTION] reset windows");
       }),
   })),
 );
 
-// ========================
-// GLOBAL LOGGER
-// ========================
 const DEBUG = true;
 
 useWindowStore.subscribe((state) => {
@@ -196,12 +208,15 @@ useWindowStore.subscribe((state) => {
   console.log("🧠 [STATE UPDATE]", {
     total: state.windows.length,
     focusedId: state.focusedId,
+    autoHideDock: state.autoHideDock,
     windows: state.windows.map((w) => ({
       id: w.id,
+      kind: w.kind,
       z: w.zIndex,
       x: Math.round(w.x),
       y: Math.round(w.y),
       minimized: w.isMinimized,
+      action: w.lastAction,
     })),
   });
 });

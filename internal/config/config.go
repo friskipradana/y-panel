@@ -1,0 +1,61 @@
+package config
+
+import (
+	"errors"
+	"os"
+	"time"
+)
+
+type Config struct {
+	BindAddr       string
+	AdminUsername  string
+	AdminPassword  string
+	SessionSecret  string
+	SessionTTL     time.Duration
+	StateDir       string
+	PortainerURL   string
+	InstallChannel string
+	FrontendDir    string
+}
+
+func Load() (Config, error) {
+	cfg := Config{
+		BindAddr:       getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
+		AdminUsername:  os.Getenv("PANEL_ADMIN_USERNAME"),
+		AdminPassword:  os.Getenv("PANEL_ADMIN_PASSWORD"),
+		SessionSecret:  getenv("PANEL_SESSION_SECRET", "dev-session-secret"),
+		SessionTTL:     parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
+		StateDir:       getenv("PANEL_STATE_DIR", "/var/lib/ui-panel"),
+		PortainerURL:   getenv("PANEL_PORTAINER_URL", "http://127.0.0.1:9000"),
+		InstallChannel: getenv("PANEL_INSTALL_CHANNEL", "stable"),
+		FrontendDir:    getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
+	}
+
+	if cfg.AdminUsername == "" {
+		return Config{}, errors.New("missing PANEL_ADMIN_USERNAME")
+	}
+	if cfg.AdminPassword == "" {
+		return Config{}, errors.New("missing PANEL_ADMIN_PASSWORD")
+	}
+
+	return cfg, nil
+}
+
+func getenv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func parseDurationEnv(key string, fallback time.Duration) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}

@@ -1,18 +1,52 @@
 import { useState, useEffect } from 'react'
-import { MoreHorizontal, Monitor, RotateCcw } from 'lucide-react'
+import { LogOut, Monitor, RotateCcw } from 'lucide-react'
+import { logoutAgent } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
+import type { WindowKind } from '@/types'
 
-export function Taskbar() {
+interface TaskbarProps {
+  onLogout: () => void
+}
+
+function formatDateTime(value: Date) {
+  const day = String(value.getDate()).padStart(2, '0')
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const year = value.getFullYear()
+  const hours = String(value.getHours()).padStart(2, '0')
+  const minutes = String(value.getMinutes()).padStart(2, '0')
+  const seconds = String(value.getSeconds()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+}
+
+const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
+  { label: 'Apps', kind: 'apps' },
+  { label: 'Terminal', kind: 'host-terminal' },
+  { label: 'System', kind: 'system' },
+  { label: 'Docs', kind: 'docs' },
+]
+
+export function Taskbar({ onLogout }: TaskbarProps) {
   const { openWindow, resetWindows } = useWindowStore()
   const [time, setTime] = useState('')
+  const [loggingOut, setLoggingOut] = useState(false)
 
   useEffect(() => {
-    const tick = () =>
-      setTime(new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }))
+    const tick = () => setTime(formatDateTime(new Date()))
     tick()
-    const id = setInterval(tick, 15_000)
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logoutAgent()
+    } finally {
+      onLogout()
+      setLoggingOut(false)
+    }
+  }
 
   return (
     <div
@@ -20,145 +54,110 @@ export function Taskbar() {
       style={{
         height: 44,
         zIndex: 9999,
-        background: '#fff',
-        borderBottom: '1px solid #e5e5e5',
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(226,232,240,0.85)',
         padding: '0 16px',
-        gap: 0,
+        gap: 16,
       }}
     >
-      {/* Left side */}
-      <div className="ml-auto flex items-center gap-2">
-        {/* Brand */}
-        {/* <div className="flex items-center gap-2 mr-4">
-          <div
-            className="w-5 h-5 rounded"
-            style={{ background: '#0a0a0a' }}
-          />
-        </div> */}
-
-        {/* Nav items */}
-        <div className='flex gap-0'>
-          {([
-            { label: 'Apps', id: 'apps' },
-            { label: 'Terminal', id: 'terminal' },
-            { label: 'System', id: 'system' },
-            { label: 'Docs', id: 'docs' },
-          ] as const).map((item) => (
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 rounded-full px-1 py-1" style={{ background: 'rgba(255,255,255,0.62)', border: '1px solid rgba(226,232,240,0.9)' }}>
+          {QUICK_LAUNCH.map((item) => (
             <button
-              key={item.id}
-              onClick={() => openWindow(item.id)}
-              style={{
-                fontSize: 14,
-                color: '#525252',
-                padding: '4px 10px',
-                borderRadius: 6,
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'Outfit, sans-serif',
-                fontWeight: 500,
-                transition: 'background .1s, color .1s',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = '#f5f5f5'
-                e.currentTarget.style.color = '#0a0a0a'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'transparent'
-                e.currentTarget.style.color = '#525252'
-              }}
+              key={item.kind}
+              id={`taskbar-open-${item.kind}`}
+              onClick={() => openWindow(item.kind)}
+              style={taskbarButtonStyle}
             >
               {item.label}
             </button>
           ))}
         </div>
-
       </div>
-      {/* Right side */}
+
       <div className="ml-auto flex items-center gap-2">
-        {/* Search */}
-        {/* <button
-          onClick={() => openWindow('search' as any)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 12, color: '#a3a3a3',
-            padding: '5px 10px', borderRadius: 6,
-            background: '#f5f5f5', border: '1px solid #e5e5e5',
-            cursor: 'pointer', fontFamily: 'Outfit, sans-serif',
-          }}
-        >
-          <Search size={12} />
-          Search
-        </button> */}
-
-        {/* Add app */}
-        {/* <button
-          onClick={() => openWindow('apps')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            fontSize: 12, fontWeight: 600, color: '#fff',
-            padding: '5px 11px', borderRadius: 6,
-            background: '#0a0a0a', border: 'none',
-            cursor: 'pointer', fontFamily: 'Outfit, sans-serif',
-          }}
-        >
-          <Plus size={12} />
-          App
-        </button> */}
-
-        {/* Clock */}
         <span
+          id="taskbar-clock"
           style={{
             fontSize: 12,
             fontFamily: "'JetBrains Mono', monospace",
-            color: '#a3a3a3',
-            minWidth: 36,
+            color: '#64748b',
+            minWidth: 156,
             textAlign: 'right',
           }}
         >
           {time}
         </span>
 
-        {/* Monitoring */}
         <button
-          style={{
-            width: 20, height: 20, borderRadius: 7,
-            background: '#0a0a0a', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#fff',
-          }}
+          id="taskbar-monitor"
+          onClick={() => openWindow('system')}
+          style={iconButtonStyle}
         >
           <Monitor size={14} />
         </button>
 
-        {/* Reset windows (debug) */}
         <button
           id="taskbar-reset-windows"
           title="Reset windows"
           onClick={resetWindows}
-          style={{
-            width: 20, height: 20, borderRadius: 7,
-            background: '#0a0a0a', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#fff',
-          }}
+          style={iconButtonStyle}
         >
           <RotateCcw size={12} />
         </button>
 
-        {/* More */}
         <button
-          id="taskbar-more"
+          id="taskbar-logout"
+          title="Logout"
+          onClick={handleLogout}
+          disabled={loggingOut}
           style={{
-            width: 20, height: 20, borderRadius: 7,
-            background: '#0a0a0a', border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: '#fff',
+            minWidth: 78,
+            height: 30,
+            borderRadius: 999,
+            background: loggingOut ? '#64748b' : '#0f172a',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: loggingOut ? 'wait' : 'pointer',
+            color: '#fff',
+            fontSize: 12,
+            padding: '0 14px',
+            fontFamily: 'Outfit, sans-serif',
           }}
         >
-          <MoreHorizontal size={14} />
+          <LogOut size={12} />
+          {loggingOut ? 'Wait' : 'Logout'}
         </button>
       </div>
     </div>
   )
+}
+
+const taskbarButtonStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: '#475569',
+  padding: '6px 12px',
+  borderRadius: 999,
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  fontFamily: 'Outfit, sans-serif',
+  fontWeight: 500,
+}
+
+const iconButtonStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.9)',
+  border: '1px solid rgba(226,232,240,0.9)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  color: '#0f172a',
 }

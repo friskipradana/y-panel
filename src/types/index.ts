@@ -1,7 +1,8 @@
 // ── Window Manager ──────────────────────────────────────────────
-export type WindowId =
+export type WindowKind =
   | 'apps'
   | 'terminal'
+  | 'host-terminal'
   | 'system'
   | 'docs'
   | 'changelog'
@@ -9,8 +10,11 @@ export type WindowId =
   | 'settings'
   | 'trash'
 
+export type WindowId = WindowKind
+
 export interface WindowState {
-  id: WindowId
+  id: string
+  kind: WindowKind
   title: string
   icon: string
   x: number
@@ -20,6 +24,7 @@ export interface WindowState {
   zIndex: number
   isMinimized: boolean
   isMaximized: boolean
+  lastAction?: 'open' | 'minimize' | 'restore'
 }
 
 // ── Docker / Portainer ───────────────────────────────────────────
@@ -52,6 +57,10 @@ export interface AppShortcut {
   label: string
   icon: string
   color: string
-  url?: string           // buka tab baru
-  windowId?: WindowId    // buka window internal
+  url?: string
+  windowId?: WindowKind
+}
+
+export interface TerminalSessionStartResponse {
+  sessionId: string
 }
