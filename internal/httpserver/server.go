@@ -1,12 +1,16 @@
 package httpserver
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +52,13 @@ type terminalSocketMessage struct {
 	Rows    int    `json:"rows,omitempty"`
 }
 
+type systemLogResponse struct {
+	Service string            `json:"service"`
+	Limit   int               `json:"limit"`
+	Lines   []system.LogEntry `json:"lines"`
+}
+
+
 func New(cfg config.Config) http.Handler {
 	s := &Server{
 		cfg:             cfg,
@@ -64,7 +75,7 @@ func New(cfg config.Config) http.Handler {
 	s.authedFrontend = s.requireHTMLAuth(s.frontendFS)
 
 	s.routes()
-	return s.withCORS(s.mux)
+	return s.withAccessLog(s.withCORS(s.mux))
 }
 
 func (s *Server) routes() {
@@ -74,6 +85,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuth(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/v1/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
 	s.mux.Handle("GET /api/v1/system/summary", s.requireAuth(http.HandlerFunc(s.handleSystemSummary)))
+	s.mux.Handle("GET /api/v1/system/logs", s.requireAuth(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/containers", s.requireAuth(http.HandlerFunc(s.handleContainersList)))
 	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuth(http.HandlerFunc(s.handleContainerStart)))
 	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuth(http.HandlerFunc(s.handleContainerStop)))
@@ -107,12 +119,15 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("[auth] login decode failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
 		return
 	}
 
-	token, err := s.auth.Login(strings.TrimSpace(req.Username), req.Password)
+	username := strings.TrimSpace(req.Username)
+	token, err := s.auth.Login(username, req.Password)
 	if err != nil {
+		log.Printf("[auth] login failed user=%q remote=%s", username, remoteAddr(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
 		return
 	}
@@ -127,6 +142,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
 	})
 
+	log.Printf("[auth] login success user=%q remote=%s", username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":       true,
 		"username": s.cfg.AdminUsername,
@@ -147,6 +163,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		s.auth.Logout(cookie.Value)
 	}
 
+	username, _ := s.currentUser(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
@@ -157,6 +174,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 	})
 
+	log.Printf("[auth] logout user=%q remote=%s", username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -178,6 +196,34 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		"stateDir":           s.cfg.StateDir,
 	})
 }
+
+func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
+	service := strings.TrimSpace(r.URL.Query().Get("service"))
+	if service == "" {
+		service = "ui-panel"
+	}
+	limit := 160
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil {
+			limit = parsed
+		}
+	}
+
+	lines, err := system.ReadServiceLogs(service, limit)
+	if err != nil {
+		log.Printf("[system] logs failed service=%q remote=%s err=%v", service, remoteAddr(r), err)
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	log.Printf("[system] logs served service=%q lines=%d remote=%s", service, len(lines), remoteAddr(r))
+	s.writeJSON(w, http.StatusOK, systemLogResponse{
+		Service: service,
+		Limit:   limit,
+		Lines:   lines,
+	})
+}
+
 
 func (s *Server) handleContainersList(w http.ResponseWriter, _ *http.Request) {
 	containers, err := docker.ListContainers()
@@ -217,12 +263,15 @@ func (s *Server) handleContainerStop(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
-func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Request) {
 	id, err := s.terminalManager.Start()
 	if err != nil {
+		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	username, _ := s.currentUser(r)
+	log.Printf("[terminal] session started id=%s user=%q remote=%s", id, username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"sessionId": id})
 }
 
@@ -233,11 +282,14 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	username, _ := s.currentUser(r)
 	conn, err := s.terminalUpgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("[terminal] ws upgrade failed id=%s user=%q remote=%s err=%v", id, username, remoteAddr(r), err)
 		return
 	}
 
+	log.Printf("[terminal] ws attached id=%s user=%q remote=%s", id, username, remoteAddr(r))
 	writeMu := syncWriter{}
 	closed := make(chan struct{})
 
@@ -253,15 +305,18 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 			_ = safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
 		},
 		func() {
+			log.Printf("[terminal] session closed id=%s user=%q", id, username)
 			_ = safeWrite(terminalSocketMessage{Type: "closed", Closed: true, Session: id})
 			closeChannel(closed)
 		},
 	); err != nil {
+		log.Printf("[terminal] attach failed id=%s user=%q remote=%s err=%v", id, username, remoteAddr(r), err)
 		_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 		_ = conn.Close()
 		return
 	}
 	defer func() {
+		log.Printf("[terminal] ws detached id=%s user=%q remote=%s", id, username, remoteAddr(r))
 		_ = s.terminalManager.Detach(id)
 		_ = conn.Close()
 	}()
@@ -283,15 +338,18 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		switch msg.Type {
 		case "input":
 			if err := s.terminalManager.Write(id, msg.Data); err != nil {
+				log.Printf("[terminal] input failed id=%s user=%q err=%v", id, username, err)
 				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 				return
 			}
 		case "resize":
 			if err := s.terminalManager.Resize(id, msg.Cols, msg.Rows); err != nil {
+				log.Printf("[terminal] resize failed id=%s user=%q cols=%d rows=%d err=%v", id, username, msg.Cols, msg.Rows, err)
 				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 				return
 			}
 		case "close":
+			log.Printf("[terminal] close requested id=%s user=%q", id, username)
 			_ = s.terminalManager.Close(id)
 			return
 		default:
@@ -428,6 +486,69 @@ func newFrontendHandler(frontendDir string) http.Handler {
 
 		http.ServeFile(w, r, indexPath)
 	})
+}
+
+func (s *Server) withAccessLog(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(recorder, r)
+		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, time.Since(started).Round(time.Millisecond), remoteAddr(r))
+	})
+}
+
+func requestKind(r *http.Request) string {
+	if websocket.IsWebSocketUpgrade(r) {
+		return "ws"
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+		return "api"
+	}
+	if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" {
+		return "asset"
+	}
+	return "frontend"
+}
+
+func remoteAddr(r *http.Request) string {
+	forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
+	if forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		return strings.TrimSpace(parts[0])
+	}
+	return r.RemoteAddr
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("response writer does not support hijacking")
+	}
+	return hijacker.Hijack()
+}
+
+func (r *statusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (r *statusRecorder) Push(target string, opts *http.PushOptions) error {
+	pusher, ok := r.ResponseWriter.(http.Pusher)
+	if !ok {
+		return http.ErrNotSupported
+	}
+	return pusher.Push(target, opts)
 }
 
 type syncWriter struct {

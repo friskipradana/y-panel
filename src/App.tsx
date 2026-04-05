@@ -5,20 +5,28 @@ import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
 import { useWindowStore } from '@/store/windowStore'
 import { getMe } from '@/api/agent'
+import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind } from '@/types'
 
 const AppsWindow = lazy(() => import('@/components/windows/AppsWindow').then((module) => ({ default: module.AppsWindow })))
 const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
+const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
 const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
-const DebugPanel = lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
-const DebugGrid = lazy(() => import('@/components/debug/DebugGrid').then((module) => ({ default: module.DebugGrid })))
+const DebugPanel = import.meta.env.DEV
+  ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
+  : null
+const DebugGrid = import.meta.env.DEV
+  ? lazy(() => import('@/components/debug/DebugGrid').then((module) => ({ default: module.DebugGrid })))
+  : null
 
 const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
+const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
 
 const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   apps: () => <AppsWindow />,
   system: () => <SystemWindow />,
+  'system-logs': () => <SystemLogsWindow />,
   'host-terminal': () => <HostTerminalWindow />,
   portainer: () => (
     <div className="flex flex-col items-center justify-center gap-3 h-40 text-center">
@@ -48,6 +56,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
         { icon: '📦', title: 'Portainer logs', cmd: 'docker logs -f ui-panel-portainer' },
         { icon: '🪵', title: 'Agent logs', cmd: 'journalctl -u ui-panel -f' },
         { icon: '💻', title: 'Host terminal', cmd: 'Buka window Host Terminal dari panel desktop' },
+        { icon: '📜', title: 'System logs panel', cmd: 'Buka tombol log di taskbar untuk melihat journalctl service' },
         { icon: '🔁', title: 'Restart panel', cmd: 'ui-panel restart' },
         { icon: '🧹', title: 'Uninstall', cmd: 'ui-panel uninstall' },
       ].map((d) => (
@@ -61,6 +70,17 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   changelog: () => (
     <div>
       {[
+        {
+          v: 'v0.5.0',
+          d: 'Hari ini',
+          items: [
+            'Added dedicated system logs window backed by journalctl via backend API',
+            'Fixed websocket upgrade regression caused by access log response wrapper',
+            'Added taskbar shortcuts for runtime logs and changelog access',
+            'Implemented CLI reset-password to rotate PANEL_ADMIN_PASSWORD and restart service',
+            'Expanded frontend and backend runtime observability for auth and terminal flows',
+          ],
+        },
         { v: 'v0.4.0', d: 'Hari ini', items: ['Simplified login screen', 'Host terminal execution via Go agent', 'Safer deploy automation'] },
         { v: 'v0.3.0', d: 'Hari ini', items: ['Frontend served by Go agent', 'CLI ui-panel install helper', 'Container actions through Go backend'] },
         { v: 'v0.2.0', d: 'Hari ini', items: ['Go panel agent bootstrap', 'Linux installer shell', 'Frontend login screen ke agent'] },
@@ -144,14 +164,17 @@ function AppShell() {
       }
     }
 
+    runtimeLogger.info('auth', 'checking existing session')
     getMe()
-      .then(() => {
+      .then((me) => {
         if (cancelled) return
+        runtimeLogger.info('auth', 'existing session restored', { username: me.username })
         setAuthenticated(true)
         syncLoggedInRoute()
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return
+        runtimeLogger.warn('auth', 'no active session found', { error })
         setAuthenticated(false)
         syncLoggedOutRoute()
       })
@@ -160,6 +183,7 @@ function AppShell() {
       })
 
     const handleSessionExpired = () => {
+      runtimeLogger.warn('auth', 'session expired, resetting shell state')
       queryClient.clear()
       useWindowStore.getState().resetWindows()
       setAuthenticated(false)
@@ -175,6 +199,7 @@ function AppShell() {
   }, [])
 
   const handleLogout = () => {
+    runtimeLogger.info('auth', 'manual logout requested from desktop')
     queryClient.clear()
     useWindowStore.getState().resetWindows()
     setAuthenticated(false)
@@ -203,6 +228,7 @@ function AppShell() {
         </div>
       )}>
         <LoginScreen onLoginSuccess={() => {
+          runtimeLogger.info('auth', 'login success propagated to app shell')
           setAuthenticated(true)
           if (window.location.pathname === LOGIN_PATH) {
             window.history.replaceState({}, '', '/')
@@ -215,10 +241,12 @@ function AppShell() {
   return (
     <>
       <Desktop onLogout={handleLogout} />
-      <Suspense fallback={null}>
-        <DebugPanel />
-        <DebugGrid />
-      </Suspense>
+      {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid ? (
+        <Suspense fallback={null}>
+          <DebugPanel />
+          <DebugGrid />
+        </Suspense>
+      ) : null}
     </>
   )
 }

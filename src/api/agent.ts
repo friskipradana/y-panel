@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios'
-import type { TerminalSessionStartResponse } from '@/types'
+import type { SystemLogsResponse, TerminalSessionStartResponse } from '@/types'
+import { runtimeLogger } from '@/lib/runtimeLogger'
 
 export interface BootstrapStatus {
   installed: boolean
@@ -46,13 +47,22 @@ let unauthorizedEventArmed = true
 agentApi.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    runtimeLogger.error('api', 'request failed', {
+      method: error.config?.method,
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.message,
+    })
+
     if (error.response?.status === 401 && unauthorizedEventArmed) {
       unauthorizedEventArmed = false
+      runtimeLogger.warn('auth', 'session expired event dispatched')
       window.dispatchEvent(new CustomEvent('panel:session-expired'))
       window.setTimeout(() => {
         unauthorizedEventArmed = true
       }, 250)
     }
+
     return Promise.reject(error)
   },
 )
@@ -77,3 +87,6 @@ export const startTerminalSession = () =>
 
 export const closeTerminalSession = (sessionId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/terminal/sessions/${sessionId}`).then((r) => r.data)
+
+export const getSystemLogs = (service = 'ui-panel', limit = 160) =>
+  agentApi.get<SystemLogsResponse>('/api/v1/system/logs', { params: { service, limit } }).then((r) => r.data)

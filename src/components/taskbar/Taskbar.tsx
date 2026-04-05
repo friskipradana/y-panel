@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { LogOut, Monitor, RotateCcw } from 'lucide-react'
+import { FileText, LogOut, Monitor, RotateCcw, ScrollText } from 'lucide-react'
 import { logoutAgent } from '@/api/agent'
+import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import type { WindowKind } from '@/types'
 
@@ -20,6 +21,7 @@ function formatDateTime(value: Date) {
 
 const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Apps', kind: 'apps' },
+  { label: 'Portainer', kind: 'portainer' },
   { label: 'Terminal', kind: 'host-terminal' },
   { label: 'System', kind: 'system' },
   { label: 'Docs', kind: 'docs' },
@@ -41,6 +43,7 @@ export function Taskbar({ onLogout }: TaskbarProps) {
     if (loggingOut) return
     setLoggingOut(true)
     try {
+      runtimeLogger.info('auth', 'logout requested from taskbar')
       await logoutAgent()
     } finally {
       onLogout()
@@ -92,10 +95,29 @@ export function Taskbar({ onLogout }: TaskbarProps) {
 
         <button
           id="taskbar-monitor"
+          title="System Info"
           onClick={() => openWindow('system')}
           style={iconButtonStyle}
         >
           <Monitor size={14} />
+        </button>
+
+        <button
+          id="taskbar-system-log"
+          title="System Logs"
+          onClick={() => openWindow('system-logs')}
+          style={iconButtonStyle}
+        >
+          <ScrollText size={14} />
+        </button>
+
+        <button
+          id="taskbar-runtime-log"
+          title="Changelog"
+          onClick={() => openWindow('changelog')}
+          style={iconButtonStyle}
+        >
+          <FileText size={14} />
         </button>
 
         <button

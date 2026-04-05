@@ -262,10 +262,6 @@ export function HostTerminalWindow() {
             </button>
           ))}
         </div>
-
-        <p className="host-terminal-hint">
-          Terminal sekarang memakai xterm.js dengan sinkronisasi viewport yang lebih stabil. Aplikasi interaktif seperti htop, btop, vim, dan navigasi panah akan tampil jauh lebih normal.
-        </p>
       </div>
     </div>
   )

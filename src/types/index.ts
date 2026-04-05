@@ -4,6 +4,7 @@ export type WindowKind =
   | 'terminal'
   | 'host-terminal'
   | 'system'
+  | 'system-logs'
   | 'docs'
   | 'changelog'
   | 'portainer'
@@ -63,4 +64,14 @@ export interface AppShortcut {
 
 export interface TerminalSessionStartResponse {
   sessionId: string
+}
+
+export interface SystemLogEntry {
+  line: string
+}
+
+export interface SystemLogsResponse {
+  service: string
+  limit: number
+  lines: SystemLogEntry[]
 }

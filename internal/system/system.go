@@ -33,6 +33,10 @@ type Summary struct {
 	PortainerReachable bool      `json:"portainerReachable"`
 }
 
+type LogEntry struct {
+	Line string `json:"line"`
+}
+
 func Inspect(portainerURL, stateDir string) Summary {
 	hostname, _ := os.Hostname()
 	dockerInstalled := hasCommand("docker")
@@ -220,4 +224,46 @@ func readStorageUsage(target string) UsageStat {
 		used = total - free
 	}
 	return UsageStat{Total: total, Used: used}
+}
+
+func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
+	service = strings.TrimSpace(service)
+	if service == "" {
+		service = "ui-panel"
+	}
+	if limit <= 0 {
+		limit = 120
+	}
+	if limit > 400 {
+		limit = 400
+	}
+	if !hasCommand("journalctl") {
+		return nil, fmt.Errorf("journalctl tidak tersedia pada host")
+	}
+
+	cmd := exec.Command("journalctl", "-u", service, "-n", strconv.Itoa(limit), "--no-pager", "-o", "short-iso")
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr != "" {
+				return nil, fmt.Errorf(stderr)
+			}
+		}
+		return nil, fmt.Errorf("gagal membaca log service %s", service)
+	}
+
+	lines := strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n")
+	entries := make([]LogEntry, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		entries = append(entries, LogEntry{Line: line})
+	}
+	if len(entries) == 0 {
+		entries = append(entries, LogEntry{Line: "Belum ada log yang tersedia untuk service ini."})
+	}
+	return entries, nil
 }

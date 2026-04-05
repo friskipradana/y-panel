@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { closeTerminalSession, startTerminalSession } from '@/api/agent'
+import { runtimeLogger } from '@/lib/runtimeLogger'
 
 type TerminalSocketMessage = {
   type: 'ready' | 'output' | 'closed' | 'error' | 'resize'
@@ -65,6 +66,7 @@ export function useTerminalSession() {
 
     if (!closeActiveSocket || !socket) return
     if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      runtimeLogger.info('terminal', 'closing websocket connection', { sessionId: sessionIdRef.current })
       socket.close()
     }
   }, [])
@@ -72,9 +74,10 @@ export function useTerminalSession() {
   const releaseSession = useCallback(async (id: string | null) => {
     if (!id) return
     try {
+      runtimeLogger.info('terminal', 'releasing terminal session', { sessionId: id })
       await closeTerminalSession(id)
-    } catch {
-      // noop
+    } catch (err) {
+      runtimeLogger.warn('terminal', 'release session request failed', { sessionId: id, error: err })
     }
   }, [])
 
@@ -95,11 +98,13 @@ export function useTerminalSession() {
   const connectSocket = useCallback((nextSessionId: string, epoch: number) => {
     cleanupSocket(true)
 
+    runtimeLogger.info('terminal', 'opening websocket', { sessionId: nextSessionId, epoch })
     const socket = new WebSocket(resolveTerminalSocketUrl(nextSessionId))
     socketRef.current = socket
 
     socket.onopen = () => {
       if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
+      runtimeLogger.info('terminal', 'websocket connected', { sessionId: nextSessionId, epoch })
       setConnected(true)
       setClosed(false)
       setError(null)
@@ -110,6 +115,10 @@ export function useTerminalSession() {
 
       try {
         const message = JSON.parse(event.data) as TerminalSocketMessage
+        if (message.type === 'ready') {
+          runtimeLogger.info('terminal', 'terminal ready', { sessionId: nextSessionId, epoch })
+          return
+        }
         if (message.type === 'output' && message.data) {
           const chunk = filterInternalTerminalNoise(message.data)
           if (!chunk) return
@@ -117,11 +126,13 @@ export function useTerminalSession() {
           return
         }
         if (message.type === 'closed') {
+          runtimeLogger.info('terminal', 'terminal closed by backend', { sessionId: nextSessionId, epoch })
           setConnected(false)
           setClosed(true)
           return
         }
         if (message.type === 'error') {
+          runtimeLogger.error('terminal', 'terminal websocket error payload', { sessionId: nextSessionId, epoch, error: message.error })
           setError(message.error ?? 'Terminal websocket error')
           return
         }
@@ -134,6 +145,7 @@ export function useTerminalSession() {
 
     socket.onerror = () => {
       if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
+      runtimeLogger.error('terminal', 'websocket low-level error', { sessionId: nextSessionId, epoch })
       setError('Koneksi websocket terminal gagal')
     }
 
@@ -142,6 +154,7 @@ export function useTerminalSession() {
         socketRef.current = null
       }
       if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
+      runtimeLogger.info('terminal', 'websocket closed', { sessionId: nextSessionId, epoch, manualClose: manualCloseRef.current })
       setConnected(false)
       if (!manualCloseRef.current) {
         setClosed(true)
@@ -170,15 +183,19 @@ export function useTerminalSession() {
     await releaseSession(previousSessionId)
 
     try {
+      runtimeLogger.info('terminal', 'starting terminal session', { epoch })
       const result = await startTerminalSession()
       if (sessionEpochRef.current !== epoch) {
+        runtimeLogger.warn('terminal', 'discarding stale terminal session result', { epoch, sessionId: result.sessionId })
         await releaseSession(result.sessionId)
         return
       }
+      runtimeLogger.info('terminal', 'terminal session started', { epoch, sessionId: result.sessionId })
       sessionIdRef.current = result.sessionId
       setSessionId(result.sessionId)
       connectSocket(result.sessionId, epoch)
     } catch (err) {
+      runtimeLogger.error('terminal', 'failed to start terminal session', { epoch, error: err })
       if (sessionEpochRef.current === epoch) {
         setError(err instanceof Error ? err.message : 'Gagal memulai terminal session')
       }
@@ -219,6 +236,7 @@ export function useTerminalSession() {
 
     const socket = socketRef.current
     if (!socket || socket.readyState !== WebSocket.OPEN) return
+    runtimeLogger.info('terminal', 'sending resize event', { sessionId: sessionIdRef.current, ...next })
     socket.send(JSON.stringify({ type: 'resize', ...next }))
   }, [])
 

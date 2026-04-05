@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AlertCircle, LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { getBootstrapStatus, loginAgent } from '@/api/agent'
+import { runtimeLogger } from '@/lib/runtimeLogger'
 
 interface Props {
   onLoginSuccess: () => void
@@ -19,10 +20,17 @@ export function LoginScreen({ onLoginSuccess }: Props) {
   })
 
   const loginMutation = useMutation({
-    mutationFn: () => loginAgent(username.trim(), password),
-    onSuccess: () => {
+    mutationFn: () => {
+      runtimeLogger.info('auth', 'login requested', { username: username.trim() })
+      return loginAgent(username.trim(), password)
+    },
+    onSuccess: (result) => {
+      runtimeLogger.info('auth', 'login succeeded', result)
       setPassword('')
       onLoginSuccess()
+    },
+    onError: (error) => {
+      runtimeLogger.error('auth', 'login failed', error)
     },
   })
 

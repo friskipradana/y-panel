@@ -246,6 +246,32 @@ install_cli() {
 #!/usr/bin/env bash
 set -euo pipefail
 
+ENV_FILE="/etc/ui-panel/agent.env"
+SERVICE_NAME="ui-panel.service"
+
+reset_password() {
+  local password
+  local escaped_password
+
+  if [[ ! -f "$ENV_FILE" ]]; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+
+  read -r -s -p 'Password admin baru: ' password
+  printf '\n'
+
+  if [[ -z "$password" ]]; then
+    printf '\nPassword tidak boleh kosong.\n' >&2
+    exit 1
+  fi
+
+  escaped_password="$(printf '%s' "$password" | sed 's/[\\&]/\\&/g')"
+  sudo sed -i "s/^PANEL_ADMIN_PASSWORD=.*/PANEL_ADMIN_PASSWORD=${escaped_password}/" "$ENV_FILE"
+  sudo systemctl restart "$SERVICE_NAME"
+  printf '\nPassword admin berhasil direset dan service direstart.\n'
+}
+
 run_action() {
   case "$1" in
     restart)
@@ -255,6 +281,9 @@ run_action() {
     stop)
       sudo systemctl stop ui-panel.service
       printf '\nService berhasil dihentikan.\n'
+      ;;
+    reset-password)
+      reset_password
       ;;
     uninstall)
       sudo bash /opt/ui-panel/installer/uninstall.sh
@@ -270,15 +299,17 @@ show_menu() {
   printf '\nUI Panel Service Manager\n'
   printf '1. Restart Service\n'
   printf '2. Stop Service\n'
-  printf '3. Uninstall\n'
-  printf '4. Exit\n\n'
-  read -r -p 'Pilih opsi [1-4]: ' choice
+  printf '3. Reset Password\n'
+  printf '4. Uninstall\n'
+  printf '5. Exit\n\n'
+  read -r -p 'Pilih opsi [1-5]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
     2) run_action stop ;;
-    3) run_action uninstall ;;
-    4) exit 0 ;;
+    3) run_action reset-password ;;
+    4) run_action uninstall ;;
+    5) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
