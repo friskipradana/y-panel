@@ -98,7 +98,7 @@ func New(cfg Config) *Manager {
 	manager.setConnected(true)
 
 	if err := manager.ensureSchema(); err != nil {
-		manager.setError(fmt.Sprintf("schema bootstrap failed: %v", err))
+		manager.setError(fmt.Sprintf("schema database failed: %v", err))
 		return manager
 	}
 	if err := manager.seedDefaultChangelog(); err != nil {

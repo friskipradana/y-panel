@@ -52,7 +52,7 @@ export function DatabaseWindow() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4">
-      <div className="rounded-[24px] bg-[linear-gradient(135deg,#111827_0%,#0f172a_45%,#172554_100%)] p-4 text-white shadow-[0_24px_50px_rgba(15,23,42,0.18)] sm:rounded-[28px] sm:p-5">
+      <div className="rounded-[24px] bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_60%,#312e81_100%)] p-4 text-white shadow-[0_24px_50px_rgba(15,23,42,0.18)] sm:rounded-[28px] sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/82">
@@ -132,22 +132,22 @@ export function DatabaseWindow() {
           </div>
         </section>
 
-        <section className="flex min-h-[340px] max-h-[520px] flex-col overflow-hidden rounded-[24px] border border-slate-900/8 bg-[linear-gradient(180deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))] shadow-[0_22px_40px_rgba(2,6,23,0.22)]">
+        <section className="flex min-h-[340px] max-h-[520px] flex-col overflow-hidden rounded-[24px] border border-slate-900/8 bg-white/84 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)] backdrop-blur-[18px]">
           <div className="border-b border-slate-400/16 px-4 py-3">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-[13px] font-semibold text-slate-100">Persisted runtime logs</div>
+              <div className="text-[13px] font-semibold text-slate-900">Persisted runtime logs</div>
               <div className="text-[11px] text-slate-400">Latest {filteredRuntimeLogs.length} / {runtimeLogs.length} rows</div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative min-w-[220px] flex-1">
-                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   id="database-log-search"
                   value={logQuery}
                   onChange={(e) => setLogQuery(e.target.value)}
                   placeholder="Filter logs by service, level, message..."
-                  className="h-9 w-full rounded-xl border border-slate-700/70 bg-slate-900/80 pl-9 pr-3 text-[12px] text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-500/60"
+                  className="h-9 w-full rounded-xl border border-slate-200/90 bg-white/92 pl-9 pr-3 text-[12px] text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-sky-400/70 focus:bg-white"
                 />
               </div>
 
@@ -155,7 +155,7 @@ export function DatabaseWindow() {
                 id="database-log-limit"
                 value={logLimit}
                 onChange={(e) => setLogLimit(Number(e.target.value))}
-                className="h-9 rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 text-[12px] font-medium text-slate-100 outline-none transition focus:border-sky-500/60"
+                className="h-9 rounded-xl border border-slate-200/90 bg-white/92 px-3 text-[12px] font-medium text-slate-700 outline-none transition focus:border-sky-400/70 focus:bg-white"
               >
                 {LOG_ROW_OPTIONS.map((option) => (
                   <option key={option} value={option}>{option} rows</option>
@@ -181,10 +181,10 @@ export function DatabaseWindow() {
                     <div
                       key={entry.id}
                       className={[
-                        'rounded-[18px] border px-3 py-3',
+                        'rounded-[18px] border px-3 py-3 shadow-[0_12px_24px_rgba(15,23,42,0.06)]',
                         isError
-                          ? 'border-red-400/24 bg-red-950/20'
-                          : 'border-slate-400/14 bg-slate-900/72',
+                          ? 'border-red-200/90 bg-red-50/92'
+                          : 'border-white/80 bg-white/90',
                       ].join(' ')}
                     >
                       <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
@@ -194,9 +194,9 @@ export function DatabaseWindow() {
                         <span>•</span>
                         <span>{new Date(entry.createdAt).toLocaleString()}</span>
                       </div>
-                      <div className="mt-2 text-[13px] font-medium text-slate-100">{entry.message}</div>
+                      <div className="mt-2 text-[13px] font-medium text-slate-700">{entry.message}</div>
                       {entry.metadata ? (
-                        <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[14px] bg-black/20 px-3 py-2 text-[11px] leading-5 text-slate-300">
+                        <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[14px] border border-slate-200/80 bg-slate-50/92 px-3 py-2 text-[11px] leading-5 text-slate-500">
                           {entry.metadata}
                         </pre>
                       ) : null}
@@ -255,7 +255,7 @@ export function DatabaseWindow() {
             MariaDB belum siap
           </div>
           <div className="mt-1 leading-relaxed">
-            Jalankan installer Linux terbaru agar MariaDB dibootstrap otomatis, lalu verifikasi nilai env `PANEL_DB_*` pada runtime service.
+            Jalankan installer Linux terbaru agar MariaDB otomatis, lalu verifikasi nilai env `PANEL_DB_*` pada runtime service.
           </div>
         </div>
       )}

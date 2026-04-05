@@ -7,16 +7,14 @@ import type {
   ResetDatabasePasswordResponse,
   SystemLogsResponse,
   TerminalSessionStartResponse,
+  UpdatePanelOriginsPayload,
+  UpdatePanelPortPayload,
   UpdateSystemSettingsPayload,
 } from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 
-export interface BootstrapStatus {
-  installed: boolean
-  channel: string
-  bindAddr: string
-  portainerUrl: string
-  hostname: string
+export interface FrontendRevisionResponse {
+  revision: string
 }
 
 export interface AuthMe {
@@ -78,8 +76,8 @@ agentApi.interceptors.response.use(
   },
 )
 
-export const getBootstrapStatus = () =>
-  agentApi.get<BootstrapStatus>('/api/v1/bootstrap/status').then((r) => r.data)
+export const getFrontendRevision = () =>
+  agentApi.get<FrontendRevisionResponse>('/api/v1/frontend/revision').then((r) => r.data)
 
 export const loginAgent = (username: string, password: string) =>
   agentApi.post<{ ok: boolean; username: string }>('/api/v1/auth/login', { username, password }).then((r) => r.data)
@@ -113,6 +111,12 @@ export const getEditableSystemSettings = () =>
 
 export const updateEditableSystemSettings = (payload: UpdateSystemSettingsPayload) =>
   agentApi.post<EditableSystemSettings>('/api/v1/settings/system', payload).then((r) => r.data)
+
+export const updatePanelPort = (payload: UpdatePanelPortPayload) =>
+  agentApi.post<EditableSystemSettings>('/api/v1/settings/panel-port', payload).then((r) => r.data)
+
+export const updatePanelOrigins = (payload: UpdatePanelOriginsPayload) =>
+  agentApi.post<EditableSystemSettings>('/api/v1/settings/panel-origins', payload).then((r) => r.data)
 
 export const resetDatabasePassword = () =>
   agentApi.post<ResetDatabasePasswordResponse>('/api/v1/settings/database/reset-password').then((r) => r.data)

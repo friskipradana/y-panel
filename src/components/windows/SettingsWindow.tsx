@@ -2,11 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeCheck, ChevronDown, Copy, Database, Globe2,
-  LoaderCircle, Plus, RefreshCcw, Save, Server,
-  ShieldCheck, Sparkles, Trash2, Clock, CheckCircle2,
+  LoaderCircle, LockKeyhole, Plus, RefreshCcw, Save, Server,
+  ShieldCheck, Sparkles, Trash2, Clock, CheckCircle2, Waypoints,
 } from 'lucide-react'
-import { getDatabaseStatus, getEditableSystemSettings, resetDatabasePassword, updateEditableSystemSettings } from '@/api/agent'
-import type { ResetDatabasePasswordResponse, UpdateSystemSettingsPayload } from '@/types'
+import {
+  getDatabaseStatus,
+  getEditableSystemSettings,
+  resetDatabasePassword,
+  updateEditableSystemSettings,
+  updatePanelOrigins,
+  updatePanelPort,
+} from '@/api/agent'
+import type { ResetDatabasePasswordResponse, UpdatePanelOriginsPayload, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
 const cardClass = 'rounded-[20px] border border-slate-200/85 bg-white/92 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl'
 const inputClass = 'h-[42px] w-full rounded-xl border border-slate-300/90 bg-slate-50 px-3.5 text-[13px] text-slate-900 outline-none transition focus:border-blue-400'
@@ -244,6 +251,8 @@ export function SettingsWindow() {
   const [hostname, setHostname] = useState('')
   const [timezone, setTimezone] = useState('')
   const [nameservers, setNameservers] = useState<string[]>([])
+  const [panelPort, setPanelPort] = useState('')
+  const [allowedOriginsText, setAllowedOriginsText] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
   const [dbResetResult, setDbResetResult] = useState<ResetDatabasePasswordResponse | null>(null)
 
@@ -252,6 +261,8 @@ export function SettingsWindow() {
     setHostname(query.data.hostname)
     setTimezone(query.data.timezone)
     setNameservers(query.data.nameservers)
+    setPanelPort(query.data.bindAddr.split(':').slice(-1)[0] ?? '')
+    setAllowedOriginsText(query.data.allowedOrigins.join('\n'))
   }, [query.data])
 
   const payload = useMemo<UpdateSystemSettingsPayload>(() => ({
@@ -260,13 +271,43 @@ export function SettingsWindow() {
     nameservers: nameservers.map((v) => v.trim()).filter(Boolean),
   }), [hostname, timezone, nameservers])
 
+  const portPayload = useMemo<UpdatePanelPortPayload>(() => ({
+    port: Number(panelPort.trim()),
+  }), [panelPort])
+
+  const originsPayload = useMemo<UpdatePanelOriginsPayload>(() => ({
+    origins: allowedOriginsText.split('\n').map((value) => value.trim()).filter(Boolean),
+  }), [allowedOriginsText])
+
+  const syncSettingsSnapshot = (data: Awaited<ReturnType<typeof getEditableSystemSettings>>) => {
+    queryClient.setQueryData(['editable-system-settings'], data)
+    queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
+    queryClient.invalidateQueries({ queryKey: ['database-status'] })
+    setPanelPort(data.bindAddr.split(':').slice(-1)[0] ?? '')
+    setAllowedOriginsText(data.allowedOrigins.join('\n'))
+  }
+
   const mutation = useMutation({
     mutationFn: updateEditableSystemSettings,
     onSuccess: (data) => {
-      setNotice('Pengaturan berhasil disimpan.')
-      queryClient.setQueryData(['editable-system-settings'], data)
-      queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['database-status'] })
+      setNotice('Pengaturan host berhasil disimpan.')
+      syncSettingsSnapshot(data)
+    },
+  })
+
+  const panelPortMutation = useMutation({
+    mutationFn: updatePanelPort,
+    onSuccess: (data) => {
+      setNotice('Port panel berhasil diperbarui.')
+      syncSettingsSnapshot(data)
+    },
+  })
+
+  const panelOriginsMutation = useMutation({
+    mutationFn: updatePanelOrigins,
+    onSuccess: (data) => {
+      setNotice('Allowed origins berhasil diperbarui.')
+      syncSettingsSnapshot(data)
     },
   })
 
@@ -337,6 +378,18 @@ export function SettingsWindow() {
         </div>
       )}
 
+      {panelPortMutation.isError && (
+        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
+          {(panelPortMutation.error as Error)?.message || 'Gagal memperbarui port panel.'}
+        </div>
+      )}
+
+      {panelOriginsMutation.isError && (
+        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
+          {(panelOriginsMutation.error as Error)?.message || 'Gagal memperbarui allowed origins.'}
+        </div>
+      )}
+
       {resetDatabaseMutation.isError && (
         <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
           {(resetDatabaseMutation.error as Error)?.message || 'Gagal merotasi password database.'}
@@ -381,7 +434,7 @@ export function SettingsWindow() {
               <BadgeCheck size={17} />
             </div>
             <div>
-              <div className="text-[13px] font-semibold text-slate-800">Simpan perubahan</div>
+              <div className="text-[13px] font-semibold text-slate-800">Simpan perubahan host</div>
               <div className="text-[11px] text-slate-400">Hostname, timezone, dan DNS nameserver akan diperbarui</div>
             </div>
           </div>
@@ -401,6 +454,102 @@ export function SettingsWindow() {
             {mutation.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
             {mutation.isPending ? 'Menyimpan...' : 'Simpan settings'}
           </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className={cardClass}>
+          <SectionHeader
+            icon={<LockKeyhole size={17} />}
+            title="Runtime panel port"
+            subtitle="Ubah port panel tanpa menyentuh editor origin secara manual"
+          />
+
+          <div className="space-y-3.5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <FieldLabel label="Bind address aktif" hint="read only" />
+                <input id="settings-bind-addr" value={query.data.bindAddr} readOnly className={`${inputMonoClass} opacity-80`} />
+              </div>
+              <div>
+                <FieldLabel label="Port panel" hint="1-65535" />
+                <input
+                  id="settings-panel-port"
+                  inputMode="numeric"
+                  value={panelPort}
+                  onChange={(e) => setPanelPort(e.target.value.replace(/[^0-9]/g, ''))}
+                  className={inputMonoClass}
+                  placeholder="8787"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-[14px] border border-slate-200/80 bg-slate-50 px-4 py-3 text-[12px] leading-6 text-slate-600">
+              <div><strong className="text-slate-800">Allowed hosts:</strong> {query.data.allowedHosts.length ? query.data.allowedHosts.join(', ') : '—'}</div>
+              <div><strong className="text-slate-800">Origins aktif:</strong> {query.data.allowedOrigins.length ? query.data.allowedOrigins.join(', ') : '—'}</div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                id="settings-panel-port-save"
+                type="button"
+                onClick={() => panelPortMutation.mutate(portPayload)}
+                disabled={panelPortMutation.isPending || !panelPort.trim()}
+                className={[
+                  'inline-flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-semibold text-white transition',
+                  panelPortMutation.isPending || !panelPort.trim()
+                    ? 'cursor-not-allowed bg-slate-400 opacity-70'
+                    : 'bg-[linear-gradient(135deg,#312e81,#2563eb)] shadow-[0_8px_24px_rgba(49,46,129,0.22)] hover:brightness-110',
+                ].join(' ')}
+              >
+                {panelPortMutation.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <Waypoints size={14} />}
+                {panelPortMutation.isPending ? 'Mengubah port...' : 'Simpan port'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className={cardClass}>
+          <SectionHeader
+            icon={<ShieldCheck size={17} />}
+            title="Allowed origins"
+            subtitle="Editor bebas: satu origin per baris, lalu simpan seperti file teks"
+          />
+
+          <div className="space-y-3.5">
+            <div className="rounded-[16px] border border-slate-200/85 bg-[linear-gradient(180deg,rgba(15,23,42,0.03),rgba(59,130,246,0.04))] p-3">
+              <textarea
+                id="settings-allowed-origins"
+                value={allowedOriginsText}
+                onChange={(e) => setAllowedOriginsText(e.target.value)}
+                spellCheck={false}
+                className="min-h-[220px] w-full resize-y rounded-[12px] border border-slate-300/90 bg-slate-950 px-4 py-3 font-mono text-[12px] leading-6 text-slate-100 outline-none transition focus:border-blue-400"
+                placeholder={'http://127.0.0.1:80\nhttp://panel.domain.local:80'}
+              />
+            </div>
+
+            <div className="rounded-[14px] border border-dashed border-slate-300/80 bg-slate-50 px-4 py-3 text-[12px] leading-6 text-slate-500">
+              Tips: gunakan satu origin per baris. Contoh <code className="font-mono text-[11px] text-slate-700">http://127.0.0.1:80</code> atau <code className="font-mono text-[11px] text-slate-700">https://panel.example.com:443</code>.
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                id="settings-panel-origins-save"
+                type="button"
+                onClick={() => panelOriginsMutation.mutate(originsPayload)}
+                disabled={panelOriginsMutation.isPending || originsPayload.origins.length === 0}
+                className={[
+                  'inline-flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-semibold text-white transition',
+                  panelOriginsMutation.isPending || originsPayload.origins.length === 0
+                    ? 'cursor-not-allowed bg-slate-400 opacity-70'
+                    : 'bg-[linear-gradient(135deg,#0f172a,#0f766e)] shadow-[0_8px_24px_rgba(15,118,110,0.22)] hover:brightness-110',
+                ].join(' ')}
+              >
+                {panelOriginsMutation.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}
+                {panelOriginsMutation.isPending ? 'Menyimpan origin...' : 'Simpan origins'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

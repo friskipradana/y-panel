@@ -3,9 +3,11 @@ package system
 import (
 	"fmt"
 	"net"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -19,16 +21,23 @@ type SettingsSnapshot struct {
 	ManagedConfigPath string   `json:"managedConfigPath"`
 	OSName            string   `json:"osName"`
 	Kernel            string   `json:"kernel"`
+	BindAddr          string   `json:"bindAddr"`
+	AllowedHosts      []string `json:"allowedHosts"`
+	AllowedOrigins    []string `json:"allowedOrigins"`
 }
 
 type SettingsUpdate struct {
-	Hostname    string   `json:"hostname"`
-	Timezone    string   `json:"timezone"`
-	Nameservers []string `json:"nameservers"`
+	Hostname       string   `json:"hostname"`
+	Timezone       string   `json:"timezone"`
+	Nameservers    []string `json:"nameservers"`
+	BindAddr       string   `json:"bindAddr"`
+	AllowedHosts   []string `json:"allowedHosts"`
+	AllowedOrigins []string `json:"allowedOrigins"`
 }
 
 func ReadEditableSettings() (SettingsSnapshot, error) {
 	hostname, _ := os.Hostname()
+	bindAddr, allowedHosts, allowedOrigins := readPanelAccessSettings()
 	return SettingsSnapshot{
 		Hostname:          hostname,
 		Timezone:          readTimezone(),
@@ -37,6 +46,9 @@ func ReadEditableSettings() (SettingsSnapshot, error) {
 		ManagedConfigPath: managedResolvedConfigPath,
 		OSName:            readOSName(),
 		Kernel:            readKernel(),
+		BindAddr:          bindAddr,
+		AllowedHosts:      allowedHosts,
+		AllowedOrigins:    allowedOrigins,
 	}, nil
 }
 
@@ -62,6 +74,58 @@ func UpdateEditableSettings(input SettingsUpdate) (SettingsSnapshot, error) {
 		}
 	}
 
+	if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins); err != nil {
+		return SettingsSnapshot{}, err
+	}
+
+	return ReadEditableSettings()
+}
+
+func UpdatePanelPort(port int) (SettingsSnapshot, error) {
+	if port < 1 || port > 65535 {
+		return SettingsSnapshot{}, fmt.Errorf("port harus di antara 1 dan 65535")
+	}
+
+	envPath := panelEnvPath()
+	entries, err := readEnvMap(envPath)
+	if err != nil {
+		return SettingsSnapshot{}, fmt.Errorf("gagal membaca env runtime panel")
+	}
+
+	currentBindAddr := firstNonEmpty(entries["PANEL_BIND_ADDR"], "0.0.0.0:8787")
+	host, _, err := net.SplitHostPort(currentBindAddr)
+	if err != nil || host == "" {
+		host = "0.0.0.0"
+	}
+	updatedBindAddr := net.JoinHostPort(host, strconv.Itoa(port))
+
+	currentOrigins := parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+	updatedOrigins := replaceOriginPorts(currentOrigins, strconv.Itoa(port))
+	if len(updatedOrigins) == 0 {
+		updatedOrigins = deriveDefaultAllowedOrigins(updatedBindAddr)
+	}
+
+	if err := updatePanelAccessSettings(updatedBindAddr, parseCSV(entries["PANEL_ALLOWED_HOSTS"]), updatedOrigins); err != nil {
+		return SettingsSnapshot{}, err
+	}
+	return ReadEditableSettings()
+}
+
+func UpdatePanelOrigins(origins []string) (SettingsSnapshot, error) {
+	sanitizedOrigins := sanitizeOrigins(origins)
+	if len(sanitizedOrigins) == 0 {
+		return SettingsSnapshot{}, fmt.Errorf("minimal satu origin valid diperlukan")
+	}
+
+	envPath := panelEnvPath()
+	entries, err := readEnvMap(envPath)
+	if err != nil {
+		return SettingsSnapshot{}, fmt.Errorf("gagal membaca env runtime panel")
+	}
+
+	if err := updatePanelAccessSettings(entries["PANEL_BIND_ADDR"], parseCSV(entries["PANEL_ALLOWED_HOSTS"]), sanitizedOrigins); err != nil {
+		return SettingsSnapshot{}, err
+	}
 	return ReadEditableSettings()
 }
 
@@ -175,4 +239,234 @@ func writeManagedNameservers(nameservers []string) error {
 		return fmt.Errorf("gagal me-restart systemd-resolved")
 	}
 	return nil
+}
+
+func readPanelAccessSettings() (string, []string, []string) {
+	envPath := panelEnvPath()
+	entries, err := readEnvMap(envPath)
+	if err != nil {
+		return "0.0.0.0:8787", []string{}, []string{}
+	}
+
+	bindAddr := firstNonEmpty(entries["PANEL_BIND_ADDR"], "0.0.0.0:8787")
+	allowedHosts := parseCSV(entries["PANEL_ALLOWED_HOSTS"])
+	allowedOrigins := parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+	return bindAddr, allowedHosts, allowedOrigins
+}
+
+func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []string) error {
+	envPath := panelEnvPath()
+	entries, err := readEnvMap(envPath)
+	if err != nil {
+		return fmt.Errorf("gagal membaca env runtime panel")
+	}
+
+	currentBindAddr := firstNonEmpty(strings.TrimSpace(bindAddr), entries["PANEL_BIND_ADDR"], "0.0.0.0:8787")
+	if !isValidBindAddr(currentBindAddr) {
+		return fmt.Errorf("bind address harus dalam format host:port yang valid")
+	}
+
+	sanitizedHosts := sanitizeCSVValues(allowedHosts)
+	if len(sanitizedHosts) == 0 {
+		sanitizedHosts = parseCSV(entries["PANEL_ALLOWED_HOSTS"])
+	}
+	if len(sanitizedHosts) == 0 {
+		sanitizedHosts = deriveDefaultAllowedHosts(currentBindAddr)
+	}
+
+	sanitizedOrigins := sanitizeOrigins(allowedOrigins)
+	if len(sanitizedOrigins) == 0 {
+		sanitizedOrigins = parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+	}
+	if len(sanitizedOrigins) == 0 {
+		sanitizedOrigins = deriveDefaultAllowedOrigins(currentBindAddr)
+	}
+
+	entries["PANEL_BIND_ADDR"] = currentBindAddr
+	entries["PANEL_ALLOWED_HOSTS"] = strings.Join(sanitizedHosts, ",")
+	entries["PANEL_ALLOWED_ORIGINS"] = strings.Join(sanitizedOrigins, ",")
+	if err := writeEnvMap(envPath, entries); err != nil {
+		return err
+	}
+	if err := exec.Command("systemctl", "restart", "ui-panel.service").Run(); err != nil {
+		return fmt.Errorf("gagal me-restart ui-panel service")
+	}
+	return nil
+}
+
+func panelEnvPath() string {
+	return firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+}
+
+func readEnvMap(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]string{}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		result[strings.TrimSpace(key)] = strings.TrimSpace(value)
+	}
+	return result, nil
+}
+
+func writeEnvMap(path string, entries map[string]string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("gagal membaca env runtime panel")
+	}
+	lines := strings.Split(string(data), "\n")
+	for key, value := range entries {
+		prefix := key + "="
+		replaced := false
+		for i, line := range lines {
+			if strings.HasPrefix(line, prefix) {
+				lines[i] = prefix + value
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			lines = append(lines, prefix+value)
+		}
+	}
+	payload := strings.Join(lines, "\n")
+	if !strings.HasSuffix(payload, "\n") {
+		payload += "\n"
+	}
+	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
+		return fmt.Errorf("gagal menulis env runtime panel")
+	}
+	return nil
+}
+
+func parseCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	return sanitizeCSVValues(parts)
+}
+
+func sanitizeCSVValues(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func sanitizeOrigins(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if !strings.Contains(trimmed, "://") {
+			trimmed = "http://" + trimmed
+		}
+		if _, _, err := net.SplitHostPort(strings.TrimPrefix(strings.TrimPrefix(trimmed, "http://"), "https://")); err != nil {
+			parsedHost := strings.TrimPrefix(strings.TrimPrefix(trimmed, "http://"), "https://")
+			if !strings.Contains(parsedHost, ":") {
+				continue
+			}
+		}
+		trimmed = strings.TrimRight(trimmed, "/")
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func isValidBindAddr(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	host, port, err := net.SplitHostPort(value)
+	if err != nil {
+		return false
+	}
+	if host == "" {
+		return false
+	}
+	if _, err := fmt.Sscanf(port, "%d", new(int)); err != nil {
+		return false
+	}
+	return true
+}
+
+func deriveDefaultAllowedHosts(bindAddr string) []string {
+	result := []string{"localhost", "127.0.0.1"}
+	host, _, err := net.SplitHostPort(bindAddr)
+	if err == nil && host != "" && host != "0.0.0.0" && host != "localhost" && host != "127.0.0.1" {
+		result = append(result, host)
+	}
+	if hostname, err := os.Hostname(); err == nil {
+		result = append(result, hostname)
+	}
+	return sanitizeCSVValues(result)
+}
+
+func deriveDefaultAllowedOrigins(bindAddr string) []string {
+	_, port, err := net.SplitHostPort(bindAddr)
+	if err != nil {
+		port = "8787"
+	}
+	origins := []string{
+		"http://127.0.0.1:" + port,
+		"http://localhost:" + port,
+	}
+	for _, host := range deriveDefaultAllowedHosts(bindAddr) {
+		if host == "localhost" || host == "127.0.0.1" {
+			continue
+		}
+		origins = append(origins, "http://"+host+":"+port)
+	}
+	return sanitizeOrigins(origins)
+}
+
+func replaceOriginPorts(origins []string, port string) []string {
+	result := make([]string, 0, len(origins))
+	for _, origin := range sanitizeOrigins(origins) {
+		parsed, err := neturl.Parse(origin)
+		if err != nil || parsed.Host == "" {
+			continue
+		}
+		host := parsed.Hostname()
+		if host == "" {
+			continue
+		}
+		parsed.Host = net.JoinHostPort(host, port)
+		result = append(result, strings.TrimRight(parsed.String(), "/"))
+	}
+	return sanitizeOrigins(result)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

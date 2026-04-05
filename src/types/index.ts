@@ -86,12 +86,23 @@ export interface EditableSystemSettings {
   managedConfigPath: string
   osName: string
   kernel: string
+  bindAddr: string
+  allowedHosts: string[]
+  allowedOrigins: string[]
 }
 
 export interface UpdateSystemSettingsPayload {
   hostname: string
   timezone: string
   nameservers: string[]
+}
+
+export interface UpdatePanelPortPayload {
+  port: number
+}
+
+export interface UpdatePanelOriginsPayload {
+  origins: string[]
 }
 
 export interface DatabaseStatus {

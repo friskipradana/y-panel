@@ -5,7 +5,7 @@ import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
-import { getMe } from '@/api/agent'
+import { getFrontendRevision, getMe } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind } from '@/types'
 
@@ -33,12 +33,12 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   'system-logs': () => <SystemLogsWindow />,
   'host-terminal': () => <HostTerminalWindow />,
   portainer: () => (
-    <div className="flex flex-col items-center justify-center gap-3 h-40 text-center">
+    <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
       <span className="text-4xl">🛡️</span>
-      <p className="text-sm font-medium" style={{ color: 'var(--sand-600)' }}>
+      <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
         Portainer sekarang diamankan di localhost.
       </p>
-      <p className="text-xs max-w-xs leading-relaxed" style={{ color: 'var(--sand-400)' }}>
+      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'rgba(226,232,240,0.74)' }}>
         Semua operasi container harus melewati backend Go agent. Gunakan menu Apps untuk kontrol container.
       </p>
     </div>
@@ -64,9 +64,9 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
         { icon: '🔁', title: 'Restart panel', cmd: 'ui-panel restart' },
         { icon: '🧹', title: 'Uninstall', cmd: 'ui-panel uninstall' },
       ].map((d) => (
-        <div key={d.title} className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.04)', border: '0.5px solid rgba(0,0,0,0.07)' }}>
-          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--sand-600)' }}>{d.icon} {d.title}</p>
-          <code className="text-xs" style={{ color: 'var(--sand-400)', fontFamily: 'monospace' }}>{d.cmd}</code>
+        <div key={d.title} className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.16)' }}>
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--win-text)' }}>{d.icon} {d.title}</p>
+          <code className="text-xs" style={{ color: 'rgba(226,232,240,0.82)', fontFamily: 'monospace' }}>{d.cmd}</code>
         </div>
       ))}
     </div>
@@ -135,6 +135,7 @@ function Desktop({ onLogout }: { onLogout: () => void }) {
 function AppShell() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
+  const frontendRevisionRef = useRef<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -184,6 +185,50 @@ function AppShell() {
       window.removeEventListener('panel:session-expired', handleSessionExpired)
     }
   }, [])
+
+  useEffect(() => {
+    let disposed = false
+
+    const syncFrontendRevision = async () => {
+      if (!authenticated) {
+        frontendRevisionRef.current = null
+        return
+      }
+
+      try {
+        const response = await getFrontendRevision()
+        if (disposed) return
+
+        const nextRevision = response.revision || 'unknown'
+        if (!frontendRevisionRef.current) {
+          frontendRevisionRef.current = nextRevision
+          return
+        }
+
+        if (frontendRevisionRef.current !== nextRevision) {
+          runtimeLogger.info('frontend', 'new deployed frontend revision detected, reloading client', {
+            previousRevision: frontendRevisionRef.current,
+            nextRevision,
+          })
+          frontendRevisionRef.current = nextRevision
+          window.location.reload()
+        }
+      }
+      catch (error) {
+        runtimeLogger.warn('frontend', 'failed to check frontend revision', { error })
+      }
+    }
+
+    void syncFrontendRevision()
+    const intervalId = window.setInterval(() => {
+      void syncFrontendRevision()
+    }, 8000)
+
+    return () => {
+      disposed = true
+      window.clearInterval(intervalId)
+    }
+  }, [authenticated])
 
   const handleLogout = () => {
     runtimeLogger.info('auth', 'manual logout requested from desktop')

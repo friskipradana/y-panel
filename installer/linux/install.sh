@@ -18,6 +18,8 @@ DEFAULT_DB_HOST="127.0.0.1"
 DEFAULT_DB_PORT="3306"
 DEFAULT_DB_NAME="ui_panel"
 DEFAULT_DB_USER="ui_panel"
+DEFAULT_ALLOWED_HOSTS=""
+DEFAULT_ALLOWED_ORIGINS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -132,7 +134,7 @@ ensure_go() {
   case "$arch" in
     x86_64) GO_ARCH="amd64" ;;
     aarch64|arm64) GO_ARCH="arm64" ;;
-    *) fail "arsitektur tidak didukung untuk bootstrap Go: $arch" ;;
+    *) fail "arsitektur tidak didukung untuk  Go: $arch" ;;
   esac
 
   local go_version="1.22.12"
@@ -162,11 +164,24 @@ ensure_go() {
   export PATH="/usr/local/go/bin:$PATH"
 }
 
-bootstrap_config() {
-  log "konfigurasi bootstrap panel"
+ui_panel_config() {
+  log "konfigurasi ui-panel"
 
-  read -r -p "Bind address panel [${DEFAULT_BIND_ADDR}]: " PANEL_BIND_ADDR
-  PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$DEFAULT_BIND_ADDR}"
+  local current_bind_addr=""
+  local current_allowed_hosts=""
+  local current_allowed_origins=""
+  local current_hostname=""
+  local primary_ip=""
+  if [[ -f "$ENV_FILE" ]]; then
+    current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
+    current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
+    current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
+  fi
+
+  current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
+
+  read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR
+  PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
 
   read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME
   PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
@@ -180,6 +195,11 @@ bootstrap_config() {
     GENERATED_PASSWORD=0
   fi
 
+  current_hostname="$(hostname 2>/dev/null || true)"
+  current_hostname="${current_hostname//[$'\r\n']/}"
+  primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  primary_ip="${primary_ip//[$'\r\n']/}"
+
   PANEL_SESSION_SECRET="$(random_string 48)"
   PANEL_INSTALL_CHANNEL="stable"
   PANEL_PORTAINER_URL="$DEFAULT_PORTAINER_URL"
@@ -189,6 +209,29 @@ bootstrap_config() {
   PANEL_DB_NAME="$DEFAULT_DB_NAME"
   PANEL_DB_USER="$DEFAULT_DB_USER"
   PANEL_DB_PASSWORD="$(random_string 28)"
+  PANEL_ALLOWED_HOSTS="${current_allowed_hosts:-${DEFAULT_ALLOWED_HOSTS}}"
+  PANEL_ALLOWED_ORIGINS="${current_allowed_origins:-${DEFAULT_ALLOWED_ORIGINS}}"
+
+  if [[ -z "$PANEL_ALLOWED_HOSTS" ]]; then
+    PANEL_ALLOWED_HOSTS="localhost,127.0.0.1"
+    if [[ -n "$current_hostname" && "$current_hostname" != "localhost" ]]; then
+      PANEL_ALLOWED_HOSTS+=",${current_hostname}"
+    fi
+    if [[ -n "$primary_ip" && "$primary_ip" != "127.0.0.1" ]]; then
+      PANEL_ALLOWED_HOSTS+=",${primary_ip}"
+    fi
+  fi
+
+  if [[ -z "$PANEL_ALLOWED_ORIGINS" ]]; then
+    local bind_port="${PANEL_BIND_ADDR##*:}"
+    PANEL_ALLOWED_ORIGINS="http://127.0.0.1:${bind_port},http://localhost:${bind_port}"
+    if [[ -n "$current_hostname" && "$current_hostname" != "localhost" ]]; then
+      PANEL_ALLOWED_ORIGINS+=",http://${current_hostname}:${bind_port}"
+    fi
+    if [[ -n "$primary_ip" && "$primary_ip" != "127.0.0.1" ]]; then
+      PANEL_ALLOWED_ORIGINS+=",http://${primary_ip}:${bind_port}"
+    fi
+  fi
 }
 
 ensure_mariadb() {
@@ -264,6 +307,29 @@ setup_directories() {
   chmod 700 "$CONFIG_DIR"
 }
 
+ensure_hostname_resolution() {
+  local current_hostname
+  local hosts_file="/etc/hosts"
+
+  current_hostname="$(hostname 2>/dev/null || true)"
+  current_hostname="${current_hostname//[$'\r\n']/}"
+
+  if [[ -z "$current_hostname" || "$current_hostname" == "localhost" ]]; then
+    return
+  fi
+
+  if getent hosts "$current_hostname" >/dev/null 2>&1; then
+    return
+  fi
+
+  log "menyinkronkan hostname aktif ke /etc/hosts"
+  if grep -qE '^127\.0\.1\.1\s+' "$hosts_file"; then
+    sed -i "s/^127\.0\.1\.1\s\+.*/127.0.1.1 ${current_hostname}/" "$hosts_file"
+  else
+    printf '\n127.0.1.1 %s\n' "$current_hostname" >> "$hosts_file"
+  fi
+}
+
 build_agent() {
   log "membangun binary Go agent"
   export PATH="/usr/local/go/bin:$PATH"
@@ -277,6 +343,8 @@ write_env_file() {
   log "menulis file konfigurasi $ENV_FILE"
   cat > "$ENV_FILE" <<EOF
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
+PANEL_ALLOWED_HOSTS=${PANEL_ALLOWED_HOSTS}
+PANEL_ALLOWED_ORIGINS=${PANEL_ALLOWED_ORIGINS}
 PANEL_ADMIN_USERNAME=${PANEL_ADMIN_USERNAME}
 PANEL_ADMIN_PASSWORD=${PANEL_ADMIN_PASSWORD}
 PANEL_SESSION_SECRET=${PANEL_SESSION_SECRET}
@@ -337,11 +405,75 @@ set -euo pipefail
 ENV_FILE="/etc/ui-panel/agent.env"
 SERVICE_NAME="ui-panel.service"
 
+require_root_cli() {
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    printf '\nui-panel harus dijalankan dengan sudo atau sebagai root.\n' >&2
+    printf 'Contoh: sudo ui-panel\n\n' >&2
+    exit 1
+  fi
+}
+
+env_file_exists() {
+  [[ -f "$ENV_FILE" ]]
+}
+
+get_env_value() {
+  local key="$1"
+
+  if ! env_file_exists; then
+    return 1
+  fi
+
+  grep "^${key}=" "$ENV_FILE" | head -n 1 | cut -d= -f2-
+}
+
+get_bind_addr() {
+  local bind_addr
+  bind_addr="$(get_env_value PANEL_BIND_ADDR || true)"
+  printf '%s' "${bind_addr:-0.0.0.0:8787}"
+}
+
+get_bind_host() {
+  local bind_addr
+  bind_addr="$(get_bind_addr)"
+  if [[ "$bind_addr" == *:* ]]; then
+    printf '%s' "${bind_addr%:*}"
+  else
+    printf '0.0.0.0'
+  fi
+}
+
+get_bind_port() {
+  local bind_addr
+  bind_addr="$(get_bind_addr)"
+  printf '%s' "${bind_addr##*:}"
+}
+
+show_panel_info() {
+  local bind_addr
+  local bind_port
+  local host_ip
+  local hostname_value
+
+  bind_addr="$(get_bind_addr)"
+  bind_port="$(get_bind_port)"
+  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  host_ip="${host_ip:-127.0.0.1}"
+  hostname_value="$(hostname 2>/dev/null || true)"
+  hostname_value="${hostname_value:-localhost}"
+
+  printf '\nUI Panel Service Manager\n'
+  printf 'Panel bind    : %s\n' "$bind_addr"
+  printf 'Panel local   : http://127.0.0.1:%s\n' "$bind_port"
+  printf 'Panel network : http://%s:%s\n' "$host_ip" "$bind_port"
+  printf 'Panel host    : http://%s:%s\n\n' "$hostname_value" "$bind_port"
+}
+
 reset_password() {
   local password
   local escaped_password
 
-  if [[ ! -f "$ENV_FILE" ]]; then
+  if ! env_file_exists; then
     printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
     exit 1
   fi
@@ -355,8 +487,8 @@ reset_password() {
   fi
 
   escaped_password="$(printf '%s' "$password" | sed 's/[\\&]/\\&/g')"
-  sudo sed -i "s/^PANEL_ADMIN_PASSWORD=.*/PANEL_ADMIN_PASSWORD=${escaped_password}/" "$ENV_FILE"
-  sudo systemctl restart "$SERVICE_NAME"
+  sed -i "s/^PANEL_ADMIN_PASSWORD=.*/PANEL_ADMIN_PASSWORD=${escaped_password}/" "$ENV_FILE"
+  systemctl restart "$SERVICE_NAME"
   printf '\nPassword admin berhasil direset dan service direstart.\n'
 }
 
@@ -367,7 +499,7 @@ reset_db_password() {
   local db_password
   local escaped_password
 
-  if [[ ! -f "$ENV_FILE" ]]; then
+  if ! env_file_exists; then
     printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
     exit 1
   fi
@@ -390,28 +522,120 @@ reset_db_password() {
   fi
 
   if command -v mariadb >/dev/null 2>&1; then
-    sudo mariadb -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \\`${db_name}\\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
+    mariadb -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
   elif command -v mysql >/dev/null 2>&1; then
-    sudo mysql -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \\`${db_name}\\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
+    mysql -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
   else
     printf '\nClient MariaDB/MySQL tidak ditemukan.\n' >&2
     exit 1
   fi
 
   escaped_password="$(printf '%s' "$db_password" | sed 's/[\\&]/\\&/g')"
-  sudo sed -i "s/^PANEL_DB_PASSWORD=.*/PANEL_DB_PASSWORD=${escaped_password}/" "$ENV_FILE"
-  sudo systemctl restart "$SERVICE_NAME"
+  sed -i "s/^PANEL_DB_PASSWORD=.*/PANEL_DB_PASSWORD=${escaped_password}/" "$ENV_FILE"
+  systemctl restart "$SERVICE_NAME"
   printf '\nPassword database berhasil direset dan service direstart.\n'
+}
+
+change_panel_port() {
+  local current_bind_addr
+  local current_bind_host
+  local current_port
+  local new_port
+  local next_bind_addr
+  local current_allowed_origins
+  local updated_origins
+
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+
+  current_bind_addr="$(get_bind_addr)"
+  current_bind_host="$(get_bind_host)"
+  current_port="${current_bind_addr##*:}"
+  current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
+
+  read -r -p "Port panel baru [${current_port}]: " new_port
+  new_port="${new_port:-$current_port}"
+
+  if [[ ! "$new_port" =~ ^[0-9]+$ ]] || (( new_port < 1 || new_port > 65535 )); then
+    printf '\nPort tidak valid. Gunakan angka 1-65535.\n' >&2
+    exit 1
+  fi
+
+  next_bind_addr="${current_bind_host}:${new_port}"
+  sed -i "s/^PANEL_BIND_ADDR=.*/PANEL_BIND_ADDR=${next_bind_addr}/" "$ENV_FILE"
+
+  if [[ -n "$current_allowed_origins" ]]; then
+    updated_origins="$(printf '%s' "$current_allowed_origins" | sed -E "s#(https?://[^,:/]+):[0-9]+#\\1:${new_port}#g")"
+    sed -i "s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=${updated_origins}#" "$ENV_FILE"
+  fi
+
+  systemctl restart "$SERVICE_NAME"
+
+  printf '\nPort panel berhasil diubah ke %s dan service direstart.\n' "$new_port"
+  printf 'Bind baru   : %s\n' "$next_bind_addr"
+  printf 'Akses lokal : http://127.0.0.1:%s\n' "$new_port"
+}
+
+edit_panel_origins() {
+  local current_allowed_origins
+  local temp_file
+  local edited_origins
+  local editor_bin
+
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+
+  current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
+  temp_file="$(mktemp /tmp/ui-panel-origins.XXXXXX)"
+
+  cat > "$temp_file" <<ORIGINS_EDITOR
+# Satu origin per baris. Contoh:
+# http://127.0.0.1:80
+# http://100.124.47.105:80
+${current_allowed_origins//,/\n}
+ORIGINS_EDITOR
+
+  editor_bin="${VISUAL:-${EDITOR:-nano}}"
+  if ! command -v "$editor_bin" >/dev/null 2>&1; then
+    editor_bin="vi"
+  fi
+
+  "$editor_bin" "$temp_file"
+
+  edited_origins="$(grep -v '^\s*#' "$temp_file" | sed '/^\s*$/d' | paste -sd, -)"
+  if [[ -z "$edited_origins" ]]; then
+    rm -f "$temp_file"
+    printf '\nMinimal satu origin harus disimpan. Perubahan dibatalkan.\n' >&2
+    exit 1
+  fi
+
+  if grep -q '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE"; then
+    sed -i "s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=${edited_origins}#" "$ENV_FILE"
+  else
+    printf 'PANEL_ALLOWED_ORIGINS=%s\n' "$edited_origins" >> "$ENV_FILE"
+  fi
+
+  rm -f "$temp_file"
+  systemctl restart "$SERVICE_NAME"
+  printf '\nAllowed origins berhasil diperbarui dan service direstart.\n'
+}
+
+change_panel_access() {
+  change_panel_port
 }
 
 run_action() {
   case "$1" in
     restart)
-      sudo systemctl restart ui-panel.service
+      systemctl restart ui-panel.service
       printf '\nService berhasil direstart.\n'
       ;;
     stop)
-      sudo systemctl stop ui-panel.service
+      systemctl stop ui-panel.service
       printf '\nService berhasil dihentikan.\n'
       ;;
     reset-password)
@@ -420,8 +644,14 @@ run_action() {
     reset-db-password)
       reset_db_password
       ;;
+    change-port)
+      change_panel_port
+      ;;
+    edit-origins)
+      edit_panel_origins
+      ;;
     uninstall)
-      sudo bash /opt/ui-panel/installer/uninstall.sh
+      bash /opt/ui-panel/installer/uninstall.sh
       ;;
     *)
       printf '\nAksi tidak dikenal: %s\n' "$1"
@@ -431,28 +661,34 @@ run_action() {
 }
 
 show_menu() {
-  printf '\nUI Panel Service Manager\n'
+  show_panel_info
   printf '1. Restart Service\n'
   printf '2. Stop Service\n'
   printf '3. Reset Password Admin\n'
   printf '4. Reset Password Database\n'
-  printf '5. Uninstall\n'
-  printf '6. Exit\n\n'
-  read -r -p 'Pilih opsi [1-6]: ' choice
+  printf '5. Ubah Port Panel\n'
+  printf '6. Edit Allowed Origins\n'
+  printf '7. Uninstall\n'
+  printf '8. Exit\n\n'
+  read -r -p 'Pilih opsi [1-8]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
     2) run_action stop ;;
     3) run_action reset-password ;;
     4) run_action reset-db-password ;;
-    5) run_action uninstall ;;
-    6) exit 0 ;;
+    5) run_action change-port ;;
+    6) run_action edit-origins ;;
+    7) run_action uninstall ;;
+    8) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
       ;;
   esac
 }
+
+require_root_cli
 
 if [[ $# -gt 0 ]]; then
   run_action "$1"
@@ -499,11 +735,15 @@ ensure_portainer() {
 
 print_summary() {
   local host_ip
+  local bind_port
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   host_ip="${host_ip:-127.0.0.1}"
+  bind_port="${PANEL_BIND_ADDR##*:}"
 
   log "instalasi selesai"
-  printf '\nPanel URL      : http://%s\n' "$host_ip:8787"
+  printf '\nPanel URL      : http://%s\n' "$host_ip:$bind_port"
+  printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
+  printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
   printf 'Username       : %s\n' "$PANEL_ADMIN_USERNAME"
   printf 'Password       : %s\n' "$PANEL_ADMIN_PASSWORD"
   printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
@@ -527,8 +767,9 @@ main() {
   install_base_packages
   ensure_docker
   ensure_go
-  bootstrap_config
+  ui_panel_config
   setup_directories
+  ensure_hostname_resolution
   ensure_mariadb
   provision_database
   build_agent

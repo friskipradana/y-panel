@@ -72,9 +72,18 @@ Setelah install, kamu bisa jalankan:
 ui-panel
 ```
 
+Menu akan menampilkan info akses panel aktif di bagian atas, termasuk:
+- bind address panel
+- URL localhost panel
+- URL network/IP panel
+- hostname panel beserta port aktif
+
 Menu yang tersedia:
 - Restart Service
 - Stop Service
+- Reset Password Admin
+- Reset Password Database
+- Ubah Port Panel
 - Uninstall
 
 ---

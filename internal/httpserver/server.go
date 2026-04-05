@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -80,6 +81,14 @@ type updateSettingsRequest struct {
 	Nameservers []string `json:"nameservers"`
 }
 
+type updatePanelPortRequest struct {
+	Port int `json:"port"`
+}
+
+type updatePanelOriginsRequest struct {
+	Origins []string `json:"origins"`
+}
+
 type resetDatabasePasswordResponse struct {
 	OK       bool   `json:"ok"`
 	Password string `json:"password"`
@@ -102,11 +111,11 @@ func New(cfg config.Config) *Server {
 			Password: cfg.DatabasePass,
 			Name:     cfg.DatabaseName,
 		}),
-		terminalUpgrader: websocket.Upgrader{
-			ReadBufferSize:  4096,
-			WriteBufferSize: 4096,
-			CheckOrigin:     func(_ *http.Request) bool { return true },
-		},
+	}
+	s.terminalUpgrader = websocket.Upgrader{
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+		CheckOrigin:     s.isWebSocketOriginAllowed,
 	}
 	s.authedFrontend = s.requireHTMLAuth(s.frontendFS)
 
@@ -116,16 +125,18 @@ func New(cfg config.Config) *Server {
 
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
-	s.mux.HandleFunc("GET /api/v1/bootstrap/status", s.handleBootstrapStatus)
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
 	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuth(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/v1/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
+	s.mux.Handle("GET /api/v1/frontend/revision", s.requireAuth(http.HandlerFunc(s.handleFrontendRevision)))
 	s.mux.Handle("GET /api/v1/system/summary", s.requireAuth(http.HandlerFunc(s.handleSystemSummary)))
 	s.mux.Handle("GET /api/v1/system/logs", s.requireAuth(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuth(http.HandlerFunc(s.handleSystemChangelog)))
 	s.mux.Handle("GET /api/v1/database/status", s.requireAuth(http.HandlerFunc(s.handleDatabaseStatus)))
 	s.mux.Handle("GET /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleGetSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleUpdateSystemSettings)))
+	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelPort)))
+	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelOrigins)))
 	s.mux.Handle("POST /api/v1/settings/database/reset-password", s.requireAuth(http.HandlerFunc(s.handleResetDatabasePassword)))
 	s.mux.Handle("GET /api/v1/containers", s.requireAuth(http.HandlerFunc(s.handleContainersList)))
 	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuth(http.HandlerFunc(s.handleContainerStart)))
@@ -137,7 +148,7 @@ func (s *Server) routes() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.withAccessLog(s.withCORS(s.mux)).ServeHTTP(w, r)
+	s.withAccessLog(s.withHostGuard(s.withCORS(s.mux))).ServeHTTP(w, r)
 }
 
 func (s *Server) Close() error {
@@ -155,15 +166,20 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
-func (s *Server) handleBootstrapStatus(w http.ResponseWriter, _ *http.Request) {
-	hostname, _ := os.Hostname()
+func (s *Server) handleFrontendRevision(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"installed":    true,
-		"channel":      s.cfg.InstallChannel,
-		"bindAddr":     s.cfg.BindAddr,
-		"portainerUrl": s.cfg.PortainerURL,
-		"hostname":     hostname,
+		"revision": s.frontendRevision(),
 	})
+}
+
+func (s *Server) frontendRevision() string {
+	indexPath := filepath.Join(s.cfg.FrontendDir, "index.html")
+	info, err := os.Stat(indexPath)
+	if err != nil {
+		return "unknown"
+	}
+
+	return fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -343,6 +359,52 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 	s.database.RecordSettingsAudit(username, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
 	log.Printf("[settings] update applied hostname=%q timezone=%q dns=%q remote=%s", snapshot.Hostname, snapshot.Timezone, strings.Join(snapshot.Nameservers, ","), remoteAddr(r))
 	s.recordRuntimeLog("info", "settings update applied", map[string]any{"hostname": snapshot.Hostname, "timezone": snapshot.Timezone, "nameservers": snapshot.Nameservers, "remote": remoteAddr(r), "user": username})
+	s.writeJSON(w, http.StatusOK, snapshot)
+}
+
+func (s *Server) handleUpdatePanelPort(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var req updatePanelPortRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
+		return
+	}
+
+	snapshot, err := system.UpdatePanelPort(req.Port)
+	if err != nil {
+		log.Printf("[settings] panel port update failed port=%d remote=%s err=%v", req.Port, remoteAddr(r), err)
+		s.recordRuntimeLog("error", "panel port update failed", map[string]any{"port": req.Port, "remote": remoteAddr(r), "error": err.Error()})
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	username, _ := s.currentUser(r)
+	log.Printf("[settings] panel port updated bind=%q remote=%s", snapshot.BindAddr, remoteAddr(r))
+	s.recordRuntimeLog("info", "panel port updated", map[string]any{"bindAddr": snapshot.BindAddr, "allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
+	s.writeJSON(w, http.StatusOK, snapshot)
+}
+
+func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var req updatePanelOriginsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
+		return
+	}
+
+	snapshot, err := system.UpdatePanelOrigins(req.Origins)
+	if err != nil {
+		log.Printf("[settings] panel origins update failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "panel origins update failed", map[string]any{"origins": req.Origins, "remote": remoteAddr(r), "error": err.Error()})
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	username, _ := s.currentUser(r)
+	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
+	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -591,7 +653,16 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, payload any) {
 func (s *Server) withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			origin := strings.TrimSpace(r.Header.Get("Origin"))
+			if origin != "" {
+				if !s.isOriginAllowed(origin) {
+					http.Error(w, "origin not allowed", http.StatusForbidden)
+					return
+				}
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Vary", "Origin")
+			}
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 			if r.Method == http.MethodOptions {
@@ -603,9 +674,84 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 	})
 }
 
+func (s *Server) withHostGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.isHostAllowed(r.Host) {
+			http.Error(w, "host not allowed", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func acceptsHTML(r *http.Request) bool {
 	accept := r.Header.Get("Accept")
 	return accept == "" || strings.Contains(accept, "text/html") || strings.Contains(accept, "*/*")
+}
+
+func (s *Server) isHostAllowed(hostport string) bool {
+	host := normalizeHost(hostport)
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return true
+	}
+	if len(s.cfg.AllowedHosts) == 0 {
+		return true
+	}
+
+	for _, candidate := range s.cfg.AllowedHosts {
+		if strings.EqualFold(host, normalizeHost(candidate)) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) isOriginAllowed(origin string) bool {
+	if origin == "" {
+		return true
+	}
+	if len(s.cfg.AllowedOrigins) == 0 {
+		return true
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+	for _, candidate := range s.cfg.AllowedOrigins {
+		if strings.EqualFold(strings.TrimRight(origin, "/"), strings.TrimRight(candidate, "/")) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) isWebSocketOriginAllowed(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if !s.isOriginAllowed(origin) {
+		return false
+	}
+	if origin == "" {
+		return s.isHostAllowed(r.Host)
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return s.isHostAllowed(parsed.Host) && s.isHostAllowed(r.Host)
+}
+
+func normalizeHost(hostport string) string {
+	host := strings.TrimSpace(hostport)
+	if host == "" {
+		return ""
+	}
+	if strings.Contains(host, ":") {
+		if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+			host = parsedHost
+		}
+	}
+	return strings.Trim(strings.ToLower(host), "[]")
 }
 
 func newFrontendHandler(frontendDir string) http.Handler {

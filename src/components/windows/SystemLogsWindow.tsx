@@ -22,7 +22,7 @@ function lineToneClass(line: string): string {
   return 'text-sky-100'
 }
 
-const controlClass = 'rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-mono text-slate-200 outline-none'
+const controlClass = 'rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-mono text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] outline-none backdrop-blur-sm'
 
 export function SystemLogsWindow() {
   const [service, setService] = useState('ui-panel')
@@ -70,9 +70,10 @@ export function SystemLogsWindow() {
                 value={service}
                 onChange={(e) => setService(e.target.value)}
                 className={controlClass}
+                style={{ backgroundColor: 'rgba(15, 23, 42, 0.82)', color: '#e2e8f0', borderColor: 'rgba(148, 163, 184, 0.24)' }}
               >
                 {SERVICE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value} style={{ backgroundColor: '#0f172a', color: '#e2e8f0' }}>{o.label}</option>
                 ))}
               </select>
             </div>
@@ -84,9 +85,10 @@ export function SystemLogsWindow() {
                 value={limit}
                 onChange={(e) => setLimit(Number(e.target.value))}
                 className={controlClass}
+                style={{ backgroundColor: 'rgba(15, 23, 42, 0.82)', color: '#e2e8f0', borderColor: 'rgba(148, 163, 184, 0.24)' }}
               >
                 {LIMIT_OPTIONS.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v} value={v} style={{ backgroundColor: '#0f172a', color: '#e2e8f0' }}>{v}</option>
                 ))}
               </select>
             </div>

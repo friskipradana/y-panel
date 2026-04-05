@@ -10,6 +10,8 @@ import (
 
 type Config struct {
 	BindAddr       string
+	AllowedHosts   []string
+	AllowedOrigins []string
 	AdminUsername  string
 	AdminPassword  string
 	SessionSecret  string
@@ -29,6 +31,8 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		BindAddr:       getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
+		AllowedHosts:   parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
+		AllowedOrigins: parseCSVEnv("PANEL_ALLOWED_ORIGINS", nil),
 		AdminUsername:  os.Getenv("PANEL_ADMIN_USERNAME"),
 		AdminPassword:  os.Getenv("PANEL_ADMIN_PASSWORD"),
 		SessionSecret:  getenv("PANEL_SESSION_SECRET", "dev-session-secret"),
@@ -99,4 +103,26 @@ func parseBoolEnv(key string, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func parseCSVEnv(key string, fallback []string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+
+	if len(result) == 0 {
+		return fallback
+	}
+	return result
 }
