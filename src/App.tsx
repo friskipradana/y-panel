@@ -1,15 +1,19 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
 import { useWindowStore } from '@/store/windowStore'
+import { useThemeStore } from '@/store/themeStore'
 import { getMe } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind } from '@/types'
 
 const AppsWindow = lazy(() => import('@/components/windows/AppsWindow').then((module) => ({ default: module.AppsWindow })))
 const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
+const SettingsWindow = lazy(() => import('@/components/windows/SettingsWindow').then((module) => ({ default: module.SettingsWindow })))
+const DatabaseWindow = lazy(() => import('@/components/windows/DatabaseWindow').then((module) => ({ default: module.DatabaseWindow })))
+const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow').then((module) => ({ default: module.ChangelogWindow })))
 const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
 const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
@@ -51,7 +55,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   docs: () => (
     <div className="flex flex-col gap-2">
       {[
-        { icon: '🚀', title: 'Bootstrap install', cmd: 'sudo bash installer/linux/install.sh' },
+        { icon: '🚀', title: 'Install panel', cmd: 'sudo bash installer/linux/install.sh' },
         { icon: '🧠', title: 'Agent health', cmd: 'curl http://127.0.0.1:8787/healthz' },
         { icon: '📦', title: 'Portainer logs', cmd: 'docker logs -f ui-panel-portainer' },
         { icon: '🪵', title: 'Agent logs', cmd: 'journalctl -u ui-panel -f' },
@@ -67,39 +71,9 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
       ))}
     </div>
   ),
-  changelog: () => (
-    <div>
-      {[
-        {
-          v: 'v0.5.0',
-          d: 'Hari ini',
-          items: [
-            'Added dedicated system logs window backed by journalctl via backend API',
-            'Fixed websocket upgrade regression caused by access log response wrapper',
-            'Added taskbar shortcuts for runtime logs and changelog access',
-            'Implemented CLI reset-password to rotate PANEL_ADMIN_PASSWORD and restart service',
-            'Expanded frontend and backend runtime observability for auth and terminal flows',
-          ],
-        },
-        { v: 'v0.4.0', d: 'Hari ini', items: ['Simplified login screen', 'Host terminal execution via Go agent', 'Safer deploy automation'] },
-        { v: 'v0.3.0', d: 'Hari ini', items: ['Frontend served by Go agent', 'CLI ui-panel install helper', 'Container actions through Go backend'] },
-        { v: 'v0.2.0', d: 'Hari ini', items: ['Go panel agent bootstrap', 'Linux installer shell', 'Frontend login screen ke agent'] },
-      ].map((c) => (
-        <div key={c.v} className="mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold text-white px-2 py-0.5 rounded-md" style={{ background: 'var(--accent)' }}>
-              {c.v}
-            </span>
-            <span className="text-xs" style={{ color: 'var(--sand-400)' }}>{c.d}</span>
-          </div>
-          {c.items.map((i) => (
-            <p key={i} className="text-xs pl-2 leading-relaxed" style={{ color: 'var(--sand-500)' }}>• {i}</p>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
-  settings: () => <SystemWindow />,
+  changelog: () => <ChangelogWindow />,
+  settings: () => <SettingsWindow />,
+  database: () => <DatabaseWindow />,
   trash: () => (
     <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
       <span className="text-4xl">🗑️</span>
@@ -122,9 +96,22 @@ const queryClient = new QueryClient({
 
 function Desktop({ onLogout }: { onLogout: () => void }) {
   const { windows } = useWindowStore()
+  const { getBackground, mode, wallpaper } = useThemeStore()
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Update background imperatively so we never unmount children (keeps dropdown open)
+  useEffect(() => {
+    if (rootRef.current) {
+      rootRef.current.style.background = getBackground()
+    }
+  }, [mode, wallpaper])
 
   return (
-    <div className="wallpaper w-screen h-screen relative overflow-hidden">
+    <div
+      ref={rootRef}
+      className="desktop-root"
+      style={{ background: getBackground() }}
+    >
       <Taskbar onLogout={onLogout} />
       <div className="absolute inset-0">
         {windows.map((win) => {
@@ -212,7 +199,7 @@ function AppShell() {
     return (
       <div className="min-h-screen grid place-items-center text-white login-shell">
         <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
-          Mengecek session bootstrap agent...
+          Mengecek session agent...
         </div>
       </div>
     )

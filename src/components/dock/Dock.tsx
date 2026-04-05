@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
+import { useThemeStore } from '@/store/themeStore'
 import type { WindowKind, WindowState } from '@/types'
 
 const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
@@ -8,22 +9,30 @@ const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'portainer', icon: '🐋', label: 'Portainer' },
   { kind: 'host-terminal', icon: '💻', label: 'Host Terminal' },
   { kind: 'system', icon: '⚙️', label: 'System' },
+  { kind: 'settings', icon: '🔧', label: 'Settings' },
+  { kind: 'database', icon: '🗄️', label: 'Database' },
   { kind: 'system-logs', icon: '📜', label: 'System Logs' },
   { kind: 'docs', icon: '📚', label: 'Docs' },
+  { kind: 'changelog', icon: '🔔', label: 'Changelog' },
 ]
 
 type DockMenuState = {
   x: number
   y: number
+  kind: WindowKind
 } | null
 
-const CONTEXT_MENU_WIDTH = 220
+const CONTEXT_MENU_WIDTH = 178
+const CONTEXT_MENU_ESTIMATED_HEIGHT = 108
+const menuButtonClass = 'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium transition'
 
 export function Dock() {
-  const { openWindow, focusWindow, closeWindow, toggleDockAutoHide } = useWindowStore()
+  const { openWindow, focusWindow, closeWindow, toggleDockAutoHide, closeWindowsByKind } = useWindowStore()
   const autoHideDock = useWindowStore(selectAutoHideDock)
   const focusedId = useWindowStore(selectFocusedId)
   const windows = useWindowStore(selectWindows)
+  const themeMode = useThemeStore((state) => state.mode)
+  const isDark = themeMode === 'dark'
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -35,7 +44,7 @@ export function Dock() {
 
   const groupedWindows = useMemo(() => {
     return DOCK_ITEMS.reduce<Record<WindowKind, WindowState[]>>((acc, item) => {
-      acc[item.kind] = windows.filter((windowItem) => windowItem.kind === item.kind)
+      acc[item.kind] = windows.filter((windowItem: WindowState) => windowItem.kind === item.kind)
       return acc
     }, {
       apps: [],
@@ -47,6 +56,7 @@ export function Dock() {
       changelog: [],
       portainer: [],
       settings: [],
+      database: [],
       trash: [],
     })
   }, [windows])
@@ -56,8 +66,16 @@ export function Dock() {
     [groupedWindows],
   )
   const openKinds = useMemo(() => [...new Set(windows.map((windowItem) => windowItem.kind))], [windows])
-  const hiddenOffset = autoHideDock && !revealed ? 118 : 0
-
+  const hasMaximizedWindow = useMemo(
+    () => windows.some((windowItem) => !windowItem.isMinimized && windowItem.isMaximized),
+    [windows],
+  )
+  const hasFullscreenWindow = useMemo(
+    () => windows.some((windowItem) => !windowItem.isMinimized && windowItem.isFullscreen),
+    [windows],
+  )
+  const forceAutoHideDock = hasMaximizedWindow || autoHideDock
+  const isDockForcedHidden = hasFullscreenWindow
 
   useEffect(() => {
     const handleClickAway = () => setMenu(null)
@@ -76,12 +94,8 @@ export function Dock() {
       window.removeEventListener('click', handleClickAway)
       window.removeEventListener('contextmenu', handleClickAway)
       window.removeEventListener('keydown', handleEscape)
-      if (previewCloseTimerRef.current) {
-        window.clearTimeout(previewCloseTimerRef.current)
-      }
-      if (dockHideTimerRef.current) {
-        window.clearTimeout(dockHideTimerRef.current)
-      }
+      if (previewCloseTimerRef.current) window.clearTimeout(previewCloseTimerRef.current)
+      if (dockHideTimerRef.current) window.clearTimeout(dockHideTimerRef.current)
     }
   }, [])
 
@@ -93,20 +107,23 @@ export function Dock() {
   }
 
   const revealDock = () => {
+    if (isDockForcedHidden) return
     clearDockHideTimer()
     setRevealed(true)
   }
 
   const scheduleDockHide = () => {
     clearDockHideTimer()
-    if (!autoHideDock) return
+    if (!forceAutoHideDock || isDockForcedHidden) return
     dockHideTimerRef.current = window.setTimeout(() => {
+      const activeElement = document.activeElement
+      const dockContainsFocus = !!(dockRef.current && activeElement instanceof Node && dockRef.current.contains(activeElement))
+      if (dockContainsFocus) return
       setRevealed(false)
       setHovered(null)
       setPreviewKind(null)
-    }, 1500)
+    }, 900)
   }
-
 
   const clearPreviewCloseTimer = () => {
     if (previewCloseTimerRef.current) {
@@ -122,46 +139,80 @@ export function Dock() {
     }, 220)
   }
 
+  useEffect(() => {
+    if (isDockForcedHidden) {
+      clearDockHideTimer()
+      setHovered(null)
+      setPreviewKind(null)
+      setRevealed(false)
+      return
+    }
+
+    if (!visibleDockItems.length) {
+      setRevealed(false)
+      return
+    }
+
+    if (!forceAutoHideDock) {
+      setRevealed(true)
+      return
+    }
+
+    scheduleDockHide()
+  }, [forceAutoHideDock, isDockForcedHidden, visibleDockItems.length])
+
+  const dockLayerClass = 'z-[62000]'
+  const revealHandleLayerClass = 'z-[61990]'
+  const dockPositionClass = isDockForcedHidden || (forceAutoHideDock && !revealed) ? '-bottom-[82px]' : 'bottom-[8px]'
+  const dockSurfaceClass = isDark
+    ? 'border-white/10 text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.26)]'
+    : 'border-white/55 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
+  const itemIdleClass = isDark
+    ? 'border-white/10 bg-white/8 text-slate-100 shadow-[0_7px_14px_rgba(2,6,23,0.18)]'
+    : 'border-white/60 bg-white/72 text-slate-800 shadow-[0_7px_14px_rgba(15,23,42,0.06)]'
+  const itemOpenClass = isDark
+    ? 'border-sky-400/28 bg-[linear-gradient(180deg,rgba(30,41,59,0.86),rgba(15,23,42,0.86))] text-white shadow-[0_12px_22px_rgba(14,165,233,0.16)]'
+    : 'border-sky-300/40 bg-[linear-gradient(180deg,rgba(224, 224, 224, 0.92),rgba(215, 216, 216, 0.82))] text-slate-900 shadow-[0_12px_22px_rgba(59,130,246,0.10)]'
+  const tooltipClass = isDark
+    ? 'bg-slate-950 text-white shadow-[0_10px_20px_rgba(2,6,23,0.4)]'
+    : 'bg-slate-900 text-white shadow-[0_10px_20px_rgba(15,23,42,0.28)]'
+  const menuPanelClass = isDark
+    ? 'border-white/10 bg-slate-900/96 text-white shadow-[0_14px_28px_rgba(2,6,23,0.36)]'
+    : 'border-slate-200/90 bg-white/98 text-slate-900 shadow-[0_14px_28px_rgba(15,23,42,0.16)]'
+  const menuButtonToneClass = isDark
+    ? 'text-slate-100 hover:bg-sky-500/14 hover:text-white'
+    : 'text-slate-700 hover:bg-sky-50 hover:text-slate-900'
+  const menuDangerToneClass = isDark
+    ? 'text-red-200 hover:bg-red-500/14 hover:text-red-100'
+    : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+  const menuIconWrapClass = isDark
+    ? 'bg-white/8 text-slate-100'
+    : 'bg-slate-100 text-slate-700'
+  const menuIconActiveClass = isDark
+    ? 'bg-emerald-500/16 text-emerald-300'
+    : 'bg-emerald-100 text-emerald-700'
+  const menuDangerIconClass = isDark
+    ? 'bg-red-500/14 text-red-200'
+    : 'bg-red-100 text-red-600'
+
   return (
     <>
-      {autoHideDock && !revealed && visibleDockItems.length > 0 && (
+      {forceAutoHideDock && !isDockForcedHidden && !revealed && visibleDockItems.length > 0 && (
         <button
           id="dock-reveal-handle"
           onMouseEnter={revealDock}
           onFocus={revealDock}
-          style={{
-            position: 'fixed',
-            left: '50%',
-            bottom: 10,
-            transform: 'translateX(-50%)',
-            width: 70,
-            height: 7,
-            borderRadius: 999,
-            border: 'none',
-            background: 'rgba(255,255,255,0.92)',
-            boxShadow: '0 10px 24px rgba(15,23,42,0.12)',
-            cursor: 'pointer',
-            zIndex: 10000,
-            transition: 'transform 180ms ease, opacity 180ms ease',
-          }}
+          className={`fixed left-1/2 bottom-2 h-[5px] w-[52px] -translate-x-1/2 rounded-full border-0 transition hover:scale-105 ${isDark ? 'bg-slate-200/72 shadow-[0_8px_18px_rgba(2,6,23,0.24)]' : 'bg-white/78 shadow-[0_8px_18px_rgba(15,23,42,0.12)]'} ${revealHandleLayerClass}`}
         />
       )}
 
       <div
         ref={dockRef}
-        style={{
-          position: 'fixed',
-          left: '50%',
-          bottom: 14 - hiddenOffset,
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-          zIndex: 9999,
-          transition: 'bottom 240ms ease',
+        className={`fixed left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-[bottom] duration-200 ${dockLayerClass} ${dockPositionClass} ${isDockForcedHidden ? 'pointer-events-none' : 'pointer-events-auto'}`}
+        onMouseEnter={() => {
+          if (isDockForcedHidden) return
+          revealDock()
         }}
-        onMouseEnter={revealDock}
         onMouseLeave={() => {
           setHovered(null)
           schedulePreviewClose(null)
@@ -171,26 +222,7 @@ export function Dock() {
         {visibleDockItems.length > 0 && (
           <div
             id="desktop-dock"
-            onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              const nextX = Math.min(event.clientX + 10, window.innerWidth - CONTEXT_MENU_WIDTH - 16)
-              const nextY = Math.max(16, event.clientY - 14)
-              setMenu({ x: nextX, y: nextY })
-              setPreviewKind(null)
-            }}
-            style={{
-              background: 'rgba(255,255,255,0.92)',
-              backdropFilter: 'blur(18px)',
-              border: '1px solid rgba(255,255,255,0.78)',
-              borderRadius: 22,
-              padding: '10px 14px',
-              display: 'flex',
-              gap: 10,
-              alignItems: 'flex-end',
-              boxShadow: '0 20px 40px rgba(15,23,42,0.10)',
-              position: 'relative',
-            }}
+            className={`relative flex items-end gap-1.5 rounded-[16px] border px-2 py-1.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
           >
             {visibleDockItems.map((item) => {
               const related = groupedWindows[item.kind]
@@ -202,7 +234,15 @@ export function Dock() {
               return (
                 <div
                   key={item.kind}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', position: 'relative' }}
+                  className="relative flex cursor-pointer flex-col items-center gap-1"
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
+                    const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
+                    setMenu({ x: nextX, y: nextY, kind: item.kind })
+                    setPreviewKind(null)
+                  }}
                   onMouseEnter={() => {
                     clearPreviewCloseTimer()
                     setHovered(item.kind)
@@ -210,9 +250,7 @@ export function Dock() {
                   }}
                   onMouseLeave={() => {
                     setHovered((current) => (current === item.kind ? null : current))
-                    if (related.length > 0) {
-                      schedulePreviewClose(item.kind)
-                    }
+                    if (related.length > 0) schedulePreviewClose(item.kind)
                   }}
                   onClick={() => {
                     const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
@@ -235,140 +273,96 @@ export function Dock() {
                         setPreviewKind(item.kind)
                       }}
                       onMouseLeave={() => schedulePreviewClose(item.kind)}
-                      style={{
-                        position: 'absolute',
-                        bottom: 84,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        padding: 10,
-                        borderRadius: 18,
-                        background: 'rgba(15,23,42,0.96)',
-                        border: '1px solid rgba(148,163,184,0.20)',
-                        boxShadow: '0 26px 60px rgba(2,6,23,0.38)',
-                        minWidth: 260,
-                        maxWidth: 340,
-                      }}
+                      className={`absolute bottom-[60px] left-1/2 z-[62100] flex min-w-[250px] max-w-[340px] max-h-[calc(100vh-112px)] -translate-x-1/2 flex-col gap-2 overflow-hidden rounded-[20px] border p-2 backdrop-blur-xl ${isDark ? 'border-white/14 bg-slate-950/95 shadow-[0_30px_65px_rgba(2,6,23,0.56)]' : 'border-slate-300/60 bg-white/94 shadow-[0_28px_58px_rgba(15,23,42,0.20)]'}`}
                     >
-                      {related.slice().reverse().map((windowItem) => {
-                        const active = windowItem.id === focusedId
-                        // const itemKey = windowItem.id.split(':').pop() ?? windowItem.id
-                        return (
-                          <div
-                            key={windowItem.id}
-                            id={`dock-preview-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              focusWindow(windowItem.id)
-                              setPreviewKind(null)
-                            }}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              borderRadius: 14,
-                              border: `1px solid ${active ? 'rgba(96,165,250,0.55)' : 'rgba(148,163,184,0.18)'}`,
-                              background: active ? 'rgba(30,41,59,0.98)' : 'rgba(15,23,42,0.82)',
-                              padding: '10px 12px',
-                              color: '#fff',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <div style={{ minWidth: 0, flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.35 }}>
-                                {windowItem.title}
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-                                {/* <span style={{ fontSize: 10, color: '#94a3b8' }}>Key: {itemKey}</span> */}
-                                <span style={{
-                                  fontSize: 10,
-                                  color: active ? '#93c5fd' : '#cbd5e1',
-                                  padding: '2px 6px',
-                                  borderRadius: 999,
-                                  background: active ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.06)',
-                                }}>
-                                  {windowItem.isMinimized ? 'Minimized' : active ? 'Focused' : 'Open'}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              id={`dock-preview-close-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
+                      <div className={`px-1 pb-1 text-[10px] uppercase tracking-[0.18em] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Open windows · {related.length}
+                      </div>
+                      <div className="flex max-h-[calc(100vh-154px)] flex-col gap-2 overflow-y-auto pr-1">
+                        {related.slice().reverse().map((windowItem: WindowState) => {
+                          const active = windowItem.id === focusedId
+                          return (
+                            <div
+                              key={windowItem.id}
+                              id={`dock-preview-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
                               onClick={(event) => {
                                 event.stopPropagation()
-                                closeWindow(windowItem.id)
+                                focusWindow(windowItem.id)
+                                setPreviewKind(null)
                               }}
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 999,
-                                border: '1px solid rgba(148,163,184,0.18)',
-                                background: 'rgba(255,255,255,0.06)',
-                                color: '#cbd5e1',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                flexShrink: 0,
-                              }}
-                              title={`Close ${windowItem.title}`}
+                              className={[
+                                'group flex items-center gap-2.5 rounded-[16px] border px-3 py-2.5 transition',
+                                active
+                                  ? isDark
+                                    ? 'border-sky-400/45 bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-[inset_0_0_0_1px_rgba(56,189,248,0.18)]'
+                                    : 'border-sky-300/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] text-slate-900 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.28)]'
+                                  : isDark
+                                    ? 'border-white/8 bg-white/[0.03] text-white hover:border-white/12 hover:bg-white/[0.05]'
+                                    : 'border-slate-200/90 bg-slate-50/95 text-slate-800 hover:border-slate-300 hover:bg-white',
+                              ].join(' ')}
                             >
-                              <X size={14} strokeWidth={2} />
-                            </button>
-                          </div>
-                        )
-                      })}
+                              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${isDark ? 'bg-white/6' : 'bg-slate-100'}`}>
+                                {item.icon}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className={`truncate text-[11px] font-semibold leading-[1.35] ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{windowItem.title}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <span className={[
+                                    'rounded-full px-2 py-0.5 text-[9px] font-medium',
+                                    active
+                                      ? isDark
+                                        ? 'bg-sky-500/15 text-sky-300'
+                                        : 'bg-sky-100 text-sky-700'
+                                      : isDark
+                                        ? 'bg-white/6 text-slate-300'
+                                        : 'bg-slate-200/80 text-slate-600',
+                                  ].join(' ')}>
+                                    {windowItem.isMinimized ? 'Minimized' : active ? 'Active' : 'Open'}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                id={`dock-preview-close-${windowItem.id.replace(/[^a-z0-9-:]/gi, '-')}`}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  closeWindow(windowItem.id)
+                                }}
+                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isDark ? 'border-white/10 bg-white/6 text-slate-300 hover:border-red-400/30 hover:bg-red-500/12 hover:text-red-200' : 'border-slate-200 bg-white text-slate-500 hover:border-red-300 hover:bg-red-50 hover:text-red-500'}`}
+                                title={`Close ${windowItem.title}`}
+                              >
+                                <X size={13} strokeWidth={2} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+
                     </div>
                   )}
 
                   {!showPreview && isHovered && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 66,
-                      background: '#0f172a',
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 500,
-                      padding: '5px 10px',
-                      borderRadius: 999,
-                      whiteSpace: 'nowrap',
-                      pointerEvents: 'none',
-                      boxShadow: '0 10px 20px rgba(15,23,42,0.25)',
-                    }}>
+                    <div className={`pointer-events-none absolute bottom-[49px] whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-medium ${tooltipClass}`}>
                       {item.label}
                     </div>
                   )}
 
-                  <div style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: 14,
-                    background: isOpen ? 'linear-gradient(180deg, rgba(255,255,255,1), rgba(241,245,249,0.95))' : '#f8fafc',
-                    border: `1px solid ${isOpen ? 'rgba(96,165,250,0.25)' : '#e5e7eb'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 22,
-                    transition: 'transform .18s, box-shadow .18s, border-color .18s',
-                    transform: isHovered ? 'scale(1.18) translateY(-7px)' : 'scale(1)',
-                    boxShadow: isOpen ? '0 16px 28px rgba(59,130,246,0.12)' : '0 8px 18px rgba(15,23,42,0.05)',
-                  }}>
+                  <div
+                    className={[
+                      'flex h-[34px] w-[34px] items-center justify-center rounded-[12px] border text-[15px] transition-all duration-200',
+                      isOpen ? itemOpenClass : itemIdleClass,
+                      isHovered ? 'scale-[1.08] -translate-y-[4px]' : 'scale-100',
+                    ].join(' ')}
+                  >
                     {item.icon}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, minHeight: 8 }}>
-                    <div style={{
-                      width: hasVisible ? 20 : related.length > 0 ? 12 : 6,
-                      height: 4,
-                      borderRadius: 999,
-                      background: hasVisible ? 'linear-gradient(90deg, #38bdf8, #6366f1)' : '#0f172a',
-                      opacity: isOpen ? 1 : 0,
-                      transition: 'opacity .15s, width .15s',
-                    }} />
-                    {related.length > 1 && (
-                      <span style={{ fontSize: 10, color: '#64748b', fontWeight: 700 }}>{related.length}</span>
-                    )}
+                  <div className="flex min-h-2 items-center gap-1">
+                    <div className={[
+                      'h-[3px] rounded-full transition-all duration-150',
+                      hasVisible ? 'w-3.5 bg-[linear-gradient(90deg,#38bdf8,#6366f1)]' : related.length > 0 ? (isDark ? 'w-2 bg-slate-200/70' : 'w-2 bg-slate-800/80') : (isDark ? 'w-1 bg-slate-500/60' : 'w-1 bg-slate-400/50'),
+                      isOpen ? 'opacity-100' : 'opacity-0',
+                    ].join(' ')} />
+                    {related.length > 1 && <span className={`text-[8px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{related.length}</span>}
                   </div>
                 </div>
               )
@@ -381,53 +375,42 @@ export function Dock() {
         <div
           id="dock-context-menu"
           onClick={(event) => event.stopPropagation()}
-          style={{
-            position: 'fixed',
-            left: menu.x,
-            top: menu.y,
-            transform: 'translateY(-100%)',
-            zIndex: 10001,
-            width: CONTEXT_MENU_WIDTH,
-            borderRadius: 16,
-            background: 'rgba(15,23,42,0.96)',
-            border: '1px solid rgba(148,163,184,0.18)',
-            boxShadow: '0 24px 50px rgba(2,6,23,0.35)',
-            padding: 8,
-            color: '#fff',
-            backdropFilter: 'blur(18px)',
-          }}
+          className={`fixed z-[62250] w-[178px] rounded-xl border p-1 backdrop-blur-[16px] ${menuPanelClass}`}
+          style={{ left: menu.x, top: menu.y }}
         >
-          <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.16em' }}>
-            Dock options
-          </div>
           <button
             id="dock-menu-toggle-autohide"
             onClick={() => {
               toggleDockAutoHide()
               setMenu(null)
             }}
-            style={menuButtonStyle}
+            className={`${menuButtonClass} ${menuButtonToneClass}`}
           >
-            {autoHideDock ? <EyeOff size={15} /> : <PanelBottom size={15} />}
-            {autoHideDock ? 'Disable auto hide' : 'Enable auto hide'}
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${autoHideDock ? menuIconActiveClass : menuIconWrapClass}`}>
+              {autoHideDock ? <EyeOff size={14} /> : <PanelBottom size={14} />}
+            </div>
+            <div className="min-w-0 flex-1 truncate">
+              {autoHideDock ? 'Disable auto hide' : 'Enable auto hide'}
+            </div>
+          </button>
+
+          <button
+            id="dock-menu-close-group"
+            onClick={() => {
+              closeWindowsByKind(menu.kind)
+              setMenu(null)
+            }}
+            className={`${menuButtonClass} ${menuDangerToneClass}`}
+          >
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${menuDangerIconClass}`}>
+              <X size={14} />
+            </div>
+            <div className="min-w-0 flex-1 truncate">
+              Close all windows
+            </div>
           </button>
         </div>
       )}
     </>
   )
-}
-
-const menuButtonStyle: React.CSSProperties = {
-  width: '100%',
-  border: 'none',
-  borderRadius: 12,
-  background: 'transparent',
-  color: '#fff',
-  textAlign: 'left',
-  padding: '10px 12px',
-  cursor: 'pointer',
-  fontSize: 13,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
 }

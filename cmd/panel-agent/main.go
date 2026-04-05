@@ -15,6 +15,11 @@ func main() {
 	}
 
 	srv := httpserver.New(cfg)
+	defer func() {
+		if err := srv.Close(); err != nil {
+			log.Printf("ui-panel-agent close warning: %v", err)
+		}
+	}()
 
 	log.Printf("ui-panel-agent listening on %s", cfg.BindAddr)
 	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {

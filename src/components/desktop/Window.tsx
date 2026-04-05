@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Minus, Square, X, ChevronDown } from 'lucide-react'
+import { ChevronDown, Maximize, Minimize as ExitFullscreen, Minus, Square, X } from 'lucide-react'
 import { useWindowStore, selectFocusedId, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
 import type { WindowState } from '@/types'
 
@@ -11,11 +11,17 @@ interface Props {
   children: React.ReactNode
 }
 
+const TOP_SAFE_OFFSET = 44
+const BOTTOM_SAFE_OFFSET = 96
+const VIEWPORT_PADDING = 8
+const WINDOW_GRAB_VISIBILITY = 180
+
 export function Window({ win, children }: Props) {
   const {
     closeWindow,
     minimizeWindow,
     maximizeWindow,
+    toggleFullscreenWindow,
     focusWindow,
     moveWindow,
     resizeWindow,
@@ -63,21 +69,26 @@ export function Window({ win, children }: Props) {
     dragRef.current = { ox: e.clientX - win.x, oy: e.clientY - win.y }
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return
+      const nextX = ev.clientX - dragRef.current.ox
+      const nextY = ev.clientY - dragRef.current.oy
+      const minX = VIEWPORT_PADDING - (win.width - WINDOW_GRAB_VISIBILITY)
+      const maxX = window.innerWidth - WINDOW_GRAB_VISIBILITY - VIEWPORT_PADDING
+      const minY = TOP_SAFE_OFFSET
+      const maxY = window.innerHeight - BOTTOM_SAFE_OFFSET
       moveWindow(
         win.id,
-        Math.max(0, ev.clientX - dragRef.current.ox),
-        Math.max(0, ev.clientY - dragRef.current.oy),
+        Math.min(Math.max(nextX, minX), maxX),
+        Math.min(Math.max(nextY, minY), maxY),
       )
     }
     const onUp = () => {
       dragRef.current = null
       const currentWindow = useWindowStore.getState().windows.find((w) => w.id === win.id)
       if (currentWindow) {
-        const viewportPadding = 8
-        const minX = viewportPadding
-        const minY = 44
-        const maxX = Math.max(viewportPadding, window.innerWidth - currentWindow.width - viewportPadding)
-        const maxY = Math.max(minY, window.innerHeight - currentWindow.height - 72)
+        const minX = VIEWPORT_PADDING - (currentWindow.width - WINDOW_GRAB_VISIBILITY)
+        const maxX = window.innerWidth - WINDOW_GRAB_VISIBILITY - VIEWPORT_PADDING
+        const minY = TOP_SAFE_OFFSET
+        const maxY = window.innerHeight - BOTTOM_SAFE_OFFSET
         const clampedX = Math.min(Math.max(currentWindow.x, minX), maxX)
         const clampedY = Math.min(Math.max(currentWindow.y, minY), maxY)
         if (clampedX !== currentWindow.x || clampedY !== currentWindow.y) {
@@ -102,9 +113,9 @@ export function Window({ win, children }: Props) {
     const initial = { x: win.x, y: win.y, width: win.width, height: win.height }
     const minWidth = win.kind === 'host-terminal' ? 640 : win.kind === 'system' ? 360 : 280
     const minHeight = win.kind === 'host-terminal' ? 420 : win.kind === 'system' ? 420 : 220
-    const viewportPadding = 8
-    const maxRight = window.innerWidth - viewportPadding
-    const maxBottom = window.innerHeight - 14
+    const minLeft = VIEWPORT_PADDING - (initial.width - WINDOW_GRAB_VISIBILITY)
+    const maxRight = window.innerWidth - VIEWPORT_PADDING
+    const maxBottom = window.innerHeight - BOTTOM_SAFE_OFFSET
 
     const onMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX
@@ -122,13 +133,12 @@ export function Window({ win, children }: Props) {
         nextHeight = Math.max(minHeight, Math.min(maxBottom - initial.y, initial.height + deltaY))
       }
       if (direction.includes('w')) {
-        const candidateX = Math.min(initial.x + initial.width - minWidth, Math.max(viewportPadding, initial.x + deltaX))
+        const candidateX = Math.min(initial.x + initial.width - minWidth, Math.max(minLeft, initial.x + deltaX))
         nextX = candidateX
         nextWidth = Math.max(minWidth, initial.width + (initial.x - candidateX))
       }
       if (direction.includes('n')) {
-        const minTop = 44
-        const candidateY = Math.min(initial.y + initial.height - minHeight, Math.max(minTop, initial.y + deltaY))
+        const candidateY = Math.min(initial.y + initial.height - minHeight, Math.max(TOP_SAFE_OFFSET, initial.y + deltaY))
         nextY = candidateY
         nextHeight = Math.max(minHeight, initial.height + (initial.y - candidateY))
       }
@@ -148,10 +158,13 @@ export function Window({ win, children }: Props) {
 
   const contentFontFamily = FONT_OPTIONS[globalFontIndex] ?? FONT_OPTIONS[0]
   const contentZoom = globalContentZoom
+  const isExpanded = win.isMaximized || win.isFullscreen
 
-  const style = win.isMaximized
-    ? { left: 0, top: 44, width: '100vw', height: 'calc(100vh - 44px)', zIndex: win.zIndex }
-    : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex }
+  const style = win.isFullscreen
+    ? { left: 0, top: 0, width: '100vw', height: '100vh', zIndex: win.zIndex }
+    : win.isMaximized
+      ? { left: 0, top: TOP_SAFE_OFFSET, width: '100vw', height: `calc(100vh - ${TOP_SAFE_OFFSET}px)`, zIndex: win.zIndex }
+      : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex }
 
   return (
     <AnimatePresence>
@@ -174,13 +187,15 @@ export function Window({ win, children }: Props) {
           className="absolute flex flex-col overflow-hidden"
           style={{
             ...style,
-            background: 'rgba(255,255,255,0.92)',
-            borderRadius: 24,
-            border: `1px solid ${isFocused ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.56)'}`,
-            boxShadow: isFocused
-              ? '0 28px 70px rgba(15, 23, 42, 0.20), 0 10px 24px rgba(15, 23, 42, 0.08)'
-              : '0 12px 36px rgba(15, 23, 42, 0.10), 0 4px 12px rgba(15, 23, 42, 0.05)',
-            transition: 'box-shadow 200ms ease, border-color 200ms ease',
+            background: 'var(--win-bg)',
+            borderRadius: isExpanded ? 0 : 24,
+            border: isExpanded ? 'none' : `1px solid ${isFocused ? 'var(--win-border-focus)' : 'var(--win-border)'}`,
+            boxShadow: isExpanded
+              ? 'none'
+              : isFocused
+                ? 'var(--win-shadow-focus)'
+                : 'var(--win-shadow)',
+            transition: 'box-shadow 200ms ease, border-color 200ms ease, border-radius 200ms ease',
             backdropFilter: 'blur(22px)',
           }}
           onMouseDown={() => focusWindow(win.id)}
@@ -188,12 +203,12 @@ export function Window({ win, children }: Props) {
           <div
             style={{
               height: 46,
-              background: isFocused ? 'rgba(255,255,255,0.9)' : 'rgba(250,250,250,0.9)',
-              borderBottom: '1px solid rgba(226,232,240,0.8)',
+              background: isFocused ? 'var(--win-bar-focus)' : 'var(--win-bar)',
+              borderBottom: isExpanded ? 'none' : '1px solid var(--win-bar-border)',
               display: 'flex',
               alignItems: 'center',
               padding: '0 14px',
-              cursor: 'move',
+              cursor: isExpanded ? 'default' : 'move',
               flexShrink: 0,
               position: 'relative',
               transition: 'background 200ms ease',
@@ -216,7 +231,7 @@ export function Window({ win, children }: Props) {
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
-                  color: isFocused ? '#1a1a1a' : '#94a3b8',
+                  color: isFocused ? 'var(--win-text)' : '#94a3b8',
                   transition: 'color 200ms ease',
                 }}
               >
@@ -244,8 +259,19 @@ export function Window({ win, children }: Props) {
                 style={controlButtonStyle}
                 onMouseEnter={(e) => applyHover(e.currentTarget)}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
+                title={win.isMaximized ? 'Restore window' : 'Fill workspace'}
               >
                 <Square size={12} strokeWidth={1.5} />
+              </button>
+
+              <button
+                onClick={() => toggleFullscreenWindow(win.id)}
+                style={controlButtonStyle}
+                onMouseEnter={(e) => applyHover(e.currentTarget)}
+                onMouseLeave={(e) => resetHover(e.currentTarget)}
+                title={win.isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                {win.isFullscreen ? <ExitFullscreen size={12} strokeWidth={1.8} /> : <Maximize size={12} strokeWidth={1.8} />}
               </button>
 
               <button
@@ -262,152 +288,159 @@ export function Window({ win, children }: Props) {
             </div>
           </div>
 
-          <div
-            style={{
-              minHeight: 42,
-              background: 'rgba(250,250,250,0.76)',
-              borderBottom: '1px solid rgba(240,240,240,0.82)',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '6px 10px',
-              gap: 8,
-              flexShrink: 0,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={toolbarToolsGroupStyle}>
-              {[
-                { key: 'bold', label: 'B' },
-                { key: 'italic', label: 'I' },
-                { key: 'underline', label: 'U' },
-              ].map((item) => {
-                const active = textAccent[item.key as keyof typeof textAccent]
-                return (
-                  <button
-                    key={item.key}
-                    style={{
-                      ...toolbarToggleStyle,
-                      ...(active ? activeToolbarToggleStyle : null),
-                      fontSize: item.label === 'B' ? 13 : 12,
-                      fontWeight: item.label === 'B' ? 700 : 400,
-                      fontStyle: item.label === 'I' ? 'italic' : 'normal',
-                      textDecoration: item.label === 'U' ? 'underline' : 'none',
-                    }}
-                    onClick={() => {
-                      setTextAccent((current) => ({
-                        ...current,
-                        [item.key]: !current[item.key as keyof typeof current],
-                      }))
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) e.currentTarget.style.background = '#f0f0f0'
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
+          {!win.isFullscreen && (
+            <div
+              style={{
+                minHeight: 42,
+                background: 'rgba(250,250,250,0.76)',
+                borderBottom: '1px solid rgba(240,240,240,0.82)',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px 10px',
+                gap: 8,
+                flexShrink: 0,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={toolbarToolsGroupStyle}>
+                {[
+                  { key: 'bold', label: 'B' },
+                  { key: 'italic', label: 'I' },
+                  { key: 'underline', label: 'U' },
+                ].map((item) => {
+                  const active = textAccent[item.key as keyof typeof textAccent]
+                  return (
+                    <button
+                      key={item.key}
+                      style={{
+                        ...toolbarToggleStyle,
+                        ...(active ? activeToolbarToggleStyle : null),
+                        fontSize: item.label === 'B' ? 13 : 12,
+                        fontWeight: item.label === 'B' ? 700 : 400,
+                        fontStyle: item.label === 'I' ? 'italic' : 'normal',
+                        textDecoration: item.label === 'U' ? 'underline' : 'none',
+                      }}
+                      onClick={() => {
+                        setTextAccent((current) => ({
+                          ...current,
+                          [item.key]: !current[item.key as keyof typeof current],
+                        }))
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!active) e.currentTarget.style.background = '#f0f0f0'
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!active) e.currentTarget.style.background = 'transparent'
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  )
+                })}
+              </div>
 
-            <div style={toolbarToolsGroupStyle}>
-              <button
-                type="button"
-                style={toolbarChipStyle}
-                onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
-              >
-                Font · {FONT_LABELS[globalFontIndex]}
-              </button>
-              <button
-                type="button"
-                style={toolbarValueChipStyle}
-                onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
-              >
-                Family {globalFontIndex + 1}/{FONT_OPTIONS.length}
-              </button>
-            </div>
-
-            <div style={toolbarToolsGroupStyle}>
-              <button
-                type="button"
-                style={toolbarChipStyle}
-                onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
-              >
-                Zoom · {contentZoom.toFixed(2)}x
-              </button>
-              <button
-                type="button"
-                style={toolbarValueChipStyle}
-                onClick={() => setGlobalContentZoom(Math.max(0.75, globalContentZoom - 0.05))}
-              >
-                −
-              </button>
-              <button
-                type="button"
-                style={toolbarValueChipStyle}
-                onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
-              >
-                +
-              </button>
-            </div>
-
-            {win.kind === 'host-terminal' && (
               <div style={toolbarToolsGroupStyle}>
                 <button
                   type="button"
                   style={toolbarChipStyle}
-                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                  onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
                 >
-                  Terminal · {globalTerminalFontSize}px
+                  Font · {FONT_LABELS[globalFontIndex]}
                 </button>
                 <button
                   type="button"
                   style={toolbarValueChipStyle}
-                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                  onClick={() => setGlobalFontIndex((globalFontIndex + 1) % FONT_OPTIONS.length)}
+                >
+                  Family {globalFontIndex + 1}/{FONT_OPTIONS.length}
+                </button>
+              </div>
+
+              <div style={toolbarToolsGroupStyle}>
+                <button
+                  type="button"
+                  style={toolbarChipStyle}
+                  onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
+                >
+                  Zoom · {contentZoom.toFixed(2)}x
+                </button>
+                <button
+                  type="button"
+                  style={toolbarValueChipStyle}
+                  onClick={() => setGlobalContentZoom(Math.max(0.75, globalContentZoom - 0.05))}
                 >
                   −
                 </button>
                 <button
                   type="button"
                   style={toolbarValueChipStyle}
-                  onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize + 1)}
+                  onClick={() => setGlobalContentZoom(Math.min(2, globalContentZoom + 0.05))}
                 >
                   +
                 </button>
               </div>
-            )}
-          </div>
+
+              {win.kind === 'host-terminal' && (
+                <div style={toolbarToolsGroupStyle}>
+                  <button
+                    type="button"
+                    style={toolbarChipStyle}
+                    onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                  >
+                    Terminal · {globalTerminalFontSize}px
+                  </button>
+                  <button
+                    type="button"
+                    style={toolbarValueChipStyle}
+                    onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize - 1)}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    style={toolbarValueChipStyle}
+                    onClick={() => setGlobalTerminalFontSize(globalTerminalFontSize + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div
             style={{
               flex: 1,
-              overflow: win.kind === 'host-terminal' ? 'hidden' : 'auto',
-              padding: win.kind === 'host-terminal'
-                ? '10px 12px 12px'
-                : win.kind === 'system'
-                  ? '16px 16px 20px'
-                  : win.kind === 'docs'
-                    ? '14px 14px 18px'
-                    : '16px 16px 20px',
+              overflow: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'hidden' : 'auto',
+              padding: win.isFullscreen
+                ? 0
+                : (win.kind === 'host-terminal' || win.kind === 'system-logs')
+                  ? 0
+                  : win.kind === 'system'
+                    ? '16px 16px 20px'
+                    : win.kind === 'docs'
+                      ? '14px 14px 18px'
+                      : '16px 16px 20px',
               fontSize: 12,
-              color: '#525252',
+              color: 'var(--win-text)',
               lineHeight: 1.65,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.82))',
+              background: win.isFullscreen ? 'var(--win-bg)' : 'var(--win-content-bg)',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
             }}
           >
             <div
               style={{
                 minHeight: '100%',
-                height: win.kind === 'host-terminal' ? '100%' : undefined,
-                display: win.kind === 'host-terminal' ? 'flex' : undefined,
-                flexDirection: win.kind === 'host-terminal' ? 'column' : undefined,
+                height: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? '100%' : undefined,
+                display: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'flex' : undefined,
+                flexDirection: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'column' : undefined,
                 fontFamily: contentFontFamily,
                 fontWeight: textAccent.bold ? 600 : 400,
                 fontStyle: textAccent.italic ? 'italic' : 'normal',
                 textDecoration: textAccent.underline ? 'underline' : 'none',
-                zoom: win.kind === 'host-terminal' ? 1 : contentZoom,
+                zoom: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 1 : contentZoom,
                 transformOrigin: 'top left',
               }}
             >
@@ -415,7 +448,7 @@ export function Window({ win, children }: Props) {
             </div>
           </div>
 
-          {!win.isMaximized && RESIZE_HANDLES.map((handle) => (
+          {!isExpanded && RESIZE_HANDLES.map((handle) => (
             <div
               key={handle.direction}
               onMouseDown={(event) => handleResizeStart(handle.direction, event)}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,6 +32,7 @@ type Summary struct {
 	DockerReachable    bool      `json:"dockerReachable"`
 	DockerStatus       string    `json:"dockerStatus"`
 	PortainerReachable bool      `json:"portainerReachable"`
+	IPAddresses        []string  `json:"ipAddresses"`
 }
 
 type LogEntry struct {
@@ -54,6 +56,7 @@ func Inspect(portainerURL, stateDir string) Summary {
 		DockerReachable:    dockerReachable,
 		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
 		PortainerReachable: urlReachable(strings.TrimRight(portainerURL, "/") + "/api/status"),
+		IPAddresses:        readIPAddresses(),
 	}
 }
 
@@ -224,6 +227,40 @@ func readStorageUsage(target string) UsageStat {
 		used = total - free
 	}
 	return UsageStat{Total: total, Used: used}
+}
+
+func readIPAddresses() []string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return []string{}
+	}
+	result := make([]string, 0, 4)
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			result = append(result, fmt.Sprintf("%s (%s)", ip.String(), iface.Name))
+		}
+	}
+	return result
 }
 
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {

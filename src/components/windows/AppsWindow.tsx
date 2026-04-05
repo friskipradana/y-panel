@@ -18,21 +18,19 @@ function getIcon(name: string): string {
   return Object.entries(APP_ICONS).find(([k]) => lower.includes(k))?.[1] ?? APP_ICONS.default
 }
 
+const STATE_STYLES: Record<Container['State'], { badge: string; dot: string; btn: string; btnText: string }> = {
+  running:    { badge: 'bg-emerald-50 text-emerald-700',  dot: 'bg-emerald-500', btn: 'bg-red-50 text-red-700 hover:bg-red-100',      btnText: 'Stop' },
+  exited:     { badge: 'bg-red-50 text-red-700',          dot: 'bg-red-400',     btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+  paused:     { badge: 'bg-amber-50 text-amber-700',      dot: 'bg-amber-400',   btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+  restarting: { badge: 'bg-blue-50 text-blue-700',        dot: 'bg-blue-400',    btn: 'bg-red-50 text-red-700 hover:bg-red-100',      btnText: 'Stop' },
+  dead:       { badge: 'bg-slate-100 text-slate-500',     dot: 'bg-slate-400',   btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+}
+
 function StatusBadge({ state }: { state: Container['State'] }) {
-  const colors: Record<string, { bg: string; text: string; dot: string }> = {
-    running: { bg: '#e8f5e9', text: '#2e7d32', dot: '#4caf50' },
-    exited: { bg: '#ffebee', text: '#c62828', dot: '#ef5350' },
-    paused: { bg: '#fff8e1', text: '#f57f17', dot: '#ffc107' },
-    restarting: { bg: '#e3f2fd', text: '#1565c0', dot: '#42a5f5' },
-    dead: { bg: '#f5f5f5', text: '#757575', dot: '#9e9e9e' },
-  }
-  const c = colors[state] ?? colors.dead
+  const s = STATE_STYLES[state] ?? STATE_STYLES.dead
   return (
-    <span
-      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-      style={{ background: c.bg, color: c.text }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.dot }} />
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${s.badge}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
       {state}
     </span>
   )
@@ -41,12 +39,12 @@ function StatusBadge({ state }: { state: Container['State'] }) {
 export function AppsWindow() {
   const { data, isLoading, isError, error } = useContainers()
   const startMutation = useStartContainer()
-  const stopMutation = useStopContainer()
-  const containers = Array.isArray(data) ? data : []
+  const stopMutation  = useStopContainer()
+  const containers    = Array.isArray(data) ? data : []
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-32 gap-3 text-sm" style={{ color: 'var(--sand-400)' }}>
+      <div className="flex items-center justify-center h-32 gap-3 text-sm text-slate-400">
         <div className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
         Menghubungkan ke runtime agent...
       </div>
@@ -55,19 +53,19 @@ export function AppsWindow() {
 
   if (isError) {
     return (
-      <div className="text-sm rounded-lg p-4" style={{ background: '#ffebee', color: '#c62828' }}>
-        <p className="font-medium mb-1">Tidak bisa memuat container dari agent</p>
-        <p className="text-xs opacity-80">{(error as Error).message}</p>
-        <p className="text-xs mt-2 opacity-60">Pastikan ui-panel-agent aktif dan Docker dapat diakses oleh backend.</p>
+      <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+        <p className="font-semibold mb-1">Tidak bisa memuat container dari agent</p>
+        <p className="text-[11px] opacity-80">{(error as Error).message}</p>
+        <p className="text-[11px] mt-2 opacity-60">Pastikan ui-panel-agent aktif dan Docker dapat diakses oleh backend.</p>
       </div>
     )
   }
 
   if (containers.length === 0) {
     return (
-      <div className="rounded-xl p-5 text-sm" style={{ background: 'rgba(0,0,0,0.04)', color: 'var(--sand-500)' }}>
-        <p className="font-semibold mb-1" style={{ color: 'var(--sand-600)' }}>Belum ada container aktif</p>
-        <p className="text-xs leading-relaxed">
+      <div className="rounded-xl bg-slate-50 border border-slate-100 p-5 text-sm text-slate-500">
+        <p className="font-semibold mb-1 text-slate-700">Belum ada container aktif</p>
+        <p className="text-[11px] leading-relaxed">
           Runtime agent berhasil dijangkau, tetapi saat ini belum ada container yang bisa ditampilkan.
         </p>
       </div>
@@ -75,48 +73,34 @@ export function AppsWindow() {
   }
 
   return (
-    <div>
-      <p className="text-xs mb-3" style={{ color: 'var(--sand-400)' }}>
+    <div className="flex flex-col gap-3">
+      <p className="text-[11px] text-slate-400 font-medium">
         {containers.length} container · auto-refresh tiap 10 detik
       </p>
       <div className="flex flex-col gap-2">
         {containers.map((c) => {
           const name = c.Names?.[0]?.replace(/^\//, '') || c.Id.slice(0, 12)
+          const s = STATE_STYLES[c.State] ?? STATE_STYLES.dead
+          const isMutating = startMutation.isPending || stopMutation.isPending
+
           return (
             <div
               key={c.Id}
-              className="flex items-center gap-3 p-3 rounded-lg"
-              style={{ background: 'rgba(0,0,0,0.04)', border: '0.5px solid rgba(0,0,0,0.07)' }}
+              className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white/80 backdrop-blur-sm hover:bg-white transition-colors"
             >
-              <span className="text-2xl">{getIcon(name)}</span>
+              <span className="text-xl flex-shrink-0">{getIcon(name)}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--sand-600)' }}>
-                  {name}
-                </p>
-                <p className="text-xs truncate" style={{ color: 'var(--sand-400)' }}>
-                  {c.Image}
-                </p>
+                <p className="text-[13px] font-semibold text-slate-800 truncate">{name}</p>
+                <p className="text-[11px] text-slate-400 truncate">{c.Image}</p>
               </div>
               <StatusBadge state={c.State} />
-              {c.State === 'running' ? (
-                <button
-                  className="text-xs px-2 py-1 rounded-md transition-colors"
-                  style={{ background: '#ffebee', color: '#c62828' }}
-                  onClick={() => stopMutation.mutate(c.Id)}
-                  disabled={stopMutation.isPending}
-                >
-                  Stop
-                </button>
-              ) : (
-                <button
-                  className="text-xs px-2 py-1 rounded-md transition-colors"
-                  style={{ background: '#e8f5e9', color: '#2e7d32' }}
-                  onClick={() => startMutation.mutate(c.Id)}
-                  disabled={startMutation.isPending}
-                >
-                  Start
-                </button>
-              )}
+              <button
+                className={`text-[11px] px-2.5 py-1.5 rounded-lg font-semibold transition-colors flex-shrink-0 cursor-pointer ${s.btn}`}
+                onClick={() => c.State === 'running' ? stopMutation.mutate(c.Id) : startMutation.mutate(c.Id)}
+                disabled={isMutating}
+              >
+                {s.btnText}
+              </button>
             </div>
           )
         })}

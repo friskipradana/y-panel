@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,6 +18,12 @@ type Config struct {
 	PortainerURL   string
 	InstallChannel string
 	FrontendDir    string
+	DatabaseHost   string
+	DatabasePort   int
+	DatabaseUser   string
+	DatabasePass   string
+	DatabaseName   string
+	DatabaseEnable bool
 }
 
 func Load() (Config, error) {
@@ -29,6 +37,12 @@ func Load() (Config, error) {
 		PortainerURL:   getenv("PANEL_PORTAINER_URL", "http://127.0.0.1:9000"),
 		InstallChannel: getenv("PANEL_INSTALL_CHANNEL", "stable"),
 		FrontendDir:    getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
+		DatabaseHost:   getenv("PANEL_DB_HOST", "127.0.0.1"),
+		DatabasePort:   parseIntEnv("PANEL_DB_PORT", 3306),
+		DatabaseUser:   getenv("PANEL_DB_USER", "ui_panel"),
+		DatabasePass:   os.Getenv("PANEL_DB_PASSWORD"),
+		DatabaseName:   getenv("PANEL_DB_NAME", "ui_panel"),
+		DatabaseEnable: parseBoolEnv("PANEL_DB_ENABLED", true),
 	}
 
 	if cfg.AdminUsername == "" {
@@ -58,4 +72,31 @@ func parseDurationEnv(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return parsed
+}
+
+func parseIntEnv(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}
+
+func parseBoolEnv(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }

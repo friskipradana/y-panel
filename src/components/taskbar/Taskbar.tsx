@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { FileText, LogOut, Monitor, RotateCcw, ScrollText } from 'lucide-react'
-import { logoutAgent } from '@/api/agent'
+import { FileText, Monitor, RotateCcw, ScrollText } from 'lucide-react'
+import { logoutAgent, getMe } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
+import { ProfileMenu } from './ProfileMenu'
 import type { WindowKind } from '@/types'
 
 interface TaskbarProps {
@@ -24,6 +25,8 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Portainer', kind: 'portainer' },
   { label: 'Terminal', kind: 'host-terminal' },
   { label: 'System', kind: 'system' },
+  { label: 'Settings', kind: 'settings' },
+  { label: 'Database', kind: 'database' },
   { label: 'Docs', kind: 'docs' },
 ]
 
@@ -31,12 +34,17 @@ export function Taskbar({ onLogout }: TaskbarProps) {
   const { openWindow, resetWindows } = useWindowStore()
   const [time, setTime] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
+  const [username, setUsername] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const tick = () => setTime(formatDateTime(new Date()))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    getMe().then((me) => setUsername(me.username)).catch(() => {})
   }, [])
 
   const handleLogout = async () => {
@@ -52,134 +60,45 @@ export function Taskbar({ onLogout }: TaskbarProps) {
   }
 
   return (
-    <div
-      className="fixed top-0 left-0 right-0 flex items-center justify-between select-none"
-      style={{
-        height: 44,
-        zIndex: 9999,
-        background: 'rgba(255,255,255,0.82)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(226,232,240,0.85)',
-        padding: '0 16px',
-        gap: 16,
-      }}
-    >
-      <div className="flex items-center gap-2">
-        <div className="flex gap-1 rounded-full px-1 py-1" style={{ background: 'rgba(255,255,255,0.62)', border: '1px solid rgba(226,232,240,0.9)' }}>
-          {QUICK_LAUNCH.map((item) => (
-            <button
-              key={item.kind}
-              id={`taskbar-open-${item.kind}`}
-              onClick={() => openWindow(item.kind)}
-              style={taskbarButtonStyle}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="taskbar">
+      <nav className="taskbar-nav">
+        {QUICK_LAUNCH.map((item) => (
+          <button
+            key={item.kind}
+            id={`taskbar-open-${item.kind}`}
+            className="taskbar-nav-btn"
+            onClick={() => openWindow(item.kind)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-      <div className="ml-auto flex items-center gap-2">
-        <span
-          id="taskbar-clock"
-          style={{
-            fontSize: 12,
-            fontFamily: "'JetBrains Mono', monospace",
-            color: '#64748b',
-            minWidth: 156,
-            textAlign: 'right',
-          }}
-        >
-          {time}
-        </span>
+      <div className="taskbar-actions">
+        <span id="taskbar-clock" className="taskbar-clock">{time}</span>
 
-        <button
-          id="taskbar-monitor"
-          title="System Info"
-          onClick={() => openWindow('system')}
-          style={iconButtonStyle}
-        >
+        <button id="taskbar-monitor" title="System Info" className="taskbar-icon-btn" onClick={() => openWindow('system')}>
           <Monitor size={14} />
         </button>
 
-        <button
-          id="taskbar-system-log"
-          title="System Logs"
-          onClick={() => openWindow('system-logs')}
-          style={iconButtonStyle}
-        >
+        <button id="taskbar-system-log" title="System Logs" className="taskbar-icon-btn" onClick={() => openWindow('system-logs')}>
           <ScrollText size={14} />
         </button>
 
-        <button
-          id="taskbar-runtime-log"
-          title="Changelog"
-          onClick={() => openWindow('changelog')}
-          style={iconButtonStyle}
-        >
+        <button id="taskbar-runtime-log" title="Changelog" className="taskbar-icon-btn" onClick={() => openWindow('changelog')}>
           <FileText size={14} />
         </button>
 
-        <button
-          id="taskbar-reset-windows"
-          title="Reset windows"
-          onClick={resetWindows}
-          style={iconButtonStyle}
-        >
+        <button id="taskbar-reset-windows" title="Reset windows" className="taskbar-icon-btn" onClick={resetWindows}>
           <RotateCcw size={12} />
         </button>
 
-        <button
-          id="taskbar-logout"
-          title="Logout"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          style={{
-            minWidth: 78,
-            height: 30,
-            borderRadius: 999,
-            background: loggingOut ? '#64748b' : '#0f172a',
-            border: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            cursor: loggingOut ? 'wait' : 'pointer',
-            color: '#fff',
-            fontSize: 12,
-            padding: '0 14px',
-            fontFamily: 'Outfit, sans-serif',
-          }}
-        >
-          <LogOut size={12} />
-          {loggingOut ? 'Wait' : 'Logout'}
-        </button>
+        <ProfileMenu
+          username={username}
+          onLogout={handleLogout}
+          loading={loggingOut}
+        />
       </div>
     </div>
   )
-}
-
-const taskbarButtonStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: '#475569',
-  padding: '6px 12px',
-  borderRadius: 999,
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  fontFamily: 'Outfit, sans-serif',
-  fontWeight: 500,
-}
-
-const iconButtonStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  borderRadius: 999,
-  background: 'rgba(255,255,255,0.9)',
-  border: '1px solid rgba(226,232,240,0.9)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  color: '#0f172a',
 }

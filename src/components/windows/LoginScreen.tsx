@@ -55,10 +55,10 @@ export function LoginScreen({ onLoginSuccess }: Props) {
             <LockKeyhole size={22} />
           </div>
           <div>
-            <p className="simple-login-kicker">Bootstrap access</p>
+            <p className="simple-login-kicker">Secure access</p>
             <h1>Login ke UI Panel</h1>
             <p className="simple-login-copy">
-              Masukkan username dan password bootstrap untuk mengakses kontrol server.
+              Masukkan username dan password untuk mengakses kontrol server.
             </p>
           </div>
         </div>

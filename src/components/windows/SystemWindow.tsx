@@ -1,17 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CheckCircle2, Cpu, HardDriveDownload, MemoryStick, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
+import { Activity, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
 import { getSystemSummary } from '@/api/agent'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div
-      className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
-      style={{
-        background: ok ? 'rgba(52, 211, 153, 0.14)' : 'rgba(248, 113, 113, 0.14)',
-        color: ok ? '#10b981' : '#ef4444',
-      }}
-    >
-      {ok ? <CheckCircle2 size={14} /> : <ShieldAlert size={14} />}
+    <div className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${ok ? 'bg-emerald-500/[0.12] text-emerald-600' : 'bg-red-500/[0.12] text-red-500'}`}>
+      {ok ? <CheckCircle2 size={13} /> : <ShieldAlert size={13} />}
       {label}
     </div>
   )
@@ -38,41 +32,64 @@ function formatUptime(seconds: number) {
   return `${minutes}m`
 }
 
-function MetricCard({ icon, title, value, subtitle, percent, tone = '#38bdf8' }: { icon: React.ReactNode; title: string; value: string; subtitle: string; percent?: number; tone?: string }) {
+function percentToneClass(tone: 'sky' | 'amber' | 'violet' | 'emerald') {
+  return {
+    sky: 'text-sky-500 bg-gradient-to-r from-sky-400 to-sky-100/80',
+    amber: 'text-amber-500 bg-gradient-to-r from-amber-400 to-amber-100/80',
+    violet: 'text-violet-500 bg-gradient-to-r from-violet-500 to-violet-100/80',
+    emerald: 'text-emerald-500 bg-gradient-to-r from-emerald-500 to-emerald-100/80',
+  }[tone]
+}
+
+function MetricCard({ icon, title, value, subtitle, percent, tone = 'sky' }: {
+  icon: React.ReactNode
+  title: string
+  value: string
+  subtitle: string
+  percent?: number
+  tone?: 'sky' | 'amber' | 'violet' | 'emerald'
+}) {
+  const toneClass = percentToneClass(tone)
+  const textTone = toneClass.split(' ')[0]
+  const barTone = toneClass.split(' ').slice(1).join(' ')
+
   return (
-    <article
-      className="rounded-[20px] border p-3.5"
-      style={{
-        borderColor: 'rgba(255,255,255,0.7)',
-        background: 'rgba(255,255,255,0.82)',
-        boxShadow: '0 14px 30px rgba(15,23,42,0.05)',
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2" style={{ color: 'var(--sand-600)' }}>
+    <article className="rounded-2xl border border-white/70 bg-white/82 p-3.5 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-slate-600">
           {icon}
           <span className="truncate text-[12px] font-semibold">{title}</span>
         </div>
         {percent !== undefined && (
-          <span className="shrink-0 text-[11px] font-semibold" style={{ color: tone }}>
+          <span className={`flex-shrink-0 text-[11px] font-bold ${textTone}`}>
             {percent.toFixed(1)}%
           </span>
         )}
       </div>
-      <div
-        className="mt-3 break-words text-[19px] font-semibold leading-[1.1] tracking-[-0.04em] sm:text-[22px]"
-        style={{ color: 'var(--sand-600)' }}
-      >
+      <div className="mb-1.5 break-words text-[19px] font-bold leading-none tracking-tight text-slate-700 sm:text-[22px]">
         {value}
       </div>
-      <p className="mt-1.5 break-words text-[11px] leading-relaxed" style={{ color: 'var(--sand-400)' }}>
-        {subtitle}
-      </p>
+      <p className="break-words text-[11px] leading-relaxed text-slate-400">{subtitle}</p>
       {percent !== undefined && (
-        <div className="mt-3 h-2 overflow-hidden rounded-full" style={{ background: 'rgba(148,163,184,0.18)' }}>
-          <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: `linear-gradient(90deg, ${tone}, rgba(255,255,255,0.92))` }} />
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${barTone}`}
+            style={{ width: `${Math.min(percent, 100)}%` }}
+          />
         </div>
       )}
+    </article>
+  )
+}
+
+function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <article className="rounded-2xl border border-white/70 bg-white/82 p-3.5 shadow-sm">
+      <div className="mb-2.5 flex items-center gap-2 text-slate-600">
+        {icon}
+        <span className="text-[13px] font-semibold">{title}</span>
+      </div>
+      {children}
     </article>
   )
 }
@@ -87,8 +104,8 @@ export function SystemWindow() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-56 gap-3 text-sm" style={{ color: 'var(--sand-400)' }}>
-        <Activity size={16} className="animate-pulse" />
+      <div className="flex h-56 items-center justify-center gap-2 text-sm text-slate-400">
+        <Activity size={15} className="animate-pulse" />
         Mengambil system runtime host secara realtime...
       </div>
     )
@@ -96,12 +113,12 @@ export function SystemWindow() {
 
   if (isError || !data) {
     return (
-      <div className="rounded-2xl p-4 text-sm" style={{ background: '#ffebee', color: '#b91c1c' }}>
-        <div className="flex items-center gap-2 font-semibold mb-2">
-          <ServerCrash size={16} />
+      <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-1.5 flex items-center gap-2 font-semibold">
+          <ServerCrash size={15} />
           Gagal memuat system summary
         </div>
-        <p className="opacity-80">Pastikan kamu sudah login dan service ui-panel-agent berjalan normal.</p>
+        <p className="text-[12px] opacity-80">Pastikan kamu sudah login dan service ui-panel-agent berjalan normal.</p>
       </div>
     )
   }
@@ -111,91 +128,102 @@ export function SystemWindow() {
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="rounded-[24px] p-4 text-white" style={{ background: 'linear-gradient(135deg, #111827 0%, #172554 55%, #0f172a 100%)', boxShadow: '0 20px 44px rgba(15,23,42,0.18)' }}>
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">Host runtime</p>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+      <div className="rounded-2xl bg-[linear-gradient(135deg,#111827_0%,#172554_55%,#0f172a_100%)] p-4 text-white shadow-[0_20px_44px_rgba(15,23,42,0.18)]">
+        <p className="mb-3 text-[10px] uppercase tracking-widest text-white/45">Host runtime</p>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="break-words text-[22px] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-[24px]">
-              {data.osName}
-            </h2>
-            <p className="mt-2 break-words text-[12px] text-white/65">{data.hostname} • kernel {data.kernel}</p>
+            <h2 className="break-words text-[22px] font-bold leading-tight tracking-tight sm:text-[24px]">{data.osName}</h2>
+            <p className="mt-1.5 break-words text-[12px] text-white/60">{data.hostname} · kernel {data.kernel}</p>
           </div>
-          <div className="min-w-[112px] rounded-[18px] px-3.5 py-2.5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Uptime</p>
-            <p className="mt-1.5 text-base font-semibold leading-none">{formatUptime(data.uptimeSeconds)}</p>
+          <div className="flex-shrink-0 rounded-2xl border border-white/10 bg-white/8 px-3.5 py-2.5">
+            <p className="text-[10px] uppercase tracking-widest text-white/45">Uptime</p>
+            <p className="mt-1.5 text-base font-bold leading-none">{formatUptime(data.uptimeSeconds)}</p>
           </div>
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? 'Docker installed' : 'Docker missing'} />
           <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? 'Docker reachable' : 'Docker unreachable'} />
           <HealthPill ok={data.portainerReachable} label={data.portainerReachable ? 'Portainer online' : 'Portainer offline'} />
+          <HealthPill ok={data.database.connected} label={data.database.connected ? 'MariaDB connected' : data.database.enabled ? 'MariaDB unavailable' : 'MariaDB disabled'} />
         </div>
       </div>
 
-      <div
-        className="grid gap-3"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
-      >
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          icon={<Cpu size={16} />}
+          icon={<Cpu size={15} />}
           title="CPU usage"
           value={`${data.cpuUsagePercent.toFixed(1)}%`}
           subtitle="Pemakaian CPU host saat ini"
           percent={data.cpuUsagePercent}
-          tone="#38bdf8"
+          tone="sky"
         />
         <MetricCard
-          icon={<TimerReset size={16} />}
+          icon={<TimerReset size={15} />}
           title="System uptime"
           value={formatUptime(data.uptimeSeconds)}
           subtitle="Durasi host menyala tanpa reboot"
-          tone="#f59e0b"
+          tone="amber"
         />
         <MetricCard
-          icon={<MemoryStick size={16} />}
+          icon={<MemoryStick size={15} />}
           title="Memory RAM"
           value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`}
           subtitle="Pemakaian RAM host secara realtime"
           percent={memoryPercent}
-          tone="#8b5cf6"
+          tone="violet"
         />
         <MetricCard
-          icon={<HardDriveDownload size={16} />}
+          icon={<HardDriveDownload size={15} />}
           title="Storage"
           value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`}
           subtitle={`Pemakaian storage pada ${data.stateDir}`}
           percent={storagePercent}
-          tone="#22c55e"
+          tone="emerald"
         />
       </div>
 
-      <div
-        className="grid gap-3"
-        style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}
-      >
-        <article className="rounded-[20px] border p-3.5" style={{ borderColor: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.82)', boxShadow: '0 14px 30px rgba(15,23,42,0.05)' }}>
-          <div className="mb-2.5 flex items-center gap-2" style={{ color: 'var(--sand-600)' }}>
-            <Activity size={16} />
-            <span className="text-[13px] font-semibold">Docker status</span>
-          </div>
-          <p className="break-words text-[15px] font-semibold leading-snug" style={{ color: 'var(--sand-600)' }}>{data.dockerStatus}</p>
-          <p className="mt-2 break-words text-[11px] leading-relaxed" style={{ color: 'var(--sand-400)' }}>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <InfoCard icon={<Activity size={15} />} title="Docker status">
+          <p className="mb-2 break-words text-[15px] font-bold leading-snug text-slate-700">{data.dockerStatus}</p>
+          <p className="text-[11px] leading-relaxed text-slate-400">
             Status ini diambil langsung dari host untuk memastikan Docker benar-benar terpasang dan daemon bisa diakses.
           </p>
-        </article>
+        </InfoCard>
 
-        <article className="rounded-[20px] border p-3.5" style={{ borderColor: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.82)', boxShadow: '0 14px 30px rgba(15,23,42,0.05)' }}>
-          <div className="mb-2.5 flex items-center gap-2" style={{ color: 'var(--sand-600)' }}>
-            <Activity size={16} />
-            <span className="text-[13px] font-semibold">Portainer integration</span>
-          </div>
-          <p className="mb-1 text-[11px]" style={{ color: 'var(--sand-400)' }}>Endpoint</p>
-          <code className="block break-all text-[11px] leading-relaxed" style={{ color: '#111827' }}>{data.portainerUrl}</code>
-          <p className="mt-2.5 break-words text-[11px] leading-relaxed" style={{ color: 'var(--sand-400)' }}>
+        <InfoCard icon={<Activity size={15} />} title="Portainer integration">
+          <p className="mb-1 text-[11px] text-slate-400">Endpoint</p>
+          <code className="mb-2 block break-all text-[11px] leading-relaxed text-slate-800">{data.portainerUrl}</code>
+          <p className="text-[11px] leading-relaxed text-slate-400">
             Digunakan backend agent untuk akses Portainer secara aman dari localhost.
           </p>
-        </article>
+        </InfoCard>
+
+        <InfoCard icon={<Database size={15} />} title="MariaDB runtime">
+          <p className="mb-2 break-words text-[15px] font-bold leading-snug text-slate-700">
+            {data.database.connected
+              ? `${data.database.user}@${data.database.host}:${data.database.port}`
+              : data.database.enabled ? 'Configured but not connected' : 'Disabled'}
+          </p>
+          <p className="break-words text-[11px] leading-relaxed text-slate-400">
+            {data.database.connected
+              ? `${data.database.runtimeLogCount} runtime logs · ${data.database.changelogCount} changelog · ${data.database.settingsAuditCount} audit rows`
+              : data.database.lastError || 'Persistence belum aktif.'}
+          </p>
+        </InfoCard>
+
+        <InfoCard icon={<Network size={15} />} title="IP Address">
+          {data.ipAddresses && data.ipAddresses.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              {data.ipAddresses.map((ip) => (
+                <code key={ip} className="block break-all rounded-lg bg-slate-50 px-2.5 py-1.5 font-mono text-[11px] text-slate-800">
+                  {ip}
+                </code>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[12px] text-slate-400">Tidak ada interface aktif.</p>
+          )}
+        </InfoCard>
       </div>
     </div>
   )

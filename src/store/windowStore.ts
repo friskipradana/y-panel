@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
 
-const BASE_Z = 100;
 const DEFAULTS: Record<
   WindowKind,
   { title: string; icon: string; width: number; height: number; singleton?: boolean }
@@ -15,23 +14,69 @@ const DEFAULTS: Record<
   docs: { title: "Docs", icon: "📚", width: 380, height: 340, singleton: true },
   changelog: { title: "Changelog", icon: "🔔", width: 360, height: 320, singleton: true },
   portainer: { title: "Portainer", icon: "🐋", width: 500, height: 420, singleton: true },
-  settings: { title: "Settings", icon: "🔧", width: 360, height: 300, singleton: true },
+  settings: { title: "Settings", icon: "🔧", width: 920, height: 640, singleton: true },
+  database: { title: "Database", icon: "🗄️", width: 980, height: 680, singleton: true },
   trash: { title: "Trash", icon: "🗑️", width: 300, height: 180, singleton: true },
 };
 
+// Z-index tiers
+const Z_NORMAL      = 100;
+const Z_MAXIMIZED   = 500;
+const Z_FULLSCREEN  = 12000;
+const Z_FOCUS_BOOST = 50000; // window terfokus selalu di atas semua
+
 function reorder(windows: WindowState[]) {
-  windows.forEach((w, i) => {
-    w.zIndex = BASE_Z + i;
+  const non = windows.filter((w) => !w.isFullscreen);
+  const full = windows.filter((w) => w.isFullscreen);
+
+  // non-fullscreen sorted: maximized gets slightly higher base
+  non.forEach((w, i) => {
+    w.zIndex = (w.isMaximized ? Z_MAXIMIZED : Z_NORMAL) + i;
+  });
+
+  // fullscreen: 12000+ (always above normal windows)
+  full.forEach((w, i) => {
+    w.zIndex = Z_FULLSCREEN + i;
   });
 }
 
 function bringToFront(windows: WindowState[], id: string) {
   const index = windows.findIndex((w) => w.id === id);
   if (index === -1) return;
-  if (index === windows.length - 1) return;
-  const [win] = windows.splice(index, 1);
-  windows.push(win);
+
+  const win = windows[index];
+  const isFullscreen = win.isFullscreen;
+
+  // Pisahkan bucket fullscreen dan non-fullscreen
+  const nonFull = windows.filter((w) => !w.isFullscreen);
+  const full = windows.filter((w) => w.isFullscreen);
+
+  if (isFullscreen) {
+    // Pindah ke akhir bucket fullscreen
+    const fi = full.findIndex((w) => w.id === id);
+    if (fi !== -1 && fi !== full.length - 1) {
+      const [w] = full.splice(fi, 1);
+      full.push(w);
+    }
+  } else {
+    // Pindah ke akhir bucket non-fullscreen
+    const ni = nonFull.findIndex((w) => w.id === id);
+    if (ni !== -1 && ni !== nonFull.length - 1) {
+      const [w] = nonFull.splice(ni, 1);
+      nonFull.push(w);
+    }
+  }
+
+  // Rebuild array: non-fullscreen dulu, fullscreen di belakang
+  windows.length = 0;
+  windows.push(...nonFull, ...full);
   reorder(windows);
+
+  // Jika window yang di-focus BUKAN fullscreen, beri z-index boost
+  // agar dia terlihat di atas semua fullscreen
+  if (!isFullscreen) {
+    win.zIndex = Z_FOCUS_BOOST;
+  }
 }
 
 function nextWindowTitle(kind: WindowKind, windows: WindowState[]) {
@@ -58,12 +103,14 @@ interface WindowStore {
   focusWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
   maximizeWindow: (id: string) => void;
+  toggleFullscreenWindow: (id: string) => void;
   moveWindow: (id: string, x: number, y: number) => void;
   resizeWindow: (id: string, width: number, height: number) => void;
   setGlobalContentZoom: (value: number) => void;
   setGlobalFontIndex: (value: number) => void;
   setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
+  closeWindowsByKind: (kind: WindowKind) => void;
   resetWindows: () => void;
 }
 
@@ -120,9 +167,10 @@ export const useWindowStore = create<WindowStore>()(
           y,
           width,
           height,
-          zIndex: BASE_Z + state.windows.length,
+          zIndex: Z_FOCUS_BOOST,
           isMinimized: false,
           isMaximized: false,
+          isFullscreen: false,
           lastAction: 'open',
         });
 
@@ -178,6 +226,23 @@ export const useWindowStore = create<WindowStore>()(
         const win = state.windows.find((w) => w.id === id);
         if (!win) return;
         win.isMaximized = !win.isMaximized;
+        if (win.isMaximized) {
+          win.isFullscreen = false;
+        }
+        bringToFront(state.windows, id);
+        state.focusedId = id;
+      }),
+
+    toggleFullscreenWindow: (id) =>
+      set((state) => {
+        const win = state.windows.find((w) => w.id === id);
+        if (!win) return;
+        win.isFullscreen = !win.isFullscreen;
+        if (win.isFullscreen) {
+          win.isMaximized = false;
+          win.isMinimized = false;
+          win.lastAction = 'restore';
+        }
         bringToFront(state.windows, id);
         state.focusedId = id;
       }),
@@ -220,6 +285,14 @@ export const useWindowStore = create<WindowStore>()(
         state.autoHideDock = !state.autoHideDock;
       }),
 
+    closeWindowsByKind: (kind) =>
+      set((state) => {
+        state.windows = state.windows.filter((windowItem) => windowItem.kind !== kind);
+        reorder(state.windows);
+        const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+        state.focusedId = lastVisible?.id ?? null;
+      }),
+
     resetWindows: () =>
       set((state) => {
         state.windows = [];
@@ -244,6 +317,8 @@ useWindowStore.subscribe((state) => {
       x: Math.round(w.x),
       y: Math.round(w.y),
       minimized: w.isMinimized,
+      maximized: w.isMaximized,
+      fullscreen: w.isFullscreen,
       action: w.lastAction,
     })),
   });

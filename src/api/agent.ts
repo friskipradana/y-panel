@@ -1,5 +1,14 @@
 import axios, { AxiosError } from 'axios'
-import type { SystemLogsResponse, TerminalSessionStartResponse } from '@/types'
+import type {
+  ChangelogResponse,
+  DatabaseStatus,
+  DatabaseStatusResponse,
+  EditableSystemSettings,
+  ResetDatabasePasswordResponse,
+  SystemLogsResponse,
+  TerminalSessionStartResponse,
+  UpdateSystemSettingsPayload,
+} from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 
 export interface BootstrapStatus {
@@ -34,6 +43,8 @@ export interface SystemSummary {
   portainerReachable: boolean
   portainerUrl: string
   stateDir: string
+  database: DatabaseStatus
+  ipAddresses: string[]
 }
 
 const agentApi = axios.create({
@@ -90,3 +101,18 @@ export const closeTerminalSession = (sessionId: string) =>
 
 export const getSystemLogs = (service = 'ui-panel', limit = 160) =>
   agentApi.get<SystemLogsResponse>('/api/v1/system/logs', { params: { service, limit } }).then((r) => r.data)
+
+export const getSystemChangelog = () =>
+  agentApi.get<ChangelogResponse>('/api/v1/system/changelog').then((r) => r.data)
+
+export const getDatabaseStatus = () =>
+  agentApi.get<DatabaseStatusResponse>('/api/v1/database/status').then((r) => r.data)
+
+export const getEditableSystemSettings = () =>
+  agentApi.get<EditableSystemSettings>('/api/v1/settings/system').then((r) => r.data)
+
+export const updateEditableSystemSettings = (payload: UpdateSystemSettingsPayload) =>
+  agentApi.post<EditableSystemSettings>('/api/v1/settings/system', payload).then((r) => r.data)
+
+export const resetDatabasePassword = () =>
+  agentApi.post<ResetDatabasePasswordResponse>('/api/v1/settings/database/reset-password').then((r) => r.data)

@@ -32,7 +32,7 @@ Membangun produk panel server **Linux-first** yang dapat diinstal seperti aaPane
             +------------------------------+
             |                              |
             v                              v
-+-------------------------+      +-------------------------+
++-------------------------+
 | ui-panel-agent          |      | Portainer              |
 | (Go systemd service)    |      | (Docker container)     |
 |                         |      |                         |
@@ -41,6 +41,7 @@ Membangun produk panel server **Linux-first** yang dapat diinstal seperti aaPane
 | - Install status        |      +-------------------------+
 | - Docker orchestration  |
 | - Config management     |
+| - MariaDB persistence   |
 +-----------+-------------+
             |
             v
@@ -63,12 +64,14 @@ Tanggung jawab:
 - install dependency minimum (`curl`, `ca-certificates`, `tar`, `systemd`)
 - install Docker jika belum ada
 - install Go jika belum ada atau versi terlalu lama
+- install MariaDB jika belum ada
 - meminta input credential awal panel
 - generate file konfigurasi `/etc/ui-panel/agent.env`
 - build binary Go agent dari source lokal
 - install binary ke `/usr/local/bin/ui-panel-agent`
 - register dan start `systemd` service
 - deploy Portainer sebagai container Docker
+- membuat database/user MariaDB runtime untuk panel
 - menampilkan URL dan credential setelah instalasi selesai
 
 ### 2. Panel Agent (`cmd/panel-agent`)
@@ -79,6 +82,7 @@ Tanggung jawab:
 - melakukan autentikasi panel
 - menyimpan bootstrap state
 - expose status service yang diinstal
+- mengelola persistence MariaDB untuk runtime logs, changelog, dan audit trail settings
 - di masa depan mengelola:
   - app templates
   - backup
@@ -139,6 +143,7 @@ docs/
 - Config: `/etc/ui-panel/agent.env`
 - State dir: `/var/lib/ui-panel`
 - Logs: via `journalctl -u ui-panel`
+- MariaDB data: default service data directory milik distro (`/var/lib/mysql` atau setara)
 
 ### Network
 - Panel Agent default bind: `0.0.0.0:8787`
@@ -160,17 +165,19 @@ docs/
 3. Installer cek root access
 4. Installer cek dan install Docker
 5. Installer cek dan install Go
-6. Installer meminta:
+6. Installer cek dan install MariaDB
+7. Installer meminta:
    - host bind panel
    - port panel
    - admin username
    - admin password (boleh auto-generate)
-7. Installer build agent
-8. Installer tulis env file
-9. Installer install systemd service
-10. Installer deploy Portainer container
-11. Installer start service
-12. Installer print hasil akhir
+8. Installer build agent
+9. Installer buat database/user MariaDB runtime
+10. Installer tulis env file
+11. Installer install systemd service
+12. Installer deploy Portainer container
+13. Installer start service
+14. Installer print hasil akhir
 
 ### Phase 2 — First Login
 1. User membuka `http://SERVER_IP:8787`
@@ -201,6 +208,12 @@ PANEL_SESSION_SECRET=random-secret
 PANEL_STATE_DIR=/var/lib/ui-panel
 PANEL_PORTAINER_URL=http://127.0.0.1:9000
 PANEL_INSTALL_CHANNEL=stable
+PANEL_DB_ENABLED=true
+PANEL_DB_HOST=127.0.0.1
+PANEL_DB_PORT=3306
+PANEL_DB_USER=ui_panel
+PANEL_DB_PASSWORD=generated-db-secret
+PANEL_DB_NAME=ui_panel
 ```
 
 > [!WARNING]
@@ -218,6 +231,8 @@ PANEL_INSTALL_CHANNEL=stable
 ### Protected
 - `GET /api/v1/me`
 - `GET /api/v1/system/summary`
+- `GET /api/v1/system/changelog`
+- `GET /api/v1/database/status`
 
 ### Future
 - `GET /api/v1/docker/containers`
@@ -243,6 +258,7 @@ PANEL_INSTALL_CHANNEL=stable
 
 ### Future hardening
 - hash password admin (`bcrypt`/`argon2id`)
+- hash/rotate database credential through a managed secret workflow
 - CSRF protection
 - TLS termination
 - audit log

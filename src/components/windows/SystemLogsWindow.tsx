@@ -1,18 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, RefreshCcw, ScrollText } from 'lucide-react'
+import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal } from 'lucide-react'
 import { getSystemLogs } from '@/api/agent'
 
 const SERVICE_OPTIONS = [
   { value: 'ui-panel', label: 'ui-panel' },
   { value: 'docker', label: 'docker' },
+  { value: 'mariadb', label: 'mariadb' },
+  { value: 'nginx', label: 'nginx' },
+  { value: 'ssh', label: 'ssh' },
 ]
 
-const LIMIT_OPTIONS = [80, 160, 240, 320]
+const LIMIT_OPTIONS = [80, 160, 240, 320, 400]
+
+function lineToneClass(line: string): string {
+  if (/\[error\]|level=error|ERROR|FATAL|failed|panic/i.test(line)) return 'text-red-300'
+  if (/\[warn\]|level=warn|WARN|warning/i.test(line)) return 'text-amber-300'
+  if (/\[auth\]|auth|login|logout/i.test(line)) return 'text-emerald-300'
+  if (/\[http\]|method=GET|method=POST|method=PUT|method=PATCH|method=DELETE/i.test(line)) return 'text-blue-300'
+  if (/\[settings\]|settings/i.test(line)) return 'text-violet-300'
+  return 'text-sky-100'
+}
+
+const controlClass = 'rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-mono text-slate-200 outline-none'
 
 export function SystemLogsWindow() {
   const [service, setService] = useState('ui-panel')
   const [limit, setLimit] = useState(160)
+  const [autoScroll, setAutoScroll] = useState(true)
+  const logEndRef = useRef<HTMLDivElement>(null)
 
   const query = useQuery({
     queryKey: ['system-logs', service, limit],
@@ -21,164 +37,139 @@ export function SystemLogsWindow() {
     retry: 1,
   })
 
-  const joinedLines = useMemo(() => {
-    if (!query.data?.lines?.length) return 'Belum ada log yang tersedia.'
-    return query.data.lines.map((entry) => entry.line).join('\n')
+  const lines = useMemo(() => {
+    if (!query.data?.lines?.length) return []
+    return query.data.lines.map((entry) => entry.line)
   }, [query.data])
 
+  useEffect(() => {
+    if (autoScroll && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [lines, autoScroll])
+
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div
-        className="rounded-[24px] p-4 text-white"
-        style={{
-          background: 'linear-gradient(135deg, #111827 0%, #0f172a 45%, #172554 100%)',
-          boxShadow: '0 20px 44px rgba(15,23,42,0.18)',
-        }}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-white/45">System logs</p>
-            <h2 className="mt-2 text-[22px] font-semibold leading-[1.02] tracking-[-0.04em] sm:text-[24px]">
-              Runtime journal service
-            </h2>
-            <p className="mt-2 text-[12px] text-white/65">
-              Menampilkan output journalctl terbaru langsung dari host Linux agar status service bisa dipantau tanpa buka SSH.
-            </p>
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex-shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[linear-gradient(135deg,#0f172a_0%,#1e3a5f_55%,#172554_100%)] px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/10">
+              <Terminal size={15} className="text-white/85" />
+            </div>
+            <div>
+              <div className="text-[13px] font-bold tracking-tight text-white">System Logs</div>
+              <div className="mt-px text-[10px] text-white/45">journalctl · auto-refresh 5s</div>
+            </div>
           </div>
 
-          <div className="rounded-[18px] px-3.5 py-2.5" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">Refresh</p>
-            <p className="mt-1.5 text-base font-semibold leading-none">5s</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-white/45">Service</span>
+              <select
+                id="system-logs-service"
+                value={service}
+                onChange={(e) => setService(e.target.value)}
+                className={controlClass}
+              >
+                {SERVICE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-white/45">Lines</span>
+              <select
+                id="system-logs-limit"
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+                className={controlClass}
+              >
+                {LIMIT_OPTIONS.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              id="system-logs-refresh"
+              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/15 bg-white/8 px-3 text-[11px] font-semibold text-slate-200 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <RefreshCcw size={11} className={query.isFetching ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-b border-slate-400/10 bg-slate-950/95 px-4 py-1.5">
+          <div className="flex items-center gap-2">
+            <ScrollText size={11} className="text-slate-400/60" />
+            <span className="font-mono text-[11px] text-slate-300/80">{service}</span>
+            {query.isFetching && (
+              <>
+                <Activity size={10} className="animate-pulse text-amber-400" />
+                <span className="text-[10px] text-amber-400">updating...</span>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setAutoScroll((v) => !v)}
+              className={[
+                'rounded-full px-2 py-0.5 text-[10px] font-medium transition',
+                autoScroll
+                  ? 'bg-emerald-500/15 text-emerald-300'
+                  : 'bg-slate-400/10 text-slate-400/70',
+              ].join(' ')}
+            >
+              ↓ {autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
+            </button>
+            <span className="font-mono text-[10px] text-slate-500">{lines.length}/{limit}</span>
           </div>
         </div>
       </div>
 
-      <div
-        className="sticky top-0 z-20 rounded-[22px] border p-3.5"
-        style={{
-          borderColor: 'rgba(255,255,255,0.78)',
-          background: 'rgba(255,255,255,0.88)',
-          boxShadow: '0 14px 30px rgba(15,23,42,0.05)',
-          backdropFilter: 'blur(16px)',
-        }}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--sand-500)' }}>
-            Service
-            <select
-              id="system-logs-service"
-              value={service}
-              onChange={(event) => setService(event.target.value)}
-              style={selectStyle}
-            >
-              {SERVICE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: 'var(--sand-500)' }}>
-            Lines
-            <select
-              id="system-logs-limit"
-              value={limit}
-              onChange={(event) => setLimit(Number(event.target.value))}
-              style={selectStyle}
-            >
-              {LIMIT_OPTIONS.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button
-            id="system-logs-refresh"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-            style={refreshButtonStyle}
-          >
-            <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      <div
-        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border"
-        style={{
-          borderColor: 'rgba(15,23,42,0.08)',
-          background: 'linear-gradient(180deg, rgba(2,6,23,0.98), rgba(15,23,42,0.98))',
-          boxShadow: '0 22px 40px rgba(2,6,23,0.22)',
-        }}
-      >
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: 'rgba(148,163,184,0.16)' }}>
-          <div className="flex items-center gap-2 text-[12px] font-medium text-slate-200">
-            <ScrollText size={14} />
-            {query.data?.service ?? service}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400">
-            {query.isFetching ? <Activity size={13} className="animate-pulse" /> : null}
-            {query.isFetching ? 'Updating logs...' : `Showing up to ${limit} lines`}
-          </div>
-        </div>
-
+      <div className="min-h-0 flex-1 overflow-y-scroll overflow-x-hidden bg-[linear-gradient(180deg,rgba(2,6,23,0.99),rgba(10,15,35,0.99))]">
         {query.isError ? (
-          <div className="flex flex-1 items-center justify-center px-5 text-center">
-            <div className="max-w-md rounded-[20px] border px-4 py-4 text-sm" style={{ borderColor: 'rgba(248,113,113,0.24)', background: 'rgba(127,29,29,0.18)', color: '#fecaca' }}>
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="max-w-sm rounded-2xl border border-red-400/25 bg-red-950/30 px-5 py-4 text-center text-sm text-red-300">
               <div className="mb-2 flex items-center justify-center gap-2 font-semibold">
-                <AlertTriangle size={16} />
+                <AlertTriangle size={14} />
                 Gagal memuat system logs
               </div>
-              <p className="leading-relaxed opacity-90">
+              <p className="text-[12px] leading-relaxed opacity-85">
                 {(query.error as Error)?.message || 'Periksa service target atau izin journalctl pada host.'}
               </p>
             </div>
           </div>
+        ) : query.isLoading ? (
+          <div className="flex h-full items-center justify-center gap-2">
+            <Activity size={13} className="animate-pulse text-slate-500" />
+            <span className="font-mono text-[12px] text-slate-500">Mengambil logs dari host...</span>
+          </div>
+        ) : lines.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <span className="font-mono text-[12px] text-slate-500">Belum ada log tersedia.</span>
+          </div>
         ) : (
-          <pre
-            id="system-logs-output"
-            className="min-h-0 flex-1 overflow-auto px-4 py-4 text-[12px] leading-6"
-            style={{
-              margin: 0,
-              color: '#dbeafe',
-              fontFamily: "'JetBrains Mono', monospace",
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {query.isLoading ? 'Mengambil system logs dari host...' : joinedLines}
-          </pre>
+          <div className="py-2">
+            {lines.map((line, idx) => (
+              <div key={idx} className="flex py-px hover:bg-white/3">
+                <span className="w-11 flex-shrink-0 self-start pr-3 pt-px text-right font-mono text-[10px] leading-[1.65] text-slate-500/80 select-none">
+                  {idx + 1}
+                </span>
+                <span className={`flex-1 break-all pr-4 font-mono text-[11px] leading-[1.65] whitespace-pre-wrap ${lineToneClass(line)}`}>
+                  {line}
+                </span>
+              </div>
+            ))}
+            <div ref={logEndRef} className="h-2" />
+          </div>
         )}
       </div>
     </div>
   )
-}
-
-const selectStyle: React.CSSProperties = {
-  borderRadius: 12,
-  border: '1px solid rgba(203,213,225,0.95)',
-  background: 'rgba(255,255,255,0.94)',
-  color: '#0f172a',
-  padding: '6px 10px',
-  fontSize: 12,
-  outline: 'none',
-}
-
-const refreshButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 8,
-  height: 34,
-  borderRadius: 999,
-  border: '1px solid rgba(203,213,225,0.95)',
-  background: 'rgba(255,255,255,0.94)',
-  color: '#0f172a',
-  padding: '0 14px',
-  cursor: 'pointer',
-  fontSize: 12,
-  fontWeight: 600,
 }

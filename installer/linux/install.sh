@@ -14,18 +14,23 @@ FRONTEND_DIR="$INSTALL_ROOT/frontend"
 PORTAINER_CONTAINER="ui-panel-portainer"
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL="http://127.0.0.1:9000"
+DEFAULT_DB_HOST="127.0.0.1"
+DEFAULT_DB_PORT="3306"
+DEFAULT_DB_NAME="ui_panel"
+DEFAULT_DB_USER="ui_panel"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
 
 log() {
   printf '\n[%s] %s\n' "$APP_NAME" "$1"
 }
 
 run_quiet() {
-  local logfile="/tmp/${APP_NAME}-install.log"
-  if ! "$@" >>"$logfile" 2>&1; then
-    printf '\n[%s] ERROR: command gagal. Cek log: %s\n' "$APP_NAME" "$logfile" >&2
-    tail -n 40 "$logfile" >&2 || true
+  if ! "$@" >>"$INSTALL_LOG_FILE" 2>&1; then
+    printf '\n[%s] ERROR: command gagal. Cek log: %s\n' "$APP_NAME" "$INSTALL_LOG_FILE" >&2
+    tail -n 40 "$INSTALL_LOG_FILE" >&2 || true
     exit 1
   fi
 }
@@ -54,6 +59,10 @@ require_root() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     fail "installer harus dijalankan sebagai root (gunakan sudo)"
   fi
+}
+
+prepare_install_log() {
+  : >"$INSTALL_LOG_FILE"
 }
 
 detect_pm() {
@@ -153,7 +162,7 @@ ensure_go() {
   export PATH="/usr/local/go/bin:$PATH"
 }
 
-collect_input() {
+bootstrap_config() {
   log "konfigurasi bootstrap panel"
 
   read -r -p "Bind address panel [${DEFAULT_BIND_ADDR}]: " PANEL_BIND_ADDR
@@ -174,9 +183,82 @@ collect_input() {
   PANEL_SESSION_SECRET="$(random_string 48)"
   PANEL_INSTALL_CHANNEL="stable"
   PANEL_PORTAINER_URL="$DEFAULT_PORTAINER_URL"
+  PANEL_DB_ENABLED="true"
+  PANEL_DB_HOST="$DEFAULT_DB_HOST"
+  PANEL_DB_PORT="$DEFAULT_DB_PORT"
+  PANEL_DB_NAME="$DEFAULT_DB_NAME"
+  PANEL_DB_USER="$DEFAULT_DB_USER"
+  PANEL_DB_PASSWORD="$(random_string 28)"
 }
 
-prepare_dirs() {
+ensure_mariadb() {
+  local db_service=""
+
+  if command -v mariadb >/dev/null 2>&1 || command -v mysql >/dev/null 2>&1; then
+    log "MariaDB/MySQL client sudah tersedia"
+  else
+    log "menginstall MariaDB server"
+    if command -v apt-get >/dev/null 2>&1; then
+      run_quiet apt-get install -y mariadb-server mariadb-client
+    elif command -v dnf >/dev/null 2>&1; then
+      run_quiet dnf install -y mariadb-server mariadb
+    elif command -v yum >/dev/null 2>&1; then
+      run_quiet yum install -y mariadb-server mariadb
+    else
+      fail "installer MariaDB belum didukung untuk distro ini"
+    fi
+  fi
+
+  for candidate in mariadb mysql mysqld; do
+    if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${candidate}\\.service"; then
+      db_service="$candidate"
+      break
+    fi
+    if systemctl list-units --all --type=service 2>/dev/null | grep -q "${candidate}\\.service"; then
+      db_service="$candidate"
+      break
+    fi
+    if systemctl status "${candidate}.service" >/dev/null 2>&1; then
+      db_service="$candidate"
+      break
+    fi
+  done
+
+  if [[ -z "$db_service" ]]; then
+    fail "service MariaDB/MySQL tidak ditemukan setelah instalasi (cek nama unit: mariadb/mysql/mysqld)"
+  fi
+
+  log "mengaktifkan service database: ${db_service}.service"
+  run_quiet systemctl daemon-reload
+  run_quiet systemctl enable "${db_service}.service"
+  run_quiet systemctl restart "${db_service}.service"
+}
+
+run_sql() {
+  local statement="$1"
+
+  if command -v mariadb >/dev/null 2>&1; then
+    run_quiet mariadb -u root -e "$statement"
+    return
+  fi
+
+  if command -v mysql >/dev/null 2>&1; then
+    run_quiet mysql -u root -e "$statement"
+    return
+  fi
+
+  fail "client MariaDB/MySQL tidak tersedia"
+}
+
+provision_database() {
+  log "menyiapkan database MariaDB untuk runtime panel"
+  run_sql "CREATE DATABASE IF NOT EXISTS \`${PANEL_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+  run_sql "CREATE USER IF NOT EXISTS '${PANEL_DB_USER}'@'${PANEL_DB_HOST}' IDENTIFIED BY '${PANEL_DB_PASSWORD}';"
+  run_sql "ALTER USER '${PANEL_DB_USER}'@'${PANEL_DB_HOST}' IDENTIFIED BY '${PANEL_DB_PASSWORD}';"
+  run_sql "GRANT ALL PRIVILEGES ON \`${PANEL_DB_NAME}\`.* TO '${PANEL_DB_USER}'@'${PANEL_DB_HOST}'; FLUSH PRIVILEGES;"
+}
+
+setup_directories() {
   log "menyiapkan direktori runtime"
   mkdir -p "$INSTALL_ROOT" "$STATE_DIR" "$CONFIG_DIR" "$FRONTEND_DIR"
   chmod 700 "$CONFIG_DIR"
@@ -191,7 +273,7 @@ build_agent() {
   chmod 755 "$BIN_PATH"
 }
 
-write_env() {
+write_env_file() {
   log "menulis file konfigurasi $ENV_FILE"
   cat > "$ENV_FILE" <<EOF
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
@@ -202,11 +284,17 @@ PANEL_STATE_DIR=${STATE_DIR}
 PANEL_PORTAINER_URL=${PANEL_PORTAINER_URL}
 PANEL_INSTALL_CHANNEL=${PANEL_INSTALL_CHANNEL}
 PANEL_FRONTEND_DIR=${FRONTEND_DIR}
+PANEL_DB_ENABLED=${PANEL_DB_ENABLED}
+PANEL_DB_HOST=${PANEL_DB_HOST}
+PANEL_DB_PORT=${PANEL_DB_PORT}
+PANEL_DB_USER=${PANEL_DB_USER}
+PANEL_DB_PASSWORD=${PANEL_DB_PASSWORD}
+PANEL_DB_NAME=${PANEL_DB_NAME}
 EOF
   chmod 600 "$ENV_FILE"
 }
 
-build_frontend() {
+prepare_frontend() {
   log "menyiapkan frontend panel"
   cd "$REPO_ROOT"
 
@@ -272,6 +360,50 @@ reset_password() {
   printf '\nPassword admin berhasil direset dan service direstart.\n'
 }
 
+reset_db_password() {
+  local db_host
+  local db_user
+  local db_name
+  local db_password
+  local escaped_password
+
+  if [[ ! -f "$ENV_FILE" ]]; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+
+  db_host="$(grep '^PANEL_DB_HOST=' "$ENV_FILE" | cut -d= -f2-)"
+  db_user="$(grep '^PANEL_DB_USER=' "$ENV_FILE" | cut -d= -f2-)"
+  db_name="$(grep '^PANEL_DB_NAME=' "$ENV_FILE" | cut -d= -f2-)"
+
+  if [[ -z "$db_host" || -z "$db_user" || -z "$db_name" ]]; then
+    printf '\nKonfigurasi database belum lengkap di %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+
+  read -r -s -p 'Password database baru: ' db_password
+  printf '\n'
+
+  if [[ -z "$db_password" ]]; then
+    printf '\nPassword database tidak boleh kosong.\n' >&2
+    exit 1
+  fi
+
+  if command -v mariadb >/dev/null 2>&1; then
+    sudo mariadb -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \\`${db_name}\\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
+  elif command -v mysql >/dev/null 2>&1; then
+    sudo mysql -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \\`${db_name}\\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
+  else
+    printf '\nClient MariaDB/MySQL tidak ditemukan.\n' >&2
+    exit 1
+  fi
+
+  escaped_password="$(printf '%s' "$db_password" | sed 's/[\\&]/\\&/g')"
+  sudo sed -i "s/^PANEL_DB_PASSWORD=.*/PANEL_DB_PASSWORD=${escaped_password}/" "$ENV_FILE"
+  sudo systemctl restart "$SERVICE_NAME"
+  printf '\nPassword database berhasil direset dan service direstart.\n'
+}
+
 run_action() {
   case "$1" in
     restart)
@@ -284,6 +416,9 @@ run_action() {
       ;;
     reset-password)
       reset_password
+      ;;
+    reset-db-password)
+      reset_db_password
       ;;
     uninstall)
       sudo bash /opt/ui-panel/installer/uninstall.sh
@@ -299,17 +434,19 @@ show_menu() {
   printf '\nUI Panel Service Manager\n'
   printf '1. Restart Service\n'
   printf '2. Stop Service\n'
-  printf '3. Reset Password\n'
-  printf '4. Uninstall\n'
-  printf '5. Exit\n\n'
-  read -r -p 'Pilih opsi [1-5]: ' choice
+  printf '3. Reset Password Admin\n'
+  printf '4. Reset Password Database\n'
+  printf '5. Uninstall\n'
+  printf '6. Exit\n\n'
+  read -r -p 'Pilih opsi [1-6]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
     2) run_action stop ;;
     3) run_action reset-password ;;
-    4) run_action uninstall ;;
-    5) exit 0 ;;
+    4) run_action reset-db-password ;;
+    5) run_action uninstall ;;
+    6) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
@@ -330,7 +467,7 @@ EOF
   chmod 755 "$INSTALL_ROOT/installer/uninstall.sh"
 }
 
-deploy_portainer() {
+ensure_portainer() {
   log "memastikan Portainer berjalan secara lokal"
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${PORTAINER_CONTAINER}$"; then
@@ -385,18 +522,21 @@ print_summary() {
 
 main() {
   require_root
+  prepare_install_log
   detect_pm
   install_base_packages
   ensure_docker
   ensure_go
-  collect_input
-  prepare_dirs
+  bootstrap_config
+  setup_directories
+  ensure_mariadb
+  provision_database
   build_agent
-  build_frontend
-  write_env
+  prepare_frontend
+  write_env_file
   install_service
   install_cli
-  deploy_portainer
+  ensure_portainer
   print_summary
 }
 

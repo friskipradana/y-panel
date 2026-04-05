@@ -9,6 +9,7 @@ export type WindowKind =
   | 'changelog'
   | 'portainer'
   | 'settings'
+  | 'database'
   | 'trash'
 
 export type WindowId = WindowKind
@@ -25,6 +26,7 @@ export interface WindowState {
   zIndex: number
   isMinimized: boolean
   isMaximized: boolean
+  isFullscreen: boolean
   lastAction?: 'open' | 'minimize' | 'restore'
 }
 
@@ -74,4 +76,76 @@ export interface SystemLogsResponse {
   service: string
   limit: number
   lines: SystemLogEntry[]
+}
+
+export interface EditableSystemSettings {
+  hostname: string
+  timezone: string
+  nameservers: string[]
+  dnsMode: string
+  managedConfigPath: string
+  osName: string
+  kernel: string
+}
+
+export interface UpdateSystemSettingsPayload {
+  hostname: string
+  timezone: string
+  nameservers: string[]
+}
+
+export interface DatabaseStatus {
+  enabled: boolean
+  connected: boolean
+  host: string
+  port: number
+  database: string
+  user: string
+  lastError: string
+  changelogCount: number
+  runtimeLogCount: number
+  settingsAuditCount: number
+}
+
+export interface RuntimeDatabaseLog {
+  id: number
+  service: string
+  level: string
+  message: string
+  metadata: string
+  createdAt: string
+}
+
+export interface SettingsAuditEntry {
+  id: number
+  username: string
+  hostname: string
+  timezone: string
+  nameservers: string[]
+  createdAt: string
+}
+
+export interface DatabaseStatusResponse {
+  status: DatabaseStatus
+  runtimeLogs: RuntimeDatabaseLog[]
+  settingsAudit: SettingsAuditEntry[]
+}
+
+export interface ResetDatabasePasswordResponse {
+  ok: boolean
+  password: string
+  message: string
+}
+
+export interface ChangelogEntry {
+  id: number
+  version: string
+  title: string
+  summary: string
+  releasedAt: string
+  createdAt: string
+}
+
+export interface ChangelogResponse {
+  items: ChangelogEntry[]
 }
