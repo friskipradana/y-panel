@@ -26,7 +26,6 @@ const TERMINAL_FONT_OPTIONS = [
 export function HostTerminalWindow() {
   const {
     sessionId,
-    output,
     starting,
     connected,
     closed,
@@ -63,7 +62,7 @@ export function HostTerminalWindow() {
       fontFamily: TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2],
       fontSize: computedTerminalFontSize,
       lineHeight: 1.2,
-      convertEol: false,
+      convertEol: true,
       scrollback: 4000,
       allowTransparency: true,
       theme: {
@@ -131,33 +130,6 @@ export function HostTerminalWindow() {
   }, [sendInput, setOutputListener, updateTerminalSize])
 
   useEffect(() => {
-    const xterm = xtermRef.current
-    if (!xterm) return
-
-    if (output === '') {
-      xterm.reset()
-      lastRenderedOutputRef.current = ''
-      if (connected) {
-        window.requestAnimationFrame(() => {
-          fitAddonRef.current?.fit()
-          updateTerminalSize(xterm.cols, xterm.rows)
-        })
-      }
-      return
-    }
-
-    if (output === lastRenderedOutputRef.current) {
-      return
-    }
-
-    if (!output.startsWith(lastRenderedOutputRef.current)) {
-      xterm.reset()
-      xterm.write(output)
-      lastRenderedOutputRef.current = output
-    }
-  }, [connected, output, updateTerminalSize])
-
-  useEffect(() => {
     setOutputListener((chunk) => {
       const xterm = xtermRef.current
       if (!xterm) return
@@ -181,6 +153,16 @@ export function HostTerminalWindow() {
       })
     }
   }, [connected, updateTerminalSize])
+
+  useEffect(() => {
+    if (!starting) return
+
+    const xterm = xtermRef.current
+    if (!xterm) return
+
+    xterm.reset()
+    lastRenderedOutputRef.current = ''
+  }, [starting])
 
   useEffect(() => {
     if (!connected && xtermRef.current && !starting) {
@@ -217,7 +199,7 @@ export function HostTerminalWindow() {
   }, [connected, error, starting])
 
   const runPreset = async (command: string) => {
-    await sendInput(`${command}\n`)
+    await sendInput(`${command}\r`)
     xtermRef.current?.focus()
   }
 
@@ -282,7 +264,7 @@ export function HostTerminalWindow() {
         </div>
 
         <p className="host-terminal-hint">
-          Terminal sekarang memakai xterm.js. Aplikasi interaktif seperti htop, btop, vim, dan navigasi panah akan tampil jauh lebih normal.
+          Terminal sekarang memakai xterm.js dengan sinkronisasi viewport yang lebih stabil. Aplikasi interaktif seperti htop, btop, vim, dan navigasi panah akan tampil jauh lebih normal.
         </p>
       </div>
     </div>

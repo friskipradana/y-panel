@@ -27,38 +27,11 @@ function filterInternalTerminalNoise(input: string) {
     .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, '')
 }
 
-const TERMINAL_RESET_PATTERNS = [
-  /\u001bc/g,
-  /\u001b\[H\u001b\[2J(?:\u001b\[3J)?/g,
-  /\u001b\[2J\u001b\[H(?:\u001b\[3J)?/g,
-  /\u001b\[3J\u001b\[H\u001b\[2J/g,
-  /\u001b\[\?1049h/g,
-  /\u001b\[\?1049l/g,
-]
-
-function accumulateTerminalOutput(previous: string, chunk: string) {
-  let resetAt = -1
-
-  for (const pattern of TERMINAL_RESET_PATTERNS) {
-    pattern.lastIndex = 0
-    let match: RegExpExecArray | null
-    while ((match = pattern.exec(chunk)) !== null) {
-      resetAt = Math.max(resetAt, match.index)
-    }
-  }
-
-  if (resetAt >= 0) {
-    return chunk.slice(resetAt)
-  }
-
-  return previous + chunk
-}
-
 function mapKeyToTerminalInput(event: KeyboardEvent) {
   if (event.ctrlKey && event.key.toLowerCase() === 'c') return '\u0003'
   if (event.ctrlKey && event.key.toLowerCase() === 'd') return '\u0004'
   if (event.ctrlKey && event.key.toLowerCase() === 'l') return '\u000c'
-  if (event.key === 'Enter') return '\n'
+  if (event.key === 'Enter') return '\r'
   if (event.key === 'Backspace') return '\u007f'
   if (event.key === 'Tab') return '\t'
   if (event.key === 'Escape') return '\u001b'
@@ -72,7 +45,6 @@ function mapKeyToTerminalInput(event: KeyboardEvent) {
 
 export function useTerminalSession() {
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [output, setOutput] = useState('')
   const [starting, setStarting] = useState(false)
   const [connected, setConnected] = useState(false)
   const [closed, setClosed] = useState(false)
@@ -83,6 +55,7 @@ export function useTerminalSession() {
   const sessionIdRef = useRef<string | null>(null)
   const manualCloseRef = useRef(false)
   const startInFlightRef = useRef(false)
+  const sessionEpochRef = useRef(0)
   const terminalSizeRef = useRef({ cols: 120, rows: 32 })
   const outputListenerRef = useRef<((chunk: string) => void) | null>(null)
 
@@ -119,26 +92,21 @@ export function useTerminalSession() {
     await releaseSession(id)
   }, [cleanupSocket, releaseSession])
 
-  const connectSocket = useCallback((nextSessionId: string) => {
+  const connectSocket = useCallback((nextSessionId: string, epoch: number) => {
     cleanupSocket(true)
 
     const socket = new WebSocket(resolveTerminalSocketUrl(nextSessionId))
     socketRef.current = socket
 
     socket.onopen = () => {
-      if (sessionIdRef.current !== nextSessionId) return
+      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
       setConnected(true)
       setClosed(false)
       setError(null)
-      socket.send(JSON.stringify({
-        type: 'resize',
-        cols: terminalSizeRef.current.cols,
-        rows: terminalSizeRef.current.rows,
-      }))
     }
 
     socket.onmessage = (event) => {
-      if (sessionIdRef.current !== nextSessionId) return
+      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
 
       try {
         const message = JSON.parse(event.data) as TerminalSocketMessage
@@ -146,7 +114,6 @@ export function useTerminalSession() {
           const chunk = filterInternalTerminalNoise(message.data)
           if (!chunk) return
           outputListenerRef.current?.(chunk)
-          setOutput((prev) => accumulateTerminalOutput(prev, chunk))
           return
         }
         if (message.type === 'closed') {
@@ -162,12 +129,11 @@ export function useTerminalSession() {
         const chunk = filterInternalTerminalNoise(String(event.data ?? ''))
         if (!chunk) return
         outputListenerRef.current?.(chunk)
-        setOutput((prev) => accumulateTerminalOutput(prev, chunk))
       }
     }
 
     socket.onerror = () => {
-      if (sessionIdRef.current !== nextSessionId) return
+      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
       setError('Koneksi websocket terminal gagal')
     }
 
@@ -175,7 +141,7 @@ export function useTerminalSession() {
       if (socketRef.current === socket) {
         socketRef.current = null
       }
-      if (sessionIdRef.current !== nextSessionId) return
+      if (sessionIdRef.current !== nextSessionId || sessionEpochRef.current !== epoch) return
       setConnected(false)
       if (!manualCloseRef.current) {
         setClosed(true)
@@ -188,10 +154,11 @@ export function useTerminalSession() {
 
     startInFlightRef.current = true
     manualCloseRef.current = false
+    sessionEpochRef.current += 1
+    const epoch = sessionEpochRef.current
     setClosedByUser(false)
     setStarting(true)
     setError(null)
-    setOutput('')
     setClosed(false)
     setConnected(false)
 
@@ -204,14 +171,22 @@ export function useTerminalSession() {
 
     try {
       const result = await startTerminalSession()
+      if (sessionEpochRef.current !== epoch) {
+        await releaseSession(result.sessionId)
+        return
+      }
       sessionIdRef.current = result.sessionId
       setSessionId(result.sessionId)
-      connectSocket(result.sessionId)
+      connectSocket(result.sessionId, epoch)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal memulai terminal session')
+      if (sessionEpochRef.current === epoch) {
+        setError(err instanceof Error ? err.message : 'Gagal memulai terminal session')
+      }
     } finally {
+      if (sessionEpochRef.current === epoch) {
+        setStarting(false)
+      }
       startInFlightRef.current = false
-      setStarting(false)
     }
   }, [cleanupSocket, connectSocket, releaseSession])
 
@@ -262,7 +237,6 @@ export function useTerminalSession() {
 
   return {
     sessionId,
-    output,
     starting,
     connected,
     closed,

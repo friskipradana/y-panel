@@ -383,8 +383,14 @@ export function Window({ win, children }: Props) {
           <div
             style={{
               flex: 1,
-              overflow: 'auto',
-              padding: win.kind === 'system' ? '16px 16px 20px' : win.kind === 'docs' ? '14px 14px 18px' : '16px 16px 20px',
+              overflow: win.kind === 'host-terminal' ? 'hidden' : 'auto',
+              padding: win.kind === 'host-terminal'
+                ? '10px 12px 12px'
+                : win.kind === 'system'
+                  ? '16px 16px 20px'
+                  : win.kind === 'docs'
+                    ? '14px 14px 18px'
+                    : '16px 16px 20px',
               fontSize: 12,
               color: '#525252',
               lineHeight: 1.65,
@@ -394,6 +400,9 @@ export function Window({ win, children }: Props) {
             <div
               style={{
                 minHeight: '100%',
+                height: win.kind === 'host-terminal' ? '100%' : undefined,
+                display: win.kind === 'host-terminal' ? 'flex' : undefined,
+                flexDirection: win.kind === 'host-terminal' ? 'column' : undefined,
                 fontFamily: contentFontFamily,
                 fontWeight: textAccent.bold ? 600 : 400,
                 fontStyle: textAccent.italic ? 'italic' : 'normal',

@@ -30,6 +30,7 @@ type Session struct {
 	closeOnce  sync.Once
 	callbackMu sync.RWMutex
 	outputMu   sync.RWMutex
+	streamMu   sync.Mutex
 	outputBuf  []byte
 }
 
@@ -102,21 +103,27 @@ func (m *Manager) Attach(id string, onChunk func(string), onClose func()) error 
 		return err
 	}
 
+	var buffered string
+	session.streamMu.Lock()
+	session.outputMu.Lock()
+	if len(session.outputBuf) > 0 {
+		buffered = string(append([]byte(nil), session.outputBuf...))
+		session.outputBuf = nil
+	}
+	session.outputMu.Unlock()
 	session.callbackMu.Lock()
 	session.onChunk = onChunk
 	session.onClose = onClose
-	closed := session.closed
 	session.callbackMu.Unlock()
+	session.streamMu.Unlock()
 
-	if onChunk != nil {
-		session.outputMu.RLock()
-		buffered := string(session.outputBuf)
-		session.outputMu.RUnlock()
-		if buffered != "" {
-			onChunk(buffered)
-		}
+	session.mu.RLock()
+	closed := session.closed
+	session.mu.RUnlock()
+
+	if buffered != "" && onChunk != nil {
+		onChunk(buffered)
 	}
-
 	if closed && onClose != nil {
 		onClose()
 	}
@@ -170,24 +177,30 @@ func (m *Manager) captureOutput(session *Session, reader io.Reader) {
 		n, err := reader.Read(buffer)
 		if n > 0 {
 			chunk := string(buffer[:n])
-			session.appendOutput(buffer[:n])
+			session.streamMu.Lock()
 			session.callbackMu.RLock()
 			cb := session.onChunk
 			session.callbackMu.RUnlock()
 			if cb != nil {
 				cb(chunk)
+			} else {
+				session.appendOutput(buffer[:n])
 			}
+			session.streamMu.Unlock()
 		}
 		if err != nil {
 			if err != io.EOF {
 				errChunk := "\r\n[terminal error] " + err.Error() + "\r\n"
-				session.appendOutput([]byte(errChunk))
+				session.streamMu.Lock()
 				session.callbackMu.RLock()
 				cb := session.onChunk
 				session.callbackMu.RUnlock()
 				if cb != nil {
 					cb(errChunk)
+				} else {
+					session.appendOutput([]byte(errChunk))
 				}
+				session.streamMu.Unlock()
 			}
 			m.closeSession(session)
 			return
