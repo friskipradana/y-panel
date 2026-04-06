@@ -418,11 +418,20 @@ prepare_frontend() {
 
 install_service() {
   log "menginstall systemd service"
-  cp "$REPO_ROOT/installer/linux/ui-panel.service.tpl" "$SERVICE_FILE"
-  chmod 644 "$SERVICE_FILE"
+
+  if [[ ! -f "$REPO_ROOT/installer/linux/ui-panel.service.tpl" ]]; then
+    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ui-panel.service.tpl"
+  fi
+
+  cp "$REPO_ROOT/installer/linux/ui-panel.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
+  chmod 644 "$SERVICE_FILE" || fail "gagal chmod service file $SERVICE_FILE"
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    fail "systemctl tidak tersedia di server"
+  fi
+
   run_quiet systemctl daemon-reload
   run_quiet systemctl enable ui-panel.service
-  run_quiet systemctl restart ui-panel.service
 }
 
 install_cli() {

@@ -404,7 +404,8 @@ $ProdFrontendDir = Join-Path $ProductionsDir 'frontend'
 $ProdBackendDir = Join-Path $ProductionsDir 'backend'
 $ProdInstallerDir = Join-Path $ProductionsDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
+$ArchivePath = Join-Path $TmpDir 'ui-panel-installer.tar.gz'
+$RunInstallerPath = Join-Path $TmpDir 'ui-panel-installer.run'
 $PanelPort = '8787'
 
 foreach ($d in @($ProductionsDir, $ProdFrontendDir, $ProdBackendDir, $ProdInstallerDir, $TmpDir)) {
@@ -468,17 +469,65 @@ try {
   $prodSizeMB = [math]::Round($prodSizeBytes / 1MB, 1)
   Write-StepDone "productions $prodSizeMB MB"
 
-  # ── [3] Buat archive ──────────────────────────────────────────
-  Write-Step 'Membuat archive deploy'
+  # ── [3] Buat installer .run ───────────────────────────────────
+  Write-Step 'Membuat installer Linux (.run)'
   if (Test-Path $ArchivePath) { Remove-Item $ArchivePath -Force }
+  if (Test-Path $RunInstallerPath) { Remove-Item $RunInstallerPath -Force }
+
   Push-Location $ProductionsDir
   try {
     & tar -czf $ArchivePath . 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Gagal membuat archive deploy.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Gagal membuat payload installer.' }
   }
   finally { Pop-Location }
-  $archiveMB = [math]::Round((Get-Item $ArchivePath).Length / 1MB, 1)
-  Write-StepDone "archive $archiveMB MB"
+
+  $payloadBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
+  $installerStub = @'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SELF_PATH="$0"
+if [ ! -f "$SELF_PATH" ]; then
+  SELF_PATH="$(command -v "$0" 2>/dev/null || printf '%s' "$0")"
+fi
+WORK_DIR="$(mktemp -d /tmp/ui-panel-installer.XXXXXX)"
+cleanup() {
+  rm -rf "$WORK_DIR"
+}
+trap cleanup EXIT
+
+ARCHIVE_PATH="$WORK_DIR/payload.tar.gz"
+awk 'found { print } /^__ARCHIVE_BELOW__$/ { found = 1; next }' "$SELF_PATH" | base64 -d > "$ARCHIVE_PATH"
+
+tar -xzf "$ARCHIVE_PATH" -C "$WORK_DIR"
+cd "$WORK_DIR"
+
+mkdir -p installer/linux
+mv installer/*.sh installer/linux/ 2>/dev/null || true
+mv installer/*.tpl installer/linux/ 2>/dev/null || true
+
+if [ -d frontend ]; then
+  mv frontend dist
+fi
+
+if [ -d backend ]; then
+  cp -r backend/* . 2>/dev/null || true
+  rm -rf backend
+fi
+
+find installer -type f \( -name '*.sh' -o -name '*.service.tpl' \) -exec sed -i 's/\r$//' {} +
+chmod +x installer/linux/install.sh
+chmod +x installer/linux/uninstall.sh
+
+bash installer/linux/install.sh
+exit 0
+__ARCHIVE_BELOW__
+'@
+  $installerContent = ($installerStub -replace "`r`n", "`n") + "`n" + $payloadBase64 + "`n"
+  [System.IO.File]::WriteAllText($RunInstallerPath, $installerContent, (New-Object System.Text.UTF8Encoding($false)))
+
+  $installerMB = [math]::Round((Get-Item $RunInstallerPath).Length / 1MB, 1)
+  Write-StepDone "installer $installerMB MB"
 
   # ── [4] Koneksi SSH ───────────────────────────────────────────
   Write-Step 'Membuka koneksi SSH'
@@ -505,7 +554,7 @@ try {
       $remoteLines += ($stderr | ForEach-Object { Normalize-DisplayText $_ } | Where-Object { $_ })
       $remoteLines = $remoteLines | Select-Object -Unique
 
-      $joinedHint = (($remoteLines | Select-Object -First 3) -join ' | ')
+      $joinedHint = (($remoteLines | Select-Object -First 20) -join ' | ')
       if ($joinedHint -match '\[sudo\] password|a password is required|not in the sudoers|incorrect password') {
         throw 'Autentikasi sudo di server gagal. Pastikan password SSH sama dengan password sudo untuk user remote.'
       }
@@ -531,7 +580,7 @@ try {
     throw 'Gagal me-resolve path remote deploy directory.'
   }
   $RemoteReleaseDir = "$ResolvedRemoteBaseDir/ui-panel"
-  $RemoteArchivePath = "$ResolvedRemoteBaseDir/ui-panel-deploy.tar.gz"
+  $RemoteInstallerPath = "$ResolvedRemoteBaseDir/ui-panel-installer.run"
   Write-StepDone $ResolvedRemoteBaseDir
 
   # ── [7] Baca konfigurasi lama ─────────────────────────────────
@@ -575,10 +624,10 @@ try {
   $found = if ($ExistingEnv.Count -gt 0) { 'konfigurasi lama ditemukan' } else { 'instalasi baru' }
   Write-StepDone $found
 
-  # ── [8] Upload archive ────────────────────────────────────────
-  Write-Step "Upload paket deploy ($archiveMB MB)"
+  # ── [8] Upload installer ──────────────────────────────────────
+  Write-Step "Upload installer (.run) $installerMB MB"
   $( Set-SCPItem -ComputerName $HostName -Credential $credential `
-      -Path $ArchivePath -Destination $ResolvedRemoteBaseDir `
+      -Path $RunInstallerPath -Destination $ResolvedRemoteBaseDir `
       -AcceptKey -Force -WarningAction SilentlyContinue 3>$null 4>$null 5>$null 6>$null ) | Out-Null
   Write-StepDone 'Upload selesai'
 
@@ -586,8 +635,8 @@ try {
   Write-Step 'Instalasi panel di server'
 
   $escapedRemoteBase = $ResolvedRemoteBaseDir.Replace("'", "'\''")
-  $escapedRemoteRelease = $RemoteReleaseDir.Replace("'", "'\''")
-  $escapedRemoteArchive = $RemoteArchivePath.Replace("'", "'\''")
+  $escapedRemoteInstaller = $RemoteInstallerPath.Replace("'", "'\''")
+  $escapedRemoteLogPath = ("$ResolvedRemoteBaseDir/ui-panel-run-installer.log").Replace("'", "'\''")
   $escapedBind = $BindAddress.Replace("'", "'\''")
   $escapedAdmin = $AdminUsername.Replace("'", "'\''")
   $escapedPanelPassword = $AdminPassword.Replace("'", "'\''")
@@ -597,8 +646,7 @@ try {
   $remoteScript = @"
 set -euo pipefail
 REMOTE_BASE_DIR='$escapedRemoteBase'
-REMOTE_RELEASE_DIR='$escapedRemoteRelease'
-REMOTE_ARCHIVE_PATH='$escapedRemoteArchive'
+REMOTE_INSTALLER_PATH='$escapedRemoteInstaller'
 DEFAULT_BIND='$escapedBind'
 DEFAULT_ADMIN='$escapedAdmin'
 DEFAULT_PASSWORD='$escapedPanelPassword'
@@ -606,33 +654,34 @@ DEFAULT_ALLOWED_HOSTS='$escapedAllowedHosts'
 DEFAULT_ALLOWED_ORIGINS='$escapedAllowedOrigins'
 SUDO_PASSWORD='$escapedSudo'
 PANEL_PORT='$PanelPort'
+ENV_FILE='/etc/ui-panel/agent.env'
+REMOTE_LOG_PATH='$escapedRemoteLogPath'
 
 mkdir -p "`$REMOTE_BASE_DIR"
-rm -rf "`$REMOTE_RELEASE_DIR"
-mkdir -p "`$REMOTE_RELEASE_DIR"
-tar -xzf "`$REMOTE_ARCHIVE_PATH" -C "`$REMOTE_RELEASE_DIR"
-cd "`$REMOTE_RELEASE_DIR"
+: > "`$REMOTE_LOG_PATH"
 
-mkdir -p installer/linux
-mv installer/*.sh installer/linux/ 2>/dev/null || true
-mv installer/*.tpl installer/linux/ 2>/dev/null || true
+for cmd in bash awk base64 tar mktemp sed; do
+  if ! command -v "`$cmd" >/dev/null 2>&1; then
+    echo "missing command: `$cmd" >&2
+    exit 127
+  fi
+done
 
-if [ -d frontend ]; then
-  mv frontend dist
+chmod +x "`$REMOTE_INSTALLER_PATH"
+set +e
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash \"`$REMOTE_INSTALLER_PATH\"" >"`$REMOTE_LOG_PATH" 2>&1
+installer_exit=`$?
+set -e
+
+if [ "`$installer_exit" -ne 0 ]; then
+  echo "installer .run gagal dengan exit code: `$installer_exit"
+  echo "log remote: `$REMOTE_LOG_PATH"
+  echo "----- tail ui-panel-run-installer.log -----"
+  tail -n 160 "`$REMOTE_LOG_PATH" || true
+  echo "----- end log -----"
+  exit "`$installer_exit"
 fi
 
-if [ -d backend ]; then
-  cp -r backend/* . 2>/dev/null || true
-  rm -rf backend
-fi
-
-find installer -type f \( -name '*.sh' -o -name '*.service.tpl' \) -exec sed -i 's/\r$//' {} +
-chmod +x installer/linux/install.sh
-chmod +x installer/linux/uninstall.sh
-
-ENV_FILE='/etc/ui-panel/agent.env'
-
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash installer/linux/install.sh"
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_HOSTS=.*#PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' systemctl restart ui-panel.service
@@ -650,11 +699,14 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
         -Path $remoteScriptPath -Destination $ResolvedRemoteBaseDir `
         -AcceptKey -Force -WarningAction SilentlyContinue 3>$null 4>$null 5>$null 6>$null ) | Out-Null
 
-    $installOut = Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null
+    Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null
   }
   finally {
     Remove-Item $remoteScriptPath -Force -ErrorAction SilentlyContinue
-    try { Invoke-Remote "rm -f $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null } catch {}
+    try {
+      Invoke-Remote "rm -f $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null
+    }
+    catch {}
   }
 
   Write-StepDone 'Instalasi selesai'
