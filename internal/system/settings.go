@@ -279,6 +279,8 @@ func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []s
 		}
 	}
 
+	sanitizedHosts = sanitizeCSVValues(append(sanitizedHosts, deriveHostsFromOrigins(sanitizedOrigins)...))
+
 	entries["PANEL_BIND_ADDR"] = currentBindAddr
 	entries["PANEL_ALLOWED_HOSTS"] = strings.Join(sanitizedHosts, ",")
 	entries["PANEL_ALLOWED_ORIGINS"] = strings.Join(sanitizedOrigins, ",")
@@ -457,6 +459,22 @@ func replaceOriginPorts(origins []string, port string) []string {
 		result = append(result, strings.TrimRight(parsed.String(), "/"))
 	}
 	return sanitizeOrigins(result)
+}
+
+func deriveHostsFromOrigins(origins []string) []string {
+	result := make([]string, 0, len(origins))
+	for _, origin := range sanitizeOrigins(origins) {
+		parsed, err := neturl.Parse(origin)
+		if err != nil || parsed.Host == "" {
+			continue
+		}
+		host := strings.TrimSpace(parsed.Hostname())
+		if host == "" {
+			continue
+		}
+		result = append(result, host)
+	}
+	return sanitizeCSVValues(result)
 }
 
 func firstNonEmpty(values ...string) string {

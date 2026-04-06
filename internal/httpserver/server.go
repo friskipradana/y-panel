@@ -714,16 +714,50 @@ func (s *Server) isOriginAllowed(origin string) bool {
 		return true
 	}
 
-	parsed, err := url.Parse(origin)
-	if err != nil || parsed.Host == "" {
+	normalizedOrigin, ok := normalizeOrigin(origin)
+	if !ok {
 		return false
 	}
 	for _, candidate := range s.cfg.AllowedOrigins {
-		if strings.EqualFold(strings.TrimRight(origin, "/"), strings.TrimRight(candidate, "/")) {
+		normalizedCandidate, candidateOK := normalizeOrigin(candidate)
+		if !candidateOK {
+			continue
+		}
+		if normalizedOrigin == normalizedCandidate {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizeOrigin(origin string) (string, bool) {
+	trimmed := strings.TrimSpace(strings.TrimRight(origin, "/"))
+	if trimmed == "" {
+		return "", false
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", false
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Hostname())
+	if host == "" {
+		return "", false
+	}
+
+	port := parsed.Port()
+	switch {
+	case port != "":
+		return scheme + "://" + net.JoinHostPort(host, port), true
+	case scheme == "http":
+		return scheme + "://" + host + ":80", true
+	case scheme == "https":
+		return scheme + "://" + host + ":443", true
+	default:
+		return scheme + "://" + host, true
+	}
 }
 
 func (s *Server) isWebSocketOriginAllowed(r *http.Request) bool {
@@ -734,7 +768,7 @@ func (s *Server) isWebSocketOriginAllowed(r *http.Request) bool {
 	if origin == "" {
 		return s.isHostAllowed(r.Host)
 	}
-	parsed, err := url.Parse(origin)
+	parsed, err := url.Parse(strings.TrimSpace(origin))
 	if err != nil {
 		return false
 	}
