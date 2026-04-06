@@ -5,21 +5,93 @@ param(
   [string]$RemoteBaseDir = '~/ui-panel-deploy',
   [string]$BindAddress = '',
   [string]$AdminUsername = 'admin',
-  [string]$AdminPassword = ''
+  [string]$AdminPassword = '',
+  [ValidateSet('Auto', 'Legacy', 'Modern')]
+  [string]$PowerShellMode = 'Auto'
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$WarningPreference     = 'SilentlyContinue'   # Sembunyikan WARNING Posh-SSH
+$WarningPreference = 'SilentlyContinue'   # Sembunyikan WARNING Posh-SSH
 
 # ═══════════════════════════════════════════════════════════════
 #  UI HELPERS
 # ═══════════════════════════════════════════════════════════════
 
-$Script:DeployStart  = Get-Date
-$Script:StepIndex    = 0
-$Script:StepTotal    = 9     # jumlah step utama
-$Script:StepStart    = $null
+$Script:DeployStart = Get-Date
+$Script:StepIndex = 0
+$Script:StepTotal = 9     # jumlah step utama
+$Script:StepStart = $null
+$Script:IsLegacyPS = $PSVersionTable.PSVersion.Major -lt 7
+$Script:UiTheme = @{}
+$Script:LiveState = @{
+  Enabled    = -not [Console]::IsOutputRedirected
+  Rendered   = $false
+  StepLine   = ''
+  DetailLine = ''
+}
+
+function Initialize-UiTheme {
+  $unicodeTheme = @{
+    LineChar           = [string][char]0x2500
+    OkMark             = [string][char]0x2714
+    ErrorMark          = [string][char]0x2718
+    ProgressFilled     = [string][char]0x2588
+    ProgressEmpty      = [string][char]0x2591
+    Pointer            = [string][char]0x203A
+    Bullet             = [string][char]0x00B7
+    LoadingMark        = [string][char]0x27F3
+    BuildSummaryNeedle = 'built in'
+    InstallingLabel    = 'Menginstall & mengkonfigurasi panel di server'
+  }
+
+  $asciiTheme = @{
+    LineChar           = '-'
+    OkMark             = '[OK]'
+    ErrorMark          = '[ERROR]'
+    ProgressFilled     = '#'
+    ProgressEmpty      = '.'
+    Pointer            = '->'
+    Bullet             = '-'
+    LoadingMark        = '[..]'
+    BuildSummaryNeedle = 'built in'
+    InstallingLabel    = 'Menginstall dan mengkonfigurasi panel di server'
+  }
+
+  if (-not $Script:IsLegacyPS) {
+    $Script:UiTheme = $unicodeTheme
+    return
+  }
+
+  switch ($PowerShellMode) {
+    'Legacy' {
+      $Script:UiTheme = $asciiTheme
+      Write-Host '  Menjalankan dengan Windows PowerShell lama -> UI ASCII aktif.' -ForegroundColor Yellow
+      return
+    }
+    'Modern' {
+      throw "Mode Modern membutuhkan PowerShell 7+. Jalankan dengan 'pwsh' atau update PowerShell terlebih dahulu."
+    }
+    default {
+      Write-Host ''
+      Write-Host '  Terdeteksi Windows PowerShell lama.' -ForegroundColor Yellow
+      Write-Host '  Pilih mode:' -ForegroundColor DarkGray
+      Write-Host '   [U] Update / gunakan PowerShell 7 (disarankan)' -ForegroundColor Cyan
+      Write-Host '   [L] Lanjut pakai PowerShell lama (UI ASCII)' -ForegroundColor White
+      $choice = Read-Host '  Pilihan [U/L]'
+      if ($choice -match '^(?i)u') {
+        Write-Host ''
+        Write-Host '  Update ke PowerShell 7 lalu jalankan ulang dengan:' -ForegroundColor Yellow
+        Write-Host '    winget install --id Microsoft.PowerShell --source winget' -ForegroundColor Cyan
+        Write-Host '    pwsh -File .\deploy_ui_panel.ps1 -HostName <host> -SshPassword <password>' -ForegroundColor Cyan
+        exit 1
+      }
+
+      $Script:UiTheme = $asciiTheme
+      Write-Host '  Mode legacy dipilih -> UI ASCII aktif.' -ForegroundColor Yellow
+    }
+  }
+}
 
 function Format-Elapsed {
   param([datetime]$Since)
@@ -28,91 +100,193 @@ function Format-Elapsed {
   return "$([int]$e.TotalMinutes)m$($e.Seconds)s"
 }
 
+function Normalize-DisplayText {
+  param([string]$Text)
+
+  if ([string]::IsNullOrWhiteSpace($Text)) {
+    return $Text
+  }
+
+  $clean = [string]$Text
+  $clean = [regex]::Replace($clean, "`e\[[\d;?]*[A-Za-z]", '')
+  $clean = $clean.Trim()
+
+  $needle = $Script:UiTheme.BuildSummaryNeedle
+  $idx = $clean.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase)
+  if ($idx -ge 0) {
+    return $clean.Substring($idx)
+  }
+
+  return $clean
+}
+
+function Get-TerminalWidth {
+  try {
+    return [Math]::Max([Console]::WindowWidth, 80)
+  }
+  catch {
+    return 120
+  }
+}
+
+function Format-LiveLine {
+  param([string]$Text)
+
+  $content = Normalize-DisplayText $Text
+  if ($null -eq $content) {
+    $content = ''
+  }
+
+  $width = Get-TerminalWidth
+  $maxLen = [Math]::Max(1, $width - 1)
+  if ($content.Length -gt $maxLen) {
+    $content = $content.Substring(0, [Math]::Max(1, $maxLen - 3)) + '...'
+  }
+
+  return $content.PadRight($maxLen)
+}
+
+function Render-LiveStatus {
+  param(
+    [string]$StepLine = $Script:LiveState.StepLine,
+    [string]$DetailLine = $Script:LiveState.DetailLine
+  )
+
+  $Script:LiveState.StepLine = Normalize-DisplayText $StepLine
+  $Script:LiveState.DetailLine = Normalize-DisplayText $DetailLine
+
+  if (-not $Script:LiveState.Enabled) {
+    if ($Script:LiveState.StepLine) { Write-Host $Script:LiveState.StepLine }
+    if ($Script:LiveState.DetailLine) { Write-Host $Script:LiveState.DetailLine }
+    return
+  }
+
+  try {
+    if ($Script:LiveState.Rendered) {
+      $targetTop = [Math]::Max(0, [Console]::CursorTop - 2)
+      [Console]::SetCursorPosition(0, $targetTop)
+    }
+
+    [Console]::Write((Format-LiveLine $Script:LiveState.StepLine))
+    [Console]::WriteLine()
+    [Console]::Write((Format-LiveLine $Script:LiveState.DetailLine))
+    [Console]::WriteLine()
+    $Script:LiveState.Rendered = $true
+  }
+  catch {
+    $Script:LiveState.Enabled = $false
+    if ($Script:LiveState.StepLine) { Write-Host $Script:LiveState.StepLine }
+    if ($Script:LiveState.DetailLine) { Write-Host $Script:LiveState.DetailLine }
+  }
+}
+
+function Clear-LiveStatus {
+  if (-not $Script:LiveState.Enabled -or -not $Script:LiveState.Rendered) {
+    return
+  }
+
+  try {
+    $blank = ''.PadRight([Math]::Max(1, (Get-TerminalWidth) - 1))
+    $targetTop = [Math]::Max(0, [Console]::CursorTop - 2)
+    [Console]::SetCursorPosition(0, $targetTop)
+    [Console]::Write($blank)
+    [Console]::WriteLine()
+    [Console]::Write($blank)
+    [Console]::WriteLine()
+    [Console]::SetCursorPosition(0, $targetTop)
+  }
+  catch {}
+
+  $Script:LiveState.Rendered = $false
+  $Script:LiveState.StepLine = ''
+  $Script:LiveState.DetailLine = ''
+}
+
+function Write-Loading {
+  param([string]$Msg)
+  Write-Host "  $($Script:UiTheme.LoadingMark) $Msg" -ForegroundColor Yellow -NoNewline
+}
+
 function Write-Banner {
-  $line = '─' * 60
-  Write-Host ""
+  $line = $Script:UiTheme.LineChar * 60
   Write-Host "  $line" -ForegroundColor DarkGray
   Write-Host "   UI-Panel Deploy " -NoNewline -ForegroundColor White
   Write-Host "v$(Get-Date -Format 'yyyyMMdd')" -ForegroundColor DarkGray
   Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray
   Write-Host "${SshUser}@${HostName}" -ForegroundColor Cyan
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host ""
 }
 
 function Write-Step {
   param([string]$Label)
 
-  # Tutup step sebelumnya
-  if ($Script:StepStart -and $Script:StepIndex -gt 0) {
-    $elapsed = Format-Elapsed $Script:StepStart
-    Write-Host "  $([char]0x2714) " -NoNewline -ForegroundColor Green
-    Write-Host "selesai " -NoNewline -ForegroundColor DarkGray
-    Write-Host "($elapsed)" -ForegroundColor DarkGray
-  }
-
   $Script:StepIndex++
   $Script:StepStart = Get-Date
   $pct = [int](($Script:StepIndex - 1) / $Script:StepTotal * 100)
 
-  # Bar progress
-  $barWidth  = 20
-  $filled    = [int]($pct / 100 * $barWidth)
-  $empty     = $barWidth - $filled
-  $bar       = ('█' * $filled) + ('░' * $empty)
+  $barWidth = 20
+  $filled = [int]($pct / 100 * $barWidth)
+  $empty = $barWidth - $filled
+  $bar = ($Script:UiTheme.ProgressFilled * $filled) + ($Script:UiTheme.ProgressEmpty * $empty)
 
-  Write-Host ""
-  Write-Host "  [$bar] " -NoNewline -ForegroundColor DarkCyan
-  Write-Host "$pct%" -NoNewline -ForegroundColor Cyan
-  Write-Host "  Step $($Script:StepIndex)/$($Script:StepTotal)" -ForegroundColor DarkGray
-  Write-Host "  ➤ " -NoNewline -ForegroundColor Yellow
-  Write-Host $Label -ForegroundColor White
+  $stepLine = "  [$bar] $pct%  Step $($Script:StepIndex)/$($Script:StepTotal)  $($Script:UiTheme.Pointer) $Label"
+  Render-LiveStatus -StepLine $stepLine -DetailLine ''
 }
 
 function Write-StepDone {
   param([string]$Detail = '')
   if ($Script:StepStart) {
     $elapsed = Format-Elapsed $Script:StepStart
-    Write-Host "  $([char]0x2714) " -NoNewline -ForegroundColor Green
+    $detailLine = "  $($Script:UiTheme.OkMark) "
     if ($Detail) {
-      Write-Host "$Detail " -NoNewline -ForegroundColor Gray
+      $detailLine += "$(Normalize-DisplayText $Detail) "
     }
-    Write-Host "($elapsed)" -ForegroundColor DarkGray
+    $detailLine += "($elapsed)"
+    Render-LiveStatus -DetailLine $detailLine
     $Script:StepStart = $null
   }
 }
 
 function Write-Info {
   param([string]$Msg)
-  Write-Host "    · $Msg" -ForegroundColor DarkGray
+  Render-LiveStatus -DetailLine "    $($Script:UiTheme.Bullet) $(Normalize-DisplayText $Msg)"
 }
 
 function Write-Success {
   param([string]$Msg)
-  Write-Host "    $([char]0x2714) $Msg" -ForegroundColor Green
+  Render-LiveStatus -DetailLine "    $($Script:UiTheme.OkMark) $(Normalize-DisplayText $Msg)"
 }
 
 function Write-Err {
   param([string]$Msg)
-  Write-Host ""
-  Write-Host "  $([char]0x2718) GAGAL: $Msg" -ForegroundColor Red
+  Clear-LiveStatus
+  Write-Host "  $($Script:UiTheme.ErrorMark) GAGAL: $(Normalize-DisplayText $Msg)" -ForegroundColor Red
 }
 
 function Write-Summary {
-  param([string]$Url, [string]$User, [string]$Host)
+  param(
+    [string]$Url,
+    [string]$User,
+    [string]$TargetHost,
+    [string]$PanelUser,
+    [string]$PanelPassword
+  )
+  Clear-LiveStatus
   $total = Format-Elapsed $Script:DeployStart
-  $line  = '─' * 60
-  Write-Host ""
+  $line = $Script:UiTheme.LineChar * 60
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host "   $([char]0x2714) Deploy Berhasil " -NoNewline -ForegroundColor Green
+  Write-Host "   $($Script:UiTheme.OkMark)  Deploy Berhasil " -NoNewline -ForegroundColor Green
   Write-Host "(total: $total)" -ForegroundColor DarkGray
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host "   Panel URL  : " -NoNewline -ForegroundColor DarkGray
+  Write-Host "   Panel URL       : " -NoNewline -ForegroundColor DarkGray
   Write-Host $Url -ForegroundColor Cyan
-  Write-Host "   Server     : " -NoNewline -ForegroundColor DarkGray
-  Write-Host "${User}@${Host}" -ForegroundColor White
+  Write-Host "   Server          : " -NoNewline -ForegroundColor DarkGray
+  Write-Host "${User}@${TargetHost}" -ForegroundColor White
+  Write-Host "   Panel Username  : " -NoNewline -ForegroundColor DarkGray
+  Write-Host $PanelUser -ForegroundColor White
+  Write-Host "   Panel Password  : " -NoNewline -ForegroundColor DarkGray
+  Write-Host $PanelPassword -ForegroundColor White
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host ""
 }
 
 function Require-Command {
@@ -132,14 +306,16 @@ function Get-PortFromBindAddress {
 #  INSTALL POSH-SSH JIKA BELUM ADA
 # ═══════════════════════════════════════════════════════════════
 
+Initialize-UiTheme
+
 if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
-  Write-Host "  ⟳ Menginstall Posh-SSH..." -ForegroundColor Yellow -NoNewline
+  Write-Loading 'Menginstall Posh-SSH...'
   if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue |
-            Where-Object { $_.Version -ge '2.8.5.201' })) {
+      Where-Object { $_.Version -ge '2.8.5.201' })) {
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
   }
   Install-Module -Name Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery | Out-Null
-  Write-Host " $([char]0x2714)" -ForegroundColor Green
+  Write-Host " $($Script:UiTheme.OkMark)" -ForegroundColor Green
 }
 Import-Module Posh-SSH -WarningAction SilentlyContinue -ErrorAction Stop
 
@@ -147,17 +323,17 @@ Require-Command npm
 Require-Command tar
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TmpDir      = Join-Path $ProjectRoot 'tmp'
+$TmpDir = Join-Path $ProjectRoot 'tmp'
 $ArchivePath = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
-$PanelPort   = '8787'
+$PanelPort = '8787'
 
 if (-not (Test-Path $TmpDir)) {
   New-Item -ItemType Directory -Path $TmpDir | Out-Null
 }
 
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
-  $secPwd      = Read-Host 'Masukkan password SSH/sudo server' -AsSecureString
-  $bstr        = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
+  $secPwd = Read-Host 'Masukkan password SSH/sudo server' -AsSecureString
+  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
   $SshPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
@@ -180,8 +356,13 @@ try {
     throw 'Build frontend gagal.'
   }
   # Ambil baris ringkasan vite
-  $builtLine = $buildOut | Where-Object { $_ -match '✓ built in' } | Select-Object -Last 1
-  Write-StepDone ($builtLine ? $builtLine.Trim() : 'npm build OK')
+  $builtLine = $buildOut | Where-Object { $_ -match $Script:UiTheme.BuildSummaryNeedle } | Select-Object -Last 1
+  if ($builtLine) {
+    Write-StepDone $builtLine.Trim()
+  }
+  else {
+    Write-StepDone 'npm build OK'
+  }
 
   # ── [2] Buat archive ──────────────────────────────────────────
   Write-Step 'Membuat archive project'
@@ -201,7 +382,7 @@ try {
   $credential = New-Object System.Management.Automation.PSCredential($SshUser, $securePass)
 
   $session = New-SSHSession -ComputerName $HostName -Credential $credential `
-             -AcceptKey -Force -WarningAction SilentlyContinue
+    -AcceptKey -Force -WarningAction SilentlyContinue
   if (-not $session) { throw 'Gagal membuka koneksi SSH.' }
   $sessionId = $session.SessionId
 
@@ -220,36 +401,37 @@ try {
 
   # ── [4] Siapkan direktori remote ──────────────────────────────
   Write-Step 'Siapkan direktori remote'
-  $resolvedLines         = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
+  $resolvedLines = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
   $ResolvedRemoteBaseDir = ($resolvedLines | Select-Object -Last 1).Trim()
   if ([string]::IsNullOrWhiteSpace($ResolvedRemoteBaseDir)) {
     throw 'Gagal me-resolve path remote deploy directory.'
   }
-  $RemoteReleaseDir  = "$ResolvedRemoteBaseDir/ui-panel"
+  $RemoteReleaseDir = "$ResolvedRemoteBaseDir/ui-panel"
   $RemoteArchivePath = "$ResolvedRemoteBaseDir/ui-panel-deploy.tar.gz"
   Write-StepDone $ResolvedRemoteBaseDir
 
   # ── [5] Baca konfigurasi lama ─────────────────────────────────
   Write-Step 'Membaca konfigurasi panel sebelumnya'
-  $escapedSudo    = $SudoPassword.Replace("'", "'\\''")
+  $escapedSudo = $SudoPassword.Replace("'", "'\\''")
   $ExistingEnvRaw = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true"
-  $ExistingEnv    = @{}
+  $ExistingEnv = @{}
   foreach ($line in $ExistingEnvRaw) {
     if ($line -match '^(?<key>[A-Z0-9_]+)=(?<value>.*)$') {
       $ExistingEnv[$matches.key] = $matches.value
     }
   }
 
-  if ([string]::IsNullOrWhiteSpace($AdminPassword)  -and $ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD'))  { $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD'] }
-  if ([string]::IsNullOrWhiteSpace($AdminUsername)  -and $ExistingEnv.ContainsKey('PANEL_ADMIN_USERNAME'))  { $AdminUsername = $ExistingEnv['PANEL_ADMIN_USERNAME'] }
-  if ([string]::IsNullOrWhiteSpace($BindAddress)    -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR'))       { $BindAddress   = $ExistingEnv['PANEL_BIND_ADDR'] }
-  if ([string]::IsNullOrWhiteSpace($BindAddress))   { $BindAddress = '0.0.0.0:8787' }
+  if ([string]::IsNullOrWhiteSpace($AdminPassword) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD')) { $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD'] }
+  if ([string]::IsNullOrWhiteSpace($AdminUsername) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_USERNAME')) { $AdminUsername = $ExistingEnv['PANEL_ADMIN_USERNAME'] }
+  if ([string]::IsNullOrWhiteSpace($BindAddress) -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR')) { $BindAddress = $ExistingEnv['PANEL_BIND_ADDR'] }
+  if ([string]::IsNullOrWhiteSpace($BindAddress)) { $BindAddress = '0.0.0.0:8787' }
   $PanelPort = Get-PortFromBindAddress $BindAddress
 
   $AllowedHosts = @()
   if ($ExistingEnv.ContainsKey('PANEL_ALLOWED_HOSTS') -and -not [string]::IsNullOrWhiteSpace($ExistingEnv['PANEL_ALLOWED_HOSTS'])) {
     $AllowedHosts += ($ExistingEnv['PANEL_ALLOWED_HOSTS'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-  } else {
+  }
+  else {
     $AllowedHosts += @('localhost', '127.0.0.1', $HostName)
   }
   $AllowedHosts = $AllowedHosts | Select-Object -Unique
@@ -257,7 +439,8 @@ try {
   $AllowedOrigins = @()
   if ($ExistingEnv.ContainsKey('PANEL_ALLOWED_ORIGINS') -and -not [string]::IsNullOrWhiteSpace($ExistingEnv['PANEL_ALLOWED_ORIGINS'])) {
     $AllowedOrigins += ($ExistingEnv['PANEL_ALLOWED_ORIGINS'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-  } else {
+  }
+  else {
     $AllowedOrigins += @(
       "http://127.0.0.1:$PanelPort",
       "http://localhost:$PanelPort",
@@ -277,15 +460,15 @@ try {
   Write-StepDone 'upload selesai'
 
   # ── [7/8/9] Install di server ─────────────────────────────────
-  Write-Step 'Menginstall & mengkonfigurasi panel di server'
+  Write-Step $Script:UiTheme.InstallingLabel
 
-  $escapedRemoteBase     = $ResolvedRemoteBaseDir.Replace("'", "'\\''")
-  $escapedRemoteRelease  = $RemoteReleaseDir.Replace("'", "'\\''")
-  $escapedRemoteArchive  = $RemoteArchivePath.Replace("'", "'\\''")
-  $escapedBind           = $BindAddress.Replace("'", "'\\''")
-  $escapedAdmin          = $AdminUsername.Replace("'", "'\\''")
-  $escapedPanelPassword  = $AdminPassword.Replace("'", "'\\''")
-  $escapedAllowedHosts   = ($AllowedHosts -join ',').Replace("'", "'\\''")
+  $escapedRemoteBase = $ResolvedRemoteBaseDir.Replace("'", "'\\''")
+  $escapedRemoteRelease = $RemoteReleaseDir.Replace("'", "'\\''")
+  $escapedRemoteArchive = $RemoteArchivePath.Replace("'", "'\\''")
+  $escapedBind = $BindAddress.Replace("'", "'\\''")
+  $escapedAdmin = $AdminUsername.Replace("'", "'\\''")
+  $escapedPanelPassword = $AdminPassword.Replace("'", "'\\''")
+  $escapedAllowedHosts = ($AllowedHosts -join ',').Replace("'", "'\\''")
   $escapedAllowedOrigins = ($AllowedOrigins -join ',').Replace("'", "'\\''")
 
   $remoteScript = @"
@@ -322,7 +505,7 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
 
   $remoteScriptPath = Join-Path $TmpDir 'deploy_remote.sh'
   $remoteScriptUnix = ($remoteScript -replace "`r`n", "`n")
-  $utf8NoBom        = New-Object System.Text.UTF8Encoding($false)
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
   [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptUnix, $utf8NoBom)
 
   try {
@@ -347,7 +530,7 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
   Write-StepDone 'instalasi & restart selesai'
 
   # ── Selesai ───────────────────────────────────────────────────
-  Write-Summary -Url "http://${HostName}:$PanelPort" -User $SshUser -Host $HostName
+  Write-Summary -Url "http://${HostName}:$PanelPort" -User $SshUser -TargetHost $HostName -PanelUser $AdminUsername -PanelPassword $AdminPassword
 
 }
 catch {
@@ -357,7 +540,7 @@ catch {
 finally {
   if (Get-Command Get-SSHSession -ErrorAction SilentlyContinue) {
     Get-SSHSession -ErrorAction SilentlyContinue |
-      ForEach-Object { Remove-SSHSession -SessionId $_.SessionId -ErrorAction SilentlyContinue | Out-Null }
+    ForEach-Object { Remove-SSHSession -SessionId $_.SessionId -ErrorAction SilentlyContinue | Out-Null }
   }
   $SudoPassword = $null
 }
