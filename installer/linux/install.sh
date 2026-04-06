@@ -186,6 +186,11 @@ ui_panel_config() {
   local current_allowed_origins=""
   local current_hostname=""
   local primary_ip=""
+  local interactive_mode=0
+  if [[ -t 0 && -t 1 ]]; then
+    interactive_mode=1
+  fi
+
   if [[ -f "$ENV_FILE" ]]; then
     current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
     current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
@@ -194,28 +199,39 @@ ui_panel_config() {
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
 
-  # Mode non-interaktif: gunakan env var jika sudah di-set (misal dari deploy script).
-  # Mode interaktif: tampilkan prompt bila dijalankan langsung dari terminal.
   if [[ -z "${PANEL_BIND_ADDR:-}" ]]; then
-    read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR
-    PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
+    if [[ "$interactive_mode" -eq 1 ]]; then
+      read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR || true
+      PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
+    else
+      PANEL_BIND_ADDR="$current_bind_addr"
+      log "Bind address (otomatis): $PANEL_BIND_ADDR"
+    fi
   else
     log "Bind address (dari env): $PANEL_BIND_ADDR"
   fi
 
   if [[ -z "${PANEL_ADMIN_USERNAME:-}" ]]; then
-    read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME
-    PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
+    if [[ "$interactive_mode" -eq 1 ]]; then
+      read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME || true
+      PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
+    else
+      PANEL_ADMIN_USERNAME="admin"
+      log "Username admin (otomatis): $PANEL_ADMIN_USERNAME"
+    fi
   else
     log "Username admin (dari env): $PANEL_ADMIN_USERNAME"
   fi
 
   if [[ -z "${PANEL_ADMIN_PASSWORD:-}" ]]; then
-    read -r -s -p "Password admin [otomatis jika kosong]: " PANEL_ADMIN_PASSWORD
-    printf '\n'
+    if [[ "$interactive_mode" -eq 1 ]]; then
+      read -r -s -p "Password admin [otomatis jika kosong]: " PANEL_ADMIN_PASSWORD || true
+      printf '\n'
+    fi
     if [[ -z "$PANEL_ADMIN_PASSWORD" ]]; then
       PANEL_ADMIN_PASSWORD="$(random_string 20)"
       GENERATED_PASSWORD=1
+      log "Password admin (otomatis): [dibuat otomatis]"
     else
       GENERATED_PASSWORD=0
     fi
