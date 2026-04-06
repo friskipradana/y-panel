@@ -180,18 +180,33 @@ ui_panel_config() {
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
 
-  read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR
-  PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
-
-  read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME
-  PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
-
-  read -r -s -p "Password admin [otomatis jika kosong]: " PANEL_ADMIN_PASSWORD
-  printf '\n'
-  if [[ -z "$PANEL_ADMIN_PASSWORD" ]]; then
-    PANEL_ADMIN_PASSWORD="$(random_string 20)"
-    GENERATED_PASSWORD=1
+  # Mode non-interaktif: gunakan env var jika sudah di-set (misal dari deploy script).
+  # Mode interaktif: tampilkan prompt bila dijalankan langsung dari terminal.
+  if [[ -z "${PANEL_BIND_ADDR:-}" ]]; then
+    read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR
+    PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
   else
+    log "Bind address (dari env): $PANEL_BIND_ADDR"
+  fi
+
+  if [[ -z "${PANEL_ADMIN_USERNAME:-}" ]]; then
+    read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME
+    PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
+  else
+    log "Username admin (dari env): $PANEL_ADMIN_USERNAME"
+  fi
+
+  if [[ -z "${PANEL_ADMIN_PASSWORD:-}" ]]; then
+    read -r -s -p "Password admin [otomatis jika kosong]: " PANEL_ADMIN_PASSWORD
+    printf '\n'
+    if [[ -z "$PANEL_ADMIN_PASSWORD" ]]; then
+      PANEL_ADMIN_PASSWORD="$(random_string 20)"
+      GENERATED_PASSWORD=1
+    else
+      GENERATED_PASSWORD=0
+    fi
+  else
+    log "Password admin (dari env): [tersembunyi]"
     GENERATED_PASSWORD=0
   fi
 

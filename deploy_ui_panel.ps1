@@ -23,110 +23,104 @@ function Require-Command {
   }
 }
 
-function ConvertTo-PlainText {
-  param([Security.SecureString]$SecureValue)
-
-  if ($null -eq $SecureValue) {
-    return ''
-  }
-
-  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureValue)
-  try {
-    return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-  }
-  finally {
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-  }
-}
-
-function Read-RequiredSecret {
-  param([string]$PromptMessage)
-
-  while ($true) {
-    $secureValue = Read-Host $PromptMessage -AsSecureString
-    $plainValue = ConvertTo-PlainText $secureValue
-
-    if (-not [string]::IsNullOrWhiteSpace($plainValue)) {
-      return $plainValue
-    }
-
-    Write-Host 'Password tidak boleh kosong. Silakan coba lagi.' -ForegroundColor Yellow
-  }
-}
-
 function Get-PortFromBindAddress {
   param([string]$Value)
-
   if ($Value -match ':(\d+)$') {
     return $matches[1]
   }
-
   return '8787'
 }
 
-$ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TmpDir = Join-Path $ProjectRoot 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
-$RemoteTarget = "$SshUser@$HostName"
-$PanelPort = '8787'
+# ── Pastikan Posh-SSH tersedia ────────────────────────────────────────────────
+if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
+  Write-Host "Menginstall modul Posh-SSH (diperlukan untuk deploy)..." -ForegroundColor Yellow
+  # Pastikan NuGet provider tersedia tanpa prompt interaktif
+  if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge '2.8.5.201' })) {
+    Write-Host "Menginstall NuGet provider..." -ForegroundColor Yellow
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+  }
+  Install-Module -Name Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery
+  Write-Host "Posh-SSH berhasil diinstall." -ForegroundColor Green
+}
+Import-Module Posh-SSH -ErrorAction Stop
 
-Require-Command ssh
-Require-Command scp
-Require-Command tar
+# ── Pastikan npm & tar tersedia ───────────────────────────────────────────────
 Require-Command npm
+Require-Command tar
+
+$ProjectRoot  = Split-Path -Parent $MyInvocation.MyCommand.Path
+$TmpDir       = Join-Path $ProjectRoot 'tmp'
+$ArchivePath  = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
+$PanelPort    = '8787'
 
 if (-not (Test-Path $TmpDir)) {
   New-Item -ItemType Directory -Path $TmpDir | Out-Null
 }
 
-$SudoPassword = $null
+# ── Minta password jika belum diisi ──────────────────────────────────────────
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
-  $SudoPassword = Read-RequiredSecret 'Masukkan password sudo server'
+  $secPwd     = Read-Host 'Masukkan password SSH/sudo server' -AsSecureString
+  $bstr       = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
+  $SshPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
-else {
-  $SudoPassword = $SshPassword
-}
+
+$SudoPassword = $SshPassword   # password SSH = password sudo user
 
 try {
+  # ── Build frontend ──────────────────────────────────────────────────────────
   Write-Step 'Build frontend production'
   & npm run build
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Build frontend gagal.'
-  }
+  if ($LASTEXITCODE -ne 0) { throw 'Build frontend gagal.' }
 
+  # ── Buat archive ────────────────────────────────────────────────────────────
   Write-Step 'Buat archive project'
-  if (Test-Path $ArchivePath) {
-    Remove-Item $ArchivePath -Force
-  }
+  if (Test-Path $ArchivePath) { Remove-Item $ArchivePath -Force }
 
   Push-Location $ProjectRoot
   try {
     & tar -czf $ArchivePath --exclude=node_modules --exclude=.git --exclude=tmp .
-    if ($LASTEXITCODE -ne 0) {
-      throw 'Gagal membuat archive deploy.'
-    }
+    if ($LASTEXITCODE -ne 0) { throw 'Gagal membuat archive deploy.' }
   }
-  finally {
-    Pop-Location
+  finally { Pop-Location }
+
+  # ── Buka koneksi SSH ────────────────────────────────────────────────────────
+  Write-Step 'Membuka koneksi SSH ke server'
+  $securePass = ConvertTo-SecureString $SshPassword -AsPlainText -Force
+  $credential = New-Object System.Management.Automation.PSCredential($SshUser, $securePass)
+
+  # Terima host key secara otomatis (bypass fingerprint prompt)
+  $session = New-SSHSession -ComputerName $HostName -Credential $credential -AcceptKey -Force
+  if (-not $session) { throw 'Gagal membuka koneksi SSH.' }
+  $sessionId = $session.SessionId
+
+  function Invoke-Remote {
+    param([string]$Cmd)
+    $result = Invoke-SSHCommand -SessionId $sessionId -Command $Cmd -TimeOut 600
+    if ($result.ExitStatus -ne 0) {
+      Write-Host $result.Output   -ForegroundColor Red
+      Write-Host $result.Error    -ForegroundColor Red
+      throw "Remote command gagal (exit $($result.ExitStatus)): $Cmd"
+    }
+    return $result.Output
   }
 
+  # ── Siapkan direktori remote ────────────────────────────────────────────────
   Write-Step 'Siapkan direktori remote'
-  & ssh $RemoteTarget "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Gagal membuat direktori remote.'
-  }
-  $ResolvedRemoteBaseDir = ((& ssh $RemoteTarget "cd $RemoteBaseDir && pwd") | Select-Object -Last 1).Trim()
+  $resolvedLines = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
+  $ResolvedRemoteBaseDir = ($resolvedLines | Select-Object -Last 1).Trim()
   if ([string]::IsNullOrWhiteSpace($ResolvedRemoteBaseDir)) {
     throw 'Gagal me-resolve path remote deploy directory.'
   }
 
-  $RemoteReleaseDir = "$ResolvedRemoteBaseDir/ui-panel"
+  $RemoteReleaseDir  = "$ResolvedRemoteBaseDir/ui-panel"
   $RemoteArchivePath = "$ResolvedRemoteBaseDir/ui-panel-deploy.tar.gz"
 
+  # ── Baca konfigurasi panel lama jika ada ───────────────────────────────────
   Write-Step 'Ambil konfigurasi panel lama jika ada'
-  $ExistingEnvRaw = (& ssh $RemoteTarget "printf '%s
-' '$($SudoPassword.Replace("'", "'\''"))' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true")
-  $ExistingEnv = @{}
+  $escapedSudo     = $SudoPassword.Replace("'", "'\\''")
+  $ExistingEnvRaw  = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true"
+  $ExistingEnv     = @{}
   foreach ($line in $ExistingEnvRaw) {
     if ($line -match '^(?<key>[A-Z0-9_]+)=(?<value>.*)$') {
       $ExistingEnv[$matches.key] = $matches.value
@@ -142,9 +136,7 @@ try {
   if ([string]::IsNullOrWhiteSpace($BindAddress) -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR')) {
     $BindAddress = $ExistingEnv['PANEL_BIND_ADDR']
   }
-  if ([string]::IsNullOrWhiteSpace($BindAddress)) {
-    $BindAddress = '0.0.0.0:8787'
-  }
+  if ([string]::IsNullOrWhiteSpace($BindAddress)) { $BindAddress = '0.0.0.0:8787' }
   $PanelPort = Get-PortFromBindAddress $BindAddress
 
   $AllowedHosts = @()
@@ -169,23 +161,22 @@ try {
   }
   $AllowedOrigins = $AllowedOrigins | Select-Object -Unique
 
+  # ── Upload archive via SCP ──────────────────────────────────────────────────
   Write-Step 'Upload archive ke server'
-  & scp $ArchivePath "${RemoteTarget}:$RemoteArchivePath"
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Gagal upload archive ke server.'
-  }
+  Set-SCPItem -ComputerName $HostName -Credential $credential -Path $ArchivePath -Destination $ResolvedRemoteBaseDir -AcceptKey -Force
+  Write-Host "Archive berhasil diupload." -ForegroundColor Green
 
+  # ── Buat dan upload remote deploy script ────────────────────────────────────
   Write-Step 'Extract dan update ui-panel di server'
 
-  $escapedRemoteBase = $ResolvedRemoteBaseDir.Replace("'", "'\''")
-  $escapedRemoteRelease = $RemoteReleaseDir.Replace("'", "'\''")
-  $escapedRemoteArchive = $RemoteArchivePath.Replace("'", "'\''")
-  $escapedSudo = $SudoPassword.Replace("'", "'\''")
-  $escapedBind = $BindAddress.Replace("'", "'\''")
-  $escapedAdmin = $AdminUsername.Replace("'", "'\''")
-  $escapedPanelPassword = $AdminPassword.Replace("'", "'\''")
-  $escapedAllowedHosts = (($AllowedHosts -join ',').Replace("'", "'\''"))
-  $escapedAllowedOrigins = (($AllowedOrigins -join ',').Replace("'", "'\''"))
+  $escapedRemoteBase    = $ResolvedRemoteBaseDir.Replace("'", "'\\''")
+  $escapedRemoteRelease = $RemoteReleaseDir.Replace("'", "'\\''")
+  $escapedRemoteArchive = $RemoteArchivePath.Replace("'", "'\\''")
+  $escapedBind          = $BindAddress.Replace("'", "'\\''")
+  $escapedAdmin         = $AdminUsername.Replace("'", "'\\''")
+  $escapedPanelPassword = $AdminPassword.Replace("'", "'\\''")
+  $escapedAllowedHosts  = ($AllowedHosts -join ',').Replace("'", "'\\''")
+  $escapedAllowedOrigins = ($AllowedOrigins -join ',').Replace("'", "'\\''")
 
   $remoteScript = @"
 set -euo pipefail
@@ -209,21 +200,15 @@ find installer -type f \( -name '*.sh' -o -name '*.service.tpl' \) -exec sed -i 
 chmod +x installer/linux/install.sh
 chmod +x installer/linux/uninstall.sh
 
-PANEL_BIND="`$DEFAULT_BIND"
-PANEL_USER="`$DEFAULT_ADMIN"
-PANEL_PASS="`$DEFAULT_PASSWORD"
-PANEL_ALLOWED_HOSTS="`$DEFAULT_ALLOWED_HOSTS"
-PANEL_ALLOWED_ORIGINS="`$DEFAULT_ALLOWED_ORIGINS"
 ENV_FILE='/etc/ui-panel/agent.env'
 
-printf '%s\n%s\n%s\n%s\n' "`$SUDO_PASSWORD" "`$PANEL_BIND" "`$PANEL_USER" "`$PANEL_PASS" | sudo -S bash installer/linux/install.sh
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_HOSTS=.*#PANEL_ALLOWED_HOSTS=`$PANEL_ALLOWED_HOSTS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_HOSTS=`$PANEL_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=`$PANEL_ALLOWED_ORIGINS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_ORIGINS=`$PANEL_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash installer/linux/install.sh"
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_HOSTS=.*#PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S systemctl restart ui-panel.service
 sleep 2
 curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
 "@
-
 
   $remoteScriptPath = Join-Path $TmpDir 'deploy_remote.sh'
   $remoteScriptUnix = ($remoteScript -replace "`r`n", "`n")
@@ -231,24 +216,22 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
   [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptUnix, $utf8NoBom)
 
   try {
-    & scp $remoteScriptPath "${RemoteTarget}:$ResolvedRemoteBaseDir/deploy_remote.sh"
-    if ($LASTEXITCODE -ne 0) {
-      throw 'Gagal upload script remote deploy.'
-    }
-
-    & ssh $RemoteTarget "bash $ResolvedRemoteBaseDir/deploy_remote.sh"
-    if ($LASTEXITCODE -ne 0) {
-      throw 'Deploy remote gagal.'
-    }
+    Set-SCPItem -ComputerName $HostName -Credential $credential -Path $remoteScriptPath -Destination $ResolvedRemoteBaseDir -AcceptKey -Force
+    Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh"
   }
   finally {
     Remove-Item $remoteScriptPath -Force -ErrorAction SilentlyContinue
+    Invoke-Remote "rm -f $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null
   }
 
   Write-Step 'Deploy selesai'
-  Write-Host "Panel berhasil diupdate di $RemoteTarget" -ForegroundColor Green
+  Write-Host "Panel berhasil diupdate di ${SshUser}@${HostName}" -ForegroundColor Green
   Write-Host "URL panel: http://${HostName}:$PanelPort" -ForegroundColor Green
 }
 finally {
+  # Tutup sesi SSH
+  if (Get-SSHSession -ErrorAction SilentlyContinue | Where-Object { $_.Connected }) {
+    Remove-SSHSession -SessionId (Get-SSHSession).SessionId -ErrorAction SilentlyContinue | Out-Null
+  }
   $SudoPassword = $null
 }
