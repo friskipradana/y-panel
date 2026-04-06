@@ -134,34 +134,48 @@ ensure_go() {
   case "$arch" in
     x86_64) GO_ARCH="amd64" ;;
     aarch64|arm64) GO_ARCH="arm64" ;;
-    *) fail "arsitektur tidak didukung untuk  Go: $arch" ;;
+    *) fail "arsitektur tidak didukung untuk Go: $arch" ;;
   esac
 
   local go_version="1.22.12"
   local archive="go${go_version}.linux-${GO_ARCH}.tar.gz"
+  local archive_path="/tmp/${archive}"
   local urls=(
-    "https://go.dev/dl/${archive}"
     "https://dl.google.com/go/${archive}"
-    "https://storage.googleapis.com/golang/${archive}"
+    "https://go.dev/dl/${archive}"
   )
 
   log "menginstall Go ${go_version}"
-  rm -rf /usr/local/go
+  rm -rf /usr/local/go "$archive_path"
 
   local downloaded=0
+  local url
   for url in "${urls[@]}"; do
-    if curl -fsSL "$url" -o "/tmp/${archive}" >/dev/null 2>&1; then
-      downloaded=1
-      break
+    printf '[%s] mencoba mirror Go: %s\n' "$APP_NAME" "$url" >>"$INSTALL_LOG_FILE"
+    if curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --connect-timeout 15 "$url" -o "$archive_path" >>"$INSTALL_LOG_FILE" 2>&1; then
+      if tar -tzf "$archive_path" >/dev/null 2>&1; then
+        downloaded=1
+        break
+      fi
+      printf '[%s] archive Go rusak/tidak valid dari mirror: %s\n' "$APP_NAME" "$url" >>"$INSTALL_LOG_FILE"
+      rm -f "$archive_path"
     fi
   done
 
   if [[ "$downloaded" -ne 1 ]]; then
-    fail "semua mirror Go gagal diunduh"
+    if command -v apt-get >/dev/null 2>&1; then
+      printf '[%s] fallback install Go via apt-get\n' "$APP_NAME" >>"$INSTALL_LOG_FILE"
+      run_quiet apt-get update -y
+      run_quiet apt-get install -y golang-go
+      log "go tersedia via apt: $(go version)"
+      return
+    fi
+    fail "gagal mengunduh archive Go dari mirror mana pun"
   fi
 
-  run_quiet tar -C /usr/local -xzf "/tmp/${archive}"
+  run_quiet tar -C /usr/local -xzf "$archive_path"
   export PATH="/usr/local/go/bin:$PATH"
+  log "go berhasil diinstall: $(/usr/local/go/bin/go version)"
 }
 
 ui_panel_config() {
@@ -607,12 +621,14 @@ edit_panel_origins() {
   current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
   temp_file="$(mktemp /tmp/ui-panel-origins.XXXXXX)"
 
-  cat > "$temp_file" <<ORIGINS_EDITOR
-# Satu origin per baris. Contoh:
-# http://127.0.0.1:80
-# http://100.124.47.105:80
-${current_allowed_origins//,/\n}
-ORIGINS_EDITOR
+  {
+    printf '# Satu origin per baris. Contoh:\n'
+    printf '# http://127.0.0.1:80\n'
+    printf '# http://100.124.47.105:80\n'
+    if [[ -n "$current_allowed_origins" ]]; then
+      printf '%s\n' "$current_allowed_origins" | tr ',' '\n'
+    fi
+  } > "$temp_file"
 
   editor_bin="${VISUAL:-${EDITOR:-nano}}"
   if ! command -v "$editor_bin" >/dev/null 2>&1; then
@@ -622,11 +638,6 @@ ORIGINS_EDITOR
   "$editor_bin" "$temp_file"
 
   edited_origins="$(grep -v '^\s*#' "$temp_file" | sed '/^\s*$/d' | paste -sd, -)"
-  if [[ -z "$edited_origins" ]]; then
-    rm -f "$temp_file"
-    printf '\nMinimal satu origin harus disimpan. Perubahan dibatalkan.\n' >&2
-    exit 1
-  fi
 
   if grep -q '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE"; then
     sed -i "s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=${edited_origins}#" "$ENV_FILE"

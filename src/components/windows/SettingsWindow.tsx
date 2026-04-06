@@ -13,7 +13,7 @@ import {
   updatePanelOrigins,
   updatePanelPort,
 } from '@/api/agent'
-import type { ResetDatabasePasswordResponse, UpdatePanelOriginsPayload, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
+import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
 const cardClass = 'rounded-[20px] border border-slate-200/85 bg-white/92 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl'
 const inputClass = 'h-[42px] w-full rounded-xl border border-slate-300/90 bg-slate-50 px-3.5 text-[13px] text-slate-900 outline-none transition focus:border-blue-400'
@@ -275,10 +275,6 @@ export function SettingsWindow() {
     port: Number(panelPort.trim()),
   }), [panelPort])
 
-  const originsPayload = useMemo<UpdatePanelOriginsPayload>(() => ({
-    origins: allowedOriginsText.split('\n').map((value) => value.trim()).filter(Boolean),
-  }), [allowedOriginsText])
-
   const syncSettingsSnapshot = (data: Awaited<ReturnType<typeof getEditableSystemSettings>>) => {
     queryClient.setQueryData(['editable-system-settings'], data)
     queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
@@ -535,12 +531,13 @@ export function SettingsWindow() {
             <div className="flex justify-end">
               <button
                 id="settings-panel-origins-save"
-                type="button"
-                onClick={() => panelOriginsMutation.mutate(originsPayload)}
-                disabled={panelOriginsMutation.isPending || originsPayload.origins.length === 0}
+                onClick={() => panelOriginsMutation.mutate({
+                  origins: allowedOriginsText.split('\n').map((value) => value.trim()).filter(Boolean),
+                })}
+                disabled={panelOriginsMutation.isPending}
                 className={[
                   'inline-flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-semibold text-white transition',
-                  panelOriginsMutation.isPending || originsPayload.origins.length === 0
+                  panelOriginsMutation.isPending
                     ? 'cursor-not-allowed bg-slate-400 opacity-70'
                     : 'bg-[linear-gradient(135deg,#0f172a,#0f766e)] shadow-[0_8px_24px_rgba(15,118,110,0.22)] hover:brightness-110',
                 ].join(' ')}

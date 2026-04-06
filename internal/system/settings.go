@@ -74,7 +74,7 @@ func UpdateEditableSettings(input SettingsUpdate) (SettingsSnapshot, error) {
 		}
 	}
 
-	if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins); err != nil {
+	if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins, false); err != nil {
 		return SettingsSnapshot{}, err
 	}
 
@@ -105,25 +105,20 @@ func UpdatePanelPort(port int) (SettingsSnapshot, error) {
 		updatedOrigins = deriveDefaultAllowedOrigins(updatedBindAddr)
 	}
 
-	if err := updatePanelAccessSettings(updatedBindAddr, parseCSV(entries["PANEL_ALLOWED_HOSTS"]), updatedOrigins); err != nil {
+	if err := updatePanelAccessSettings(updatedBindAddr, parseCSV(entries["PANEL_ALLOWED_HOSTS"]), updatedOrigins, false); err != nil {
 		return SettingsSnapshot{}, err
 	}
 	return ReadEditableSettings()
 }
 
 func UpdatePanelOrigins(origins []string) (SettingsSnapshot, error) {
-	sanitizedOrigins := sanitizeOrigins(origins)
-	if len(sanitizedOrigins) == 0 {
-		return SettingsSnapshot{}, fmt.Errorf("minimal satu origin valid diperlukan")
-	}
-
 	envPath := panelEnvPath()
 	entries, err := readEnvMap(envPath)
 	if err != nil {
 		return SettingsSnapshot{}, fmt.Errorf("gagal membaca env runtime panel")
 	}
 
-	if err := updatePanelAccessSettings(entries["PANEL_BIND_ADDR"], parseCSV(entries["PANEL_ALLOWED_HOSTS"]), sanitizedOrigins); err != nil {
+	if err := updatePanelAccessSettings(entries["PANEL_BIND_ADDR"], parseCSV(entries["PANEL_ALLOWED_HOSTS"]), origins, true); err != nil {
 		return SettingsSnapshot{}, err
 	}
 	return ReadEditableSettings()
@@ -254,7 +249,7 @@ func readPanelAccessSettings() (string, []string, []string) {
 	return bindAddr, allowedHosts, allowedOrigins
 }
 
-func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []string) error {
+func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []string, allowEmptyOrigins bool) error {
 	envPath := panelEnvPath()
 	entries, err := readEnvMap(envPath)
 	if err != nil {
@@ -275,11 +270,13 @@ func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []s
 	}
 
 	sanitizedOrigins := sanitizeOrigins(allowedOrigins)
-	if len(sanitizedOrigins) == 0 {
-		sanitizedOrigins = parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
-	}
-	if len(sanitizedOrigins) == 0 {
-		sanitizedOrigins = deriveDefaultAllowedOrigins(currentBindAddr)
+	if !allowEmptyOrigins {
+		if len(sanitizedOrigins) == 0 {
+			sanitizedOrigins = parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+		}
+		if len(sanitizedOrigins) == 0 {
+			sanitizedOrigins = deriveDefaultAllowedOrigins(currentBindAddr)
+		}
 	}
 
 	entries["PANEL_BIND_ADDR"] = currentBindAddr
