@@ -10,10 +10,109 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$WarningPreference     = 'SilentlyContinue'   # Sembunyikan WARNING Posh-SSH
+
+# ═══════════════════════════════════════════════════════════════
+#  UI HELPERS
+# ═══════════════════════════════════════════════════════════════
+
+$Script:DeployStart  = Get-Date
+$Script:StepIndex    = 0
+$Script:StepTotal    = 9     # jumlah step utama
+$Script:StepStart    = $null
+
+function Format-Elapsed {
+  param([datetime]$Since)
+  $e = (Get-Date) - $Since
+  if ($e.TotalSeconds -lt 60) { return "$([int]$e.TotalSeconds)s" }
+  return "$([int]$e.TotalMinutes)m$($e.Seconds)s"
+}
+
+function Write-Banner {
+  $line = '─' * 60
+  Write-Host ""
+  Write-Host "  $line" -ForegroundColor DarkGray
+  Write-Host "   UI-Panel Deploy " -NoNewline -ForegroundColor White
+  Write-Host "v$(Get-Date -Format 'yyyyMMdd')" -ForegroundColor DarkGray
+  Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray
+  Write-Host "${SshUser}@${HostName}" -ForegroundColor Cyan
+  Write-Host "  $line" -ForegroundColor DarkGray
+  Write-Host ""
+}
 
 function Write-Step {
-  param([string]$Message)
-  Write-Host "`n==> $Message" -ForegroundColor Cyan
+  param([string]$Label)
+
+  # Tutup step sebelumnya
+  if ($Script:StepStart -and $Script:StepIndex -gt 0) {
+    $elapsed = Format-Elapsed $Script:StepStart
+    Write-Host "  $([char]0x2714) " -NoNewline -ForegroundColor Green
+    Write-Host "selesai " -NoNewline -ForegroundColor DarkGray
+    Write-Host "($elapsed)" -ForegroundColor DarkGray
+  }
+
+  $Script:StepIndex++
+  $Script:StepStart = Get-Date
+  $pct = [int](($Script:StepIndex - 1) / $Script:StepTotal * 100)
+
+  # Bar progress
+  $barWidth  = 20
+  $filled    = [int]($pct / 100 * $barWidth)
+  $empty     = $barWidth - $filled
+  $bar       = ('█' * $filled) + ('░' * $empty)
+
+  Write-Host ""
+  Write-Host "  [$bar] " -NoNewline -ForegroundColor DarkCyan
+  Write-Host "$pct%" -NoNewline -ForegroundColor Cyan
+  Write-Host "  Step $($Script:StepIndex)/$($Script:StepTotal)" -ForegroundColor DarkGray
+  Write-Host "  ➤ " -NoNewline -ForegroundColor Yellow
+  Write-Host $Label -ForegroundColor White
+}
+
+function Write-StepDone {
+  param([string]$Detail = '')
+  if ($Script:StepStart) {
+    $elapsed = Format-Elapsed $Script:StepStart
+    Write-Host "  $([char]0x2714) " -NoNewline -ForegroundColor Green
+    if ($Detail) {
+      Write-Host "$Detail " -NoNewline -ForegroundColor Gray
+    }
+    Write-Host "($elapsed)" -ForegroundColor DarkGray
+    $Script:StepStart = $null
+  }
+}
+
+function Write-Info {
+  param([string]$Msg)
+  Write-Host "    · $Msg" -ForegroundColor DarkGray
+}
+
+function Write-Success {
+  param([string]$Msg)
+  Write-Host "    $([char]0x2714) $Msg" -ForegroundColor Green
+}
+
+function Write-Err {
+  param([string]$Msg)
+  Write-Host ""
+  Write-Host "  $([char]0x2718) GAGAL: $Msg" -ForegroundColor Red
+}
+
+function Write-Summary {
+  param([string]$Url, [string]$User, [string]$Host)
+  $total = Format-Elapsed $Script:DeployStart
+  $line  = '─' * 60
+  Write-Host ""
+  Write-Host "  $line" -ForegroundColor DarkGray
+  Write-Host "   $([char]0x2714) Deploy Berhasil " -NoNewline -ForegroundColor Green
+  Write-Host "(total: $total)" -ForegroundColor DarkGray
+  Write-Host "  $line" -ForegroundColor DarkGray
+  Write-Host "   Panel URL  : " -NoNewline -ForegroundColor DarkGray
+  Write-Host $Url -ForegroundColor Cyan
+  Write-Host "   Server     : " -NoNewline -ForegroundColor DarkGray
+  Write-Host "${User}@${Host}" -ForegroundColor White
+  Write-Host "  $line" -ForegroundColor DarkGray
+  Write-Host ""
 }
 
 function Require-Command {
@@ -25,72 +124,84 @@ function Require-Command {
 
 function Get-PortFromBindAddress {
   param([string]$Value)
-  if ($Value -match ':(\d+)$') {
-    return $matches[1]
-  }
+  if ($Value -match ':(\d+)$') { return $matches[1] }
   return '8787'
 }
 
-# ── Pastikan Posh-SSH tersedia ────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+#  INSTALL POSH-SSH JIKA BELUM ADA
+# ═══════════════════════════════════════════════════════════════
+
 if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
-  Write-Host "Menginstall modul Posh-SSH (diperlukan untuk deploy)..." -ForegroundColor Yellow
-  # Pastikan NuGet provider tersedia tanpa prompt interaktif
-  if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge '2.8.5.201' })) {
-    Write-Host "Menginstall NuGet provider..." -ForegroundColor Yellow
+  Write-Host "  ⟳ Menginstall Posh-SSH..." -ForegroundColor Yellow -NoNewline
+  if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue |
+            Where-Object { $_.Version -ge '2.8.5.201' })) {
     Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
   }
-  Install-Module -Name Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery
-  Write-Host "Posh-SSH berhasil diinstall." -ForegroundColor Green
+  Install-Module -Name Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery | Out-Null
+  Write-Host " $([char]0x2714)" -ForegroundColor Green
 }
-Import-Module Posh-SSH -ErrorAction Stop
+Import-Module Posh-SSH -WarningAction SilentlyContinue -ErrorAction Stop
 
-# ── Pastikan npm & tar tersedia ───────────────────────────────────────────────
 Require-Command npm
 Require-Command tar
 
-$ProjectRoot  = Split-Path -Parent $MyInvocation.MyCommand.Path
-$TmpDir       = Join-Path $ProjectRoot 'tmp'
-$ArchivePath  = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
-$PanelPort    = '8787'
+$ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$TmpDir      = Join-Path $ProjectRoot 'tmp'
+$ArchivePath = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
+$PanelPort   = '8787'
 
 if (-not (Test-Path $TmpDir)) {
   New-Item -ItemType Directory -Path $TmpDir | Out-Null
 }
 
-# ── Minta password jika belum diisi ──────────────────────────────────────────
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
-  $secPwd     = Read-Host 'Masukkan password SSH/sudo server' -AsSecureString
-  $bstr       = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
+  $secPwd      = Read-Host 'Masukkan password SSH/sudo server' -AsSecureString
+  $bstr        = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secPwd)
   $SshPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
   [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
 
-$SudoPassword = $SshPassword   # password SSH = password sudo user
+$SudoPassword = $SshPassword
+
+# ═══════════════════════════════════════════════════════════════
+#  MAIN
+# ═══════════════════════════════════════════════════════════════
+
+Write-Banner
 
 try {
-  # ── Build frontend ──────────────────────────────────────────────────────────
+
+  # ── [1] Build frontend ────────────────────────────────────────
   Write-Step 'Build frontend production'
-  & npm run build
-  if ($LASTEXITCODE -ne 0) { throw 'Build frontend gagal.' }
+  $buildOut = & npm run build 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    $buildOut | ForEach-Object { Write-Info $_ }
+    throw 'Build frontend gagal.'
+  }
+  # Ambil baris ringkasan vite
+  $builtLine = $buildOut | Where-Object { $_ -match '✓ built in' } | Select-Object -Last 1
+  Write-StepDone ($builtLine ? $builtLine.Trim() : 'npm build OK')
 
-  # ── Buat archive ────────────────────────────────────────────────────────────
-  Write-Step 'Buat archive project'
+  # ── [2] Buat archive ──────────────────────────────────────────
+  Write-Step 'Membuat archive project'
   if (Test-Path $ArchivePath) { Remove-Item $ArchivePath -Force }
-
   Push-Location $ProjectRoot
   try {
-    & tar -czf $ArchivePath --exclude=node_modules --exclude=.git --exclude=tmp .
+    & tar -czf $ArchivePath --exclude=node_modules --exclude=.git --exclude=tmp . 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Gagal membuat archive deploy.' }
   }
   finally { Pop-Location }
+  $archiveMB = [math]::Round((Get-Item $ArchivePath).Length / 1MB, 1)
+  Write-StepDone "archive $archiveMB MB"
 
-  # ── Buka koneksi SSH ────────────────────────────────────────────────────────
-  Write-Step 'Membuka koneksi SSH ke server'
+  # ── [3] Koneksi SSH ───────────────────────────────────────────
+  Write-Step 'Membuka koneksi SSH'
   $securePass = ConvertTo-SecureString $SshPassword -AsPlainText -Force
   $credential = New-Object System.Management.Automation.PSCredential($SshUser, $securePass)
 
-  # Terima host key secara otomatis (bypass fingerprint prompt)
-  $session = New-SSHSession -ComputerName $HostName -Credential $credential -AcceptKey -Force
+  $session = New-SSHSession -ComputerName $HostName -Credential $credential `
+             -AcceptKey -Force -WarningAction SilentlyContinue
   if (-not $session) { throw 'Gagal membuka koneksi SSH.' }
   $sessionId = $session.SessionId
 
@@ -98,52 +209,47 @@ try {
     param([string]$Cmd)
     $result = Invoke-SSHCommand -SessionId $sessionId -Command $Cmd -TimeOut 600
     if ($result.ExitStatus -ne 0) {
-      Write-Host $result.Output   -ForegroundColor Red
-      Write-Host $result.Error    -ForegroundColor Red
-      throw "Remote command gagal (exit $($result.ExitStatus)): $Cmd"
+      $result.Output | ForEach-Object { Write-Info $_ }
+      $result.Error  | ForEach-Object { Write-Info $_ }
+      throw "Remote command gagal (exit $($result.ExitStatus))"
     }
     return $result.Output
   }
 
-  # ── Siapkan direktori remote ────────────────────────────────────────────────
+  Write-StepDone "terhubung ke $HostName"
+
+  # ── [4] Siapkan direktori remote ──────────────────────────────
   Write-Step 'Siapkan direktori remote'
-  $resolvedLines = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
+  $resolvedLines         = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
   $ResolvedRemoteBaseDir = ($resolvedLines | Select-Object -Last 1).Trim()
   if ([string]::IsNullOrWhiteSpace($ResolvedRemoteBaseDir)) {
     throw 'Gagal me-resolve path remote deploy directory.'
   }
-
   $RemoteReleaseDir  = "$ResolvedRemoteBaseDir/ui-panel"
   $RemoteArchivePath = "$ResolvedRemoteBaseDir/ui-panel-deploy.tar.gz"
+  Write-StepDone $ResolvedRemoteBaseDir
 
-  # ── Baca konfigurasi panel lama jika ada ───────────────────────────────────
-  Write-Step 'Ambil konfigurasi panel lama jika ada'
-  $escapedSudo     = $SudoPassword.Replace("'", "'\\''")
-  $ExistingEnvRaw  = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true"
-  $ExistingEnv     = @{}
+  # ── [5] Baca konfigurasi lama ─────────────────────────────────
+  Write-Step 'Membaca konfigurasi panel sebelumnya'
+  $escapedSudo    = $SudoPassword.Replace("'", "'\\''")
+  $ExistingEnvRaw = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true"
+  $ExistingEnv    = @{}
   foreach ($line in $ExistingEnvRaw) {
     if ($line -match '^(?<key>[A-Z0-9_]+)=(?<value>.*)$') {
       $ExistingEnv[$matches.key] = $matches.value
     }
   }
 
-  if ([string]::IsNullOrWhiteSpace($AdminPassword) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD')) {
-    $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD']
-  }
-  if ([string]::IsNullOrWhiteSpace($AdminUsername) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_USERNAME')) {
-    $AdminUsername = $ExistingEnv['PANEL_ADMIN_USERNAME']
-  }
-  if ([string]::IsNullOrWhiteSpace($BindAddress) -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR')) {
-    $BindAddress = $ExistingEnv['PANEL_BIND_ADDR']
-  }
-  if ([string]::IsNullOrWhiteSpace($BindAddress)) { $BindAddress = '0.0.0.0:8787' }
+  if ([string]::IsNullOrWhiteSpace($AdminPassword)  -and $ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD'))  { $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD'] }
+  if ([string]::IsNullOrWhiteSpace($AdminUsername)  -and $ExistingEnv.ContainsKey('PANEL_ADMIN_USERNAME'))  { $AdminUsername = $ExistingEnv['PANEL_ADMIN_USERNAME'] }
+  if ([string]::IsNullOrWhiteSpace($BindAddress)    -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR'))       { $BindAddress   = $ExistingEnv['PANEL_BIND_ADDR'] }
+  if ([string]::IsNullOrWhiteSpace($BindAddress))   { $BindAddress = '0.0.0.0:8787' }
   $PanelPort = Get-PortFromBindAddress $BindAddress
 
   $AllowedHosts = @()
   if ($ExistingEnv.ContainsKey('PANEL_ALLOWED_HOSTS') -and -not [string]::IsNullOrWhiteSpace($ExistingEnv['PANEL_ALLOWED_HOSTS'])) {
     $AllowedHosts += ($ExistingEnv['PANEL_ALLOWED_HOSTS'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-  }
-  else {
+  } else {
     $AllowedHosts += @('localhost', '127.0.0.1', $HostName)
   }
   $AllowedHosts = $AllowedHosts | Select-Object -Unique
@@ -151,8 +257,7 @@ try {
   $AllowedOrigins = @()
   if ($ExistingEnv.ContainsKey('PANEL_ALLOWED_ORIGINS') -and -not [string]::IsNullOrWhiteSpace($ExistingEnv['PANEL_ALLOWED_ORIGINS'])) {
     $AllowedOrigins += ($ExistingEnv['PANEL_ALLOWED_ORIGINS'] -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-  }
-  else {
+  } else {
     $AllowedOrigins += @(
       "http://127.0.0.1:$PanelPort",
       "http://localhost:$PanelPort",
@@ -161,21 +266,26 @@ try {
   }
   $AllowedOrigins = $AllowedOrigins | Select-Object -Unique
 
-  # ── Upload archive via SCP ──────────────────────────────────────────────────
-  Write-Step 'Upload archive ke server'
-  Set-SCPItem -ComputerName $HostName -Credential $credential -Path $ArchivePath -Destination $ResolvedRemoteBaseDir -AcceptKey -Force
-  Write-Host "Archive berhasil diupload." -ForegroundColor Green
+  $found = if ($ExistingEnv.Count -gt 0) { 'konfigurasi lama ditemukan' } else { 'instalasi baru' }
+  Write-StepDone $found
 
-  # ── Buat dan upload remote deploy script ────────────────────────────────────
-  Write-Step 'Extract dan update ui-panel di server'
+  # ── [6] Upload archive ────────────────────────────────────────
+  Write-Step "Upload archive ke server ($archiveMB MB)"
+  Set-SCPItem -ComputerName $HostName -Credential $credential `
+    -Path $ArchivePath -Destination $ResolvedRemoteBaseDir `
+    -AcceptKey -Force -WarningAction SilentlyContinue
+  Write-StepDone 'upload selesai'
 
-  $escapedRemoteBase    = $ResolvedRemoteBaseDir.Replace("'", "'\\''")
-  $escapedRemoteRelease = $RemoteReleaseDir.Replace("'", "'\\''")
-  $escapedRemoteArchive = $RemoteArchivePath.Replace("'", "'\\''")
-  $escapedBind          = $BindAddress.Replace("'", "'\\''")
-  $escapedAdmin         = $AdminUsername.Replace("'", "'\\''")
-  $escapedPanelPassword = $AdminPassword.Replace("'", "'\\''")
-  $escapedAllowedHosts  = ($AllowedHosts -join ',').Replace("'", "'\\''")
+  # ── [7/8/9] Install di server ─────────────────────────────────
+  Write-Step 'Menginstall & mengkonfigurasi panel di server'
+
+  $escapedRemoteBase     = $ResolvedRemoteBaseDir.Replace("'", "'\\''")
+  $escapedRemoteRelease  = $RemoteReleaseDir.Replace("'", "'\\''")
+  $escapedRemoteArchive  = $RemoteArchivePath.Replace("'", "'\\''")
+  $escapedBind           = $BindAddress.Replace("'", "'\\''")
+  $escapedAdmin          = $AdminUsername.Replace("'", "'\\''")
+  $escapedPanelPassword  = $AdminPassword.Replace("'", "'\\''")
+  $escapedAllowedHosts   = ($AllowedHosts -join ',').Replace("'", "'\\''")
   $escapedAllowedOrigins = ($AllowedOrigins -join ',').Replace("'", "'\\''")
 
   $remoteScript = @"
@@ -212,26 +322,42 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
 
   $remoteScriptPath = Join-Path $TmpDir 'deploy_remote.sh'
   $remoteScriptUnix = ($remoteScript -replace "`r`n", "`n")
-  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  $utf8NoBom        = New-Object System.Text.UTF8Encoding($false)
   [System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptUnix, $utf8NoBom)
 
   try {
-    Set-SCPItem -ComputerName $HostName -Credential $credential -Path $remoteScriptPath -Destination $ResolvedRemoteBaseDir -AcceptKey -Force
-    Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh"
+    Set-SCPItem -ComputerName $HostName -Credential $credential `
+      -Path $remoteScriptPath -Destination $ResolvedRemoteBaseDir `
+      -AcceptKey -Force -WarningAction SilentlyContinue
+
+    # Jalankan & filter log server agar rapi
+    $installOut = Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh"
+    foreach ($ln in $installOut) {
+      $clean = $ln -replace '^\[ui-panel\]\s*', ''
+      if ($clean -and $clean -notmatch '^{"') {
+        Write-Info $clean
+      }
+    }
   }
   finally {
     Remove-Item $remoteScriptPath -Force -ErrorAction SilentlyContinue
-    Invoke-Remote "rm -f $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null
+    try { Invoke-Remote "rm -f $ResolvedRemoteBaseDir/deploy_remote.sh" | Out-Null } catch {}
   }
 
-  Write-Step 'Deploy selesai'
-  Write-Host "Panel berhasil diupdate di ${SshUser}@${HostName}" -ForegroundColor Green
-  Write-Host "URL panel: http://${HostName}:$PanelPort" -ForegroundColor Green
+  Write-StepDone 'instalasi & restart selesai'
+
+  # ── Selesai ───────────────────────────────────────────────────
+  Write-Summary -Url "http://${HostName}:$PanelPort" -User $SshUser -Host $HostName
+
+}
+catch {
+  Write-Err $_.Exception.Message
+  exit 1
 }
 finally {
-  # Tutup sesi SSH
-  if (Get-SSHSession -ErrorAction SilentlyContinue | Where-Object { $_.Connected }) {
-    Remove-SSHSession -SessionId (Get-SSHSession).SessionId -ErrorAction SilentlyContinue | Out-Null
+  if (Get-Command Get-SSHSession -ErrorAction SilentlyContinue) {
+    Get-SSHSession -ErrorAction SilentlyContinue |
+      ForEach-Object { Remove-SSHSession -SessionId $_.SessionId -ErrorAction SilentlyContinue | Out-Null }
   }
   $SudoPassword = $null
 }
