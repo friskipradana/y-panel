@@ -1428,7 +1428,7 @@ body {
 
 /* ── Pane area ───────────────────────────────────────────────── */
 .ht-panes {
-  flex: 1 1 0;
+  flex: 1;
   min-height: 0;
   position: relative;
 }
@@ -1436,11 +1436,14 @@ body {
 .ht-pane {
   position: absolute;
   inset: 0;
-  padding: 4px;
+  padding: 0 4px 4px 4px;
+  display: flex;
+  align-items: stretch;
 }
 
 .ht-pane .xterm {
-  height: 100% !important;
+  flex: 1;
+  height: 100%;
 }
 
 .ht-pane .xterm-viewport {
@@ -1459,7 +1462,9 @@ body {
 
 .ht-pane .xterm-screen,
 .ht-pane .xterm-helpers,
-.ht-pane .xterm-scroll-area { width: 100% !important; }
+.ht-pane .xterm-scroll-area {
+  inset: 0;
+}
 
 .ht-pane .xterm-screen canvas { display: block; }
 

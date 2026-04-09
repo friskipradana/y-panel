@@ -103,25 +103,23 @@ function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart
     return () => setOutputListener(null)
   }, [setOutputListener])
 
+  // Force resize sync on connection or active status
   useEffect(() => {
-    if (!connected) return
-    requestAnimationFrame(() => {
+    if (!connected || !active) return
+    let count = 0
+    const interval = setInterval(() => {
+      count++
       fitRef.current?.fit()
-      const x = xtermRef.current; if (!x) return
-      updateTerminalSize(x.cols, x.rows)
-      if (active) x.focus()
-    })
-  }, [connected, active, updateTerminalSize])
+      const x = xtermRef.current
+      if (x) {
+        updateTerminalSize(x.cols, x.rows)
+        if (count === 1) x.focus() // Focus on first try
+      }
+      if (count > 12) clearInterval(interval) // Stop after 3 seconds (12 * 250ms)
+    }, 250)
 
-  useEffect(() => {
-    if (!active) return
-    requestAnimationFrame(() => {
-      fitRef.current?.fit()
-      const x = xtermRef.current; if (!x) return
-      updateTerminalSize(x.cols, x.rows)
-      x.focus()
-    })
-  }, [active, updateTerminalSize])
+    return () => clearInterval(interval)
+  }, [connected, active, updateTerminalSize])
 
   useEffect(() => {
     const x = xtermRef.current; if (!x) return
@@ -137,7 +135,11 @@ function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart
     <div
       ref={viewportRef}
       className="ht-pane"
-      style={{ display: active ? 'block' : 'none' }}
+      style={{
+        visibility: active ? 'visible' : 'hidden',
+        zIndex: active ? 1 : 0,
+        pointerEvents: active ? 'auto' : 'none',
+      }}
       onClick={() => xtermRef.current?.focus()}
     />
   )
