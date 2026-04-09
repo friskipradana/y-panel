@@ -694,12 +694,28 @@ func (s *Server) isHostAllowed(hostport string) bool {
 	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 		return true
 	}
-	if len(s.cfg.AllowedHosts) == 0 {
+	if host == "" {
+		return false
+	}
+	if len(s.cfg.AllowedHosts) == 0 && len(s.cfg.AllowedOrigins) == 0 {
 		return true
 	}
 
 	for _, candidate := range s.cfg.AllowedHosts {
 		if strings.EqualFold(host, normalizeHost(candidate)) {
+			return true
+		}
+	}
+	for _, candidate := range s.cfg.AllowedOrigins {
+		normalizedOrigin, ok := normalizeOrigin(candidate)
+		if !ok {
+			continue
+		}
+		parsed, err := url.Parse(normalizedOrigin)
+		if err != nil {
+			continue
+		}
+		if strings.EqualFold(host, normalizeHost(parsed.Host)) {
 			return true
 		}
 	}
