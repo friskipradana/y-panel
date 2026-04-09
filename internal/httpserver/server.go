@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io/fs"
 	"log"
 	"net"
@@ -32,6 +33,7 @@ import (
 const sessionCookieName = "ui_panel_session"
 
 type Server struct {
+	cfgMu           sync.RWMutex
 	cfg             config.Config
 	auth            *auth.Manager
 	mux             *http.ServeMux
@@ -40,6 +42,26 @@ type Server struct {
 	terminalManager *terminal.Manager
 	terminalUpgrader websocket.Upgrader
 	database        *database.Manager
+}
+
+// ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
+func (s *Server) ReloadAccessConfig(allowedHosts, allowedOrigins []string) {
+	s.cfgMu.Lock()
+	defer s.cfgMu.Unlock()
+	s.cfg.AllowedHosts = allowedHosts
+	s.cfg.AllowedOrigins = allowedOrigins
+}
+
+func (s *Server) allowedOrigins() []string {
+	s.cfgMu.RLock()
+	defer s.cfgMu.RUnlock()
+	return s.cfg.AllowedOrigins
+}
+
+func (s *Server) allowedHosts() []string {
+	s.cfgMu.RLock()
+	defer s.cfgMu.RUnlock()
+	return s.cfg.AllowedHosts
 }
 
 type loginRequest struct {
@@ -86,7 +108,7 @@ type updatePanelPortRequest struct {
 }
 
 type updatePanelOriginsRequest struct {
-	Origins []string `json:"origins"`
+	OriginsRaw string `json:"originsRaw"`
 }
 
 type resetDatabasePasswordResponse struct {
@@ -379,6 +401,7 @@ func (s *Server) handleUpdatePanelPort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.ReloadAccessConfig(snapshot.AllowedHosts, snapshot.AllowedOrigins)
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel port updated bind=%q remote=%s", snapshot.BindAddr, remoteAddr(r))
 	s.recordRuntimeLog("info", "panel port updated", map[string]any{"bindAddr": snapshot.BindAddr, "allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
@@ -394,17 +417,18 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	snapshot, err := system.UpdatePanelOrigins(req.Origins)
+	snapshot, err := system.UpdatePanelOrigins(req.OriginsRaw)
 	if err != nil {
 		log.Printf("[settings] panel origins update failed remote=%s err=%v", remoteAddr(r), err)
-		s.recordRuntimeLog("error", "panel origins update failed", map[string]any{"origins": req.Origins, "remote": remoteAddr(r), "error": err.Error()})
+		s.recordRuntimeLog("error", "panel origins update failed", map[string]any{"originsRaw": req.OriginsRaw, "remote": remoteAddr(r), "error": err.Error()})
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
 
+	s.ReloadAccessConfig(snapshot.AllowedHosts, snapshot.AllowedOrigins)
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
-	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
+	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "originsRaw": snapshot.OriginsRaw, "remote": remoteAddr(r), "user": username})
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -669,7 +693,27 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
+			next.ServeHTTP(w, r)
+			return
 		}
+
+		if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		requestOrigin := effectiveRequestOrigin(r)
+		if requestOrigin != "" && !s.isOriginAllowed(requestOrigin) {
+			s.writeStatusPage(w, r, http.StatusForbidden, "Origin not allowed", "Alamat origin aktif dari request ini belum diizinkan oleh runtime panel.", "Tambahkan origin yang sedang Anda akses ke allowed origins, atau gunakan URL panel yang memang masih aktif di konfigurasi runtime.", false)
+			return
+		}
+
+		origin := strings.TrimSpace(r.Header.Get("Origin"))
+		if origin != "" && !s.isOriginAllowed(origin) {
+			s.writeStatusPage(w, r, http.StatusForbidden, "Origin not allowed", "Permintaan ini datang dari origin yang belum diizinkan oleh runtime panel.", "Tambahkan origin ini di pengaturan panel, lalu restart atau simpan ulang konfigurasi runtime agar allowlist aktif tersinkron penuh.", false)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -677,7 +721,11 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 func (s *Server) withHostGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.isHostAllowed(r.Host) {
-			http.Error(w, "host not allowed", http.StatusForbidden)
+			if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+				http.Error(w, "host not allowed", http.StatusForbidden)
+				return
+			}
+			s.writeStatusPage(w, r, http.StatusForbidden, "Host not allowed", "Alamat host yang Anda gunakan belum diizinkan oleh runtime panel.", "Tambahkan host atau IP ini ke allowed hosts atau allowed origins pada pengaturan runtime, lalu simpan agar service memuat konfigurasi baru.", false)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -697,16 +745,18 @@ func (s *Server) isHostAllowed(hostport string) bool {
 	if host == "" {
 		return false
 	}
-	if len(s.cfg.AllowedHosts) == 0 && len(s.cfg.AllowedOrigins) == 0 {
+	hosts := s.allowedHosts()
+	origins := s.allowedOrigins()
+	if len(hosts) == 0 && len(origins) == 0 {
 		return true
 	}
 
-	for _, candidate := range s.cfg.AllowedHosts {
+	for _, candidate := range hosts {
 		if strings.EqualFold(host, normalizeHost(candidate)) {
 			return true
 		}
 	}
-	for _, candidate := range s.cfg.AllowedOrigins {
+	for _, candidate := range origins {
 		normalizedOrigin, ok := normalizeOrigin(candidate)
 		if !ok {
 			continue
@@ -726,7 +776,8 @@ func (s *Server) isOriginAllowed(origin string) bool {
 	if origin == "" {
 		return true
 	}
-	if len(s.cfg.AllowedOrigins) == 0 {
+	origins := s.allowedOrigins()
+	if len(origins) == 0 {
 		return true
 	}
 
@@ -734,7 +785,7 @@ func (s *Server) isOriginAllowed(origin string) bool {
 	if !ok {
 		return false
 	}
-	for _, candidate := range s.cfg.AllowedOrigins {
+	for _, candidate := range origins {
 		normalizedCandidate, candidateOK := normalizeOrigin(candidate)
 		if !candidateOK {
 			continue
@@ -791,6 +842,25 @@ func (s *Server) isWebSocketOriginAllowed(r *http.Request) bool {
 	return s.isHostAllowed(parsed.Host) && s.isHostAllowed(r.Host)
 }
 
+func effectiveRequestOrigin(r *http.Request) string {
+	if r == nil || strings.TrimSpace(r.Host) == "" {
+		return ""
+	}
+
+	scheme := "http"
+	if forwardedProto := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0]); forwardedProto != "" {
+		scheme = strings.ToLower(forwardedProto)
+	} else if r.TLS != nil {
+		scheme = "https"
+	}
+
+	origin, ok := normalizeOrigin(scheme + "://" + strings.TrimSpace(r.Host))
+	if !ok {
+		return ""
+	}
+	return origin
+}
+
 func normalizeHost(hostport string) string {
 	host := strings.TrimSpace(hostport)
 	if host == "" {
@@ -825,7 +895,7 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			fileServer.ServeHTTP(w, r)
 			return
 		} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			http.Error(w, "frontend asset error", http.StatusInternalServerError)
+			writeStatusPage(w, r, http.StatusInternalServerError, "Frontend asset error", "Asset frontend gagal dibaca dari runtime panel.", "Periksa hasil build frontend di server atau lakukan redeploy agar file statis dimuat ulang dengan benar.", true)
 			return
 		}
 
@@ -862,6 +932,312 @@ func requestKind(r *http.Request) string {
 		return "asset"
 	}
 	return "page"
+}
+
+func (s *Server) writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, description, hint string, showActions bool) {
+	writeStatusPage(w, r, status, title, description, hint, showActions)
+}
+
+func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, description, hint string, showActions bool) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+
+	requestPath := "/"
+	requestHost := "unknown"
+	if r != nil {
+		if strings.TrimSpace(r.URL.Path) != "" {
+			requestPath = r.URL.Path
+		}
+		if strings.TrimSpace(r.Host) != "" {
+			requestHost = r.Host
+		}
+	}
+
+	actionsHTML := ""
+	if showActions {
+		actionsHTML = `<div class="status-actions">
+          <a class="status-btn status-btn-primary" href="/">Kembali ke panel</a>
+          <a class="status-btn status-btn-secondary" href="/healthz">Cek health runtime</a>
+        </div>`
+	}
+
+	_, _ = fmt.Fprintf(w, `<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>%d • %s</title>
+  <meta name="description" content="Halaman status UI Panel untuk %s" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg0: #020617;
+      --bg1: #0f172a;
+      --bg2: rgba(15, 23, 42, 0.82);
+      --line: rgba(255,255,255,0.10);
+      --text: #e2e8f0;
+      --muted: rgba(226,232,240,0.68);
+      --accentA: #38bdf8;
+      --accentB: #8b5cf6;
+      --accentC: #f97316;
+      --shadow: 0 30px 80px rgba(2,6,23,0.55);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%%;
+      min-height: 100vh;
+      font-family: Outfit, Inter, system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 18%% 16%%, rgba(56,189,248,0.22), transparent 24%%),
+        radial-gradient(circle at 82%% 18%%, rgba(139,92,246,0.20), transparent 28%%),
+        radial-gradient(circle at 50%% 100%%, rgba(249,115,22,0.18), transparent 32%%),
+        linear-gradient(135deg, var(--bg0) 0%%, var(--bg1) 48%%, #111827 100%%);
+      color: var(--text);
+    }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      justify-items: center;
+      padding: 28px;
+      overflow: auto;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      opacity: 0.12;
+      pointer-events: none;
+      background-image: radial-gradient(rgba(255,255,255,0.8) 0.6px, transparent 0.6px);
+      background-size: 18px 18px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.55), transparent 85%%);
+    }
+    .status-shell {
+      width: min(100%%, 1080px);
+      border-radius: 34px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+      backdrop-filter: blur(28px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+    .status-shell::after {
+      content: "";
+      position: absolute;
+      inset: auto -100px -120px auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(249,115,22,0.24), transparent 64%%);
+      pointer-events: none;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 380px);
+      gap: 0;
+    }
+    .status-hero {
+      padding: 42px;
+      position: relative;
+    }
+    .status-side {
+      padding: 42px 34px;
+      border-left: 1px solid var(--line);
+      background: rgba(2, 6, 23, 0.18);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      padding: 8px 12px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.78);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .brand-mark {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accentA), var(--accentB), var(--accentC));
+      box-shadow: 0 0 20px rgba(56,189,248,0.42);
+    }
+    .code {
+      margin-top: 26px;
+      font-size: clamp(3.6rem, 10vw, 7rem);
+      line-height: 0.95;
+      letter-spacing: -0.08em;
+      font-weight: 700;
+      background: linear-gradient(135deg, #f8fafc 0%%, #7dd3fc 38%%, #c4b5fd 68%%, #fdba74 100%%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    h1 {
+      margin: 14px 0 0;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+    }
+    .lead {
+      margin-top: 18px;
+      max-width: 720px;
+      font-size: 15px;
+      line-height: 1.85;
+      color: var(--muted);
+    }
+    .meta-grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .meta-card, .tip-card {
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      padding: 16px 18px;
+    }
+    .meta-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: rgba(255,255,255,0.42);
+    }
+    .meta-value {
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #f8fafc;
+      word-break: break-word;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+    }
+    .tip-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: rgba(125,211,252,0.88);
+    }
+    .tip-copy {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+    .status-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .status-item {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      padding: 14px 15px;
+    }
+    .status-item strong {
+      display: block;
+      font-size: 13px;
+      color: #f8fafc;
+    }
+    .status-item span {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+    .status-actions {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .status-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
+    }
+    .status-btn-primary {
+      color: white;
+      background: linear-gradient(135deg, var(--accentC), #ec4899, var(--accentB));
+      box-shadow: 0 18px 36px rgba(249,115,22,0.24);
+    }
+    .status-btn-secondary {
+      color: #dbeafe;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+    }
+    .status-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+    @media (max-width: 900px) {
+      .status-grid { grid-template-columns: 1fr; }
+      .status-side { border-left: none; border-top: 1px solid var(--line); }
+      .status-hero, .status-side { padding: 28px; }
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="status-shell">
+    <section class="status-grid">
+      <div class="status-hero">
+        <div class="brand"><span class="brand-mark"></span> UI Panel Runtime</div>
+        <div class="code">%d</div>
+        <h1>%s</h1>
+        <p class="lead">%s</p>
+        <div class="meta-grid">
+          <div class="meta-card">
+            <div class="meta-label">Host aktif</div>
+            <div class="meta-value">%s</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">Path request</div>
+            <div class="meta-value">%s</div>
+          </div>
+        </div>
+        %s
+      </div>
+      <aside class="status-side">
+        <div class="tip-card">
+          <div class="tip-title">Diagnostic hint</div>
+          <div class="tip-copy">%s</div>
+        </div>
+        <div class="status-list">
+          <div class="status-item">
+            <strong>404 • Halaman tidak ditemukan</strong>
+            <span>Dipakai untuk asset atau path frontend yang memang tidak tersedia di runtime aktif.</span>
+          </div>
+          <div class="status-item">
+            <strong>403 • Host tidak diizinkan</strong>
+            <span>Muncul saat host/IP yang dipakai belum masuk allowlist runtime panel.</span>
+          </div>
+          <div class="status-item">
+            <strong>403 • Origin tidak diizinkan</strong>
+            <span>Muncul saat browser mengirim origin yang belum cocok dengan konfigurasi allowed origins.</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+</body>
+</html>`, status, html.EscapeString(title), html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), actionsHTML, html.EscapeString(hint))
 }
 
 func generateSecretToken(byteLength int) (string, error) {

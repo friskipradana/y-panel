@@ -89,6 +89,7 @@ export interface EditableSystemSettings {
   bindAddr: string
   allowedHosts: string[]
   allowedOrigins: string[]
+  originsRaw: string
 }
 
 export interface UpdateSystemSettingsPayload {
@@ -102,7 +103,7 @@ export interface UpdatePanelPortPayload {
 }
 
 export interface UpdatePanelOriginsPayload {
-  origins: string[]
+  originsRaw: string
 }
 
 export interface DatabaseStatus {

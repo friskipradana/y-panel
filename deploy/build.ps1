@@ -682,8 +682,12 @@ if [ "`$installer_exit" -ne 0 ]; then
   exit "`$installer_exit"
 fi
 
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_HOSTS=.*#PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
+if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\""; then
+  printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
+fi
+if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\""; then
+  printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
+fi
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' systemctl restart ui-panel.service
 sleep 2
 curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"

@@ -24,6 +24,7 @@ type SettingsSnapshot struct {
 	BindAddr          string   `json:"bindAddr"`
 	AllowedHosts      []string `json:"allowedHosts"`
 	AllowedOrigins    []string `json:"allowedOrigins"`
+	OriginsRaw        string   `json:"originsRaw"`
 }
 
 type SettingsUpdate struct {
@@ -33,6 +34,7 @@ type SettingsUpdate struct {
 	BindAddr       string   `json:"bindAddr"`
 	AllowedHosts   []string `json:"allowedHosts"`
 	AllowedOrigins []string `json:"allowedOrigins"`
+	OriginsRaw     string   `json:"originsRaw"`
 }
 
 func ReadEditableSettings() (SettingsSnapshot, error) {
@@ -49,6 +51,7 @@ func ReadEditableSettings() (SettingsSnapshot, error) {
 		BindAddr:          bindAddr,
 		AllowedHosts:      allowedHosts,
 		AllowedOrigins:    allowedOrigins,
+		OriginsRaw:        readOriginsEditorRaw(),
 	}, nil
 }
 
@@ -99,26 +102,31 @@ func UpdatePanelPort(port int) (SettingsSnapshot, error) {
 	}
 	updatedBindAddr := net.JoinHostPort(host, strconv.Itoa(port))
 
-	currentOrigins := parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
-	updatedOrigins := replaceOriginPorts(currentOrigins, strconv.Itoa(port))
-	if len(updatedOrigins) == 0 {
-		updatedOrigins = deriveDefaultAllowedOrigins(updatedBindAddr)
+	rawOrigins := readOriginsEditorRaw()
+	updatedRawOrigins := rewriteOriginsRawPort(rawOrigins, strconv.Itoa(port))
+	if strings.TrimSpace(updatedRawOrigins) == "" {
+		currentOrigins := parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+		updatedOrigins := replaceOriginPorts(currentOrigins, strconv.Itoa(port))
+		if len(updatedOrigins) == 0 {
+			updatedOrigins = deriveDefaultAllowedOrigins(updatedBindAddr)
+		}
+		updatedRawOrigins = strings.Join(updatedOrigins, "\n")
 	}
 
-	if err := updatePanelAccessSettings(updatedBindAddr, parseCSV(entries["PANEL_ALLOWED_HOSTS"]), updatedOrigins, false); err != nil {
+	if err := updatePanelAccessSettingsRaw(updatedBindAddr, parseCSV(entries["PANEL_ALLOWED_HOSTS"]), updatedRawOrigins, false); err != nil {
 		return SettingsSnapshot{}, err
 	}
 	return ReadEditableSettings()
 }
 
-func UpdatePanelOrigins(origins []string) (SettingsSnapshot, error) {
+func UpdatePanelOrigins(originsRaw string) (SettingsSnapshot, error) {
 	envPath := panelEnvPath()
 	entries, err := readEnvMap(envPath)
 	if err != nil {
 		return SettingsSnapshot{}, fmt.Errorf("gagal membaca env runtime panel")
 	}
 
-	if err := updatePanelAccessSettings(entries["PANEL_BIND_ADDR"], parseCSV(entries["PANEL_ALLOWED_HOSTS"]), origins, true); err != nil {
+	if err := updatePanelAccessSettingsRaw(entries["PANEL_BIND_ADDR"], parseCSV(entries["PANEL_ALLOWED_HOSTS"]), originsRaw, true); err != nil {
 		return SettingsSnapshot{}, err
 	}
 	return ReadEditableSettings()
@@ -250,6 +258,14 @@ func readPanelAccessSettings() (string, []string, []string) {
 }
 
 func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []string, allowEmptyOrigins bool) error {
+	originsRaw := readOriginsEditorRaw()
+	if strings.TrimSpace(originsRaw) == "" {
+		originsRaw = strings.Join(allowedOrigins, "\n")
+	}
+	return updatePanelAccessSettingsRaw(bindAddr, allowedHosts, originsRaw, allowEmptyOrigins)
+}
+
+func updatePanelAccessSettingsRaw(bindAddr string, allowedHosts []string, originsRaw string, allowEmptyOrigins bool) error {
 	envPath := panelEnvPath()
 	entries, err := readEnvMap(envPath)
 	if err != nil {
@@ -261,6 +277,9 @@ func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []s
 		return fmt.Errorf("bind address harus dalam format host:port yang valid")
 	}
 
+	previousOrigins := parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+	previousDerivedHosts := deriveHostsFromOrigins(previousOrigins)
+
 	sanitizedHosts := sanitizeCSVValues(allowedHosts)
 	if len(sanitizedHosts) == 0 {
 		sanitizedHosts = parseCSV(entries["PANEL_ALLOWED_HOSTS"])
@@ -269,16 +288,20 @@ func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []s
 		sanitizedHosts = deriveDefaultAllowedHosts(currentBindAddr)
 	}
 
-	sanitizedOrigins := sanitizeOrigins(allowedOrigins)
+	sanitizedOrigins := parseOriginsRaw(originsRaw)
 	if !allowEmptyOrigins {
 		if len(sanitizedOrigins) == 0 {
-			sanitizedOrigins = parseCSV(entries["PANEL_ALLOWED_ORIGINS"])
+			sanitizedOrigins = previousOrigins
 		}
 		if len(sanitizedOrigins) == 0 {
 			sanitizedOrigins = deriveDefaultAllowedOrigins(currentBindAddr)
 		}
+		if strings.TrimSpace(originsRaw) == "" {
+			originsRaw = strings.Join(sanitizedOrigins, "\n")
+		}
 	}
 
+	sanitizedHosts = removeCSVValues(sanitizedHosts, previousDerivedHosts)
 	sanitizedHosts = sanitizeCSVValues(append(sanitizedHosts, deriveHostsFromOrigins(sanitizedOrigins)...))
 
 	entries["PANEL_BIND_ADDR"] = currentBindAddr
@@ -287,14 +310,68 @@ func updatePanelAccessSettings(bindAddr string, allowedHosts, allowedOrigins []s
 	if err := writeEnvMap(envPath, entries); err != nil {
 		return err
 	}
-	if err := exec.Command("systemctl", "restart", "ui-panel.service").Run(); err != nil {
-		return fmt.Errorf("gagal me-restart ui-panel service")
+	if err := writeOriginsEditorRaw(originsRaw); err != nil {
+		return err
+	}
+	if err := writeEnvRawValue(envPath, "PANEL_ALLOWED_ORIGINS", originsRaw); err != nil {
+		return err
 	}
 	return nil
 }
 
+const (
+	managedOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	managedOriginsLinePrefix = "#|"
+)
+
 func panelEnvPath() string {
 	return firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+}
+
+func panelOriginsRawPath() string {
+	envPath := panelEnvPath()
+	return filepath.Join(filepath.Dir(envPath), "allowed-origins.raw")
+}
+
+type envLine struct {
+	Raw       string
+	Key       string
+	Value     string
+	IsKV      bool
+	Commented bool
+}
+
+func parseEnvLines(data string) []envLine {
+	lines := strings.Split(data, "\n")
+	result := make([]envLine, 0, len(lines))
+	for _, raw := range lines {
+		entry := envLine{Raw: raw}
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" {
+			result = append(result, entry)
+			continue
+		}
+
+		commented := false
+		candidate := raw
+		if strings.HasPrefix(strings.TrimLeft(raw, " \t"), "#") {
+			commented = true
+			withoutHash := strings.TrimLeft(raw, " \t")
+			withoutHash = strings.TrimPrefix(withoutHash, "#")
+			candidate = withoutHash
+		}
+
+		key, value, ok := strings.Cut(strings.TrimSpace(candidate), "=")
+		if ok {
+			entry.Key = strings.TrimSpace(key)
+			entry.Value = strings.TrimSpace(value)
+			entry.IsKV = entry.Key != ""
+			entry.Commented = commented
+		}
+		result = append(result, entry)
+	}
+	return result
 }
 
 func readEnvMap(path string) (map[string]string, error) {
@@ -303,16 +380,11 @@ func readEnvMap(path string) (map[string]string, error) {
 		return nil, err
 	}
 	result := map[string]string{}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+	for _, line := range parseEnvLines(string(data)) {
+		if !line.IsKV || line.Commented {
 			continue
 		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		result[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		result[line.Key] = line.Value
 	}
 	return result, nil
 }
@@ -322,22 +394,28 @@ func writeEnvMap(path string, entries map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("gagal membaca env runtime panel")
 	}
-	lines := strings.Split(string(data), "\n")
+	lines := parseEnvLines(string(data))
 	for key, value := range entries {
-		prefix := key + "="
-		replaced := false
-		for i, line := range lines {
-			if strings.HasPrefix(line, prefix) {
-				lines[i] = prefix + value
-				replaced = true
-				break
+		updated := false
+		for i := range lines {
+			if !lines[i].IsKV || lines[i].Commented || lines[i].Key != key {
+				continue
 			}
+			lines[i].Raw = key + "=" + value
+			lines[i].Value = value
+			updated = true
+			break
 		}
-		if !replaced {
-			lines = append(lines, prefix+value)
+		if !updated {
+			lines = append(lines, envLine{Raw: key + "=" + value, Key: key, Value: value, IsKV: true})
 		}
 	}
-	payload := strings.Join(lines, "\n")
+
+	rawLines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		rawLines = append(rawLines, line.Raw)
+	}
+	payload := strings.Join(rawLines, "\n")
 	if !strings.HasSuffix(payload, "\n") {
 		payload += "\n"
 	}
@@ -345,6 +423,145 @@ func writeEnvMap(path string, entries map[string]string) error {
 		return fmt.Errorf("gagal menulis env runtime panel")
 	}
 	return nil
+}
+
+func readOriginsEditorRaw() string {
+	if data, err := os.ReadFile(panelOriginsRawPath()); err == nil {
+		return strings.TrimRight(string(data), "\n")
+	}
+	return readEnvRawValue(panelEnvPath(), "PANEL_ALLOWED_ORIGINS")
+}
+
+func writeOriginsEditorRaw(rawValue string) error {
+	payload := rawValue
+	if !strings.HasSuffix(payload, "\n") {
+		payload += "\n"
+	}
+	if err := os.WriteFile(panelOriginsRawPath(), []byte(payload), 0o600); err != nil {
+		return fmt.Errorf("gagal menulis raw allowed origins")
+	}
+	return nil
+}
+
+func readEnvRawValue(path, key string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	block := readManagedOriginsBlock(string(data))
+	if block != "" {
+		return block
+	}
+	for _, line := range parseEnvLines(string(data)) {
+		if line.IsKV && !line.Commented && line.Key == key {
+			if key == "PANEL_ALLOWED_ORIGINS" {
+				return strings.Join(parseCSV(line.Value), "\n")
+			}
+			return line.Value
+		}
+	}
+	return ""
+}
+
+func writeEnvRawValue(path, key, rawValue string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("gagal membaca env runtime panel")
+	}
+	payload := string(data)
+	if key == "PANEL_ALLOWED_ORIGINS" {
+		payload = writeManagedOriginsBlock(payload, rawValue)
+	} else {
+		return nil
+	}
+	if !strings.HasSuffix(payload, "\n") {
+		payload += "\n"
+	}
+	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
+		return fmt.Errorf("gagal menulis env runtime panel")
+	}
+	return nil
+}
+
+func readManagedOriginsBlock(data string) string {
+	lines := strings.Split(data, "\n")
+	start := -1
+	end := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == managedOriginsBlockBegin {
+			start = i
+			continue
+		}
+		if trimmed == managedOriginsBlockEnd && start >= 0 {
+			end = i
+			break
+		}
+	}
+	if start < 0 || end < start {
+		return ""
+	}
+	result := make([]string, 0, end-start-1)
+	for _, line := range lines[start+1 : end] {
+		trimmedLeft := strings.TrimLeft(line, " \t")
+		if strings.HasPrefix(trimmedLeft, managedOriginsLinePrefix) {
+			result = append(result, strings.TrimPrefix(trimmedLeft, managedOriginsLinePrefix))
+			continue
+		}
+
+		if strings.HasPrefix(trimmedLeft, "#") {
+			trimmedLeft = strings.TrimPrefix(trimmedLeft, "#")
+			if strings.HasPrefix(trimmedLeft, " ") {
+				trimmedLeft = strings.TrimPrefix(trimmedLeft, " ")
+			}
+			result = append(result, trimmedLeft)
+			continue
+		}
+		result = append(result, line)
+	}
+	return strings.TrimRight(strings.Join(result, "\n"), "\n")
+}
+
+func writeManagedOriginsBlock(data, rawValue string) string {
+	lines := strings.Split(data, "\n")
+	start := -1
+	end := -1
+	insertAt := len(lines)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == managedOriginsBlockBegin {
+			start = i
+			continue
+		}
+		if trimmed == managedOriginsBlockEnd && start >= 0 {
+			end = i
+			break
+		}
+		if insertAt == len(lines) {
+			entry := parseEnvLines(line)
+			if len(entry) == 1 && entry[0].IsKV && !entry[0].Commented && entry[0].Key == "PANEL_ALLOWED_ORIGINS" {
+				insertAt = i
+			}
+		}
+	}
+
+	blockLines := []string{managedOriginsBlockBegin}
+	for _, line := range strings.Split(strings.TrimRight(rawValue, "\n"), "\n") {
+		blockLines = append(blockLines, managedOriginsLinePrefix+line)
+	}
+	blockLines = append(blockLines, managedOriginsBlockEnd)
+
+	if start >= 0 && end >= start {
+		rebuilt := append([]string{}, lines[:start]...)
+		rebuilt = append(rebuilt, blockLines...)
+		rebuilt = append(rebuilt, lines[end+1:]...)
+		return strings.Join(rebuilt, "\n")
+	}
+
+	rebuilt := append([]string{}, lines[:insertAt]...)
+	rebuilt = append(rebuilt, blockLines...)
+	rebuilt = append(rebuilt, lines[insertAt:]...)
+	return strings.Join(rebuilt, "\n")
 }
 
 func parseCSV(value string) []string {
@@ -367,6 +584,87 @@ func sanitizeCSVValues(values []string) []string {
 		result = append(result, trimmed)
 	}
 	return result
+}
+
+func removeCSVValues(values, toRemove []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	blocked := map[string]struct{}{}
+	for _, value := range sanitizeCSVValues(toRemove) {
+		blocked[value] = struct{}{}
+	}
+	if len(blocked) == 0 {
+		return sanitizeCSVValues(values)
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range sanitizeCSVValues(values) {
+		if _, exists := blocked[value]; exists {
+			continue
+		}
+		result = append(result, value)
+	}
+	return result
+}
+
+func parseOriginsRaw(raw string) []string {
+	entries := make([]string, 0)
+	for _, line := range strings.Split(raw, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		entries = append(entries, trimmed)
+	}
+	return sanitizeOrigins(entries)
+}
+
+func rewriteOriginsRawPort(raw string, port string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	lines := strings.Split(raw, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		updated := rewriteOriginPort(trimmed, port)
+		if updated == "" {
+			continue
+		}
+		prefixLen := len(line) - len(strings.TrimLeft(line, " \t"))
+		prefix := ""
+		if prefixLen > 0 {
+			prefix = line[:prefixLen]
+		}
+		lines[i] = prefix + updated
+	}
+	return strings.Join(lines, "\n")
+}
+
+func rewriteOriginPort(origin string, port string) string {
+	origin = strings.TrimSpace(origin)
+	if origin == "" {
+		return ""
+	}
+	if !strings.Contains(origin, "://") {
+		origin = "http://" + origin
+	}
+	parsed, err := neturl.Parse(origin)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return ""
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return ""
+	}
+	parsed.Host = net.JoinHostPort(host, port)
+	parsed.Path = ""
+	parsed.RawPath = ""
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return strings.TrimRight(parsed.String(), "/")
 }
 
 func sanitizeOrigins(values []string) []string {

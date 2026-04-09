@@ -24,6 +24,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
+MANAGED_ORIGINS_BLOCK_BEGIN="# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
+MANAGED_ORIGINS_BLOCK_END="# UI_PANEL_ALLOWED_ORIGINS_END"
 
 log() {
   printf '\n[%s] %s\n' "$APP_NAME" "$1"
@@ -384,8 +386,23 @@ build_agent() {
   chmod 755 "$BIN_PATH"
 }
 
+extract_managed_origins_block() {
+  if [[ ! -f "$ENV_FILE" ]]; then
+    return 0
+  fi
+
+  awk -v begin="$MANAGED_ORIGINS_BLOCK_BEGIN" -v end="$MANAGED_ORIGINS_BLOCK_END" '
+    $0 == begin { in_block=1 }
+    in_block { print }
+    $0 == end && in_block { exit }
+  ' "$ENV_FILE"
+}
+
 write_env_file() {
+  local preserved_origins_block
+
   log "menulis file konfigurasi $ENV_FILE"
+  preserved_origins_block="$(extract_managed_origins_block || true)"
   cat > "$ENV_FILE" <<EOF
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
 PANEL_ALLOWED_HOSTS=${PANEL_ALLOWED_HOSTS}
@@ -404,6 +421,9 @@ PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DB_PASSWORD=${PANEL_DB_PASSWORD}
 PANEL_DB_NAME=${PANEL_DB_NAME}
 EOF
+  if [[ -n "$preserved_origins_block" ]]; then
+    printf '%s\n' "$preserved_origins_block" >> "$ENV_FILE"
+  fi
   chmod 600 "$ENV_FILE"
 }
 
@@ -597,6 +617,9 @@ change_panel_port() {
   local new_port
   local next_bind_addr
   local current_allowed_origins
+  local current_allowed_origins
+  local current_origins_text
+  local next_origins_text
   local updated_origins
 
   if ! env_file_exists; then
@@ -608,6 +631,10 @@ change_panel_port() {
   current_bind_host="$(get_bind_host)"
   current_port="${current_bind_addr##*:}"
   current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
+  current_origins_text=""
+  if [[ -n "$current_allowed_origins" ]]; then
+    current_origins_text="$(printf '%s\n' "$current_allowed_origins" | tr ',' '\n')"
+  fi
 
   read -r -p "Port panel baru [${current_port}]: " new_port
   new_port="${new_port:-$current_port}"
@@ -620,8 +647,9 @@ change_panel_port() {
   next_bind_addr="${current_bind_host}:${new_port}"
   sed -i "s/^PANEL_BIND_ADDR=.*/PANEL_BIND_ADDR=${next_bind_addr}/" "$ENV_FILE"
 
-  if [[ -n "$current_allowed_origins" ]]; then
-    updated_origins="$(printf '%s' "$current_allowed_origins" | sed -E "s#(https?://[^,:/]+):[0-9]+#\\1:${new_port}#g")"
+  if [[ -n "$current_origins_text" ]]; then
+    next_origins_text="$(printf '%s\n' "$current_origins_text" | sed -E "/^[[:space:]]*#/! s#(https?://[^/:]+):[0-9]+#\\1:${new_port}#g")"
+    updated_origins="$(printf '%s\n' "$next_origins_text" | grep -v '^[[:space:]]*#' | sed '/^[[:space:]]*$/d' | paste -sd, -)"
     sed -i "s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=${updated_origins}#" "$ENV_FILE"
   fi
 
@@ -633,6 +661,7 @@ change_panel_port() {
 }
 
 edit_panel_origins() {
+  local raw_file="/etc/ui-panel/allowed-origins.raw"
   local current_allowed_origins
   local temp_file
   local edited_origins
@@ -643,17 +672,20 @@ edit_panel_origins() {
     exit 1
   fi
 
-  current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
   temp_file="$(mktemp /tmp/ui-panel-origins.XXXXXX)"
 
-  {
-    printf '# Satu origin per baris. Contoh:\n'
-    printf '# http://127.0.0.1:80\n'
-    printf '# http://100.124.47.105:80\n'
-    if [[ -n "$current_allowed_origins" ]]; then
-      printf '%s\n' "$current_allowed_origins" | tr ',' '\n'
-    fi
-  } > "$temp_file"
+  if [[ -f "$raw_file" ]]; then
+    cat "$raw_file" > "$temp_file"
+  else
+    current_allowed_origins="$(get_env_value PANEL_ALLOWED_ORIGINS || true)"
+    {
+      printf '# Satu origin per baris. Komentar (#) = tidak aktif. Contoh:\n'
+      printf '# http://127.0.0.1:80\n'
+      if [[ -n "$current_allowed_origins" ]]; then
+        printf '%s\n' "$current_allowed_origins" | tr ',' '\n'
+      fi
+    } > "$temp_file"
+  fi
 
   editor_bin="${VISUAL:-${EDITOR:-nano}}"
   if ! command -v "$editor_bin" >/dev/null 2>&1; then
@@ -661,6 +693,9 @@ edit_panel_origins() {
   fi
 
   "$editor_bin" "$temp_file"
+
+  cp "$temp_file" "$raw_file"
+  chmod 600 "$raw_file"
 
   edited_origins="$(grep -v '^\s*#' "$temp_file" | sed '/^\s*$/d' | paste -sd, -)"
 

@@ -567,8 +567,12 @@ chmod +x installer/linux/uninstall.sh
 ENV_FILE='/etc/ui-panel/agent.env'
 
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash installer/linux/install.sh"
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_HOSTS=.*#PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\" && sed -i \"s#^PANEL_ALLOWED_ORIGINS=.*#PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS#\" \"`$ENV_FILE\" || echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
+if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\""; then
+  printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "echo \"PANEL_ALLOWED_HOSTS=`$DEFAULT_ALLOWED_HOSTS\" >> \"`$ENV_FILE\""
+fi
+if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\""; then
+  printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
+fi
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' systemctl restart ui-panel.service
 sleep 2
 curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"

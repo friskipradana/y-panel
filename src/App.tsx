@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
+import { StatusPage } from '@/components/system/StatusPage'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { getFrontendRevision, getMe } from '@/api/agent'
@@ -26,6 +27,7 @@ const DebugGrid = import.meta.env.DEV
 
 const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
+const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
 
 const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   apps: () => <AppsWindow />,
@@ -132,23 +134,95 @@ function Desktop({ onLogout }: { onLogout: () => void }) {
   )
 }
 
+function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+  return (
+    <StatusPage
+      code="404"
+      title="Halaman aplikasi tidak ditemukan"
+      description="Route yang Anda buka tidak tersedia di frontend UI Panel yang sedang aktif. Anda masih berada di dalam runtime aplikasi, tetapi halaman ini memang tidak dikenali oleh shell frontend."
+      hint="Gunakan route yang tersedia seperti / atau /login. Jika ini seharusnya route valid, periksa frontend revision yang aktif atau hasil deploy terbaru."
+      badge="Frontend Route"
+      eyebrow="App-level status page"
+      details={[
+        { label: 'Route aktif', value: currentPath },
+        { label: 'Mode shell', value: 'Frontend-managed 404' },
+      ]}
+      actions={(
+        <>
+          <button
+            id="status-page-back-home"
+            type="button"
+            className="status-page-action status-page-action-primary"
+            onClick={() => {
+              window.history.replaceState({}, '', '/')
+              window.dispatchEvent(new Event('panel:navigation'))
+            }}
+          >
+            Kembali ke dashboard
+          </button>
+          {!authenticated ? (
+            <button
+              id="status-page-go-login"
+              type="button"
+              className="status-page-action status-page-action-secondary"
+              onClick={() => {
+                window.history.replaceState({}, '', LOGIN_PATH)
+                window.dispatchEvent(new Event('panel:navigation'))
+              }}
+            >
+              Buka login panel
+            </button>
+          ) : null}
+        </>
+      )}
+    />
+  )
+}
+
 function AppShell() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
   const frontendRevisionRef = useRef<string | null>(null)
+
+  const isKnownPath = useMemo(() => {
+    if (currentPath === '/' || currentPath === LOGIN_PATH) {
+      return true
+    }
+    return PUBLIC_APP_PATHS.has(currentPath)
+  }, [currentPath])
+
+  useEffect(() => {
+    const syncPath = () => setCurrentPath(window.location.pathname)
+    window.addEventListener('popstate', syncPath)
+    window.addEventListener('panel:navigation', syncPath)
+    return () => {
+      window.removeEventListener('popstate', syncPath)
+      window.removeEventListener('panel:navigation', syncPath)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
+    const replaceRoute = (nextPath: string) => {
+      if (window.location.pathname !== nextPath) {
+        window.history.replaceState({}, '', nextPath)
+        setCurrentPath(nextPath)
+      }
+    }
+
     const syncLoggedOutRoute = () => {
-      if (window.location.pathname !== LOGIN_PATH) {
-        window.history.replaceState({}, '', LOGIN_PATH)
+      if (window.location.pathname === '/' || window.location.pathname === LOGIN_PATH) {
+        replaceRoute(LOGIN_PATH)
       }
     }
 
     const syncLoggedInRoute = () => {
       if (window.location.pathname === LOGIN_PATH) {
-        window.history.replaceState({}, '', '/')
+        replaceRoute('/')
       }
     }
 
@@ -175,7 +249,7 @@ function AppShell() {
       queryClient.clear()
       useWindowStore.getState().resetWindows()
       setAuthenticated(false)
-      syncLoggedOutRoute()
+      replaceRoute(LOGIN_PATH)
     }
 
     window.addEventListener('panel:session-expired', handleSessionExpired)
@@ -237,6 +311,7 @@ function AppShell() {
     setAuthenticated(false)
     if (window.location.pathname !== LOGIN_PATH) {
       window.history.replaceState({}, '', LOGIN_PATH)
+      setCurrentPath(LOGIN_PATH)
     }
   }
 
@@ -251,6 +326,10 @@ function AppShell() {
   }
 
   if (!authenticated) {
+    if (!isKnownPath && currentPath !== LOGIN_PATH) {
+      return <FrontendNotFoundPage authenticated={authenticated} />
+    }
+
     return (
       <Suspense fallback={(
         <div className="min-h-screen grid place-items-center text-white login-shell">
@@ -264,10 +343,15 @@ function AppShell() {
           setAuthenticated(true)
           if (window.location.pathname === LOGIN_PATH) {
             window.history.replaceState({}, '', '/')
+            setCurrentPath('/')
           }
         }} />
       </Suspense>
     )
+  }
+
+  if (!isKnownPath) {
+    return <FrontendNotFoundPage authenticated={authenticated} />
   }
 
   return (

@@ -262,7 +262,7 @@ export function SettingsWindow() {
     setTimezone(query.data.timezone)
     setNameservers(query.data.nameservers)
     setPanelPort(query.data.bindAddr.split(':').slice(-1)[0] ?? '')
-    setAllowedOriginsText(query.data.allowedOrigins.join('\n'))
+    setAllowedOriginsText(query.data.originsRaw || query.data.allowedOrigins.join('\n'))
   }, [query.data])
 
   const payload = useMemo<UpdateSystemSettingsPayload>(() => ({
@@ -280,7 +280,7 @@ export function SettingsWindow() {
     queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
     queryClient.invalidateQueries({ queryKey: ['database-status'] })
     setPanelPort(data.bindAddr.split(':').slice(-1)[0] ?? '')
-    setAllowedOriginsText(data.allowedOrigins.join('\n'))
+    setAllowedOriginsText(data.originsRaw || data.allowedOrigins.join('\n'))
   }
 
   const mutation = useMutation({
@@ -532,7 +532,7 @@ export function SettingsWindow() {
               <button
                 id="settings-panel-origins-save"
                 onClick={() => panelOriginsMutation.mutate({
-                  origins: allowedOriginsText.split('\n').map((value) => value.trim()).filter(Boolean),
+                  originsRaw: allowedOriginsText,
                 })}
                 disabled={panelOriginsMutation.isPending}
                 className={[
