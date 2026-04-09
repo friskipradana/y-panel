@@ -120,3 +120,23 @@ export const updatePanelOrigins = (payload: UpdatePanelOriginsPayload) =>
 
 export const resetDatabasePassword = () =>
   agentApi.post<ResetDatabasePasswordResponse>('/api/v1/settings/database/reset-password').then((r) => r.data)
+
+export interface TerminalPreset {
+  id: number
+  label: string
+  command: string
+  sortOrder: number
+  createdAt: string
+}
+
+export const listTerminalPresets = () =>
+  agentApi.get<{ presets: TerminalPreset[] }>('/api/v1/terminal/presets').then((r) => r.data.presets)
+
+export const createTerminalPreset = (label: string, command: string) =>
+  agentApi.post<{ preset: TerminalPreset }>('/api/v1/terminal/presets', { label, command }).then((r) => r.data.preset)
+
+export const deleteTerminalPreset = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/terminal/presets/${id}`).then((r) => r.data)
+
+export const resetTerminalPresets = () =>
+  agentApi.post<{ ok: boolean; presets: TerminalPreset[] }>('/api/v1/terminal/presets/reset').then((r) => r.data)

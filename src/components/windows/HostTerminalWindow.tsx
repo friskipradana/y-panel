@@ -1,21 +1,32 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { AlertCircle, LoaderCircle, Power, RefreshCcw, TerminalSquare } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import 'xterm/css/xterm.css'
 import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
 import { useTerminalSession } from '@/hooks/useTerminalSession'
+import {
+  listTerminalPresets,
+  createTerminalPreset,
+  deleteTerminalPreset,
+  resetTerminalPresets,
+  type TerminalPreset,
+} from '@/api/agent'
 
-const PRESETS = [
-  'whoami',
-  'hostnamectl',
-  'uptime',
-  'df -h',
-  'free -h',
-  'docker ps -a',
-  'systemctl status ui-panel --no-pager',
-  'journalctl -u ui-panel -n 50 --no-pager',
-]
+// ─── Xterm theme ─────────────────────────────────────────────────────────────
+const XTERM_THEME = {
+  background:          '#0d1117',
+  foreground:          '#c9d1d9',
+  cursor:              '#f59e0b',
+  cursorAccent:        '#0d1117',
+  selectionBackground: 'rgba(96,165,250,0.22)',
+  selectionForeground: '#f8fbff',
+  black:    '#0f172a', red:    '#fb7185', green:   '#34d399', yellow: '#fbbf24',
+  blue:     '#60a5fa', magenta:'#a78bfa', cyan:    '#22d3ee', white:  '#cdd9e5',
+  brightBlack: '#475569', brightRed: '#fda4af', brightGreen: '#6ee7b7',
+  brightYellow: '#fcd34d', brightBlue: '#93c5fd', brightMagenta: '#c4b5fd',
+  brightCyan: '#67e8f9', brightWhite: '#ffffff',
+}
 
 const TERMINAL_FONT_OPTIONS = [
   'Outfit, system-ui, sans-serif',
@@ -23,247 +34,363 @@ const TERMINAL_FONT_OPTIONS = [
   'JetBrains Mono, monospace',
 ]
 
-export function HostTerminalWindow() {
+// ─── Single terminal pane ─────────────────────────────────────────────────────
+interface TerminalTabPaneProps {
+  active: boolean
+  fontFamily: string
+  fontSize: number
+  onStatusChange?: (connected: boolean, error: boolean) => void
+  onStart?: (start: () => Promise<void>) => void
+  onSendInput?: (fn: (cmd: string) => Promise<void>) => void
+}
+
+function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
   const {
-    sessionId,
-    starting,
-    connected,
-    closed,
-    closedByUser,
-    error,
-    start,
-    sendInput,
-    updateTerminalSize,
-    setOutputListener,
-    close,
+    sessionId, starting, connected, error,
+    start, sendInput, updateTerminalSize, setOutputListener, close,
   } = useTerminalSession()
-  const globalContentZoom = useWindowStore(selectGlobalContentZoom)
-  const globalFontIndex = useWindowStore(selectGlobalFontIndex)
-  const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
-  const computedTerminalFontSize = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
-  const xtermRef = useRef<Terminal | null>(null)
-  const fitAddonRef = useRef<FitAddon | null>(null)
-  const lastRenderedOutputRef = useRef('')
+  const xtermRef    = useRef<Terminal | null>(null)
+  const fitRef      = useRef<FitAddon | null>(null)
 
+  useEffect(() => { onStart?.(start) }, [onStart, start])
+  useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
+  useEffect(() => { onStatusChange?.(connected, !!error) }, [connected, error, onStatusChange])
+
+  // Auto-start
   useEffect(() => {
-    if (!sessionId && !starting && !connected && !closedByUser) {
-      void start()
-    }
-  }, [closedByUser, connected, sessionId, starting, start])
+    if (!sessionId && !starting && !connected) void start()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Mount xterm once
   useEffect(() => {
     const host = viewportRef.current
     if (!host || xtermRef.current) return
-
     const xterm = new Terminal({
-      cursorBlink: true,
-      fontFamily: TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2],
-      fontSize: computedTerminalFontSize,
-      lineHeight: 1.2,
-      convertEol: true,
-      scrollback: 4000,
-      allowTransparency: true,
-      theme: {
-        background: '#08101d',
-        foreground: '#e7eefc',
-        cursor: '#f59e0b',
-        cursorAccent: '#08101d',
-        selectionBackground: 'rgba(96, 165, 250, 0.24)',
-        selectionForeground: '#f8fbff',
-        black: '#0f172a',
-        red: '#fb7185',
-        green: '#34d399',
-        yellow: '#fbbf24',
-        blue: '#60a5fa',
-        magenta: '#a78bfa',
-        cyan: '#22d3ee',
-        white: '#dbe7ff',
-        brightBlack: '#475569',
-        brightRed: '#fda4af',
-        brightGreen: '#6ee7b7',
-        brightYellow: '#fcd34d',
-        brightBlue: '#93c5fd',
-        brightMagenta: '#c4b5fd',
-        brightCyan: '#67e8f9',
-        brightWhite: '#ffffff',
-      },
+      cursorBlink: true, fontFamily, fontSize,
+      lineHeight: 1.22, convertEol: true, scrollback: 5000,
+      allowTransparency: true, theme: XTERM_THEME,
     })
-
-    const fitAddon = new FitAddon()
-    fitAddonRef.current = fitAddon
-    xterm.loadAddon(fitAddon)
+    const fit = new FitAddon()
+    fitRef.current = fit
+    xterm.loadAddon(fit)
     xterm.open(host)
     xtermRef.current = xterm
-
     const syncSize = () => {
-      if (!xtermRef.current || !fitAddonRef.current || !viewportRef.current?.isConnected) return
-      fitAddonRef.current.fit()
+      if (!xtermRef.current || !fitRef.current || !viewportRef.current?.isConnected) return
+      fitRef.current.fit()
       updateTerminalSize(xtermRef.current.cols, xtermRef.current.rows)
     }
-
-    const resizeObserver = new ResizeObserver(() => {
-      window.requestAnimationFrame(syncSize)
-    })
-
-    resizeObserver.observe(host)
+    const ro = new ResizeObserver(() => requestAnimationFrame(syncSize))
+    ro.observe(host)
     window.addEventListener('resize', syncSize)
-
-    const dataDisposable = xterm.onData((value: string) => {
-      void sendInput(value)
-    })
-
-    window.requestAnimationFrame(() => {
-      syncSize()
-      xterm.focus()
-    })
-
+    const d = xterm.onData((v) => void sendInput(v))
+    requestAnimationFrame(() => { syncSize(); xterm.focus() })
     return () => {
-      resizeObserver.disconnect()
+      ro.disconnect()
       window.removeEventListener('resize', syncSize)
-      dataDisposable.dispose()
+      d.dispose()
       setOutputListener(null)
-      fitAddonRef.current = null
+      fitRef.current = null
       xterm.dispose()
       xtermRef.current = null
-      lastRenderedOutputRef.current = ''
     }
-  }, [sendInput, setOutputListener, updateTerminalSize])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setOutputListener((chunk) => {
-      const xterm = xtermRef.current
-      if (!xterm) return
-      xterm.write(chunk)
-      lastRenderedOutputRef.current += chunk
-    })
-
-    return () => {
-      setOutputListener(null)
-    }
+    setOutputListener((chunk) => xtermRef.current?.write(chunk))
+    return () => setOutputListener(null)
   }, [setOutputListener])
 
   useEffect(() => {
-    if (connected) {
-      window.requestAnimationFrame(() => {
-        fitAddonRef.current?.fit()
-        const xterm = xtermRef.current
-        if (!xterm) return
-        updateTerminalSize(xterm.cols, xterm.rows)
-        xterm.focus()
-      })
-    }
-  }, [connected, updateTerminalSize])
-
-  useEffect(() => {
-    if (!starting) return
-
-    const xterm = xtermRef.current
-    if (!xterm) return
-
-    xterm.reset()
-    lastRenderedOutputRef.current = ''
-  }, [starting])
-
-  useEffect(() => {
-    if (!connected && xtermRef.current && !starting) {
-      xtermRef.current.blur()
-    }
-  }, [connected, starting])
-
-  useEffect(() => {
-    const xterm = xtermRef.current
-    if (!xterm) return
-
-    xterm.options.fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
-    xterm.options.fontSize = computedTerminalFontSize
-
-    window.requestAnimationFrame(() => {
-      fitAddonRef.current?.fit()
-      updateTerminalSize(xterm.cols, xterm.rows)
+    if (!connected) return
+    requestAnimationFrame(() => {
+      fitRef.current?.fit()
+      const x = xtermRef.current; if (!x) return
+      updateTerminalSize(x.cols, x.rows)
+      if (active) x.focus()
     })
-  }, [computedTerminalFontSize, globalFontIndex, updateTerminalSize])
+  }, [connected, active, updateTerminalSize])
 
-  const status = useMemo(() => {
-    if (starting) return 'Menyambungkan shell...'
-    if (error) return error
-    if (closed) return 'Session ditutup'
-    if (connected) return 'Session aktif'
-    return 'Menunggu koneksi'
-  }, [closed, connected, error, starting])
+  useEffect(() => {
+    if (!active) return
+    requestAnimationFrame(() => {
+      fitRef.current?.fit()
+      const x = xtermRef.current; if (!x) return
+      updateTerminalSize(x.cols, x.rows)
+      x.focus()
+    })
+  }, [active, updateTerminalSize])
 
-  const statusTone = useMemo(() => {
-    if (error) return 'danger'
-    if (connected) return 'success'
-    if (starting) return 'warning'
-    return 'muted'
-  }, [connected, error, starting])
+  useEffect(() => {
+    const x = xtermRef.current; if (!x) return
+    x.options.fontFamily = fontFamily
+    x.options.fontSize   = fontSize
+    requestAnimationFrame(() => { fitRef.current?.fit(); updateTerminalSize(x.cols, x.rows) })
+  }, [fontFamily, fontSize, updateTerminalSize])
+
+  useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
+  useEffect(() => () => { void close() }, [close])
+
+  return (
+    <div
+      ref={viewportRef}
+      className="ht-pane"
+      style={{ display: active ? 'block' : 'none' }}
+      onClick={() => xtermRef.current?.focus()}
+    />
+  )
+}
+
+// ─── Tab state ────────────────────────────────────────────────────────────────
+let nextTabId = 1
+interface Tab {
+  id: number
+  label: string
+  connected: boolean
+  error: boolean
+  startFn: (() => Promise<void>) | null
+  sendInputFn: ((cmd: string) => Promise<void>) | null
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export function HostTerminalWindow() {
+  const globalContentZoom      = useWindowStore(selectGlobalContentZoom)
+  const globalFontIndex        = useWindowStore(selectGlobalFontIndex)
+  const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
+  const fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
+  const fontSize   = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  const [tabs, setTabs] = useState<Tab[]>(() => [
+    { id: nextTabId++, label: 'Local server', connected: false, error: false, startFn: null, sendInputFn: null },
+  ])
+  const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
+
+  const addTab = useCallback(() => {
+    const id = nextTabId++
+    setTabs((prev) => [...prev, { id, label: 'Local server', connected: false, error: false, startFn: null, sendInputFn: null }])
+    setActiveTabId(id)
+  }, [])
+
+  const closeTab = useCallback((id: number) => {
+    setTabs((prev) => {
+      if (prev.length === 1) return prev
+      const next = prev.filter((t) => t.id !== id)
+      if (id === activeTabId) {
+        const idx = prev.findIndex((t) => t.id === id)
+        setActiveTabId(next[Math.max(0, idx - 1)].id)
+      }
+      return next
+    })
+  }, [activeTabId])
+
+  const handleStatusChange = useCallback((tabId: number, connected: boolean, error: boolean) => {
+    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, connected, error } : t))
+  }, [])
+
+  const handleStart = useCallback((tabId: number, fn: () => Promise<void>) => {
+    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, startFn: fn } : t))
+  }, [])
+
+  const handleSendInput = useCallback((tabId: number, fn: (cmd: string) => Promise<void>) => {
+    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, sendInputFn: fn } : t))
+  }, [])
+
+  const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
+
+  const handleReconnect = () => activeTab.startFn?.()
 
   const runPreset = async (command: string) => {
-    await sendInput(`${command}\r`)
-    xtermRef.current?.focus()
+    const fn = activeTab.sendInputFn
+    if (!fn) return
+    await fn(`${command}\r`)
+  }
+
+  // ── Presets ───────────────────────────────────────────────────────────────
+  const [presets, setPresets] = useState<TerminalPreset[]>([])
+  const [showPresetManager, setShowPresetManager] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newCommand, setNewCommand] = useState('')
+  const [addingPreset, setAddingPreset] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [resetting, setResetting] = useState(false)
+
+  const loadPresets = useCallback(async () => {
+    try {
+      const list = await listTerminalPresets()
+      setPresets(list)
+    } catch {
+      // silent fail — fallback ke empty
+    }
+  }, [])
+
+  useEffect(() => { void loadPresets() }, [loadPresets])
+
+  const handleAddPreset = async () => {
+    const cmd = newCommand.trim()
+    if (!cmd) return
+    setAddingPreset(true)
+    try {
+      const created = await createTerminalPreset(newLabel.trim(), cmd)
+      setPresets((prev) => [...prev, created])
+      setNewLabel('')
+      setNewCommand('')
+    } finally {
+      setAddingPreset(false)
+    }
+  }
+
+  const handleDeletePreset = async (id: number) => {
+    setDeletingId(id)
+    try {
+      await deleteTerminalPreset(id)
+      setPresets((prev) => prev.filter((p) => p.id !== id))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleResetPresets = async () => {
+    setResetting(true)
+    try {
+      const data = await resetTerminalPresets()
+      if (data.presets) setPresets(data.presets)
+      else await loadPresets()
+    } finally {
+      setResetting(false)
+    }
   }
 
   return (
-    <div className="host-terminal-shell host-terminal-shell--themed">
-      <div className="host-terminal-console-card host-terminal-console-card--aurora">
-        <div className="host-terminal-console-head host-terminal-console-head--compact">
-          <div className="host-terminal-console-head-left">
-            <span className="host-terminal-dot host-terminal-dot--red" />
-            <span className="host-terminal-dot host-terminal-dot--amber" />
-            <span className="host-terminal-dot host-terminal-dot--green" />
-            <span className="host-terminal-console-label">Host Shell</span>
-          </div>
-
-          <div className="host-terminal-console-meta">
-            <div className={`host-terminal-badge host-terminal-badge--${statusTone}`}>
-              {error ? <AlertCircle size={14} /> : starting ? <LoaderCircle size={14} className="animate-spin" /> : <TerminalSquare size={14} />}
-              {status}
-            </div>
-
+    <div className="ht-root">
+      {/* ── Tab bar ─────────────────────────────────────────────────── */}
+      <div className="ht-tabbar">
+        <div className="ht-tabs">
+          {tabs.map((tab) => (
             <button
-              id="host-terminal-reconnect"
-              className="host-terminal-secondary"
-              onClick={() => void start()}
-              disabled={starting}
+              key={tab.id}
+              className={`ht-tab${tab.id === activeTabId ? ' ht-tab--active' : ''}`}
+              onClick={() => setActiveTabId(tab.id)}
             >
-              <RefreshCcw size={14} /> Reconnect
-            </button>
-
-            <button
-              id="host-terminal-close"
-              className="host-terminal-secondary host-terminal-secondary--danger"
-              onClick={() => void close()}
-              disabled={!sessionId}
-            >
-              <Power size={14} /> Close session
-            </button>
-          </div>
-        </div>
-
-        <div
-          id="host-terminal-output"
-          ref={viewportRef}
-          className="host-terminal-console host-terminal-console--compact host-terminal-console--xterm"
-          onClick={() => xtermRef.current?.focus()}
-        />
-      </div>
-
-      <div className="host-terminal-footer host-terminal-footer--stacked">
-        <div className="host-terminal-presets host-terminal-presets--soft">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset}
-              id={`host-terminal-preset-${preset.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
-              className="host-terminal-preset"
-              onClick={() => void runPreset(preset)}
-              disabled={!connected}
-            >
-              {preset}
+              <span className="ht-status-dot" style={{
+                background: tab.error ? '#f87171' : tab.connected ? '#4ade80' : '#6b7280',
+              }} />
+              <span className="ht-tab-label">{tab.label}</span>
+              {tabs.length > 1 && (
+                <button className="ht-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}>
+                  <X size={11} />
+                </button>
+              )}
             </button>
           ))}
         </div>
+        <div className="ht-tabbar-actions">
+          <button className="ht-action-btn" onClick={handleReconnect} title="Reconnect">
+            <RefreshCcw size={13} /><span>Reconnect</span>
+          </button>
+          <button className="ht-action-btn ht-action-btn--add" onClick={addTab} title="New terminal tab">
+            <Plus size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Preset shortcut bar ──────────────────────────────────────── */}
+      <div className="ht-footer">
+        <div className="ht-presets-scroll">
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              className="ht-preset-btn"
+              onClick={() => void runPreset(p.command)}
+              disabled={!activeTab.connected}
+              title={p.command}
+            >
+              {p.label || p.command}
+            </button>
+          ))}
+        </div>
+        <button
+          className={`ht-action-btn ht-manage-btn${showPresetManager ? ' ht-action-btn--active' : ''}`}
+          onClick={() => setShowPresetManager((v) => !v)}
+          title="Kelola pintasan perintah"
+        >
+          Kelola
+        </button>
+      </div>
+
+      {/* ── Preset manager panel ─────────────────────────────────────── */}
+      {showPresetManager && (
+        <div className="ht-manager">
+          <div className="ht-manager-header">
+            <span>Kelola Pintasan Perintah</span>
+            <button className="ht-manager-reset" onClick={handleResetPresets} disabled={resetting} title="Reset ke default">
+              <RotateCcw size={13} />
+              <span>{resetting ? 'Mereset...' : 'Reset default'}</span>
+            </button>
+          </div>
+
+          {/* Add form */}
+          <div className="ht-manager-add">
+            <input
+              className="ht-manager-input"
+              placeholder="Label (opsional)"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+            />
+            <input
+              className="ht-manager-input ht-manager-input--flex"
+              placeholder="Perintah, mis: df -h"
+              value={newCommand}
+              onChange={(e) => setNewCommand(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void handleAddPreset() }}
+            />
+            <button
+              className="ht-manager-save"
+              onClick={() => void handleAddPreset()}
+              disabled={addingPreset || !newCommand.trim()}
+            >
+              {addingPreset ? '...' : <><Plus size={13} /> Tambah</>}
+            </button>
+          </div>
+
+          {/* List */}
+          <div className="ht-manager-list">
+            {presets.length === 0 && (
+              <span className="ht-manager-empty">Belum ada pintasan.</span>
+            )}
+            {presets.map((p) => (
+              <div key={p.id} className="ht-manager-row">
+                <span className="ht-manager-row-label">{p.label || <em style={{ opacity: 0.5 }}>—</em>}</span>
+                <code className="ht-manager-row-cmd">{p.command}</code>
+                <button
+                  className="ht-manager-del"
+                  onClick={() => void handleDeletePreset(p.id)}
+                  disabled={deletingId === p.id}
+                  title="Hapus"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Terminal panes ───────────────────────────────────────────── */}
+      <div className="ht-panes">
+        {tabs.map((tab) => (
+          <TerminalTabPane
+            key={tab.id}
+            active={tab.id === activeTabId}
+            fontFamily={fontFamily}
+            fontSize={fontSize}
+            onStatusChange={(c, e) => handleStatusChange(tab.id, c, e)}
+            onStart={(fn) => handleStart(tab.id, fn)}
+            onSendInput={(fn) => handleSendInput(tab.id, fn)}
+          />
+        ))}
       </div>
     </div>
   )

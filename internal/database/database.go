@@ -309,8 +309,20 @@ func (m *Manager) ensureSchema() error {
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_settings_audit_created_at (created_at)
 		);
+
+		CREATE TABLE IF NOT EXISTS terminal_presets (
+			id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			label VARCHAR(190) NOT NULL DEFAULT '',
+			command TEXT NOT NULL,
+			sort_order INT NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			INDEX idx_terminal_presets_sort (sort_order, id)
+		);
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+	return m.seedDefaultTerminalPresets()
 }
 
 func (m *Manager) seedDefaultChangelog() error {
@@ -328,6 +340,145 @@ func (m *Manager) seedDefaultChangelog() error {
 		}
 	}
 	return nil
+}
+
+// ─── Terminal Presets ────────────────────────────────────────────────────────
+
+type TerminalPreset struct {
+	ID        int64     `json:"id"`
+	Label     string    `json:"label"`
+	Command   string    `json:"command"`
+	SortOrder int       `json:"sortOrder"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+var defaultTerminalPresets = []TerminalPreset{
+	{Label: "", Command: "whoami", SortOrder: 1},
+	{Label: "", Command: "hostnamectl", SortOrder: 2},
+	{Label: "", Command: "uptime", SortOrder: 3},
+	{Label: "", Command: "df -h", SortOrder: 4},
+	{Label: "", Command: "free -h", SortOrder: 5},
+	{Label: "", Command: "docker ps -a", SortOrder: 6},
+	{Label: "", Command: "systemctl status ui-panel --no-pager", SortOrder: 7},
+	{Label: "", Command: "journalctl -u ui-panel -n 50 --no-pager", SortOrder: 8},
+}
+
+func (m *Manager) seedDefaultTerminalPresets() error {
+	if m.db == nil {
+		return nil
+	}
+	var count int64
+	_ = m.db.QueryRow("SELECT COUNT(*) FROM terminal_presets").Scan(&count)
+	if count > 0 {
+		return nil
+	}
+	for _, p := range defaultTerminalPresets {
+		_, err := m.db.Exec(
+			`INSERT INTO terminal_presets (label, command, sort_order) VALUES (?, ?, ?)`,
+			p.Label, p.Command, p.SortOrder,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Manager) ListTerminalPresets() ([]TerminalPreset, error) {
+	if !m.IsConnected() || m.db == nil {
+		presets := make([]TerminalPreset, len(defaultTerminalPresets))
+		copy(presets, defaultTerminalPresets)
+		for i := range presets {
+			presets[i].ID = int64(i + 1)
+		}
+		return presets, nil
+	}
+	rows, err := m.db.Query(`
+		SELECT id, COALESCE(label,''), command, sort_order, created_at
+		FROM terminal_presets
+		ORDER BY sort_order ASC, id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make([]TerminalPreset, 0, 16)
+	for rows.Next() {
+		var p TerminalPreset
+		if err := rows.Scan(&p.ID, &p.Label, &p.Command, &p.SortOrder, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+func (m *Manager) CreateTerminalPreset(label, command string) (TerminalPreset, error) {
+	label   = strings.TrimSpace(label)
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return TerminalPreset{}, fmt.Errorf("command tidak boleh kosong")
+	}
+	if !m.IsConnected() || m.db == nil {
+		return TerminalPreset{}, fmt.Errorf("database tidak tersambung")
+	}
+	var maxOrder int
+	_ = m.db.QueryRow("SELECT COALESCE(MAX(sort_order),0) FROM terminal_presets").Scan(&maxOrder)
+	res, err := m.db.Exec(
+		`INSERT INTO terminal_presets (label, command, sort_order) VALUES (?, ?, ?)`,
+		label, command, maxOrder+1,
+	)
+	if err != nil {
+		return TerminalPreset{}, err
+	}
+	id, _ := res.LastInsertId()
+	return TerminalPreset{
+		ID:        id,
+		Label:     label,
+		Command:   command,
+		SortOrder: maxOrder + 1,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+func (m *Manager) DeleteTerminalPreset(id int64) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database tidak tersambung")
+	}
+	res, err := m.db.Exec("DELETE FROM terminal_presets WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("preset tidak ditemukan")
+	}
+	return nil
+}
+
+func (m *Manager) ResetTerminalPresets() error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database tidak tersambung")
+	}
+	tx, err := m.db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec("DELETE FROM terminal_presets"); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	for _, p := range defaultTerminalPresets {
+		if _, err := tx.Exec(
+			`INSERT INTO terminal_presets (label, command, sort_order) VALUES (?, ?, ?)`,
+			p.Label, p.Command, p.SortOrder,
+		); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (m *Manager) setConnected(value bool) {

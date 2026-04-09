@@ -166,6 +166,11 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionStart)))
 	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionWebSocket)))
 	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionClose)))
+	// Terminal presets
+	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleListTerminalPresets)))
+	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleCreateTerminalPreset)))
+	s.mux.Handle("DELETE /api/v1/terminal/presets/{id}", s.requireAuth(http.HandlerFunc(s.handleDeleteTerminalPreset)))
+	s.mux.Handle("POST /api/v1/terminal/presets/reset", s.requireAuth(http.HandlerFunc(s.handleResetTerminalPresets)))
 	s.mux.Handle("/", s.authedFrontend)
 }
 
@@ -1404,4 +1409,56 @@ func closeChannel(ch chan struct{}) {
 	default:
 		close(ch)
 	}
+}
+
+// ─── Terminal Preset Handlers ─────────────────────────────────────────────────
+
+func (s *Server) handleListTerminalPresets(w http.ResponseWriter, _ *http.Request) {
+	presets, err := s.database.ListTerminalPresets()
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"presets": presets})
+}
+
+func (s *Server) handleCreateTerminalPreset(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var req struct {
+		Label   string `json:"label"`
+		Command string `json:"command"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	preset, err := s.database.CreateTerminalPreset(req.Label, req.Command)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	s.writeJSON(w, http.StatusCreated, jsonResponse{"preset": preset})
+}
+
+func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid preset id"})
+		return
+	}
+	if err := s.database.DeleteTerminalPreset(id); err != nil {
+		s.writeError(w, http.StatusNotFound, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, _ *http.Request) {
+	if err := s.database.ResetTerminalPresets(); err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	presets, _ := s.database.ListTerminalPresets()
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }

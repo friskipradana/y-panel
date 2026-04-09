@@ -8,7 +8,7 @@ const DEFAULTS: Record<
 > = {
   apps: { title: "My Apps", icon: "📁", width: 460, height: 380, singleton: true },
   terminal: { title: "Terminal", icon: "💻", width: 500, height: 320, singleton: true },
-  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 860, height: 620 },
+  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 920, height: 640, singleton: true },
   system: { title: "System Info", icon: "⚙️", width: 420, height: 520, singleton: true },
   "system-logs": { title: "System Logs", icon: "📜", width: 920, height: 620, singleton: true },
   docs: { title: "Docs", icon: "📚", width: 380, height: 340, singleton: true },

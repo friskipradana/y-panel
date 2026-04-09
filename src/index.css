@@ -1277,3 +1277,396 @@ body {
     justify-content: flex-start;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Multi-tab Host Terminal (.ht-*)
+   ═══════════════════════════════════════════════════════════════ */
+.ht-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0d1117;
+  overflow: hidden;
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────── */
+.ht-tabbar {
+  display: flex;
+  align-items: center;
+  background: #161b22;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  min-height: 36px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ht-tabs {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  flex: 1 1 0;
+  scrollbar-width: none;
+}
+.ht-tabs::-webkit-scrollbar { display: none; }
+
+.ht-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 10px;
+  min-width: 110px;
+  max-width: 180px;
+  height: 36px;
+  font-size: 12.5px;
+  color: #8b949e;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+
+.ht-tab:hover {
+  background: rgba(255,255,255,0.04);
+  color: #c9d1d9;
+}
+
+.ht-tab--active {
+  color: #e6edf3;
+  background: #0d1117;
+  border-bottom: 2px solid #58a6ff;
+}
+
+.ht-tab-label {
+  flex: 1 1 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.ht-tab-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #6e7681;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s;
+}
+
+.ht-tab:hover .ht-tab-close,
+.ht-tab--active .ht-tab-close {
+  opacity: 1;
+}
+
+.ht-tab-close:hover {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+/* ── Status dot ──────────────────────────────────────────────── */
+.ht-status-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ── Tab bar right actions ───────────────────────────────────── */
+.ht-tabbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.ht-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: #8b949e;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.ht-action-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #c9d1d9;
+  border-color: rgba(255,255,255,0.18);
+}
+
+.ht-action-btn--add {
+  padding: 4px 7px;
+  border-color: rgba(88,166,255,0.2);
+  color: #58a6ff;
+}
+
+.ht-action-btn--add:hover {
+  background: rgba(88,166,255,0.1);
+  border-color: rgba(88,166,255,0.4);
+  color: #79c0ff;
+}
+
+/* ── Pane area ───────────────────────────────────────────────── */
+.ht-panes {
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+}
+
+.ht-pane {
+  position: absolute;
+  inset: 0;
+  padding: 4px;
+}
+
+.ht-pane .xterm {
+  height: 100% !important;
+}
+
+.ht-pane .xterm-viewport {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+.ht-pane .xterm-viewport::-webkit-scrollbar { width: 5px; }
+.ht-pane .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+.ht-pane .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+.ht-pane .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+.ht-pane .xterm-screen,
+.ht-pane .xterm-helpers,
+.ht-pane .xterm-scroll-area { width: 100% !important; }
+
+.ht-pane .xterm-screen canvas { display: block; }
+
+/* ── Preset footer bar ───────────────────────────────────────── */
+.ht-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #161b22;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+  min-height: 38px;
+}
+
+.ht-presets-scroll {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  flex: 1 1 0;
+  scrollbar-width: none;
+}
+.ht-presets-scroll::-webkit-scrollbar { display: none; }
+
+.ht-preset-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: #8b949e;
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.11s, color 0.11s;
+}
+
+.ht-preset-btn:hover:not(:disabled) {
+  background: rgba(88,166,255,0.1);
+  color: #79c0ff;
+  border-color: rgba(88,166,255,0.3);
+}
+
+.ht-preset-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ht-manage-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.ht-action-btn--active {
+  background: rgba(88,166,255,0.12);
+  border-color: rgba(88,166,255,0.35);
+  color: #79c0ff;
+}
+
+/* ── Preset manager panel ────────────────────────────────────── */
+.ht-manager {
+  background: #0d1117;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 10px 12px 12px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow: hidden;
+}
+
+.ht-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #8b949e;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ht-manager-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: #6e7681;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.ht-manager-reset:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+  color: #c9d1d9;
+}
+.ht-manager-reset:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ht-manager-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ht-manager-input {
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: #c9d1d9;
+  font-size: 12px;
+  outline: none;
+  width: 100px;
+}
+.ht-manager-input--flex { flex: 1 1 0; width: auto; }
+.ht-manager-input:focus {
+  border-color: rgba(88,166,255,0.4);
+  background: rgba(88,166,255,0.05);
+}
+
+.ht-manager-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(88,166,255,0.3);
+  background: rgba(88,166,255,0.1);
+  color: #79c0ff;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+.ht-manager-save:hover:not(:disabled) { background: rgba(88,166,255,0.18); }
+.ht-manager-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ht-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+.ht-manager-empty {
+  font-size: 12px;
+  color: #484f58;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.ht-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.ht-manager-row-label {
+  font-size: 11.5px;
+  color: #8b949e;
+  min-width: 80px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ht-manager-row-cmd {
+  flex: 1 1 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: #c9d1d9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ht-manager-del {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #484f58;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.ht-manager-del:hover:not(:disabled) {
+  background: rgba(248,81,73,0.12);
+  color: #f85149;
+}
+.ht-manager-del:disabled { opacity: 0.35; }
+
