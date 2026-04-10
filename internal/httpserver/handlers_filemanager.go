@@ -213,3 +213,53 @@ func (s *Server) handleFileManagerMkdir(w http.ResponseWriter, r *http.Request) 
 	}
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
+
+func (s *Server) handleFileManagerTouch(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanPath := filepath.Clean(payload.Path)
+	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat file: "+err.Error()))
+		return
+	}
+	file.Close()
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleFileManagerChmod(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Path      string `json:"path"`
+		Mode      uint32 `json:"mode"`
+		Recursive bool   `json:"recursive"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanPath := filepath.Clean(payload.Path)
+
+	if payload.Recursive {
+		err := filepath.Walk(cleanPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			return os.Chmod(path, os.FileMode(payload.Mode))
+		})
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengubah permission rekursif: "+err.Error()))
+			return
+		}
+	} else {
+		if err := os.Chmod(cleanPath, os.FileMode(payload.Mode)); err != nil {
+			s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengubah permission: "+err.Error()))
+			return
+		}
+	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}

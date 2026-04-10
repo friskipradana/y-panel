@@ -14,6 +14,7 @@ const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'system-logs', icon: '📜', label: 'System Logs' },
   { kind: 'docs', icon: '📚', label: 'Docs' },
   { kind: 'file-manager', icon: '📁', label: 'Explorer' },
+  { kind: 'file-editor', icon: '📝', label: 'Code Editor' },
   { kind: 'changelog', icon: '🔔', label: 'Changelog' },
 ]
 

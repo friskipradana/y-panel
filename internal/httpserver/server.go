@@ -167,6 +167,8 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/files/delete", s.requireAuth(http.HandlerFunc(s.handleFileManagerDelete)))
 	s.mux.Handle("POST /api/v1/files/rename", s.requireAuth(http.HandlerFunc(s.handleFileManagerRename)))
 	s.mux.Handle("POST /api/v1/files/mkdir", s.requireAuth(http.HandlerFunc(s.handleFileManagerMkdir)))
+	s.mux.Handle("POST /api/v1/files/touch", s.requireAuth(http.HandlerFunc(s.handleFileManagerTouch)))
+	s.mux.Handle("POST /api/v1/files/chmod", s.requireAuth(http.HandlerFunc(s.handleFileManagerChmod)))
 
 	s.mux.Handle("POST /api/v1/settings/database/reset-password", s.requireAuth(http.HandlerFunc(s.handleResetDatabasePassword)))
 	s.mux.Handle("GET /api/v1/containers", s.requireAuth(http.HandlerFunc(s.handleContainersList)))

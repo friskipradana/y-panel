@@ -5,6 +5,8 @@ import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useThemeStore } from '@/store/themeStore'
 
+import { useEditorStore } from '@/store/editorStore'
+
 interface EditorTab {
   id: string
   path: string
@@ -47,6 +49,7 @@ export function FileEditorWindow() {
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const isDark = useThemeStore((state) => state.mode) === 'dark'
+  const { pendingFile, setPendingFile } = useEditorStore()
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -137,15 +140,11 @@ export function FileEditorWindow() {
   }, [tabs])
 
   useEffect(() => {
-    const onOpenFile = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (detail && detail.path) {
-        void handleOpenFile(detail.path, detail.name)
-      }
+    if (pendingFile) {
+      void handleOpenFile(pendingFile.path, pendingFile.name)
+      setPendingFile(null)
     }
-    window.addEventListener('panel:open-file', onOpenFile)
-    return () => window.removeEventListener('panel:open-file', onOpenFile)
-  }, [handleOpenFile])
+  }, [pendingFile, handleOpenFile, setPendingFile])
 
 
   const closeTab = (id: string, force = false) => {
@@ -197,6 +196,16 @@ export function FileEditorWindow() {
     }
   }
 
+  const handleKeyDownCapture = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault()
+      e.stopPropagation()
+      if (activeTab && activeTab.content !== activeTab.originalContent) {
+        void handleSave(activeTab)
+      }
+    }
+  }
+
   return (
     <div 
       className="flex flex-col h-full bg-[#1e1e1e] overflow-hidden" 
@@ -216,6 +225,7 @@ export function FileEditorWindow() {
           // ignore parsing error
         }
       }}
+      onKeyDownCapture={handleKeyDownCapture}
     >
       {/* ── Tabs Strip ─────────────────────────────────────────────────── */}
       <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: isDark ? '#252526' : '#f3f3f3' }}>
