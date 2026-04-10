@@ -1,12 +1,14 @@
 package httpserver
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -266,6 +268,291 @@ func (s *Server) handleFileManagerChmod(w http.ResponseWriter, r *http.Request) 
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func addPathToZip(zipWriter *zip.Writer, baseParent, sourcePath string) error {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return filepath.Walk(sourcePath, func(path string, walkInfo os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+
+
+
+			relPath, err := filepath.Rel(baseParent, path)
+			if err != nil {
+				return err
+			}
+			zipPath := filepath.ToSlash(relPath)
+
+			header, err := zip.FileInfoHeader(walkInfo)
+			if err != nil {
+				return err
+			}
+			header.Name = zipPath
+			if walkInfo.IsDir() {
+				header.Name += "/"
+				_, err = zipWriter.CreateHeader(header)
+				return err
+			}
+
+			header.Method = zip.Deflate
+			writer, err := zipWriter.CreateHeader(header)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			_, err = io.Copy(writer, file)
+			return err
+		})
+	}
+
+	relPath, err := filepath.Rel(baseParent, sourcePath)
+	if err != nil {
+		return err
+	}
+
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
+	}
+	header.Name = filepath.ToSlash(relPath)
+	header.Method = zip.Deflate
+
+	writer, err := zipWriter.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(writer, file)
+	return err
+}
+
+func compressToZip(sourcePath, destPath string) error {
+	archiveFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	zipWriter := zip.NewWriter(archiveFile)
+	defer zipWriter.Close()
+
+	return addPathToZip(zipWriter, filepath.Dir(sourcePath), sourcePath)
+}
+
+func addPathToTar(tw *tar.Writer, baseParent, sourcePath string) error {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return filepath.Walk(sourcePath, func(path string, walkInfo os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+
+
+
+			relPath, err := filepath.Rel(baseParent, path)
+			if err != nil {
+				return err
+			}
+			tarPath := filepath.ToSlash(relPath)
+
+			header, err := tar.FileInfoHeader(walkInfo, "")
+			if err != nil {
+				return err
+			}
+			header.Name = tarPath
+			if walkInfo.IsDir() && !strings.HasSuffix(header.Name, "/") {
+				header.Name += "/"
+			}
+
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+			if walkInfo.IsDir() {
+				return nil
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			_, err = io.Copy(tw, file)
+			return err
+		})
+	}
+
+	relPath, err := filepath.Rel(baseParent, sourcePath)
+	if err != nil {
+		return err
+	}
+
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return err
+	}
+	header.Name = filepath.ToSlash(relPath)
+
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(tw, file)
+	return err
+}
+
+func compressToTarGz(sourcePath, destPath string) error {
+	archiveFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	gzipWriter := gzip.NewWriter(archiveFile)
+	defer gzipWriter.Close()
+
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
+
+	return addPathToTar(tarWriter, filepath.Dir(sourcePath), sourcePath)
+}
+
+func extractZip(sourcePath, destPath string) error {
+	reader, err := zip.OpenReader(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	for _, file := range reader.File {
+		targetPath := filepath.Join(destPath, filepath.Clean(file.Name))
+		if !strings.HasPrefix(targetPath, filepath.Clean(destPath)+string(os.PathSeparator)) && filepath.Clean(targetPath) != filepath.Clean(destPath) {
+			return errors.New("arsip ZIP mengandung path tidak aman")
+		}
+
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(targetPath, file.Mode()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return err
+		}
+
+		src, err := file.Open()
+		if err != nil {
+			return err
+		}
+
+		dst, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, file.Mode())
+		if err != nil {
+			src.Close()
+			return err
+		}
+
+		_, copyErr := io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+	}
+
+	return nil
+}
+
+func extractTarArchive(tr *tar.Reader, destPath string) error {
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(destPath, filepath.Clean(header.Name))
+		if !strings.HasPrefix(targetPath, filepath.Clean(destPath)+string(os.PathSeparator)) && filepath.Clean(targetPath) != filepath.Clean(destPath) {
+			return errors.New("arsip TAR mengandung path tidak aman")
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
+				return err
+			}
+		case tar.TypeReg, tar.TypeRegA:
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return err
+			}
+			file, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+			_, copyErr := io.Copy(file, tr)
+			file.Close()
+			if copyErr != nil {
+				return copyErr
+			}
+		}
+	}
+}
+
+func extractTarGz(sourcePath, destPath string) error {
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	gzipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer gzipReader.Close()
+
+	return extractTarArchive(tar.NewReader(gzipReader), destPath)
+}
+
+func extractTarFile(sourcePath, destPath string) error {
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return extractTarArchive(tar.NewReader(file), destPath)
+}
+
 func (s *Server) handleFileManagerCompress(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Target   string `json:"target"`
@@ -283,19 +570,24 @@ func (s *Server) handleFileManagerCompress(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var cmd *exec.Cmd
-	if strings.HasSuffix(strings.ToLower(cleanDest), ".zip") {
-		cmd = exec.Command("zip", "-r", cleanDest, filepath.Base(cleanTarget))
-	} else if strings.HasSuffix(strings.ToLower(cleanDest), ".tar.gz") || strings.HasSuffix(strings.ToLower(cleanDest), ".tgz") {
-		cmd = exec.Command("tar", "-czf", cleanDest, filepath.Base(cleanTarget))
+	if err := os.MkdirAll(filepath.Dir(cleanDest), 0755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menyiapkan folder arsip: "+err.Error()))
+		return
+	}
+
+	var err error
+	lowerDest := strings.ToLower(cleanDest)
+	if strings.HasSuffix(lowerDest, ".zip") {
+		err = compressToZip(cleanTarget, cleanDest)
+	} else if strings.HasSuffix(lowerDest, ".tar.gz") || strings.HasSuffix(lowerDest, ".tgz") {
+		err = compressToTarGz(cleanTarget, cleanDest)
 	} else {
 		s.writeError(w, http.StatusBadRequest, errors.New("Format kompresi tidak didukung. Gunakan .zip atau .tar.gz"))
 		return
 	}
 
-	cmd.Dir = filepath.Dir(cleanTarget)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		s.writeError(w, http.StatusInternalServerError, errors.New("Eksekusi kompresi gagal: "+string(out)))
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Eksekusi kompresi gagal: "+err.Error()))
 		return
 	}
 
@@ -319,18 +611,21 @@ func (s *Server) handleFileManagerExtract(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var cmd *exec.Cmd
-	if strings.HasSuffix(strings.ToLower(cleanSource), ".zip") {
-		cmd = exec.Command("unzip", "-o", cleanSource, "-d", cleanDest)
-	} else if strings.HasSuffix(strings.ToLower(cleanSource), ".tar.gz") || strings.HasSuffix(strings.ToLower(cleanSource), ".tgz") || strings.HasSuffix(strings.ToLower(cleanSource), ".tar") {
-		cmd = exec.Command("tar", "-xf", cleanSource, "-C", cleanDest)
+	var err error
+	lowerSource := strings.ToLower(cleanSource)
+	if strings.HasSuffix(lowerSource, ".zip") {
+		err = extractZip(cleanSource, cleanDest)
+	} else if strings.HasSuffix(lowerSource, ".tar.gz") || strings.HasSuffix(lowerSource, ".tgz") {
+		err = extractTarGz(cleanSource, cleanDest)
+	} else if strings.HasSuffix(lowerSource, ".tar") {
+		err = extractTarFile(cleanSource, cleanDest)
 	} else {
 		s.writeError(w, http.StatusBadRequest, errors.New("Format arsip tidak didukung."))
 		return
 	}
 
-	if out, err := cmd.CombinedOutput(); err != nil {
-		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengekstrak arsip: "+string(out)))
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengekstrak arsip: "+err.Error()))
 		return
 	}
 

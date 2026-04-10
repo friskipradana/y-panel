@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X } from 'lucide-react'
+import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X, Plus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
@@ -457,7 +457,7 @@ export function FileManagerWindow() {
           })}
         </div>
         <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-black/5 transition text-slate-500 border-b border-black/10 shrink-0" onClick={openNewTab} title="New Tab">
-          <FolderPlus size={16} />
+          <Plus size={18} />
         </button>
       </div>
 
@@ -585,7 +585,7 @@ export function FileManagerWindow() {
       {/* ── Local Window Specific Fullscreen Overlay Modal (GlobalAlert Clone) ── */}
       <AnimatePresence>
         {modal && (
-          <div className="absolute inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 z-[50] flex items-center justify-center p-4">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
