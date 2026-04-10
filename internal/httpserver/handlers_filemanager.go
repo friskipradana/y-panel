@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -261,5 +263,76 @@ func (s *Server) handleFileManagerChmod(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleFileManagerCompress(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Target   string `json:"target"`
+		DestName string `json:"destName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanTarget := filepath.Clean(payload.Target)
+	cleanDest := filepath.Clean(payload.DestName)
+
+	if _, err := os.Stat(cleanTarget); os.IsNotExist(err) {
+		s.writeError(w, http.StatusNotFound, errors.New("Target tidak ditemukan"))
+		return
+	}
+
+	var cmd *exec.Cmd
+	if strings.HasSuffix(strings.ToLower(cleanDest), ".zip") {
+		cmd = exec.Command("zip", "-r", cleanDest, filepath.Base(cleanTarget))
+	} else if strings.HasSuffix(strings.ToLower(cleanDest), ".tar.gz") || strings.HasSuffix(strings.ToLower(cleanDest), ".tgz") {
+		cmd = exec.Command("tar", "-czf", cleanDest, filepath.Base(cleanTarget))
+	} else {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format kompresi tidak didukung. Gunakan .zip atau .tar.gz"))
+		return
+	}
+
+	cmd.Dir = filepath.Dir(cleanTarget)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Eksekusi kompresi gagal: "+string(out)))
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleFileManagerExtract(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Source string `json:"source"`
+		Dest   string `json:"dest"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanSource := filepath.Clean(payload.Source)
+	cleanDest := filepath.Clean(payload.Dest)
+
+	if err := os.MkdirAll(cleanDest, 0755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat direktori tujuan ekstraksi: "+err.Error()))
+		return
+	}
+
+	var cmd *exec.Cmd
+	if strings.HasSuffix(strings.ToLower(cleanSource), ".zip") {
+		cmd = exec.Command("unzip", "-o", cleanSource, "-d", cleanDest)
+	} else if strings.HasSuffix(strings.ToLower(cleanSource), ".tar.gz") || strings.HasSuffix(strings.ToLower(cleanSource), ".tgz") || strings.HasSuffix(strings.ToLower(cleanSource), ".tar") {
+		cmd = exec.Command("tar", "-xf", cleanSource, "-C", cleanDest)
+	} else {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format arsip tidak didukung."))
+		return
+	}
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengekstrak arsip: "+string(out)))
+		return
+	}
+
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

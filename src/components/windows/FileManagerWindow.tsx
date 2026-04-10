@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw } from 'lucide-react'
+import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
@@ -33,10 +33,12 @@ const formatDate = (dateString: string) => {
   return d.toLocaleString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-type ModalType = 
+type ModalType =
   | { type: 'delete'; item: FileNode }
   | { type: 'rename'; item: FileNode }
   | { type: 'chmod'; item: FileNode }
+  | { type: 'compress'; item: FileNode }
+  | { type: 'extract'; item: FileNode }
   | { type: 'mkdir' }
   | { type: 'touch' }
 
@@ -97,7 +99,15 @@ export function FileManagerWindow() {
   // Modal Openers
   const openModal = (m: ModalType) => {
     setMenu(null)
-    setModalInput(m.type === 'rename' ? m.item.name : '')
+    if (m.type === 'rename') {
+      setModalInput(m.item.name)
+    } else if (m.type === 'compress') {
+      setModalInput(m.item.name + '.zip')
+    } else if (m.type === 'extract') {
+      setModalInput(m.item.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '') || 'extracted_folder')
+    } else {
+      setModalInput('')
+    }
     setChmodMode('0644') // fallback default
     setChmodRecursive(false)
     setModal(m)
@@ -110,27 +120,35 @@ export function FileManagerWindow() {
     let payload = {}
     try {
       if (modal.type === 'delete') {
-         reqUrl = '/api/v1/files/delete'
-         payload = { path: modal.item.path }
+        reqUrl = '/api/v1/files/delete'
+        payload = { path: modal.item.path }
       } else if (modal.type === 'rename') {
-         if (!modalInput) throw new Error('Nama tujuan wajib diisi.')
-         reqUrl = '/api/v1/files/rename'
-         payload = { oldPath: modal.item.path, newPath: joinPath(currentPath, modalInput) }
+        if (!modalInput) throw new Error('Nama tujuan wajib diisi.')
+        reqUrl = '/api/v1/files/rename'
+        payload = { oldPath: modal.item.path, newPath: joinPath(currentPath, modalInput) }
       } else if (modal.type === 'mkdir') {
-         if (!modalInput) throw new Error('Nama folder wajib diisi.')
-         reqUrl = '/api/v1/files/mkdir'
-         payload = { path: joinPath(currentPath, modalInput) }
+        if (!modalInput) throw new Error('Nama folder wajib diisi.')
+        reqUrl = '/api/v1/files/mkdir'
+        payload = { path: joinPath(currentPath, modalInput) }
       } else if (modal.type === 'touch') {
-         if (!modalInput) throw new Error('Nama berkas wajib diisi.')
-         reqUrl = '/api/v1/files/touch'
-         payload = { path: joinPath(currentPath, modalInput) }
+        if (!modalInput) throw new Error('Nama berkas wajib diisi.')
+        reqUrl = '/api/v1/files/touch'
+        payload = { path: joinPath(currentPath, modalInput) }
+      } else if (modal.type === 'compress') {
+        if (!modalInput) throw new Error('Nama arsip wajib diisi.')
+        reqUrl = '/api/v1/files/compress'
+        payload = { target: modal.item.path, destName: joinPath(currentPath, modalInput) }
+      } else if (modal.type === 'extract') {
+        if (!modalInput) throw new Error('Nama folder ekstraksi wajib diisi.')
+        reqUrl = '/api/v1/files/extract'
+        payload = { source: modal.item.path, dest: joinPath(currentPath, modalInput) }
       } else if (modal.type === 'chmod') {
-         const numericMode = parseInt(chmodMode, 8)
-         if (isNaN(numericMode)) throw new Error('Format oktal tidak valid (Cth: 0644).')
-         reqUrl = '/api/v1/files/chmod'
-         payload = { path: modal.item.path, mode: numericMode, recursive: chmodRecursive }
+        const numericMode = parseInt(chmodMode, 8)
+        if (isNaN(numericMode)) throw new Error('Format oktal tidak valid (Cth: 0644).')
+        reqUrl = '/api/v1/files/chmod'
+        payload = { path: modal.item.path, mode: numericMode, recursive: chmodRecursive }
       }
-      
+
       await axios.post(reqUrl, payload, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true })
       setModal(null)
       loadDirectory(currentPath)
@@ -150,7 +168,7 @@ export function FileManagerWindow() {
     const m = parseOctal(currentOctalStr)
     const val = m[position]
     const hasBit = (val & bit) === bit
-    
+
     if (hasBit) m[position] -= bit
     else m[position] += bit
 
@@ -177,6 +195,16 @@ export function FileManagerWindow() {
       description = 'Ganti nama berkas berserta ekstensinya pada baris di bawah.'
       icon = <Edit2 className="text-sky-400" size={32} />
       confirmText = 'Terapkan'
+    } else if (modal.type === 'compress') {
+      title = 'Kompres Arsip'
+      description = `Kompres <strong>${modal.item.name}</strong> ke format .zip / .tar.gz.`
+      icon = <Archive className="text-amber-400" size={32} />
+      confirmText = 'Kompres'
+    } else if (modal.type === 'extract') {
+      title = 'Ekstrak Arsip'
+      description = `Destinasi (folder tujuan) ekstrak untuk <strong>${modal.item.name}</strong>.`
+      icon = <PackageOpen className="text-sky-400" size={32} />
+      confirmText = 'Ekstrak'
     } else if (modal.type === 'mkdir') {
       title = 'Buat Folder Baru'
       description = 'Masukkan nama koleksi/direktori tanpa karakter terlarang (/, null).'
@@ -205,15 +233,15 @@ export function FileManagerWindow() {
         <p className="mb-6 text-[12.5px] leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: description }} />
 
         {/* INPUT AREA */}
-        {['rename', 'mkdir', 'touch'].includes(modal.type) && (
+        {['rename', 'mkdir', 'touch', 'compress', 'extract'].includes(modal.type) && (
           <div className="w-full mb-6">
-            <input 
+            <input
               autoFocus
               className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
               placeholder={modal.type === 'rename' ? modal.item.name : 'Ketik di sini...'}
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
-              onKeyDown={(e) => { if(e.key === 'Enter') executeModal() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
             />
           </div>
         )}
@@ -243,21 +271,21 @@ export function FileManagerWindow() {
                 )
               })}
             </div>
-            
+
             <div className="flex items-center justify-between px-2 gap-3">
               <div className="flex items-center gap-3">
                 <label className="text-[12px] font-semibold text-slate-400 uppercase tracking-widest">Octal</label>
-                <input 
-                  value={chmodMode} 
+                <input
+                  value={chmodMode}
                   onChange={e => setChmodMode(e.target.value)}
-                  className="w-20 bg-slate-900/80 border border-white/10 rounded-lg py-1 px-3 text-[13px] text-sky-400 font-mono outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner" 
-                  onKeyDown={(e) => { if(e.key === 'Enter') executeModal() }}
+                  className="w-20 bg-slate-900/80 border border-white/10 rounded-lg py-1 px-3 text-[13px] text-sky-400 font-mono outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner"
+                  onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
                 />
               </div>
               {modal.item.isDir && (
                 <label className="flex items-center gap-2 text-[11.5px] font-medium text-amber-200/80 cursor-pointer hover:text-amber-200 transition">
-                  <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5 cursor-pointer" /> 
-                  Terapkan Rekursif 
+                  <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5 cursor-pointer" />
+                  Terapkan Rekursif
                 </label>
               )}
             </div>
@@ -289,7 +317,7 @@ export function FileManagerWindow() {
     const rect = containerRef.current.getBoundingClientRect()
     const menuWidth = 180
     const menuHeight = 220
-    
+
     let top = menu.y - rect.top
     let left = menu.x - rect.left
 
@@ -301,7 +329,7 @@ export function FileManagerWindow() {
 
   return (
     <div ref={containerRef} className="flex flex-col h-full bg-slate-50 text-slate-800 relative select-none" style={{ background: 'var(--win-bg)' }} onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }}>
-      
+
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-1.5 p-2 px-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] border-b border-white/5 bg-slate-100/5 backdrop-blur-md">
         <button
@@ -403,9 +431,9 @@ export function FileManagerWindow() {
               {item.isDir ? '--' : formatSize(item.size)}
             </div>
             <div className="flex items-center">
-               <div className="text-[11px] opacity-60 font-mono tracking-tighter bg-slate-200/60 rounded max-w-full px-1.5 py-0.5">
-                 {item.mode}
-               </div>
+              <div className="text-[11px] opacity-60 font-mono tracking-tighter bg-slate-200/60 rounded max-w-full px-1.5 py-0.5">
+                {item.mode}
+              </div>
             </div>
             <div className="text-[11px] opacity-60 p-1 truncate font-medium">
               {formatDate(item.modified)}
@@ -413,7 +441,7 @@ export function FileManagerWindow() {
           </div>
         ))}
       </div>
-      
+
       {/* ── Status Bar ── */}
       <div className="px-4 py-1.5 bg-slate-200/30 border-t border-slate-200/50 text-[11px] text-slate-500 flex justify-between tracking-wide font-medium">
         <span>{data ? `${(data.contents || []).length} item(s)` : 'Memuat objek...'}</span>
@@ -479,14 +507,24 @@ export function FileManagerWindow() {
               <Key size={13} className="text-emerald-500" /> Permission ...
             </button>
 
+            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item })}>
+              <Archive size={13} className="text-amber-500" /> Compress ...
+            </button>
+
+            {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item })}>
+                <PackageOpen size={13} className="text-emerald-600" /> Extract Here ...
+              </button>
+            )}
+
             {!menu.item.isDir && (
               <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleDownload(menu.item)}>
                 <Download size={13} className="text-indigo-500" /> Download
               </button>
             )}
-            
+
             <div className="border-t border-slate-100/80 my-1"></div>
-            
+
             <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-red-50 text-red-600 font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item })}>
               <Trash size={13} className="group-hover:scale-110 transition-transform" /> Delete ...
             </button>
