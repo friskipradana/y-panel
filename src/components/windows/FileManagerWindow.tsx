@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X, Plus } from 'lucide-react'
+import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X, Plus, Copy, ClipboardPaste, Scissors } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
@@ -64,8 +64,9 @@ export function FileManagerWindow() {
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
-  const [menu, setMenu] = useState<{ x: number; y: number; item: FileNode } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; item?: FileNode; targetPath: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [clipboard, setClipboard] = useState<{ item: FileNode; mode: 'cut' | 'copy' } | null>(null)
 
   // Internal Custom Modal State
   const [modal, setModal] = useState<ModalType | null>(null)
@@ -265,6 +266,45 @@ export function FileManagerWindow() {
       await loadDirectory(activeTab.currentPath, activeTabId)
     } catch (err: any) {
       alertLib.fire('Gagal Memindahkan', err?.response?.data?.error || err.message || 'Tidak dapat memindahkan item.', 'error', 'file-manager')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const setClipboardItem = (item: FileNode, mode: 'cut' | 'copy') => {
+    setMenu(null)
+    setClipboard({ item, mode })
+  }
+
+  const handlePasteClipboard = async (destinationDir: string) => {
+    if (!clipboard) return
+
+    const sourceName = clipboard.item.path.split('/').pop() || clipboard.item.path.split('\\').pop() || ''
+    const destinationPath = joinPath(destinationDir, sourceName)
+    if (clipboard.item.path === destinationPath) {
+      setMenu(null)
+      return
+    }
+
+    setMenu(null)
+    setModalLoading(true)
+    try {
+      const endpoint = clipboard.mode === 'cut' ? '/api/v1/files/move' : '/api/v1/files/copy'
+      await axios.post(endpoint, {
+        oldPath: clipboard.item.path,
+        newPath: destinationPath
+      }, {
+        baseURL: import.meta.env.VITE_AGENT_BASE,
+        withCredentials: true
+      })
+
+      if (clipboard.mode === 'cut') {
+        setClipboard(null)
+      }
+
+      await loadDirectory(activeTab.currentPath, activeTabId)
+    } catch (err: any) {
+      alertLib.fire('Gagal Paste', err?.response?.data?.error || err.message || 'Tidak dapat menempelkan item.', 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -473,7 +513,16 @@ export function FileManagerWindow() {
   }
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full bg-slate-50 text-slate-800 relative select-none" style={{ background: 'var(--win-bg)' }} onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }}>
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full bg-slate-50 text-slate-800 relative select-none"
+      style={{ background: 'var(--win-bg)' }}
+      onClick={() => setMenu(null)}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        setMenu({ x: e.clientX, y: e.clientY, targetPath: activeTab.currentPath })
+      }}
+    >
 
       {/* ── Tabs Strip ── */}
       <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: 'var(--win-bg)' }}>
@@ -647,7 +696,7 @@ export function FileManagerWindow() {
             onContextMenu={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              setMenu({ x: e.clientX, y: e.clientY, item })
+              setMenu({ x: e.clientX, y: e.clientY, item, targetPath: item.isDir ? item.path : activeTab.currentPath })
             }}
             onDoubleClick={() => {
               if (item.isDir) {
@@ -724,44 +773,65 @@ export function FileManagerWindow() {
             onContextMenu={(e) => e.preventDefault()}
           >
             <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100/80 mb-1 truncate max-w-[170px]">
-              {menu.item.name}
+              {menu.item ? menu.item.name : menu.targetPath}
             </div>
 
-            {!menu.item.isDir && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleEdit(menu.item)}>
+            {menu.item && !menu.item.isDir && (
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleEdit(menu.item!)}>
                 <Edit2 size={13} className="text-sky-500" /> Open Editor
               </button>
             )}
 
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item })}>
-              <Edit2 size={13} className="text-slate-400" /> Rename ...
-            </button>
+            {menu.item && (
+              <>
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
+                  <Scissors size={13} className="text-amber-500" /> Cut
+                </button>
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
+                  <Copy size={13} className="text-sky-500" /> Copy
+                </button>
+              </>
+            )}
 
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item })}>
-              <Key size={13} className="text-emerald-500" /> Permission ...
-            </button>
-
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item })}>
-              <Archive size={13} className="text-amber-500" /> Compress ...
-            </button>
-
-            {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item })}>
-                <PackageOpen size={13} className="text-emerald-600" /> Extract Here ...
+            {clipboard && (
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-emerald-50 text-slate-700 font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
+                <ClipboardPaste size={13} className="text-emerald-600" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'}
               </button>
             )}
 
-            {!menu.item.isDir && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleDownload(menu.item)}>
-                <Download size={13} className="text-indigo-500" /> Download
-              </button>
+            {menu.item && (
+              <>
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
+                  <Edit2 size={13} className="text-slate-400" /> Rename ...
+                </button>
+
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
+                  <Key size={13} className="text-emerald-500" /> Permission ...
+                </button>
+
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
+                  <Archive size={13} className="text-amber-500" /> Compress ...
+                </button>
+
+                {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
+                    <PackageOpen size={13} className="text-emerald-600" /> Extract Here ...
+                  </button>
+                )}
+
+                {!menu.item.isDir && (
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleDownload(menu.item!)}>
+                    <Download size={13} className="text-indigo-500" /> Download
+                  </button>
+                )}
+
+                <div className="border-t border-slate-100/80 my-1"></div>
+
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-red-50 text-red-600 font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item! })}>
+                  <Trash size={13} className="group-hover:scale-110 transition-transform" /> Delete ...
+                </button>
+              </>
             )}
-
-            <div className="border-t border-slate-100/80 my-1"></div>
-
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-red-50 text-red-600 font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item })}>
-              <Trash size={13} className="group-hover:scale-110 transition-transform" /> Delete ...
-            </button>
           </motion.div>
         )}
       </AnimatePresence>

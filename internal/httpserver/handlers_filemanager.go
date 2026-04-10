@@ -267,6 +267,100 @@ func (s *Server) handleFileManagerMove(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func copyFileContents(sourcePath, destPath string, mode os.FileMode) error {
+	src, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	return err
+}
+
+func copyPathRecursive(sourcePath, destPath string) error {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		if err := os.MkdirAll(destPath, info.Mode()); err != nil {
+			return err
+		}
+
+		entries, err := os.ReadDir(sourcePath)
+		if err != nil {
+			return err
+		}
+
+		for _, entry := range entries {
+			childSource := filepath.Join(sourcePath, entry.Name())
+			childDest := filepath.Join(destPath, entry.Name())
+			if err := copyPathRecursive(childSource, childDest); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return err
+	}
+
+	return copyFileContents(sourcePath, destPath, info.Mode())
+}
+
+func (s *Server) handleFileManagerCopy(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		OldPath string `json:"oldPath"`
+		NewPath string `json:"newPath"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+
+	sourcePath := filepath.Clean(payload.OldPath)
+	destPath := filepath.Clean(payload.NewPath)
+	if sourcePath == "/" || destPath == "/" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat disalin"))
+		return
+	}
+
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, errors.New("Sumber tidak ditemukan"))
+		return
+	}
+
+	if _, err := os.Stat(destPath); err == nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Tujuan sudah ada"))
+		return
+	}
+
+	if info.IsDir() {
+		prefix := sourcePath + string(os.PathSeparator)
+		if strings.HasPrefix(destPath+string(os.PathSeparator), prefix) {
+			s.writeError(w, http.StatusBadRequest, errors.New("Folder tidak dapat disalin ke dalam dirinya sendiri"))
+			return
+		}
+	}
+
+	if err := copyPathRecursive(sourcePath, destPath); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menyalin item: "+err.Error()))
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func (s *Server) handleFileManagerTouch(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Path string `json:"path"`
