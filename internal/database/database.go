@@ -248,7 +248,54 @@ func (m *Manager) RecordRuntimeLog(service, level, message string, metadata map[
 		return
 	}
 	metadataJSON := marshalJSON(metadata)
-	_, _ = m.db.Exec(`INSERT INTO runtime_logs (service, level, message, metadata_json) VALUES (?, ?, ?, ?)`, service, level, message, metadataJSON)
+	
+	// Execute async
+	go func() {
+		_, _ = m.db.Exec(`
+			INSERT INTO runtime_logs (service, level, message, metadata_json)
+			VALUES (?, ?, ?, ?)
+		`, service, level, message, metadataJSON)
+	}()
+}
+
+func (m *Manager) TruncateData(target string, days int) (int64, error) {
+	if !m.IsConnected() || m.db == nil {
+		return 0, fmt.Errorf("database not connected")
+	}
+	if days < 0 {
+		days = 0
+	}
+	
+	var table string
+	switch target {
+	case "runtime_logs":
+		table = "runtime_logs"
+	case "settings_audit":
+		table = "settings_audit"
+	case "changelog_entries":
+		table = "changelog_entries"
+	case "terminal_presets":
+		table = "terminal_presets"
+	case "all":
+		// Truncate runtime logs and settings audit only for 'all'
+		var total int64
+		if res, err := m.db.Exec("DELETE FROM runtime_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)", days); err == nil {
+			if aff, err := res.RowsAffected(); err == nil { total += aff }
+		}
+		if res, err := m.db.Exec("DELETE FROM settings_audit WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)", days); err == nil {
+			if aff, err := res.RowsAffected(); err == nil { total += aff }
+		}
+		return total, nil
+	default:
+		return 0, fmt.Errorf("invalid target table: %s", target)
+	}
+
+	query := fmt.Sprintf("DELETE FROM %s WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)", table)
+	res, err := m.db.Exec(query, days)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (m *Manager) RecordSettingsAudit(username, hostname, timezone string, nameservers []string) {

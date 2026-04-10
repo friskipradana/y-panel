@@ -155,6 +155,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/system/logs", s.requireAuth(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuth(http.HandlerFunc(s.handleSystemChangelog)))
 	s.mux.Handle("GET /api/v1/database/status", s.requireAuth(http.HandlerFunc(s.handleDatabaseStatus)))
+	s.mux.Handle("POST /api/v1/database/truncate", s.requireAuth(http.HandlerFunc(s.handleDatabaseTruncate)))
 	s.mux.Handle("GET /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleGetSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleUpdateSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelPort)))
@@ -347,6 +348,48 @@ func (s *Server) handleDatabaseStatus(w http.ResponseWriter, _ *http.Request) {
 		Status:        s.database.Status(),
 		RuntimeLogs:   runtimeLogs,
 		SettingsAudit: settingsAudit,
+	})
+}
+
+type truncateDataRequest struct {
+	Target string `json:"target"`
+	Days   int    `json:"days"`
+}
+
+func (s *Server) handleDatabaseTruncate(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	if !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "database not connected"})
+		return
+	}
+
+	var req truncateDataRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
+		return
+	}
+
+	if req.Target == "" || req.Days < 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid target or days parameter"})
+		return
+	}
+
+	affected, err := s.database.TruncateData(req.Target, req.Days)
+	if err != nil {
+		log.Printf("[database] truncate failed target=%q days=%d remote=%s err=%v", req.Target, req.Days, remoteAddr(r), err)
+		s.recordRuntimeLog("error", "database truncate failed", map[string]any{"target": req.Target, "days": req.Days, "remote": remoteAddr(r), "error": err.Error()})
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	username, _ := s.currentUser(r)
+	log.Printf("[database] truncate success target=%q days=%d affected=%d remote=%s user=%q", req.Target, req.Days, affected, remoteAddr(r), username)
+	s.recordRuntimeLog("info", "database truncated", map[string]any{"target": req.Target, "days": req.Days, "affected": affected, "user": username, "remote": remoteAddr(r)})
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":       true,
+		"affected": affected,
 	})
 }
 

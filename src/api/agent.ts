@@ -106,6 +106,9 @@ export const getSystemChangelog = () =>
 export const getDatabaseStatus = () =>
   agentApi.get<DatabaseStatusResponse>('/api/v1/database/status').then((r) => r.data)
 
+export const truncateDatabaseData = (target: string, days: number) =>
+  agentApi.post<{ ok: boolean; affected: number }>('/api/v1/database/truncate', { target, days }).then((r) => r.data)
+
 export const getEditableSystemSettings = () =>
   agentApi.get<EditableSystemSettings>('/api/v1/settings/system').then((r) => r.data)
 

@@ -1,5 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
+import { GlobalAlert } from '@/components/alert/GlobalAlert'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
@@ -370,6 +372,8 @@ function AppShell() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <GlobalAlert />
+      <Toaster theme="dark" position="top-center" richColors />
       <AppShell />
     </QueryClientProvider>
   )

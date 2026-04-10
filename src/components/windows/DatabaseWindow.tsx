@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-react'
-import { getDatabaseStatus } from '@/api/agent'
+import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
+import { alertLib } from '@/lib/alert'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
+const TRUNCATE_DAYS = [3, 7, 14, 30, 60]
+const TRUNCATE_TARGETS = [
+  { label: 'Semua (Logs & Audit)', value: 'all' },
+  { label: 'Runtime Logs', value: 'runtime_logs' },
+  { label: 'Settings Audit', value: 'settings_audit' },
+]
 
 export function DatabaseWindow() {
   const query = useQuery({
@@ -15,6 +22,42 @@ export function DatabaseWindow() {
 
   const [logQuery, setLogQuery] = useState('')
   const [logLimit, setLogLimit] = useState(10)
+
+  const [truncateTarget, setTruncateTarget] = useState('all')
+  const [truncateDay, setTruncateDay] = useState(7)
+  const [truncating, setTruncating] = useState(false)
+
+  const handleTruncate = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'Potong Data',
+      `Anda yakin ingin menghapus arsip <b>${truncateTarget}</b> yang umurnya lebih dari <b>${truncateDay} hari</b>?<br/><br/>Operasi ini bersifat permanen dan tidak dapat dibatalkan.`,
+      'Ya, Hapus',
+      'Batal',
+      'warning',
+      'database'
+    )
+    
+    if (!isConfirmed) return
+
+    setTruncating(true)
+    alertLib.showLoading('Memotong Data...', 'Proses ini mungkin memakan waktu beberapa saat tergantung ukuran database Anda.', 'database')
+    
+    try {
+      const res = await truncateDatabaseData(truncateTarget, truncateDay)
+      alertLib.close()
+      setTimeout(() => {
+        alertLib.fire('Sukses', `Berhasil memotong ${res.affected} baris data kedaluwarsa.`, 'success', 'database')
+      }, 300)
+      void query.refetch()
+    } catch (e: any) {
+      alertLib.close()
+      setTimeout(() => {
+        alertLib.fire('Gagal', `Gagal memotong data: ${e.response?.data?.error || e.message}`, 'error', 'database')
+      }, 300)
+    } finally {
+      setTruncating(false)
+    }
+  }
 
   const status = query.data?.status
   const runtimeLogs = query.data?.runtimeLogs ?? []
@@ -66,14 +109,37 @@ export function DatabaseWindow() {
               Pantau koneksi database, jumlah data persistensi, runtime log terbaru, dan jejak audit perubahan host dari backend UI Panel.
             </p>
           </div>
-          <button
-            id="database-refresh"
-            onClick={() => void query.refetch()}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
-          >
-            <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
-            Refresh status
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={truncateTarget}
+              onChange={(e) => setTruncateTarget(e.target.value)}
+              className="rounded-full border border-white/14 bg-white/10 px-3 py-2 text-[12px] font-medium text-white outline-none focus:bg-white/20"
+            >
+              {TRUNCATE_TARGETS.map((t) => <option key={t.value} value={t.value} className="text-slate-800">{t.label}</option>)}
+            </select>
+            <select
+              value={truncateDay}
+              onChange={(e) => setTruncateDay(Number(e.target.value))}
+              className="rounded-full border border-white/14 bg-white/10 px-3 py-2 text-[12px] font-medium text-white outline-none focus:bg-white/20"
+            >
+              {TRUNCATE_DAYS.map((d) => <option key={d} value={d} className="text-slate-800">&gt; {d} hari</option>)}
+            </select>
+            <button
+              onClick={() => void handleTruncate()}
+              disabled={truncating}
+              className="rounded-full bg-red-500/80 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+            >
+              {truncating ? 'Memotong...' : 'Potong'}
+            </button>
+            <button
+              id="database-refresh"
+              onClick={() => void query.refetch()}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/14 bg-white/10 px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-white/15"
+            >
+              <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 

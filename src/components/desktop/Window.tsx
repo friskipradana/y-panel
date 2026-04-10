@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, Maximize, Minimize as ExitFullscreen, Minus, Square, X } from 'lucide-react'
 import { useWindowStore, selectFocusedId, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
+import { useAlertStore } from '@/store/alertStore'
+import { InnerAlert } from '@/components/alert/GlobalAlert'
 import type { WindowState } from '@/types'
 
 type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
@@ -37,6 +39,9 @@ export function Window({ win, children }: Props) {
   const globalFontIndex = useWindowStore(selectGlobalFontIndex)
   const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
   const isFocused = win.id === focusedId
+
+  const alertState = useAlertStore()
+  const isTargetAlert = alertState.isOpen && alertState.data?.windowId === win.kind
 
   const animation = useMemo(() => {
     if (win.lastAction === 'restore') {
@@ -408,44 +413,54 @@ export function Window({ win, children }: Props) {
             </div>
           )}
 
-          <div
-            style={{
-              flex: 1,
-              overflow: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'hidden' : 'auto',
-              padding: win.isFullscreen
-                ? 0
-                : (win.kind === 'host-terminal' || win.kind === 'system-logs')
-                  ? 0
-                  : win.kind === 'system'
-                    ? '16px 16px 20px'
-                    : win.kind === 'docs'
-                      ? '14px 14px 18px'
-                      : '16px 16px 20px',
-              fontSize: 12,
-              color: 'var(--win-text)',
-              lineHeight: 1.65,
-              background: win.isFullscreen ? 'var(--win-bg)' : 'var(--win-content-bg)',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 0,
-            }}
-          >
+          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
             <div
               style={{
-                minHeight: '100%',
-                height: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? '100%' : undefined,
-                display: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'flex' : undefined,
-                flexDirection: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'column' : undefined,
-                fontFamily: contentFontFamily,
-                fontWeight: textAccent.bold ? 600 : 400,
-                fontStyle: textAccent.italic ? 'italic' : 'normal',
-                textDecoration: textAccent.underline ? 'underline' : 'none',
-                zoom: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 1 : contentZoom,
-                transformOrigin: 'top left',
+                flex: 1,
+                overflow: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'hidden' : 'auto',
+                padding: win.isFullscreen
+                  ? 0
+                  : (win.kind === 'host-terminal' || win.kind === 'system-logs')
+                    ? 0
+                    : win.kind === 'system'
+                      ? '16px 16px 20px'
+                      : win.kind === 'docs'
+                        ? '14px 14px 18px'
+                        : '16px 16px 20px',
+                fontSize: 12,
+                color: 'var(--win-text)',
+                lineHeight: 1.65,
+                background: win.isFullscreen ? 'var(--win-bg)' : 'var(--win-content-bg)',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
               }}
             >
-              {children}
+              <div
+                style={{
+                  minHeight: '100%',
+                  height: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? '100%' : undefined,
+                  display: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'flex' : undefined,
+                  flexDirection: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'column' : undefined,
+                  fontFamily: contentFontFamily,
+                  fontWeight: textAccent.bold ? 600 : 400,
+                  fontStyle: textAccent.italic ? 'italic' : 'normal',
+                  textDecoration: textAccent.underline ? 'underline' : 'none',
+                  zoom: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 1 : contentZoom,
+                  transformOrigin: 'top left',
+                }}
+              >
+                {children}
+              </div>
             </div>
+
+            <AnimatePresence>
+              {isTargetAlert && (
+                <div className="absolute inset-0 z-[100] flex items-center justify-center overflow-hidden">
+                  <InnerAlert data={alertState.data} closeDialog={alertState.closeDialog} />
+                </div>
+              )}
+            </AnimatePresence>
           </div>
 
           {!isExpanded && RESIZE_HANDLES.map((handle) => (
