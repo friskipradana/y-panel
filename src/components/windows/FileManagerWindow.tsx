@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen } from 'lucide-react'
+import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
@@ -42,13 +42,27 @@ type ModalType =
   | { type: 'mkdir' }
   | { type: 'touch' }
 
+interface FileManagerTab {
+  id: string
+  currentPath: string
+  inputPath: string
+  data: DirResponse | null
+  loading: boolean
+}
+
+let nextFileManagerTabId = 1
+
 export function FileManagerWindow() {
   const { openWindow } = useWindowStore()
   const { setPendingFile } = useEditorStore()
 
-  const [currentPath, setCurrentPath] = useState('/')
-  const [data, setData] = useState<DirResponse | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [tabs, setTabs] = useState<FileManagerTab[]>([
+    { id: 'tab-0', currentPath: '/', inputPath: '/', data: null, loading: false }
+  ])
+  const [activeTabId, setActiveTabId] = useState<string>('tab-0')
+  const [modalLoading, setModalLoading] = useState(false)
+
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
   const [menu, setMenu] = useState<{ x: number; y: number; item: FileNode } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -59,8 +73,30 @@ export function FileManagerWindow() {
   const [chmodMode, setChmodMode] = useState('0644')
   const [chmodRecursive, setChmodRecursive] = useState(false)
 
-  const loadDirectory = useCallback(async (path: string) => {
-    setLoading(true)
+  // Tab Strip Drag
+  const tabsScrollRef = useRef<HTMLDivElement>(null)
+  const isTabDraggingRef = useRef(false)
+  const tabStartXRef = useRef(0)
+  const tabScrollLeftRef = useRef(0)
+
+  const handleTabsMouseDown = (e: React.MouseEvent) => {
+    if (!tabsScrollRef.current) return
+    isTabDraggingRef.current = true
+    tabStartXRef.current = e.pageX - tabsScrollRef.current.offsetLeft
+    tabScrollLeftRef.current = tabsScrollRef.current.scrollLeft
+  }
+  const handleTabsMouseLeave = () => { isTabDraggingRef.current = false }
+  const handleTabsMouseUp = () => { isTabDraggingRef.current = false }
+  const handleTabsMouseMove = (e: React.MouseEvent) => {
+    if (!isTabDraggingRef.current || !tabsScrollRef.current) return
+    e.preventDefault()
+    const x = e.pageX - tabsScrollRef.current.offsetLeft
+    const walk = (x - tabStartXRef.current) * 1.5
+    tabsScrollRef.current.scrollLeft = tabScrollLeftRef.current - walk
+  }
+
+  const loadDirectory = useCallback(async (path: string, tabId: string) => {
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: true } : t))
     setMenu(null)
     setModal(null)
     try {
@@ -68,18 +104,61 @@ export function FileManagerWindow() {
         baseURL: import.meta.env.VITE_AGENT_BASE,
         withCredentials: true
       })
-      setData({ ...res.data, contents: res.data.contents || [] })
-      setCurrentPath(res.data.path)
+      setTabs(prev => prev.map(t => t.id === tabId ? {
+        ...t,
+        data: { ...res.data, contents: res.data.contents || [] },
+        currentPath: res.data.path,
+        inputPath: res.data.path,
+        loading: false
+      } : t))
     } catch (err: any) {
       alertLib.fire('Akses Ditolak', err?.response?.data?.error || 'Gagal membaca direktori.', 'error', 'file-manager')
-    } finally {
-      setLoading(false)
+      setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: false } : t))
     }
   }, [])
 
   useEffect(() => {
-    void loadDirectory(currentPath)
-  }, [loadDirectory, currentPath])
+    tabs.forEach(tab => {
+      if (!tab.data && !tab.loading && tab.currentPath === '/') {
+        void loadDirectory(tab.currentPath, tab.id)
+      }
+    })
+  }, [tabs, loadDirectory])
+
+  const setCurrentPath = (path: string) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, currentPath: path } : t))
+    void loadDirectory(path, activeTabId)
+  }
+
+  const setInputPath = (path: string) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, inputPath: path } : t))
+  }
+
+  const openNewTab = () => {
+    const id = `tab-${nextFileManagerTabId++}`
+    const newTab: FileManagerTab = {
+      id,
+      currentPath: activeTab.currentPath,
+      inputPath: activeTab.currentPath,
+      data: null,
+      loading: false
+    }
+    setTabs(prev => [...prev, newTab])
+    setActiveTabId(id)
+    void loadDirectory(activeTab.currentPath, id)
+  }
+
+  const closeTab = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (tabs.length === 1) return
+    const idx = tabs.findIndex(t => t.id === id)
+    const newTabs = tabs.filter(t => t.id !== id)
+    setTabs(newTabs)
+    if (id === activeTabId) {
+      const newActive = newTabs[Math.max(0, idx - 1)]
+      setActiveTabId(newActive.id)
+    }
+  }
 
   const joinPath = (parent: string, child: string) => parent === '/' ? `/${child}` : `${parent}/${child}`
 
@@ -118,6 +197,7 @@ export function FileManagerWindow() {
     if (!modal) return
     let reqUrl = ''
     let payload = {}
+    setModalLoading(true)
     try {
       if (modal.type === 'delete') {
         reqUrl = '/api/v1/files/delete'
@@ -125,23 +205,23 @@ export function FileManagerWindow() {
       } else if (modal.type === 'rename') {
         if (!modalInput) throw new Error('Nama tujuan wajib diisi.')
         reqUrl = '/api/v1/files/rename'
-        payload = { oldPath: modal.item.path, newPath: joinPath(currentPath, modalInput) }
+        payload = { oldPath: modal.item.path, newPath: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'mkdir') {
         if (!modalInput) throw new Error('Nama folder wajib diisi.')
         reqUrl = '/api/v1/files/mkdir'
-        payload = { path: joinPath(currentPath, modalInput) }
+        payload = { path: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'touch') {
         if (!modalInput) throw new Error('Nama berkas wajib diisi.')
         reqUrl = '/api/v1/files/touch'
-        payload = { path: joinPath(currentPath, modalInput) }
+        payload = { path: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'compress') {
         if (!modalInput) throw new Error('Nama arsip wajib diisi.')
         reqUrl = '/api/v1/files/compress'
-        payload = { target: modal.item.path, destName: joinPath(currentPath, modalInput) }
+        payload = { target: modal.item.path, destName: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'extract') {
         if (!modalInput) throw new Error('Nama folder ekstraksi wajib diisi.')
         reqUrl = '/api/v1/files/extract'
-        payload = { source: modal.item.path, dest: joinPath(currentPath, modalInput) }
+        payload = { source: modal.item.path, dest: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'chmod') {
         const numericMode = parseInt(chmodMode, 8)
         if (isNaN(numericMode)) throw new Error('Format oktal tidak valid (Cth: 0644).')
@@ -151,9 +231,11 @@ export function FileManagerWindow() {
 
       await axios.post(reqUrl, payload, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true })
       setModal(null)
-      loadDirectory(currentPath)
+      loadDirectory(activeTab.currentPath, activeTabId)
     } catch (err: any) {
       alertLib.fire('Kegagalan Operasi', err?.response?.data?.error || err.message || 'Terjadi kesalahan internal.', 'error', 'file-manager')
+    } finally {
+      setModalLoading(false)
     }
   }
 
@@ -296,15 +378,18 @@ export function FileManagerWindow() {
         <div className="flex w-full items-center justify-center gap-3">
           <button
             onClick={() => setModal(null)}
-            className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[12.5px] font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+            disabled={modalLoading}
+            className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[12.5px] font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-slate-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Batal
           </button>
           <button
             onClick={executeModal}
-            className={`flex-1 rounded-full border border-white/10 px-4 py-2.5 text-[12.5px] font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white/50 ${confirmBtn}`}
+            disabled={modalLoading}
+            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-white/10 px-4 py-2.5 text-[12.5px] font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
           >
-            {confirmText}
+            {modalLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {modalLoading ? 'Memproses...' : confirmText}
           </button>
         </div>
       </div>
@@ -330,11 +415,57 @@ export function FileManagerWindow() {
   return (
     <div ref={containerRef} className="flex flex-col h-full bg-slate-50 text-slate-800 relative select-none" style={{ background: 'var(--win-bg)' }} onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }}>
 
+      {/* ── Tabs Strip ── */}
+      <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: 'var(--win-bg)' }}>
+        <div
+          className="flex flex-1 overflow-x-auto no-scrollbar items-end border-b border-black/10 transition-colors"
+          ref={tabsScrollRef}
+          onMouseDown={handleTabsMouseDown}
+          onMouseLeave={handleTabsMouseLeave}
+          onMouseUp={handleTabsMouseUp}
+          onMouseMove={handleTabsMouseMove}
+          style={{ cursor: isTabDraggingRef.current ? 'grabbing' : 'auto' }}
+        >
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTabId
+            const tColor = isActive ? '#0284c7' : '#64748b'
+            const tBg = isActive ? '#fff' : 'transparent'
+
+            return (
+              <div
+                key={tab.id}
+                className="flex items-center gap-2 px-3 h-[35px] border-r border-black/5 shrink-0 text-[12.5px] transition select-none group relative cursor-pointer"
+                style={{
+                  background: tBg,
+                  color: tColor,
+                  borderTop: isActive ? '2px solid #0ea5e9' : '2px solid transparent'
+                }}
+                onClick={() => setActiveTabId(tab.id)}
+              >
+                <Folder size={14} className={isActive ? 'text-sky-500' : 'text-slate-400'} />
+                <span className="truncate max-w-[150px] font-medium">{tab.currentPath.split('/').pop() || '/'}</span>
+                {tabs.length > 1 && (
+                  <button
+                    className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 transition opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => closeTab(tab.id, e)}
+                  >
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-black/5 transition text-slate-500 border-b border-black/10 shrink-0" onClick={openNewTab} title="New Tab">
+          <FolderPlus size={16} />
+        </button>
+      </div>
+
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-1.5 p-2 px-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] border-b border-white/5 bg-slate-100/5 backdrop-blur-md">
         <button
-          disabled={!data?.parent}
-          onClick={() => { if (data?.parent) setCurrentPath(data.parent) }}
+          disabled={!activeTab.data?.parent}
+          onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }}
           className="p-1.5 rounded-md hover:bg-slate-200/50 disabled:opacity-30 transition text-slate-600 outline-none"
           title="Ke direktori induk"
         >
@@ -344,10 +475,11 @@ export function FileManagerWindow() {
           <span className="text-sm text-slate-500 hidden sm:inline select-none font-medium">Path:</span>
           <input
             className="flex-1 bg-transparent border-none outline-none text-[13.5px] font-medium text-slate-700 min-w-0"
-            value={currentPath}
-            onChange={(e) => setCurrentPath(e.target.value)}
+            value={activeTab.inputPath}
+            onChange={(e) => setInputPath(e.target.value)}
+            onBlur={() => setCurrentPath(activeTab.inputPath)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void loadDirectory(currentPath)
+              if (e.key === 'Enter') setCurrentPath(activeTab.inputPath)
             }}
           />
         </div>
@@ -370,11 +502,11 @@ export function FileManagerWindow() {
           </button>
 
           <button
-            onClick={() => loadDirectory(currentPath)}
+            onClick={() => loadDirectory(activeTab.currentPath, activeTabId)}
             className="p-1.5 ml-1 rounded-md hover:bg-slate-200/50 transition text-slate-600 relative outline-none"
             title="Refresh"
           >
-            {loading ? <Loader2 size={15} className="animate-spin text-sky-600" /> : <RefreshCw size={15} />}
+            {activeTab.loading ? <Loader2 size={15} className="animate-spin text-sky-600" /> : <RefreshCw size={15} />}
           </button>
         </div>
       </div>
@@ -388,19 +520,19 @@ export function FileManagerWindow() {
       </div>
 
       {/* ── File List ── */}
-      <div className="flex-1 overflow-y-auto p-2">
-        {loading && !data && (
+      <div className="flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50">
+        {activeTab.loading && !activeTab.data && (
           <div className="flex justify-center p-8 text-sky-600">
             <Loader2 size={24} className="animate-spin" />
           </div>
         )}
-        {data && (data.contents || []).length === 0 && (
+        {activeTab.data && (activeTab.data.contents || []).length === 0 && (
           <div className="flex flex-col items-center justify-center p-14 text-slate-400">
             <Folder size={46} className="mb-3 opacity-30" />
             <p className="text-[13px] font-medium opacity-80">Folder ini kosong</p>
           </div>
         )}
-        {data && (data.contents || []).map((item) => (
+        {activeTab.data && (activeTab.data.contents || []).map((item) => (
           <div
             key={item.path}
             draggable={!item.isDir}
@@ -444,7 +576,7 @@ export function FileManagerWindow() {
 
       {/* ── Status Bar ── */}
       <div className="px-4 py-1.5 bg-slate-200/30 border-t border-slate-200/50 text-[11px] text-slate-500 flex justify-between tracking-wide font-medium">
-        <span>{data ? `${(data.contents || []).length} item(s)` : 'Memuat objek...'}</span>
+        <span>{activeTab.data ? `${(activeTab.data.contents || []).length} item(s)` : 'Memuat objek...'}</span>
         <span className="text-emerald-700/70 font-bold uppercase flex items-center gap-1">
           Root Access
         </span>
