@@ -1486,6 +1486,11 @@ body {
   overflow-x: auto;
   flex: 1 1 0;
   scrollbar-width: none;
+  cursor: grab;
+  user-select: none;
+}
+.ht-presets-scroll:active {
+  cursor: grabbing;
 }
 .ht-presets-scroll::-webkit-scrollbar { display: none; }
 

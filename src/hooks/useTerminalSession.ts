@@ -108,6 +108,11 @@ export function useTerminalSession() {
       setConnected(true)
       setClosed(false)
       setError(null)
+      
+      // Send the latest known terminal size immediately upon connection
+      // because ResizeObservers might have updated the ref while WS was connecting
+      const size = terminalSizeRef.current
+      socket.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }))
     }
 
     socket.onmessage = (event) => {

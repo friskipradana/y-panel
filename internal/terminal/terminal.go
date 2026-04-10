@@ -53,8 +53,6 @@ func (m *Manager) Start() (string, error) {
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",
-		fmt.Sprintf("COLUMNS=%d", defaultCols),
-		fmt.Sprintf("LINES=%d", defaultRows),
 	)
 
 	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})

@@ -115,17 +115,28 @@ function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart
         updateTerminalSize(x.cols, x.rows)
         if (count === 1) x.focus() // Focus on first try
       }
-      if (count > 12) clearInterval(interval) // Stop after 3 seconds (12 * 250ms)
+      if (count > 12) clearInterval(interval) // Stop after 3 seconds
     }, 250)
+
+    // Also strictly refit when document fonts finish loading
+    void document.fonts.ready.then(() => {
+      fitRef.current?.fit()
+      const x = xtermRef.current
+      if (x) updateTerminalSize(x.cols, x.rows)
+    })
 
     return () => clearInterval(interval)
   }, [connected, active, updateTerminalSize])
 
   useEffect(() => {
     const x = xtermRef.current; if (!x) return
-    x.options.fontFamily = fontFamily
-    x.options.fontSize   = fontSize
-    requestAnimationFrame(() => { fitRef.current?.fit(); updateTerminalSize(x.cols, x.rows) })
+    // Toggling the font family forces xterm to invalidate its character cell cache
+    x.options.fontFamily = 'serif'
+    requestAnimationFrame(() => {
+      x.options.fontFamily = fontFamily
+      x.options.fontSize = fontSize
+      requestAnimationFrame(() => { fitRef.current?.fit(); updateTerminalSize(x.cols, x.rows) })
+    })
   }, [fontFamily, fontSize, updateTerminalSize])
 
   useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
@@ -265,6 +276,40 @@ export function HostTerminalWindow() {
     }
   }
 
+  // ── Drag to scroll for presets ──────────────────────────────────────────
+  const presetsScrollRef = useRef<HTMLDivElement>(null)
+  const isDraggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const scrollLeftRef = useRef(0)
+  const hasDraggedRef = useRef(false)
+
+  const handlePresetsMouseDown = (e: React.MouseEvent) => {
+    if (!presetsScrollRef.current) return
+    isDraggingRef.current = true
+    hasDraggedRef.current = false
+    startXRef.current = e.pageX - presetsScrollRef.current.offsetLeft
+    scrollLeftRef.current = presetsScrollRef.current.scrollLeft
+  }
+  const handlePresetsMouseLeave = () => { isDraggingRef.current = false }
+  const handlePresetsMouseUp = () => { isDraggingRef.current = false }
+  const handlePresetsMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !presetsScrollRef.current) return
+    e.preventDefault()
+    const x = e.pageX - presetsScrollRef.current.offsetLeft
+    const walk = (x - startXRef.current) * 1.5
+    if (Math.abs(walk) > 3) hasDraggedRef.current = true
+    presetsScrollRef.current.scrollLeft = scrollLeftRef.current - walk
+  }
+
+  const handlePresetClick = (command: string, e: React.MouseEvent) => {
+    if (hasDraggedRef.current) {
+      e.stopPropagation()
+      e.preventDefault()
+      return
+    }
+    void runPreset(command)
+  }
+
   return (
     <div className="ht-root">
       {/* ── Tab bar ─────────────────────────────────────────────────── */}
@@ -300,12 +345,19 @@ export function HostTerminalWindow() {
 
       {/* ── Preset shortcut bar ──────────────────────────────────────── */}
       <div className="ht-footer">
-        <div className="ht-presets-scroll">
+        <div 
+          className="ht-presets-scroll"
+          ref={presetsScrollRef}
+          onMouseDown={handlePresetsMouseDown}
+          onMouseLeave={handlePresetsMouseLeave}
+          onMouseUp={handlePresetsMouseUp}
+          onMouseMove={handlePresetsMouseMove}
+        >
           {presets.map((p) => (
             <button
               key={p.id}
               className="ht-preset-btn"
-              onClick={() => void runPreset(p.command)}
+              onClick={(e) => handlePresetClick(p.command, e)}
               disabled={!activeTab.connected}
               title={p.command}
             >
