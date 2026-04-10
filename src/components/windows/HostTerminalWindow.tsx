@@ -310,16 +310,77 @@ export function HostTerminalWindow() {
     void runPreset(command)
   }
 
+  // ── Drag to scroll for tabs ─────────────────────────────────────────────
+  const tabsScrollRef = useRef<HTMLDivElement>(null)
+  const isTabDraggingRef = useRef(false)
+  const tabStartXRef = useRef(0)
+  const tabScrollLeftRef = useRef(0)
+  const tabHasDraggedRef = useRef(false)
+
+  const handleTabsMouseDown = (e: React.MouseEvent) => {
+    if (!tabsScrollRef.current) return
+    isTabDraggingRef.current = true
+    tabHasDraggedRef.current = false
+    tabStartXRef.current = e.pageX - tabsScrollRef.current.offsetLeft
+    tabScrollLeftRef.current = tabsScrollRef.current.scrollLeft
+  }
+  const handleTabsMouseLeave = () => { isTabDraggingRef.current = false }
+  const handleTabsMouseUp = () => { isTabDraggingRef.current = false }
+  const handleTabsMouseMove = (e: React.MouseEvent) => {
+    if (!isTabDraggingRef.current || !tabsScrollRef.current) return
+    e.preventDefault()
+    const x = e.pageX - tabsScrollRef.current.offsetLeft
+    const walk = (x - tabStartXRef.current) * 1.5
+    if (Math.abs(walk) > 3) tabHasDraggedRef.current = true
+    tabsScrollRef.current.scrollLeft = tabScrollLeftRef.current - walk
+  }
+
+  const handleTabClick = (id: number, e: React.MouseEvent) => {
+    if (tabHasDraggedRef.current) {
+      e.stopPropagation()
+      e.preventDefault()
+      return
+    }
+    setActiveTabId(id)
+  }
+
+  // ── Auto-focus scroll for active tab ────────────────────────────────────
+  useEffect(() => {
+    if (!tabsScrollRef.current) return
+    const container = tabsScrollRef.current
+    requestAnimationFrame(() => {
+      const activeEl = container.querySelector('.ht-tab--active') as HTMLElement | null
+      if (activeEl) {
+        const elLeft = activeEl.offsetLeft
+        const elWidth = activeEl.offsetWidth
+        const contScroll = container.scrollLeft
+        const contWidth = container.offsetWidth
+
+        // Scroll to center the tab if it's partly or completely hidden
+        if (elLeft < contScroll || elLeft + elWidth > contScroll + contWidth) {
+          container.scrollTo({ left: elLeft - contWidth / 2 + elWidth / 2, behavior: 'smooth' })
+        }
+      }
+    })
+  }, [activeTabId, tabs.length])
+
   return (
     <div className="ht-root">
       {/* ── Tab bar ─────────────────────────────────────────────────── */}
       <div className="ht-tabbar">
-        <div className="ht-tabs">
+        <div 
+          className="ht-tabs"
+          ref={tabsScrollRef}
+          onMouseDown={handleTabsMouseDown}
+          onMouseLeave={handleTabsMouseLeave}
+          onMouseUp={handleTabsMouseUp}
+          onMouseMove={handleTabsMouseMove}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               className={`ht-tab${tab.id === activeTabId ? ' ht-tab--active' : ''}`}
-              onClick={() => setActiveTabId(tab.id)}
+              onClick={(e) => handleTabClick(tab.id, e)}
             >
               <span className="ht-status-dot" style={{
                 background: tab.error ? '#f87171' : tab.connected ? '#4ade80' : '#6b7280',
