@@ -16,6 +16,8 @@ const DEFAULTS: Record<
   portainer: { title: "Portainer", icon: "🐋", width: 500, height: 420, singleton: true },
   settings: { title: "Settings", icon: "🔧", width: 920, height: 640, singleton: true },
   database: { title: "Database", icon: "🗄️", width: 980, height: 680, singleton: true },
+  "file-manager": { title: "File Manager", icon: "📁", width: 880, height: 600, singleton: true },
+  "file-editor": { title: "Code Editor", icon: "📝", width: 950, height: 700, singleton: true },
   trash: { title: "Trash", icon: "🗑️", width: 300, height: 180, singleton: true },
 };
 

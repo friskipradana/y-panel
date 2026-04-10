@@ -669,7 +669,7 @@ done
 
 chmod +x "`$REMOTE_INSTALLER_PATH"
 set +e
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash \"`$REMOTE_INSTALLER_PATH\"" >"`$REMOTE_LOG_PATH" 2>&1
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "rm -rf /usr/local/go; export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash \"`$REMOTE_INSTALLER_PATH\"" >"`$REMOTE_LOG_PATH" 2>&1
 installer_exit=`$?
 set -e
 

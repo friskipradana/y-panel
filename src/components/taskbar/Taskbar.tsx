@@ -24,6 +24,7 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Apps', kind: 'apps' },
   { label: 'Portainer', kind: 'portainer' },
   { label: 'Terminal', kind: 'host-terminal' },
+  { label: 'Files', kind: 'file-manager' },
   { label: 'System', kind: 'system' },
   { label: 'Settings', kind: 'settings' },
   { label: 'Database', kind: 'database' },
@@ -44,7 +45,7 @@ export function Taskbar({ onLogout }: TaskbarProps) {
   }, [])
 
   useEffect(() => {
-    getMe().then((me) => setUsername(me.username)).catch(() => {})
+    getMe().then((me) => setUsername(me.username)).catch(() => { })
   }, [])
 
   const handleLogout = async () => {

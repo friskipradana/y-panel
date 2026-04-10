@@ -13,6 +13,7 @@ const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'database', icon: '🗄️', label: 'Database' },
   { kind: 'system-logs', icon: '📜', label: 'System Logs' },
   { kind: 'docs', icon: '📚', label: 'Docs' },
+  { kind: 'file-manager', icon: '📁', label: 'Explorer' },
   { kind: 'changelog', icon: '🔔', label: 'Changelog' },
 ]
 
@@ -58,6 +59,8 @@ export function Dock() {
       settings: [],
       database: [],
       trash: [],
+      'file-manager': [],
+      'file-editor': [],
     })
   }, [windows])
 

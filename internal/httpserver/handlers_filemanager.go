@@ -1,0 +1,215 @@
+package httpserver
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"time"
+)
+
+type FileInfoNode struct {
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	IsDir    bool   `json:"isDir"`
+	Size     int64  `json:"size"`
+	Modified string `json:"modified"`
+	Mode     string `json:"mode"`
+}
+
+type DirectoryListResponse struct {
+	Path     string         `json:"path"`
+	Parent   string         `json:"parent,omitempty"`
+	Contents []FileInfoNode `json:"contents"`
+}
+
+func (s *Server) handleFileManagerList(w http.ResponseWriter, r *http.Request) {
+	qPath := r.URL.Query().Get("path")
+	if qPath == "" {
+		qPath = "/"
+	}
+
+	cleanPath := filepath.Clean(qPath)
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, errors.New("Path tidak ditemukan"))
+		return
+	}
+
+	if !info.IsDir() {
+		s.writeError(w, http.StatusBadRequest, errors.New("Bukan direktori"))
+		return
+	}
+
+	entries, err := os.ReadDir(cleanPath)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membaca direktori"))
+		return
+	}
+
+	var contents []FileInfoNode
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		contents = append(contents, FileInfoNode{
+			Name:     entry.Name(),
+			Path:     filepath.Join(cleanPath, entry.Name()),
+			IsDir:    entry.IsDir(),
+			Size:     info.Size(),
+			Modified: info.ModTime().Format(time.RFC3339),
+			Mode:     info.Mode().String(),
+		})
+	}
+
+	// Sort: dirs first, then alphabetical
+	sort.Slice(contents, func(i, j int) bool {
+		if contents[i].IsDir != contents[j].IsDir {
+			return contents[i].IsDir
+		}
+		return contents[i].Name < contents[j].Name
+	})
+
+	parent := filepath.Dir(cleanPath)
+	if cleanPath == "/" {
+		parent = ""
+	}
+
+	resp := DirectoryListResponse{
+		Path:     cleanPath,
+		Parent:   parent,
+		Contents: contents,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *Server) handleFileManagerRead(w http.ResponseWriter, r *http.Request) {
+	qPath := r.URL.Query().Get("path")
+	if qPath == "" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Path file harus diisi"))
+		return
+	}
+
+	cleanPath := filepath.Clean(qPath)
+	info, err := os.Stat(cleanPath)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, errors.New("File tidak ditemukan"))
+		return
+	}
+
+	if info.IsDir() {
+		s.writeError(w, http.StatusBadRequest, errors.New("Tidak dapat membaca direktori"))
+		return
+	}
+
+	file, err := os.Open(cleanPath)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuka file"))
+		return
+	}
+	defer file.Close()
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+info.Name()+"\"")
+	io.Copy(w, file)
+}
+
+type FileWritePayload struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+func (s *Server) handleFileManagerWrite(w http.ResponseWriter, r *http.Request) {
+	var payload FileWritePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+
+	if payload.Path == "" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Path file harus diisi"))
+		return
+	}
+
+	cleanPath := filepath.Clean(payload.Path)
+	info, err := os.Stat(cleanPath)
+	if err == nil && info.IsDir() {
+		s.writeError(w, http.StatusBadRequest, errors.New("Tidak dapat menimpa direktori"))
+		return
+	}
+
+	if err := os.WriteFile(cleanPath, []byte(payload.Content), 0644); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menyimpan file: "+err.Error()))
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":      true,
+		"message": "File berhasil disimpan",
+	})
+}
+
+func (s *Server) handleFileManagerDelete(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanPath := filepath.Clean(payload.Path)
+	if cleanPath == "/" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Tidak dapat menghapus root"))
+		return
+	}
+	if err := os.RemoveAll(cleanPath); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menghapus: "+err.Error()))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleFileManagerRename(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		OldPath string `json:"oldPath"`
+		NewPath string `json:"newPath"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	oldC := filepath.Clean(payload.OldPath)
+	newC := filepath.Clean(payload.NewPath)
+	if oldC == "/" || newC == "/" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat dimodifikasi"))
+		return
+	}
+	if err := os.Rename(oldC, newC); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengubah nama: "+err.Error()))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleFileManagerMkdir(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+	cleanPath := filepath.Clean(payload.Path)
+	if err := os.MkdirAll(cleanPath, 0755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat direktori: "+err.Error()))
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}

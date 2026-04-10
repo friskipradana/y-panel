@@ -20,6 +20,8 @@ const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow'
 const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
 const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
+const FileManagerWindow = lazy(() => import('@/components/windows/FileManagerWindow').then((module) => ({ default: module.FileManagerWindow })))
+const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((module) => ({ default: module.FileEditorWindow })))
 const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
   : null
@@ -78,6 +80,8 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
   changelog: () => <ChangelogWindow />,
   settings: () => <SettingsWindow />,
   database: () => <DatabaseWindow />,
+  'file-manager': () => <FileManagerWindow />,
+  'file-editor': () => <FileEditorWindow />,
   trash: () => (
     <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
       <span className="text-4xl">🗑️</span>

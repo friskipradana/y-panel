@@ -11,6 +11,8 @@ export type WindowKind =
   | 'settings'
   | 'database'
   | 'trash'
+  | 'file-manager'
+  | 'file-editor'
 
 export type WindowId = WindowKind
 

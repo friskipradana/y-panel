@@ -160,6 +160,14 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleUpdateSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelPort)))
 	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelOrigins)))
+
+	s.mux.Handle("GET /api/v1/files", s.requireAuth(http.HandlerFunc(s.handleFileManagerList)))
+	s.mux.Handle("GET /api/v1/files/read", s.requireAuth(http.HandlerFunc(s.handleFileManagerRead)))
+	s.mux.Handle("POST /api/v1/files/write", s.requireAuth(http.HandlerFunc(s.handleFileManagerWrite)))
+	s.mux.Handle("POST /api/v1/files/delete", s.requireAuth(http.HandlerFunc(s.handleFileManagerDelete)))
+	s.mux.Handle("POST /api/v1/files/rename", s.requireAuth(http.HandlerFunc(s.handleFileManagerRename)))
+	s.mux.Handle("POST /api/v1/files/mkdir", s.requireAuth(http.HandlerFunc(s.handleFileManagerMkdir)))
+
 	s.mux.Handle("POST /api/v1/settings/database/reset-password", s.requireAuth(http.HandlerFunc(s.handleResetDatabasePassword)))
 	s.mux.Handle("GET /api/v1/containers", s.requireAuth(http.HandlerFunc(s.handleContainersList)))
 	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuth(http.HandlerFunc(s.handleContainerStart)))
