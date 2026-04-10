@@ -286,33 +286,33 @@ export function SettingsWindow() {
   const mutation = useMutation({
     mutationFn: updateEditableSystemSettings,
     onSuccess: (data) => {
-      alertLib.fire('Tersimpan', 'Pengaturan identity host berhasil diterapkan ke sistem Linux.', 'success', 'system')
+      alertLib.fire('Tersimpan', 'Pengaturan identity host berhasil diterapkan ke sistem Linux.', 'success', 'settings')
       syncSettingsSnapshot(data)
     },
     onError: (err: any) => {
-      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal menyimpan settings host.', 'error', 'system')
+      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal menyimpan settings host.', 'error', 'settings')
     }
   })
 
   const panelPortMutation = useMutation({
     mutationFn: updatePanelPort,
     onSuccess: (data) => {
-      alertLib.fire('Port Diperbarui', 'Port panel berhasil diubah dan daemon telah di-restart otomatis.', 'success', 'system')
+      alertLib.fire('Port Diperbarui', 'Port panel berhasil diubah dan daemon telah di-restart otomatis.', 'success', 'settings')
       syncSettingsSnapshot(data)
     },
     onError: (err: any) => {
-      alertLib.fire('Gagal Mengubah Port', err?.message || 'Gagal memperbarui port panel.', 'error', 'system')
+      alertLib.fire('Gagal Mengubah Port', err?.message || 'Gagal memperbarui port panel.', 'error', 'settings')
     }
   })
 
   const panelOriginsMutation = useMutation({
     mutationFn: updatePanelOrigins,
     onSuccess: (data) => {
-      alertLib.fire('Origins Disimpan', 'Allowed origins CORS berhasil diperbarui.', 'success', 'system')
+      alertLib.fire('Origins Disimpan', 'Allowed origins CORS berhasil diperbarui.', 'success', 'settings')
       syncSettingsSnapshot(data)
     },
     onError: (err: any) => {
-      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal memperbarui allowed origins.', 'error', 'system')
+      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal memperbarui allowed origins.', 'error', 'settings')
     }
   })
 
@@ -320,12 +320,12 @@ export function SettingsWindow() {
     mutationFn: resetDatabasePassword,
     onSuccess: (data) => {
       setDbResetResult(data)
-      alertLib.fire('Rotasi Berhasil', 'Password root database berhasil direset. Simpan kredensial baru agar tidak hilang.', 'success', 'system')
+      alertLib.fire('Rotasi Berhasil', 'Password root database berhasil direset. Simpan kredensial baru agar tidak hilang.', 'success', 'settings')
       queryClient.invalidateQueries({ queryKey: ['database-status'] })
       queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
     },
     onError: (err: any) => {
-      alertLib.fire('Gagal Merotasi', err?.message || 'Gagal merotasi password root database.', 'error', 'system')
+      alertLib.fire('Gagal Merotasi', err?.message || 'Gagal merotasi password root database.', 'error', 'settings')
     }
   })
 
@@ -336,11 +336,11 @@ export function SettingsWindow() {
       'Ya, Simpan',
       'Batal',
       'question',
-      'system'
+      'settings'
     )
     if (isConfirmed) {
       if (!hostname.trim() || !timezone.trim()) {
-        alertLib.fire('Data Tidak Lengkap', 'Hostname dan Timezone tidak boleh dibiarkan kosong!', 'warning', 'system')
+        alertLib.fire('Data Tidak Lengkap', 'Hostname dan Timezone tidak boleh dibiarkan kosong!', 'warning', 'settings')
         return
       }
       mutation.mutate(payload)
@@ -354,7 +354,7 @@ export function SettingsWindow() {
       'Ya, Pindahkan Port',
       'Batal',
       'warning',
-      'system'
+      'settings'
     )
     if (isConfirmed) panelPortMutation.mutate(portPayload)
   }
@@ -366,7 +366,7 @@ export function SettingsWindow() {
       'Terbitkan Rules',
       'Batal',
       'question',
-      'system'
+      'settings'
     )
     if (isConfirmed) panelOriginsMutation.mutate({ originsRaw: allowedOriginsText })
   }
@@ -378,7 +378,7 @@ export function SettingsWindow() {
       'Tarik & Rotasi Sekarang',
       'Tutup',
       'warning',
-      'system'
+      'settings'
     )
     if (isConfirmed) resetDatabaseMutation.mutate()
   }
