@@ -413,7 +413,7 @@ export function Window({ win, children }: Props) {
             </div>
           )}
 
-          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', zIndex: 1 }}>
             <div
               style={{
                 flex: 1,
