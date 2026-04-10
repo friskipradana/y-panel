@@ -218,6 +218,55 @@ func (s *Server) handleFileManagerMkdir(w http.ResponseWriter, r *http.Request) 
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func (s *Server) handleFileManagerMove(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		OldPath string `json:"oldPath"`
+		NewPath string `json:"newPath"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Format payload tidak valid"))
+		return
+	}
+
+	oldPath := filepath.Clean(payload.OldPath)
+	newPath := filepath.Clean(payload.NewPath)
+	if oldPath == "/" || newPath == "/" {
+		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat dipindahkan"))
+		return
+	}
+
+	oldInfo, err := os.Stat(oldPath)
+	if err != nil {
+		s.writeError(w, http.StatusNotFound, errors.New("Sumber tidak ditemukan"))
+		return
+	}
+
+	if _, err := os.Stat(newPath); err == nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("Tujuan sudah ada"))
+		return
+	}
+
+	if oldInfo.IsDir() {
+		prefix := oldPath + string(os.PathSeparator)
+		if strings.HasPrefix(newPath+string(os.PathSeparator), prefix) {
+			s.writeError(w, http.StatusBadRequest, errors.New("Folder tidak dapat dipindahkan ke dalam dirinya sendiri"))
+			return
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(newPath), 0755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menyiapkan folder tujuan: "+err.Error()))
+		return
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal memindahkan item: "+err.Error()))
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func (s *Server) handleFileManagerTouch(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Path string `json:"path"`

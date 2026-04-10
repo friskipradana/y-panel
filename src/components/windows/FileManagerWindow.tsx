@@ -70,8 +70,10 @@ export function FileManagerWindow() {
   // Internal Custom Modal State
   const [modal, setModal] = useState<ModalType | null>(null)
   const [modalInput, setModalInput] = useState('')
+  const [modalPathInput, setModalPathInput] = useState('')
   const [chmodMode, setChmodMode] = useState('0644')
   const [chmodRecursive, setChmodRecursive] = useState(false)
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null)
 
   // Tab Strip Drag
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -180,12 +182,16 @@ export function FileManagerWindow() {
     setMenu(null)
     if (m.type === 'rename') {
       setModalInput(m.item.name)
+      setModalPathInput('')
     } else if (m.type === 'compress') {
       setModalInput(m.item.name + '.zip')
+      setModalPathInput(activeTab.currentPath)
     } else if (m.type === 'extract') {
       setModalInput(m.item.name.replace(/\.(zip|tar\.gz|tgz|tar)$/i, '') || 'extracted_folder')
+      setModalPathInput(activeTab.currentPath)
     } else {
       setModalInput('')
+      setModalPathInput('')
     }
     setChmodMode('0644') // fallback default
     setChmodRecursive(false)
@@ -219,9 +225,10 @@ export function FileManagerWindow() {
         reqUrl = '/api/v1/files/compress'
         payload = { target: modal.item.path, destName: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'extract') {
+        if (!modalPathInput) throw new Error('Direktori tujuan ekstraksi wajib diisi.')
         if (!modalInput) throw new Error('Nama folder ekstraksi wajib diisi.')
         reqUrl = '/api/v1/files/extract'
-        payload = { source: modal.item.path, dest: joinPath(activeTab.currentPath, modalInput) }
+        payload = { source: modal.item.path, dest: joinPath(modalPathInput, modalInput) }
       } else if (modal.type === 'chmod') {
         const numericMode = parseInt(chmodMode, 8)
         if (isNaN(numericMode)) throw new Error('Format oktal tidak valid (Cth: 0644).')
@@ -231,9 +238,33 @@ export function FileManagerWindow() {
 
       await axios.post(reqUrl, payload, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true })
       setModal(null)
-      loadDirectory(activeTab.currentPath, activeTabId)
+      void loadDirectory(activeTab.currentPath, activeTabId)
     } catch (err: any) {
       alertLib.fire('Kegagalan Operasi', err?.response?.data?.error || err.message || 'Terjadi kesalahan internal.', 'error', 'file-manager')
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  const moveItem = async (sourcePath: string, destinationDir: string) => {
+    const sourceName = sourcePath.split('/').pop() || sourcePath.split('\\').pop() || ''
+    const destinationPath = joinPath(destinationDir, sourceName)
+
+    if (sourcePath === destinationPath) return
+
+    setDragOverPath(null)
+    setModalLoading(true)
+    try {
+      await axios.post('/api/v1/files/move', {
+        oldPath: sourcePath,
+        newPath: destinationPath
+      }, {
+        baseURL: import.meta.env.VITE_AGENT_BASE,
+        withCredentials: true
+      })
+      await loadDirectory(activeTab.currentPath, activeTabId)
+    } catch (err: any) {
+      alertLib.fire('Gagal Memindahkan', err?.response?.data?.error || err.message || 'Tidak dapat memindahkan item.', 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -315,7 +346,7 @@ export function FileManagerWindow() {
         <p className="mb-6 text-[12.5px] leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: description }} />
 
         {/* INPUT AREA */}
-        {['rename', 'mkdir', 'touch', 'compress', 'extract'].includes(modal.type) && (
+        {['rename', 'mkdir', 'touch', 'compress'].includes(modal.type) && (
           <div className="w-full mb-6">
             <input
               autoFocus
@@ -325,6 +356,35 @@ export function FileManagerWindow() {
               onChange={(e) => setModalInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
             />
+          </div>
+        )}
+
+        {modal.type === 'extract' && (
+          <div className="w-full mb-6 space-y-3">
+            <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11.5px] text-sky-100/90">
+              <div className="font-semibold text-sky-300">Arah ekstraksi</div>
+              <div className="mt-1 text-slate-300">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || 'folder_tujuan')}</div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Direktori tujuan</label>
+              <input
+                autoFocus
+                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
+                placeholder="Contoh: /home/renaldi/extract"
+                value={modalPathInput}
+                onChange={(e) => setModalPathInput(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Nama folder hasil ekstrak</label>
+              <input
+                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
+                placeholder="Nama folder hasil ekstrak"
+                value={modalInput}
+                onChange={(e) => setModalInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
+              />
+            </div>
           </div>
         )}
 
@@ -520,7 +580,27 @@ export function FileManagerWindow() {
       </div>
 
       {/* ── File List ── */}
-      <div className="flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50">
+      <div
+        className={`flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50 transition-colors ${dragOverPath === activeTab.currentPath ? 'bg-sky-50/80' : ''}`}
+        onDragOver={(e) => {
+          const raw = e.dataTransfer.getData('application/x-ui-panel-file')
+          if (!raw) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          setDragOverPath(activeTab.currentPath)
+        }}
+        onDragLeave={() => {
+          if (dragOverPath === activeTab.currentPath) setDragOverPath(null)
+        }}
+        onDrop={async (e) => {
+          const raw = e.dataTransfer.getData('application/x-ui-panel-file') || e.dataTransfer.getData('text/plain')
+          setDragOverPath(null)
+          if (!raw) return
+          e.preventDefault()
+          const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean }
+          await moveItem(dragged.path, activeTab.currentPath)
+        }}
+      >
         {activeTab.loading && !activeTab.data && (
           <div className="flex justify-center p-8 text-sky-600">
             <Loader2 size={24} className="animate-spin" />
@@ -535,13 +615,35 @@ export function FileManagerWindow() {
         {activeTab.data && (activeTab.data.contents || []).map((item) => (
           <div
             key={item.path}
-            draggable={!item.isDir}
+            draggable
             onDragStart={(e) => {
-              if (item.isDir) return
-              e.dataTransfer.setData('application/x-ui-panel-file', JSON.stringify({ path: item.path, name: item.name }))
-              e.dataTransfer.effectAllowed = 'copyMove'
+              e.stopPropagation()
+              const payload = JSON.stringify({ path: item.path, name: item.name, isDir: item.isDir })
+              e.dataTransfer.setData('application/x-ui-panel-file', payload)
+              e.dataTransfer.setData('text/plain', payload)
+              e.dataTransfer.effectAllowed = 'move'
             }}
-            className="grid grid-cols-[1fr_80px_100px_130px] gap-4 px-4 py-1.5 hover:bg-slate-200/40 rounded-lg cursor-pointer transition items-center group border border-transparent hover:border-slate-200/50"
+            className={`grid grid-cols-[1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
+            onDragOver={(e) => {
+              if (!item.isDir) return
+              e.preventDefault()
+              e.stopPropagation()
+              e.dataTransfer.dropEffect = 'move'
+              setDragOverPath(item.path)
+            }}
+            onDragLeave={() => {
+              if (dragOverPath === item.path) setDragOverPath(null)
+            }}
+            onDrop={async (e) => {
+              if (!item.isDir) return
+              const raw = e.dataTransfer.getData('application/x-ui-panel-file') || e.dataTransfer.getData('text/plain')
+              setDragOverPath(null)
+              if (!raw) return
+              e.preventDefault()
+              e.stopPropagation()
+              const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean }
+              await moveItem(dragged.path, item.path)
+            }}
             onContextMenu={(e) => {
               e.preventDefault()
               e.stopPropagation()
