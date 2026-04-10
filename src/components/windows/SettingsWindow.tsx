@@ -13,6 +13,7 @@ import {
   updatePanelOrigins,
   updatePanelPort,
 } from '@/api/agent'
+import { alertLib } from '@/lib/alert'
 import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
 const cardClass = 'rounded-[20px] border border-slate-200/85 bg-white/92 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl'
@@ -253,7 +254,6 @@ export function SettingsWindow() {
   const [nameservers, setNameservers] = useState<string[]>([])
   const [panelPort, setPanelPort] = useState('')
   const [allowedOriginsText, setAllowedOriginsText] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
   const [dbResetResult, setDbResetResult] = useState<ResetDatabasePasswordResponse | null>(null)
 
   useEffect(() => {
@@ -286,36 +286,102 @@ export function SettingsWindow() {
   const mutation = useMutation({
     mutationFn: updateEditableSystemSettings,
     onSuccess: (data) => {
-      setNotice('Pengaturan host berhasil disimpan.')
+      alertLib.fire('Tersimpan', 'Pengaturan identity host berhasil diterapkan ke sistem Linux.', 'success', 'system')
       syncSettingsSnapshot(data)
     },
+    onError: (err: any) => {
+      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal menyimpan settings host.', 'error', 'system')
+    }
   })
 
   const panelPortMutation = useMutation({
     mutationFn: updatePanelPort,
     onSuccess: (data) => {
-      setNotice('Port panel berhasil diperbarui.')
+      alertLib.fire('Port Diperbarui', 'Port panel berhasil diubah dan daemon telah di-restart otomatis.', 'success', 'system')
       syncSettingsSnapshot(data)
     },
+    onError: (err: any) => {
+      alertLib.fire('Gagal Mengubah Port', err?.message || 'Gagal memperbarui port panel.', 'error', 'system')
+    }
   })
 
   const panelOriginsMutation = useMutation({
     mutationFn: updatePanelOrigins,
     onSuccess: (data) => {
-      setNotice('Allowed origins berhasil diperbarui.')
+      alertLib.fire('Origins Disimpan', 'Allowed origins CORS berhasil diperbarui.', 'success', 'system')
       syncSettingsSnapshot(data)
     },
+    onError: (err: any) => {
+      alertLib.fire('Gagal Menyimpan', err?.message || 'Gagal memperbarui allowed origins.', 'error', 'system')
+    }
   })
 
   const resetDatabaseMutation = useMutation({
     mutationFn: resetDatabasePassword,
     onSuccess: (data) => {
       setDbResetResult(data)
-      setNotice('Password database berhasil dirotasi. Simpan kredensial baru di tempat aman.')
+      alertLib.fire('Rotasi Berhasil', 'Password root database berhasil direset. Simpan kredensial baru agar tidak hilang.', 'success', 'system')
       queryClient.invalidateQueries({ queryKey: ['database-status'] })
       queryClient.invalidateQueries({ queryKey: ['agent-system-summary'] })
     },
+    onError: (err: any) => {
+      alertLib.fire('Gagal Merotasi', err?.message || 'Gagal merotasi password root database.', 'error', 'system')
+    }
   })
+
+  const handleUpdateIdentity = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'Simpan Identity Host?',
+      `Perubahan Hostname, Timezone, dan pengaturan DNS (resolv.conf) akan langsung diterapkan secara daemon ke sistem operasi asli under-the-hood. Lanjutkan?`,
+      'Ya, Simpan',
+      'Batal',
+      'question',
+      'system'
+    )
+    if (isConfirmed) {
+      if (!hostname.trim() || !timezone.trim()) {
+        alertLib.fire('Data Tidak Lengkap', 'Hostname dan Timezone tidak boleh dibiarkan kosong!', 'warning', 'system')
+        return
+      }
+      mutation.mutate(payload)
+    }
+  }
+
+  const handleUpdatePanelPort = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'Ubah Port Panel',
+      `Anda yakin ingin memindahkan jalur akses Panel ke Port <b>${portPayload.port}</b>?<br/><br/>Harap pastikan URL browser Anda ikut disesuaikan saat panel mengalami siklus reload sesaat lagi.`,
+      'Ya, Pindahkan Port',
+      'Batal',
+      'warning',
+      'system'
+    )
+    if (isConfirmed) panelPortMutation.mutate(portPayload)
+  }
+
+  const handleUpdateOrigins = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'Ubah Allowed Origins',
+      'Modifikasi Allowed Origins (CORS) sangat sensitif karena akan mempengaruhi izin akses dari koneksi *front-end* eksternal. Yakin ingin mem-publish pengaturan ini?',
+      'Terbitkan Rules',
+      'Batal',
+      'question',
+      'system'
+    )
+    if (isConfirmed) panelOriginsMutation.mutate({ originsRaw: allowedOriginsText })
+  }
+
+  const handleResetDatabase = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'PERINGATAN Rotasi Database',
+      '<b>AKSI BERBAHAYA!</b> Merotasi kredensial otomatis akan seketika menyapu bersih password Root lama dari file konfigurasi dan mencetak yang baru ke engine MariaDB!<br/><br/>Lanjutkan rotasi kritis ini?',
+      'Tarik & Rotasi Sekarang',
+      'Tutup',
+      'warning',
+      'system'
+    )
+    if (isConfirmed) resetDatabaseMutation.mutate()
+  }
 
   if (query.isLoading) {
     return (
@@ -360,37 +426,6 @@ export function SettingsWindow() {
           </div>
         </div>
       </div>
-
-      {notice && (
-        <div className="flex items-center gap-2 rounded-[14px] border border-emerald-500/20 bg-emerald-50/95 px-4 py-3 text-[12px] text-emerald-700">
-          <CheckCircle2 size={14} />
-          {notice}
-        </div>
-      )}
-
-      {mutation.isError && (
-        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
-          {(mutation.error as Error)?.message || 'Gagal menyimpan settings host.'}
-        </div>
-      )}
-
-      {panelPortMutation.isError && (
-        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
-          {(panelPortMutation.error as Error)?.message || 'Gagal memperbarui port panel.'}
-        </div>
-      )}
-
-      {panelOriginsMutation.isError && (
-        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
-          {(panelOriginsMutation.error as Error)?.message || 'Gagal memperbarui allowed origins.'}
-        </div>
-      )}
-
-      {resetDatabaseMutation.isError && (
-        <div className="rounded-[14px] border border-red-500/20 bg-red-50/95 px-4 py-3 text-[12px] text-red-700">
-          {(resetDatabaseMutation.error as Error)?.message || 'Gagal merotasi password database.'}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className={cardClass}>
@@ -438,7 +473,7 @@ export function SettingsWindow() {
           <button
             id="settings-save"
             type="button"
-            onClick={() => mutation.mutate(payload)}
+            onClick={handleUpdateIdentity}
             disabled={mutation.isPending}
             className={[
               'inline-flex items-center gap-2 rounded-xl px-[22px] py-2.5 text-[13px] font-semibold text-white transition',
@@ -489,7 +524,7 @@ export function SettingsWindow() {
               <button
                 id="settings-panel-port-save"
                 type="button"
-                onClick={() => panelPortMutation.mutate(portPayload)}
+                onClick={handleUpdatePanelPort}
                 disabled={panelPortMutation.isPending || !panelPort.trim()}
                 className={[
                   'inline-flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-semibold text-white transition',
@@ -531,9 +566,7 @@ export function SettingsWindow() {
             <div className="flex justify-end">
               <button
                 id="settings-panel-origins-save"
-                onClick={() => panelOriginsMutation.mutate({
-                  originsRaw: allowedOriginsText,
-                })}
+                onClick={handleUpdateOrigins}
                 disabled={panelOriginsMutation.isPending}
                 className={[
                   'inline-flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-semibold text-white transition',
@@ -603,7 +636,7 @@ export function SettingsWindow() {
               <button
                 id="settings-db-reset-password"
                 type="button"
-                onClick={() => resetDatabaseMutation.mutate()}
+                onClick={handleResetDatabase}
                 disabled={resetDatabaseMutation.isPending || !databaseQuery.data?.status.enabled}
                 className={[
                   'inline-flex items-center gap-1.5 rounded-[10px] px-3.5 py-2 text-[12px] font-semibold text-white transition',

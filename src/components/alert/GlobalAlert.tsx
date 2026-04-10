@@ -56,14 +56,14 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
           <div className="flex w-full items-center justify-center gap-3">
             {data.type === 'confirm' && (
               <button
-                onClick={() => closeDialog(false)}
+                onMouseDown={(e) => { e.stopPropagation(); closeDialog(false) }}
                 className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
               >
                 {data.cancelText || 'Batal'}
               </button>
             )}
             <button
-              onClick={() => closeDialog(true)}
+              onMouseDown={(e) => { e.stopPropagation(); closeDialog(true) }}
               className="flex-1 rounded-full border border-white/10 bg-sky-500/90 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
             >
               {data.confirmText || 'Tutup'}
