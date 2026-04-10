@@ -225,9 +225,11 @@ export const useWindowStore = create<WindowStore>()(
       set((state) => {
         const win = state.windows.find((w) => w.id === id);
         if (!win) return;
-        win.isMaximized = !win.isMaximized;
-        if (win.isMaximized) {
+        if (win.isFullscreen) {
           win.isFullscreen = false;
+          win.isMaximized = true;
+        } else {
+          win.isMaximized = !win.isMaximized;
         }
         bringToFront(state.windows, id);
         state.focusedId = id;
@@ -239,7 +241,6 @@ export const useWindowStore = create<WindowStore>()(
         if (!win) return;
         win.isFullscreen = !win.isFullscreen;
         if (win.isFullscreen) {
-          win.isMaximized = false;
           win.isMinimized = false;
           win.lastAction = 'restore';
         }
