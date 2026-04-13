@@ -53,5 +53,14 @@ try {
     Write-Host "✨ Berhasil! Frontend telah diperbarui." -ForegroundColor Cyan
 }
 finally {
-    Remove-SSHSession -SessionId $session.SessionId | Out-Null
+    # Tutup sesi SSH
+    if ($session) {
+        Remove-SSHSession -SessionId $session.SessionId | Out-Null
+    }
+    
+    # 7. Bersihkan file zip lokal
+    if (Test-Path $zipPath) {
+        Write-Host "🧹 Menghapus file zip lokal..." -ForegroundColor Gray
+        Remove-Item $zipPath -Force
+    }
 }
