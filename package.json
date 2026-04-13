@@ -1,7 +1,8 @@
 {
   "name": "homeserver-desktop",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Desktop-themed control panel for Linux home servers built with React 19 and Go",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +13,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@sweetalert2/theme-dark": "^5.0.27",
+    "@tailwindcss/postcss": "^4.2.2",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.95.2",
     "@xterm/addon-fit": "^0.11.0",

@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AlertCircle, LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-react'
@@ -83,12 +84,19 @@ export function LoginScreen({ onLoginSuccess }: Props) {
             />
           </label>
 
-          {loginMutation.isError && (
-            <div className="login-alert">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
-              <span>Login gagal. Periksa kembali username dan password.</span>
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {loginMutation.isError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="login-alert"
+              >
+                <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-400" />
+                <span>Login gagal. Periksa kembali username dan password.</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <button id="panel-login-submit" type="submit" className="auth-submit" disabled={loginMutation.isPending}>
             {loginMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}

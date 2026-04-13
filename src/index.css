@@ -13,22 +13,22 @@
   /* Taskbar */
   --tb-bg: rgba(255,255,255,0.82);
   --tb-border: rgba(226,232,240,0.85);
-  --tb-text: #475569;
-  --tb-clock: #64748b;
-  --tb-hover: rgba(15,23,42,0.07);
-  --tb-icon: #475569;
+  --tb-text: #334155;
+  --tb-clock: #475569;
+  --tb-hover: rgba(15,23,42,0.08);
+  --tb-icon: #334155;
 
   /* Window chrome */
-  --win-bg: rgba(255,255,255,0.92);
-  --win-border-focus: rgba(255,255,255,0.92);
-  --win-border: rgba(255,255,255,0.56);
-  --win-shadow-focus: 0 28px 70px rgba(15,23,42,0.20), 0 10px 24px rgba(15,23,42,0.08);
-  --win-shadow: 0 12px 36px rgba(15,23,42,0.10), 0 4px 12px rgba(15,23,42,0.05);
-  --win-bar-focus: rgba(255,255,255,0.9);
-  --win-bar: rgba(250,250,250,0.9);
-  --win-bar-border: rgba(226,232,240,0.8);
-  --win-content-bg: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.82));
-  --win-text: #334155;
+  --win-bg: rgba(255,255,255,0.95);
+  --win-border-focus: rgba(203, 213, 225, 0.95);
+  --win-border: rgba(203, 213, 225, 0.6);
+  --win-shadow-focus: 0 28px 70px rgba(15,23,42,0.25), 0 10px 24px rgba(15,23,42,0.12);
+  --win-shadow: 0 12px 36px rgba(15,23,42,0.15), 0 4px 12px rgba(15,23,42,0.08);
+  --win-bar-focus: rgba(255,255,255,1);
+  --win-bar: rgba(255,255,255,0.9);
+  --win-bar-border: rgba(203, 213, 225, 0.8);
+  --win-content-bg: #ffffff;
+  --win-text: #1e293b;
 
   /* Dock */
   --dock-bg: rgba(255,255,255,0.92);
@@ -47,21 +47,21 @@
 [data-theme="dark"] {
   --tb-bg: rgba(15,23,42,0.90);
   --tb-border: rgba(255,255,255,0.07);
-  --tb-text: #94a3b8;
-  --tb-clock: #64748b;
-  --tb-hover: rgba(255,255,255,0.08);
-  --tb-icon: #94a3b8;
+  --tb-text: #f1f5f9;
+  --tb-clock: #cbd5e1;
+  --tb-hover: rgba(255,255,255,0.12);
+  --tb-icon: #f1f5f9;
 
-  --win-bg: rgba(15,23,42,0.94);
-  --win-border-focus: rgba(255,255,255,0.14);
-  --win-border: rgba(255,255,255,0.07);
-  --win-shadow-focus: 0 28px 70px rgba(0,0,0,0.65), 0 10px 24px rgba(0,0,0,0.35);
-  --win-shadow: 0 12px 36px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.25);
-  --win-bar-focus: rgba(22,36,58,0.97);
-  --win-bar: rgba(17,27,45,0.97);
-  --win-bar-border: rgba(255,255,255,0.06);
-  --win-content-bg: linear-gradient(180deg, rgba(15,23,42,0.97), rgba(10,17,32,0.94));
-  --win-text: #cbd5e1;
+  --win-bg: rgba(15,23,42,0.96);
+  --win-border-focus: rgba(255,255,255,0.2);
+  --win-border: rgba(255,255,255,0.12);
+  --win-shadow-focus: 0 28px 70px rgba(0,0,0,0.75), 0 10px 24px rgba(0,0,0,0.45);
+  --win-shadow: 0 12px 36px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.35);
+  --win-bar-focus: rgba(22,36,58,0.98);
+  --win-bar: rgba(17,27,45,0.98);
+  --win-bar-border: rgba(255,255,255,0.1);
+  --win-content-bg: #0f172a;
+  --win-text: #f8fafc;
 
   --dock-bg: rgba(15,23,42,0.92);
   --dock-border: rgba(255,255,255,0.08);
@@ -156,7 +156,7 @@ body {
 }
 
 .taskbar-nav-btn {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--tb-text);
   padding: 6px 12px;
   border-radius: 6px;
@@ -179,7 +179,7 @@ body {
 }
 
 .taskbar-clock {
-  font-size: 12px;
+  font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--tb-clock);
   min-width: 156px;
@@ -218,7 +218,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   color: var(--win-text);
-  font-size: 12px;
+  font-size: 13px;
   font-family: Outfit, sans-serif;
   font-weight: 500;
   transition: background 150ms;
@@ -394,14 +394,16 @@ body {
   position: relative;
   overflow: hidden;
   color: white;
+  background: transparent !important;
 }
 
 .login-shell {
   background:
-    radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.30), transparent 24%),
-    radial-gradient(circle at 85% 18%, rgba(168, 85, 247, 0.28), transparent 28%),
-    radial-gradient(circle at 50% 100%, rgba(249, 115, 22, 0.24), transparent 32%),
-    linear-gradient(135deg, #020617 0%, #0f172a 42%, #111827 100%);
+    radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.12), transparent 40%),
+    radial-gradient(circle at 85% 18%, rgba(168, 85, 247, 0.12), transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(249, 115, 22, 0.1), transparent 50%),
+    rgba(2, 6, 23, 0.25);
+  backdrop-filter: blur(16px);
 }
 
 .login-noise {
@@ -624,10 +626,11 @@ body {
 
 .login-panel-label,
 .login-field-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 600;
 }
 
 .login-auth-header h2 {
@@ -696,36 +699,40 @@ body {
 
 .auth-input {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 8px;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.64);
   color: white;
-  padding: 0.98rem 1rem;
+  padding: 0.98rem 1.1rem;
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  font-size: 15px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, background 160ms ease;
 }
 
 .auth-input::placeholder {
-  color: rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.38);
 }
 
 .auth-input:focus {
-  border-color: rgba(56, 189, 248, 0.58);
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
+  background: rgba(15, 23, 42, 0.82);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.24);
   transform: translateY(-1px);
 }
 
 .login-alert {
   border-radius: 18px;
-  border: 1px solid rgba(248, 113, 113, 0.24);
-  background: rgba(239, 68, 68, 0.14);
-  padding: 14px 16px;
-  color: #ffe4e6;
-  font-size: 13px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(239, 68, 68, 0.2);
+  padding: 14px 18px;
+  color: #fff1f2;
+  font-size: 14px;
+  font-weight: 500;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
 }
 
 .auth-submit {
@@ -1679,4 +1686,4 @@ body {
   color: #f85149;
 }
 .ht-manager-del:disabled { opacity: 0.35; }
-
+

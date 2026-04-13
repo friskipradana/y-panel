@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
@@ -187,11 +188,15 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
   )
 }
 
+// Singleton promise to ensure session check only happens once per page load
+let sessionCheckPromise: Promise<any> | null = null
+
 function AppShell() {
   const [checkingSession, setCheckingSession] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
   const frontendRevisionRef = useRef<string | null>(null)
+  const sessionCheckStarted = useRef(false)
 
   const isKnownPath = useMemo(() => {
     if (currentPath === '/' || currentPath === LOGIN_PATH) {
@@ -211,6 +216,9 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
+    if (sessionCheckStarted.current) return
+    sessionCheckStarted.current = true
+
     let cancelled = false
 
     const replaceRoute = (nextPath: string) => {
@@ -232,8 +240,12 @@ function AppShell() {
       }
     }
 
-    runtimeLogger.info('auth', 'checking existing session')
-    getMe()
+    if (!sessionCheckPromise) {
+      runtimeLogger.info('auth', 'checking existing session')
+      sessionCheckPromise = getMe()
+    }
+
+    sessionCheckPromise
       .then((me) => {
         if (cancelled) return
         runtimeLogger.info('auth', 'existing session restored', { username: me.username })
@@ -242,7 +254,9 @@ function AppShell() {
       })
       .catch((error) => {
         if (cancelled) return
-        runtimeLogger.warn('auth', 'no active session found', { error })
+        if (error.response?.status !== 401) {
+          runtimeLogger.warn('auth', 'session check failed', { error })
+        }
         setAuthenticated(false)
         syncLoggedOutRoute()
       })
@@ -270,8 +284,7 @@ function AppShell() {
     let disposed = false
 
     const syncFrontendRevision = async () => {
-      if (!authenticated) {
-        frontendRevisionRef.current = null
+      if (!authenticated || document.visibilityState !== 'visible') {
         return
       }
 
@@ -291,6 +304,17 @@ function AppShell() {
             nextRevision,
           })
           frontendRevisionRef.current = nextRevision
+          
+          // Clear cache before reload to ensure we get the latest assets
+          if ('caches' in window) {
+            try {
+              const cacheNames = await caches.keys()
+              await Promise.all(cacheNames.map(name => caches.delete(name)))
+            } catch (e) {
+              runtimeLogger.warn('frontend', 'failed to clear caches', { error: e })
+            }
+          }
+          
           window.location.reload()
         }
       }
@@ -304,9 +328,12 @@ function AppShell() {
       void syncFrontendRevision()
     }, 8000)
 
+    window.addEventListener('visibilitychange', syncFrontendRevision)
+
     return () => {
       disposed = true
       window.clearInterval(intervalId)
+      window.removeEventListener('visibilitychange', syncFrontendRevision)
     }
   }, [authenticated])
 
@@ -331,45 +358,62 @@ function AppShell() {
     )
   }
 
-  if (!authenticated) {
-    if (!isKnownPath && currentPath !== LOGIN_PATH) {
-      return <FrontendNotFoundPage authenticated={authenticated} />
-    }
-
-    return (
-      <Suspense fallback={(
-        <div className="min-h-screen grid place-items-center text-white login-shell">
-          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
-            Memuat login panel...
-          </div>
-        </div>
-      )}>
-        <LoginScreen onLoginSuccess={() => {
-          runtimeLogger.info('auth', 'login success propagated to app shell')
-          setAuthenticated(true)
-          if (window.location.pathname === LOGIN_PATH) {
-            window.history.replaceState({}, '', '/')
-            setCurrentPath('/')
-          }
-        }} />
-      </Suspense>
-    )
-  }
-
-  if (!isKnownPath) {
-    return <FrontendNotFoundPage authenticated={authenticated} />
-  }
-
   return (
-    <>
-      <Desktop onLogout={handleLogout} />
-      {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid ? (
+    <div className="relative w-full h-full overflow-hidden">
+      {/* Desktop selalu ada di background */}
+      <motion.div
+        animate={{
+          filter: authenticated ? 'blur(0px)' : 'blur(20px)',
+          scale: authenticated ? 1 : 1.05,
+          opacity: authenticated ? 1 : 0.6
+        }}
+        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+        className="absolute inset-0 z-0"
+      >
+        <Desktop onLogout={handleLogout} />
+      </motion.div>
+
+      {/* Login Screen Overlay */}
+      <AnimatePresence>
+        {!authenticated && (
+          <motion.div
+            key="login-overlay"
+            initial={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -window.innerHeight, scale: 1.1 }}
+            transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+            className="absolute inset-0 z-[10000] overflow-hidden"
+          >
+            {!isKnownPath && currentPath !== LOGIN_PATH ? (
+              <FrontendNotFoundPage authenticated={authenticated} />
+            ) : (
+              <LoginScreen onLoginSuccess={() => {
+                runtimeLogger.info('auth', 'login success propagated to app shell')
+                setAuthenticated(true)
+                if (window.location.pathname === LOGIN_PATH) {
+                  window.history.replaceState({}, '', '/')
+                  setCurrentPath('/')
+                }
+              }} />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 404 Overlay for Authenticated Users */}
+      {authenticated && !isKnownPath && (
+        <div className="absolute inset-0 z-[20000]">
+           <FrontendNotFoundPage authenticated={authenticated} />
+        </div>
+      )}
+
+      {/* Debug Overlays */}
+      {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid && authenticated ? (
         <Suspense fallback={null}>
           <DebugPanel />
           <DebugGrid />
         </Suspense>
       ) : null}
-    </>
+    </div>
   )
 }
 

@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
+# 🌌 Homeserver Desktop OS
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Panel kontrol server Linux dengan antarmuka bertema Desktop OS yang dibangun menggunakan **React 19** dan **Go**. Proyek ini dirancang untuk memberikan pengalaman mengelola server senyaman menggunakan desktop environment.
 
-Currently, two official plugins are available:
+## 🚀 Fitur Utama
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Desktop Experience**: Taskbar, Dock, Window management (drag/resize/minimize), dan wallpaper dinamis.
+- **File Manager**: Kelola file server langsung dari browser dengan antarmuka mirip File Explorer.
+- **Host Terminal**: Akses shell host Linux secara real-time menggunakan Xterm.js.
+- **Database Manager**: Interface untuk mengelola database server.
+- **System Monitoring**: Pantau log sistem (`journalctl`) dan status resource server.
+- **App Store**: Interface untuk mengelola kontainer Docker/Portainer.
 
-## React Compiler
+## 🛠️ Stack Teknologi
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 19, Vite, Tailwind CSS 4, Framer Motion, Zustand, TanStack Query.
+- **Backend**: Go (Golang) - bertindak sebagai agent yang berinteraksi langsung dengan sistem host.
+- **UI Components**: Lucide React (icons), Sonner (toasts), SweetAlert2 (dialogs).
 
-## Expanding the ESLint configuration
+## 📥 Instalasi
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prasyarat
+- Node.js (v20+)
+- Go (v1.21+)
+- Docker (untuk manajemen container)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Jalankan di Pengembangan
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. Clone repositori:
+   ```bash
+   git clone <repo-url>
+   cd ui-panel
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Instal dependensi frontend:
+   ```bash
+   npm install
+   # atau menggunakan bun
+   bun install
+   ```
+
+3. Jalankan frontend (Vite):
+   ```bash
+   npm run dev
+   ```
+
+4. Jalankan backend agent (di folder `cmd` atau sesuai struktur Go kamu):
+   ```bash
+   go run cmd/agent/main.go
+   ```
+
+## 📦 Deployment
+
+Proyek ini menyertakan script installer untuk sistem Linux.
+```bash
+sudo bash installer/linux/install.sh
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📄 Lisensi
+Private / Proprietary - Renaldi

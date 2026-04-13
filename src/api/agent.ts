@@ -13,6 +13,8 @@ import type {
 } from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 
+import { toast } from 'sonner'
+
 export interface FrontendRevisionResponse {
   revision: string
 }
@@ -56,17 +58,34 @@ let unauthorizedEventArmed = true
 agentApi.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    runtimeLogger.error('api', 'request failed', {
-      method: error.config?.method,
-      url: error.config?.url,
-      status: error.response?.status,
-      message: error.message,
-    })
+    const isPublicPath = window.location.pathname === (import.meta.env.VITE_LOGIN_PATH || '/login') || window.location.pathname === '/'
+    const isUnauthorized = error.response?.status === 401
 
-    if (error.response?.status === 401 && unauthorizedEventArmed) {
+    // Silent 401 logs on public paths to keep console clean
+    if (!isUnauthorized || !isPublicPath) {
+      runtimeLogger.error('api', 'request failed', {
+        method: error.config?.method,
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.message,
+      })
+    }
+
+    if (!error.response) {
+      toast.error('Gagal terhubung ke agent', {
+        description: 'Pastikan service agent sudah berjalan di host.',
+      })
+    }
+
+    if (isUnauthorized && unauthorizedEventArmed) {
       unauthorizedEventArmed = false
-      runtimeLogger.warn('auth', 'session expired event dispatched')
-      window.dispatchEvent(new CustomEvent('panel:session-expired'))
+      
+      // Only dispatch session-expired if we are NOT on a public path
+      if (!isPublicPath) {
+        runtimeLogger.warn('auth', 'session expired event dispatched')
+        window.dispatchEvent(new CustomEvent('panel:session-expired'))
+      }
+
       window.setTimeout(() => {
         unauthorizedEventArmed = true
       }, 250)

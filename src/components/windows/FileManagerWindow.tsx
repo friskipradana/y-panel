@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, memo } from 'react'
 import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, Edit2, Key, Download, Trash, RefreshCw, Archive, PackageOpen, X, Plus, Copy, ClipboardPaste, Scissors } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
@@ -51,6 +51,112 @@ interface FileManagerTab {
 }
 
 let nextFileManagerTabId = 1
+
+// Constants for Modal Configuration
+const MODAL_CONFIGS: Record<string, { title: string; description: (item?: FileNode) => string; icon: React.ReactNode; confirmBtn: string; confirmText: string }> = {
+  delete: {
+    title: 'Hapus Permanen?',
+    description: (item) => `Anda akan menghapus <strong>${item?.name}</strong> beserta seluruh isinya.`,
+    icon: <Trash className="text-red-400" size={32} />,
+    confirmBtn: 'bg-red-500/90 shadow-[0_2px_12px_rgba(239,68,68,0.3)] hover:bg-red-400',
+    confirmText: 'Ya, Hapus!'
+  },
+  rename: {
+    title: 'Ubah Nama File/Folder',
+    description: () => 'Ganti nama berkas berserta ekstensinya pada baris di bawah.',
+    icon: <Edit2 className="text-sky-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Terapkan'
+  },
+  compress: {
+    title: 'Kompres Arsip',
+    description: (item) => `Kompres <strong>${item?.name}</strong> ke format .zip / .tar.gz.`,
+    icon: <Archive className="text-amber-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Kompres'
+  },
+  extract: {
+    title: 'Ekstrak Arsip',
+    description: (item) => `Destinasi (folder tujuan) ekstrak untuk <strong>${item?.name}</strong>.`,
+    icon: <PackageOpen className="text-sky-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Ekstrak'
+  },
+  mkdir: {
+    title: 'Buat Folder Baru',
+    description: () => 'Masukkan nama koleksi/direktori tanpa karakter terlarang (/, null).',
+    icon: <FolderPlus className="text-emerald-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Buat'
+  },
+  touch: {
+    title: 'Buat File Berkas Baru',
+    description: () => 'Ekstensi didukung. Contoh: index.html, script.js',
+    icon: <FilePlus className="text-emerald-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Buat'
+  },
+  chmod: {
+    title: 'Ubah Hak Akses (UNIX)',
+    description: (item) => `Modifikasi mode octal pada <strong>${item?.name}</strong>`,
+    icon: <Key className="text-amber-400" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
+    confirmText: 'Terapkan'
+  }
+}
+
+const FileRow = memo(({
+  item,
+  dragOverPath,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onContextMenu,
+  onDoubleClick,
+  formatSize,
+  formatDate
+}: {
+  item: FileNode
+  dragOverPath: string | null
+  onDragStart: (e: React.DragEvent, item: FileNode) => void
+  onDragOver: (e: React.DragEvent, item: FileNode) => void
+  onDragLeave: () => void
+  onDrop: (e: React.DragEvent, item: FileNode) => void
+  onContextMenu: (e: React.MouseEvent, item: FileNode) => void
+  onDoubleClick: (item: FileNode) => void
+  formatSize: (size: number) => string
+  formatDate: (date: string) => string
+}) => {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, item)}
+      className={`grid grid-cols-[1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
+      onDragOver={(e) => onDragOver(e, item)}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => onDrop(e, item)}
+      onContextMenu={(e) => onContextMenu(e, item)}
+      onDoubleClick={() => onDoubleClick(item)}
+    >
+      <div className="flex items-center gap-3 overflow-hidden">
+        {item.isDir ? <Folder size={17} className="text-sky-500 fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-slate-400 shrink-0" />}
+        <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-blue-600 transition-colors">{item.name}</span>
+      </div>
+      <div className="text-[12px] opacity-70 p-1 font-mono tracking-tight">
+        {item.isDir ? '--' : formatSize(item.size)}
+      </div>
+      <div className="flex items-center">
+        <div className="text-[11px] opacity-60 font-mono tracking-tighter bg-slate-200/60 rounded max-w-full px-1.5 py-0.5">
+          {item.mode}
+        </div>
+      </div>
+      <div className="text-[11px] opacity-60 p-1 truncate font-medium">
+        {formatDate(item.modified)}
+      </div>
+    </div>
+  )
+})
 
 export function FileManagerWindow() {
   const { openWindow } = useWindowStore()
@@ -331,49 +437,11 @@ export function FileManagerWindow() {
   const renderModalContent = () => {
     if (!modal) return null
 
-    let title = ''
-    let description = ''
-    let icon = null
-    let confirmBtn = 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400'
-    let confirmText = 'Alihkan'
+    const config = MODAL_CONFIGS[modal.type]
+    if (!config) return null
 
-    if (modal.type === 'delete') {
-      title = 'Hapus Permanen?'
-      description = `Anda akan menghapus <strong>${modal.item.name}</strong> beserta seluruh isinya.`
-      icon = <Trash className="text-red-400" size={32} />
-      confirmBtn = 'bg-red-500/90 shadow-[0_2px_12px_rgba(239,68,68,0.3)] hover:bg-red-400'
-      confirmText = 'Ya, Hapus!'
-    } else if (modal.type === 'rename') {
-      title = 'Ubah Nama File/Folder'
-      description = 'Ganti nama berkas berserta ekstensinya pada baris di bawah.'
-      icon = <Edit2 className="text-sky-400" size={32} />
-      confirmText = 'Terapkan'
-    } else if (modal.type === 'compress') {
-      title = 'Kompres Arsip'
-      description = `Kompres <strong>${modal.item.name}</strong> ke format .zip / .tar.gz.`
-      icon = <Archive className="text-amber-400" size={32} />
-      confirmText = 'Kompres'
-    } else if (modal.type === 'extract') {
-      title = 'Ekstrak Arsip'
-      description = `Destinasi (folder tujuan) ekstrak untuk <strong>${modal.item.name}</strong>.`
-      icon = <PackageOpen className="text-sky-400" size={32} />
-      confirmText = 'Ekstrak'
-    } else if (modal.type === 'mkdir') {
-      title = 'Buat Folder Baru'
-      description = 'Masukkan nama koleksi/direktori tanpa karakter terlarang (/, null).'
-      icon = <FolderPlus className="text-emerald-400" size={32} />
-      confirmText = 'Buat'
-    } else if (modal.type === 'touch') {
-      title = 'Buat File Berkas Baru'
-      description = 'Ekstensi didukung. Contoh: index.html, script.js'
-      icon = <FilePlus className="text-emerald-400" size={32} />
-      confirmText = 'Buat'
-    } else if (modal.type === 'chmod') {
-      title = 'Ubah Hak Akses (UNIX)'
-      description = `Modifikasi mode octal pada <strong>${modal.item.name}</strong>`
-      icon = <Key className="text-amber-400" size={32} />
-      confirmText = 'Terapkan'
-    }
+    const { title, icon, confirmBtn, confirmText } = config
+    const description = config.description('item' in modal ? modal.item : undefined)
 
     return (
       <div className="flex flex-col items-center">
@@ -662,66 +730,52 @@ export function FileManagerWindow() {
           </div>
         )}
         {activeTab.data && (activeTab.data.contents || []).map((item) => (
-          <div
+          <FileRow
             key={item.path}
-            draggable
-            onDragStart={(e) => {
+            item={item}
+            dragOverPath={dragOverPath}
+            formatSize={formatSize}
+            formatDate={formatDate}
+            onDragStart={(e, it) => {
               e.stopPropagation()
-              const payload = JSON.stringify({ path: item.path, name: item.name, isDir: item.isDir })
+              const payload = JSON.stringify({ path: it.path, name: it.name, isDir: it.isDir })
               e.dataTransfer.setData('application/x-ui-panel-file', payload)
               e.dataTransfer.setData('text/plain', payload)
               e.dataTransfer.effectAllowed = 'move'
             }}
-            className={`grid grid-cols-[1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
-            onDragOver={(e) => {
-              if (!item.isDir) return
+            onDragOver={(e, it) => {
+              if (!it.isDir) return
               e.preventDefault()
               e.stopPropagation()
               e.dataTransfer.dropEffect = 'move'
-              setDragOverPath(item.path)
+              setDragOverPath(it.path)
             }}
             onDragLeave={() => {
-              if (dragOverPath === item.path) setDragOverPath(null)
+              if (dragOverPath !== activeTab.currentPath) setDragOverPath(null)
             }}
-            onDrop={async (e) => {
-              if (!item.isDir) return
+            onDrop={async (e, it) => {
+              if (!it.isDir) return
               const raw = e.dataTransfer.getData('application/x-ui-panel-file') || e.dataTransfer.getData('text/plain')
               setDragOverPath(null)
               if (!raw) return
               e.preventDefault()
               e.stopPropagation()
               const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean }
-              await moveItem(dragged.path, item.path)
+              await moveItem(dragged.path, it.path)
             }}
-            onContextMenu={(e) => {
+            onContextMenu={(e, it) => {
               e.preventDefault()
               e.stopPropagation()
-              setMenu({ x: e.clientX, y: e.clientY, item, targetPath: item.isDir ? item.path : activeTab.currentPath })
+              setMenu({ x: e.clientX, y: e.clientY, item: it, targetPath: it.isDir ? it.path : activeTab.currentPath })
             }}
-            onDoubleClick={() => {
-              if (item.isDir) {
-                setCurrentPath(item.path)
+            onDoubleClick={(it) => {
+              if (it.isDir) {
+                setCurrentPath(it.path)
               } else {
-                handleEdit(item)
+                handleEdit(it)
               }
             }}
-          >
-            <div className="flex items-center gap-3 overflow-hidden">
-              {item.isDir ? <Folder size={17} className="text-sky-500 fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-slate-400 shrink-0" />}
-              <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-blue-600 transition-colors">{item.name}</span>
-            </div>
-            <div className="text-[12px] opacity-70 p-1 font-mono tracking-tight">
-              {item.isDir ? '--' : formatSize(item.size)}
-            </div>
-            <div className="flex items-center">
-              <div className="text-[11px] opacity-60 font-mono tracking-tighter bg-slate-200/60 rounded max-w-full px-1.5 py-0.5">
-                {item.mode}
-              </div>
-            </div>
-            <div className="text-[11px] opacity-60 p-1 truncate font-medium">
-              {formatDate(item.modified)}
-            </div>
-          </div>
+          />
         ))}
       </div>
 
