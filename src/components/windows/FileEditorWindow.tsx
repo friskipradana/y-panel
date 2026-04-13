@@ -45,7 +45,7 @@ function guessLanguage(name: string): string {
   }
 }
 
-export function FileEditorWindow() {
+export function FileEditorWindow({ authenticated }: { authenticated?: boolean }) {
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const isDark = useThemeStore((state) => state.mode) === 'dark'
@@ -104,27 +104,33 @@ export function FileEditorWindow() {
   }, [activeTabId, tabs.length])
 
   // Open file globally
-  const handleOpenFile = useCallback(async (path: string, name: string) => {
-    // Prevent duplicate duplicate
+  const handleOpenFile = useCallback(async (path: string, name: string, force = false) => {
+    // Prevent duplicate if not forcing reload
     const existing = tabs.find((t) => t.path === path)
-    if (existing) {
+    if (existing && !force) {
       setActiveTabId(existing.id)
       return
     }
 
-    const id = `tab-${nextTabId++}`
-    const newTab: EditorTab = {
-      id,
-      path,
-      name,
-      content: '',
-      originalContent: '',
-      language: guessLanguage(name),
-      isLoading: true,
+    const id = existing?.id || `tab-${nextTabId++}`
+    
+    if (existing) {
+      // If force reloading an existing tab, set loading state first
+      setTabs((prev) => prev.map((t) => t.id === id ? { ...t, isLoading: true } : t))
+      setActiveTabId(id)
+    } else {
+      const newTab: EditorTab = {
+        id,
+        path,
+        name,
+        content: '',
+        originalContent: '',
+        language: guessLanguage(name),
+        isLoading: true,
+      }
+      setTabs((prev) => [...prev, newTab])
+      setActiveTabId(id)
     }
-
-    setTabs((prev) => [...prev, newTab])
-    setActiveTabId(id)
 
     try {
       const { data } = await axios.get('/api/v1/files/read?path=' + encodeURIComponent(path), {
@@ -138,6 +144,19 @@ export function FileEditorWindow() {
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, isLoading: false, content: '// Akses ditolak atau file tidak terbaca.' } : t))
     }
   }, [tabs])
+
+  useEffect(() => {
+    if (authenticated) {
+      tabs.forEach(tab => {
+        // Only retry if it was in an error state or stuck loading
+        if (tab.isLoading || (tab.content === '// Akses ditolak atau file tidak terbaca.' && tab.originalContent === '')) {
+           console.log(`[FileEditor] Re-trying to load file: ${tab.path}`)
+           void handleOpenFile(tab.path, tab.name, true)
+        }
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]) // ONLY depend on authenticated status
 
   useEffect(() => {
     if (pendingFile) {
@@ -283,7 +302,7 @@ export function FileEditorWindow() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => handleOpenFile(activeTab.path, activeTab.name)}
+              onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
               className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium rounded bg-slate-500/10 hover:bg-slate-500/20 transition"
               style={{ color: isDark ? '#ddd' : '#444' }}
               title="Reload File from Disk"

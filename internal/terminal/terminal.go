@@ -43,13 +43,20 @@ func NewManager() *Manager {
 	return &Manager{sessions: map[string]*Session{}}
 }
 
-func (m *Manager) Start() (string, error) {
+func (m *Manager) Start(target string) (string, error) {
 	id, err := randomID(12)
 	if err != nil {
 		return "", err
 	}
 
-	cmd := exec.Command("/bin/bash", "-i")
+	var cmd *exec.Cmd
+	if target == "" || target == "local" {
+		cmd = exec.Command("/bin/bash", "-i")
+	} else {
+		// target format: user@host or host
+		cmd = exec.Command("ssh", "-t", target)
+	}
+
 	cmd.Env = append(os.Environ(),
 		"TERM=xterm-256color",
 		"COLORTERM=truecolor",

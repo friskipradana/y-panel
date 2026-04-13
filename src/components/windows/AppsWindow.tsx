@@ -1,4 +1,5 @@
 import { useContainers, useStartContainer, useStopContainer } from '@/hooks/useContainers'
+import { useEffect } from 'react'
 import type { Container } from '@/types'
 
 const APP_ICONS: Record<string, string> = {
@@ -19,11 +20,11 @@ function getIcon(name: string): string {
 }
 
 const STATE_STYLES: Record<Container['State'], { badge: string; dot: string; btn: string; btnText: string }> = {
-  running:    { badge: 'bg-emerald-50 text-emerald-700',  dot: 'bg-emerald-500', btn: 'bg-red-50 text-red-700 hover:bg-red-100',      btnText: 'Stop' },
-  exited:     { badge: 'bg-red-50 text-red-700',          dot: 'bg-red-400',     btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
-  paused:     { badge: 'bg-amber-50 text-amber-700',      dot: 'bg-amber-400',   btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
-  restarting: { badge: 'bg-blue-50 text-blue-700',        dot: 'bg-blue-400',    btn: 'bg-red-50 text-red-700 hover:bg-red-100',      btnText: 'Stop' },
-  dead:       { badge: 'bg-slate-100 text-slate-500',     dot: 'bg-slate-400',   btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+  running: { badge: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500', btn: 'bg-red-50 text-red-700 hover:bg-red-100', btnText: 'Stop' },
+  exited: { badge: 'bg-red-50 text-red-700', dot: 'bg-red-400', btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+  paused: { badge: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400', btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
+  restarting: { badge: 'bg-blue-50 text-blue-700', dot: 'bg-blue-400', btn: 'bg-red-50 text-red-700 hover:bg-red-100', btnText: 'Stop' },
+  dead: { badge: 'bg-slate-100 text-slate-500', dot: 'bg-slate-400', btn: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100', btnText: 'Start' },
 }
 
 function StatusBadge({ state }: { state: Container['State'] }) {
@@ -36,11 +37,18 @@ function StatusBadge({ state }: { state: Container['State'] }) {
   )
 }
 
-export function AppsWindow() {
-  const { data, isLoading, isError, error } = useContainers()
+export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
+  const { data, isLoading, isError, error, refetch } = useContainers()
+
+  useEffect(() => {
+    if (authenticated) {
+      void refetch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]) 
   const startMutation = useStartContainer()
-  const stopMutation  = useStopContainer()
-  const containers    = Array.isArray(data) ? data : []
+  const stopMutation = useStopContainer()
+  const containers = Array.isArray(data) ? data : []
 
   if (isLoading) {
     return (

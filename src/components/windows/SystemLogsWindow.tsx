@@ -24,7 +24,7 @@ function lineToneClass(line: string): string {
 
 const controlClass = 'rounded-lg border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-mono text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] outline-none backdrop-blur-sm'
 
-export function SystemLogsWindow() {
+export function SystemLogsWindow({ authenticated }: { authenticated?: boolean }) {
   const [service, setService] = useState('ui-panel')
   const [limit, setLimit] = useState(160)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -36,6 +36,13 @@ export function SystemLogsWindow() {
     refetchInterval: 5000,
     retry: 1,
   })
+
+  useEffect(() => {
+    if (authenticated) {
+      void query.refetch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated])
 
   const lines = useMemo(() => {
     if (!query.data?.lines?.length) return []

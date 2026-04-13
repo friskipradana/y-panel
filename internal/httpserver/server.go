@@ -150,7 +150,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
 	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuth(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/v1/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
-	s.mux.Handle("GET /api/v1/frontend/revision", s.requireAuth(http.HandlerFunc(s.handleFrontendRevision)))
+	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
 	s.mux.Handle("GET /api/v1/system/summary", s.requireAuth(http.HandlerFunc(s.handleSystemSummary)))
 	s.mux.Handle("GET /api/v1/system/logs", s.requireAuth(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuth(http.HandlerFunc(s.handleSystemChangelog)))
@@ -181,6 +181,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionStart)))
 	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionWebSocket)))
 	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionClose)))
+	s.mux.HandleFunc("GET /api/v1/system/stats/ws", s.handleSystemStatsWebSocket)
 	// Terminal presets
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleListTerminalPresets)))
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleCreateTerminalPreset)))
@@ -297,6 +298,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		"kernel":             summary.Kernel,
 		"uptimeSeconds":      summary.UptimeSeconds,
 		"cpuUsagePercent":    summary.CPUUsagePercent,
+		"cpuTemp":            summary.CPUTemp,
 		"memory":             summary.Memory,
 		"storage":            summary.Storage,
 		"dockerInstalled":    summary.DockerInstalled,
@@ -561,7 +563,14 @@ func (s *Server) handleContainerStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Request) {
-	id, err := s.terminalManager.Start()
+	defer r.Body.Close()
+	var req struct {
+		Target string `json:"target"`
+	}
+	// Target is optional, default is handled in terminalManager.Start
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	id, err := s.terminalManager.Start(req.Target)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeError(w, http.StatusBadGateway, err)
@@ -1469,6 +1478,35 @@ func closeChannel(ch chan struct{}) {
 }
 
 // ─── Terminal Preset Handlers ─────────────────────────────────────────────────
+
+func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := s.terminalUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	stop := make(chan struct{})
+	go func() {
+		_, _, _ = conn.ReadMessage()
+		close(stop)
+	}()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
+			if err := conn.WriteJSON(summary); err != nil {
+				return
+			}
+		}
+	}
+}
 
 func (s *Server) handleListTerminalPresets(w http.ResponseWriter, _ *http.Request) {
 	presets, err := s.database.ListTerminalPresets()

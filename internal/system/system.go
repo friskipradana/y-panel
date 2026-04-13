@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ type Summary struct {
 	Kernel             string    `json:"kernel"`
 	UptimeSeconds      float64   `json:"uptimeSeconds"`
 	CPUUsagePercent    float64   `json:"cpuUsagePercent"`
+	CPUTemp            float64   `json:"cpuTemp"`
 	Memory             UsageStat `json:"memory"`
 	Storage            UsageStat `json:"storage"`
 	DockerInstalled    bool      `json:"dockerInstalled"`
@@ -50,6 +52,7 @@ func Inspect(portainerURL, stateDir string) Summary {
 		Kernel:             readKernel(),
 		UptimeSeconds:      readUptimeSeconds(),
 		CPUUsagePercent:    readCPUUsagePercent(),
+		CPUTemp:            readCPUTemp(),
 		Memory:             readMemoryUsage(),
 		Storage:            readStorageUsage(stateDir),
 		DockerInstalled:    dockerInstalled,
@@ -126,6 +129,42 @@ func readUptimeSeconds() float64 {
 	}
 	value, _ := strconv.ParseFloat(parts[0], 64)
 	return value
+}
+
+func readCPUTemp() float64 {
+	// 1. Scan seluruh hardware monitor (Intel/AMD/SuperIO)
+	// Mencari file temp*_input di semua subfolder hwmon
+	hwmons, err := filepath.Glob("/sys/class/hwmon/hwmon*/temp*_input")
+	if err == nil {
+		for _, path := range hwmons {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				tempStr := strings.TrimSpace(string(data))
+				tempInt, err := strconv.ParseFloat(tempStr, 64)
+				// Validasi: Suhu komputer biasanya antara 10C sampai 110C (10000-110000)
+				if err == nil && tempInt > 5000 && tempInt < 150000 {
+					return tempInt / 1000.0
+				}
+			}
+		}
+	}
+
+	// 2. Scan thermal zones (ARM/Mobile/ACPI Generic)
+	zones, err := filepath.Glob("/sys/class/thermal/thermal_zone*/temp")
+	if err == nil {
+		for _, path := range zones {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				tempStr := strings.TrimSpace(string(data))
+				tempInt, err := strconv.ParseFloat(tempStr, 64)
+				if err == nil && tempInt > 5000 && tempInt < 150000 {
+					return tempInt / 1000.0
+				}
+			}
+		}
+	}
+
+	return 0
 }
 
 func readCPUUsagePercent() float64 {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
 
@@ -100,7 +101,8 @@ interface WindowStore {
   globalFontIndex: number;
   globalTerminalFontSize: number;
 
-  openWindow: (kind: WindowKind) => string;
+  openWindow: (kind: WindowKind, params?: Record<string, any>) => string;
+  updateWindowParams: (id: string, params: Record<string, any>) => void;
   closeWindow: (id: string) => void;
   focusWindow: (id: string) => void;
   minimizeWindow: (id: string) => void;
@@ -113,7 +115,12 @@ interface WindowStore {
   setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
   closeWindowsByKind: (kind: WindowKind) => void;
+  setShowSystemStats: (v: boolean) => void;
+  setSystemStatsConfig: (config: { cpu: boolean; ram: boolean; temp: boolean }) => void;
   resetWindows: () => void;
+
+  showSystemStats: boolean;
+  systemStatsConfig: { cpu: boolean; ram: boolean; temp: boolean };
 }
 
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
@@ -126,182 +133,212 @@ export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
 
 export const useWindowStore = create<WindowStore>()(
-  withMutative<WindowStore>((set) => ({
-    windows: [],
-    focusedId: null,
-    autoHideDock: false,
-    globalContentZoom: 1,
-    globalFontIndex: 2,
-    globalTerminalFontSize: 9,
+  persist(
+    withMutative<WindowStore>((set) => ({
+      windows: [],
+      focusedId: null,
+      autoHideDock: false,
+      globalContentZoom: 1,
+      globalFontIndex: 2,
+      globalTerminalFontSize: 9,
 
-    openWindow: (kind) => {
-      let openedId = '';
-      set((state) => {
-        const def = DEFAULTS[kind];
-        const existing = def.singleton
-          ? state.windows.find((w) => w.kind === kind)
-          : undefined;
+      openWindow: (kind, params) => {
+        let openedId = '';
+        set((state) => {
+          const def = DEFAULTS[kind];
+          const existing = def.singleton
+            ? state.windows.find((w) => w.kind === kind)
+            : undefined;
 
-        if (existing) {
-          existing.isMinimized = false;
-          existing.lastAction = 'restore';
-          bringToFront(state.windows, existing.id);
-          state.focusedId = existing.id;
-          openedId = existing.id;
-          return;
-        }
+          if (existing) {
+            existing.isMinimized = false;
+            existing.lastAction = 'restore';
+            if (params) {
+              existing.params = { ...(existing.params || {}), ...params };
+            }
+            bringToFront(state.windows, existing.id);
+            state.focusedId = existing.id;
+            openedId = existing.id;
+            return;
+          }
 
-        const pad = 16;
-        const width = Math.min(def.width, window.innerWidth - pad * 2);
-        const height = Math.min(def.height, window.innerHeight - 72);
-        const offset = state.windows.filter((w) => w.kind === kind).length * 26;
-        const x = Math.max(pad, (window.innerWidth - width) / 2 + offset);
-        const y = Math.max(54, (window.innerHeight - height) / 2 + Math.min(offset, 64));
-        const id = createWindowId(kind);
-        openedId = id;
+          const pad = 16;
+          const width = Math.min(def.width, window.innerWidth - pad * 2);
+          const height = Math.min(def.height, window.innerHeight - 72);
+          const offset = state.windows.filter((w) => w.kind === kind).length * 26;
+          const x = Math.max(pad, (window.innerWidth - width) / 2 + offset);
+          const y = Math.max(54, (window.innerHeight - height) / 2 + Math.min(offset, 64));
+          const id = createWindowId(kind);
+          openedId = id;
 
-        state.windows.push({
-          id,
-          kind,
-          title: nextWindowTitle(kind, state.windows),
-          icon: def.icon,
-          x,
-          y,
-          width,
-          height,
-          zIndex: Z_FOCUS_BOOST,
-          isMinimized: false,
-          isMaximized: false,
-          isFullscreen: false,
-          lastAction: 'open',
+          state.windows.push({
+            id,
+            kind,
+            title: nextWindowTitle(kind, state.windows),
+            icon: def.icon,
+            x,
+            y,
+            width,
+            height,
+            zIndex: Z_FOCUS_BOOST,
+            isMinimized: false,
+            isMaximized: false,
+            isFullscreen: false,
+            lastAction: 'open',
+            params: params || {},
+          });
+
+          state.focusedId = id;
         });
+        return openedId;
+      },
 
-        state.focusedId = id;
-      });
-      return openedId;
-    },
+      updateWindowParams: (id, params) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (win) {
+            win.params = { ...(win.params || {}), ...params };
+          }
+        }),
 
-    closeWindow: (id) =>
-      set((state) => {
-        const index = state.windows.findIndex((w) => w.id === id);
-        if (index !== -1) {
-          state.windows.splice(index, 1);
+      closeWindow: (id) =>
+        set((state) => {
+          const index = state.windows.findIndex((w) => w.id === id);
+          if (index !== -1) {
+            state.windows.splice(index, 1);
+            reorder(state.windows);
+            const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+            state.focusedId = lastVisible?.id ?? null;
+          }
+        }),
+
+      focusWindow: (id) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          if (win.isMinimized) {
+            win.isMinimized = false;
+            win.lastAction = 'restore';
+          }
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      minimizeWindow: (id) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          win.isMinimized = !win.isMinimized;
+          win.lastAction = win.isMinimized ? 'minimize' : 'restore';
+
+          if (win.isMinimized) {
+            const lastVisible = [...state.windows]
+              .reverse()
+              .find((w) => !w.isMinimized && w.id !== id);
+            state.focusedId = lastVisible?.id ?? null;
+            return;
+          }
+
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      maximizeWindow: (id) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          if (win.isFullscreen) {
+            win.isFullscreen = false;
+            win.isMaximized = true;
+          } else {
+            win.isMaximized = !win.isMaximized;
+          }
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      toggleFullscreenWindow: (id) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (!win) return;
+          win.isFullscreen = !win.isFullscreen;
+          if (win.isFullscreen) {
+            win.isMinimized = false;
+            win.lastAction = 'restore';
+          }
+          bringToFront(state.windows, id);
+          state.focusedId = id;
+        }),
+
+      moveWindow: (id, x, y) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (win) {
+            win.x = x;
+            win.y = y;
+          }
+        }),
+
+      resizeWindow: (id, width, height) =>
+        set((state) => {
+          const win = state.windows.find((w) => w.id === id);
+          if (win) {
+            win.width = width;
+            win.height = height;
+          }
+        }),
+
+      setGlobalContentZoom: (value) =>
+        set((state) => {
+          state.globalContentZoom = Math.min(2, Math.max(0.75, Number(value.toFixed(2))));
+        }),
+
+      setGlobalFontIndex: (value) =>
+        set((state) => {
+          state.globalFontIndex = Math.max(0, Math.min(2, Math.round(value)));
+        }),
+
+      setGlobalTerminalFontSize: (value) =>
+        set((state) => {
+          state.globalTerminalFontSize = Math.min(18, Math.max(7, Math.round(value)));
+        }),
+
+      toggleDockAutoHide: () =>
+        set((state) => {
+          state.autoHideDock = !state.autoHideDock;
+        }),
+
+      closeWindowsByKind: (kind) =>
+        set((state) => {
+          state.windows = state.windows.filter((windowItem) => windowItem.kind !== kind);
           reorder(state.windows);
           const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
           state.focusedId = lastVisible?.id ?? null;
-        }
-      }),
+        }),
 
-    focusWindow: (id) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (!win) return;
-        if (win.isMinimized) {
-          win.isMinimized = false;
-          win.lastAction = 'restore';
-        }
-        bringToFront(state.windows, id);
-        state.focusedId = id;
-      }),
+      resetWindows: () =>
+        set((state) => {
+          state.windows = [];
+          state.focusedId = null;
+        }),
 
-    minimizeWindow: (id) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (!win) return;
-        win.isMinimized = !win.isMinimized;
-        win.lastAction = win.isMinimized ? 'minimize' : 'restore';
+      showSystemStats: false,
+      systemStatsConfig: { cpu: true, ram: true, temp: true },
+      setShowSystemStats: (v) =>
+        set((state) => {
+          state.showSystemStats = v;
+        }),
 
-        if (win.isMinimized) {
-          const lastVisible = [...state.windows]
-            .reverse()
-            .find((w) => !w.isMinimized && w.id !== id);
-          state.focusedId = lastVisible?.id ?? null;
-          return;
-        }
-
-        bringToFront(state.windows, id);
-        state.focusedId = id;
-      }),
-
-    maximizeWindow: (id) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (!win) return;
-        if (win.isFullscreen) {
-          win.isFullscreen = false;
-          win.isMaximized = true;
-        } else {
-          win.isMaximized = !win.isMaximized;
-        }
-        bringToFront(state.windows, id);
-        state.focusedId = id;
-      }),
-
-    toggleFullscreenWindow: (id) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (!win) return;
-        win.isFullscreen = !win.isFullscreen;
-        if (win.isFullscreen) {
-          win.isMinimized = false;
-          win.lastAction = 'restore';
-        }
-        bringToFront(state.windows, id);
-        state.focusedId = id;
-      }),
-
-    moveWindow: (id, x, y) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (win) {
-          win.x = x;
-          win.y = y;
-        }
-      }),
-
-    resizeWindow: (id, width, height) =>
-      set((state) => {
-        const win = state.windows.find((w) => w.id === id);
-        if (win) {
-          win.width = width;
-          win.height = height;
-        }
-      }),
-
-    setGlobalContentZoom: (value) =>
-      set((state) => {
-        state.globalContentZoom = Math.min(2, Math.max(0.75, Number(value.toFixed(2))));
-      }),
-
-    setGlobalFontIndex: (value) =>
-      set((state) => {
-        state.globalFontIndex = Math.max(0, Math.min(2, Math.round(value)));
-      }),
-
-    setGlobalTerminalFontSize: (value) =>
-      set((state) => {
-        state.globalTerminalFontSize = Math.min(18, Math.max(7, Math.round(value)));
-      }),
-
-    toggleDockAutoHide: () =>
-      set((state) => {
-        state.autoHideDock = !state.autoHideDock;
-      }),
-
-    closeWindowsByKind: (kind) =>
-      set((state) => {
-        state.windows = state.windows.filter((windowItem) => windowItem.kind !== kind);
-        reorder(state.windows);
-        const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
-        state.focusedId = lastVisible?.id ?? null;
-      }),
-
-    resetWindows: () =>
-      set((state) => {
-        state.windows = [];
-        state.focusedId = null;
-      }),
-  })),
+      setSystemStatsConfig: (config) =>
+        set((state) => {
+          state.systemStatsConfig = config;
+        }),
+    })),
+    {
+      name: "ui-panel-windows",
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
 );
 
 const DEBUG = true;
@@ -323,6 +360,7 @@ useWindowStore.subscribe((state) => {
       maximized: w.isMaximized,
       fullscreen: w.isFullscreen,
       action: w.lastAction,
+      params: w.params,
     })),
   });
 });

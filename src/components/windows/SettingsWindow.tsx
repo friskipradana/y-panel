@@ -233,7 +233,7 @@ function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title
   )
 }
 
-export function SettingsWindow() {
+export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const queryClient = useQueryClient()
 
   const query = useQuery({
@@ -248,6 +248,14 @@ export function SettingsWindow() {
     retry: 1,
     refetchInterval: 10_000,
   })
+
+  useEffect(() => {
+    if (authenticated) {
+      void query.refetch()
+      void databaseQuery.refetch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated])
 
   const [hostname, setHostname] = useState('')
   const [timezone, setTimezone] = useState('')

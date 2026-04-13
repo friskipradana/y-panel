@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { GlobalAlert } from '@/components/alert/GlobalAlert'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
@@ -11,7 +12,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { getFrontendRevision, getMe } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
-import type { WindowKind } from '@/types'
+import type { WindowKind, WindowState } from '@/types'
 
 const AppsWindow = lazy(() => import('@/components/windows/AppsWindow').then((module) => ({ default: module.AppsWindow })))
 const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
@@ -21,7 +22,7 @@ const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow'
 const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
 const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
-const FileManagerWindow = lazy(() => import('@/components/windows/FileManagerWindow').then((module) => ({ default: module.FileManagerWindow })))
+import { FileManagerWindow } from '@/components/windows/FileManagerWindow'
 const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((module) => ({ default: module.FileEditorWindow })))
 const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
@@ -34,11 +35,11 @@ const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
 const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
 
-const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
-  apps: () => <AppsWindow />,
-  system: () => <SystemWindow />,
-  'system-logs': () => <SystemLogsWindow />,
-  'host-terminal': () => <HostTerminalWindow />,
+const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
+  apps: (_win, auth) => <AppsWindow authenticated={auth} />,
+  system: (_win, auth) => <SystemWindow authenticated={auth} />,
+  'system-logs': (_win, auth) => <SystemLogsWindow authenticated={auth} />,
+  'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
   portainer: () => (
     <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
       <span className="text-4xl">🛡️</span>
@@ -79,10 +80,10 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
     </div>
   ),
   changelog: () => <ChangelogWindow />,
-  settings: () => <SettingsWindow />,
-  database: () => <DatabaseWindow />,
-  'file-manager': () => <FileManagerWindow />,
-  'file-editor': () => <FileEditorWindow />,
+  settings: (_win, auth) => <SettingsWindow authenticated={auth} />,
+  database: (_win, auth) => <DatabaseWindow authenticated={auth} />,
+  'file-manager': (win, auth) => <FileManagerWindow win={win} authenticated={auth} />,
+  'file-editor': (_win, auth) => <FileEditorWindow authenticated={auth} />,
   trash: () => (
     <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
       <span className="text-4xl">🗑️</span>
@@ -93,8 +94,12 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, () => React.ReactNode>> = {
 
 function WindowFallback() {
   return (
-    <div className="flex min-h-[140px] items-center justify-center text-sm" style={{ color: 'var(--sand-400)' }}>
-      Memuat modul window...
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
+      <Loader2 size={32} className="animate-spin text-sky-500 opacity-80" />
+      <div className="flex flex-col items-center gap-1">
+        <span className="text-sm font-semibold text-slate-600">Menyiapkan Aplikasi</span>
+        <span className="text-[11px] text-slate-400 uppercase tracking-widest font-medium">Sedang memuat modul...</span>
+      </div>
     </div>
   )
 }
@@ -103,7 +108,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 5_000 } },
 })
 
-function Desktop({ onLogout }: { onLogout: () => void }) {
+function Desktop({ onLogout, authenticated }: { onLogout: () => void; authenticated: boolean }) {
   const { windows } = useWindowStore()
   const { getBackground, mode, wallpaper } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -128,7 +133,7 @@ function Desktop({ onLogout }: { onLogout: () => void }) {
           return (
             <Window key={win.id} win={win}>
               <Suspense fallback={<WindowFallback />}>
-                {renderContent ? renderContent() : (
+                {renderContent ? renderContent(win, authenticated) : (
                   <p className="text-sm" style={{ color: 'var(--sand-400)' }}>No content.</p>
                 )}
               </Suspense>
@@ -284,7 +289,8 @@ function AppShell() {
     let disposed = false
 
     const syncFrontendRevision = async () => {
-      if (!authenticated || document.visibilityState !== 'visible') {
+      // Don't check if tab is hidden to save resources
+      if (document.visibilityState !== 'visible') {
         return
       }
 
@@ -348,6 +354,48 @@ function AppShell() {
     }
   }
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    if (!authenticated) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input or textarea
+      const isTyping = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) || (e.target as HTMLElement).isContentEditable
+      if (isTyping && e.key !== 'Escape') return
+
+      const { openWindow, closeWindow, focusedId } = useWindowStore.getState()
+
+      // Alt + T: Terminal
+      if (e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        openWindow('host-terminal')
+      }
+      // Alt + F: File Manager
+      if (e.altKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        openWindow('file-manager')
+      }
+      // Alt + S: Settings
+      if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        openWindow('settings')
+      }
+      // Alt + W: Close focused window
+      if (e.altKey && e.key.toLowerCase() === 'w') {
+        e.preventDefault()
+        if (focusedId) closeWindow(focusedId)
+      }
+      // Escape: Close/Minimize focused window
+      if (e.key === 'Escape' && focusedId) {
+        // Only close if not typing, or if it's a specific UI case
+        closeWindow(focusedId)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [authenticated])
+
   if (checkingSession) {
     return (
       <div className="min-h-screen grid place-items-center text-white login-shell">
@@ -370,7 +418,7 @@ function AppShell() {
         transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
         className="absolute inset-0 z-0"
       >
-        <Desktop onLogout={handleLogout} />
+        <Desktop onLogout={handleLogout} authenticated={authenticated} />
       </motion.div>
 
       {/* Login Screen Overlay */}

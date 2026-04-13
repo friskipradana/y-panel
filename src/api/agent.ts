@@ -1,11 +1,11 @@
 import axios, { AxiosError } from 'axios'
 import type {
   ChangelogResponse,
-  DatabaseStatus,
   DatabaseStatusResponse,
   EditableSystemSettings,
   ResetDatabasePasswordResponse,
   SystemLogsResponse,
+  SystemSummary,
   TerminalSessionStartResponse,
   UpdatePanelOriginsPayload,
   UpdatePanelPortPayload,
@@ -24,29 +24,6 @@ export interface AuthMe {
   role: string
 }
 
-export interface UsageStat {
-  total: number
-  used: number
-}
-
-export interface SystemSummary {
-  hostname: string
-  osName: string
-  kernel: string
-  uptimeSeconds: number
-  cpuUsagePercent: number
-  memory: UsageStat
-  storage: UsageStat
-  dockerInstalled: boolean
-  dockerReachable: boolean
-  dockerStatus: string
-  portainerReachable: boolean
-  portainerUrl: string
-  stateDir: string
-  database: DatabaseStatus
-  ipAddresses: string[]
-}
-
 const agentApi = axios.create({
   baseURL: import.meta.env.VITE_AGENT_BASE,
   withCredentials: true,
@@ -60,9 +37,11 @@ agentApi.interceptors.response.use(
   (error: AxiosError) => {
     const isPublicPath = window.location.pathname === (import.meta.env.VITE_LOGIN_PATH || '/login') || window.location.pathname === '/'
     const isUnauthorized = error.response?.status === 401
+    const isRevisionCheck = error.config?.url?.includes('/api/v1/frontend/revision')
+    const isStatsWS = error.config?.url?.includes('/api/v1/system/stats/ws')
 
-    // Silent 401 logs on public paths to keep console clean
-    if (!isUnauthorized || !isPublicPath) {
+    // Silent logs on public paths, revision checks, or stats WS to keep console clean
+    if (!isUnauthorized || (!isPublicPath && !isRevisionCheck && !isStatsWS)) {
       runtimeLogger.error('api', 'request failed', {
         method: error.config?.method,
         url: error.config?.url,
@@ -110,8 +89,8 @@ export const getMe = () =>
 export const getSystemSummary = () =>
   agentApi.get<SystemSummary>('/api/v1/system/summary').then((r) => r.data)
 
-export const startTerminalSession = () =>
-  agentApi.post<TerminalSessionStartResponse>('/api/v1/terminal/sessions').then((r) => r.data)
+export const startTerminalSession = (target = 'local') =>
+  agentApi.post<TerminalSessionStartResponse>('/api/v1/terminal/sessions', { target }).then((r) => r.data)
 
 export const closeTerminalSession = (sessionId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/terminal/sessions/${sessionId}`).then((r) => r.data)

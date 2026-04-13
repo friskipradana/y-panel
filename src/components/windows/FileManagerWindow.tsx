@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useWindowStore } from '@/store/windowStore'
-
 import { useEditorStore } from '@/store/editorStore'
+import type { WindowState } from '@/types'
 
 interface FileNode {
   name: string
@@ -158,17 +158,27 @@ const FileRow = memo(({
   )
 })
 
-export function FileManagerWindow() {
-  const { openWindow } = useWindowStore()
+export function FileManagerWindow({ win, authenticated }: { win: WindowState, authenticated?: boolean }) {
+  const { openWindow, updateWindowParams } = useWindowStore()
   const { setPendingFile } = useEditorStore()
 
+  // Initialize tabs from snapshot params if available, otherwise default to root
+  const initialPath = win.params?.currentPath || '/'
+  
   const [tabs, setTabs] = useState<FileManagerTab[]>([
-    { id: 'tab-0', currentPath: '/', inputPath: '/', data: null, loading: false }
+    { id: 'tab-0', currentPath: initialPath, inputPath: initialPath, data: null, loading: false }
   ])
   const [activeTabId, setActiveTabId] = useState<string>('tab-0')
   const [modalLoading, setModalLoading] = useState(false)
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
+
+  // Sync current path to window params for persistence
+  useEffect(() => {
+    if (activeTab.currentPath) {
+      updateWindowParams(win.id, { currentPath: activeTab.currentPath })
+    }
+  }, [activeTab.currentPath, win.id, updateWindowParams])
 
   const [menu, setMenu] = useState<{ x: number; y: number; item?: FileNode; targetPath: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -205,14 +215,29 @@ export function FileManagerWindow() {
   }
 
   const loadDirectory = useCallback(async (path: string, tabId: string) => {
-    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: true } : t))
+    // Pengecekan awal: Jika sudah loading, jangan double hit!
+    let skip = false
+    setTabs(prev => {
+      const t = prev.find(tab => tab.id === tabId)
+      if (t?.loading) {
+        skip = true
+        return prev
+      }
+      return prev.map(tab => tab.id === tabId ? { ...tab, loading: true } : tab)
+    })
+    
+    if (skip) return
+
+    console.log(`[FileManager] Hitting API for path: ${path} (Tab: ${tabId})`)
     setMenu(null)
     setModal(null)
+
     try {
       const res = await axios.get<DirResponse>('/api/v1/files?path=' + encodeURIComponent(path), {
         baseURL: import.meta.env.VITE_AGENT_BASE,
         withCredentials: true
       })
+      
       setTabs(prev => prev.map(t => t.id === tabId ? {
         ...t,
         data: { ...res.data, contents: res.data.contents || [] },
@@ -221,18 +246,26 @@ export function FileManagerWindow() {
         loading: false
       } : t))
     } catch (err: any) {
-      alertLib.fire('Akses Ditolak', err?.response?.data?.error || 'Gagal membaca direktori.', 'error', 'file-manager')
+      if (err?.response?.status !== 401) {
+        alertLib.fire('Akses Ditolak', err?.response?.data?.error || 'Gagal membaca direktori.', 'error', 'file-manager')
+      }
       setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: false } : t))
     }
   }, [])
 
+  // 1. SINGLE TRIGGER: Memastikan hit pertama dan recovery hanya memicu satu call
   useEffect(() => {
-    tabs.forEach(tab => {
-      if (!tab.data && !tab.loading && tab.currentPath === '/') {
-        void loadDirectory(tab.currentPath, tab.id)
-      }
-    })
-  }, [tabs, loadDirectory])
+    if (!authenticated) return
+
+    // Temukan tab yang butuh data (kosong dan tidak sedang loading)
+    // Utamakan tab aktif
+    const targetTab = tabs.find(t => t.id === activeTabId && !t.data && !t.loading) 
+                   || tabs.find(t => !t.data && !t.loading)
+
+    if (targetTab) {
+      void loadDirectory(targetTab.currentPath, targetTab.id)
+    }
+  }, [authenticated, activeTabId, tabs, loadDirectory])
 
   const setCurrentPath = (path: string) => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, currentPath: path } : t))
@@ -698,7 +731,7 @@ export function FileManagerWindow() {
 
       {/* ── File List ── */}
       <div
-        className={`flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50 transition-colors ${dragOverPath === activeTab.currentPath ? 'bg-sky-50/80' : ''}`}
+        className={`flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50 transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-sky-50/80' : ''}`}
         onDragOver={(e) => {
           const raw = e.dataTransfer.getData('application/x-ui-panel-file')
           if (!raw) return
@@ -718,12 +751,17 @@ export function FileManagerWindow() {
           await moveItem(dragged.path, activeTab.currentPath)
         }}
       >
-        {activeTab.loading && !activeTab.data && (
-          <div className="flex justify-center p-8 text-sky-600">
-            <Loader2 size={24} className="animate-spin" />
+        {/* FIX: Show loader if loading OR if we don't have data yet (initial hit) */}
+        {(activeTab.loading || (!activeTab.data && !activeTab.loading)) && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity">
+            <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-white/80 shadow-xl border border-black/5">
+              <Loader2 size={24} className="animate-spin text-sky-600" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Memuat file...</span>
+            </div>
           </div>
         )}
-        {activeTab.data && (activeTab.data.contents || []).length === 0 && (
+
+        {activeTab.data && (activeTab.data.contents || []).length === 0 && !activeTab.loading && (
           <div className="flex flex-col items-center justify-center p-14 text-slate-400">
             <Folder size={46} className="mb-3 opacity-30" />
             <p className="text-[13px] font-medium opacity-80">Folder ini kosong</p>

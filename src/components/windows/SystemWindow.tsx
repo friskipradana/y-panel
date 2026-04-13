@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
 import { getSystemSummary } from '@/api/agent'
@@ -94,13 +95,20 @@ function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: str
   )
 }
 
-export function SystemWindow() {
-  const { data, isLoading, isError } = useQuery({
+export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-system-summary'],
     queryFn: getSystemSummary,
     retry: 1,
     refetchInterval: 5_000,
   })
+
+  useEffect(() => {
+    if (authenticated) {
+      void refetch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated])
 
   if (isLoading) {
     return (

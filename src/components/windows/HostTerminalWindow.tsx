@@ -36,17 +36,19 @@ const TERMINAL_FONT_OPTIONS = [
 
 // ─── Single terminal pane ─────────────────────────────────────────────────────
 interface TerminalTabPaneProps {
+  authenticated?: boolean
   active: boolean
+  target?: string
   fontFamily: string
   fontSize: number
   onStatusChange?: (connected: boolean, error: boolean) => void
-  onStart?: (start: () => Promise<void>) => void
+  onStart?: (start: (target?: string) => Promise<void>) => void
   onSendInput?: (fn: (cmd: string) => Promise<void>) => void
 }
 
-function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
+function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
   const {
-    sessionId, starting, connected, error,
+    starting, connected, error,
     start, sendInput, updateTerminalSize, setOutputListener, close,
   } = useTerminalSession()
 
@@ -58,10 +60,14 @@ function TerminalTabPane({ active, fontFamily, fontSize, onStatusChange, onStart
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
   useEffect(() => { onStatusChange?.(connected, !!error) }, [connected, error, onStatusChange])
 
-  // Auto-start
+  // Auto-start and Re-connect on authentication
   useEffect(() => {
-    if (!sessionId && !starting && !connected) void start()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    if (authenticated && (!connected || error) && !starting) {
+      console.log(`[Terminal] Session recovered or initial mount. Starting session for ${target}...`)
+      void start(target)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated]) 
 
   // Mount xterm once
   useEffect(() => {
@@ -161,14 +167,15 @@ let nextTabId = 1
 interface Tab {
   id: number
   label: string
+  target: string
   connected: boolean
   error: boolean
-  startFn: (() => Promise<void>) | null
+  startFn: ((target?: string) => Promise<void>) | null
   sendInputFn: ((cmd: string) => Promise<void>) | null
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function HostTerminalWindow() {
+export function HostTerminalWindow({ authenticated }: { authenticated?: boolean }) {
   const globalContentZoom      = useWindowStore(selectGlobalContentZoom)
   const globalFontIndex        = useWindowStore(selectGlobalFontIndex)
   const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
@@ -177,15 +184,41 @@ export function HostTerminalWindow() {
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: 'Local server', connected: false, error: false, startFn: null, sendInputFn: null },
+    { id: nextTabId++, label: 'Local server', target: 'local', connected: false, error: false, startFn: null, sendInputFn: null },
   ])
   const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
 
-  const addTab = useCallback(() => {
+  const [showSshModal, setShowSshModal] = useState(false)
+  const [sshInput, setSshInput] = useState('')
+
+  useEffect(() => {
+    if (authenticated) {
+       void loadPresets()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated])
+
+  const addTab = useCallback((target = 'local', label?: string) => {
     const id = nextTabId++
-    setTabs((prev) => [...prev, { id, label: 'Local server', connected: false, error: false, startFn: null, sendInputFn: null }])
+    setTabs((prev) => [...prev, { 
+      id, 
+      label: label || (target === 'local' ? 'Local server' : target), 
+      target,
+      connected: false, 
+      error: false, 
+      startFn: null, 
+      sendInputFn: null 
+    }])
     setActiveTabId(id)
   }, [])
+
+  const handleSshConnect = () => {
+    const t = sshInput.trim()
+    if (!t) return
+    addTab(t)
+    setSshInput('')
+    setShowSshModal(false)
+  }
 
   const closeTab = useCallback((id: number) => {
     setTabs((prev) => {
@@ -203,7 +236,7 @@ export function HostTerminalWindow() {
     setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, connected, error } : t))
   }, [])
 
-  const handleStart = useCallback((tabId: number, fn: () => Promise<void>) => {
+  const handleStart = useCallback((tabId: number, fn: (target?: string) => Promise<void>) => {
     setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, startFn: fn } : t))
   }, [])
 
@@ -213,7 +246,7 @@ export function HostTerminalWindow() {
 
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
 
-  const handleReconnect = () => activeTab.startFn?.()
+  const handleReconnect = () => activeTab.startFn?.(activeTab.target)
 
   const runPreset = async (command: string) => {
     const fn = activeTab.sendInputFn
@@ -398,9 +431,42 @@ export function HostTerminalWindow() {
           <button className="ht-action-btn" onClick={handleReconnect} title="Reconnect">
             <RefreshCcw size={13} /><span>Reconnect</span>
           </button>
-          <button className="ht-action-btn ht-action-btn--add" onClick={addTab} title="New terminal tab">
-            <Plus size={14} />
-          </button>
+          
+          <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-white/10">
+            <button 
+              className={`ht-action-btn ${showSshModal ? 'bg-sky-500/20 text-sky-400' : ''}`} 
+              onClick={() => setShowSshModal(!showSshModal)} 
+              title="Connect via SSH"
+            >
+              <Plus size={14} className="rotate-45" />
+              <span>SSH</span>
+            </button>
+
+            {showSshModal && (
+              <div className="absolute top-[40px] right-0 w-64 p-3 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/20 shadow-2xl z-[50]">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Connect to Remote (SSH)</div>
+                <input 
+                  autoFocus
+                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-xs focus:border-sky-500/50 outline-none transition-all"
+                  placeholder="user@192.168.1.x"
+                  value={sshInput}
+                  onChange={(e) => setSshInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSshConnect()
+                    if (e.key === 'Escape') setShowSshModal(false)
+                  }}
+                />
+                <div className="flex justify-end gap-2 mt-3">
+                  <button className="px-3 py-1.5 text-[10px] font-bold text-slate-400 hover:text-white" onClick={() => setShowSshModal(false)}>Cancel</button>
+                  <button className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded-lg shadow-lg" onClick={handleSshConnect}>Connect</button>
+                </div>
+              </div>
+            )}
+
+            <button className="ht-action-btn ht-action-btn--add" onClick={() => addTab()} title="New local terminal">
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -498,7 +564,9 @@ export function HostTerminalWindow() {
         {tabs.map((tab) => (
           <TerminalTabPane
             key={tab.id}
+            authenticated={authenticated}
             active={tab.id === activeTabId}
+            target={tab.target}
             fontFamily={fontFamily}
             fontSize={fontSize}
             onStatusChange={(c, e) => handleStatusChange(tab.id, c, e)}

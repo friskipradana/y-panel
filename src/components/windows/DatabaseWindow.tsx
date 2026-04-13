@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
@@ -12,13 +12,20 @@ const TRUNCATE_TARGETS = [
   { label: 'Settings Audit', value: 'settings_audit' },
 ]
 
-export function DatabaseWindow() {
+export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
   const query = useQuery({
     queryKey: ['database-status'],
     queryFn: getDatabaseStatus,
     refetchInterval: 8000,
     retry: 1,
   })
+
+  useEffect(() => {
+    if (authenticated) {
+      void query.refetch()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated])
 
   const [logQuery, setLogQuery] = useState('')
   const [logLimit, setLogLimit] = useState(10)

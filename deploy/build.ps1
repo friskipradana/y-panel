@@ -393,7 +393,7 @@ if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
 }
 Import-Module Posh-SSH -WarningAction SilentlyContinue -ErrorAction Stop
 
-Require-Command npm
+Require-Command bun
 Require-Command tar
 
 # ── Path resolution ──────────────────────────────────────────────────────────
@@ -431,7 +431,7 @@ try {
 
   # ── [1] Build frontend ────────────────────────────────────────
   Write-Step 'Build frontend production'
-  $buildOut = & cmd /c "cd /d `"$ProjectRoot`" && npm run build 2>&1"
+  $buildOut = & cmd /c "cd /d `"$ProjectRoot`" && bun run build 2>&1"
   $buildExitCode = $LASTEXITCODE
   if ($buildExitCode -ne 0) { throw 'Build frontend gagal.' }
   $buildText = ($buildOut | Out-String)

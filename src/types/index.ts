@@ -30,9 +30,46 @@ export interface WindowState {
   isMaximized: boolean
   isFullscreen: boolean
   lastAction?: 'open' | 'minimize' | 'restore'
+  /** Snapshot data for restoring window state after refresh */
+  params?: Record<string, any>
 }
 
 // ── Docker / Portainer ───────────────────────────────────────────
+export interface SystemSummary {
+  osName: string
+  hostname: string
+  kernel: string
+  uptimeSeconds: number
+  cpuUsagePercent: number
+  cpuTemp: number
+  memory: {
+    total: number
+    used: number
+  }
+  storage: {
+    total: number
+    used: number
+  }
+  stateDir: string
+  dockerInstalled: boolean
+  dockerReachable: boolean
+  dockerStatus: string
+  portainerUrl: string
+  portainerReachable: boolean
+  database: {
+    connected: boolean
+    enabled: boolean
+    host: string
+    port: number
+    user: string
+    lastError: string
+    changelogCount: number
+    runtimeLogCount: number
+    settingsAuditCount: number
+  }
+  ipAddresses: string[]
+}
+
 export interface Container {
   Id: string
   Names: string[]
