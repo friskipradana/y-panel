@@ -401,32 +401,27 @@ body {
   color: #f76707;
 }
 
-.login-page {
+.mac-login-page {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
   color: white;
   background: transparent !important;
+  backdrop-filter: blur(40px) brightness(0.85); /* macOS-like blurred lockscreen */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.login-shell {
-  background:
-    radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.12), transparent 40%),
-    radial-gradient(circle at 85% 18%, rgba(168, 85, 247, 0.12), transparent 45%),
-    radial-gradient(circle at 50% 100%, rgba(249, 115, 22, 0.1), transparent 50%),
-    rgba(2, 6, 23, 0.25);
-  backdrop-filter: blur(16px);
-}
-
-.login-noise {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
-}
-
-.glass-panel {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(26px);
-  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
+/* Fix browser autofill background for transparent dark-themed inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px transparent inset !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
+    transition: background-color 5000s ease-in-out 0s;
+    background-color: transparent !important;
 }
 
 .login-grid {

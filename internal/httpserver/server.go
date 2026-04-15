@@ -160,6 +160,10 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleUpdateSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelPort)))
 	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelOrigins)))
+	
+	// API Wallpaper: Dibuka public agar dapat tampil dan diubah di Lock Screen (sebelum login)
+	s.mux.HandleFunc("GET /api/v1/settings/wallpaper", s.handleGetWallpaper)
+	s.mux.HandleFunc("POST /api/v1/settings/wallpaper", s.handleUpdateWallpaper)
 
 	s.mux.Handle("GET /api/v1/files", s.requireAuth(http.HandlerFunc(s.handleFileManagerList)))
 	s.mux.Handle("GET /api/v1/files/read", s.requireAuth(http.HandlerFunc(s.handleFileManagerRead)))
@@ -494,6 +498,45 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
 	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "originsRaw": snapshot.OriginsRaw, "remote": remoteAddr(r), "user": username})
 	s.writeJSON(w, http.StatusOK, snapshot)
+}
+
+func (s *Server) handleGetWallpaper(w http.ResponseWriter, r *http.Request) {
+	username, _ := s.currentUser(r)
+	if username == "" {
+		username = "admin" // Default ke admin supaya saat belum login (lock screen) tetap mendapat wallpaper utama
+	}
+	wallpaperData, err := s.database.GetWallpaper(username)
+	if err != nil {
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"data": wallpaperData})
+}
+
+func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	
+	var req struct {
+		Data string `json:"data"`
+	}
+	
+	// Set limit reader for 8MB
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body structure or payload too large"})
+		return
+	}
+
+	username, _ := s.currentUser(r)
+	if username == "" {
+		username = "admin"
+	}
+	
+	if err := s.database.SetWallpaper(username, req.Data); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
 func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Request) {

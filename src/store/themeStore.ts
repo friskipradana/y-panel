@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 
-export type ThemeMode = 'light' | 'dark'
+import { getWallpaper, updateWallpaper } from '@/api/agent'
 
+export type ThemeMode = 'light' | 'dark'
 export type WallpaperKey = 'default' | 'ocean' | 'sunset' | 'forest' | 'midnight' | 'aurora' | 'custom'
 
 export interface WallpaperDef {
@@ -84,7 +85,8 @@ interface ThemeStore {
   customImageUrl: string | null
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
-  setCustomImage: (dataUrl: string) => void
+  setCustomImage: (dataUrl: string) => Promise<void>
+  syncCustomImage: () => Promise<void>
   toggleMode: () => void
   /** Returns the CSS background value for the current wallpaper+mode */
   getBackground: () => string
@@ -116,9 +118,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
   const getBackground = () => {
     const { mode, wallpaper, customImageUrl } = get()
     if (wallpaper === 'custom' && customImageUrl) {
-      return `url(${customImageUrl}) center/cover no-repeat`
+      return `url("${customImageUrl}") center/cover no-repeat`
     }
-    const def = WALLPAPERS[wallpaper as Exclude<WallpaperKey, 'custom'>] ?? WALLPAPERS.default
+    const def = WALLPAPERS[(wallpaper === 'custom' ? 'default' : wallpaper) as Exclude<WallpaperKey, 'custom'>] ?? WALLPAPERS.default
     return mode === 'dark' ? (def.dark ?? def.light) : def.light
   }
 
@@ -138,9 +140,27 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       set({ wallpaper })
     },
 
-    setCustomImage: (dataUrl) => {
-      persist({ wallpaper: 'custom', customImageUrl: dataUrl })
+    setCustomImage: async (dataUrl) => {
       set({ wallpaper: 'custom', customImageUrl: dataUrl })
+      persist({ wallpaper: 'custom' }) 
+      // Do not store the heavy dataURL in localstorage
+      try {
+        await updateWallpaper(dataUrl)
+      } catch (err) {
+         console.error('Failed to sync wallpaper', err)
+      }
+    },
+
+    syncCustomImage: async () => {
+      try {
+        const res = await getWallpaper()
+        if (res && res.data) {
+           set({ customImageUrl: res.data, wallpaper: 'custom' })
+           persist({ wallpaper: 'custom' })
+        }
+      } catch (err) {
+        // ignore
+      }
     },
 
     toggleMode: () => {

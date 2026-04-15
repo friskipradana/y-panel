@@ -365,6 +365,12 @@ func (m *Manager) ensureSchema() error {
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			INDEX idx_terminal_presets_sort (sort_order, id)
 		);
+
+		CREATE TABLE IF NOT EXISTS user_preferences (
+			username VARCHAR(120) PRIMARY KEY,
+			wallpaper_json LONGTEXT NULL,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		);
 	`)
 	if err != nil {
 		return err
@@ -542,6 +548,30 @@ func (m *Manager) setError(message string) {
 	m.connected = false
 	m.lastError = strings.TrimSpace(message)
 	m.mu.Unlock()
+}
+
+func (m *Manager) SetWallpaper(username, wallpaperData string) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database tidak tersambung")
+	}
+	_, err := m.db.Exec(`
+		INSERT INTO user_preferences (username, wallpaper_json)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE wallpaper_json = VALUES(wallpaper_json)
+	`, strings.TrimSpace(username), wallpaperData)
+	return err
+}
+
+func (m *Manager) GetWallpaper(username string) (string, error) {
+	if !m.IsConnected() || m.db == nil {
+		return "", fmt.Errorf("database tidak tersambung")
+	}
+	var wallpaperData sql.NullString
+	err := m.db.QueryRow("SELECT wallpaper_json FROM user_preferences WHERE username = ?", strings.TrimSpace(username)).Scan(&wallpaperData)
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	}
+	return wallpaperData.String, nil
 }
 
 func marshalJSON(value any) string {

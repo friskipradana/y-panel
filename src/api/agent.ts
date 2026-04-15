@@ -141,3 +141,9 @@ export const deleteTerminalPreset = (id: number) =>
 
 export const resetTerminalPresets = () =>
   agentApi.post<{ ok: boolean; presets: TerminalPreset[] }>('/api/v1/terminal/presets/reset').then((r) => r.data)
+
+export const getWallpaper = () =>
+  agentApi.get<{ data: string }>('/api/v1/settings/wallpaper').then((r) => r.data)
+
+export const updateWallpaper = (data: string) =>
+  agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)

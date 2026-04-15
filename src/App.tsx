@@ -110,15 +110,19 @@ const queryClient = new QueryClient({
 
 function Desktop({ onLogout, authenticated }: { onLogout: () => void; authenticated: boolean }) {
   const { windows } = useWindowStore()
-  const { getBackground, mode, wallpaper } = useThemeStore()
+  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    syncCustomImage()
+  }, [])
 
   // Update background imperatively so we never unmount children (keeps dropdown open)
   useEffect(() => {
     if (rootRef.current) {
       rootRef.current.style.background = getBackground()
     }
-  }, [mode, wallpaper])
+  }, [mode, wallpaper, customImageUrl])
 
   return (
     <div
