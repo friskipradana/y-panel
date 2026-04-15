@@ -24,7 +24,7 @@ function formatDateTime(value: Date) {
 
 const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Apps', kind: 'apps' },
-  { label: 'Portainer', kind: 'portainer' },
+  // { label: 'Portainer', kind: 'portainer' },
   { label: 'Terminal', kind: 'host-terminal' },
   { label: 'Files', kind: 'file-manager' },
   // { label: 'System', kind: 'system' },
