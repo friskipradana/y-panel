@@ -73,7 +73,9 @@ export function Taskbar({ onLogout }: TaskbarProps) {
           
           const cpu = data.cpuUsagePercent || 0
           const mem = data.memory || { used: 0, total: 1 }
-          const ram = (mem.used / mem.total) * 100
+          // Pastikan total tidak nol untuk menghindari pembagian nol
+          const totalMem = mem.total || 1
+          const ram = (mem.used / totalMem) * 100
           const temp = data.cpuTemp || 0
 
           setStats({

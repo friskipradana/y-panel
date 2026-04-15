@@ -593,7 +593,19 @@ __ARCHIVE_BELOW__
     }
   }
 
-  if ([string]::IsNullOrWhiteSpace($AdminPassword) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD')) { $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD'] }
+  if ([string]::IsNullOrWhiteSpace($AdminPassword)) {
+    if ($ExistingEnv.ContainsKey('PANEL_ADMIN_PASSWORD') -and -not [string]::IsNullOrWhiteSpace($ExistingEnv['PANEL_ADMIN_PASSWORD'])) {
+      $AdminPassword = $ExistingEnv['PANEL_ADMIN_PASSWORD']
+    } else {
+      $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      $randomString = ''
+      for ($i = 0; $i -lt 20; $i++) {
+        $randomString += $chars[(Get-Random -Minimum 0 -Maximum $chars.Length)]
+      }
+      $AdminPassword = $randomString
+    }
+  }
+
   if ([string]::IsNullOrWhiteSpace($AdminUsername) -and $ExistingEnv.ContainsKey('PANEL_ADMIN_USERNAME')) { $AdminUsername = $ExistingEnv['PANEL_ADMIN_USERNAME'] }
   if ([string]::IsNullOrWhiteSpace($BindAddress) -and $ExistingEnv.ContainsKey('PANEL_BIND_ADDR')) { $BindAddress = $ExistingEnv['PANEL_BIND_ADDR'] }
   if ([string]::IsNullOrWhiteSpace($BindAddress)) { $BindAddress = '0.0.0.0:8787' }

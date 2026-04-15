@@ -226,25 +226,31 @@ func readMemoryUsage() UsageStat {
 	if err != nil {
 		return UsageStat{}
 	}
-	var totalKB uint64
-	var availableKB uint64
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
+
+	stats := make(map[string]uint64)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
 			continue
 		}
-		switch fields[0] {
-		case "MemTotal:":
-			totalKB, _ = strconv.ParseUint(fields[1], 10, 64)
-		case "MemAvailable:":
-			availableKB, _ = strconv.ParseUint(fields[1], 10, 64)
-		}
+		key := strings.TrimSuffix(parts[0], ":")
+		val, _ := strconv.ParseUint(parts[1], 10, 64)
+		stats[key] = val * 1024 // Convert KB to Bytes
 	}
-	total := totalKB * 1024
-	used := uint64(0)
-	if totalKB > availableKB {
-		used = (totalKB - availableKB) * 1024
-	}
+
+	total := stats["MemTotal"]
+	free := stats["MemFree"]
+	buffers := stats["Buffers"]
+	cached := stats["Cached"]
+	reclaimable := stats["SReclaimable"]
+
+	// Di Linux, 'Used' yang sebenarnya (seperti di perintah free) adalah:
+	// Total - Free - Buffers - Cache
+	// SReclaimable juga merupakan bagian dari cache yang bisa diambil kembali
+	used := total - free - buffers - cached - reclaimable
+
 	return UsageStat{Total: total, Used: used}
 }
 
