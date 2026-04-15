@@ -409,7 +409,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1200px] flex-col gap-4">
+    <div className="mx-auto flex max-w-[1200px] flex-col gap-4 py-3">
       <div className="rounded-[22px] bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_60%,#312e81_100%)] px-7 py-[22px] text-white shadow-[0_20px_48px_rgba(15,23,42,0.20)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

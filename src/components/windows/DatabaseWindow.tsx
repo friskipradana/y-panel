@@ -43,12 +43,12 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
       'warning',
       'database'
     )
-    
+
     if (!isConfirmed) return
 
     setTruncating(true)
     alertLib.showLoading('Memotong Data...', 'Proses ini mungkin memakan waktu beberapa saat tergantung ukuran database Anda.', 'database')
-    
+
     try {
       const res = await truncateDatabaseData(truncateTarget, truncateDay)
       alertLib.close()
@@ -74,11 +74,11 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
     const keyword = logQuery.trim().toLowerCase()
     const source = keyword
       ? runtimeLogs.filter((entry) => {
-          const haystack = [entry.service, entry.level, entry.message, entry.metadata ?? '']
-            .join(' ')
-            .toLowerCase()
-          return haystack.includes(keyword)
-        })
+        const haystack = [entry.service, entry.level, entry.message, entry.metadata ?? '']
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(keyword)
+      })
       : runtimeLogs
     return source.slice(0, logLimit)
   }, [runtimeLogs, logQuery, logLimit])
@@ -101,7 +101,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4 py-3">
       <div className="rounded-[24px] bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_60%,#312e81_100%)] p-4 text-white shadow-[0_24px_50px_rgba(15,23,42,0.18)] sm:rounded-[28px] sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
@@ -182,7 +182,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-        <section className="rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px] sm:p-5">
+        <section className="rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px] sm:p-5 min-h-[461]">
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-[16px] bg-[linear-gradient(135deg,rgba(56,189,248,0.16),rgba(99,102,241,0.14))] text-slate-900">
               <Database size={18} />
@@ -205,7 +205,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </section>
 
-        <section className="flex min-h-[340px] max-h-[520px] flex-col overflow-hidden rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px]">
+        <section className="flex min-h-[340px] max-h-[461px] flex-col overflow-hidden rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px]">
           <div className="border-b border-slate-400/16 px-4 py-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="text-[13px] font-semibold text-slate-900">Persisted runtime logs</div>
