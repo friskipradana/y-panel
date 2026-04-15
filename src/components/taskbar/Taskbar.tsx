@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity } from 'lucide-react'
+import { Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { logoutAgent, getMe } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
@@ -27,16 +27,16 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Portainer', kind: 'portainer' },
   { label: 'Terminal', kind: 'host-terminal' },
   { label: 'Files', kind: 'file-manager' },
-  { label: 'System', kind: 'system' },
-  { label: 'Settings', kind: 'settings' },
-  { label: 'Database', kind: 'database' },
+  // { label: 'System', kind: 'system' },
+  // { label: 'Settings', kind: 'settings' },
+  // { label: 'Database', kind: 'database' },
   { label: 'Docs', kind: 'docs' },
 ]
 
 export function Taskbar({ onLogout }: TaskbarProps) {
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
-  
+
   const { openWindow, resetWindows, showSystemStats, systemStatsConfig, setShowSystemStats, setSystemStatsConfig } = useWindowStore()
   const [time, setTime] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
@@ -63,14 +63,14 @@ export function Taskbar({ onLogout }: TaskbarProps) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const apiBase = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
       const url = `${protocol}//${window.location.host}${apiBase}/system/stats/ws`
-      
+
       socket = new WebSocket(url)
-      
+
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
           console.log('[Stats WS] Received:', data)
-          
+
           const cpu = data.cpuUsagePercent || 0
           const mem = data.memory || { used: 0, total: 1 }
           // Pastikan total tidak nol untuk menghindari pembagian nol
@@ -83,7 +83,7 @@ export function Taskbar({ onLogout }: TaskbarProps) {
             ram: isNaN(ram) ? 0 : ram,
             temp
           })
-        } catch (e) { 
+        } catch (e) {
           console.error('[Stats WS] Parse Error:', e)
         }
       }
@@ -192,24 +192,21 @@ export function Taskbar({ onLogout }: TaskbarProps) {
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             ref={menuRef}
-            className={`absolute right-4 top-[50px] w-60 p-2 rounded-2xl backdrop-blur-2xl z-[999999] ${
-              isDark 
-                ? 'bg-slate-900/90 text-white' 
-                : 'bg-white/95 text-slate-800'
-            }`}
+            className={`absolute right-4 top-[50px] w-60 p-2 rounded-2xl backdrop-blur-2xl z-[999999] ${isDark
+              ? 'bg-slate-900/90 text-white'
+              : 'bg-white/95 text-slate-800'
+              }`}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${
-              isDark ? 'text-slate-500' : 'text-slate-400'
-            }`}>
+            <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'
+              }`}>
               Taskbar Settings
             </div>
             <button
-              className={`flex items-center justify-between w-full px-3 py-2 text-[12.5px] font-semibold rounded-lg transition-all group ${
-                isDark 
-                  ? 'hover:bg-white/5' 
-                  : 'hover:bg-black/5'
-              }`}
+              className={`flex items-center justify-between w-full px-3 py-2 text-[12.5px] font-semibold rounded-lg transition-all group ${isDark
+                ? 'hover:bg-white/5'
+                : 'hover:bg-black/5'
+                }`}
               onClick={() => { setShowSystemStats(!showSystemStats); setShowMenu(false); }}
             >
               <div className="flex items-center gap-2.5">
@@ -232,13 +229,12 @@ export function Taskbar({ onLogout }: TaskbarProps) {
                   <button
                     key={item.key}
                     disabled={!showSystemStats}
-                    className={`flex items-center justify-between w-full px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
-                      !showSystemStats 
-                        ? 'opacity-20 grayscale' 
-                        : isDark 
-                          ? 'hover:bg-white/5 text-slate-400 hover:text-white' 
-                          : 'hover:bg-black/5 text-slate-500 hover:text-slate-900'
-                    }`}
+                    className={`flex items-center justify-between w-full px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
+                      ? 'opacity-20 grayscale'
+                      : isDark
+                        ? 'hover:bg-white/5 text-slate-400 hover:text-white'
+                        : 'hover:bg-black/5 text-slate-500 hover:text-slate-900'
+                      }`}
                     onClick={() => toggleConfig(item.key)}
                   >
                     <div className="flex items-center gap-2.5">
@@ -257,6 +253,14 @@ export function Taskbar({ onLogout }: TaskbarProps) {
 
         <button id="taskbar-monitor" title="System Info" className="taskbar-icon-btn" onClick={() => openWindow('system')}>
           <Monitor size={14} />
+        </button>
+
+        <button id="taskbar-settings" title="System Settings" className="taskbar-icon-btn" onClick={() => openWindow('settings')}>
+          <Settings size={14} />
+        </button>
+
+        <button id="taskbar-database" title="Database" className="taskbar-icon-btn" onClick={() => openWindow('database')}>
+          <Database size={14} />
         </button>
 
         <button id="taskbar-system-log" title="System Logs" className="taskbar-icon-btn" onClick={() => openWindow('system-logs')}>

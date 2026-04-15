@@ -10,7 +10,7 @@ const DEFAULTS: Record<
   apps: { title: "My Apps", icon: "📁", width: 460, height: 380, singleton: true },
   terminal: { title: "Terminal", icon: "💻", width: 500, height: 320, singleton: true },
   "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 920, height: 640, singleton: true },
-  system: { title: "System Info", icon: "⚙️", width: 420, height: 520, singleton: true },
+  system: { title: "System Info", icon: "⚙️", width: 980, height: 680, singleton: true },
   "system-logs": { title: "System Logs", icon: "📜", width: 920, height: 620, singleton: true },
   docs: { title: "Docs", icon: "📚", width: 380, height: 340, singleton: true },
   changelog: { title: "Changelog", icon: "🔔", width: 360, height: 320, singleton: true },
@@ -23,9 +23,9 @@ const DEFAULTS: Record<
 };
 
 // Z-index tiers
-const Z_NORMAL      = 100;
-const Z_MAXIMIZED   = 500;
-const Z_FULLSCREEN  = 12000;
+const Z_NORMAL = 100;
+const Z_MAXIMIZED = 500;
+const Z_FULLSCREEN = 12000;
 const Z_FOCUS_BOOST = 50000; // window terfokus selalu di atas semua
 
 function reorder(windows: WindowState[]) {

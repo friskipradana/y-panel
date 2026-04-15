@@ -107,6 +107,8 @@ const MODAL_CONFIGS: Record<string, { title: string; description: (item?: FileNo
 
 const FileRow = memo(({
   item,
+  isSelected,
+  onToggleSelect,
   dragOverPath,
   onDragStart,
   onDragOver,
@@ -118,6 +120,8 @@ const FileRow = memo(({
   formatDate
 }: {
   item: FileNode
+  isSelected: boolean
+  onToggleSelect: (path: string, checked: boolean) => void
   dragOverPath: string | null
   onDragStart: (e: React.DragEvent, item: FileNode) => void
   onDragOver: (e: React.DragEvent, item: FileNode) => void
@@ -132,13 +136,16 @@ const FileRow = memo(({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
+      className={`grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : isSelected ? 'bg-sky-50 border-sky-200' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
       onContextMenu={(e) => onContextMenu(e, item)}
       onDoubleClick={() => onDoubleClick(item)}
     >
+      <div className="flex items-center justify-center">
+        <input type="checkbox" checked={isSelected} onChange={(e) => onToggleSelect(item.path, e.target.checked)} className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all" onClick={(e) => e.stopPropagation()} />
+      </div>
       <div className="flex items-center gap-3 overflow-hidden">
         {item.isDir ? <Folder size={17} className="text-sky-500 fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-slate-400 shrink-0" />}
         <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-blue-600 transition-colors">{item.name}</span>
@@ -182,7 +189,12 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
   const [menu, setMenu] = useState<{ x: number; y: number; item?: FileNode; targetPath: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [clipboard, setClipboard] = useState<{ item: FileNode; mode: 'cut' | 'copy' } | null>(null)
+  const [clipboard, setClipboard] = useState<{ items: FileNode[]; mode: 'cut' | 'copy' } | null>(null)
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setSelectedPaths(new Set())
+  }, [activeTabId, activeTab?.currentPath])
 
   // Internal Custom Modal State
   const [modal, setModal] = useState<ModalType | null>(null)
@@ -379,6 +391,13 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       await axios.post(reqUrl, payload, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true })
       setModal(null)
       void loadDirectory(activeTab.currentPath, activeTabId)
+      
+      if (modal.type === 'delete') alertLib.fire('Berhasil Terhapus', `Item <strong>${modal.item.name}</strong> berhasil dihapus permanen.`, 'success', 'file-manager')
+      else if (modal.type === 'rename') alertLib.fire('Berhasil Mengganti Nama', 'Nama item berhasil diubah.', 'success', 'file-manager')
+      else if (modal.type === 'mkdir') alertLib.fire('Berhasil', 'Folder baru berhasil dibuat.', 'success', 'file-manager')
+      else if (modal.type === 'touch') alertLib.fire('Berhasil', 'File baru berhasil dibuat.', 'success', 'file-manager')
+      else if (modal.type === 'chmod') alertLib.fire('Berhasil', 'Akses permission berhasil diperbarui.', 'success', 'file-manager')
+      
     } catch (err: any) {
       alertLib.fire('Kegagalan Operasi', err?.response?.data?.error || err.message || 'Terjadi kesalahan internal.', 'error', 'file-manager')
     } finally {
@@ -386,25 +405,44 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     }
   }
 
-  const moveItem = async (sourcePath: string, destinationDir: string) => {
-    const sourceName = sourcePath.split('/').pop() || sourcePath.split('\\').pop() || ''
-    const destinationPath = joinPath(destinationDir, sourceName)
-
-    if (sourcePath === destinationPath) return
-
+  const moveItems = async (sourcePaths: string[], destinationDir: string) => {
     setDragOverPath(null)
     setModalLoading(true)
+    let count = 0
+    let failed = 0
     try {
-      await axios.post('/api/v1/files/move', {
-        oldPath: sourcePath,
-        newPath: destinationPath
-      }, {
-        baseURL: import.meta.env.VITE_AGENT_BASE,
-        withCredentials: true
-      })
+      for (const sourcePath of sourcePaths) {
+        const sourceName = sourcePath.split('/').pop() || sourcePath.split('\\').pop() || ''
+        const destinationPath = joinPath(destinationDir, sourceName)
+        if (sourcePath === destinationPath) {
+          continue
+        }
+        try {
+          await axios.post('/api/v1/files/move', {
+            oldPath: sourcePath,
+            newPath: destinationPath
+          }, {
+            baseURL: import.meta.env.VITE_AGENT_BASE,
+            withCredentials: true
+          })
+          count++
+        } catch (e) {
+          console.error('Task move error:', e)
+          failed++
+        }
+      }
+      setSelectedPaths(new Set())
       await loadDirectory(activeTab.currentPath, activeTabId)
+      
+      if (count > 0 && failed === 0) {
+        alertLib.fire('Berhasil Memindahkan', `<strong>${count}</strong> item berhasil dipindahkan melalui drag-and-drop.`, 'success', 'file-manager')
+      } else if (count > 0 && failed > 0) {
+        alertLib.fire('Sebagian Berhasil', `<strong>${count}</strong> item berhasil dipindah, namun <strong>${failed}</strong> gagal. (mungkin bentrok label/nama kembar)`, 'warning', 'file-manager')
+      } else if (failed > 0) {
+        alertLib.fire('Gagal Memindahkan', 'Sistem tidak dapat memindahkan item karena terjadi penolakan atau duplikasi.', 'error', 'file-manager')
+      }
     } catch (err: any) {
-      alertLib.fire('Gagal Memindahkan', err?.response?.data?.error || err.message || 'Tidak dapat memindahkan item.', 'error', 'file-manager')
+      alertLib.fire('Error Memindahkan', err?.response?.data?.error || err.message || 'Error eksekusi runtime sistem.', 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -412,36 +450,69 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
   const setClipboardItem = (item: FileNode, mode: 'cut' | 'copy') => {
     setMenu(null)
-    setClipboard({ item, mode })
+    setClipboard({ items: [item], mode })
+  }
+
+  const setClipboardBulk = (mode: 'cut' | 'copy') => {
+    if (!activeTab.data?.contents) return
+    const items = activeTab.data.contents.filter(i => selectedPaths.has(i.path))
+    setClipboard({ items, mode })
+    setSelectedPaths(new Set())
+  }
+
+  const handleBulkDelete = async () => {
+    const isConfirmed = await alertLib.confirm(
+      'Hapus Permanen',
+      `Anda akan menghapus permanen <strong>${selectedPaths.size}</strong> item terpilih beserta isinya. Lanjutkan?`,
+      'Ya, Hapus',
+      'Batal',
+      'warning',
+      'file-manager'
+    )
+    if (!isConfirmed) return
+    
+    setModalLoading(true)
+    try {
+      const paths = Array.from(selectedPaths)
+      for (const p of paths) {
+        await axios.post('/api/v1/files/delete', { path: p }, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true }).catch(err => console.error(err))
+      }
+      const count = paths.length
+      setSelectedPaths(new Set())
+      await loadDirectory(activeTab.currentPath, activeTabId)
+      alertLib.fire('Berhasil Terhapus', `<strong>${count}</strong> item berhasil dihapus permanen.`, 'success', 'file-manager')
+    } finally {
+      setModalLoading(false)
+    }
   }
 
   const handlePasteClipboard = async (destinationDir: string) => {
-    if (!clipboard) return
-
-    const sourceName = clipboard.item.path.split('/').pop() || clipboard.item.path.split('\\').pop() || ''
-    const destinationPath = joinPath(destinationDir, sourceName)
-    if (clipboard.item.path === destinationPath) {
-      setMenu(null)
-      return
-    }
+    if (!clipboard || clipboard.items.length === 0) return
 
     setMenu(null)
     setModalLoading(true)
     try {
       const endpoint = clipboard.mode === 'cut' ? '/api/v1/files/move' : '/api/v1/files/copy'
-      await axios.post(endpoint, {
-        oldPath: clipboard.item.path,
-        newPath: destinationPath
-      }, {
-        baseURL: import.meta.env.VITE_AGENT_BASE,
-        withCredentials: true
-      })
+      for (const item of clipboard.items) {
+        const sourceName = item.path.split('/').pop() || item.path.split('\\').pop() || ''
+        const destinationPath = joinPath(destinationDir, sourceName)
+        if (item.path !== destinationPath) {
+          await axios.post(endpoint, {
+            oldPath: item.path,
+            newPath: destinationPath
+          }, {
+            baseURL: import.meta.env.VITE_AGENT_BASE,
+            withCredentials: true
+          })
+        }
+      }
 
       if (clipboard.mode === 'cut') {
         setClipboard(null)
       }
 
       await loadDirectory(activeTab.currentPath, activeTabId)
+      alertLib.fire('Berhasil Paste', `<strong>${clipboard.items.length}</strong> item berhasil di${clipboard.mode === 'cut' ? 'pindahkan' : 'salin'}.`, 'success', 'file-manager')
     } catch (err: any) {
       alertLib.fire('Gagal Paste', err?.response?.data?.error || err.message || 'Tidak dapat menempelkan item.', 'error', 'file-manager')
     } finally {
@@ -722,7 +793,21 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       </div>
 
       {/* ── Table Header ── */}
-      <div className="grid grid-cols-[1fr_80px_100px_130px] gap-4 px-6 py-2 border-b border-white/5 bg-slate-50/50 text-[10.5px] uppercase tracking-[0.05em] font-bold text-slate-400 sticky top-0">
+      <div className="grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-6 py-2 border-b border-white/5 bg-slate-50/50 text-[10.5px] uppercase tracking-[0.05em] font-bold text-slate-400 sticky top-0">
+        <div className="flex items-center justify-center">
+          <input 
+            type="checkbox" 
+            className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all" 
+            checked={!!(activeTab.data?.contents?.length && selectedPaths.size === activeTab.data.contents.length)}
+            onChange={(e) => {
+               if (e.target.checked && activeTab.data?.contents) {
+                  setSelectedPaths(new Set(activeTab.data.contents.map((it: FileNode) => it.path)))
+               } else {
+                  setSelectedPaths(new Set())
+               }
+            }}
+          />
+        </div>
         <div>Nama Berkas</div>
         <div>Ukuran</div>
         <div>Akses</div>
@@ -747,8 +832,11 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           setDragOverPath(null)
           if (!raw) return
           e.preventDefault()
-          const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean }
-          await moveItem(dragged.path, activeTab.currentPath)
+          try {
+            const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
+            const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
+            await moveItems(itemsToMove, activeTab.currentPath)
+          } catch(err){}
         }}
       >
         {/* FIX: Show loader if loading OR if we don't have data yet (initial hit) */}
@@ -771,15 +859,38 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <FileRow
             key={item.path}
             item={item}
+            isSelected={selectedPaths.has(item.path)}
+            onToggleSelect={(p, checked) => {
+              const newSet = new Set(selectedPaths)
+              if (checked) newSet.add(p)
+              else newSet.delete(p)
+              setSelectedPaths(newSet)
+            }}
             dragOverPath={dragOverPath}
             formatSize={formatSize}
             formatDate={formatDate}
             onDragStart={(e, it) => {
               e.stopPropagation()
-              const payload = JSON.stringify({ path: it.path, name: it.name, isDir: it.isDir })
+              const drags = selectedPaths.has(it.path) ? Array.from(selectedPaths) : [it.path]
+              const payload = JSON.stringify({ 
+                path: it.path, 
+                name: it.name, 
+                isDir: it.isDir, 
+                isBulk: drags.length > 1, 
+                paths: drags 
+              })
               e.dataTransfer.setData('application/x-ui-panel-file', payload)
               e.dataTransfer.setData('text/plain', payload)
               e.dataTransfer.effectAllowed = 'move'
+
+              if (drags.length > 1) {
+                  const el = document.createElement('div')
+                  el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-white text-[12px] font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur z-[9999]'
+                  el.innerText = `${drags.length} item`
+                  document.body.appendChild(el)
+                  e.dataTransfer.setDragImage(el, -10, -10)
+                  requestAnimationFrame(() => { if(document.body.contains(el)) document.body.removeChild(el) })
+              }
             }}
             onDragOver={(e, it) => {
               if (!it.isDir) return
@@ -798,8 +909,11 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               if (!raw) return
               e.preventDefault()
               e.stopPropagation()
-              const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean }
-              await moveItem(dragged.path, it.path)
+              try {
+                const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
+                const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
+                await moveItems(itemsToMove, it.path)
+              } catch(err){}
             }}
             onContextMenu={(e, it) => {
               e.preventDefault()
@@ -824,6 +938,27 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           Root Access
         </span>
       </div>
+
+      {/* ── Bulk Actions Floating Bar ── */}
+      <AnimatePresence>
+        {selectedPaths.size > 0 && (
+          <motion.div
+             initial={{ opacity: 0, y: 30, scale: 0.95 }}
+             animate={{ opacity: 1, y: 0, scale: 1 }}
+             exit={{ opacity: 0, y: 30, scale: 0.95 }}
+             className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 text-white px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
+          >
+             <span className="text-[13px] font-semibold pr-3 border-r border-slate-600">
+               {selectedPaths.size} item terpilih
+             </span>
+             <button title="Pindahkan" onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-amber-400 transition" ><Scissors size={16} /></button>
+             <button title="Salin" onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-sky-400 transition"><Copy size={16} /></button>
+             <button title="Hapus" onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-rose-400 transition"><Trash size={16} /></button>
+             <div className="w-[1px] h-4 bg-slate-600 mx-1" />
+             <button title="Batal" onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-slate-300 transition"><X size={16} /></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Local Window Specific Fullscreen Overlay Modal (GlobalAlert Clone) ── */}
       <AnimatePresence>
@@ -868,6 +1003,17 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               {menu.item ? menu.item.name : menu.targetPath}
             </div>
 
+            {!menu.item && (
+              <>
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'touch' })}>
+                  <FilePlus size={13} className="text-emerald-600" /> New File
+                </button>
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
+                  <FolderPlus size={13} className="text-sky-600" /> New Folder
+                </button>
+              </>
+            )}
+
             {menu.item && !menu.item.isDir && (
               <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleEdit(menu.item!)}>
                 <Edit2 size={13} className="text-sky-500" /> Open Editor
@@ -885,9 +1031,9 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               </>
             )}
 
-            {clipboard && (
+            {clipboard && clipboard.items.length > 0 && (
               <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-emerald-50 text-slate-700 font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
-                <ClipboardPaste size={13} className="text-emerald-600" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'}
+                <ClipboardPaste size={13} className="text-emerald-600" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'} ({clipboard.items.length})
               </button>
             )}
 
