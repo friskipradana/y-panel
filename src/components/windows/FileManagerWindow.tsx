@@ -549,20 +549,20 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
     return (
       <div className="flex flex-col items-center">
-        <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/5 shadow-inner ring-1 ring-white/10">
+        <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--win-bar)] shadow-inner ring-1 ring-[var(--win-border)]">
           {icon}
         </div>
-        <h3 className="mb-2 text-[16.5px] font-semibold tracking-[-0.02em] text-white">
+        <h3 className="mb-2 text-[16.5px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
           {title}
         </h3>
-        <p className="mb-6 text-[12.5px] leading-relaxed text-slate-300" dangerouslySetInnerHTML={{ __html: description }} />
+        <p className="mb-6 text-[12.5px] leading-relaxed text-[var(--text-secondary)]" dangerouslySetInnerHTML={{ __html: description }} />
 
         {/* INPUT AREA */}
         {['rename', 'mkdir', 'touch', 'compress'].includes(modal.type) && (
           <div className="w-full mb-6">
             <input
               autoFocus
-              className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
+              className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
               placeholder={modal.type === 'rename' ? modal.item.name : 'Ketik di sini...'}
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
@@ -573,24 +573,24 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
         {modal.type === 'extract' && (
           <div className="w-full mb-6 space-y-3">
-            <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11.5px] text-sky-100/90">
-              <div className="font-semibold text-sky-300">Arah ekstraksi</div>
-              <div className="mt-1 text-slate-300">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || 'folder_tujuan')}</div>
+            <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11.5px] text-sky-700 dark:text-sky-100/90">
+              <div className="font-semibold text-sky-600 dark:text-sky-300">Arah ekstraksi</div>
+              <div className="mt-1 text-slate-700 dark:text-slate-300">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || 'folder_tujuan')}</div>
             </div>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Direktori tujuan</label>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">Direktori tujuan</label>
               <input
                 autoFocus
-                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
+                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
                 placeholder="Contoh: /home/renaldi/extract"
                 value={modalPathInput}
                 onChange={(e) => setModalPathInput(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Nama folder hasil ekstrak</label>
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">Nama folder hasil ekstrak</label>
               <input
-                className="w-full bg-slate-900/50 border border-white/10 rounded-xl px-4 py-3 text-white text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-slate-500"
+                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
                 placeholder="Nama folder hasil ekstrak"
                 value={modalInput}
                 onChange={(e) => setModalInput(e.target.value)}
@@ -608,17 +608,17 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 const titleMap = { u: 'Owner', g: 'Group', o: 'Public' }
                 const val = parseOctal(chmodMode.substring(1))[pos]
                 return (
-                  <div key={pos} className="flex-col gap-2 p-3 bg-white/5 border border-white/10 rounded-xl relative flex-1 text-left">
-                    <label className="absolute -top-2.5 left-3 bg-slate-800/80 px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-sky-400 rounded backdrop-blur">
+                  <div key={pos} className="flex-col gap-2 p-3 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl relative flex-1 text-left">
+                    <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-sky-600 dark:text-sky-400 rounded backdrop-blur border border-[var(--win-border)]">
                       {titleMap[pos]}
                     </label>
-                    <label className="flex items-center gap-2 mt-3 mb-2 text-xs text-slate-300 cursor-pointer hover:text-white transition">
+                    <label className="flex items-center gap-2 mt-3 mb-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
                       <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-sky-500 w-3.5 h-3.5" /> Read
                     </label>
-                    <label className="flex items-center gap-2 mb-2 text-xs text-slate-300 cursor-pointer hover:text-white transition">
+                    <label className="flex items-center gap-2 mb-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
                       <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-sky-500 w-3.5 h-3.5" /> Write
                     </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer hover:text-white transition">
+                    <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
                       <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-sky-500 w-3.5 h-3.5" /> Exec
                     </label>
                   </div>
@@ -628,16 +628,16 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
             <div className="flex items-center justify-between px-2 gap-3">
               <div className="flex items-center gap-3">
-                <label className="text-[12px] font-semibold text-slate-400 uppercase tracking-widest">Octal</label>
+                <label className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">Octal</label>
                 <input
                   value={chmodMode}
                   onChange={e => setChmodMode(e.target.value)}
-                  className="w-20 bg-slate-900/80 border border-white/10 rounded-lg py-1 px-3 text-[13px] text-sky-400 font-mono outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner"
+                  className="w-20 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-lg py-1 px-3 text-[13px] text-sky-600 dark:text-sky-400 font-mono outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner"
                   onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
                 />
               </div>
               {modal.item.isDir && (
-                <label className="flex items-center gap-2 text-[11.5px] font-medium text-amber-200/80 cursor-pointer hover:text-amber-200 transition">
+                <label className="flex items-center gap-2 text-[11.5px] font-medium text-amber-600 dark:text-amber-200/80 cursor-pointer hover:text-amber-500 transition">
                   <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5 cursor-pointer" />
                   Terapkan Rekursif
                 </label>
@@ -651,14 +651,14 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <button
             onClick={() => setModal(null)}
             disabled={modalLoading}
-            className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[12.5px] font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-slate-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 rounded-full border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--win-text)] transition hover:brightness-[0.95] dark:hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-slate-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Batal
           </button>
           <button
             onClick={executeModal}
             disabled={modalLoading}
-            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-white/10 px-4 py-2.5 text-[12.5px] font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
+            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-[var(--win-border)] px-4 py-2.5 text-[12.5px] font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
           >
             {modalLoading ? <Loader2 size={16} className="animate-spin" /> : null}
             {modalLoading ? 'Memproses...' : confirmText}
@@ -669,17 +669,35 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
   }
 
   // Safe Coordinate Logic Context Menu
+  const getMenuHeight = () => {
+    if (!menu) return 0
+    if (!menu.item) return 100 // New File, New Folder
+    let count = 0
+    if (!menu.item.isDir) count += 1 // Open Editor
+    count += 2 // Cut, Copy
+    if (clipboard && clipboard.items.length > 0) count += 1 // Paste
+    count += 3 // Rename, Permission, Compress
+    if (/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir) count += 1 // Extract
+    if (!menu.item.isDir) count += 1 // Download
+    count += 1 // Delete
+    return 30 + 10 + 12 + (count * 35) // Header + Divider + Padding + Items
+  }
+
   const getSafeMenuStyles = () => {
     if (!menu || !containerRef.current) return {}
     const rect = containerRef.current.getBoundingClientRect()
     const menuWidth = 180
-    const menuHeight = 220
+    const menuHeight = getMenuHeight()
 
     let top = menu.y - rect.top
     let left = menu.x - rect.left
 
-    if (top + menuHeight > rect.height) top -= menuHeight
-    if (left + menuWidth > rect.width) left -= menuWidth
+    if (top + menuHeight > rect.height) {
+      top -= menuHeight
+    }
+    if (left + menuWidth > rect.width) {
+      left -= menuWidth
+    }
 
     return { top: Math.max(0, top), left: Math.max(0, left) }
   }
@@ -747,7 +765,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         <button
           disabled={!activeTab.data?.parent}
           onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }}
-          className="p-1.5 rounded-md hover:bg-slate-200/50 disabled:opacity-30 transition text-slate-600 outline-none"
+          className="p-1.5 rounded-md hover:bg-slate-200/50 disabled:opacity-30 transition text-[var(--text-secondary)] outline-none"
           title="Ke direktori induk"
         >
           <CornerLeftUp size={16} />
@@ -767,7 +785,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         <div className="flex items-center gap-1 shrink-0 ml-2 border-l border-slate-200 pl-2">
           <button
             onClick={() => openModal({ type: 'touch' })}
-            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-slate-700 font-medium text-[12px] flex items-center gap-1.5 outline-none"
+            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] font-medium text-[12px] flex items-center gap-1.5 outline-none"
             title="New File"
           >
             <FilePlus size={14} className="text-emerald-600" />
@@ -775,7 +793,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           </button>
           <button
             onClick={() => openModal({ type: 'mkdir' })}
-            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-slate-700 font-medium text-[12px] flex items-center gap-1.5 outline-none"
+            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] font-medium text-[12px] flex items-center gap-1.5 outline-none"
             title="New Folder"
           >
             <FolderPlus size={14} className="text-sky-600" />
@@ -784,7 +802,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
           <button
             onClick={() => loadDirectory(activeTab.currentPath, activeTabId)}
-            className="p-1.5 ml-1 rounded-md hover:bg-slate-200/50 transition text-slate-600 relative outline-none"
+            className="p-1.5 ml-1 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] relative outline-none"
             title="Refresh"
           >
             {activeTab.loading ? <Loader2 size={15} className="animate-spin text-sky-600" /> : <RefreshCw size={15} />}
@@ -999,67 +1017,67 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-slate-400 border-b border-slate-100/80 mb-1 truncate max-w-[170px]">
+            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--text-secondary)] border-b border-slate-100/80 mb-1 truncate max-w-[170px]">
               {menu.item ? menu.item.name : menu.targetPath}
             </div>
 
             {!menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'touch' })}>
-                  <FilePlus size={13} className="text-emerald-600" /> New File
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'touch' })}>
+                  <FilePlus size={13} className="text-[var(--text-secondary)]" /> New File
                 </button>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
-                  <FolderPlus size={13} className="text-sky-600" /> New Folder
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
+                  <FolderPlus size={13} className="text-[var(--text-secondary)]" /> New Folder
                 </button>
               </>
             )}
 
             {menu.item && !menu.item.isDir && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleEdit(menu.item!)}>
-                <Edit2 size={13} className="text-sky-500" /> Open Editor
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handleEdit(menu.item!)}>
+                <Edit2 size={13} className="text-[var(--text-secondary)]" /> Open Editor
               </button>
             )}
 
             {menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
-                  <Scissors size={13} className="text-amber-500" /> Cut
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
+                  <Scissors size={13} className="text-[var(--text-secondary)]" /> Cut
                 </button>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
-                  <Copy size={13} className="text-sky-500" /> Copy
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
+                  <Copy size={13} className="text-[var(--text-secondary)]" /> Copy
                 </button>
               </>
             )}
 
             {clipboard && clipboard.items.length > 0 && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-emerald-50 text-slate-700 font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
-                <ClipboardPaste size={13} className="text-emerald-600" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'} ({clipboard.items.length})
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-emerald-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
+                <ClipboardPaste size={13} className="text-[var(--text-secondary)]" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'} ({clipboard.items.length})
               </button>
             )}
 
             {menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
-                  <Edit2 size={13} className="text-slate-400" /> Rename ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
+                  <Edit2 size={13} className="text-[var(--text-secondary)]" /> Rename ...
                 </button>
 
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
-                  <Key size={13} className="text-emerald-500" /> Permission ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
+                  <Key size={13} className="text-[var(--text-secondary)]" /> Permission ...
                 </button>
 
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
-                  <Archive size={13} className="text-amber-500" /> Compress ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
+                  <Archive size={13} className="text-[var(--text-secondary)]" /> Compress ...
                 </button>
 
                 {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
-                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
-                    <PackageOpen size={13} className="text-emerald-600" /> Extract Here ...
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
+                    <PackageOpen size={13} className="text-[var(--text-secondary)]" /> Extract Here ...
                   </button>
                 )}
 
                 {!menu.item.isDir && (
-                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-slate-700 font-medium transition" onClick={() => handleDownload(menu.item!)}>
-                    <Download size={13} className="text-indigo-500" /> Download
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handleDownload(menu.item!)}>
+                    <Download size={13} className="text-[var(--text-secondary)]" /> Download
                   </button>
                 )}
 
