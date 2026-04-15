@@ -11,68 +11,70 @@
   --accent-hover: #e05c00;
 
   /* Taskbar */
-  --tb-bg: rgba(255,255,255,0.82);
-  --tb-border: rgba(226,232,240,0.85);
-  --tb-text: #334155;
-  --tb-clock: #475569;
-  --tb-hover: rgba(15,23,42,0.08);
-  --tb-icon: #334155;
+  --tb-bg: rgba(255, 255, 255, 0.82);
+  --tb-border: rgba(226, 232, 240, 0.85);
+  --tb-text: #1e293b;
+  --text-secondary: #4b5563;
+  --tb-clock: #1e293b;
+  --tb-hover: rgba(15, 23, 42, 0.08);
+  --tb-icon: #1e293b;
 
   /* Window chrome */
-  --win-bg: rgba(255,255,255,0.95);
+  --win-bg: rgba(255, 255, 255, 0.95);
   --win-border-focus: rgba(203, 213, 225, 0.95);
   --win-border: rgba(203, 213, 225, 0.6);
-  --win-shadow-focus: 0 28px 70px rgba(15,23,42,0.25), 0 10px 24px rgba(15,23,42,0.12);
-  --win-shadow: 0 12px 36px rgba(15,23,42,0.15), 0 4px 12px rgba(15,23,42,0.08);
-  --win-bar-focus: rgba(255,255,255,1);
-  --win-bar: rgba(255,255,255,0.9);
+  --win-shadow-focus: 0 28px 70px rgba(15, 23, 42, 0.25), 0 10px 24px rgba(15, 23, 42, 0.12);
+  --win-shadow: 0 12px 36px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --win-bar-focus: rgba(255, 255, 255, 1);
+  --win-bar: rgba(255, 255, 255, 0.9);
   --win-bar-border: rgba(203, 213, 225, 0.8);
   --win-content-bg: #ffffff;
   --win-text: #1e293b;
 
   /* Dock */
-  --dock-bg: rgba(255,255,255,0.92);
-  --dock-border: rgba(255,255,255,0.78);
-  --dock-shadow: 0 20px 40px rgba(15,23,42,0.10);
+  --dock-bg: rgba(255, 255, 255, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.78);
+  --dock-shadow: 0 20px 40px rgba(15, 23, 42, 0.10);
 
   /* Profile / menu */
-  --profile-btn-bg: rgba(15,23,42,0.06);
-  --profile-btn-hover: rgba(15,23,42,0.11);
-  --menu-bg: rgba(255,255,255,0.98);
-  --menu-border: rgba(226,232,240,0.9);
-  --menu-divider: rgba(226,232,240,0.8);
-  --menu-shadow: 0 16px 48px rgba(15,23,42,0.16);
+  --profile-btn-bg: rgba(15, 23, 42, 0.06);
+  --profile-btn-hover: rgba(15, 23, 42, 0.11);
+  --menu-bg: rgba(255, 255, 255, 0.98);
+  --menu-border: rgba(226, 232, 240, 0.9);
+  --menu-divider: rgba(226, 232, 240, 0.8);
+  --menu-shadow: 0 16px 48px rgba(15, 23, 42, 0.16);
 }
 
 [data-theme="dark"] {
-  --tb-bg: rgba(15,23,42,0.90);
-  --tb-border: rgba(255,255,255,0.07);
+  --tb-bg: rgba(15, 23, 42, 0.90);
+  --tb-border: rgba(255, 255, 255, 0.07);
   --tb-text: #f1f5f9;
-  --tb-clock: #cbd5e1;
-  --tb-hover: rgba(255,255,255,0.12);
+  --text-secondary: #cbd5e1;
+  --tb-clock: #e2e8f0;
+  --tb-hover: rgba(255, 255, 255, 0.12);
   --tb-icon: #f1f5f9;
 
-  --win-bg: rgba(15,23,42,0.96);
-  --win-border-focus: rgba(255,255,255,0.2);
-  --win-border: rgba(255,255,255,0.12);
-  --win-shadow-focus: 0 28px 70px rgba(0,0,0,0.75), 0 10px 24px rgba(0,0,0,0.45);
-  --win-shadow: 0 12px 36px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.35);
-  --win-bar-focus: rgba(22,36,58,0.98);
-  --win-bar: rgba(17,27,45,0.98);
-  --win-bar-border: rgba(255,255,255,0.1);
+  --win-bg: rgba(15, 23, 42, 0.96);
+  --win-border-focus: rgba(255, 255, 255, 0.2);
+  --win-border: rgba(255, 255, 255, 0.12);
+  --win-shadow-focus: 0 28px 70px rgba(0, 0, 0, 0.75), 0 10px 24px rgba(0, 0, 0, 0.45);
+  --win-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --win-bar-focus: rgba(22, 36, 58, 0.98);
+  --win-bar: rgba(17, 27, 45, 0.98);
+  --win-bar-border: rgba(255, 255, 255, 0.1);
   --win-content-bg: #0f172a;
-  --win-text: #f8fafc;
+  --win-text: #f1f5f9;
 
-  --dock-bg: rgba(15,23,42,0.92);
-  --dock-border: rgba(255,255,255,0.08);
-  --dock-shadow: 0 20px 40px rgba(0,0,0,0.55);
+  --dock-bg: rgba(15, 23, 42, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.08);
+  --dock-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
 
-  --profile-btn-bg: rgba(255,255,255,0.08);
-  --profile-btn-hover: rgba(255,255,255,0.14);
-  --menu-bg: rgba(15,23,42,0.97);
-  --menu-border: rgba(255,255,255,0.08);
-  --menu-divider: rgba(255,255,255,0.07);
-  --menu-shadow: 0 24px 60px rgba(0,0,0,0.65);
+  --profile-btn-bg: rgba(255, 255, 255, 0.08);
+  --profile-btn-hover: rgba(255, 255, 255, 0.14);
+  --menu-bg: rgba(15, 23, 42, 0.97);
+  --menu-border: rgba(255, 255, 255, 0.08);
+  --menu-divider: rgba(255, 255, 255, 0.07);
+  --menu-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
 }
 
 * {
@@ -167,6 +169,7 @@ body {
   font-weight: 500;
   transition: background 150ms, color 150ms;
 }
+
 .taskbar-nav-btn:hover {
   background: var(--tb-hover);
 }
@@ -200,6 +203,7 @@ body {
   color: var(--tb-icon);
   transition: background 150ms;
 }
+
 .taskbar-icon-btn:hover {
   background: var(--tb-hover);
 }
@@ -223,9 +227,11 @@ body {
   font-weight: 500;
   transition: background 150ms;
 }
+
 .profile-btn:hover {
   background: var(--profile-btn-hover);
 }
+
 .profile-btn:disabled {
   cursor: wait;
 }
@@ -251,6 +257,7 @@ body {
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--menu-divider);
 }
+
 .profile-menu-section:last-child {
   border-bottom: none;
   padding-top: 8px;
@@ -311,6 +318,7 @@ body {
   text-align: left;
   transition: background 120ms;
 }
+
 .profile-menu-btn:hover {
   background: var(--tb-hover);
 }
@@ -318,6 +326,7 @@ body {
 .profile-menu-btn-danger {
   color: #ef4444;
 }
+
 .profile-menu-btn-danger:hover {
   background: rgba(239, 68, 68, 0.10) !important;
 }
@@ -342,12 +351,14 @@ body {
   background-size: cover;
   background-position: center;
 }
+
 .wallpaper-swatch:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.20);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.20);
 }
+
 .wallpaper-swatch.active {
-  box-shadow: 0 0 0 2px #f76707, 0 4px 12px rgba(247,103,7,0.30);
+  box-shadow: 0 0 0 2px #f76707, 0 4px 12px rgba(247, 103, 7, 0.30);
 }
 
 .wallpaper-swatch-label {
@@ -358,7 +369,7 @@ body {
   font-size: 9px;
   font-weight: 600;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -383,6 +394,7 @@ body {
   position: relative;
   overflow: hidden;
 }
+
 .wallpaper-upload-btn:hover {
   background: var(--profile-btn-hover);
   border-color: #f76707;
@@ -420,7 +432,8 @@ body {
 .login-grid {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 430px);
+  /* Rule of Thirds: 2fr for the main hero vs 1fr (clamped) for the login card */
+  grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
   gap: 28px;
   align-items: stretch;
   padding: 32px;
@@ -494,7 +507,8 @@ body {
   margin-top: 10px;
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.68);
+  /* AAA WCAG Contrast */
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .login-hero {
@@ -554,7 +568,8 @@ body {
   max-width: 720px;
   font-size: 16px;
   line-height: 1.9;
-  color: rgba(255, 255, 255, 0.68);
+  /* AAA WCAG Contrast */
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .login-highlight-grid {
@@ -594,7 +609,7 @@ body {
   margin-top: 6px;
   font-size: 13px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.66);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .login-bottom-note {
@@ -608,7 +623,7 @@ body {
   padding: 18px 20px;
   font-size: 14px;
   line-height: 1.8;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .login-auth {
@@ -629,7 +644,7 @@ body {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 600;
 }
 
@@ -678,7 +693,8 @@ body {
 }
 
 .login-status-row span {
-  color: rgba(255, 255, 255, 0.48);
+  /* Increased from 0.48 to 0.75 for WCAG AA compliance on dark backgrounds */
+  color: rgba(255, 255, 255, 0.75);
   font-size: 13px;
 }
 
@@ -711,7 +727,8 @@ body {
 }
 
 .auth-input::placeholder {
-  color: rgba(255, 255, 255, 0.38);
+  /* Placeholders need minimum 4.5:1 ratio */
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .auth-input:focus {
@@ -1301,7 +1318,7 @@ body {
   display: flex;
   align-items: center;
   background: #161b22;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   min-height: 36px;
   overflow: hidden;
   flex-shrink: 0;
@@ -1314,7 +1331,10 @@ body {
   flex: 1 1 0;
   scrollbar-width: none;
 }
-.ht-tabs::-webkit-scrollbar { display: none; }
+
+.ht-tabs::-webkit-scrollbar {
+  display: none;
+}
 
 .ht-tab {
   display: inline-flex;
@@ -1328,7 +1348,7 @@ body {
   color: #8b949e;
   background: transparent;
   border: none;
-  border-right: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -1337,7 +1357,7 @@ body {
 }
 
 .ht-tab:hover {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   color: #c9d1d9;
 }
 
@@ -1406,8 +1426,8 @@ body {
   gap: 5px;
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
   color: #8b949e;
   font-size: 11.5px;
   cursor: pointer;
@@ -1416,20 +1436,20 @@ body {
 }
 
 .ht-action-btn:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: #c9d1d9;
-  border-color: rgba(255,255,255,0.18);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .ht-action-btn--add {
   padding: 4px 7px;
-  border-color: rgba(88,166,255,0.2);
+  border-color: rgba(88, 166, 255, 0.2);
   color: #58a6ff;
 }
 
 .ht-action-btn--add:hover {
-  background: rgba(88,166,255,0.1);
-  border-color: rgba(88,166,255,0.4);
+  background: rgba(88, 166, 255, 0.1);
+  border-color: rgba(88, 166, 255, 0.4);
   color: #79c0ff;
 }
 
@@ -1459,13 +1479,22 @@ body {
   scrollbar-color: #30363d transparent;
 }
 
-.ht-pane .xterm-viewport::-webkit-scrollbar { width: 5px; }
-.ht-pane .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+.ht-pane .xterm-viewport::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ht-pane .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .ht-pane .xterm-viewport::-webkit-scrollbar-thumb {
   background: #30363d;
   border-radius: 4px;
 }
-.ht-pane .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+.ht-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
 
 .ht-pane .xterm-screen,
 .ht-pane .xterm-helpers,
@@ -1473,7 +1502,9 @@ body {
   inset: 0;
 }
 
-.ht-pane .xterm-screen canvas { display: block; }
+.ht-pane .xterm-screen canvas {
+  display: block;
+}
 
 /* ── Preset footer bar ───────────────────────────────────────── */
 .ht-footer {
@@ -1482,7 +1513,7 @@ body {
   gap: 6px;
   padding: 5px 8px;
   background: #161b22;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   flex-shrink: 0;
   min-height: 38px;
 }
@@ -1496,10 +1527,14 @@ body {
   cursor: grab;
   user-select: none;
 }
+
 .ht-presets-scroll:active {
   cursor: grabbing;
 }
-.ht-presets-scroll::-webkit-scrollbar { display: none; }
+
+.ht-presets-scroll::-webkit-scrollbar {
+  display: none;
+}
 
 .ht-preset-btn {
   flex-shrink: 0;
@@ -1507,8 +1542,8 @@ body {
   align-items: center;
   padding: 3px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   color: #8b949e;
   font-size: 11.5px;
   font-family: 'JetBrains Mono', monospace;
@@ -1518,9 +1553,9 @@ body {
 }
 
 .ht-preset-btn:hover:not(:disabled) {
-  background: rgba(88,166,255,0.1);
+  background: rgba(88, 166, 255, 0.1);
   color: #79c0ff;
-  border-color: rgba(88,166,255,0.3);
+  border-color: rgba(88, 166, 255, 0.3);
 }
 
 .ht-preset-btn:disabled {
@@ -1534,15 +1569,15 @@ body {
 }
 
 .ht-action-btn--active {
-  background: rgba(88,166,255,0.12);
-  border-color: rgba(88,166,255,0.35);
+  background: rgba(88, 166, 255, 0.12);
+  border-color: rgba(88, 166, 255, 0.35);
   color: #79c0ff;
 }
 
 /* ── Preset manager panel ────────────────────────────────────── */
 .ht-manager {
   background: #0d1117;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 10px 12px 12px;
   flex-shrink: 0;
   display: flex;
@@ -1569,18 +1604,23 @@ body {
   gap: 5px;
   padding: 3px 9px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
   color: #6e7681;
   font-size: 11px;
   cursor: pointer;
   transition: background 0.1s, color 0.1s;
 }
+
 .ht-manager-reset:hover:not(:disabled) {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   color: #c9d1d9;
 }
-.ht-manager-reset:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ht-manager-reset:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .ht-manager-add {
   display: flex;
@@ -1591,17 +1631,22 @@ body {
 .ht-manager-input {
   padding: 5px 9px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: #c9d1d9;
   font-size: 12px;
   outline: none;
   width: 100px;
 }
-.ht-manager-input--flex { flex: 1 1 0; width: auto; }
+
+.ht-manager-input--flex {
+  flex: 1 1 0;
+  width: auto;
+}
+
 .ht-manager-input:focus {
-  border-color: rgba(88,166,255,0.4);
-  background: rgba(88,166,255,0.05);
+  border-color: rgba(88, 166, 255, 0.4);
+  background: rgba(88, 166, 255, 0.05);
 }
 
 .ht-manager-save {
@@ -1610,16 +1655,23 @@ body {
   gap: 4px;
   padding: 5px 12px;
   border-radius: 6px;
-  border: 1px solid rgba(88,166,255,0.3);
-  background: rgba(88,166,255,0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  background: rgba(88, 166, 255, 0.1);
   color: #79c0ff;
   font-size: 12px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.1s;
 }
-.ht-manager-save:hover:not(:disabled) { background: rgba(88,166,255,0.18); }
-.ht-manager-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ht-manager-save:hover:not(:disabled) {
+  background: rgba(88, 166, 255, 0.18);
+}
+
+.ht-manager-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .ht-manager-list {
   display: flex;
@@ -1643,8 +1695,8 @@ body {
   gap: 8px;
   padding: 4px 6px;
   border-radius: 5px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .ht-manager-row-label {
@@ -1681,9 +1733,12 @@ body {
   cursor: pointer;
   transition: background 0.1s, color 0.1s;
 }
+
 .ht-manager-del:hover:not(:disabled) {
-  background: rgba(248,81,73,0.12);
+  background: rgba(248, 81, 73, 0.12);
   color: #f85149;
 }
-.ht-manager-del:disabled { opacity: 0.35; }
 
+.ht-manager-del:disabled {
+  opacity: 0.35;
+}

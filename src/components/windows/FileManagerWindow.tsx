@@ -136,7 +136,7 @@ const FileRow = memo(({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-100/80 border-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.25)]' : isSelected ? 'bg-sky-50 border-sky-200' : 'border-transparent hover:bg-slate-200/40 hover:border-slate-200/50'}`}
+      className={`grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-500/20 border-sky-400 shadow-[var(--win-shadow)]' : isSelected ? 'bg-sky-500/10 border-sky-500/30' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
@@ -148,17 +148,17 @@ const FileRow = memo(({
       </div>
       <div className="flex items-center gap-3 overflow-hidden">
         {item.isDir ? <Folder size={17} className="text-sky-500 fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-slate-400 shrink-0" />}
-        <span className="text-[13px] font-medium text-slate-700 truncate group-hover:text-blue-600 transition-colors">{item.name}</span>
+        <span className="text-[13px] font-medium text-[var(--win-text)] truncate group-hover:text-sky-500 transition-colors">{item.name}</span>
       </div>
-      <div className="text-[12px] opacity-70 p-1 font-mono tracking-tight">
+      <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight">
         {item.isDir ? '--' : formatSize(item.size)}
       </div>
       <div className="flex items-center">
-        <div className="text-[11px] opacity-60 font-mono tracking-tighter bg-slate-200/60 rounded max-w-full px-1.5 py-0.5">
+        <div className="text-[11px] text-[var(--tb-clock)] bg-[rgba(255,255,255,0.06)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
           {item.mode}
         </div>
       </div>
-      <div className="text-[11px] opacity-60 p-1 truncate font-medium">
+      <div className="text-[11px] text-[var(--text-secondary)] p-1 truncate font-medium">
         {formatDate(item.modified)}
       </div>
     </div>
@@ -171,7 +171,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
   // Initialize tabs from snapshot params if available, otherwise default to root
   const initialPath = win.params?.currentPath || '/'
-  
+
   const [tabs, setTabs] = useState<FileManagerTab[]>([
     { id: 'tab-0', currentPath: initialPath, inputPath: initialPath, data: null, loading: false }
   ])
@@ -237,7 +237,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       }
       return prev.map(tab => tab.id === tabId ? { ...tab, loading: true } : tab)
     })
-    
+
     if (skip) return
 
     console.log(`[FileManager] Hitting API for path: ${path} (Tab: ${tabId})`)
@@ -249,7 +249,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         baseURL: import.meta.env.VITE_AGENT_BASE,
         withCredentials: true
       })
-      
+
       setTabs(prev => prev.map(t => t.id === tabId ? {
         ...t,
         data: { ...res.data, contents: res.data.contents || [] },
@@ -271,8 +271,8 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
     // Temukan tab yang butuh data (kosong dan tidak sedang loading)
     // Utamakan tab aktif
-    const targetTab = tabs.find(t => t.id === activeTabId && !t.data && !t.loading) 
-                   || tabs.find(t => !t.data && !t.loading)
+    const targetTab = tabs.find(t => t.id === activeTabId && !t.data && !t.loading)
+      || tabs.find(t => !t.data && !t.loading)
 
     if (targetTab) {
       void loadDirectory(targetTab.currentPath, targetTab.id)
@@ -391,13 +391,13 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       await axios.post(reqUrl, payload, { baseURL: import.meta.env.VITE_AGENT_BASE, withCredentials: true })
       setModal(null)
       void loadDirectory(activeTab.currentPath, activeTabId)
-      
+
       if (modal.type === 'delete') alertLib.fire('Berhasil Terhapus', `Item <strong>${modal.item.name}</strong> berhasil dihapus permanen.`, 'success', 'file-manager')
       else if (modal.type === 'rename') alertLib.fire('Berhasil Mengganti Nama', 'Nama item berhasil diubah.', 'success', 'file-manager')
       else if (modal.type === 'mkdir') alertLib.fire('Berhasil', 'Folder baru berhasil dibuat.', 'success', 'file-manager')
       else if (modal.type === 'touch') alertLib.fire('Berhasil', 'File baru berhasil dibuat.', 'success', 'file-manager')
       else if (modal.type === 'chmod') alertLib.fire('Berhasil', 'Akses permission berhasil diperbarui.', 'success', 'file-manager')
-      
+
     } catch (err: any) {
       alertLib.fire('Kegagalan Operasi', err?.response?.data?.error || err.message || 'Terjadi kesalahan internal.', 'error', 'file-manager')
     } finally {
@@ -433,7 +433,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       }
       setSelectedPaths(new Set())
       await loadDirectory(activeTab.currentPath, activeTabId)
-      
+
       if (count > 0 && failed === 0) {
         alertLib.fire('Berhasil Memindahkan', `<strong>${count}</strong> item berhasil dipindahkan melalui drag-and-drop.`, 'success', 'file-manager')
       } else if (count > 0 && failed > 0) {
@@ -470,7 +470,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       'file-manager'
     )
     if (!isConfirmed) return
-    
+
     setModalLoading(true)
     try {
       const paths = Array.from(selectedPaths)
@@ -709,13 +709,13 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         >
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
-            const tColor = isActive ? '#0284c7' : '#64748b'
-            const tBg = isActive ? '#fff' : 'transparent'
+            const tColor = isActive ? 'var(--win-text)' : 'var(--tb-clock)'
+            const tBg = isActive ? 'var(--win-bg)' : 'transparent'
 
             return (
               <div
                 key={tab.id}
-                className="flex items-center gap-2 px-3 h-[35px] border-r border-black/5 shrink-0 text-[12.5px] transition select-none group relative cursor-pointer"
+                className="flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-border)] shrink-0 text-[12.5px] transition select-none group relative cursor-pointer"
                 style={{
                   background: tBg,
                   color: tColor,
@@ -737,13 +737,13 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             )
           })}
         </div>
-        <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-black/5 transition text-slate-500 border-b border-black/10 shrink-0" onClick={openNewTab} title="New Tab">
+        <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-[var(--tb-hover)] transition text-[var(--tb-clock)] shrink-0" onClick={openNewTab} title="New Tab">
           <Plus size={18} />
         </button>
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="flex items-center gap-1.5 p-2 px-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] border-b border-white/5 bg-slate-100/5 backdrop-blur-md">
+      <div className="flex items-center gap-1.5 p-2 px-4 shadow-sm border-b border-[var(--win-border)] bg-[var(--win-bar)] backdrop-blur-md">
         <button
           disabled={!activeTab.data?.parent}
           onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }}
@@ -752,10 +752,10 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         >
           <CornerLeftUp size={16} />
         </button>
-        <div className="flex-1 bg-white/60 border border-slate-200 rounded-md px-2 py-1.5 flex items-center gap-2 shadow-inner overflow-hidden max-w-full">
-          <span className="text-sm text-slate-500 hidden sm:inline select-none font-medium">Path:</span>
+        <div className="flex-1 bg-[var(--win-bg)] border border-[var(--win-border)] rounded-md px-2 py-1.5 flex items-center gap-2 shadow-inner overflow-hidden max-w-full">
+          <span className="text-sm text-[var(--tb-clock)] hidden sm:inline select-none font-medium opacity-80">Path:</span>
           <input
-            className="flex-1 bg-transparent border-none outline-none text-[13.5px] font-medium text-slate-700 min-w-0"
+            className="flex-1 bg-transparent border-none outline-none text-[13.5px] font-medium text-[var(--win-text)] min-w-0"
             value={activeTab.inputPath}
             onChange={(e) => setInputPath(e.target.value)}
             onBlur={() => setCurrentPath(activeTab.inputPath)}
@@ -793,18 +793,18 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       </div>
 
       {/* ── Table Header ── */}
-      <div className="grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-6 py-2 border-b border-white/5 bg-slate-50/50 text-[10.5px] uppercase tracking-[0.05em] font-bold text-slate-400 sticky top-0">
+      <div className="grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-6 py-2 border-b border-[var(--win-border)] bg-[var(--tb-hover)] text-[10.5px] uppercase tracking-[0.05em] font-bold text-[var(--tb-clock)] sticky top-0">
         <div className="flex items-center justify-center">
-          <input 
-            type="checkbox" 
-            className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all" 
+          <input
+            type="checkbox"
+            className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all"
             checked={!!(activeTab.data?.contents?.length && selectedPaths.size === activeTab.data.contents.length)}
             onChange={(e) => {
-               if (e.target.checked && activeTab.data?.contents) {
-                  setSelectedPaths(new Set(activeTab.data.contents.map((it: FileNode) => it.path)))
-               } else {
-                  setSelectedPaths(new Set())
-               }
+              if (e.target.checked && activeTab.data?.contents) {
+                setSelectedPaths(new Set(activeTab.data.contents.map((it: FileNode) => it.path)))
+              } else {
+                setSelectedPaths(new Set())
+              }
             }}
           />
         </div>
@@ -816,7 +816,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
       {/* ── File List ── */}
       <div
-        className={`flex-1 overflow-y-auto p-2 border-t border-black/5 bg-white/50 transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-sky-50/80' : ''}`}
+        className={`flex-1 overflow-y-auto p-2 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-sky-500/10' : ''}`}
         onDragOver={(e) => {
           const raw = e.dataTransfer.getData('application/x-ui-panel-file')
           if (!raw) return
@@ -836,15 +836,15 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
             const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
             await moveItems(itemsToMove, activeTab.currentPath)
-          } catch(err){}
+          } catch (err) { }
         }}
       >
         {/* FIX: Show loader if loading OR if we don't have data yet (initial hit) */}
         {(activeTab.loading || (!activeTab.data && !activeTab.loading)) && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/40 backdrop-blur-[1px] transition-opacity">
-            <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-white/80 shadow-xl border border-black/5">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--win-bg)]/60 backdrop-blur-[1px] transition-opacity">
+            <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[var(--win-bg)] shadow-[var(--win-shadow)] border border-[var(--win-border)]">
               <Loader2 size={24} className="animate-spin text-sky-600" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Memuat file...</span>
+              <span className="text-xs font-semibold text-[var(--tb-clock)] uppercase tracking-widest">Memuat file...</span>
             </div>
           </div>
         )}
@@ -872,24 +872,24 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             onDragStart={(e, it) => {
               e.stopPropagation()
               const drags = selectedPaths.has(it.path) ? Array.from(selectedPaths) : [it.path]
-              const payload = JSON.stringify({ 
-                path: it.path, 
-                name: it.name, 
-                isDir: it.isDir, 
-                isBulk: drags.length > 1, 
-                paths: drags 
+              const payload = JSON.stringify({
+                path: it.path,
+                name: it.name,
+                isDir: it.isDir,
+                isBulk: drags.length > 1,
+                paths: drags
               })
               e.dataTransfer.setData('application/x-ui-panel-file', payload)
               e.dataTransfer.setData('text/plain', payload)
               e.dataTransfer.effectAllowed = 'move'
 
               if (drags.length > 1) {
-                  const el = document.createElement('div')
-                  el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-white text-[12px] font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur z-[9999]'
-                  el.innerText = `${drags.length} item`
-                  document.body.appendChild(el)
-                  e.dataTransfer.setDragImage(el, -10, -10)
-                  requestAnimationFrame(() => { if(document.body.contains(el)) document.body.removeChild(el) })
+                const el = document.createElement('div')
+                el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-white text-[12px] font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur z-[9999]'
+                el.innerText = `${drags.length} item`
+                document.body.appendChild(el)
+                e.dataTransfer.setDragImage(el, -10, -10)
+                requestAnimationFrame(() => { if (document.body.contains(el)) document.body.removeChild(el) })
               }
             }}
             onDragOver={(e, it) => {
@@ -913,7 +913,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
                 const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
                 await moveItems(itemsToMove, it.path)
-              } catch(err){}
+              } catch (err) { }
             }}
             onContextMenu={(e, it) => {
               e.preventDefault()
@@ -932,30 +932,30 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       </div>
 
       {/* ── Status Bar ── */}
-      <div className="px-4 py-1.5 bg-slate-200/30 border-t border-slate-200/50 text-[11px] text-slate-500 flex justify-between tracking-wide font-medium">
+      <div className="px-4 py-1.5 bg-[var(--tb-hover)] border-t border-[var(--win-border)] text-[11px] text-[var(--tb-clock)] flex justify-between tracking-wide font-medium">
         <span>{activeTab.data ? `${(activeTab.data.contents || []).length} item(s)` : 'Memuat objek...'}</span>
-        <span className="text-emerald-700/70 font-bold uppercase flex items-center gap-1">
+        {/* <span className="text-emerald-700/70 font-bold uppercase flex items-center gap-1">
           Root Access
-        </span>
+        </span> */}
       </div>
 
       {/* ── Bulk Actions Floating Bar ── */}
       <AnimatePresence>
         {selectedPaths.size > 0 && (
           <motion.div
-             initial={{ opacity: 0, y: 30, scale: 0.95 }}
-             animate={{ opacity: 1, y: 0, scale: 1 }}
-             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-             className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 text-white px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 text-white px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
           >
-             <span className="text-[13px] font-semibold pr-3 border-r border-slate-600">
-               {selectedPaths.size} item terpilih
-             </span>
-             <button title="Pindahkan" onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-amber-400 transition" ><Scissors size={16} /></button>
-             <button title="Salin" onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-sky-400 transition"><Copy size={16} /></button>
-             <button title="Hapus" onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-rose-400 transition"><Trash size={16} /></button>
-             <div className="w-[1px] h-4 bg-slate-600 mx-1" />
-             <button title="Batal" onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-slate-300 transition"><X size={16} /></button>
+            <span className="text-[13px] font-semibold pr-3 border-r border-slate-600">
+              {selectedPaths.size} item terpilih
+            </span>
+            <button title="Pindahkan" onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-amber-400 transition" ><Scissors size={16} /></button>
+            <button title="Salin" onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-sky-400 transition"><Copy size={16} /></button>
+            <button title="Hapus" onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-rose-400 transition"><Trash size={16} /></button>
+            <div className="w-[1px] h-4 bg-slate-600 mx-1" />
+            <button title="Batal" onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-slate-300 transition"><X size={16} /></button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -973,10 +973,10 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             {/* Dialog Box */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -15 }} transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-              className="relative w-full max-w-[340px] overflow-hidden rounded-[20px] border border-white/10 bg-white/5 p-6 shadow-[0_32px_64px_rgba(0,0,0,0.6)] backdrop-blur-[48px] sm:max-w-[370px]"
+              className="relative w-full max-w-[340px] overflow-hidden rounded-[20px] border border-[var(--win-border)] p-6 backdrop-blur-[48px] sm:max-w-[370px]"
               style={{
-                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 32px 64px rgba(0,0,0,0.6)'
+                background: 'var(--menu-bg)',
+                boxShadow: 'var(--menu-shadow)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -994,7 +994,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.1 }}
-            className="absolute bg-white/95 backdrop-blur border border-slate-200/80 shadow-[0_10px_35px_-5px_rgba(0,0,0,0.15)] rounded-xl py-1.5 z-[9998] min-w-[170px]"
+            className="absolute bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--menu-border)] shadow-[var(--menu-shadow)] rounded-xl py-1.5 z-[9998] min-w-[170px]"
             style={{ top: getSafeMenuStyles().top, left: getSafeMenuStyles().left }}
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.preventDefault()}

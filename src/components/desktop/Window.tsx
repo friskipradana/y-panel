@@ -242,7 +242,7 @@ export function Window({ win, children }: Props) {
               >
                 {win.title}
               </span>
-              <ChevronDown size={12} color="#a3a3a3" />
+              <ChevronDown size={12} color="currentColor" style={{ opacity: 0.6 }} />
             </div>
 
             <div
@@ -297,8 +297,8 @@ export function Window({ win, children }: Props) {
             <div
               style={{
                 minHeight: 42,
-                background: 'rgba(250,250,250,0.76)',
-                borderBottom: '1px solid rgba(240,240,240,0.82)',
+                background: 'var(--win-bar)',
+                borderBottom: '1px solid var(--win-bar-border)',
                 display: 'flex',
                 alignItems: 'center',
                 padding: '6px 10px',
@@ -332,7 +332,7 @@ export function Window({ win, children }: Props) {
                         }))
                       }}
                       onMouseEnter={(e) => {
-                        if (!active) e.currentTarget.style.background = '#f0f0f0'
+                        if (!active) e.currentTarget.style.background = 'var(--tb-hover)'
                       }}
                       onMouseLeave={(e) => {
                         if (!active) e.currentTarget.style.background = 'transparent'
@@ -491,7 +491,7 @@ const controlButtonStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   cursor: 'pointer',
-  color: '#737373',
+  color: 'var(--tb-clock)',
   transition: 'background .1s, color .1s',
 }
 
@@ -502,15 +502,15 @@ const toolbarToggleStyle: React.CSSProperties = {
   background: 'transparent',
   borderRadius: 6,
   cursor: 'pointer',
-  color: '#737373',
+  color: 'var(--tb-clock)',
   transition: 'background .1s, color .1s, box-shadow .1s',
   fontFamily: 'Outfit, sans-serif',
 }
 
 const activeToolbarToggleStyle: React.CSSProperties = {
-  background: 'rgba(59, 130, 246, 0.12)',
-  color: '#2563eb',
-  boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.18)',
+  background: 'var(--profile-btn-bg)',
+  color: 'var(--win-text)',
+  boxShadow: 'inset 0 0 0 1px var(--win-border)',
 }
 
 const toolbarToolsGroupStyle: React.CSSProperties = {
@@ -519,7 +519,7 @@ const toolbarToolsGroupStyle: React.CSSProperties = {
   gap: 4,
   paddingRight: 8,
   marginRight: 2,
-  borderRight: '1px solid rgba(229,229,229,0.9)',
+  borderRight: '1px solid var(--win-bar-border)',
   flexWrap: 'wrap',
   minHeight: 24,
 }
@@ -528,12 +528,12 @@ const toolbarChipStyle: React.CSSProperties = {
   minHeight: 24,
   fontSize: 10,
   lineHeight: 1.1,
-  color: '#64748b',
+  color: 'var(--tb-clock)',
   padding: '3px 8px',
-  border: '1px solid #e5e5e5',
+  border: '1px solid var(--win-bar-border)',
   borderRadius: 999,
   cursor: 'pointer',
-  background: 'rgba(255,255,255,0.85)',
+  background: 'var(--win-bar)',
   whiteSpace: 'nowrap',
 }
 
@@ -544,12 +544,12 @@ const toolbarValueChipStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   fontSize: 11,
-  color: '#475569',
+  color: 'var(--tb-clock)',
   padding: '0 7px',
-  border: '1px solid #e5e5e5',
+  border: '1px solid var(--win-bar-border)',
   borderRadius: 999,
   cursor: 'pointer',
-  background: 'rgba(255,255,255,0.92)',
+  background: 'var(--win-bar)',
   whiteSpace: 'nowrap',
 }
 
@@ -562,13 +562,13 @@ const FONT_OPTIONS = [
 const FONT_LABELS = ['Outfit', 'Inter', 'Mono']
 
 function applyHover(element: HTMLButtonElement) {
-  element.style.background = '#f5f5f5'
-  element.style.color = '#0a0a0a'
+  element.style.background = 'var(--tb-hover)'
+  element.style.color = 'var(--win-text)'
 }
 
 function resetHover(element: HTMLButtonElement) {
   element.style.background = 'transparent'
-  element.style.color = '#737373'
+  element.style.color = 'var(--tb-clock)'
 }
 
 const RESIZE_HANDLES: Array<{

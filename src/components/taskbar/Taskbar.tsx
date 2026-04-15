@@ -230,7 +230,7 @@ export function Taskbar({ onLogout }: TaskbarProps) {
                     key={item.key}
                     disabled={!showSystemStats}
                     className={`flex items-center justify-between w-full px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
-                      ? 'opacity-20 grayscale'
+                      ? 'opacity-50 grayscale cursor-not-allowed'
                       : isDark
                         ? 'hover:bg-white/5 text-slate-400 hover:text-white'
                         : 'hover:bg-black/5 text-slate-500 hover:text-slate-900'

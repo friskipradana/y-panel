@@ -279,7 +279,7 @@ export function Dock() {
                       onMouseLeave={() => schedulePreviewClose(item.kind)}
                       className={`absolute bottom-[60px] left-1/2 z-[62100] flex min-w-[250px] max-w-[340px] max-h-[calc(100vh-112px)] -translate-x-1/2 flex-col gap-2 overflow-hidden rounded-[20px] border p-2 backdrop-blur-xl ${isDark ? 'border-white/14 bg-slate-950/95 shadow-[0_30px_65px_rgba(2,6,23,0.56)]' : 'border-slate-300/60 bg-white/94 shadow-[0_28px_58px_rgba(15,23,42,0.20)]'}`}
                     >
-                      <div className={`px-1 pb-1 text-[10px] uppercase tracking-[0.18em] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      <div className={`px-1 pb-1 text-[10px] uppercase tracking-[0.18em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
                         Open windows · {related.length}
                       </div>
                       <div className="flex max-h-[calc(100vh-154px)] flex-col gap-2 overflow-y-auto pr-1">
@@ -363,7 +363,7 @@ export function Dock() {
                   <div className="flex min-h-2 items-center gap-1">
                     <div className={[
                       'h-[3px] rounded-full transition-all duration-150',
-                      hasVisible ? 'w-3.5 bg-[linear-gradient(90deg,#38bdf8,#6366f1)]' : related.length > 0 ? (isDark ? 'w-2 bg-slate-200/70' : 'w-2 bg-slate-800/80') : (isDark ? 'w-1 bg-slate-500/60' : 'w-1 bg-slate-400/50'),
+                      hasVisible ? 'w-3.5 bg-[linear-gradient(90deg,#38bdf8,#6366f1)]' : related.length > 0 ? (isDark ? 'w-2 bg-slate-200/70' : 'w-2 bg-slate-800/80') : (isDark ? 'w-1 bg-slate-500/60' : 'w-1 bg-slate-500/70'),
                       isOpen ? 'opacity-100' : 'opacity-0',
                     ].join(' ')} />
                     {related.length > 1 && <span className={`text-[8px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{related.length}</span>}

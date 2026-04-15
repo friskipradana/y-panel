@@ -182,7 +182,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-        <section className="rounded-[24px] border border-white/74 bg-white/84 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)] backdrop-blur-[18px] sm:p-5">
+        <section className="rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px] sm:p-5">
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 place-items-center rounded-[16px] bg-[linear-gradient(135deg,rgba(56,189,248,0.16),rgba(99,102,241,0.14))] text-slate-900">
               <Database size={18} />
@@ -205,7 +205,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </section>
 
-        <section className="flex min-h-[340px] max-h-[520px] flex-col overflow-hidden rounded-[24px] border border-slate-900/8 bg-white/84 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)] backdrop-blur-[18px]">
+        <section className="flex min-h-[340px] max-h-[520px] flex-col overflow-hidden rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px]">
           <div className="border-b border-slate-400/16 px-4 py-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="text-[13px] font-semibold text-slate-900">Persisted runtime logs</div>
@@ -254,10 +254,10 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                     <div
                       key={entry.id}
                       className={[
-                        'rounded-[18px] border px-3 py-3 shadow-[0_12px_24px_rgba(15,23,42,0.06)]',
+                        'rounded-[18px] border px-3 py-3 shadow-[var(--win-shadow)]',
                         isError
-                          ? 'border-red-200/90 bg-red-50/92'
-                          : 'border-white/80 bg-white/90',
+                          ? 'border-red-200/90 bg-red-50/92 dark:bg-red-950/40 dark:border-red-500/30'
+                          : 'border-[var(--win-border)] bg-[var(--win-bg)]',
                       ].join(' ')}
                     >
                       <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
@@ -282,7 +282,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
         </section>
       </div>
 
-      <section className="rounded-[24px] border border-white/74 bg-white/84 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)] backdrop-blur-[18px] sm:p-5">
+      <section className="rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px] sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[13px] font-semibold text-slate-700">Recent settings audit</div>
@@ -296,7 +296,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
         </div>
         <div className="mt-4 flex max-h-[360px] flex-col gap-3 overflow-auto pr-1">
           {settingsAudit.length === 0 ? (
-            <div className="rounded-[16px] border border-slate-200/88 bg-white/90 px-3 py-3 text-[12px] leading-relaxed text-slate-400">
+            <div className="rounded-[16px] border border-[var(--win-border)] bg-[var(--win-bg)] px-3 py-3 text-[12px] leading-relaxed text-[var(--win-text)] opacity-70">
               Belum ada audit perubahan settings yang tersimpan.
             </div>
           ) : (
@@ -353,7 +353,7 @@ function MetricCard({ icon, label, value, description, accent }: { icon: React.R
   }[accent]
 
   return (
-    <div className="rounded-[22px] border border-white/74 bg-white/84 p-4 shadow-[0_16px_34px_rgba(15,23,42,0.07)] backdrop-blur-[18px]">
+    <div className="rounded-[22px] border border-[var(--win-border)] bg-[var(--win-bg)] p-4 shadow-[var(--win-shadow)] backdrop-blur-[18px]">
       <div className="flex items-center gap-3">
         <div className={`grid h-10 w-10 place-items-center rounded-[14px] ${accentMap.iconBg}`}>
           {icon}

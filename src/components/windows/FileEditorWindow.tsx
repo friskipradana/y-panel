@@ -227,8 +227,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
 
   return (
     <div 
-      className="flex flex-col h-full bg-[#1e1e1e] overflow-hidden" 
-      style={{ background: isDark ? '#1e1e1e' : '#fffffe' }}
+      className="flex flex-col h-full bg-[var(--win-bg)] overflow-hidden" 
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -247,7 +246,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       onKeyDownCapture={handleKeyDownCapture}
     >
       {/* ── Tabs Strip ─────────────────────────────────────────────────── */}
-      <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: isDark ? '#252526' : '#f3f3f3' }}>
+      <div className="flex bg-[var(--win-bar)] border-b border-[var(--win-bar-border)] h-[35px] shrink-0 overflow-hidden">
         <div
           className="flex flex-1 overflow-x-auto no-scrollbar items-end"
           ref={tabsScrollRef}
@@ -260,16 +259,14 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
             const isDirty = tab.content !== tab.originalContent
-            const tColor = isDark ? (isActive ? '#fff' : '#969696') : (isActive ? '#333' : '#737373')
-            const tBg = isDark ? (isActive ? '#1e1e1e' : '#2d2d2d') : (isActive ? '#fff' : '#ececec')
 
             return (
               <div
                 key={tab.id}
-                className={`ht-tab--active flex items-center gap-2 px-3 h-[35px] border-r border-[#ffffff10] shrink-0 text-[13px] transition select-none group relative`}
+                className={`ht-tab--active flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-bar-border)] shrink-0 text-[13px] transition select-none group relative`}
                 style={{
-                  background: tBg,
-                  color: tColor,
+                  background: isActive ? 'var(--win-bg)' : 'var(--tb-hover)',
+                  color: isActive ? 'var(--win-text)' : 'var(--tb-clock)',
                   borderTop: isActive ? '2px solid #007acc' : '2px solid transparent'
                 }}
                 onClick={(e) => handleTabClick(tab.id, e)}
@@ -278,7 +275,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
                 <span className="truncate max-w-[150px]">{tab.name}</span>
                 {isDirty && <div className="w-[8px] h-[8px] bg-yellow-500 rounded-full ml-1" title="Unsaved changes" />}
                 <button
-                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/10 transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
                 >
                   <X size={12} strokeWidth={2.5} />
@@ -287,7 +284,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             )
           })}
           {tabs.length === 0 && (
-            <div className="flex items-center px-4 h-full text-[12px] opacity-50" style={{ color: isDark ? '#fff' : '#000' }}>
+            <div className="flex items-center px-4 h-full text-[12px] opacity-70 text-[var(--win-text)]">
               Tidak ada file yang sedang dibuka...
             </div>
           )}
@@ -296,15 +293,14 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
 
       {/* ── Editor Toolbar ──────────────────────────────────────────────── */}
       {activeTab && (
-        <div className="flex items-center justify-between px-4 py-1.5 shrink-0 border-b border-[#ffffff10]" style={{ background: isDark ? '#1e1e1e' : '#fff' }}>
-          <div className="text-[12px] opacity-60 font-mono truncate max-w-[60%] select-all" style={{ color: isDark ? '#ccc' : '#333' }}>
+        <div className="flex items-center justify-between px-4 py-1.5 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
+          <div className="text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate max-w-[60%] select-all">
             {activeTab.path}
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
-              className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium rounded bg-slate-500/10 hover:bg-slate-500/20 transition"
-              style={{ color: isDark ? '#ddd' : '#444' }}
+              className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
               title="Reload File from Disk"
             >
               <RefreshCcw size={12} /> Reload
@@ -314,7 +310,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
               disabled={activeTab.content === activeTab.originalContent}
               className={`px-3 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                  : (isDark ? 'bg-white/10 text-white/50 cursor-not-allowed' : 'bg-black/5 text-black/40 cursor-not-allowed')
+                  : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
                 }`}
             >
               <Save size={13} /> Simpan Perubahan

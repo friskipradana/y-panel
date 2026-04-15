@@ -16,10 +16,10 @@ import {
 import { alertLib } from '@/lib/alert'
 import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
-const cardClass = 'rounded-[20px] border border-slate-200/85 bg-white/92 p-5 shadow-[0_4px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl'
-const inputClass = 'h-[42px] w-full rounded-xl border border-slate-300/90 bg-slate-50 px-3.5 text-[13px] text-slate-900 outline-none transition focus:border-blue-400'
+const cardClass = 'rounded-[20px] border border-[var(--win-border)] bg-[var(--win-bg)] p-5 shadow-[var(--win-shadow)] backdrop-blur-xl'
+const inputClass = 'h-[42px] w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] px-3.5 text-[13px] text-[var(--win-text)] outline-none transition focus:border-blue-400'
 const inputMonoClass = `${inputClass} font-mono text-[12px]`
-const softIconClass = 'flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,rgba(56,189,248,0.14),rgba(99,102,241,0.12))] text-slate-700'
+const softIconClass = 'flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,rgba(56,189,248,0.14),rgba(99,102,241,0.12))] text-[var(--win-text)]'
 
 const TIMEZONES = [
   'UTC',
@@ -81,7 +81,7 @@ function TimezoneSelect({ value, onChange }: { value: string; onChange: (v: stri
       </button>
 
       {open && (
-        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-[9999] overflow-hidden rounded-[14px] border border-slate-300/90 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.14)]">
+        <div className="absolute inset-x-0 top-[calc(100%+6px)] z-[9999] overflow-hidden rounded-[14px] border border-[var(--win-border)] bg-[var(--win-bg)] shadow-[var(--win-shadow)]">
           <div className="border-b border-slate-200/80 p-2">
             <input
               ref={inputRef}
@@ -556,7 +556,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
           />
 
           <div className="space-y-3.5">
-            <div className="rounded-[16px] border border-slate-200/85 bg-[linear-gradient(180deg,rgba(15,23,42,0.03),rgba(59,130,246,0.04))] p-3">
+            <div className="rounded-[16px] border border-[var(--win-border)] bg-[linear-gradient(180deg,rgba(15,23,42,0.03),rgba(59,130,246,0.04))] p-3 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(99,102,241,0.04))]">
               <textarea
                 id="settings-allowed-origins"
                 value={allowedOriginsText}
@@ -610,9 +610,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           </div>
 
-          <div className="rounded-[14px] border border-slate-200/80 bg-slate-50 px-4 py-3.5">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Rows</div>
-            <div className="mb-1 text-[13px] font-semibold text-slate-800">
+          <div className="rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] dark:bg-[rgba(255,255,255,0.03)] px-4 py-3.5">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--tb-clock)] opacity-70">Rows</div>
+            <div className="mb-1 text-[13px] font-semibold text-[var(--win-text)]">
               {databaseQuery.data
                 ? `${databaseQuery.data.status.runtimeLogCount} logs • ${databaseQuery.data.status.changelogCount} changelog`
                 : '—'}
@@ -692,8 +692,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         {databaseQuery.data?.settingsAudit.length ? (
           <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
             {databaseQuery.data.settingsAudit.slice(0, 6).map((entry) => (
-              <div key={entry.id} className="rounded-[14px] border border-slate-200/80 bg-slate-50 px-4 py-3.5">
-                <div className="mb-2.5 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.10em] text-slate-400">
+              <div key={entry.id} className="rounded-[14px] border border-[var(--win-border)] bg-[var(--win-bg)] shadow-[0_4px_16px_rgba(0,0,0,0.03)] px-4 py-3.5">
+                <div className="mb-2.5 flex items-center gap-1.5 text-[10px] uppercase tracking-[0.10em] text-[var(--win-text)] opacity-60">
                   <span>{entry.username || 'system'}</span>
                   <span>•</span>
                   <span>{new Date(entry.createdAt).toLocaleString()}</span>
@@ -707,7 +707,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-300/80 bg-slate-50 px-4 py-4 text-center text-[12px] text-slate-400">
+          <div className="rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--win-bg)] px-4 py-4 text-center text-[12px] text-[var(--win-text)] opacity-60">
             Belum ada audit yang tersimpan. Perubahan settings akan tercatat di sini.
           </div>
         )}

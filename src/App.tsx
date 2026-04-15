@@ -61,7 +61,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
     </div>
   ),
   docs: () => (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 py-3">
       {[
         { icon: '🚀', title: 'Install panel', cmd: 'sudo bash installer/linux/install.sh' },
         { icon: '🧠', title: 'Agent health', cmd: 'curl http://127.0.0.1:8787/healthz' },
@@ -72,9 +72,9 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
         { icon: '🔁', title: 'Restart panel', cmd: 'ui-panel restart' },
         { icon: '🧹', title: 'Uninstall', cmd: 'ui-panel uninstall' },
       ].map((d) => (
-        <div key={d.title} className="rounded-lg p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.16)' }}>
+        <div key={d.title} className="rounded-lg p-3" style={{ background: 'var(--profile-btn-bg)', border: '1px solid var(--win-border)' }}>
           <p className="text-xs font-semibold mb-1" style={{ color: 'var(--win-text)' }}>{d.icon} {d.title}</p>
-          <code className="text-xs" style={{ color: 'rgba(226,232,240,0.82)', fontFamily: 'monospace' }}>{d.cmd}</code>
+          <code className="text-xs opacity-80" style={{ color: 'var(--win-text)', fontFamily: 'monospace' }}>{d.cmd}</code>
         </div>
       ))}
     </div>
@@ -310,7 +310,7 @@ function AppShell() {
             nextRevision,
           })
           frontendRevisionRef.current = nextRevision
-          
+
           // Clear cache before reload to ensure we get the latest assets
           if ('caches' in window) {
             try {
@@ -320,7 +320,7 @@ function AppShell() {
               runtimeLogger.warn('frontend', 'failed to clear caches', { error: e })
             }
           }
-          
+
           window.location.reload()
         }
       }
@@ -450,7 +450,7 @@ function AppShell() {
       {/* 404 Overlay for Authenticated Users */}
       {authenticated && !isKnownPath && (
         <div className="absolute inset-0 z-[20000]">
-           <FrontendNotFoundPage authenticated={authenticated} />
+          <FrontendNotFoundPage authenticated={authenticated} />
         </div>
       )}
 

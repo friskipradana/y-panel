@@ -7,19 +7,19 @@ const DEFAULTS: Record<
   WindowKind,
   { title: string; icon: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "My Apps", icon: "📁", width: 460, height: 380, singleton: true },
-  terminal: { title: "Terminal", icon: "💻", width: 500, height: 320, singleton: true },
-  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 920, height: 640, singleton: true },
-  system: { title: "System Info", icon: "⚙️", width: 980, height: 680, singleton: true },
-  "system-logs": { title: "System Logs", icon: "📜", width: 920, height: 620, singleton: true },
-  docs: { title: "Docs", icon: "📚", width: 840, height: 530, singleton: true },
-  changelog: { title: "Changelog", icon: "🔔", width: 911, height: 500, singleton: true },
-  portainer: { title: "Portainer", icon: "🐋", width: 500, height: 420, singleton: true },
-  settings: { title: "Settings", icon: "🔧", width: 920, height: 640, singleton: true },
-  database: { title: "Database", icon: "🗄️", width: 980, height: 680, singleton: true },
-  "file-manager": { title: "File Manager", icon: "📁", width: 880, height: 600, singleton: true },
-  "file-editor": { title: "Code Editor", icon: "📝", width: 950, height: 700, singleton: true },
-  trash: { title: "Trash", icon: "🗑️", width: 300, height: 180, singleton: true },
+  apps: { title: "My Apps", icon: "📁", width: 615, height: 380, singleton: true },
+  terminal: { title: "Terminal", icon: "💻", width: 518, height: 320, singleton: true },
+  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 1035, height: 640, singleton: true },
+  system: { title: "System Info", icon: "⚙️", width: 1100, height: 680, singleton: true },
+  "system-logs": { title: "System Logs", icon: "📜", width: 1003, height: 620, singleton: true },
+  docs: { title: "Docs", icon: "📚", width: 857, height: 530, singleton: true },
+  changelog: { title: "Changelog", icon: "🔔", width: 809, height: 500, singleton: true },
+  portainer: { title: "Portainer", icon: "🐋", width: 680, height: 420, singleton: true },
+  settings: { title: "Settings", icon: "🔧", width: 1035, height: 640, singleton: true },
+  database: { title: "Database", icon: "🗄️", width: 1100, height: 680, singleton: true },
+  "file-manager": { title: "File Manager", icon: "📁", width: 971, height: 600, singleton: true },
+  "file-editor": { title: "Code Editor", icon: "📝", width: 1133, height: 700, singleton: true },
+  trash: { title: "Trash", icon: "🗑️", width: 485, height: 300, singleton: true },
 };
 
 // Z-index tiers
