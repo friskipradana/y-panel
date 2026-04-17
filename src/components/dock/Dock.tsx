@@ -6,13 +6,15 @@ import type { WindowKind, WindowState } from '@/types'
 
 const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'apps', icon: '📁', label: 'My Apps' },
-  { kind: 'portainer', icon: '🐋', label: 'Portainer' },
+  { kind: 'projects', icon: '🗂️', label: 'Projects' },
+  { kind: 'tunnels', icon: '🌐', label: 'Tunnels' },
+  { kind: 'profile', icon: '👤', label: 'Profile' },
   { kind: 'host-terminal', icon: '💻', label: 'Host Terminal' },
   { kind: 'system', icon: '⚙️', label: 'System' },
   { kind: 'settings', icon: '🔧', label: 'Settings' },
+  { kind: 'users', icon: '👥', label: 'Users' },
   { kind: 'database', icon: '🗄️', label: 'Database' },
   { kind: 'system-logs', icon: '📜', label: 'System Logs' },
-  { kind: 'docs', icon: '📚', label: 'Docs' },
   { kind: 'file-manager', icon: '📁', label: 'Explorer' },
   { kind: 'file-editor', icon: '📝', label: 'Code Editor' },
   { kind: 'changelog', icon: '🔔', label: 'Changelog' },
@@ -62,6 +64,10 @@ export function Dock() {
       trash: [],
       'file-manager': [],
       'file-editor': [],
+      users: [],
+      projects: [],
+      tunnels: [],
+      profile: [],
     })
   }, [windows])
 

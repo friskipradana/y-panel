@@ -13,6 +13,10 @@ export type WindowKind =
   | 'trash'
   | 'file-manager'
   | 'file-editor'
+  | 'users'
+  | 'projects'
+  | 'tunnels'
+  | 'profile'
 
 export type WindowId = WindowKind
 

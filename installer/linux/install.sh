@@ -213,35 +213,6 @@ ui_panel_config() {
     log "Bind address (dari env): $PANEL_BIND_ADDR"
   fi
 
-  if [[ -z "${PANEL_ADMIN_USERNAME:-}" ]]; then
-    if [[ "$interactive_mode" -eq 1 ]]; then
-      read -r -p "Username admin [admin]: " PANEL_ADMIN_USERNAME || true
-      PANEL_ADMIN_USERNAME="${PANEL_ADMIN_USERNAME:-admin}"
-    else
-      PANEL_ADMIN_USERNAME="admin"
-      log "Username admin (otomatis): $PANEL_ADMIN_USERNAME"
-    fi
-  else
-    log "Username admin (dari env): $PANEL_ADMIN_USERNAME"
-  fi
-
-  if [[ -z "${PANEL_ADMIN_PASSWORD:-}" ]]; then
-    if [[ "$interactive_mode" -eq 1 ]]; then
-      read -r -s -p "Password admin [otomatis jika kosong]: " PANEL_ADMIN_PASSWORD || true
-      printf '\n'
-    fi
-    if [[ -z "$PANEL_ADMIN_PASSWORD" ]]; then
-      PANEL_ADMIN_PASSWORD="$(random_string 20)"
-      GENERATED_PASSWORD=1
-      log "Password admin (otomatis): [dibuat otomatis]"
-    else
-      GENERATED_PASSWORD=0
-    fi
-  else
-    log "Password admin (dari env): [tersembunyi]"
-    GENERATED_PASSWORD=0
-  fi
-
   current_hostname="$(hostname 2>/dev/null || true)"
   current_hostname="${current_hostname//[$'\r\n']/}"
   primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
@@ -251,13 +222,11 @@ ui_panel_config() {
   PANEL_INSTALL_CHANNEL="stable"
   PANEL_PORTAINER_URL="$DEFAULT_PORTAINER_URL"
   PANEL_DB_ENABLED="true"
-  PANEL_DB_HOST="$DEFAULT_DB_HOST"
-  PANEL_DB_PORT="$DEFAULT_DB_PORT"
-  PANEL_DB_NAME="$DEFAULT_DB_NAME"
-  PANEL_DB_USER="$DEFAULT_DB_USER"
-  PANEL_DB_PASSWORD="$(random_string 28)"
   PANEL_ALLOWED_HOSTS="${current_allowed_hosts:-${DEFAULT_ALLOWED_HOSTS}}"
   PANEL_ALLOWED_ORIGINS="${current_allowed_origins:-${DEFAULT_ALLOWED_ORIGINS}}"
+  PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(random_string 64)}"
+  PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-}"
+  PANEL_SESSION_TTL="${PANEL_SESSION_TTL:-12h}"
 
   if [[ -z "$PANEL_ALLOWED_HOSTS" ]]; then
     PANEL_ALLOWED_HOSTS="localhost,127.0.0.1"
@@ -341,6 +310,11 @@ run_sql() {
 }
 
 provision_database() {
+  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
+    log "menggunakan PostgreSQL dari PANEL_DATABASE_DSN; provisioning MariaDB dilewati"
+    return
+  fi
+
   log "menyiapkan database MariaDB untuk runtime panel"
   run_sql "CREATE DATABASE IF NOT EXISTS \`${PANEL_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
   run_sql "CREATE USER IF NOT EXISTS '${PANEL_DB_USER}'@'${PANEL_DB_HOST}' IDENTIFIED BY '${PANEL_DB_PASSWORD}';"
@@ -407,19 +381,16 @@ write_env_file() {
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
 PANEL_ALLOWED_HOSTS=${PANEL_ALLOWED_HOSTS}
 PANEL_ALLOWED_ORIGINS=${PANEL_ALLOWED_ORIGINS}
-PANEL_ADMIN_USERNAME=${PANEL_ADMIN_USERNAME}
-PANEL_ADMIN_PASSWORD=${PANEL_ADMIN_PASSWORD}
 PANEL_SESSION_SECRET=${PANEL_SESSION_SECRET}
+PANEL_SESSION_TTL=${PANEL_SESSION_TTL}
 PANEL_STATE_DIR=${STATE_DIR}
 PANEL_PORTAINER_URL=${PANEL_PORTAINER_URL}
 PANEL_INSTALL_CHANNEL=${PANEL_INSTALL_CHANNEL}
 PANEL_FRONTEND_DIR=${FRONTEND_DIR}
 PANEL_DB_ENABLED=${PANEL_DB_ENABLED}
-PANEL_DB_HOST=${PANEL_DB_HOST}
-PANEL_DB_PORT=${PANEL_DB_PORT}
-PANEL_DB_USER=${PANEL_DB_USER}
-PANEL_DB_PASSWORD=${PANEL_DB_PASSWORD}
-PANEL_DB_NAME=${PANEL_DB_NAME}
+PANEL_DATABASE_DSN=${PANEL_DATABASE_DSN}
+PANEL_ENCRYPTION_KEY=${PANEL_ENCRYPTION_KEY}
+PANEL_ENV_FILE=${ENV_FILE}
 EOF
   if [[ -n "$preserved_origins_block" ]]; then
     printf '%s\n' "$preserved_origins_block" >> "$ENV_FILE"
@@ -552,18 +523,9 @@ reset_password() {
     exit 1
   fi
 
-  read -r -s -p 'Password admin baru: ' password
-  printf '\n'
-
-  if [[ -z "$password" ]]; then
-    printf '\nPassword tidak boleh kosong.\n' >&2
-    exit 1
-  fi
-
-  escaped_password="$(printf '%s' "$password" | sed 's/[\\&]/\\&/g')"
-  sed -i "s/^PANEL_ADMIN_PASSWORD=.*/PANEL_ADMIN_PASSWORD=${escaped_password}/" "$ENV_FILE"
-  systemctl restart "$SERVICE_NAME"
-  printf '\nPassword admin berhasil direset dan service direstart.\n'
+  printf '\nPassword admin tidak lagi disimpan di file env.\n' >&2
+  printf 'Buka panel dan gunakan first-run setup untuk membuat admin pertama, atau kelola user dari UI setelah setup selesai.\n' >&2
+  exit 1
 }
 
 reset_db_password() {
@@ -830,15 +792,13 @@ print_summary() {
   printf '\nPanel URL      : http://%s\n' "$host_ip:$bind_port"
   printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
-  printf 'Username       : %s\n' "$PANEL_ADMIN_USERNAME"
-  printf 'Password       : %s\n' "$PANEL_ADMIN_PASSWORD"
   printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
   printf 'Portainer      : hanya localhost melalui backend agent\n'
   printf 'CLI command    : ui-panel\n'
-
-  if [[ "$GENERATED_PASSWORD" -eq 1 ]]; then
-    printf '\nCatatan: password admin dibuat otomatis. Simpan informasi ini dengan aman.\n'
-  fi
+  printf '\nLangkah berikutnya:\n'
+  printf '  1. Buka panel di browser\n'
+  printf '  2. Jalankan first-run setup\n'
+  printf '  3. Buat Admin Pertama dari UI\n'
 
   printf '\nPerintah penting:\n'
   printf '  ui-panel\n'
@@ -856,8 +816,12 @@ main() {
   ui_panel_config
   setup_directories
   ensure_hostname_resolution
-  ensure_mariadb
-  provision_database
+  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
+    log "PANEL_DATABASE_DSN terdeteksi; setup MariaDB lokal dilewati"
+  else
+    ensure_mariadb
+    provision_database
+  fi
   build_agent
   prepare_frontend
   write_env_file

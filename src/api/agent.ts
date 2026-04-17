@@ -83,6 +83,26 @@ export const loginAgent = (username: string, password: string) =>
 export const logoutAgent = () =>
   agentApi.post<{ ok: boolean }>('/api/v1/auth/logout').then((r) => r.data)
 
+export interface SetupStatusResponse {
+  needsSetup: boolean
+  databaseReady: boolean
+  databaseError?: string
+}
+
+export interface InitializeSetupPayload {
+  username: string
+  email: string
+  password: string
+  confirmPassword: string
+  displayName?: string
+}
+
+export const getSetupStatus = () =>
+  agentApi.get<SetupStatusResponse>('/api/v1/setup/status').then((r) => r.data)
+
+export const initializeSetup = (payload: InitializeSetupPayload) =>
+  agentApi.post<{ ok: boolean; username: string; role: string }>('/api/v1/setup/initialize', payload).then((r) => r.data)
+
 export const getMe = () =>
   agentApi.get<AuthMe>('/api/v1/me').then((r) => r.data)
 
@@ -147,3 +167,203 @@ export const getWallpaper = () =>
 
 export const updateWallpaper = (data: string) =>
   agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)
+
+// ─── Extended AuthMe ──────────────────────────────────────────────────────────
+
+export interface AuthMeV2 {
+  id: number
+  username: string
+  email: string
+  role: 'superadmin' | 'admin' | 'user'
+  status: 'active' | 'suspended' | 'pending'
+  displayName: string
+  avatarUrl: string
+  cloudflareStatus: 'active' | 'invalid' | 'unconfigured'
+  createdAt: string
+  lastLoginAt: string | null
+}
+
+export const getMeV2 = () =>
+  agentApi.get<AuthMeV2>('/api/v1/me').then((r) => r.data)
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export interface PanelUser {
+  id: number
+  username: string
+  email: string
+  role: string
+  status: string
+  displayName: string
+  avatarUrl: string
+  createdAt: string
+  updatedAt: string
+  lastLoginAt: string | null
+}
+
+export interface UserQuota {
+  userId: number
+  maxProjects: number
+  maxTunnels: number
+  diskQuotaMb: number
+  cpuLimitPct: number
+  memoryLimitMb: number
+}
+
+export const listUsers = (limit = 50, offset = 0) =>
+  agentApi
+    .get<{ users: PanelUser[]; total: number; limit: number; offset: number }>('/api/v1/users', {
+      params: { limit, offset },
+    })
+    .then((r) => r.data)
+
+export const createUser = (payload: {
+  username: string
+  email: string
+  password: string
+  role?: string
+  displayName?: string
+}) => agentApi.post<PanelUser>('/api/v1/users', payload).then((r) => r.data)
+
+export const getUserByID = (id: number) =>
+  agentApi.get<PanelUser>(`/api/v1/users/${id}`).then((r) => r.data)
+
+export const updateUser = (id: number, fields: Partial<PanelUser>) =>
+  agentApi.patch<PanelUser>(`/api/v1/users/${id}`, fields).then((r) => r.data)
+
+export const deleteUser = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/users/${id}`).then((r) => r.data)
+
+export const suspendUser = (id: number) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/users/${id}/suspend`).then((r) => r.data)
+
+export const activateUser = (id: number) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/users/${id}/activate`).then((r) => r.data)
+
+export const getUserQuota = (id: number) =>
+  agentApi.get<UserQuota>(`/api/v1/users/${id}/quota`).then((r) => r.data)
+
+export const updateUserQuota = (id: number, quota: Partial<UserQuota>) =>
+  agentApi.patch<{ ok: boolean }>(`/api/v1/users/${id}/quota`, quota).then((r) => r.data)
+
+// ─── Cloudflare Config (per-user) ─────────────────────────────────────────────
+
+export interface CFConfig {
+  configured: boolean
+  accountId?: string
+  zoneId?: string
+  baseDomain?: string
+  status?: 'active' | 'invalid' | 'unconfigured'
+  verifiedAt?: string | null
+}
+
+export const getCFConfig = () =>
+  agentApi.get<CFConfig>('/api/v1/me/cloudflare').then((r) => r.data)
+
+export const setCFConfig = (payload: {
+  apiToken: string
+  accountId: string
+  zoneId: string
+  baseDomain?: string
+}) => agentApi.post<{ ok: boolean; message: string }>('/api/v1/me/cloudflare', payload).then((r) => r.data)
+
+export const verifyCFConfig = () =>
+  agentApi.post<{ valid: boolean; status?: string; error?: string }>('/api/v1/me/cloudflare/verify').then((r) => r.data)
+
+export const deleteCFConfig = () =>
+  agentApi.delete<{ ok: boolean }>('/api/v1/me/cloudflare').then((r) => r.data)
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+
+export interface Project {
+  id: number
+  userId: number
+  name: string
+  slug: string
+  description: string
+  status: 'active' | 'stopped' | 'building' | 'error' | 'draft'
+  projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom'
+  repoUrl: string
+  workingDir: string
+  exposedPort: number
+  assignedPort: number
+  running: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export const listProjects = (all = false) =>
+  agentApi.get<Project[]>('/api/v1/projects', { params: all ? { all: 1 } : {} }).then((r) => r.data)
+
+export const createProject = (payload: {
+  name: string
+  description?: string
+  projectType: string
+  repoUrl?: string
+  workingDir?: string
+}) => agentApi.post<Project>('/api/v1/projects', payload).then((r) => r.data)
+
+export const getProject = (id: number) =>
+  agentApi.get<Project>(`/api/v1/projects/${id}`).then((r) => r.data)
+
+export const deleteProject = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/projects/${id}`).then((r) => r.data)
+
+export const startProject = (id: number) =>
+  agentApi.post<{ ok: boolean; status: string }>(`/api/v1/projects/${id}/start`).then((r) => r.data)
+
+export const stopProject = (id: number) =>
+  agentApi.post<{ ok: boolean; status: string }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)
+
+// ─── Tunnels ──────────────────────────────────────────────────────────────────
+
+export interface Tunnel {
+  id: number
+  userId: number
+  projectId: number | null
+  name: string
+  targetUrl: string
+  status: 'active' | 'inactive' | 'error' | 'pending' | 'creating'
+  cfTunnelId: string
+  cfHostname: string
+  daemonRunning: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export const listTunnels = () =>
+  agentApi.get<Tunnel[]>('/api/v1/tunnels').then((r) => r.data)
+
+export const createTunnel = (payload: {
+  name: string
+  targetUrl: string
+  projectId?: number | null
+}) => agentApi.post<{ ok: boolean; id: number; status: string; message: string }>('/api/v1/tunnels', payload).then((r) => r.data)
+
+export const getTunnel = (id: number) =>
+  agentApi.get<Tunnel>(`/api/v1/tunnels/${id}`).then((r) => r.data)
+
+export const deleteTunnel = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/tunnels/${id}`).then((r) => r.data)
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export interface PanelNotification {
+  id: number
+  userId: number
+  title: string
+  body: string
+  type: 'info' | 'success' | 'warning' | 'error'
+  isRead: boolean
+  actionUrl: string
+  createdAt: string
+}
+
+export const listNotifications = () =>
+  agentApi.get<{ notifications: PanelNotification[] }>('/api/v1/notifications').then((r) => r.data.notifications)
+
+export const markNotificationRead = (id: number) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/notifications/${id}/read`).then((r) => r.data)
+
+export const markAllNotificationsRead = () =>
+  agentApi.post<{ ok: boolean }>('/api/v1/notifications/read-all').then((r) => r.data)

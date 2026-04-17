@@ -15,24 +15,32 @@ const (
 	managedOriginsLinePrefix = "#|"
 )
 
+// Config holds all runtime configuration for the panel agent.
 type Config struct {
+	// Network
 	BindAddr       string
 	AllowedHosts   []string
 	AllowedOrigins []string
-	AdminUsername  string
-	AdminPassword  string
-	SessionSecret  string
-	SessionTTL     time.Duration
-	StateDir       string
+
+	// Session
+	SessionSecret string
+	SessionTTL    time.Duration
+
+	// PostgreSQL database
+	DatabaseDSN    string
+	DatabaseEnable bool
+
+	// Storage
+	StateDir    string
+	FrontendDir string
+
+	// External services
 	PortainerURL   string
 	InstallChannel string
-	FrontendDir    string
-	DatabaseHost   string
-	DatabasePort   int
-	DatabaseUser   string
-	DatabasePass   string
-	DatabaseName   string
-	DatabaseEnable bool
+
+	// Panel identity
+	BaseDomain     string // e.g. "panel.example.com" — used for generated subdomains
+	EncryptionKey  string // 32-byte hex key for encrypting CF tokens at rest
 }
 
 func Load() (Config, error) {
@@ -40,27 +48,25 @@ func Load() (Config, error) {
 		BindAddr:       getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
 		AllowedHosts:   parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
 		AllowedOrigins: loadAllowedOrigins(),
-		AdminUsername:  os.Getenv("PANEL_ADMIN_USERNAME"),
-		AdminPassword:  os.Getenv("PANEL_ADMIN_PASSWORD"),
-		SessionSecret:  getenv("PANEL_SESSION_SECRET", "dev-session-secret"),
+		SessionSecret:  getenv("PANEL_SESSION_SECRET", "dev-session-secret-change-me"),
 		SessionTTL:     parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
+		DatabaseDSN:    os.Getenv("PANEL_DATABASE_DSN"),
+		DatabaseEnable: parseBoolEnv("PANEL_DB_ENABLED", true),
 		StateDir:       getenv("PANEL_STATE_DIR", "/var/lib/ui-panel"),
+		FrontendDir:    getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
 		PortainerURL:   getenv("PANEL_PORTAINER_URL", "http://127.0.0.1:9000"),
 		InstallChannel: getenv("PANEL_INSTALL_CHANNEL", "stable"),
-		FrontendDir:    getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
-		DatabaseHost:   getenv("PANEL_DB_HOST", "127.0.0.1"),
-		DatabasePort:   parseIntEnv("PANEL_DB_PORT", 3306),
-		DatabaseUser:   getenv("PANEL_DB_USER", "ui_panel"),
-		DatabasePass:   os.Getenv("PANEL_DB_PASSWORD"),
-		DatabaseName:   getenv("PANEL_DB_NAME", "ui_panel"),
-		DatabaseEnable: parseBoolEnv("PANEL_DB_ENABLED", true),
+		BaseDomain:     os.Getenv("PANEL_BASE_DOMAIN"),
+		EncryptionKey:  os.Getenv("PANEL_ENCRYPTION_KEY"),
 	}
 
-	if cfg.AdminUsername == "" {
-		return Config{}, errors.New("missing PANEL_ADMIN_USERNAME")
+	if cfg.DatabaseEnable && cfg.DatabaseDSN == "" {
+		return Config{}, errors.New("PANEL_DATABASE_DSN is required when PANEL_DB_ENABLED=true")
 	}
-	if cfg.AdminPassword == "" {
-		return Config{}, errors.New("missing PANEL_ADMIN_PASSWORD")
+
+	if cfg.EncryptionKey == "" {
+		// Warn but don't fail — Cloudflare token encryption will be unavailable
+		cfg.EncryptionKey = "0000000000000000000000000000000000000000000000000000000000000000"
 	}
 
 	return cfg, nil
@@ -237,3 +243,6 @@ func firstNonEmpty(values ...string) string {
 	}
 	return ""
 }
+
+// Kept for backward compatibility with system package
+var _ = parseIntEnv

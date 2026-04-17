@@ -1,6 +1,25 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ImagePlus, LogOut, Moon, Palette, Sun, User } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Cloud,
+  Eye,
+  EyeOff,
+  ImagePlus,
+  LogOut,
+  Moon,
+  Palette,
+  RefreshCw,
+  ShieldCheck,
+  Sun,
+  Trash2,
+  User,
+  XCircle,
+} from 'lucide-react'
+import { deleteCFConfig, getCFConfig, getMeV2, setCFConfig, verifyCFConfig } from '@/api/agent'
+import { toast } from 'sonner'
 import { useThemeStore, WALLPAPERS, type WallpaperKey } from '@/store/themeStore'
 
 interface ProfileMenuProps {
@@ -9,13 +28,54 @@ interface ProfileMenuProps {
   loading?: boolean
 }
 
+const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-orange-400'
+
 export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
+  const qc = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [showCloudflareModal, setShowCloudflareModal] = useState(false)
+  const [showToken, setShowToken] = useState(false)
+  const [cfForm, setCfForm] = useState({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const { mode, wallpaper, toggleMode, setWallpaper, setCustomImage } = useThemeStore()
   const isDark = mode === 'dark'
+  const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
+  const { data: cf, isLoading: cfLoading } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
+
+  const saveCFMut = useMutation({
+    mutationFn: setCFConfig,
+    onSuccess: () => {
+      toast.success('Konfigurasi Cloudflare disimpan')
+      qc.invalidateQueries({ queryKey: ['cf-config'] })
+      qc.invalidateQueries({ queryKey: ['me-v2'] })
+      setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
+      setShowCloudflareModal(false)
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menyimpan config'),
+  })
+
+  const verifyMut = useMutation({
+    mutationFn: verifyCFConfig,
+    onSuccess: (res) => {
+      if (res.valid) toast.success('Token Cloudflare valid! ✓')
+      else toast.error('Token tidak valid: ' + (res.error ?? 'Unknown error'))
+      qc.invalidateQueries({ queryKey: ['cf-config'] })
+      qc.invalidateQueries({ queryKey: ['me-v2'] })
+    },
+    onError: () => toast.error('Gagal memverifikasi token'),
+  })
+
+  const deleteCFMut = useMutation({
+    mutationFn: deleteCFConfig,
+    onSuccess: () => {
+      toast.success('Konfigurasi Cloudflare dihapus')
+      qc.invalidateQueries({ queryKey: ['cf-config'] })
+      qc.invalidateQueries({ queryKey: ['me-v2'] })
+      setShowCloudflareModal(false)
+    },
+  })
 
   const handleDocMouseDown = (e: MouseEvent) => {
     const target = e.target as Node
@@ -46,89 +106,237 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     e.target.value = ''
   }
 
-  const dropdown = open ? createPortal(
-    <div ref={menuRef} className="profile-menu">
-      <div className="profile-menu-section flex items-center gap-3">
-        <div className="profile-avatar">{(username ?? 'A').charAt(0).toUpperCase()}</div>
-        <div>
-          <div className="profile-name">{username ?? 'Admin'}</div>
-          <div className="profile-role">Administrator</div>
-        </div>
-      </div>
+  const displayName = me?.displayName || me?.username || username || 'Admin'
+  const displayRole = me?.role || 'Administrator'
+  const cfStatusBadge = {
+    active: { cls: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300', icon: <CheckCircle2 className="h-3 w-3" />, label: 'Verified' },
+    invalid: { cls: 'bg-red-500/12 text-red-600 dark:text-red-300', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
+    unconfigured: { cls: 'bg-amber-500/12 text-amber-600 dark:text-amber-300', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
+  }[(cf?.status ?? 'unconfigured') as 'active' | 'invalid' | 'unconfigured']
 
-      <div className="profile-menu-section">
-        <button className="profile-menu-btn" onClick={toggleMode}>
-          {isDark ? <Sun size={14} color="#fbbf24" /> : <Moon size={14} color="#6366f1" />}
-          <span>{isDark ? 'Ganti ke Light Mode' : 'Ganti ke Dark Mode'}</span>
-        </button>
-      </div>
+  const dropdown = open
+    ? createPortal(
+        <div ref={menuRef} className="profile-menu">
+          <div className="profile-menu-section flex items-center gap-3">
+            <div className="profile-avatar">{displayName.charAt(0).toUpperCase()}</div>
+            <div>
+              <div className="profile-name">{displayName}</div>
+              <div className="profile-role">{displayRole}</div>
+            </div>
+          </div>
 
-      <div className="profile-menu-section">
-        <div className="profile-section-label">
-          <Palette size={11} />
-          Wallpaper
-        </div>
+          <div className="profile-menu-section">
+            <button className="profile-menu-btn" onClick={toggleMode}>
+              {isDark ? <Sun size={14} color="#fbbf24" /> : <Moon size={14} color="#6366f1" />}
+              <span>{isDark ? 'Ganti ke Light Mode' : 'Ganti ke Dark Mode'}</span>
+            </button>
+          </div>
 
-        <div className="wallpaper-grid">
-          {(Object.entries(WALLPAPERS) as [Exclude<WallpaperKey, 'custom'>, typeof WALLPAPERS[Exclude<WallpaperKey, 'custom'>]][]).map(([key, val]) => {
-            const background = isDark ? (val.dark ?? val.light) : val.light
-            return (
+          <div className="profile-menu-section">
+            <button
+              className="profile-menu-btn"
+              onClick={() => {
+                setOpen(false)
+                setShowCloudflareModal(true)
+              }}
+            >
+              <Cloud size={14} color="#f97316" />
+              <span>Cloudflare Settings</span>
+              <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${cfStatusBadge.cls}`}>
+                {cfStatusBadge.icon}
+                {cfStatusBadge.label}
+              </span>
+            </button>
+          </div>
+
+          <div className="profile-menu-section">
+            <div className="profile-section-label">
+              <Palette size={11} />
+              Wallpaper
+            </div>
+
+            <div className="wallpaper-grid">
+              {(Object.entries(WALLPAPERS) as [Exclude<WallpaperKey, 'custom'>, typeof WALLPAPERS[Exclude<WallpaperKey, 'custom'>]][]).map(([key, val]) => {
+                const background = isDark ? (val.dark ?? val.light) : val.light
+                return (
+                  <button
+                    key={key}
+                    title={val.label}
+                    className={`wallpaper-swatch ${wallpaper === key ? 'active' : ''}`}
+                    onClick={() => setWallpaper(key)}
+                    style={{ ['--swatch-bg' as string]: background } as React.CSSProperties}
+                  >
+                    <span className="wallpaper-swatch-label">{val.label}</span>
+                  </button>
+                )
+              })}
+
+              {wallpaper === 'custom' ? (
+                <button
+                  title="Ganti gambar"
+                  className="wallpaper-swatch active bg-[image:var(--custom-preview,none)] bg-cover bg-center"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <span className="wallpaper-swatch-label">Custom</span>
+                </button>
+              ) : (
+                <button
+                  title="Upload gambar"
+                  className="wallpaper-upload-btn"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <ImagePlus size={14} />
+                  <span>Upload</span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          <div className="profile-menu-section">
+            <button
+              className="profile-menu-btn profile-menu-btn-danger"
+              onClick={() => {
+                setOpen(false)
+                onLogout()
+              }}
+            >
+              <LogOut size={14} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null
+
+  const cloudflareModal = showCloudflareModal
+    ? createPortal(
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-[560px] rounded-[26px] border border-[var(--win-border)] bg-[var(--win-bg)] p-6 shadow-[var(--win-shadow)]">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-[15px] font-semibold text-[var(--win-text)]">
+                  <Cloud className="h-4 w-4 text-orange-500" />
+                  Cloudflare Settings
+                </div>
+                <p className="mt-1 text-[12px] leading-6 text-[var(--text-secondary)]">
+                  Atur tunnel dan token Cloudflare langsung dari profile menu.
+                </p>
+              </div>
               <button
-                key={key}
-                title={val.label}
-                className={`wallpaper-swatch ${wallpaper === key ? 'active' : ''}`}
-                onClick={() => setWallpaper(key)}
-                style={{ ['--swatch-bg' as string]: background } as React.CSSProperties}
+                className="rounded-lg px-2 py-1 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+                onClick={() => setShowCloudflareModal(false)}
               >
-                <span className="wallpaper-swatch-label">{val.label}</span>
+                ✕
               </button>
-            )
-          })}
+            </div>
 
-          {wallpaper === 'custom' ? (
-            <button
-              title="Ganti gambar"
-              className="wallpaper-swatch active bg-[image:var(--custom-preview,none)] bg-cover bg-center"
-              onClick={() => fileRef.current?.click()}
-            >
-              <span className="wallpaper-swatch-label">Custom</span>
-            </button>
-          ) : (
-            <button
-              title="Upload gambar"
-              className="wallpaper-upload-btn"
-              onClick={() => fileRef.current?.click()}
-            >
-              <ImagePlus size={14} />
-              <span>Upload</span>
-            </button>
-          )}
-        </div>
+            {cfLoading ? (
+              <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">Memuat konfigurasi Cloudflare...</div>
+            ) : cf?.configured ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">Connection status</div>
+                    <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">Cloudflare account connected</div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${cfStatusBadge.cls}`}>
+                    {cfStatusBadge.icon}
+                    {cfStatusBadge.label}
+                  </span>
+                </div>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      </div>
+                <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 dark:bg-[rgba(255,255,255,0.03)]">
+                  {[
+                    { label: 'Account ID', value: cf.accountId },
+                    { label: 'Zone ID', value: cf.zoneId },
+                    { label: 'Base Domain', value: cf.baseDomain },
+                    cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
+                  ].filter(Boolean).map((item) => (
+                    <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                      <span className="text-[var(--text-secondary)]">{item!.label}</span>
+                      <span className="font-mono text-[var(--win-text)]">{item!.value || '—'}</span>
+                    </div>
+                  ))}
+                </div>
 
-      <div className="profile-menu-section">
-        <button
-          className="profile-menu-btn profile-menu-btn-danger"
-          onClick={() => {
-            setOpen(false)
-            onLogout()
-          }}
-        >
-          <LogOut size={14} />
-          <span>Logout</span>
-        </button>
-      </div>
-    </div>,
-    document.body,
-  ) : null
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => verifyMut.mutate()}
+                    disabled={verifyMut.isPending}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-orange-500/12 px-4 py-2.5 text-[12px] font-semibold text-orange-600 transition hover:bg-orange-500/18 dark:text-orange-300 disabled:opacity-50"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    {verifyMut.isPending ? 'Memverifikasi...' : 'Verifikasi token'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Hapus konfigurasi Cloudflare? Tunnel yang ada tidak akan terpengaruh.')) deleteCFMut.mutate()
+                    }}
+                    className="inline-flex items-center justify-center rounded-[14px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-red-600 transition hover:bg-red-500/16 dark:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+
+                <div>
+                  <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">API Token *</label>
+                  <div className="relative">
+                    <input
+                      type={showToken ? 'text' : 'password'}
+                      placeholder="Paste Cloudflare API Token di sini"
+                      value={cfForm.apiToken}
+                      onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
+                      className={`${inputClass} pr-10`}
+                    />
+                    <button type="button" onClick={() => setShowToken((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] transition hover:text-[var(--win-text)]">
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {[
+                  { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
+                  { key: 'zoneId', label: 'Zone ID (opsional)', placeholder: 'Jika punya domain Cloudflare' },
+                  { key: 'baseDomain', label: 'Base Domain (opsional)', placeholder: 'example.com' },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key}>
+                    <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">{label}</label>
+                    <input
+                      value={(cfForm as any)[key]}
+                      onChange={(e) => setCfForm((f) => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className={inputClass}
+                    />
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => saveCFMut.mutate(cfForm)}
+                  disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#f97316,#fb923c)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(249,115,22,0.22)] transition hover:brightness-105 disabled:opacity-50"
+                >
+                  {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+                  {saveCFMut.isPending ? 'Menyimpan...' : 'Simpan & hubungkan'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )
+    : null
 
   return (
     <>
@@ -144,6 +352,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
       </button>
 
       {dropdown}
+      {cloudflareModal}
     </>
   )
 }

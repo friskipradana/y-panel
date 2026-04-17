@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -255,23 +254,7 @@ func readMemoryUsage() UsageStat {
 }
 
 func readStorageUsage(target string) UsageStat {
-	if strings.TrimSpace(target) == "" {
-		target = "/"
-	}
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(target, &stat); err != nil {
-		if target != "/" {
-			return readStorageUsage("/")
-		}
-		return UsageStat{}
-	}
-	total := stat.Blocks * uint64(stat.Bsize)
-	free := stat.Bavail * uint64(stat.Bsize)
-	used := uint64(0)
-	if total > free {
-		used = total - free
-	}
-	return UsageStat{Total: total, Used: used}
+	return readStorageUsagePlatform(target)
 }
 
 func readIPAddresses() []string {

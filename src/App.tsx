@@ -24,6 +24,9 @@ const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
 import { FileManagerWindow } from '@/components/windows/FileManagerWindow'
 const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((module) => ({ default: module.FileEditorWindow })))
+const UsersWindow = lazy(() => import('@/components/windows/UsersWindow'))
+const ProjectsWindow = lazy(() => import('@/components/windows/ProjectsWindow'))
+const TunnelsWindow = lazy(() => import('@/components/windows/TunnelsWindow'))
 const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
   : null
@@ -90,6 +93,10 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
       <span className="text-sm">Trash is empty</span>
     </div>
   ),
+  // ── ServerPanel Pro windows ──
+  users: () => <UsersWindow />,
+  projects: () => <ProjectsWindow />,
+  tunnels: () => <TunnelsWindow />,
 }
 
 function WindowFallback() {
@@ -383,6 +390,16 @@ function AppShell() {
       if (e.altKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
         openWindow('settings')
+      }
+      // Alt + U: Users (admin)
+      if (e.altKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault()
+        openWindow('users')
+      }
+      // Alt + P: Projects
+      if (e.altKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        openWindow('projects')
       }
       // Alt + W: Close focused window
       if (e.altKey && e.key.toLowerCase() === 'w') {

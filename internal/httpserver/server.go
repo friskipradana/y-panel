@@ -22,9 +22,11 @@ import (
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
@@ -33,15 +35,17 @@ import (
 const sessionCookieName = "ui_panel_session"
 
 type Server struct {
-	cfgMu           sync.RWMutex
-	cfg             config.Config
-	auth            *auth.Manager
-	mux             *http.ServeMux
-	frontendFS      http.Handler
-	authedFrontend  http.Handler
-	terminalManager *terminal.Manager
+	cfgMu            sync.RWMutex
+	cfg              config.Config
+	auth             *auth.Manager
+	mux              *http.ServeMux
+	frontendFS       http.Handler
+	authedFrontend   http.Handler
+	terminalManager  *terminal.Manager
 	terminalUpgrader websocket.Upgrader
-	database        *database.Manager
+	database         *database.Manager
+	projectManager   *projects.Manager
+	cfDaemon         *cloudflareapi.Daemon
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -64,7 +68,7 @@ func (s *Server) allowedHosts() []string {
 	return s.cfg.AllowedHosts
 }
 
-type loginRequest struct {
+type legacyLoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
@@ -119,78 +123,124 @@ type resetDatabasePasswordResponse struct {
 
 
 func New(cfg config.Config) *Server {
+	db := database.New(database.Config{
+		Enabled: cfg.DatabaseEnable,
+		DSN:     cfg.DatabaseDSN,
+	})
+
+	authMgr := auth.NewManager(db, cfg.SessionTTL)
+
 	s := &Server{
-		cfg:             cfg,
-		auth:            auth.NewManager(cfg.AdminUsername, cfg.AdminPassword, cfg.SessionTTL),
-		mux:             http.NewServeMux(),
-		frontendFS:      newFrontendHandler(cfg.FrontendDir),
+		cfg:            cfg,
+		auth:           authMgr,
+		mux:            http.NewServeMux(),
+		frontendFS:     newFrontendHandler(cfg.FrontendDir),
 		terminalManager: terminal.NewManager(),
-		database: database.New(database.Config{
-			Enabled:  cfg.DatabaseEnable,
-			Host:     cfg.DatabaseHost,
-			Port:     cfg.DatabasePort,
-			User:     cfg.DatabaseUser,
-			Password: cfg.DatabasePass,
-			Name:     cfg.DatabaseName,
-		}),
+		database:       db,
+		projectManager: projects.NewManager(cfg.StateDir),
+		cfDaemon:       cloudflareapi.NewDaemon(cfg.StateDir),
 	}
 	s.terminalUpgrader = websocket.Upgrader{
 		ReadBufferSize:  4096,
 		WriteBufferSize: 4096,
 		CheckOrigin:     s.isWebSocketOriginAllowed,
 	}
-	s.authedFrontend = s.requireHTMLAuth(s.frontendFS)
+	s.authedFrontend = s.requireHTMLAuthV2(s.frontendFS)
 
 	s.routes()
 	return s
 }
 
 func (s *Server) routes() {
+	// ── Public ──────────────────────────────────────────────────────────────
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
-	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
-	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuth(http.HandlerFunc(s.handleLogout)))
-	s.mux.Handle("GET /api/v1/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
 	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
-	s.mux.Handle("GET /api/v1/system/summary", s.requireAuth(http.HandlerFunc(s.handleSystemSummary)))
-	s.mux.Handle("GET /api/v1/system/logs", s.requireAuth(http.HandlerFunc(s.handleSystemLogs)))
-	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuth(http.HandlerFunc(s.handleSystemChangelog)))
-	s.mux.Handle("GET /api/v1/database/status", s.requireAuth(http.HandlerFunc(s.handleDatabaseStatus)))
-	s.mux.Handle("POST /api/v1/database/truncate", s.requireAuth(http.HandlerFunc(s.handleDatabaseTruncate)))
-	s.mux.Handle("GET /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleGetSystemSettings)))
-	s.mux.Handle("POST /api/v1/settings/system", s.requireAuth(http.HandlerFunc(s.handleUpdateSystemSettings)))
-	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelPort)))
-	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireAuth(http.HandlerFunc(s.handleUpdatePanelOrigins)))
-	
-	// API Wallpaper: Dibuka public agar dapat tampil dan diubah di Lock Screen (sebelum login)
 	s.mux.HandleFunc("GET /api/v1/settings/wallpaper", s.handleGetWallpaper)
 	s.mux.HandleFunc("POST /api/v1/settings/wallpaper", s.handleUpdateWallpaper)
 
-	s.mux.Handle("GET /api/v1/files", s.requireAuth(http.HandlerFunc(s.handleFileManagerList)))
-	s.mux.Handle("GET /api/v1/files/read", s.requireAuth(http.HandlerFunc(s.handleFileManagerRead)))
-	s.mux.Handle("POST /api/v1/files/write", s.requireAuth(http.HandlerFunc(s.handleFileManagerWrite)))
-	s.mux.Handle("POST /api/v1/files/delete", s.requireAuth(http.HandlerFunc(s.handleFileManagerDelete)))
-	s.mux.Handle("POST /api/v1/files/rename", s.requireAuth(http.HandlerFunc(s.handleFileManagerRename)))
-	s.mux.Handle("POST /api/v1/files/move", s.requireAuth(http.HandlerFunc(s.handleFileManagerMove)))
-	s.mux.Handle("POST /api/v1/files/copy", s.requireAuth(http.HandlerFunc(s.handleFileManagerCopy)))
-	s.mux.Handle("POST /api/v1/files/mkdir", s.requireAuth(http.HandlerFunc(s.handleFileManagerMkdir)))
-	s.mux.Handle("POST /api/v1/files/touch", s.requireAuth(http.HandlerFunc(s.handleFileManagerTouch)))
-	s.mux.Handle("POST /api/v1/files/chmod", s.requireAuth(http.HandlerFunc(s.handleFileManagerChmod)))
-	s.mux.Handle("POST /api/v1/files/compress", s.requireAuth(http.HandlerFunc(s.handleFileManagerCompress)))
-	s.mux.Handle("POST /api/v1/files/extract", s.requireAuth(http.HandlerFunc(s.handleFileManagerExtract)))
+	// ── Auth ─────────────────────────────────────────────────────────────────
+	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
+	s.mux.HandleFunc("POST /api/v1/setup/initialize", s.handleInitializeSetup)
+	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLoginV2)
+	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuthV2(http.HandlerFunc(s.handleLogout)))
+	s.mux.Handle("GET /api/v1/me", s.requireAuthV2(http.HandlerFunc(s.handleMeV2)))
 
-	s.mux.Handle("POST /api/v1/settings/database/reset-password", s.requireAuth(http.HandlerFunc(s.handleResetDatabasePassword)))
-	s.mux.Handle("GET /api/v1/containers", s.requireAuth(http.HandlerFunc(s.handleContainersList)))
-	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuth(http.HandlerFunc(s.handleContainerStart)))
-	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuth(http.HandlerFunc(s.handleContainerStop)))
-	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionStart)))
-	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionWebSocket)))
-	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireAuth(http.HandlerFunc(s.handleTerminalSessionClose)))
+	// ── Users (admin+) ────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
+	s.mux.Handle("POST /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateUser)))
+	s.mux.Handle("GET /api/v1/users/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUser)))
+	s.mux.Handle("PATCH /api/v1/users/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateUser)))
+	s.mux.Handle("DELETE /api/v1/users/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteUser)))
+	s.mux.Handle("POST /api/v1/users/{id}/suspend", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleSuspendUser)))
+	s.mux.Handle("POST /api/v1/users/{id}/activate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleActivateUser)))
+	s.mux.Handle("GET /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUserQuota)))
+	s.mux.Handle("PATCH /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateUserQuota)))
+
+	// ── Cloudflare (per-user) ─────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleGetCFConfig)))
+	s.mux.Handle("POST /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleSetCFConfig)))
+	s.mux.Handle("DELETE /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCFConfig)))
+	s.mux.Handle("POST /api/v1/me/cloudflare/verify", s.requireAuthV2(http.HandlerFunc(s.handleVerifyCFConfig)))
+
+	// ── Projects ──────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleListProjects)))
+	s.mux.Handle("POST /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleCreateProject)))
+	s.mux.Handle("GET /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetProject)))
+	s.mux.Handle("DELETE /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteProject)))
+	s.mux.Handle("POST /api/v1/projects/{id}/start", s.requireAuthV2(http.HandlerFunc(s.handleStartProject)))
+	s.mux.Handle("POST /api/v1/projects/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleStopProject)))
+
+	// ── Tunnels ───────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/tunnels", s.requireAuthV2(http.HandlerFunc(s.handleListTunnels)))
+	s.mux.Handle("POST /api/v1/tunnels", s.requireAuthV2(http.HandlerFunc(s.handleCreateTunnel)))
+	s.mux.Handle("GET /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetTunnel)))
+	s.mux.Handle("DELETE /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTunnel)))
+
+	// ── Notifications ────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/notifications", s.requireAuthV2(http.HandlerFunc(s.handleListNotifications)))
+	s.mux.Handle("POST /api/v1/notifications/{id}/read", s.requireAuthV2(http.HandlerFunc(s.handleMarkNotificationRead)))
+	s.mux.Handle("POST /api/v1/notifications/read-all", s.requireAuthV2(http.HandlerFunc(s.handleMarkAllNotificationsRead)))
+
+	// ── System / Settings ─────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/system/summary", s.requireAuthV2(http.HandlerFunc(s.handleSystemSummary)))
+	s.mux.Handle("GET /api/v1/system/logs", s.requireAuthV2(http.HandlerFunc(s.handleSystemLogs)))
+	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuthV2(http.HandlerFunc(s.handleSystemChangelog)))
+	s.mux.Handle("GET /api/v1/database/status", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDatabaseStatus)))
+	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDatabaseTruncate)))
+	s.mux.Handle("GET /api/v1/settings/system", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetSystemSettings)))
+	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateSystemSettings)))
+	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdatePanelPort)))
+	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdatePanelOrigins)))
+
+	// ── Files ────────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/files", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerList)))
+	s.mux.Handle("GET /api/v1/files/read", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerRead)))
+	s.mux.Handle("POST /api/v1/files/write", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerWrite)))
+	s.mux.Handle("POST /api/v1/files/delete", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerDelete)))
+	s.mux.Handle("POST /api/v1/files/rename", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerRename)))
+	s.mux.Handle("POST /api/v1/files/move", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerMove)))
+	s.mux.Handle("POST /api/v1/files/copy", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerCopy)))
+	s.mux.Handle("POST /api/v1/files/mkdir", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerMkdir)))
+	s.mux.Handle("POST /api/v1/files/touch", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerTouch)))
+	s.mux.Handle("POST /api/v1/files/chmod", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerChmod)))
+	s.mux.Handle("POST /api/v1/files/compress", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerCompress)))
+	s.mux.Handle("POST /api/v1/files/extract", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerExtract)))
+
+	// ── Containers ────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/containers", s.requireAuthV2(http.HandlerFunc(s.handleContainersList)))
+	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuthV2(http.HandlerFunc(s.handleContainerStart)))
+	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleContainerStop)))
+
+	// ── Terminal ──────────────────────────────────────────────────────────────
+	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionStart)))
+	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionWebSocket)))
+	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionClose)))
 	s.mux.HandleFunc("GET /api/v1/system/stats/ws", s.handleSystemStatsWebSocket)
-	// Terminal presets
-	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleListTerminalPresets)))
-	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuth(http.HandlerFunc(s.handleCreateTerminalPreset)))
-	s.mux.Handle("DELETE /api/v1/terminal/presets/{id}", s.requireAuth(http.HandlerFunc(s.handleDeleteTerminalPreset)))
-	s.mux.Handle("POST /api/v1/terminal/presets/reset", s.requireAuth(http.HandlerFunc(s.handleResetTerminalPresets)))
+	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))
+	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))
+	s.mux.Handle("DELETE /api/v1/terminal/presets/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTerminalPreset)))
+	s.mux.Handle("POST /api/v1/terminal/presets/reset", s.requireAuthV2(http.HandlerFunc(s.handleResetTerminalPresets)))
+
 	s.mux.Handle("/", s.authedFrontend)
 }
 
@@ -232,7 +282,7 @@ func (s *Server) frontendRevision() string {
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	var req loginRequest
+	var req legacyLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("[auth] login decode failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
@@ -240,7 +290,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := strings.TrimSpace(req.Username)
-	token, err := s.auth.Login(username, req.Password)
+	token, user, err := s.auth.Login(username, req.Password, remoteAddr(r), r.UserAgent())
 	if err != nil {
 		log.Printf("[auth] login failed user=%q remote=%s", username, remoteAddr(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
@@ -260,7 +310,8 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[auth] login success user=%q remote=%s", username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":       true,
-		"username": s.cfg.AdminUsername,
+		"username": user.Username,
+		"role":     user.Role,
 	})
 }
 
@@ -446,7 +497,12 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 	}
 
 	username, _ := s.currentUser(r)
-	s.database.RecordSettingsAudit(username, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
+	currentUser := s.currentUserRecord(r)
+	var auditUserID *int64
+	if currentUser != nil {
+		auditUserID = &currentUser.ID
+	}
+	s.database.RecordSettingsAudit(auditUserID, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
 	log.Printf("[settings] update applied hostname=%q timezone=%q dns=%q remote=%s", snapshot.Hostname, snapshot.Timezone, strings.Join(snapshot.Nameservers, ","), remoteAddr(r))
 	s.recordRuntimeLog("info", "settings update applied", map[string]any{"hostname": snapshot.Hostname, "timezone": snapshot.Timezone, "nameservers": snapshot.Nameservers, "remote": remoteAddr(r), "user": username})
 	s.writeJSON(w, http.StatusOK, snapshot)
@@ -501,11 +557,15 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) handleGetWallpaper(w http.ResponseWriter, r *http.Request) {
-	username, _ := s.currentUser(r)
-	if username == "" {
-		username = "admin" // Default ke admin supaya saat belum login (lock screen) tetap mendapat wallpaper utama
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil {
+		currentUser, _ = s.database.GetUserByUsername("admin")
 	}
-	wallpaperData, err := s.database.GetWallpaper(username)
+	if currentUser == nil {
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		return
+	}
+	wallpaperData, err := s.database.GetWallpaper(currentUser.ID)
 	if err != nil {
 		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
 		return
@@ -526,12 +586,16 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, _ := s.currentUser(r)
-	if username == "" {
-		username = "admin"
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil {
+		currentUser, _ = s.database.GetUserByUsername("admin")
+	}
+	if currentUser == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
 	}
 	
-	if err := s.database.SetWallpaper(username, req.Data); err != nil {
+	if err := s.database.SetWallpaper(currentUser.ID, req.Data); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -561,8 +625,8 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 
 	username, _ := s.currentUser(r)
 	message := "Password database berhasil dirotasi dan env runtime diperbarui. Restart service agent bila koneksi lama masih aktif."
-	log.Printf("[database] password rotated user=%q remote=%s host=%s db=%s", username, remoteAddr(r), s.cfg.DatabaseHost, s.cfg.DatabaseName)
-	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "host": s.cfg.DatabaseHost, "database": s.cfg.DatabaseName})
+	log.Printf("[database] password rotated user=%q remote=%s dsn=%s", username, remoteAddr(r), redactDSNPassword(s.cfg.DatabaseDSN))
+	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "dsn": redactDSNPassword(s.cfg.DatabaseDSN)})
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
 }
 
@@ -723,24 +787,37 @@ func (s *Server) handleTerminalSessionClose(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) requireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := s.currentUser(r); !ok {
-			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return s.requireAuthV2(next)
 }
 
 func (s *Server) currentUser(r *http.Request) (string, bool) {
-	cookie, err := r.Cookie(sessionCookieName)
-	if err != nil {
+	u := s.currentUserRecord(r)
+	if u == nil {
 		return "", false
 	}
-	return s.auth.Validate(cookie.Value)
+	return u.Username, true
 }
 
+func (s *Server) currentUserRecord(r *http.Request) *database.User {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return nil
+	}
+	u, ok := s.auth.Validate(cookie.Value)
+	if !ok || u == nil {
+		return nil
+	}
+	return u
+}
+
+
+
+
 func (s *Server) requireHTMLAuth(next http.Handler) http.Handler {
+	return s.requireHTMLAuthV2(next)
+}
+
+func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if strings.HasPrefix(path, "/api/") || path == "/healthz" {
@@ -1365,28 +1442,69 @@ func generateSecretToken(byteLength int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
+func rewriteEnvValue(path, key, value string) error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("gagal membaca env runtime: %w", err)
+	}
+	lines := strings.Split(string(contents), "\n")
+	prefix := key + "="
+	updated := false
+	for index, line := range lines {
+		if strings.HasPrefix(line, prefix) {
+			lines[index] = prefix + value
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		lines = append(lines, prefix+value)
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o600)
+}
+
+func replaceDSNPassword(rawDSN, password string) (string, error) {
+	if strings.TrimSpace(rawDSN) == "" {
+		return "", fmt.Errorf("PANEL_DATABASE_DSN kosong")
+	}
+	parsed, err := url.Parse(rawDSN)
+	if err != nil {
+		return "", fmt.Errorf("DSN tidak valid: %w", err)
+	}
+	user := parsed.User.Username()
+	if user == "" {
+		return "", fmt.Errorf("username DSN kosong")
+	}
+	parsed.User = url.UserPassword(user, password)
+	return parsed.String(), nil
+}
+
+func redactDSNPassword(rawDSN string) string {
+	parsed, err := url.Parse(rawDSN)
+	if err != nil {
+		return rawDSN
+	}
+	user := parsed.User.Username()
+	if user == "" {
+		return rawDSN
+	}
+	parsed.User = url.UserPassword(user, "***")
+	return parsed.String()
+}
+
 func rotateDatabasePassword(cfg config.Config, password string) error {
 	password = strings.TrimSpace(password)
 	if password == "" {
 		return fmt.Errorf("database password tidak boleh kosong")
 	}
 
-	statement := fmt.Sprintf(
-		"ALTER USER '%s'@'%s' IDENTIFIED BY '%s'; GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%s'; FLUSH PRIVILEGES;",
-		escapeSQLString(cfg.DatabaseUser),
-		escapeSQLString(cfg.DatabaseHost),
-		escapeSQLString(password),
-		strings.ReplaceAll(cfg.DatabaseName, "`", "``"),
-		escapeSQLString(cfg.DatabaseUser),
-		escapeSQLString(cfg.DatabaseHost),
-	)
-
-	if err := runDatabaseSQL(statement); err != nil {
+	updatedDSN, err := replaceDSNPassword(cfg.DatabaseDSN, password)
+	if err != nil {
 		return err
 	}
 
 	envPath := firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
-	if err := rewriteEnvValue(envPath, "PANEL_DB_PASSWORD", password); err != nil {
+	if err := rewriteEnvValue(envPath, "PANEL_DATABASE_DSN", updatedDSN); err != nil {
 		return err
 	}
 
@@ -1415,35 +1533,6 @@ func runDatabaseSQL(statement string) error {
 	return lastErr
 }
 
-func rewriteEnvValue(path, key, value string) error {
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("gagal membaca env runtime: %w", err)
-	}
-
-	lines := strings.Split(string(contents), "\n")
-	prefix := key + "="
-	replaced := false
-	for index, line := range lines {
-		if strings.HasPrefix(line, prefix) {
-			lines[index] = prefix + value
-			replaced = true
-			break
-		}
-	}
-	if !replaced {
-		lines = append(lines, prefix+value)
-	}
-
-	payload := strings.Join(lines, "\n")
-	if !strings.HasSuffix(payload, "\n") {
-		payload += "\n"
-	}
-	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
-		return fmt.Errorf("gagal memperbarui env runtime: %w", err)
-	}
-	return nil
-}
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
@@ -1551,8 +1640,13 @@ func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (s *Server) handleListTerminalPresets(w http.ResponseWriter, _ *http.Request) {
-	presets, err := s.database.ListTerminalPresets()
+func (s *Server) handleListTerminalPresets(w http.ResponseWriter, r *http.Request) {
+	currentUser := s.currentUserRecord(r)
+	var userID *int64
+	if currentUser != nil {
+		userID = &currentUser.ID
+	}
+	presets, err := s.database.ListTerminalPresets(userID)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1570,7 +1664,12 @@ func (s *Server) handleCreateTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
-	preset, err := s.database.CreateTerminalPreset(req.Label, req.Command)
+	currentUser := s.currentUserRecord(r)
+	var userID *int64
+	if currentUser != nil {
+		userID = &currentUser.ID
+	}
+	preset, err := s.database.CreateTerminalPreset(userID, req.Label, req.Command)
 	if err != nil {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
@@ -1585,18 +1684,28 @@ func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid preset id"})
 		return
 	}
-	if err := s.database.DeleteTerminalPreset(id); err != nil {
+	currentUser := s.currentUserRecord(r)
+	var userID *int64
+	if currentUser != nil {
+		userID = &currentUser.ID
+	}
+	if err := s.database.DeleteTerminalPreset(id, userID); err != nil {
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
-func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, _ *http.Request) {
-	if err := s.database.ResetTerminalPresets(); err != nil {
+func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Request) {
+	currentUser := s.currentUserRecord(r)
+	var userID *int64
+	if currentUser != nil {
+		userID = &currentUser.ID
+	}
+	if err := s.database.ResetTerminalPresets(userID); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	presets, _ := s.database.ListTerminalPresets()
+	presets, _ := s.database.ListTerminalPresets(userID)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }
