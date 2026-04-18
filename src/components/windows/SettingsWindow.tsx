@@ -16,10 +16,10 @@ import {
 import { alertLib } from '@/lib/alert'
 import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
-const cardClass = 'rounded-[20px] border border-[var(--win-border)] bg-[var(--win-bg)] p-5 shadow-[var(--win-shadow)] backdrop-blur-xl'
-const inputClass = 'h-[42px] w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] px-3.5 text-[13px] text-[var(--win-text)] outline-none transition focus:border-blue-400'
-const inputMonoClass = `${inputClass} font-mono text-[12px]`
-const softIconClass = 'flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,rgba(56,189,248,0.14),rgba(99,102,241,0.12))] text-[var(--win-text)]'
+const cardClass = 'panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl'
+const inputClass = 'panel-input h-[42px] px-3.5 text-[13px]'
+const inputMonoClass = `${inputClass} panel-input--mono text-[12px]`
+const softIconClass = 'panel-muted-block flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl text-[var(--win-text)]'
 
 const TIMEZONES = [
   'UTC',
@@ -393,17 +393,47 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
   if (query.isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center gap-3 text-sm text-slate-400">
-        <LoaderCircle size={16} className="animate-spin" />
-        Memuat system settings dari host...
+      <div className="panel-window">
+        <div className="panel-window__header">
+          <div className="panel-window__title">
+            <Server className="panel-window__icon h-4 w-4" />
+            <div>
+              <div className="panel-window__title-text">Settings & Host Identity</div>
+              <div className="panel-window__meta">Konfigurasi host, panel, dan runtime database</div>
+            </div>
+          </div>
+        </div>
+        <div className="panel-window__body">
+          <div className="panel-loading">
+            <LoaderCircle size={16} className="animate-spin" />
+            Memuat system settings dari host...
+          </div>
+        </div>
       </div>
     )
   }
 
   if (query.isError || !query.data) {
     return (
-      <div className="rounded-[20px] border border-red-400/25 bg-red-50/95 p-5 text-[13px] text-red-700 shadow-[0_4px_24px_rgba(15,23,42,0.06)]">
-        Gagal memuat settings host. Pastikan service berjalan sebagai root dan host mendukung hostnamectl serta timedatectl.
+      <div className="panel-window">
+        <div className="panel-window__header">
+          <div className="panel-window__title">
+            <Server className="panel-window__icon h-4 w-4" />
+            <div>
+              <div className="panel-window__title-text">Settings & Host Identity</div>
+              <div className="panel-window__meta">Konfigurasi host, panel, dan runtime database</div>
+            </div>
+          </div>
+        </div>
+        <div className="panel-window__body">
+          <div className="panel-error-state">
+            <Database className="h-5 w-5" />
+            <div>
+              <p className="font-semibold">Gagal memuat settings host</p>
+              <p className="mt-1 text-[12px] leading-6 opacity-90">Pastikan service berjalan sebagai root dan host mendukung hostnamectl serta timedatectl.</p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
