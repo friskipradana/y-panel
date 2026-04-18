@@ -563,7 +563,7 @@ func (s *Server) handleStartProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	if err := s.projectManager.Start(p); err != nil {
+	if err := s.projectManager.Start(u, p); err != nil {
 		_ = s.database.UpdateProjectStatus(id, "error")
 		s.writeError(w, http.StatusBadGateway, err)
 		return

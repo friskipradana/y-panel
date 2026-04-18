@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 // Port range allocation per user: each user gets a contiguous block.
@@ -65,7 +66,7 @@ func NewManager(stateDir string) *Manager {
 }
 
 // Start launches a project process based on its type and working directory.
-func (m *Manager) Start(project *database.Project) error {
+func (m *Manager) Start(user *database.User, project *database.Project) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -76,7 +77,7 @@ func (m *Manager) Start(project *database.Project) error {
 		delete(m.procs, project.ID)
 	}
 
-	cmd, err := buildCommand(project)
+	cmd, err := buildCommand(user, project)
 	if err != nil {
 		return err
 	}
@@ -134,35 +135,39 @@ func (m *Manager) StopAll() {
 // ─── Build Commands ──────────────────────────────────────────────────────────
 
 // buildCommand returns the exec.Cmd that should run for a given project type.
-func buildCommand(p *database.Project) (*exec.Cmd, error) {
+func buildCommand(user *database.User, p *database.Project) (*exec.Cmd, error) {
 	if p.WorkingDir == "" {
 		return nil, fmt.Errorf("project %d has no working directory", p.ID)
 	}
 
+	var cmd *exec.Cmd
 	switch p.ProjectType {
 	case "nodejs":
 		// Prefer npm start, fall back to node index.js
 		if fileExists(filepath.Join(p.WorkingDir, "package.json")) {
-			return exec.Command("npm", "start"), nil
+			cmd = exec.Command("npm", "start")
+		} else {
+			cmd = exec.Command("node", "index.js")
 		}
-		return exec.Command("node", "index.js"), nil
 
 	case "python":
 		// Prefer gunicorn, fall back to python app.py
 		if which("gunicorn") {
-			return exec.Command("gunicorn", "app:app", "--bind", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort)), nil
+			cmd = exec.Command("gunicorn", "app:app", "--bind", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort))
+		} else {
+			cmd = exec.Command("python3", "app.py")
 		}
-		return exec.Command("python3", "app.py"), nil
 
 	case "php":
-		return exec.Command("php", "-S", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort)), nil
+		cmd = exec.Command("php", "-S", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort))
 
 	case "static":
 		// Serve with npx serve or python http.server
 		if which("serve") {
-			return exec.Command("serve", "-l", fmt.Sprintf("%d", p.AssignedPort), "."), nil
+			cmd = exec.Command("serve", "-l", fmt.Sprintf("%d", p.AssignedPort), ".")
+		} else {
+			cmd = exec.Command("python3", "-m", "http.server", fmt.Sprintf("%d", p.AssignedPort))
 		}
-		return exec.Command("python3", "-m", "http.server", fmt.Sprintf("%d", p.AssignedPort)), nil
 
 	case "proxy":
 		// Parent caller should set up reverse proxy config, not managed here
@@ -173,18 +178,29 @@ func buildCommand(p *database.Project) (*exec.Cmd, error) {
 
 	case "custom":
 		if p.RepoURL != "" && strings.HasSuffix(strings.TrimSpace(p.RepoURL), ".sh") {
-			return exec.Command("bash", p.RepoURL), nil
+			cmd = exec.Command("bash", p.RepoURL)
+		} else {
+			// Fallback: run ./start.sh if exists
+			startSh := filepath.Join(p.WorkingDir, "start.sh")
+			if fileExists(startSh) {
+				cmd = exec.Command("bash", startSh)
+			} else {
+				return nil, fmt.Errorf("custom project %d has no runnable entry point (start.sh not found)", p.ID)
+			}
 		}
-		// Fallback: run ./start.sh if exists
-		startSh := filepath.Join(p.WorkingDir, "start.sh")
-		if fileExists(startSh) {
-			return exec.Command("bash", startSh), nil
-		}
-		return nil, fmt.Errorf("custom project %d has no runnable entry point (start.sh not found)", p.ID)
 
 	default:
 		return nil, fmt.Errorf("unknown project type: %s", p.ProjectType)
 	}
+
+	if user == nil {
+		return cmd, nil
+	}
+	osUsername, err := osuser.EnsureUser(user.Username, user.DisplayName)
+	if err != nil {
+		return nil, err
+	}
+	return osuser.WrapCommand(cmd, osUsername)
 }
 
 func fileExists(path string) bool {

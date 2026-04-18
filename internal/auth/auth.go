@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 const (
@@ -118,7 +119,14 @@ func (m *Manager) CreateUser(username, email, password, role, displayName string
 	if err != nil {
 		return nil, fmt.Errorf("hash failed: %w", err)
 	}
-	return m.db.CreateUser(username, email, hash, role, displayName)
+	u, err := m.db.CreateUser(username, email, hash, role, displayName)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := osuser.EnsureUser(u.Username, u.DisplayName); err != nil {
+		return u, fmt.Errorf("user created in panel, but OS account provisioning failed: %w", err)
+	}
+	return u, nil
 }
 
 // ChangePassword updates a user's password after verifying the current one.

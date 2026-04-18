@@ -8,6 +8,7 @@ import {
   stopProject,
   type Project,
 } from '@/api/agent'
+import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
   FolderCode,
@@ -33,15 +34,14 @@ const TYPE_ICON: Record<string, ReactElement> = {
 }
 
 const STATUS_PILL: Record<string, string> = {
-  active: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300',
-  stopped: 'bg-slate-500/12 text-slate-600 dark:text-slate-300',
-  building: 'bg-amber-500/12 text-amber-600 dark:text-amber-300',
-  error: 'bg-red-500/12 text-red-600 dark:text-red-300',
-  draft: 'bg-violet-500/12 text-violet-600 dark:text-violet-300',
+  active: 'panel-badge--success',
+  stopped: 'panel-badge--neutral',
+  building: 'panel-badge--warning',
+  error: 'panel-badge--danger',
+  draft: 'panel-badge--info',
 }
 
 const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'docker', 'proxy', 'custom']
-const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-emerald-400'
 
 export default function ProjectsWindow() {
   const qc = useQueryClient()
@@ -63,48 +63,66 @@ export default function ProjectsWindow() {
   const createMut = useMutation({
     mutationFn: createProject,
     onSuccess: (p) => {
-      toast.success(`Project "${p.name}" dibuat (port ${p.assignedPort})`)
+      alertLib.fire('Project Dibuat', `Project <strong>${p.name}</strong> berhasil dibuat pada port <strong>${p.assignedPort}</strong>.`, 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
       setShowCreate(false)
       setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' })
     },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal membuat project'),
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal membuat project'
+      toast.error('Gagal membuat project', { description: message })
+      alertLib.fire('Gagal Membuat Project', message, 'error', 'projects')
+    },
   })
 
   const startMut = useMutation({
     mutationFn: startProject,
-    onSuccess: () => { toast.success('Project dijalankan'); qc.invalidateQueries({ queryKey: ['projects'] }) },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menjalankan project'),
+    onSuccess: () => {
+      alertLib.fire('Project Dijalankan', 'Project berhasil dijalankan.', 'success', 'projects')
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Menjalankan Project', e.response?.data?.error ?? 'Gagal menjalankan project', 'error', 'projects'),
   })
 
   const stopMut = useMutation({
     mutationFn: stopProject,
-    onSuccess: () => { toast.success('Project dihentikan'); qc.invalidateQueries({ queryKey: ['projects'] }) },
+    onSuccess: () => {
+      alertLib.fire('Project Dihentikan', 'Project berhasil dihentikan.', 'warning', 'projects')
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Menghentikan Project', e.response?.data?.error ?? 'Gagal menghentikan project', 'error', 'projects'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteProject,
-    onSuccess: () => { toast.success('Project dihapus'); qc.invalidateQueries({ queryKey: ['projects'] }) },
+    onSuccess: () => {
+      alertLib.fire('Project Dihapus', 'Project berhasil dihapus dari sistem.', 'success', 'projects')
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Menghapus Project', e.response?.data?.error ?? 'Gagal menghapus project', 'error', 'projects'),
   })
 
   return (
-    <div className="flex h-full flex-col bg-[var(--win-bg)] text-[var(--win-text)] select-none">
-      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-5 py-3">
-        <div className="flex items-center gap-2">
-          <FolderCode className="h-4 w-4 text-emerald-500" />
-          <span className="text-sm font-semibold">Projects</span>
-          <span className="ml-1 text-xs text-[var(--text-secondary)]">({projects.length})</span>
+    <div className="panel-window">
+      <div className="panel-window__header">
+        <div className="panel-window__title">
+          <FolderCode className="panel-window__icon h-4 w-4" />
+          <div>
+            <div className="panel-window__title-text">Projects</div>
+            <div className="panel-window__meta">{projects.length} project tersedia</div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="panel-window__actions">
           <button
             onClick={() => refetch()}
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+            className="panel-icon-btn"
+            aria-label="Refresh projects"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-500/18 dark:text-emerald-300"
+            className="panel-btn panel-btn--primary-soft"
           >
             <Plus className="h-3.5 w-3.5" />
             Buat Project
@@ -113,34 +131,34 @@ export default function ProjectsWindow() {
       </div>
 
       {showCreate && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-          <div className="w-[440px] rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-6 shadow-[var(--win-shadow)]">
+        <div className="panel-modal-overlay">
+          <div className="panel-modal-card" style={{ width: 'min(100%, 440px)' }}>
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
-              <FolderCode className="h-4 w-4 text-emerald-500" />
+              <FolderCode className="panel-window__icon h-4 w-4" />
               Project Baru
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Nama Project *</label>
+                <label className="panel-section-label">Nama Project *</label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="My Awesome App"
-                  className={inputClass}
+                  className="panel-input"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Tipe</label>
+                <label className="panel-section-label">Tipe</label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {PROJECT_TYPES.map((t) => (
                     <button
                       key={t}
                       onClick={() => setForm((f) => ({ ...f, projectType: t }))}
                       className={[
-                        'flex items-center justify-center gap-1 rounded-[12px] border px-2 py-2 text-[11px] font-medium capitalize transition',
+                        'panel-btn justify-center rounded-[12px] px-2 py-2 text-[11px] font-medium capitalize shadow-none',
                         form.projectType === t
-                          ? 'border-emerald-500/25 bg-emerald-500/12 text-emerald-600 dark:text-emerald-300'
-                          : 'border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] text-[var(--text-secondary)] hover:bg-[rgba(15,23,42,0.04)] dark:bg-[rgba(255,255,255,0.03)] dark:hover:bg-[rgba(255,255,255,0.05)]',
+                          ? 'panel-btn--primary-soft'
+                          : 'panel-btn--ghost',
                       ].join(' ')}
                     >
                       {TYPE_ICON[t]} {t}
@@ -149,35 +167,35 @@ export default function ProjectsWindow() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Working Directory</label>
+                <label className="panel-section-label">Working Directory</label>
                 <input
                   value={form.workingDir}
                   onChange={(e) => setForm((f) => ({ ...f, workingDir: e.target.value }))}
                   placeholder="/home/user/my-app"
-                  className={`${inputClass} font-mono`}
+                  className="panel-input panel-input--mono"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Deskripsi (opsional)</label>
+                <label className="panel-section-label">Deskripsi (opsional)</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
-                  className={`${inputClass} resize-none`}
+                  className="panel-textarea"
                 />
               </div>
             </div>
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => setShowCreate(false)}
-                className="flex-1 rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:bg-[rgba(255,255,255,0.03)]"
+                className="panel-btn panel-btn--ghost flex-1"
               >
                 Batal
               </button>
               <button
                 onClick={() => createMut.mutate(form)}
                 disabled={createMut.isPending || !form.name}
-                className="flex-1 rounded-[14px] bg-[linear-gradient(135deg,#10b981,#14b8a6)] py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(16,185,129,0.24)] transition hover:brightness-105 disabled:opacity-50"
+                className="panel-btn panel-btn--primary flex-1"
               >
                 {createMut.isPending ? 'Membuat...' : 'Buat Project'}
               </button>
@@ -186,24 +204,32 @@ export default function ProjectsWindow() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="panel-window__body">
         {isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
         ) : projects.length === 0 ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] text-sm text-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.03)]">
-            <FolderCode className="h-8 w-8 opacity-40" />
+          <div className="panel-empty">
+            <FolderCode className="h-8 w-8" />
             <span>Belum ada project. Buat project pertamamu.</span>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="panel-window__stack">
             {projects.map((p) => (
               <ProjectCard
                 key={p.id}
                 project={p}
                 onStart={() => startMut.mutate(p.id)}
                 onStop={() => stopMut.mutate(p.id)}
-                onDelete={() => {
-                  if (confirm(`Hapus project "${p.name}"?`)) deleteMut.mutate(p.id)
+                onDelete={async () => {
+                  const confirmed = await alertLib.confirm(
+                    'Hapus Project?',
+                    `Project <strong>${p.name}</strong> akan dihapus dari sistem.`,
+                    'Hapus Project',
+                    'Batal',
+                    'warning',
+                    'projects',
+                  )
+                  if (confirmed) deleteMut.mutate(p.id)
                 }}
                 isStarting={startMut.isPending && startMut.variables === p.id}
                 isStopping={stopMut.isPending && stopMut.variables === p.id}
@@ -232,23 +258,23 @@ function ProjectCard({
   isStopping: boolean
 }) {
   return (
-    <div className="group rounded-[18px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 transition-all hover:bg-[rgba(15,23,42,0.04)] dark:bg-[rgba(255,255,255,0.03)] dark:hover:bg-[rgba(255,255,255,0.05)]">
+    <div className="panel-card panel-card--interactive group p-4">
       <div className="flex items-start justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(20,184,166,0.14))] text-emerald-600 dark:text-emerald-300">
+          <div className="panel-avatar">
             {TYPE_ICON[p.projectType] ?? <FolderCode className="h-4 w-4" />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-[var(--win-text)]">{p.name}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_PILL[p.status] ?? ''}`}>
+              <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>
                 {p.status}
               </span>
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
               <span className="capitalize">{p.projectType}</span>
-              {p.assignedPort > 0 && <span className="font-mono">:{p.assignedPort}</span>}
-              {p.workingDir && <span className="max-w-[180px] truncate font-mono">{p.workingDir}</span>}
+              {p.assignedPort > 0 && <span className="panel-mono">:{p.assignedPort}</span>}
+              {p.workingDir && <span className="panel-mono max-w-[180px] truncate">{p.workingDir}</span>}
             </div>
           </div>
         </div>
@@ -258,7 +284,7 @@ function ProjectCard({
             <button
               onClick={onStop}
               disabled={isStopping}
-              className="inline-flex items-center gap-1 rounded-lg bg-amber-500/12 px-2.5 py-1.5 text-xs font-medium text-amber-600 transition hover:bg-amber-500/18 dark:text-amber-300 disabled:opacity-50"
+              className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs"
             >
               <Square className="h-3 w-3" /> Stop
             </button>
@@ -266,14 +292,14 @@ function ProjectCard({
             <button
               onClick={onStart}
               disabled={isStarting}
-              className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/12 px-2.5 py-1.5 text-xs font-medium text-emerald-600 transition hover:bg-emerald-500/18 dark:text-emerald-300 disabled:opacity-50"
+              className="panel-btn panel-btn--primary-soft px-2.5 py-1.5 text-xs"
             >
               <Play className="h-3 w-3" /> Start
             </button>
           )}
           <button
             onClick={onDelete}
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] opacity-0 transition hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+            className="panel-icon-btn panel-icon-btn--danger opacity-0 group-hover:opacity-100"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

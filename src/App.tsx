@@ -137,7 +137,7 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
       className="desktop-root"
       style={{ background: getBackground() }}
     >
-      <Taskbar onLogout={onLogout} />
+      <Taskbar onLogout={onLogout} authenticated={authenticated} />
       <div className="absolute inset-0">
         {windows.map((win) => {
           const renderContent = WINDOW_CONTENT[win.kind]

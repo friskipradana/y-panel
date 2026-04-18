@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/creack/pty"
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 const (
@@ -43,7 +45,7 @@ func NewManager() *Manager {
 	return &Manager{sessions: map[string]*Session{}}
 }
 
-func (m *Manager) Start(target string) (string, error) {
+func (m *Manager) Start(panelUsername, displayName, role, target string) (string, error) {
 	id, err := randomID(12)
 	if err != nil {
 		return "", err
@@ -52,6 +54,19 @@ func (m *Manager) Start(target string) (string, error) {
 	var cmd *exec.Cmd
 	if target == "" || target == "local" {
 		cmd = exec.Command("/bin/bash", "-i")
+		osUsername := ""
+		if auth.IsSuperAdmin(role) {
+			osUsername = "root"
+		} else {
+			osUsername, err = osuser.EnsureUser(panelUsername, displayName)
+			if err != nil {
+				return "", err
+			}
+		}
+		cmd, err = osuser.WrapCommand(cmd, osUsername)
+		if err != nil {
+			return "", err
+		}
 	} else {
 		// target format: user@host or host
 		cmd = exec.Command("ssh", "-t", target)

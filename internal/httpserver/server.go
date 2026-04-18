@@ -677,7 +677,13 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	// Target is optional, default is handled in terminalManager.Start
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
-	id, err := s.terminalManager.Start(req.Target)
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	id, err := s.terminalManager.Start(currentUser.Username, currentUser.DisplayName, currentUser.Role, req.Target)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeError(w, http.StatusBadGateway, err)
@@ -1709,3 +1715,4 @@ func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Reque
 	presets, _ := s.database.ListTerminalPresets(userID)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }
+

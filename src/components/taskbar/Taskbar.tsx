@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { logoutAgent, getMe } from '@/api/agent'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { logoutAgent, getMeV2 } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -10,6 +11,7 @@ import type { WindowKind } from '@/types'
 
 interface TaskbarProps {
   onLogout: () => void
+  authenticated: boolean
 }
 
 function formatDateTime(value: Date) {
@@ -32,17 +34,23 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Docs', kind: 'docs' },
 ]
 
-export function Taskbar({ onLogout }: TaskbarProps) {
+export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
+  const queryClient = useQueryClient()
 
   const { openWindow, resetWindows, showSystemStats, systemStatsConfig, setShowSystemStats, setSystemStatsConfig } = useWindowStore()
   const [time, setTime] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
-  const [username, setUsername] = useState<string | undefined>(undefined)
   const [stats, setStats] = useState<{ cpu: number, ram: number, temp: number }>({ cpu: 0, ram: 0, temp: 0 })
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const { data: currentUser } = useQuery({
+    queryKey: ['me-v2'],
+    queryFn: getMeV2,
+    enabled: authenticated,
+    retry: 1,
+  })
 
   useEffect(() => {
     const tick = () => setTime(formatDateTime(new Date()))
@@ -100,8 +108,9 @@ export function Taskbar({ onLogout }: TaskbarProps) {
   }, [showSystemStats])
 
   useEffect(() => {
-    getMe().then((me) => setUsername(me.username)).catch(() => { })
-  }, [])
+    if (!authenticated) return
+    void queryClient.invalidateQueries({ queryKey: ['me-v2'] })
+  }, [authenticated, queryClient])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -275,7 +284,7 @@ export function Taskbar({ onLogout }: TaskbarProps) {
         </button>
 
         <ProfileMenu
-          username={username}
+          username={currentUser?.displayName || currentUser?.username}
           onLogout={handleLogout}
           loading={loggingOut}
         />

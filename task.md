@@ -12,6 +12,7 @@
 - [x] Seed superadmin via PANEL_BOOTSTRAP_* ENV pada first start
 - [x] Middleware `requireRole` + `requireAuthV2` di HTTP server
 - [x] Update `server.go` untuk pakai auth baru, inject user ke context
+- [x] Sinkronisasi user panel ke user OS Linux untuk isolasi terminal & proses project lokal
 
 ## Phase 3: New Modules Backend
 - [x] `internal/users/users.go` (validasi, suspend/activate)
@@ -29,13 +30,13 @@
 - [x] `src/components/windows/ProfileWindow.tsx` (CF config per-user)
 - [x] `src/components/windows/ProjectsWindow.tsx`
 - [x] `src/components/windows/TunnelsWindow.tsx`
-- [ ] Register semua window baru di windowStore/App.tsx
-- [ ] Update Login screen untuk UX baru (tidak hanya single admin)
+- [x] Register semua window baru di `windowStore` / `App.tsx`
+- [x] Update Login screen untuk UX baru (tidak hanya single admin)
 
 ## Phase 7: Frontend — App.tsx Update
 - [ ] Role-based routing dan window visibility
 - [ ] Notification bell di taskbar
-- [ ] Update dock untuk show Projects, Tunnels windows
+- [x] Update dock untuk show Projects, Tunnels windows
 
 ## Phase 8: Testing + go mod tidy
 - [ ] Jalankan `go mod tidy && go build ./...` untuk validasi

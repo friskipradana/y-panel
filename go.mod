@@ -8,5 +8,3 @@ require (
 	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.22.0
 )
-
-require filippo.io/edwards25519 v1.1.0 // indirect

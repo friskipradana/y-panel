@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCFConfig, setCFConfig, verifyCFConfig, deleteCFConfig } from '@/api/agent'
+import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
   Cloud,
@@ -17,8 +18,11 @@ import {
   Globe2,
 } from 'lucide-react'
 
-const cardClass = 'rounded-[20px] border border-[var(--win-border)] bg-[var(--win-bg)] p-5 shadow-[var(--win-shadow)] backdrop-blur-xl'
-const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-orange-400 font-mono'
+const CF_STATUS_VARIANTS = {
+  active: { cls: 'panel-badge panel-badge--success', icon: <CheckCircle2 className="h-3 w-3" />, label: 'Verified' },
+  invalid: { cls: 'panel-badge panel-badge--danger', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
+  unconfigured: { cls: 'panel-badge panel-badge--warning', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
+} as const
 
 export default function ProfileWindow() {
   const qc = useQueryClient()
@@ -30,200 +34,220 @@ export default function ProfileWindow() {
   const saveCFMut = useMutation({
     mutationFn: setCFConfig,
     onSuccess: () => {
-      toast.success('Konfigurasi Cloudflare disimpan')
+      alertLib.fire('Cloudflare Disimpan', 'Konfigurasi Cloudflare berhasil disimpan untuk akun Anda.', 'success', 'profile')
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
       setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
     },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menyimpan config'),
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal menyimpan config'
+      toast.error('Gagal menyimpan config', { description: message })
+      alertLib.fire('Gagal Menyimpan Cloudflare', message, 'error', 'profile')
+    },
   })
 
   const verifyMut = useMutation({
     mutationFn: verifyCFConfig,
     onSuccess: (res) => {
-      if (res.valid) toast.success('Token Cloudflare valid! ✓')
-      else toast.error('Token tidak valid: ' + (res.error ?? 'Unknown error'))
+      if (res.valid) {
+        alertLib.fire('Verifikasi Berhasil', 'Token Cloudflare valid dan siap digunakan.', 'success', 'profile')
+      } else {
+        alertLib.fire('Token Tidak Valid', res.error ?? 'Unknown error', 'warning', 'profile')
+      }
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
     },
-    onError: () => toast.error('Gagal memverifikasi token'),
+    onError: () => {
+      toast.error('Gagal memverifikasi token')
+      alertLib.fire('Gagal Verifikasi', 'Gagal memverifikasi token Cloudflare.', 'error', 'profile')
+    },
   })
 
   const deleteCFMut = useMutation({
     mutationFn: deleteCFConfig,
     onSuccess: () => {
-      toast.success('Konfigurasi Cloudflare dihapus')
+      alertLib.fire('Cloudflare Dihapus', 'Konfigurasi Cloudflare berhasil dihapus.', 'success', 'profile')
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
     },
+    onError: (e: any) => alertLib.fire('Gagal Menghapus Cloudflare', e.response?.data?.error ?? 'Tidak dapat menghapus konfigurasi Cloudflare.', 'error', 'profile'),
   })
 
   const cfStatus = cf?.status
-  const cfStatusBadge = {
-    active: { cls: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300', icon: <CheckCircle2 className="h-3 w-3" />, label: 'Verified' },
-    invalid: { cls: 'bg-red-500/12 text-red-600 dark:text-red-300', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
-    unconfigured: { cls: 'bg-amber-500/12 text-amber-600 dark:text-amber-300', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
-  }[cfStatus ?? 'unconfigured']
+  const cfStatusBadge = CF_STATUS_VARIANTS[cfStatus as keyof typeof CF_STATUS_VARIANTS] ?? CF_STATUS_VARIANTS.unconfigured
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-[var(--win-bg)] text-[var(--win-text)] select-none">
-      <div className="border-b border-[var(--win-border)] px-5 py-3">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-violet-500" />
-          <span className="text-sm font-semibold">Profile Settings & Integrations</span>
+    <div className="panel-window">
+      <div className="panel-window__header">
+        <div className="panel-window__title">
+          <User className="panel-window__icon h-4 w-4" />
+          <div>
+            <div className="panel-window__title-text">Profile Settings & Integrations</div>
+            <div className="panel-window__meta">Pengaturan akun dan integrasi personal</div>
+          </div>
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[980px] flex-col gap-4 p-5">
-        <div className="rounded-[22px] bg-[linear-gradient(135deg,rgba(124,58,237,0.16),rgba(59,130,246,0.14))] px-6 py-5 shadow-[0_20px_48px_rgba(15,23,42,0.12)] ring-1 ring-[var(--win-border)]">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.35)] px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-[var(--win-text)] dark:bg-[rgba(255,255,255,0.08)]">
-            <ShieldCheck size={11} />
-            Personal profile controls
-          </div>
-          <div className="text-[22px] font-bold tracking-[-0.03em] text-[var(--win-text)]">Profile window difokuskan untuk pengaturan akun</div>
-          <p className="mt-2 max-w-[640px] text-[12px] leading-6 text-[var(--text-secondary)]">
-            Identitas utama akun sekarang berada di profile header. Window ini dipakai untuk mengelola integrasi personal, credential pihak ketiga, dan konfigurasi yang melekat ke akun Anda.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className={cardClass}>
-            <div className="mb-4 flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,rgba(249,115,22,0.18),rgba(251,146,60,0.16))] text-orange-500 dark:text-orange-300">
-                <Cloud className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-[15px] font-semibold text-[var(--win-text)]">Cloudflare tunnel integration</div>
-                <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">
-                  Hubungkan akun Cloudflare Anda sendiri untuk membuat tunnel dan mengelola DNS secara personal.
-                </div>
-              </div>
+      <div className="panel-window__body">
+        <div className="mx-auto flex w-full max-w-[980px] flex-col gap-4">
+          <section className="panel-card p-6">
+            <div className="panel-badge panel-badge--info mb-3 w-fit uppercase tracking-[0.16em]">
+              <ShieldCheck size={11} />
+              Personal profile controls
             </div>
+            <div className="text-[22px] font-bold tracking-[-0.03em] text-[var(--win-text)]">Profile window difokuskan untuk pengaturan akun</div>
+            <p className="mt-2 max-w-[640px] text-[12px] leading-6 text-[var(--text-secondary)]">
+              Identitas utama akun sekarang berada di profile header. Window ini dipakai untuk mengelola integrasi personal, credential pihak ketiga, dan konfigurasi yang melekat ke akun Anda.
+            </p>
+          </section>
 
-            {cfLoading ? (
-              <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">Memuat konfigurasi Cloudflare...</div>
-            ) : cf?.configured ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">Connection status</div>
-                    <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">Cloudflare account connected</div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="panel-card p-5">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="panel-avatar">
+                  <Cloud className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--win-text)]">Cloudflare tunnel integration</div>
+                  <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">
+                    Hubungkan akun Cloudflare Anda sendiri untuk membuat tunnel dan mengelola DNS secara personal.
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${cfStatusBadge.cls}`}>
-                    {cfStatusBadge.icon}
-                    {cfStatusBadge.label}
-                  </span>
-                </div>
-
-                <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 dark:bg-[rgba(255,255,255,0.03)]">
-                  {[
-                    { label: 'Account ID', value: cf.accountId },
-                    { label: 'Zone ID', value: cf.zoneId },
-                    { label: 'Base Domain', value: cf.baseDomain },
-                    cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
-                  ].filter(Boolean).map((item) => (
-                    <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                      <span className="text-[var(--text-secondary)]">{item!.label}</span>
-                      <span className="font-mono text-[var(--win-text)]">{item!.value || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => verifyMut.mutate()}
-                    disabled={verifyMut.isPending}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-orange-500/12 px-4 py-2.5 text-[12px] font-semibold text-orange-600 transition hover:bg-orange-500/18 dark:text-orange-300 disabled:opacity-50"
-                  >
-                    <ShieldCheck className="h-4 w-4" />
-                    {verifyMut.isPending ? 'Memverifikasi...' : 'Verifikasi token'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Hapus konfigurasi Cloudflare? Tunnel yang ada tidak akan terpengaruh.')) deleteCFMut.mutate()
-                    }}
-                    className="inline-flex items-center justify-center rounded-[14px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-red-600 transition hover:bg-red-500/16 dark:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">API Token *</label>
-                  <div className="relative">
-                    <input
-                      type={showToken ? 'text' : 'password'}
-                      placeholder="Paste Cloudflare API Token di sini"
-                      value={cfForm.apiToken}
-                      onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
-                      className={`${inputClass} pr-10`}
-                    />
-                    <button type="button" onClick={() => setShowToken((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] transition hover:text-[var(--win-text)]">
-                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+
+              {cfLoading ? (
+                <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">Memuat konfigurasi Cloudflare...</div>
+              ) : cf?.configured ? (
+                <div className="space-y-4">
+                  <div className="panel-card flex items-center justify-between gap-3 px-4 py-3 shadow-none">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">Connection status</div>
+                      <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">Cloudflare account connected</div>
+                    </div>
+                    <span className={cfStatusBadge.cls}>
+                      {cfStatusBadge.icon}
+                      {cfStatusBadge.label}
+                    </span>
+                  </div>
+
+                  <div className="panel-muted-block space-y-2 rounded-[16px] p-4">
+                    {[
+                      { label: 'Account ID', value: cf.accountId },
+                      { label: 'Zone ID', value: cf.zoneId },
+                      { label: 'Base Domain', value: cf.baseDomain },
+                      cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
+                    ].filter(Boolean).map((item) => (
+                      <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                        <span className="text-[var(--text-secondary)]">{item!.label}</span>
+                        <span className="panel-mono text-[var(--win-text)]">{item!.value || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => verifyMut.mutate()}
+                      disabled={verifyMut.isPending}
+                      className="panel-btn panel-btn--primary-soft flex-1"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      {verifyMut.isPending ? 'Memverifikasi...' : 'Verifikasi token'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const confirmed = await alertLib.confirm(
+                          'Hapus Konfigurasi Cloudflare?',
+                          'Konfigurasi Cloudflare untuk akun ini akan dihapus. Tunnel yang sudah ada tidak akan terpengaruh.',
+                          'Hapus Konfigurasi',
+                          'Batal',
+                          'warning',
+                          'profile',
+                        )
+                        if (confirmed) deleteCFMut.mutate()
+                      }}
+                      className="panel-icon-btn panel-icon-btn--danger h-[42px] w-[42px] rounded-[14px] border border-[var(--win-border)]"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-
-                {[
-                  { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
-                  { key: 'zoneId', label: 'Zone ID (opsional)', placeholder: 'Jika punya domain Cloudflare' },
-                  { key: 'baseDomain', label: 'Base Domain (opsional)', placeholder: 'example.com' },
-                ].map(({ key, label, placeholder }) => (
-                  <div key={key}>
-                    <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">{label}</label>
-                    <input
-                      value={(cfForm as any)[key]}
-                      onChange={(e) => setCfForm((f) => ({ ...f, [key]: e.target.value }))}
-                      placeholder={placeholder}
-                      className={inputClass}
-                    />
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="panel-section-label">API Token *</label>
+                    <div className="relative">
+                      <input
+                        type={showToken ? 'text' : 'password'}
+                        placeholder="Paste Cloudflare API Token di sini"
+                        value={cfForm.apiToken}
+                        onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
+                        className="panel-input panel-input--mono pr-10"
+                      />
+                      <button type="button" onClick={() => setShowToken((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] transition hover:text-[var(--win-text)]">
+                        {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
-                ))}
 
-                <button
-                  onClick={() => saveCFMut.mutate(cfForm)}
-                  disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#f97316,#fb923c)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(249,115,22,0.22)] transition hover:brightness-105 disabled:opacity-50"
-                >
-                  {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-                  {saveCFMut.isPending ? 'Menyimpan...' : 'Simpan & hubungkan'}
-                </button>
-              </div>
-            )}
-          </div>
+                  {[
+                    { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
+                    { key: 'zoneId', label: 'Zone ID (opsional)', placeholder: 'Jika punya domain Cloudflare' },
+                    { key: 'baseDomain', label: 'Base Domain (opsional)', placeholder: 'example.com' },
+                  ].map(({ key, label, placeholder }) => (
+                    <div key={key}>
+                      <label className="panel-section-label">{label}</label>
+                      <input
+                        value={(cfForm as any)[key]}
+                        onChange={(e) => setCfForm((f) => ({ ...f, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        className="panel-input panel-input--mono"
+                      />
+                    </div>
+                  ))}
 
-          <div className="flex flex-col gap-4">
-            <div className={cardClass}>
-              <div className="mb-3 flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,rgba(56,189,248,0.16),rgba(99,102,241,0.12))] text-sky-600 dark:text-sky-300">
-                  <LockKeyhole className="h-5 w-5" />
+                  <button
+                    onClick={() => saveCFMut.mutate(cfForm)}
+                    disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
+                    className="panel-btn panel-btn--primary w-full"
+                  >
+                    {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+                    {saveCFMut.isPending ? 'Menyimpan...' : 'Simpan & hubungkan'}
+                  </button>
                 </div>
-                <div>
-                  <div className="text-[14px] font-semibold text-[var(--win-text)]">Keamanan token</div>
-                  <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Credential integrasi disimpan secara aman untuk setiap akun.</div>
-                </div>
-              </div>
-              <div className="rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 text-[12px] leading-6 text-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.03)]">
-                Token Cloudflare dienkripsi dengan AES-256-GCM sebelum disimpan ke database. Token tidak pernah dikirim ke layanan selain Cloudflare API saat proses verifikasi dan provisioning.
-              </div>
+              )}
             </div>
 
-            <div className={cardClass}>
-              <div className="mb-3 flex items-start gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(34,197,94,0.12))] text-emerald-600 dark:text-emerald-300">
-                  <Globe2 className="h-5 w-5" />
+            <div className="flex flex-col gap-4">
+              <div className="panel-card p-5">
+                <div className="mb-3 flex items-start gap-3">
+                  <div className="panel-avatar">
+                    <LockKeyhole className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-semibold text-[var(--win-text)]">Keamanan token</div>
+                    <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Credential integrasi disimpan secara aman untuk setiap akun.</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[14px] font-semibold text-[var(--win-text)]">Hubungan dengan window lain</div>
-                  <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Konfigurasi di sini dipakai langsung oleh modul tunnel.</div>
+                <div className="panel-muted-block rounded-[16px] px-4 py-3 text-[12px] leading-6 text-[var(--text-secondary)]">
+                  Token Cloudflare dienkripsi dengan AES-256-GCM sebelum disimpan ke database. Token tidak pernah dikirim ke layanan selain Cloudflare API saat proses verifikasi dan provisioning.
                 </div>
               </div>
-              <ul className="space-y-2 text-[12px] leading-6 text-[var(--text-secondary)]">
-                <li className="rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">Tunnels akan membaca status verifikasi Cloudflare dari konfigurasi akun Anda.</li>
-                <li className="rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">Jika token belum valid, tombol pembuatan tunnel akan tetap nonaktif sampai integrasi berhasil diverifikasi.</li>
-              </ul>
+
+              <div className="panel-card p-5">
+                <div className="mb-3 flex items-start gap-3">
+                  <div className="panel-avatar">
+                    <Globe2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-semibold text-[var(--win-text)]">Hubungan dengan window lain</div>
+                    <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Konfigurasi di sini dipakai langsung oleh modul tunnel.</div>
+                  </div>
+                </div>
+                <ul className="space-y-2 text-[12px] leading-6 text-[var(--text-secondary)]">
+                  <li className="panel-muted-block rounded-[14px] px-4 py-3">Tunnels akan membaca status verifikasi Cloudflare dari konfigurasi akun Anda.</li>
+                  <li className="panel-muted-block rounded-[14px] px-4 py-3">Jika token belum valid, tombol pembuatan tunnel akan tetap nonaktif sampai integrasi berhasil diverifikasi.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

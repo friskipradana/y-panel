@@ -167,6 +167,7 @@ func (m *Manager) ensureSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_token   ON user_sessions(token)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_expires  ON user_sessions(expires_at)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_single_superadmin ON users ((role)) WHERE role = 'superadmin'`,
 
 		`CREATE TABLE IF NOT EXISTS user_quotas (
 			id               BIGSERIAL PRIMARY KEY,
@@ -490,6 +491,15 @@ func (m *Manager) CreateUser(username, email, passwordHash, role, displayName st
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
+	if role == "superadmin" {
+		var existing int
+		if err := m.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'superadmin'`).Scan(&existing); err != nil {
+			return nil, err
+		}
+		if existing > 0 {
+			return nil, fmt.Errorf("only one superadmin account is allowed")
+		}
+	}
 	var u User
 	err := m.db.QueryRow(`
 		INSERT INTO users (username, email, password_hash, role, display_name)
@@ -514,6 +524,23 @@ func (m *Manager) CreateUser(username, email, passwordHash, role, displayName st
 func (m *Manager) UpdateUser(id int64, fields map[string]any) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
+	}
+	if rawRole, ok := fields["role"]; ok {
+		if nextRole, ok := rawRole.(string); ok && nextRole == "superadmin" {
+			var currentRole string
+			if err := m.db.QueryRow(`SELECT role FROM users WHERE id = $1`, id).Scan(&currentRole); err != nil {
+				return err
+			}
+			if currentRole != "superadmin" {
+				var existing int
+				if err := m.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'superadmin'`).Scan(&existing); err != nil {
+					return err
+				}
+				if existing > 0 {
+					return fmt.Errorf("only one superadmin account is allowed")
+				}
+			}
+		}
 	}
 	allowed := map[string]string{
 		"display_name": "display_name",

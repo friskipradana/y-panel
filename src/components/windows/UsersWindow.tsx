@@ -11,6 +11,7 @@ import {
   type PanelUser,
   type UserQuota,
 } from '@/api/agent'
+import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
   Users,
@@ -26,16 +27,16 @@ import {
   EyeOff,
 } from 'lucide-react'
 
-const ROLE_COLORS: Record<string, string> = {
-  superadmin: 'text-amber-600 bg-amber-500/10 dark:text-amber-300',
-  admin: 'text-blue-600 bg-blue-500/10 dark:text-blue-300',
-  user: 'text-slate-600 bg-slate-500/10 dark:text-slate-300',
+const ROLE_VARIANTS: Record<string, string> = {
+  superadmin: 'panel-badge--warning',
+  admin: 'panel-badge--info',
+  user: 'panel-badge--neutral',
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  active: 'text-emerald-600 bg-emerald-500/10 dark:text-emerald-300',
-  suspended: 'text-red-600 bg-red-500/10 dark:text-red-300',
-  pending: 'text-yellow-600 bg-yellow-500/10 dark:text-yellow-300',
+const STATUS_VARIANTS: Record<string, string> = {
+  active: 'panel-badge--success',
+  suspended: 'panel-badge--danger',
+  pending: 'panel-badge--warning',
 }
 
 const ROLE_ICON: Record<string, ReactElement> = {
@@ -43,8 +44,6 @@ const ROLE_ICON: Record<string, ReactElement> = {
   admin: <Shield className="h-3 w-3" />,
   user: <CircleUser className="h-3 w-3" />,
 }
-
-const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-indigo-400'
 
 export default function UsersWindow() {
   const qc = useQueryClient()
@@ -69,50 +68,72 @@ export default function UsersWindow() {
   const createMut = useMutation({
     mutationFn: createUser,
     onSuccess: (u) => {
-      toast.success(`User "${u.username}" berhasil dibuat`)
+      alertLib.fire('User Dibuat', `User <strong>${u.username}</strong> berhasil dibuat.`, 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
       setShowCreate(false)
       setForm({ username: '', email: '', password: '', role: 'user', displayName: '' })
     },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal membuat user'),
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal membuat user'
+      toast.error('Gagal membuat user', { description: message })
+      alertLib.fire('Gagal Membuat User', message, 'error', 'users')
+    },
   })
 
   const suspendMut = useMutation({
     mutationFn: suspendUser,
-    onSuccess: () => { toast.success('User disuspend'); qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => {
+      alertLib.fire('User Disuspend', 'Akses user berhasil dihentikan sementara.', 'warning', 'users')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Suspend User', e.response?.data?.error ?? 'Tidak dapat mensuspend user.', 'error', 'users'),
   })
 
   const activateMut = useMutation({
     mutationFn: activateUser,
-    onSuccess: () => { toast.success('User diaktifkan'); qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: () => {
+      alertLib.fire('User Diaktifkan', 'Akses user berhasil diaktifkan kembali.', 'success', 'users')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Mengaktifkan User', e.response?.data?.error ?? 'Tidak dapat mengaktifkan user.', 'error', 'users'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteUser,
-    onSuccess: () => { toast.success('User dihapus'); qc.invalidateQueries({ queryKey: ['users'] }) },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menghapus user'),
+    onSuccess: () => {
+      alertLib.fire('User Dihapus', 'User berhasil dihapus dari sistem.', 'success', 'users')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal menghapus user'
+      toast.error('Gagal menghapus user', { description: message })
+      alertLib.fire('Gagal Menghapus User', message, 'error', 'users')
+    },
   })
 
   const users = data?.users ?? []
 
   return (
-    <div className="flex h-full flex-col bg-[var(--win-bg)] text-[var(--win-text)] select-none">
-      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-5 py-3">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-indigo-500" />
-          <span className="text-sm font-semibold">User Management</span>
-          <span className="ml-1 text-xs text-[var(--text-secondary)]">({users.length} users)</span>
+    <div className="panel-window">
+      <div className="panel-window__header">
+        <div className="panel-window__title">
+          <Users className="panel-window__icon h-4 w-4" />
+          <div>
+            <div className="panel-window__title-text">User Management</div>
+            <div className="panel-window__meta">{users.length} user terdaftar</div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="panel-window__actions">
           <button
             onClick={() => refetch()}
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+            className="panel-icon-btn"
+            aria-label="Refresh users"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500/12 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-500/18 dark:text-indigo-300"
+            className="panel-btn panel-btn--primary-soft"
           >
             <UserPlus className="h-3.5 w-3.5" />
             Buat User
@@ -121,10 +142,10 @@ export default function UsersWindow() {
       </div>
 
       {showCreate && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-          <div className="w-96 rounded-[24px] border border-[var(--win-border)] bg-[var(--win-bg)] p-6 shadow-[var(--win-shadow)]">
+        <div className="panel-modal-overlay">
+          <div className="panel-modal-card">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
-              <UserPlus className="h-4 w-4 text-indigo-500" />
+              <UserPlus className="panel-window__icon h-4 w-4" />
               Buat User Baru
             </h3>
             <div className="space-y-3">
@@ -134,25 +155,25 @@ export default function UsersWindow() {
                 { key: 'displayName', label: 'Display Name', type: 'text', placeholder: 'John Doe' },
               ].map(({ key, label, type, placeholder }) => (
                 <div key={key}>
-                  <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">{label}</label>
+                  <label className="panel-section-label">{label}</label>
                   <input
                     type={type}
                     placeholder={placeholder}
                     value={(form as any)[key]}
                     onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                    className={inputClass}
+                    className="panel-input"
                   />
                 </div>
               ))}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Password</label>
+                <label className="panel-section-label">Password</label>
                 <div className="relative">
                   <input
                     type={showPwd ? 'text' : 'password'}
                     placeholder="Min. 8 karakter"
                     value={form.password}
                     onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    className={`${inputClass} pr-10`}
+                    className="panel-input pr-10"
                   />
                   <button
                     type="button"
@@ -164,11 +185,11 @@ export default function UsersWindow() {
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Role</label>
+                <label className="panel-section-label">Role</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                  className={inputClass}
+                  className="panel-select"
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -179,14 +200,14 @@ export default function UsersWindow() {
             <div className="mt-5 flex gap-2">
               <button
                 onClick={() => { setShowCreate(false); setForm({ username: '', email: '', password: '', role: 'user', displayName: '' }) }}
-                className="flex-1 rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:bg-[rgba(255,255,255,0.03)]"
+                className="panel-btn panel-btn--ghost flex-1"
               >
                 Batal
               </button>
               <button
                 onClick={() => createMut.mutate(form)}
                 disabled={createMut.isPending}
-                className="flex-1 rounded-[14px] bg-[linear-gradient(135deg,#6366f1,#8b5cf6)] py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(99,102,241,0.22)] transition hover:brightness-105 disabled:opacity-50"
+                className="panel-btn panel-btn--primary flex-1"
               >
                 {createMut.isPending ? 'Membuat...' : 'Buat User'}
               </button>
@@ -195,28 +216,58 @@ export default function UsersWindow() {
         </div>
       )}
 
-      <div className="flex-1 space-y-2 overflow-y-auto p-4">
+      <div className="panel-window__body">
         {isLoading ? (
           <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
         ) : users.length === 0 ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] text-sm text-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.03)]">
-            <Users className="h-8 w-8 opacity-40" />
+          <div className="panel-empty">
+            <Users className="h-8 w-8" />
             <span>Belum ada user.</span>
           </div>
         ) : (
-          users.map((u) => (
-            <UserRow
-              key={u.id}
-              user={u}
-              onSuspend={() => suspendMut.mutate(u.id)}
-              onActivate={() => activateMut.mutate(u.id)}
-              onDelete={() => {
-                if (confirm(`Hapus user "${u.username}"? Semua data akan ikut terhapus.`)) deleteMut.mutate(u.id)
-              }}
-              onQuota={() => setShowQuota(showQuota === u.id ? null : u.id)}
-              showQuota={showQuota === u.id}
-            />
-          ))
+          <div className="panel-window__stack">
+            {users.map((u) => (
+              <UserRow
+                key={u.id}
+                user={u}
+                onSuspend={async () => {
+                  const confirmed = await alertLib.confirm(
+                    'Suspend User?',
+                    `User <strong>${u.username}</strong> akan kehilangan akses login sampai diaktifkan kembali.`,
+                    'Suspend User',
+                    'Batal',
+                    'warning',
+                    'users',
+                  )
+                  if (confirmed) suspendMut.mutate(u.id)
+                }}
+                onActivate={async () => {
+                  const confirmed = await alertLib.confirm(
+                    'Aktifkan User?',
+                    `Akses login untuk <strong>${u.username}</strong> akan dipulihkan kembali.`,
+                    'Aktifkan User',
+                    'Batal',
+                    'question',
+                    'users',
+                  )
+                  if (confirmed) activateMut.mutate(u.id)
+                }}
+                onDelete={async () => {
+                  const confirmed = await alertLib.confirm(
+                    'Hapus User?',
+                    `User <strong>${u.username}</strong> akan dihapus beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`,
+                    'Hapus Permanen',
+                    'Batal',
+                    'warning',
+                    'users',
+                  )
+                  if (confirmed) deleteMut.mutate(u.id)
+                }}
+                onQuota={() => setShowQuota(showQuota === u.id ? null : u.id)}
+                showQuota={showQuota === u.id}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -247,25 +298,29 @@ function UserRow({
 
   const updateQuotaMut = useMutation({
     mutationFn: (q: Partial<UserQuota>) => updateUserQuota(user.id, q),
-    onSuccess: () => { toast.success('Quota diperbarui'); qc.invalidateQueries({ queryKey: ['quota', user.id] }) },
+    onSuccess: () => {
+      alertLib.fire('Quota Diperbarui', `Resource quota untuk <strong>${user.username}</strong> berhasil diperbarui.`, 'success', 'users')
+      qc.invalidateQueries({ queryKey: ['quota', user.id] })
+    },
+    onError: (e: any) => alertLib.fire('Gagal Memperbarui Quota', e.response?.data?.error ?? 'Quota tidak dapat diperbarui.', 'error', 'users'),
   })
 
   const [editQuota, setEditQuota] = useState<Partial<UserQuota>>({})
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] dark:bg-[rgba(255,255,255,0.03)]">
+    <div className="panel-card overflow-hidden">
       <div className="flex items-center gap-3 p-3.5">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(99,102,241,0.16),rgba(168,85,247,0.12))] text-sm font-bold text-indigo-600 dark:text-indigo-300">
+        <div className="panel-avatar rounded-full text-sm">
           {user.username[0]?.toUpperCase()}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-[var(--win-text)]">{user.username}</span>
-            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${ROLE_COLORS[user.role] ?? 'text-slate-500'}`}>
+            <span className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'}`}>
               {ROLE_ICON[user.role]} {user.role}
             </span>
-            <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[user.status] ?? ''}`}>
+            <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>
               {user.status}
             </span>
           </div>
@@ -276,7 +331,7 @@ function UserRow({
           <button
             onClick={onQuota}
             title="Kelola Quota"
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-blue-500/10 hover:text-blue-500"
+            className="panel-icon-btn panel-icon-btn--primary"
           >
             <Settings2 className="h-3.5 w-3.5" />
           </button>
@@ -284,7 +339,7 @@ function UserRow({
             <button
               onClick={onSuspend}
               title="Suspend"
-              className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-amber-500/10 hover:text-amber-500"
+              className="panel-icon-btn panel-icon-btn--warning"
             >
               <ShieldOff className="h-3.5 w-3.5" />
             </button>
@@ -292,7 +347,7 @@ function UserRow({
             <button
               onClick={onActivate}
               title="Aktifkan"
-              className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-emerald-500/10 hover:text-emerald-500"
+              className="panel-icon-btn panel-icon-btn--success"
             >
               <Shield className="h-3.5 w-3.5" />
             </button>
@@ -300,7 +355,7 @@ function UserRow({
           <button
             onClick={onDelete}
             title="Hapus"
-            className="rounded-lg p-1.5 text-[var(--text-secondary)] transition hover:bg-red-500/10 hover:text-red-500"
+            className="panel-icon-btn panel-icon-btn--danger"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -308,9 +363,9 @@ function UserRow({
       </div>
 
       {showQuota && quota && (
-        <div className="border-t border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] p-3.5 dark:bg-[rgba(255,255,255,0.03)]">
+        <div className="border-t border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3.5">
           <p className="mb-3 text-xs font-medium text-[var(--text-secondary)]">Resource Quota</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="panel-grid-compact panel-grid-compact--3">
             {[
               { key: 'maxProjects', label: 'Max Projects', val: quota.maxProjects },
               { key: 'maxTunnels', label: 'Max Tunnels', val: quota.maxTunnels },
@@ -319,12 +374,12 @@ function UserRow({
               { key: 'memoryLimitMb', label: 'RAM (MB)', val: quota.memoryLimitMb },
             ].map(({ key, label, val }) => (
               <div key={key}>
-                <label className="mb-0.5 block text-[10px] text-[var(--text-secondary)]">{label}</label>
+                <label className="panel-section-label mb-1">{label}</label>
                 <input
                   type="number"
                   defaultValue={val}
                   onChange={(e) => setEditQuota((q) => ({ ...q, [key]: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-[var(--win-border)] bg-[var(--win-bg)] px-2 py-1 text-xs text-[var(--win-text)] outline-none transition focus:border-indigo-400"
+                  className="panel-input"
                 />
               </div>
             ))}
@@ -332,7 +387,7 @@ function UserRow({
           <button
             onClick={() => updateQuotaMut.mutate(editQuota)}
             disabled={updateQuotaMut.isPending}
-            className="mt-3 w-full rounded-[12px] bg-indigo-500/12 py-2 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-500/18 dark:text-indigo-300 disabled:opacity-50"
+            className="panel-btn panel-btn--primary-soft mt-3 w-full"
           >
             Simpan Quota
           </button>

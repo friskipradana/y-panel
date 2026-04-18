@@ -1,9 +1,12 @@
-import { motion, AnimatePresence } from 'framer-motion'
+// import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { AlertCircle, LoaderCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react'
+import { 
+  // AlertCircle, 
+  LoaderCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react'
 import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
+import { toast } from 'sonner'
 
 interface Props {
   onLoginSuccess: () => void
@@ -52,9 +55,12 @@ export function LoginScreen({ onLoginSuccess }: Props) {
       setPassword('')
       onLoginSuccess()
     },
-    onError: (error) => {
+    onError: (error: any) => {
       runtimeLogger.error('auth', 'login failed', error)
       setPassword('')
+      toast.error('Login gagal', {
+        description: error?.response?.data?.error ?? 'Periksa kembali username dan password Anda.',
+      })
     },
   })
 
@@ -82,7 +88,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
     },
   })
 
-  const activeError = (mode === 'setup' ? setupMutation.error : loginMutation.error) as Error | null
+  // const activeError = (mode === 'setup' ? setupMutation.error : loginMutation.error) as Error | null
   const activePending = mode === 'setup' ? setupMutation.isPending : loginMutation.isPending
 
   const statusMessage = useMemo(() => {
@@ -260,7 +266,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
           </form>
         )}
 
-        <AnimatePresence mode="wait">
+        {/* <AnimatePresence mode="wait">
           {activeError && (
             <motion.div
               key={`${mode}-error`}
@@ -275,7 +281,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
               </span>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence> */}
       </div>
     </main>
   )
