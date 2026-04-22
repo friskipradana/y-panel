@@ -21,6 +21,8 @@ func main() {
 		}
 	}()
 
+	srv.RestoreTunnels()
+
 	log.Printf("ui-panel-agent listening on %s", cfg.BindAddr)
 	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {
 		log.Fatalf("listen and serve: %v", err)

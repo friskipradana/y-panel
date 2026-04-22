@@ -273,6 +273,14 @@ export const verifyCFConfig = () =>
 export const deleteCFConfig = () =>
   agentApi.delete<{ ok: boolean }>('/api/v1/me/cloudflare').then((r) => r.data)
 
+export interface CFZone {
+  id: string
+  name: string
+}
+
+export const getCFZones = () =>
+  agentApi.get<CFZone[]>('/api/v1/me/cloudflare/zones').then((r) => r.data)
+
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
 export interface Project {
@@ -336,9 +344,27 @@ export const listTunnels = () =>
 
 export const createTunnel = (payload: {
   name: string
-  targetUrl: string
+  subdomain: string
+  domain: string
+  zoneId: string
+  path: string
+  protocol: string
+  ip: string
+  port: string
   projectId?: number | null
 }) => agentApi.post<{ ok: boolean; id: number; status: string; message: string }>('/api/v1/tunnels', payload).then((r) => r.data)
+
+export const updateTunnel = (id: number, payload: {
+  name: string
+  subdomain: string
+  domain: string
+  zoneId: string
+  path: string
+  protocol: string
+  ip: string
+  port: string
+  projectId?: number | null
+}) => agentApi.put<{ ok: boolean; message: string }>(`/api/v1/tunnels/${id}`, payload).then((r) => r.data)
 
 export const getTunnel = (id: number) =>
   agentApi.get<Tunnel>(`/api/v1/tunnels/${id}`).then((r) => r.data)

@@ -956,6 +956,22 @@ func (m *Manager) ListTunnels(userID int64) ([]Tunnel, error) {
 	return scanTunnels(rows)
 }
 
+func (m *Manager) ListAllActiveTunnels() ([]Tunnel, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`
+		SELECT id, user_id, project_id, name, target_url, status,
+			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
+		FROM tunnels WHERE cf_tunnel_id != '' AND status = 'active' ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanTunnels(rows)
+}
+
 func (m *Manager) GetTunnel(id, userID int64) (*Tunnel, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
@@ -983,6 +999,17 @@ func (m *Manager) CreateTunnel(userID int64, projectID *int64, name, targetURL s
 		&t.CFTunnelID, &t.CFHostname, &t.CreatedAt, &t.UpdatedAt,
 	)
 	return &t, err
+}
+
+func (m *Manager) UpdateTunnel(id int64, userID int64, name, targetURL, hostname string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`
+		UPDATE tunnels SET name = $1, target_url = $2, cf_hostname = $3, updated_at = NOW()
+		WHERE id = $4 AND user_id = $5
+	`, name, targetURL, hostname, id, userID)
+	return err
 }
 
 func (m *Manager) UpdateTunnelCF(id int64, cfTunnelID, cfHostname, status string) error {

@@ -23,7 +23,6 @@ func GenerateConfigYAML(opts TunnelConfigOptions) []byte {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("tunnel: %s\n", opts.TunnelID))
 	sb.WriteString(fmt.Sprintf("credentials-file: %s\n", opts.CredFile))
-	sb.WriteString(fmt.Sprintf("metrics: 0.0.0.0:%d\n", opts.MetricsPort))
 	sb.WriteString("no-autoupdate: true\n")
 	sb.WriteString("\ningress:\n")
 

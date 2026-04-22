@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -451,6 +454,27 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"valid": true, "status": status})
 }
 
+func (s *Server) handleGetCFZones(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	cfg, _ := s.database.GetCFConfig(u.ID)
+	if cfg == nil || cfg.Status != "active" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Cloudflare config not active"})
+		return
+	}
+	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt token"})
+		return
+	}
+	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
+	zones, err := client.ListZones()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, zones)
+}
+
 func (s *Server) handleDeleteCFConfig(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
 	if err := s.database.DeleteCFConfig(u.ID); err != nil {
@@ -592,7 +616,13 @@ func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
 
 type createTunnelRequest struct {
 	Name      string `json:"name"`
-	TargetURL string `json:"targetUrl"`
+	Subdomain string `json:"subdomain"`
+	Domain    string `json:"domain"`
+	ZoneID    string `json:"zoneId"`
+	Path      string `json:"path"`
+	Protocol  string `json:"protocol"`
+	IP        string `json:"ip"`
+	Port      string `json:"port"`
 	ProjectID *int64 `json:"projectId"`
 }
 
@@ -623,10 +653,12 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.TargetURL) == "" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name and targetUrl are required"})
+	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Domain) == "" || strings.TrimSpace(req.IP) == "" || strings.TrimSpace(req.Port) == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name, domain, ip, and port are required"})
 		return
 	}
+
+	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
 
 	// Quota check
 	quota, _ := s.database.GetUserQuota(u.ID)
@@ -652,52 +684,97 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create DB record first (status=creating)
-	t, err := s.database.CreateTunnel(u.ID, req.ProjectID, req.Name, req.TargetURL)
+	t, err := s.database.CreateTunnel(u.ID, req.ProjectID, req.Name, targetURL)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	// Async CF provisioning
-	go func(tunnelDBID int64, userID int64, name, targetURL string, cfCopy *database.CloudflareConfig, token string) {
-		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, cfCopy.ZoneID)
-		info, credJSON, cfErr := cfClient.CreateTunnel(name)
-		if cfErr != nil {
-			log.Printf("[tunnels] CF create failed db_id=%d err=%v", tunnelDBID, cfErr)
-			_ = s.database.UpdateTunnelStatus(tunnelDBID, "error")
-			return
+	go func(tunnelDBID int64, userID int64, name, reqSubdomain, reqDomain, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
+		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, "")
+		
+		hostname := reqDomain
+		if reqSubdomain != "" && reqSubdomain != "@" {
+			hostname = reqSubdomain + "." + reqDomain
 		}
 
-		// Create CNAME if base_domain is set
-		hostname := ""
-		if cfCopy.BaseDomain != "" {
-			sub := generateRandomSubdomain()
-			hostname = sub + "." + cfCopy.BaseDomain
-			if _, dnsErr := cfClient.CreateCNAMERecord(hostname, info.ID); dnsErr != nil {
-				log.Printf("[tunnels] DNS CNAME failed: %v", dnsErr)
-				hostname = ""
+		allRoutes, _ := s.database.ListTunnels(userID)
+		
+		var mainTunnelID string
+		for _, r := range allRoutes {
+			if r.CFTunnelID != "" {
+				mainTunnelID = r.CFTunnelID
+				break
 			}
 		}
 
-		// Configure ingress
-		rules := []cloudflareapi.IngressRule{{Hostname: hostname, Service: targetURL}}
-		_ = cfClient.UpdateTunnelConfig(info.ID, rules)
+		var credJSON []byte
+		if mainTunnelID == "" {
+			info, creds, cfErr := cfClient.CreateTunnel("panel-tunnel-" + fmt.Sprint(userID))
+			if cfErr != nil {
+				log.Printf("[tunnels] CF create failed db_id=%d err=%v", tunnelDBID, cfErr)
+				_ = s.database.UpdateTunnelStatus(tunnelDBID, "error")
+				return
+			}
+			mainTunnelID = info.ID
+			credJSON = creds
+		} else {
+			credFile := s.cfDaemon.CredFilePathFor(userID, mainTunnelID)
+			credJSON, _ = os.ReadFile(credFile)
+		}
 
-		// Generate config.yml and start daemon
-		credFile := s.cfDaemon.CredFilePathFor(userID, info.ID)
+		// CNAME
+		if hostname != "" {
+			_, err := cfClient.EnsureCNAMERecord(reqZoneID, hostname, mainTunnelID)
+			if err != nil {
+				log.Printf("[tunnels] warning: failed to ensure CNAME %s: %v", hostname, err)
+			}
+		}
+
+		// Build Rules
+		var rules []cloudflareapi.IngressRule
+		for _, r := range allRoutes {
+			rHost := r.CFHostname
+			rTarget := r.TargetURL
+			if r.ID == tunnelDBID {
+				rHost = hostname
+				rTarget = targetURL
+			}
+			if rHost != "" {
+				uParse, parseErr := url.Parse(rTarget)
+				path := ""
+				service := rTarget
+				if parseErr == nil {
+					path = uParse.Path
+					service = uParse.Scheme + "://" + uParse.Host
+				}
+				rules = append(rules, cloudflareapi.IngressRule{
+					Hostname: rHost,
+					Path:     path,
+					Service:  service,
+				})
+			}
+		}
+
+		_ = cfClient.UpdateTunnelConfig(mainTunnelID, rules)
+
+		credFile := s.cfDaemon.CredFilePathFor(userID, mainTunnelID)
 		configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
-			TunnelID: info.ID,
+			TunnelID: mainTunnelID,
 			CredFile: credFile,
 			Ingress:  rules,
 		})
-		if daemonErr := s.cfDaemon.StartTunnel(info.ID, userID, credJSON, configYAML); daemonErr != nil {
+		
+		_ = s.cfDaemon.StopTunnel(mainTunnelID)
+		if daemonErr := s.cfDaemon.StartTunnel(mainTunnelID, userID, credJSON, configYAML); daemonErr != nil {
 			log.Printf("[tunnels] daemon start failed db_id=%d err=%v", tunnelDBID, daemonErr)
 		}
 
-		_ = s.database.UpdateTunnelCF(tunnelDBID, info.ID, hostname, "active")
-		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, info.ID, hostname)
-		_ = s.database.CreateNotification(userID, "Tunnel Active 🟢", "Tunnel '"+name+"' berhasil dibuat.", "success", "")
-	}(t.ID, u.ID, req.Name, req.TargetURL, cfCfg, apiToken)
+		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, "active")
+		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, mainTunnelID, hostname)
+		_ = s.database.CreateNotification(userID, "Rute Tunnel Aktif 🟢", "Rute '"+name+"' berhasil dibuat.", "success", "")
+	}(t.ID, u.ID, req.Name, req.Subdomain, req.Domain, req.ZoneID, cfCfg, apiToken)
 
 	s.writeJSON(w, http.StatusAccepted, jsonResponse{
 		"ok":      true,
@@ -705,6 +782,94 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		"status":  "creating",
 		"message": "Tunnel sedang dibuat, cek status dalam beberapa detik.",
 	})
+}
+
+func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+
+	var req createTunnelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Domain) == "" || strings.TrimSpace(req.IP) == "" || strings.TrimSpace(req.Port) == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name, domain, ip, and port are required"})
+		return
+	}
+
+	t, err := s.database.GetTunnel(id, u.ID)
+	if err != nil || t == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "tunnel not found"})
+		return
+	}
+
+	cfCfg, _ := s.database.GetCFConfig(u.ID)
+	if cfCfg == nil || cfCfg.Status != "active" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Cloudflare config not configured or not verified"})
+		return
+	}
+
+	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt CF token"})
+		return
+	}
+
+	hostname := req.Domain
+	if req.Subdomain != "" && req.Subdomain != "@" {
+		hostname = req.Subdomain + "." + req.Domain
+	}
+	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
+
+	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname)
+
+	// Async CF update
+	go func(tunnelDBID int64, userID int64, cfTunnelID string, newHostname string, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
+		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, "")
+
+		if newHostname != "" && cfTunnelID != "" {
+			_, _ = cfClient.EnsureCNAMERecord(reqZoneID, newHostname, cfTunnelID)
+		}
+
+		allRoutes, _ := s.database.ListTunnels(userID)
+		
+		var rules []cloudflareapi.IngressRule
+		for _, rRoute := range allRoutes {
+			if rRoute.CFHostname != "" {
+				uParse, parseErr := url.Parse(rRoute.TargetURL)
+				path := ""
+				service := rRoute.TargetURL
+				if parseErr == nil {
+					path = uParse.Path
+					service = uParse.Scheme + "://" + uParse.Host
+				}
+				rules = append(rules, cloudflareapi.IngressRule{
+					Hostname: rRoute.CFHostname,
+					Path:     path,
+					Service:  service,
+				})
+			}
+		}
+
+		if cfTunnelID != "" {
+			_ = cfClient.UpdateTunnelConfig(cfTunnelID, rules)
+
+			credFile := s.cfDaemon.CredFilePathFor(userID, cfTunnelID)
+			credJSON, _ := os.ReadFile(credFile)
+			configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
+				TunnelID: cfTunnelID,
+				CredFile: credFile,
+				Ingress:  rules,
+			})
+			
+			_ = s.cfDaemon.StopTunnel(cfTunnelID)
+			_ = s.cfDaemon.StartTunnel(cfTunnelID, userID, credJSON, configYAML)
+		}
+	}(t.ID, u.ID, t.CFTunnelID, hostname, req.ZoneID, cfCfg, apiToken)
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Rute berhasil diperbarui"})
 }
 
 func (s *Server) handleGetTunnel(w http.ResponseWriter, r *http.Request) {
@@ -726,8 +891,28 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "tunnel not found"})
 		return
 	}
-	_ = s.cfDaemon.StopTunnel(t.CFTunnelID)
-	if t.CFTunnelID != "" {
+	
+	_ = s.database.DeleteTunnel(id, u.ID)
+	log.Printf("[tunnels] deleted route id=%d user=%q", id, u.Username)
+
+	allRoutes, _ := s.database.ListTunnels(u.ID)
+
+	if len(allRoutes) == 0 {
+		_ = s.cfDaemon.StopTunnel(t.CFTunnelID)
+		if t.CFTunnelID != "" {
+			go func(cfID string) {
+				cfCfg, _ := s.database.GetCFConfig(u.ID)
+				if cfCfg == nil {
+					return
+				}
+				apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
+				if err != nil {
+					return
+				}
+				_ = cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "").DeleteTunnel(cfID)
+			}(t.CFTunnelID)
+		}
+	} else if t.CFTunnelID != "" {
 		go func(cfID string) {
 			cfCfg, _ := s.database.GetCFConfig(u.ID)
 			if cfCfg == nil {
@@ -737,11 +922,41 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			_ = cloudflareapi.NewClient(apiToken, cfCfg.AccountID, cfCfg.ZoneID).DeleteTunnel(cfID)
+			cfClient := cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "")
+
+			var rules []cloudflareapi.IngressRule
+			for _, rRoute := range allRoutes {
+				if rRoute.CFHostname != "" {
+					uParse, parseErr := url.Parse(rRoute.TargetURL)
+					path := ""
+					service := rRoute.TargetURL
+					if parseErr == nil {
+						path = uParse.Path
+						service = uParse.Scheme + "://" + uParse.Host
+					}
+					rules = append(rules, cloudflareapi.IngressRule{
+						Hostname: rRoute.CFHostname,
+						Path:     path,
+						Service:  service,
+					})
+				}
+			}
+
+			_ = cfClient.UpdateTunnelConfig(cfID, rules)
+
+			credFile := s.cfDaemon.CredFilePathFor(u.ID, cfID)
+			credJSON, _ := os.ReadFile(credFile)
+			configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
+				TunnelID: cfID,
+				CredFile: credFile,
+				Ingress:  rules,
+			})
+
+			_ = s.cfDaemon.StopTunnel(cfID)
+			_ = s.cfDaemon.StartTunnel(cfID, u.ID, credJSON, configYAML)
 		}(t.CFTunnelID)
 	}
-	_ = s.database.DeleteTunnel(id, u.ID)
-	log.Printf("[tunnels] deleted id=%d cf_id=%s user=%q", id, t.CFTunnelID, u.Username)
+
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

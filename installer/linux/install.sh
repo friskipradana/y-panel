@@ -180,6 +180,33 @@ ensure_go() {
   log "go berhasil diinstall: $(/usr/local/go/bin/go version)"
 }
 
+ensure_cloudflared() {
+  if command -v cloudflared >/dev/null 2>&1; then
+    log "cloudflared sudah tersedia: $(cloudflared -V)"
+    return
+  fi
+
+  log "menginstall cloudflared"
+  local arch
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64) CF_ARCH="amd64" ;;
+    aarch64|arm64) CF_ARCH="arm64" ;;
+    armv7l|armv7) CF_ARCH="armhf" ;;
+    *) fail "arsitektur tidak didukung untuk cloudflared: $arch" ;;
+  esac
+
+  local url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CF_ARCH}"
+  local bin_path="/usr/local/bin/cloudflared"
+
+  printf '[%s] mengunduh cloudflared dari %s\n' "$APP_NAME" "$url" >>"$INSTALL_LOG_FILE"
+  if ! curl --fail --silent --show-error --location --retry 3 "$url" -o "$bin_path" >>"$INSTALL_LOG_FILE" 2>&1; then
+    fail "gagal mengunduh cloudflared"
+  fi
+  chmod +x "$bin_path"
+  log "cloudflared berhasil diinstall: $(cloudflared -V)"
+}
+
 ui_panel_config() {
   log "konfigurasi ui-panel"
 
@@ -813,6 +840,7 @@ main() {
   install_base_packages
   ensure_docker
   ensure_go
+  ensure_cloudflared
   ui_panel_config
   setup_directories
   ensure_hostname_resolution

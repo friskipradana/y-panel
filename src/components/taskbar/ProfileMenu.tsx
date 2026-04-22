@@ -325,8 +325,6 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
                 {[
                   { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
-                  { key: 'zoneId', label: 'Zone ID (opsional)', placeholder: 'Jika punya domain Cloudflare' },
-                  { key: 'baseDomain', label: 'Base Domain (opsional)', placeholder: 'example.com' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key}>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">{label}</label>

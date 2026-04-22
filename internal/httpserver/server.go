@@ -151,6 +151,37 @@ func New(cfg config.Config) *Server {
 	return s
 }
 
+func (s *Server) RestoreTunnels() {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	tunnels, err := s.database.ListAllActiveTunnels()
+	if err != nil {
+		log.Printf("[tunnels] failed to list active tunnels: %v", err)
+		return
+	}
+	
+	started := make(map[string]bool)
+	for _, t := range tunnels {
+		if t.CFTunnelID == "" || started[t.CFTunnelID] {
+			continue
+		}
+		credFile := s.cfDaemon.CredFilePathFor(t.UserID, t.CFTunnelID)
+		configFile := filepath.Join(filepath.Dir(credFile), "config.yml")
+		
+		credJSON, err1 := os.ReadFile(credFile)
+		configYAML, err2 := os.ReadFile(configFile)
+		
+		if err1 == nil && err2 == nil {
+			_ = s.cfDaemon.StartTunnel(t.CFTunnelID, t.UserID, credJSON, configYAML)
+			started[t.CFTunnelID] = true
+			log.Printf("[tunnels] restored cloudflared for tunnel id=%s", t.CFTunnelID)
+		} else {
+			log.Printf("[tunnels] skip restore tunnel %s: missing creds or config", t.CFTunnelID)
+		}
+	}
+}
+
 func (s *Server) routes() {
 	// ── Public ──────────────────────────────────────────────────────────────
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
@@ -181,7 +212,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleSetCFConfig)))
 	s.mux.Handle("DELETE /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCFConfig)))
 	s.mux.Handle("POST /api/v1/me/cloudflare/verify", s.requireAuthV2(http.HandlerFunc(s.handleVerifyCFConfig)))
-
+	s.mux.Handle("GET /api/v1/me/cloudflare/zones", s.requireAuthV2(http.HandlerFunc(s.handleGetCFZones)))
 	// ── Projects ──────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleListProjects)))
 	s.mux.Handle("POST /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleCreateProject)))
@@ -194,6 +225,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/tunnels", s.requireAuthV2(http.HandlerFunc(s.handleListTunnels)))
 	s.mux.Handle("POST /api/v1/tunnels", s.requireAuthV2(http.HandlerFunc(s.handleCreateTunnel)))
 	s.mux.Handle("GET /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetTunnel)))
+	s.mux.Handle("PUT /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateTunnel)))
 	s.mux.Handle("DELETE /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTunnel)))
 
 	// ── Notifications ────────────────────────────────────────────────────────

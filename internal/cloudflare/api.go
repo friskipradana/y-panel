@@ -47,6 +47,28 @@ func (c *Client) VerifyToken() error {
 	return nil
 }
 
+// ZoneInfo represents a Cloudflare Zone (Domain).
+type ZoneInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ListZones returns all active zones accessible by the API token.
+func (c *Client) ListZones() ([]ZoneInfo, error) {
+	resp, err := c.get("/zones?status=active")
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list zones failed: %v", resp.Errors)
+	}
+	var zones []ZoneInfo
+	if err := mapResult(resp.Result, &zones); err != nil {
+		return nil, err
+	}
+	return zones, nil
+}
+
 // ─── Tunnel Operations ────────────────────────────────────────────────────────
 
 // TunnelInfo represents a Cloudflare tunnel.
@@ -79,7 +101,12 @@ func (c *Client) CreateTunnel(name string) (*TunnelInfo, []byte, error) {
 	if err := mapResult(resp.Result, &info); err != nil {
 		return nil, nil, err
 	}
-	credBytes, _ := json.Marshal(resp.Result)
+	credObj := map[string]string{
+		"AccountTag":   c.accountID,
+		"TunnelSecret": secret,
+		"TunnelID":     info.ID,
+	}
+	credBytes, _ := json.Marshal(credObj)
 	return &info, credBytes, nil
 }
 
@@ -123,10 +150,37 @@ type DNSRecord struct {
 	TTL     int    `json:"ttl"`
 }
 
-// CreateCNAMERecord creates a CNAME record pointing hostname → tunnelID.cfargotunnel.com.
-// This enables the Cloudflare Tunnel to be accessible via the given hostname.
-func (c *Client) CreateCNAMERecord(hostname, tunnelID string) (*DNSRecord, error) {
+// EnsureCNAMERecord creates or updates a CNAME record pointing hostname → tunnelID.cfargotunnel.com.
+func (c *Client) EnsureCNAMERecord(zoneID, hostname, tunnelID string) (*DNSRecord, error) {
 	content := fmt.Sprintf("%s.cfargotunnel.com", tunnelID)
+
+	// Check if record exists
+	getResp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?name=%s&type=CNAME", zoneID, hostname))
+	if err == nil && getResp.Success {
+		var existingRecords []DNSRecord
+		if err := mapResult(getResp.Result, &existingRecords); err == nil && len(existingRecords) > 0 {
+			record := existingRecords[0]
+			if record.Content == content {
+				return &record, nil // Already correct
+			}
+			// Update existing
+			body := map[string]any{
+				"type":    "CNAME",
+				"name":    hostname,
+				"content": content,
+				"proxied": true,
+				"ttl":     1,
+			}
+			putResp, putErr := c.put(fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, record.ID), body)
+			if putErr == nil && putResp.Success {
+				var updated DNSRecord
+				_ = mapResult(putResp.Result, &updated)
+				return &updated, nil
+			}
+		}
+	}
+
+	// Create new
 	body := map[string]any{
 		"type":    "CNAME",
 		"name":    hostname,
@@ -134,7 +188,7 @@ func (c *Client) CreateCNAMERecord(hostname, tunnelID string) (*DNSRecord, error
 		"proxied": true,
 		"ttl":     1,
 	}
-	resp, err := c.post(fmt.Sprintf("/zones/%s/dns_records", c.zoneID), body)
+	resp, err := c.post(fmt.Sprintf("/zones/%s/dns_records", zoneID), body)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +203,8 @@ func (c *Client) CreateCNAMERecord(hostname, tunnelID string) (*DNSRecord, error
 }
 
 // DeleteDNSRecord removes a DNS record from the zone by record ID.
-func (c *Client) DeleteDNSRecord(recordID string) error {
-	resp, err := c.request("DELETE", fmt.Sprintf("/zones/%s/dns_records/%s", c.zoneID, recordID), nil)
+func (c *Client) DeleteDNSRecord(zoneID, recordID string) error {
+	resp, err := c.request("DELETE", fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, recordID), nil)
 	if err != nil {
 		return err
 	}
@@ -165,6 +219,7 @@ func (c *Client) DeleteDNSRecord(recordID string) error {
 // IngressRule maps a hostname to a service URL within a tunnel config.
 type IngressRule struct {
 	Hostname string `json:"hostname,omitempty"`
+	Path     string `json:"path,omitempty"`
 	Service  string `json:"service"`
 }
 

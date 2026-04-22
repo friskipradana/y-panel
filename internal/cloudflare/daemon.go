@@ -21,6 +21,7 @@ type TunnelProcess struct {
 	cmd        *exec.Cmd
 	mu         sync.Mutex
 	stopped    bool
+	exited     bool
 }
 
 // Daemon manages multiple cloudflared tunnel processes.
@@ -47,7 +48,7 @@ func (d *Daemon) StartTunnel(tunnelID string, userID int64, credJSON, configYAML
 
 	if existing, ok := d.tunnels[tunnelID]; ok {
 		existing.mu.Lock()
-		alive := isProcessAlive(existing.cmd)
+		alive := !existing.exited && !existing.stopped
 		existing.mu.Unlock()
 		if alive {
 			return nil // already running
@@ -64,8 +65,10 @@ func (d *Daemon) StartTunnel(tunnelID string, userID int64, credJSON, configYAML
 	credFile := filepath.Join(tunnelDir, "credentials.json")
 	configFile := filepath.Join(tunnelDir, "config.yml")
 
-	if err := os.WriteFile(credFile, credJSON, 0600); err != nil {
-		return fmt.Errorf("write cred file: %w", err)
+	if len(credJSON) > 0 {
+		if err := os.WriteFile(credFile, credJSON, 0600); err != nil {
+			return fmt.Errorf("write cred file: %w", err)
+		}
 	}
 	if err := os.WriteFile(configFile, configYAML, 0644); err != nil {
 		return fmt.Errorf("write config file: %w", err)
@@ -120,14 +123,15 @@ func (d *Daemon) StopTunnel(tunnelID string) error {
 // IsRunning reports whether a tunnel process is currently active.
 func (d *Daemon) IsRunning(tunnelID string) bool {
 	d.mu.RLock()
+	defer d.mu.RUnlock()
 	proc, ok := d.tunnels[tunnelID]
-	d.mu.RUnlock()
 	if !ok {
 		return false
 	}
+	
 	proc.mu.Lock()
 	defer proc.mu.Unlock()
-	return isProcessAlive(proc.cmd)
+	return !proc.exited && !proc.stopped
 }
 
 // StopAll terminates all managed tunnel processes.
@@ -147,7 +151,7 @@ func (d *Daemon) StopAll() {
 // ─── Internal ────────────────────────────────────────────────────────────────
 
 func (p *TunnelProcess) start() error {
-	cmd := exec.Command("cloudflared",
+	cmd := exec.Command("/usr/local/bin/cloudflared",
 		"tunnel",
 		"--config", p.ConfigFile,
 		"--credentials-file", p.CredFile,
@@ -159,6 +163,15 @@ func (p *TunnelProcess) start() error {
 		return err
 	}
 	p.cmd = cmd
+	p.exited = false
+
+	go func() {
+		_ = cmd.Wait()
+		p.mu.Lock()
+		p.exited = true
+		p.mu.Unlock()
+	}()
+
 	return nil
 }
 
@@ -180,10 +193,10 @@ func (d *Daemon) watch(tunnelID string, userID int64, credJSON, configYAML []byt
 
 		proc.mu.Lock()
 		isStopped := proc.stopped
-		alive := isProcessAlive(proc.cmd)
+		isExited := proc.exited
 		proc.mu.Unlock()
 
-		if isStopped || alive {
+		if isStopped || !isExited {
 			continue
 		}
 
@@ -223,14 +236,7 @@ func (d *Daemon) CredFilePathFor(userID int64, tunnelID string) string {
 	return filepath.Join(d.tunnelDir(userID, tunnelID), "credentials.json")
 }
 
-func isProcessAlive(cmd *exec.Cmd) bool {
-	if cmd == nil || cmd.Process == nil {
-		return false
-	}
-	// Check if process has exited by sending signal 0
-	err := cmd.Process.Signal(os.Signal(nil))
-	return err == nil
-}
+// Removed isProcessAlive since we use Wait() now
 
 func min2(a, b time.Duration) time.Duration {
 	if a < b {
