@@ -160,8 +160,19 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       try {
         const res = await getWallpaper()
         if (res && res.data) {
-           set({ customImageUrl: res.data, wallpaper: 'custom' })
-           persist({ wallpaper: 'custom' })
+           set({ customImageUrl: res.data })
+           
+           // Jika ini adalah device baru (belum ada preferensi di localStorage),
+           // gunakan custom wallpaper secara otomatis karena ada data di server.
+           try {
+             const stored = JSON.parse(localStorage.getItem('ui-panel-theme') ?? '{}')
+             if (!stored.wallpaper) {
+               set({ wallpaper: 'custom' })
+               persist({ wallpaper: 'custom' })
+             }
+           } catch {
+             // ignore
+           }
         }
       } catch (err) {
         // ignore
