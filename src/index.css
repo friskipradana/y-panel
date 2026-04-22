@@ -39,12 +39,12 @@
   --panel-field-focus: rgba(15, 23, 42, 0.052);
   --panel-overlay: rgba(2, 6, 23, 0.46);
   --panel-card-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
-  --panel-card-icon-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(99, 102, 241, 0.1));
-  --panel-primary-bg: rgba(249, 115, 22, 0.12);
-  --panel-primary-hover: rgba(249, 115, 22, 0.18);
-  --panel-primary-text: #9a3412;
-  --panel-primary-solid: linear-gradient(135deg, #f97316, #fb923c 48%, #a855f7 100%);
-  --panel-primary-solid-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
+  --panel-card-icon-bg: rgba(59, 130, 246, 0.08);
+  --panel-primary-bg: rgba(59, 130, 246, 0.1);
+  --panel-primary-hover: rgba(59, 130, 246, 0.16);
+  --panel-primary-text: #1d4ed8;
+  --panel-primary-solid: #2563eb;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(37, 99, 235, 0.15);
   --panel-danger-bg: rgba(220, 38, 38, 0.1);
   --panel-danger-hover: rgba(220, 38, 38, 0.16);
   --panel-danger-text: #b91c1c;
@@ -98,12 +98,12 @@
   --panel-field-focus: rgba(255, 255, 255, 0.08);
   --panel-overlay: rgba(0, 0, 0, 0.56);
   --panel-card-shadow: 0 20px 48px rgba(0, 0, 0, 0.42);
-  --panel-card-icon-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.16), rgba(168, 85, 247, 0.16));
-  --panel-primary-bg: rgba(251, 146, 60, 0.18);
-  --panel-primary-hover: rgba(251, 146, 60, 0.24);
-  --panel-primary-text: #fed7aa;
-  --panel-primary-solid: linear-gradient(135deg, #fb923c, #f97316 48%, #c084fc 100%);
-  --panel-primary-solid-shadow: 0 12px 24px rgba(251, 146, 60, 0.24);
+  --panel-card-icon-bg: rgba(96, 165, 250, 0.1);
+  --panel-primary-bg: rgba(96, 165, 250, 0.12);
+  --panel-primary-hover: rgba(96, 165, 250, 0.18);
+  --panel-primary-text: #93c5fd;
+  --panel-primary-solid: #3b82f6;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
   --panel-danger-bg: rgba(248, 113, 113, 0.16);
   --panel-danger-hover: rgba(248, 113, 113, 0.22);
   --panel-danger-text: #fecaca;
@@ -663,6 +663,26 @@ body {
   filter: saturate(1.04) brightness(1.02);
 }
 
+.panel-btn--danger-soft {
+  background: var(--panel-danger-bg);
+  color: var(--panel-danger-text);
+}
+
+.panel-btn--danger-soft:hover:not(:disabled) {
+  background: var(--panel-danger-hover);
+}
+
+.panel-btn--danger {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
+  border: none;
+}
+
+.panel-btn--danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
 .panel-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -792,10 +812,8 @@ body {
   border: 1px solid var(--win-border);
   border-radius: 22px;
   padding: 20px;
-  background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--panel-primary-text) 18%, transparent), transparent 36%),
-    linear-gradient(145deg, color-mix(in srgb, var(--panel-primary-text) 16%, var(--win-bg)), color-mix(in srgb, var(--panel-info-text) 9%, var(--win-bg)) 58%, var(--win-bg));
-  box-shadow: var(--panel-card-shadow);
+  background: linear-gradient(145deg, var(--panel-primary-bg), var(--panel-surface));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .panel-hero__eyebrow {

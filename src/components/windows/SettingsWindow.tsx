@@ -489,7 +489,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 </p>
               </div>
 
-              <div className="panel-shell-card min-w-[220px] p-[18px] shadow-none">
+              <div className="panel-muted-block min-w-[220px] px-5 py-4">
                 <div className="panel-section-label">Detected host</div>
                 <div className="mt-1 text-[15px] font-semibold text-[var(--win-text)]">{query.data.osName}</div>
                 <div className="mt-1 text-[11px] text-[var(--text-secondary)]">Kernel {query.data.kernel}</div>
@@ -501,46 +501,48 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           </section>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
-              <SectionHeader icon={<Server size={17} />} title="Identity" subtitle="Hostname dan timezone host Linux" />
-              <div className="flex flex-col gap-3.5">
-                <div>
-                  <FieldLabel label="Hostname" hint="hostnamectl" />
-                  <input
-                    id="settings-hostname"
-                    value={hostname}
-                    onChange={(event) => setHostname(event.target.value)}
-                    className="panel-input h-[42px] px-3.5 text-[13px]"
-                    placeholder="node1-ubuntu"
-                  />
+          <div className="panel-shell-card p-5 flex flex-col gap-5">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div>
+                <SectionHeader icon={<Server size={17} />} title="Identity" subtitle="Hostname dan timezone host Linux" />
+                <div className="flex flex-col gap-3.5 mt-2">
+                  <div>
+                    <FieldLabel label="Hostname" hint="hostnamectl" />
+                    <input
+                      id="settings-hostname"
+                      value={hostname}
+                      onChange={(event) => setHostname(event.target.value)}
+                      className="panel-input h-[42px] px-3.5 text-[13px]"
+                      placeholder="node1-ubuntu"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel label="Timezone" hint="timedatectl" />
+                    <TimezoneSelect value={timezone} onChange={setTimezone} />
+                  </div>
                 </div>
-                <div>
-                  <FieldLabel label="Timezone" hint="timedatectl" />
-                  <TimezoneSelect value={timezone} onChange={setTimezone} />
+              </div>
+
+              <div>
+                <SectionHeader
+                  icon={<Globe2 size={17} />}
+                  title="DNS Nameservers"
+                  subtitle={`Mode aktif: ${query.data.dnsMode} • ${query.data.managedConfigPath}`}
+                />
+                <div className="mt-2">
+                  <DnsEditor nameservers={nameservers} onChange={setNameservers} />
                 </div>
               </div>
             </div>
 
-            <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
-              <SectionHeader
-                icon={<Globe2 size={17} />}
-                title="DNS Nameservers"
-                subtitle={`Mode aktif: ${query.data.dnsMode} • ${query.data.managedConfigPath}`}
-              />
-              <DnsEditor nameservers={nameservers} onChange={setNameservers} />
-            </div>
-          </div>
-
-          <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="panel-muted-block flex h-9 w-9 items-center justify-center rounded-[10px] text-[var(--win-text)]">
-                  <BadgeCheck size={17} />
+            <div className="border-t border-[var(--win-border)] pt-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="panel-muted-block flex h-10 w-10 items-center justify-center rounded-[12px] text-[var(--win-text)]">
+                  <BadgeCheck size={18} />
                 </div>
                 <div>
-                  <div className="text-[13px] font-semibold text-[var(--win-text)]">Simpan perubahan host</div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">Hostname, timezone, dan DNS nameserver akan diperbarui.</div>
+                  <div className="text-[14px] font-semibold text-[var(--win-text)]">Simpan perubahan host</div>
+                  <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">Hostname, timezone, dan DNS nameserver akan diperbarui.</div>
                 </div>
               </div>
 
@@ -558,7 +560,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-            <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
+            <div className="panel-shell-card p-5">
               <SectionHeader
                 icon={<LockKeyhole size={17} />}
                 title="Runtime panel port"
@@ -604,7 +606,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               </div>
             </div>
 
-            <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
+            <div className="panel-shell-card p-5">
               <SectionHeader
                 icon={<ShieldCheck size={17} />}
                 title="Allowed origins"
@@ -645,11 +647,11 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           </div>
 
-          <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
+          <div className="panel-shell-card p-5">
             <SectionHeader icon={<Database size={17} />} title="Database MariaDB" subtitle="Status koneksi dan manajemen password runtime" />
 
             <div className="mb-4 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-              <div className="panel-shell-card px-4 py-3.5">
+              <div className="panel-muted-block px-4 py-3.5">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Connection</div>
                 <div className="mb-1 flex items-center gap-1.5">
                   <span className={`inline-block h-2 w-2 rounded-full ${databaseQuery.data?.status.connected ? 'bg-[var(--panel-success-text)]' : 'bg-[var(--panel-danger-text)]'}`} />
@@ -664,7 +666,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 </div>
               </div>
 
-              <div className="panel-shell-card px-4 py-3.5">
+              <div className="panel-muted-block px-4 py-3.5">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Rows</div>
                 <div className="mb-1 text-[13px] font-semibold text-[var(--win-text)]">
                   {databaseQuery.data
@@ -730,7 +732,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           </div>
 
-          <div className="panel-shell-card p-5 shadow-[var(--win-shadow)] backdrop-blur-xl">
+          <div className="panel-shell-card p-5">
             <div className="mb-3.5 flex items-center justify-between gap-3">
               <SectionHeader icon={<Clock size={17} />} title="Audit trail" subtitle="Histori perubahan settings yang tersimpan di database" />
               <div className="panel-badge panel-badge--info">

@@ -103,7 +103,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
         <div
           className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border border-white/10 shadow-2xl"
           style={{
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.4), rgba(59, 130, 246, 0.4))',
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(99, 102, 241, 0.4))',
             backdropFilter: 'blur(20px)',
           }}
         >

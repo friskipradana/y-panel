@@ -163,9 +163,9 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
                 <div className="panel-hero__title">{data.osName}</div>
                 <p className="panel-hero__description">{data.hostname} · kernel {data.kernel}</p>
               </div>
-              <div className="panel-shell-card min-w-[140px] p-3 shadow-none">
+              <div className="panel-muted-block min-w-[140px] px-4 py-3">
                 <div className="panel-section-label">Uptime</div>
-                <p className="text-base font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
+                <p className="text-[15px] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">

@@ -29,7 +29,7 @@ function MetricCard({ icon, label, value, description }: { icon: React.ReactNode
 
 function DetailRow({ label, value, tone = 'normal' }: { label: string; value: string; tone?: 'normal' | 'warning' }) {
   return (
-    <div className={`panel-shell-card ${tone === 'warning' ? 'border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
+    <div className={`panel-muted-block rounded-[14px] px-4 py-3 ${tone === 'warning' ? 'border border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <span className="panel-section-label">{label}</span>
         <span className={`max-w-[70%] break-words text-right text-[12px] ${tone === 'warning' ? 'text-[var(--panel-warning-text)]' : 'text-[var(--win-text)]'}`}>{value}</span>
@@ -190,7 +190,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
               <select value={truncateDay} onChange={(e) => setTruncateDay(Number(e.target.value))} className="panel-select max-w-[140px] rounded-full px-3 py-2 text-[12px]">
                 {TRUNCATE_DAYS.map((day) => <option key={day} value={day}>{`> ${day} hari`}</option>)}
               </select>
-              <button type="button" onClick={() => void handleTruncate()} disabled={truncating} className="panel-btn panel-btn--danger-soft rounded-full px-4 py-2 text-[12px]">
+              <button type="button" onClick={() => void handleTruncate()} disabled={truncating} className="panel-btn panel-btn--danger rounded-full px-4 py-2 text-[12px]">
                 {truncating ? 'Memotong...' : 'Potong'}
               </button>
             </div>
@@ -329,7 +329,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 </div>
               ) : (
                 settingsAudit.map((entry) => (
-                  <div key={entry.id} className="panel-shell-card">
+                  <div key={entry.id} className="panel-muted-block rounded-[14px] px-4 py-3.5">
                     <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
                       <span>{entry.username || 'system'}</span>
                       <span>•</span>
