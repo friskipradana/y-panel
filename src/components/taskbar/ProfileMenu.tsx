@@ -47,11 +47,12 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const saveCFMut = useMutation({
     mutationFn: setCFConfig,
     onSuccess: () => {
-      toast.success('Konfigurasi Cloudflare disimpan')
+      toast.success('Config disimpan. Memverifikasi token...')
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
       setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
-      setShowCloudflareModal(false)
+      // Langsung verifikasi otomatis
+      verifyMut.mutate()
     },
     onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menyimpan config'),
   })
@@ -289,6 +290,22 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               </div>
             ) : (
               <div className="space-y-3">
+
+                <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 p-3.5 mb-2">
+                  <div className="flex items-start gap-2.5">
+                    <Cloud className="h-4 w-4 text-sky-500 shrink-0 mt-0.5" />
+                    <div className="text-[12px] leading-relaxed text-[var(--win-text)]">
+                      Buat API Token (Custom Token) di Cloudflare dengan 2 permission ini:
+                      <ul className="list-disc pl-4 mt-1 mb-2 space-y-0.5 text-sky-600 dark:text-sky-400 font-medium">
+                        <li>Account → Cloudflare Tunnel → Edit</li>
+                        <li>Zone → DNS → Edit</li>
+                      </ul>
+                      <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-sky-500 hover:text-sky-600 dark:hover:text-sky-400 font-semibold underline underline-offset-2">
+                        Buka halaman Cloudflare Tokens ↗
+                      </a>
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">API Token *</label>
