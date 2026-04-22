@@ -265,7 +265,7 @@ function Run-RemoteScript {
       "$k='$v'"
     }) -join ' '
 
-  $cmd = ('chmod +x ''{0}''; {1} bash ''{0}''; rm -f ''{0}''' -f $rPath, $envPrefix)
+  $cmd = ('sed -i ''s/\r$//'' ''{0}''; chmod +x ''{0}''; {1} bash ''{0}''; EXIT_CODE=$?; rm -f ''{0}''; exit $EXIT_CODE' -f $rPath, $envPrefix)
   $out = Invoke-Remote $cmd -Timeout $Timeout
   return $out
 }
