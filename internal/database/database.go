@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -100,7 +101,10 @@ func (m *Manager) DB() *sql.DB {
 type Status struct {
 	Enabled            bool   `json:"enabled"`
 	Connected          bool   `json:"connected"`
-	DSN                string `json:"dsn,omitempty"` // redacted
+	Host               string `json:"host"`
+	Port               string `json:"port"`
+	Database           string `json:"database"`
+	User               string `json:"user"`
 	LastError          string `json:"lastError"`
 	ChangelogCount     int64  `json:"changelogCount"`
 	RuntimeLogCount    int64  `json:"runtimeLogCount"`
@@ -108,6 +112,46 @@ type Status struct {
 	UserCount          int64  `json:"userCount"`
 	ProjectCount       int64  `json:"projectCount"`
 	TunnelCount        int64  `json:"tunnelCount"`
+}
+
+// parseDSNFields extracts host, port, dbname, and user from a PostgreSQL DSN.
+// Supports both URL format (postgres://user:pass@host:port/dbname) and key=value format.
+func parseDSNFields(dsn string) (host, port, dbname, user string) {
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		u, err := url.Parse(dsn)
+		if err != nil {
+			return
+		}
+		host = u.Hostname()
+		port = u.Port()
+		if port == "" {
+			port = "5432"
+		}
+		user = u.User.Username()
+		dbname = strings.TrimPrefix(u.Path, "/")
+		return
+	}
+	// key=value format
+	for _, part := range strings.Fields(dsn) {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		switch kv[0] {
+		case "host":
+			host = kv[1]
+		case "port":
+			port = kv[1]
+		case "dbname":
+			dbname = kv[1]
+		case "user":
+			user = kv[1]
+		}
+	}
+	if port == "" {
+		port = "5432"
+	}
+	return
 }
 
 func (m *Manager) Status() Status {
@@ -118,6 +162,11 @@ func (m *Manager) Status() Status {
 		LastError: m.lastError,
 	}
 	m.mu.RUnlock()
+
+	// Always populate connection info from DSN (even when not connected)
+	if m.cfg.DSN != "" {
+		status.Host, status.Port, status.Database, status.User = parseDSNFields(m.cfg.DSN)
+	}
 
 	if !status.Connected || m.db == nil {
 		return status
@@ -1375,11 +1424,16 @@ func (m *Manager) SetWallpaper(userID int64, wallpaperData string) error {
 	if !m.IsConnected() || m.db == nil {
 		return fmt.Errorf("database tidak tersambung")
 	}
-	_, err := m.db.Exec(`
+	// wallpaper_data column is JSONB — wrap the raw string as a JSON string value
+	jsonEncoded, err := json.Marshal(wallpaperData)
+	if err != nil {
+		return fmt.Errorf("failed to encode wallpaper data: %w", err)
+	}
+	_, err = m.db.Exec(`
 		INSERT INTO user_preferences (user_id, wallpaper_data)
 		VALUES ($1, $2::jsonb)
 		ON CONFLICT (user_id) DO UPDATE SET wallpaper_data = EXCLUDED.wallpaper_data, updated_at = NOW()
-	`, userID, wallpaperData)
+	`, userID, string(jsonEncoded))
 	return err
 }
 
@@ -1392,6 +1446,15 @@ func (m *Manager) GetWallpaper(userID int64) (string, error) {
 	if err != nil && err != sql.ErrNoRows {
 		return "", err
 	}
+	if !data.Valid || data.String == "" {
+		return "", nil
+	}
+	// Unwrap JSON string: the stored value is a JSON-encoded string like "data:image/..."
+	var decoded string
+	if jsonErr := json.Unmarshal([]byte(data.String), &decoded); jsonErr == nil {
+		return decoded, nil
+	}
+	// Fallback: return raw value (for legacy data stored before this fix)
 	return data.String, nil
 }
 

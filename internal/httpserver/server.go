@@ -232,9 +232,9 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleContainerStop)))
 
 	// ── Terminal ──────────────────────────────────────────────────────────────
-	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionStart)))
-	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionWebSocket)))
-	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireAuthV2(http.HandlerFunc(s.handleTerminalSessionClose)))
+	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionStart)))
+	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
+	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionClose)))
 	s.mux.HandleFunc("GET /api/v1/system/stats/ws", s.handleSystemStatsWebSocket)
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))
@@ -673,6 +673,7 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	defer r.Body.Close()
 	var req struct {
 		Target string `json:"target"`
+		Cwd    string `json:"cwd"`
 	}
 	// Target is optional, default is handled in terminalManager.Start
 	_ = json.NewDecoder(r.Body).Decode(&req)
@@ -683,7 +684,10 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	id, err := s.terminalManager.Start(currentUser.Username, currentUser.DisplayName, currentUser.Role, req.Target)
+	target := strings.TrimSpace(req.Target)
+	cwd := strings.TrimSpace(req.Cwd)
+	
+	id, err := s.terminalManager.Start(currentUser.Username, currentUser.DisplayName, currentUser.Role, target, cwd)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.writeError(w, http.StatusBadGateway, err)

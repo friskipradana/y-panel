@@ -588,6 +588,19 @@ body {
   transform: translateY(-1px);
 }
 
+.panel-select {
+  background: var(--panel-surface);
+  color: var(--win-text);
+  border-color: var(--win-border);
+  color-scheme: light dark;
+}
+
+.panel-select option,
+.panel-select optgroup {
+  background: var(--panel-surface);
+  color: var(--win-text);
+}
+
 .panel-textarea {
   resize: vertical;
 }
@@ -893,6 +906,8 @@ body {
   font-size: 0.75rem;
   line-height: 1.6;
   color: var(--text-secondary);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .panel-progress {

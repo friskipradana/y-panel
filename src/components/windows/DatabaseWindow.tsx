@@ -12,7 +12,7 @@ const TRUNCATE_TARGETS = [
   { label: 'Settings Audit', value: 'settings_audit' },
 ]
 
-function MetricCard({ icon, label, value, description }: { icon: React.ReactNode; label: string; value: string; description: string }) {
+function MetricCard({ icon, label, value, description }: { icon: React.ReactNode; label: string; value: string; description: React.ReactNode }) {
   return (
     <article className="panel-kpi-card">
       <div className="panel-kpi-card__header">
@@ -197,7 +197,21 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </section>
 
           <div className="panel-kpi-grid panel-kpi-grid--4">
-            <MetricCard icon={<ShieldCheck size={16} />} label="Connection" value={status.connected ? 'Connected' : status.enabled ? 'Unavailable' : 'Disabled'} description={status.connected ? `${status.user}@${status.host}:${status.port}` : status.lastError || 'Belum ada koneksi MariaDB aktif.'} />
+            <MetricCard
+              icon={<ShieldCheck size={16} />}
+              label="Connection"
+              value={status.connected ? 'Connected' : status.enabled ? 'Unavailable' : 'Disabled'}
+              description={
+                status.connected ? (
+                  <>
+                    <span className="block">{status.user}@{status.host}:{status.port}</span>
+                    <span className="block opacity-70">{status.database}</span>
+                  </>
+                ) : (
+                  status.lastError || 'Belum ada koneksi PostgreSQL aktif.'
+                )
+              }
+            />
             <MetricCard icon={<HardDriveDownload size={16} />} label="Runtime logs" value={String(status.runtimeLogCount)} description="Jumlah log backend yang berhasil dipersist ke MariaDB." />
             <MetricCard icon={<ActivitySquare size={16} />} label="Changelog rows" value={String(status.changelogCount)} description="Jumlah entri changelog yang tersedia dari database runtime." />
             <MetricCard icon={<Database size={16} />} label="Settings audit" value={String(status.settingsAuditCount)} description="Jumlah audit perubahan hostname/timezone/nameserver yang tercatat." />
@@ -218,7 +232,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
               <div className="grid gap-3 text-[12px]">
                 <DetailRow label="Enabled" value={status.enabled ? 'Yes' : 'No'} />
                 <DetailRow label="Host" value={status.host || '-'} />
-                <DetailRow label="Port" value={String(status.port || 0)} />
+                <DetailRow label="Port" value={status.port || '-'} />
                 <DetailRow label="Database" value={status.database || '-'} />
                 <DetailRow label="User" value={status.user || '-'} />
                 <DetailRow label="Last error" value={status.lastError || 'No recent errors'} tone={status.lastError ? 'warning' : 'normal'} />

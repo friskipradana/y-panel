@@ -34,6 +34,8 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
   { label: 'Docs', kind: 'docs' },
 ]
 
+const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users'])
+
 export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
@@ -141,10 +143,15 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     }
   }
 
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
+  const quickLaunchItems = isAdmin
+    ? QUICK_LAUNCH
+    : QUICK_LAUNCH.filter((item) => !NON_ADMIN_HIDDEN_KINDS.has(item.kind))
+
   return (
     <div className={`taskbar ${!isDark ? 'taskbar--light' : ''}`}>
       <nav className="taskbar-nav">
-        {QUICK_LAUNCH.map((item) => (
+        {quickLaunchItems.map((item) => (
           <button
             key={item.kind}
             id={`taskbar-open-${item.kind}`}

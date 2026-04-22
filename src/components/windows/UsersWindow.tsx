@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listUsers,
   createUser,
+  updateUser,
   suspendUser,
   activateUser,
   deleteUser,
@@ -25,6 +26,9 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react'
 
 const ROLE_VARIANTS: Record<string, string> = {
@@ -44,6 +48,12 @@ const ROLE_ICON: Record<string, ReactElement> = {
   admin: <Shield className="h-3 w-3" />,
   user: <CircleUser className="h-3 w-3" />,
 }
+
+const ROLE_OPTIONS = [
+  { value: 'user', label: 'User' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'superadmin', label: 'Superadmin' },
+]
 
 export default function UsersWindow() {
   const qc = useQueryClient()
@@ -191,9 +201,9 @@ export default function UsersWindow() {
                   onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                   className="panel-select"
                 >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                  <option value="superadmin">Superadmin</option>
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -305,11 +315,49 @@ function UserRow({
     onError: (e: any) => alertLib.fire('Gagal Memperbarui Quota', e.response?.data?.error ?? 'Quota tidak dapat diperbarui.', 'error', 'users'),
   })
 
+  const changeRoleMut = useMutation({
+    mutationFn: (role: string) => updateUser(user.id, { role } as any),
+    onSuccess: (updated) => {
+      alertLib.fire('Role Diubah', `Role <strong>${user.username}</strong> berhasil diubah menjadi <strong>${updated.role}</strong>.`, 'success', 'users')
+      qc.invalidateQueries({ queryKey: ['users'] })
+      setEditingRole(false)
+    },
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal mengubah role'
+      toast.error('Gagal mengubah role', { description: message })
+      alertLib.fire('Gagal Mengubah Role', message, 'error', 'users')
+      setEditingRole(false)
+    },
+  })
+
   const [editQuota, setEditQuota] = useState<Partial<UserQuota>>({})
+  const [editingRole, setEditingRole] = useState(false)
+  const [selectedRole, setSelectedRole] = useState(user.role)
+
+  const handleRoleSave = async () => {
+    if (selectedRole === user.role) {
+      setEditingRole(false)
+      return
+    }
+    const confirmed = await alertLib.confirm(
+      'Ubah Role User?',
+      `Role <strong>${user.username}</strong> akan diubah dari <strong>${user.role}</strong> menjadi <strong>${selectedRole}</strong>.`,
+      'Ya, Ubah Role',
+      'Batal',
+      'warning',
+      'users',
+    )
+    if (confirmed) {
+      changeRoleMut.mutate(selectedRole)
+    } else {
+      setSelectedRole(user.role)
+      setEditingRole(false)
+    }
+  }
 
   return (
-    <div className="panel-card overflow-hidden">
-      <div className="flex items-center gap-3 p-3.5">
+    <div className="panel-card overflow-visible">
+      <div className="flex items-center gap-3 overflow-visible p-3.5">
         <div className="panel-avatar rounded-full text-sm">
           {user.username[0]?.toUpperCase()}
         </div>
@@ -317,9 +365,56 @@ function UserRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-[var(--win-text)]">{user.username}</span>
-            <span className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'}`}>
-              {ROLE_ICON[user.role]} {user.role}
-            </span>
+
+            {/* Role badge / inline role editor */}
+            {editingRole ? (
+              <div className="flex items-center gap-1 overflow-visible">
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="panel-select rounded-full pl-3 pr-8 text-[12px] font-medium"
+                  style={{
+                    background: 'var(--panel-surface)',
+                    color: 'var(--win-text)',
+                    borderColor: 'var(--win-border)',
+                    appearance: 'auto',
+                    WebkitAppearance: 'menulist',
+                  }}
+                  autoFocus
+                >
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleRoleSave}
+                  disabled={changeRoleMut.isPending}
+                  title="Simpan role"
+                  className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md"
+                >
+                  <Check className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => { setEditingRole(false); setSelectedRole(user.role) }}
+                  title="Batal"
+                  className="panel-icon-btn h-6 w-6 rounded-md"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setEditingRole(true); setSelectedRole(user.role) }}
+                className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'} cursor-pointer transition-opacity hover:opacity-75`}
+                title="Klik untuk ubah role"
+              >
+                {ROLE_ICON[user.role]} {user.role}
+                <Pencil className="h-2.5 w-2.5 opacity-60" />
+              </button>
+            )}
+
             <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>
               {user.status}
             </span>

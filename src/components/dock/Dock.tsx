@@ -20,6 +20,8 @@ const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'changelog', icon: '🔔', label: 'Changelog' },
 ]
 
+const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users'])
+
 type DockMenuState = {
   x: number
   y: number
@@ -37,6 +39,9 @@ export function Dock() {
   const windows = useWindowStore(selectWindows)
   const themeMode = useThemeStore((state) => state.mode)
   const isDark = themeMode === 'dark'
+  const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
+  const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
+  const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -72,8 +77,10 @@ export function Dock() {
   }, [windows])
 
   const visibleDockItems = useMemo(
-    () => DOCK_ITEMS.filter((item) => groupedWindows[item.kind].length > 0),
-    [groupedWindows],
+    () => DOCK_ITEMS
+      .filter((item) => isAdmin || !NON_ADMIN_HIDDEN_KINDS.has(item.kind))
+      .filter((item) => groupedWindows[item.kind].length > 0),
+    [groupedWindows, isAdmin],
   )
   const openKinds = useMemo(() => [...new Set(windows.map((windowItem) => windowItem.kind))], [windows])
   const hasMaximizedWindow = useMemo(

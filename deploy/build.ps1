@@ -15,13 +15,13 @@
   - Mode OnlyFrontend untuk update UI cepat
 
 .EXAMPLE
-  .\deploy\build.ps1 -HostName 100.65.152.14 -SshPassword "Renaldi123!@#"
+  .\deploy\build.ps1 -HostName 100.65.152.14 -SshUsername "root" -SshPassword "Renaldi123!@#"
 
 .EXAMPLE
-  .\deploy\build.ps1 -HostName 100.65.152.14 -SshPassword "pass" -OnlyFrontend
+  .\deploy\build.ps1 -HostName 100.65.152.14 -SshUsername "root" -SshPassword "pass" -OnlyFrontend
 
 .EXAMPLE
-  .\deploy\build.ps1 -HostName myserver.com -SshPassword "pass" `
+  .\deploy\build.ps1 -HostName myserver.com -SshUsername "root" -SshPassword "pass" `
     -EncryptionKey "aabbcc..."
 #>
 
@@ -29,7 +29,7 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$HostName,
 
-  [string]$SshUser = 'renaldi',
+  [string]$SshUsername = 'renaldi',
   [string]$SshPassword = '',
   [string]$RemoteBaseDir = '~/ui-panel-deploy',
   [string]$BindAddress = '0.0.0.0:8787',
@@ -197,7 +197,7 @@ function banner {
   Write-Host "   ServerPanel Pro " -NoNewline -ForegroundColor White
   Write-Host "v$SCRIPT_VERSION" -NoNewline -ForegroundColor Cyan
   Write-Host " — Deploy Script" -ForegroundColor DarkGray
-  Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUser}@${HostName}" -ForegroundColor Cyan
+  Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor Cyan
   if ($OnlyFrontend) {
     Write-Host "   Mode    : " -NoNewline -ForegroundColor DarkGray; Write-Host "Frontend Only (fast update)" -ForegroundColor Yellow
   }
@@ -212,7 +212,7 @@ function summary([string]$Url, [bool]$NewInstall) {
   Write-Host "($(elapsed))" -ForegroundColor DarkGray
   Write-Host "  $l" -ForegroundColor DarkGray
   Write-Host "   Panel URL      : " -NoNewline -ForegroundColor DarkGray; Write-Host $Url -ForegroundColor Cyan
-  Write-Host "   Server         : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUser}@${HostName}" -ForegroundColor White
+  Write-Host "   Server         : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor White
   if ($NewInstall) {
     Write-Host "   Langkah awal   : " -NoNewline -ForegroundColor DarkGray; Write-Host 'Buka panel lalu buat Admin Pertama di first-run setup.' -ForegroundColor Yellow
   }
@@ -332,7 +332,7 @@ if ([string]::IsNullOrWhiteSpace($SshPassword)) {
 }
 $SudoPass = $SshPassword
 $secPass = ConvertTo-SecureString $SshPassword -AsPlainText -Force
-$Script:Cred = New-Object System.Management.Automation.PSCredential($SshUser, $secPass)
+$Script:Cred = New-Object System.Management.Automation.PSCredential($SshUsername, $secPass)
 
 # Secrets
 if ([string]::IsNullOrWhiteSpace($EncryptionKey)) { $EncryptionKey = New-RandHex 32 }

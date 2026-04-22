@@ -83,6 +83,7 @@ interface ThemeStore {
   wallpaper: WallpaperKey
   /** Data URL or blob URL for custom wallpaper image */
   customImageUrl: string | null
+  wallpaperLoading: boolean
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
   setCustomImage: (dataUrl: string) => Promise<void>
@@ -128,6 +129,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     mode: stored.mode ?? 'light',
     wallpaper: stored.wallpaper ?? 'default',
     customImageUrl: stored.customImageUrl ?? null,
+    wallpaperLoading: false,
 
     setMode: (mode) => {
       applyTheme(mode)
@@ -141,17 +143,20 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     },
 
     setCustomImage: async (dataUrl) => {
-      set({ wallpaper: 'custom', customImageUrl: dataUrl })
+      set({ wallpaper: 'custom', customImageUrl: dataUrl, wallpaperLoading: true })
       persist({ wallpaper: 'custom' }) 
       // Do not store the heavy dataURL in localstorage
       try {
         await updateWallpaper(dataUrl)
       } catch (err) {
          console.error('Failed to sync wallpaper', err)
+      } finally {
+        set({ wallpaperLoading: false })
       }
     },
 
     syncCustomImage: async () => {
+      set({ wallpaperLoading: true })
       try {
         const res = await getWallpaper()
         if (res && res.data) {
@@ -160,6 +165,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         }
       } catch (err) {
         // ignore
+      } finally {
+        set({ wallpaperLoading: false })
       }
     },
 

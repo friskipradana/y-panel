@@ -153,7 +153,7 @@ export interface DatabaseStatus {
   enabled: boolean
   connected: boolean
   host: string
-  port: number
+  port: string
   database: string
   user: string
   lastError: string

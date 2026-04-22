@@ -13,6 +13,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 type FileInfoNode struct {
@@ -30,13 +33,108 @@ type DirectoryListResponse struct {
 	Contents []FileInfoNode `json:"contents"`
 }
 
+func normalizePathForAccess(path string) string {
+	clean := filepath.Clean(path)
+	if clean == "." {
+		return string(filepath.Separator)
+	}
+	return clean
+}
+
+func pathWithinRoot(targetPath, rootPath string) bool {
+	target := normalizePathForAccess(targetPath)
+	root := normalizePathForAccess(rootPath)
+	if target == root {
+		return true
+	}
+	rootWithSep := root
+	if !strings.HasSuffix(rootWithSep, string(filepath.Separator)) {
+		rootWithSep += string(filepath.Separator)
+	}
+	return strings.HasPrefix(target, rootWithSep)
+}
+
+func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
+	u := userFromCtx(r)
+	if u == nil {
+		return nil, errors.New("unauthorized")
+	}
+	if auth.IsAdmin(u.Role) {
+		return []string{string(filepath.Separator)}, nil
+	}
+	roots := make([]string, 0, 4)
+	seen := map[string]struct{}{}
+	appendRoot := func(path string) {
+		wd := strings.TrimSpace(path)
+		if wd == "" {
+			return
+		}
+		clean := normalizePathForAccess(wd)
+		if _, ok := seen[clean]; ok {
+			return
+		}
+		seen[clean] = struct{}{}
+		roots = append(roots, clean)
+	}
+
+	appendRoot(filepath.Join("/home", panelosuser.MappedUsername(u.Username)))
+
+	projects, err := s.database.ListProjects(u.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range projects {
+		appendRoot(p.WorkingDir)
+	}
+	if len(roots) == 0 {
+		return nil, errors.New("anda belum memiliki project atau home directory yang dapat diakses")
+	}
+	return roots, nil
+}
+
+func (s *Server) ensureFileManagerAccess(r *http.Request, targetPath string) error {
+	roots, err := s.allowedFileManagerRoots(r)
+	if err != nil {
+		return err
+	}
+	cleanTarget := normalizePathForAccess(targetPath)
+	for _, root := range roots {
+		if pathWithinRoot(cleanTarget, root) {
+			return nil
+		}
+	}
+	return errors.New("akses file ditolak: path di luar project milik user")
+}
+
+func (s *Server) ensureFileManagerPathPairAccess(r *http.Request, paths ...string) error {
+	for _, p := range paths {
+		if err := s.ensureFileManagerAccess(r, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Server) handleFileManagerList(w http.ResponseWriter, r *http.Request) {
+	roots, rootsErr := s.allowedFileManagerRoots(r)
 	qPath := r.URL.Query().Get("path")
-	if qPath == "" {
-		qPath = "/"
+	if qPath == "" || qPath == "/" {
+		if rootsErr == nil && len(roots) > 0 {
+			qPath = roots[0]
+		} else if qPath == "" {
+			qPath = "/"
+		}
 	}
 
 	cleanPath := filepath.Clean(qPath)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		if rootsErr == nil && len(roots) > 0 {
+			cleanPath = roots[0]
+		} else {
+			s.writeError(w, http.StatusForbidden, err)
+			return
+		}
+	}
 	info, err := os.Stat(cleanPath)
 	if err != nil {
 		s.writeError(w, http.StatusNotFound, errors.New("Path tidak ditemukan"))
@@ -102,6 +200,10 @@ func (s *Server) handleFileManagerRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleanPath := filepath.Clean(qPath)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	info, err := os.Stat(cleanPath)
 	if err != nil {
 		s.writeError(w, http.StatusNotFound, errors.New("File tidak ditemukan"))
@@ -143,6 +245,10 @@ func (s *Server) handleFileManagerWrite(w http.ResponseWriter, r *http.Request) 
 	}
 
 	cleanPath := filepath.Clean(payload.Path)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	info, err := os.Stat(cleanPath)
 	if err == nil && info.IsDir() {
 		s.writeError(w, http.StatusBadRequest, errors.New("Tidak dapat menimpa direktori"))
@@ -169,6 +275,10 @@ func (s *Server) handleFileManagerDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	cleanPath := filepath.Clean(payload.Path)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if cleanPath == "/" {
 		s.writeError(w, http.StatusBadRequest, errors.New("Tidak dapat menghapus root"))
 		return
@@ -191,6 +301,10 @@ func (s *Server) handleFileManagerRename(w http.ResponseWriter, r *http.Request)
 	}
 	oldC := filepath.Clean(payload.OldPath)
 	newC := filepath.Clean(payload.NewPath)
+	if err := s.ensureFileManagerPathPairAccess(r, oldC, newC); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if oldC == "/" || newC == "/" {
 		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat dimodifikasi"))
 		return
@@ -211,6 +325,10 @@ func (s *Server) handleFileManagerMkdir(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	cleanPath := filepath.Clean(payload.Path)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if err := os.MkdirAll(cleanPath, 0755); err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat direktori: "+err.Error()))
 		return
@@ -230,6 +348,10 @@ func (s *Server) handleFileManagerMove(w http.ResponseWriter, r *http.Request) {
 
 	oldPath := filepath.Clean(payload.OldPath)
 	newPath := filepath.Clean(payload.NewPath)
+	if err := s.ensureFileManagerPathPairAccess(r, oldPath, newPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if oldPath == "/" || newPath == "/" {
 		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat dipindahkan"))
 		return
@@ -329,6 +451,10 @@ func (s *Server) handleFileManagerCopy(w http.ResponseWriter, r *http.Request) {
 
 	sourcePath := filepath.Clean(payload.OldPath)
 	destPath := filepath.Clean(payload.NewPath)
+	if err := s.ensureFileManagerPathPairAccess(r, sourcePath, destPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if sourcePath == "/" || destPath == "/" {
 		s.writeError(w, http.StatusBadRequest, errors.New("Path root tidak dapat disalin"))
 		return
@@ -370,6 +496,10 @@ func (s *Server) handleFileManagerTouch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	cleanPath := filepath.Clean(payload.Path)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	file, err := os.OpenFile(cleanPath, os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat file: "+err.Error()))
@@ -390,6 +520,10 @@ func (s *Server) handleFileManagerChmod(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	cleanPath := filepath.Clean(payload.Path)
+	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 
 	if payload.Recursive {
 		err := filepath.Walk(cleanPath, func(path string, info os.FileInfo, err error) error {
@@ -707,6 +841,10 @@ func (s *Server) handleFileManagerCompress(w http.ResponseWriter, r *http.Reques
 	}
 	cleanTarget := filepath.Clean(payload.Target)
 	cleanDest := filepath.Clean(payload.DestName)
+	if err := s.ensureFileManagerPathPairAccess(r, cleanTarget, cleanDest); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 
 	if _, err := os.Stat(cleanTarget); os.IsNotExist(err) {
 		s.writeError(w, http.StatusNotFound, errors.New("Target tidak ditemukan"))
@@ -748,6 +886,10 @@ func (s *Server) handleFileManagerExtract(w http.ResponseWriter, r *http.Request
 	}
 	cleanSource := filepath.Clean(payload.Source)
 	cleanDest := filepath.Clean(payload.Dest)
+	if err := s.ensureFileManagerPathPairAccess(r, cleanSource, cleanDest); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 
 	if err := os.MkdirAll(cleanDest, 0755); err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat direktori tujuan ekstraksi: "+err.Error()))

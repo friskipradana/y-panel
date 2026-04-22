@@ -10,7 +10,7 @@ import { Window } from '@/components/desktop/Window'
 import { StatusPage } from '@/components/system/StatusPage'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
-import { getFrontendRevision, getMe } from '@/api/agent'
+import { getFrontendRevision, getMe, getMeV2 } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind, WindowState } from '@/types'
 
@@ -117,12 +117,13 @@ const queryClient = new QueryClient({
 
 function Desktop({ onLogout, authenticated }: { onLogout: () => void; authenticated: boolean }) {
   const { windows } = useWindowStore()
-  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl } = useThemeStore()
+  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    syncCustomImage()
-  }, [])
+    if (!authenticated) return
+    void syncCustomImage()
+  }, [authenticated, syncCustomImage])
 
   // Update background imperatively so we never unmount children (keeps dropdown open)
   useEffect(() => {
@@ -153,6 +154,14 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
         })}
       </div>
       <Dock />
+      {authenticated && wallpaperLoading ? (
+        <div className="pointer-events-none absolute inset-0 z-[1200] flex items-center justify-center bg-[color:rgba(6,10,20,0.28)] backdrop-blur-md">
+          <div className="flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-medium text-white shadow-[0_24px_80px_rgba(15,23,42,0.35)]">
+            <Loader2 size={16} className="animate-spin text-cyan-300" />
+            <span>Menyiapkan wallpaper desktop...</span>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -266,6 +275,18 @@ function AppShell() {
         if (cancelled) return
         runtimeLogger.info('auth', 'existing session restored', { username: me.username })
         setAuthenticated(true)
+        void getMeV2()
+          .then((fullMe) => {
+            window.localStorage.setItem('me-v2-cache', JSON.stringify({
+              id: fullMe.id,
+              username: fullMe.username,
+              displayName: fullMe.displayName,
+              role: fullMe.role,
+            }))
+          })
+          .catch(() => {
+            window.localStorage.removeItem('me-v2-cache')
+          })
         syncLoggedInRoute()
       })
       .catch((error) => {
@@ -274,6 +295,7 @@ function AppShell() {
           runtimeLogger.warn('auth', 'session check failed', { error })
         }
         setAuthenticated(false)
+        window.localStorage.removeItem('me-v2-cache')
         syncLoggedOutRoute()
       })
       .finally(() => {
@@ -284,6 +306,7 @@ function AppShell() {
       runtimeLogger.warn('auth', 'session expired, resetting shell state')
       queryClient.clear()
       useWindowStore.getState().resetWindows()
+      window.localStorage.removeItem('me-v2-cache')
       setAuthenticated(false)
       replaceRoute(LOGIN_PATH)
     }
@@ -358,6 +381,7 @@ function AppShell() {
     runtimeLogger.info('auth', 'manual logout requested from desktop')
     queryClient.clear()
     useWindowStore.getState().resetWindows()
+    window.localStorage.removeItem('me-v2-cache')
     setAuthenticated(false)
     if (window.location.pathname !== LOGIN_PATH) {
       window.history.replaceState({}, '', LOGIN_PATH)
@@ -375,9 +399,12 @@ function AppShell() {
       if (isTyping && e.key !== 'Escape') return
 
       const { openWindow, closeWindow, focusedId } = useWindowStore.getState()
+      const meRaw = window.localStorage.getItem('me-v2-cache')
+      const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
+      const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
 
       // Alt + T: Terminal
-      if (e.altKey && e.key.toLowerCase() === 't') {
+      if (isAdmin && e.altKey && e.key.toLowerCase() === 't') {
         e.preventDefault()
         openWindow('host-terminal')
       }
@@ -458,6 +485,18 @@ function AppShell() {
               <LoginScreen onLoginSuccess={() => {
                 runtimeLogger.info('auth', 'login success propagated to app shell')
                 setAuthenticated(true)
+                void getMeV2()
+                  .then((fullMe) => {
+                    window.localStorage.setItem('me-v2-cache', JSON.stringify({
+                      id: fullMe.id,
+                      username: fullMe.username,
+                      displayName: fullMe.displayName,
+                      role: fullMe.role,
+                    }))
+                  })
+                  .catch(() => {
+                    window.localStorage.removeItem('me-v2-cache')
+                  })
                 if (window.location.pathname === LOGIN_PATH) {
                   window.history.replaceState({}, '', '/')
                   setCurrentPath('/')
