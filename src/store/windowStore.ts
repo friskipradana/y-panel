@@ -22,7 +22,7 @@ const DEFAULTS: Record<
   trash: { title: "Trash", icon: "🗑️", width: 485, height: 300, singleton: true },
   users: { title: "User Management", icon: "👥", width: 860, height: 600, singleton: true },
   projects: { title: "Projects", icon: "🗂️", width: 900, height: 640, singleton: true },
-  tunnels: { title: "Cloudflare Tunnels", icon: "🌐", width: 860, height: 580, singleton: true },
+  tunnels: { title: "Cloudflare Tunnels", icon: "🌐", width: 1235, height: 740, singleton: true },
   profile: { title: "Profile & Integrasi", icon: "👤", width: 520, height: 640, singleton: true },
 };
 

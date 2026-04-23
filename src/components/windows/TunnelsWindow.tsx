@@ -346,10 +346,38 @@ export default function TunnelsWindow() {
 function TunnelCard({ tunnel: t, onEdit, onDelete }: { tunnel: Tunnel; onEdit: () => void; onDelete: () => void }) {
   const sc = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.inactive
 
-  const copyHostname = () => {
-    if (t.cfHostname) {
-      navigator.clipboard.writeText(`https://${t.cfHostname}`)
-      toast.success('URL disalin!')
+  const copyHostname = async () => {
+    if (!t.cfHostname) return
+
+    const url = `https://${t.cfHostname}`
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea')
+        textarea.value = url
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+
+        const copied = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (!copied) {
+          throw new Error('Clipboard API tidak tersedia')
+        }
+      } else {
+        throw new Error('Clipboard API tidak tersedia')
+      }
+
+      // toast.success('URL disalin!')
+      alertLib.fire('Hostname Tersalin', `Domain <strong>${t.cfHostname}</strong> berhasil disalin ke clipboard.`, 'success', 'tunnels')
+    } catch {
+      // toast.error('Gagal menyalin URL')
+      alertLib.fire('Gagal Menyalin Hostname', 'Clipboard tidak tersedia pada environment ini.', 'error', 'tunnels')
     }
   }
 
