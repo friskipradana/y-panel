@@ -417,3 +417,15 @@ export const markNotificationRead = (id: number) =>
 
 export const markAllNotificationsRead = () =>
   agentApi.post<{ ok: boolean }>('/api/v1/notifications/read-all').then((r) => r.data)
+
+export interface NotificationSocketPayload {
+  type: 'snapshot' | 'created' | 'read' | 'read_all'
+  unreadCount: number
+  notification?: PanelNotification | null
+}
+
+export function resolveNotificationsSocketUrl() {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const apiBase = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
+  return `${protocol}//${window.location.host}${apiBase}/notifications/ws`
+}

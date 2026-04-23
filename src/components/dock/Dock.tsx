@@ -180,7 +180,6 @@ export function Dock() {
 
   const dockLayerClass = 'z-[62000]'
   const revealHandleLayerClass = 'z-[61990]'
-  const dockPositionClass = isDockForcedHidden || (forceAutoHideDock && !revealed) ? '-bottom-[82px]' : 'bottom-[8px]'
   const dockSurfaceClass = isDark
     ? 'border-white/10 text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.26)]'
     : 'border-white/55 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
@@ -211,6 +210,12 @@ export function Dock() {
   const menuDangerIconClass = isDark
     ? 'bg-red-500/14 text-red-200'
     : 'bg-red-100 text-red-600'
+  const isDockVisible = !isDockForcedHidden && (!forceAutoHideDock || revealed)
+  const dockTransformClass = isDockForcedHidden
+    ? 'translate-y-[calc(100%+24px)] opacity-0'
+    : isDockVisible
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-[calc(100%+18px)] opacity-100'
 
   return (
     <>
@@ -225,7 +230,7 @@ export function Dock() {
 
       <div
         ref={dockRef}
-        className={`fixed left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 transition-[bottom] duration-200 ${dockLayerClass} ${dockPositionClass} ${isDockForcedHidden ? 'pointer-events-none' : 'pointer-events-auto'}`}
+        className={`fixed left-1/2 bottom-[8px] flex -translate-x-1/2 flex-col items-center gap-1.5 transition-[transform,opacity] duration-200 ${dockLayerClass} ${dockTransformClass} ${isDockVisible ? 'pointer-events-auto' : 'pointer-events-none'}`}
         onMouseEnter={() => {
           if (isDockForcedHidden) return
           revealDock()

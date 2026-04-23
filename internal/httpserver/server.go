@@ -35,17 +35,19 @@ import (
 const sessionCookieName = "ui_panel_session"
 
 type Server struct {
-	cfgMu            sync.RWMutex
-	cfg              config.Config
-	auth             *auth.Manager
-	mux              *http.ServeMux
-	frontendFS       http.Handler
-	authedFrontend   http.Handler
-	terminalManager  *terminal.Manager
-	terminalUpgrader websocket.Upgrader
-	database         *database.Manager
-	projectManager   *projects.Manager
-	cfDaemon         *cloudflareapi.Daemon
+	cfgMu                 sync.RWMutex
+	cfg                   config.Config
+	auth                  *auth.Manager
+	mux                   *http.ServeMux
+	frontendFS            http.Handler
+	authedFrontend        http.Handler
+	terminalManager       *terminal.Manager
+	terminalUpgrader      websocket.Upgrader
+	database              *database.Manager
+	projectManager        *projects.Manager
+	cfDaemon              *cloudflareapi.Daemon
+	notificationClientsMu sync.RWMutex
+	notificationClients   map[int64]map[*websocket.Conn]struct{}
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -54,6 +56,18 @@ func (s *Server) ReloadAccessConfig(allowedHosts, allowedOrigins []string) {
 	defer s.cfgMu.Unlock()
 	s.cfg.AllowedHosts = allowedHosts
 	s.cfg.AllowedOrigins = allowedOrigins
+}
+
+func (s *Server) notifyCurrentServerUser(r *http.Request, title, body, notifType string) {
+	if user := s.currentUserRecord(r); user != nil {
+		s.notifyUserAction(user.ID, title, body, notifType)
+	}
+}
+
+type notificationSocketPayload struct {
+	Type         string                 `json:"type"`
+	UnreadCount  int                    `json:"unreadCount"`
+	Notification *database.Notification `json:"notification,omitempty"`
 }
 
 func (s *Server) allowedOrigins() []string {
@@ -230,6 +244,7 @@ func (s *Server) routes() {
 
 	// ── Notifications ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/notifications", s.requireAuthV2(http.HandlerFunc(s.handleListNotifications)))
+	s.mux.Handle("GET /api/v1/notifications/ws", http.HandlerFunc(s.handleNotificationsWebSocket))
 	s.mux.Handle("POST /api/v1/notifications/{id}/read", s.requireAuthV2(http.HandlerFunc(s.handleMarkNotificationRead)))
 	s.mux.Handle("POST /api/v1/notifications/read-all", s.requireAuthV2(http.HandlerFunc(s.handleMarkAllNotificationsRead)))
 
@@ -537,6 +552,7 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 	s.database.RecordSettingsAudit(auditUserID, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
 	log.Printf("[settings] update applied hostname=%q timezone=%q dns=%q remote=%s", snapshot.Hostname, snapshot.Timezone, strings.Join(snapshot.Nameservers, ","), remoteAddr(r))
 	s.recordRuntimeLog("info", "settings update applied", map[string]any{"hostname": snapshot.Hostname, "timezone": snapshot.Timezone, "nameservers": snapshot.Nameservers, "remote": remoteAddr(r), "user": username})
+	s.notifyCurrentServerUser(r, "System settings diperbarui ⚙️", fmt.Sprintf("Hostname '%s' dan timezone '%s' berhasil diperbarui.", snapshot.Hostname, snapshot.Timezone), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -561,6 +577,7 @@ func (s *Server) handleUpdatePanelPort(w http.ResponseWriter, r *http.Request) {
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel port updated bind=%q remote=%s", snapshot.BindAddr, remoteAddr(r))
 	s.recordRuntimeLog("info", "panel port updated", map[string]any{"bindAddr": snapshot.BindAddr, "allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
+	s.notifyCurrentServerUser(r, "Port panel diperbarui 🔌", fmt.Sprintf("Panel sekarang menggunakan bind address %s.", snapshot.BindAddr), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -585,6 +602,7 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
 	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "originsRaw": snapshot.OriginsRaw, "remote": remoteAddr(r), "user": username})
+	s.notifyCurrentServerUser(r, "Allowed origins diperbarui 🌍", fmt.Sprintf("Daftar origin panel berhasil diperbarui menjadi %d entri.", len(snapshot.AllowedOrigins)), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -632,6 +650,7 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	s.notifyCurrentServerUser(r, "Wallpaper diperbarui 🖼️", "Wallpaper desktop berhasil diperbarui.", "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -659,6 +678,7 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 	message := "Password database berhasil dirotasi dan env runtime diperbarui. Restart service agent bila koneksi lama masih aktif."
 	log.Printf("[database] password rotated user=%q remote=%s dsn=%s", username, remoteAddr(r), redactDSNPassword(s.cfg.DatabaseDSN))
 	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "dsn": redactDSNPassword(s.cfg.DatabaseDSN)})
+	s.notifyCurrentServerUser(r, "Password database dirotasi 🔐", "Password database berhasil dirotasi dan kredensial runtime diperbarui.", "warning")
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
 }
 
@@ -1682,6 +1702,92 @@ func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func (s *Server) registerNotificationClient(userID int64, conn *websocket.Conn) {
+	s.notificationClientsMu.Lock()
+	defer s.notificationClientsMu.Unlock()
+	if s.notificationClients == nil {
+		s.notificationClients = make(map[int64]map[*websocket.Conn]struct{})
+	}
+	if s.notificationClients[userID] == nil {
+		s.notificationClients[userID] = make(map[*websocket.Conn]struct{})
+	}
+	s.notificationClients[userID][conn] = struct{}{}
+}
+
+func (s *Server) unregisterNotificationClient(userID int64, conn *websocket.Conn) {
+	s.notificationClientsMu.Lock()
+	defer s.notificationClientsMu.Unlock()
+	clients := s.notificationClients[userID]
+	if clients == nil {
+		return
+	}
+	delete(clients, conn)
+	if len(clients) == 0 {
+		delete(s.notificationClients, userID)
+	}
+}
+
+func (s *Server) notificationSnapshot(userID int64, eventType string, notif *database.Notification) notificationSocketPayload {
+	unreadCount, err := s.database.CountUnreadNotifications(userID)
+	if err != nil {
+		unreadCount = 0
+	}
+	return notificationSocketPayload{
+		Type:         eventType,
+		UnreadCount:  unreadCount,
+		Notification: notif,
+	}
+}
+
+func (s *Server) pushNotificationSnapshot(userID int64, eventType string, notif *database.Notification) {
+	payload := s.notificationSnapshot(userID, eventType, notif)
+
+	s.notificationClientsMu.RLock()
+	clients := make([]*websocket.Conn, 0, len(s.notificationClients[userID]))
+	for conn := range s.notificationClients[userID] {
+		clients = append(clients, conn)
+	}
+	s.notificationClientsMu.RUnlock()
+
+	for _, conn := range clients {
+		if err := conn.WriteJSON(payload); err != nil {
+			s.unregisterNotificationClient(userID, conn)
+			_ = conn.Close()
+		}
+	}
+}
+
+func (s *Server) handleNotificationsWebSocket(w http.ResponseWriter, r *http.Request) {
+	user := s.currentUserRecord(r)
+	if user == nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := s.terminalUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	s.registerNotificationClient(user.ID, conn)
+	defer s.unregisterNotificationClient(user.ID, conn)
+
+	latest, err := s.database.GetLatestNotification(user.ID)
+	if err == nil {
+		if err := conn.WriteJSON(s.notificationSnapshot(user.ID, "snapshot", latest)); err != nil {
+			return
+		}
+	}
+
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			return
+		}
+	}
+}
+
+
 func (s *Server) handleListTerminalPresets(w http.ResponseWriter, r *http.Request) {
 	currentUser := s.currentUserRecord(r)
 	var userID *int64
@@ -1716,6 +1822,7 @@ func (s *Server) handleCreateTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
+	s.notifyCurrentServerUser(r, "Preset terminal dibuat 💻", fmt.Sprintf("Preset command '%s' berhasil ditambahkan.", preset.Command), "success")
 	s.writeJSON(w, http.StatusCreated, jsonResponse{"preset": preset})
 }
 
@@ -1735,6 +1842,7 @@ func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
+	s.notifyCurrentServerUser(r, "Preset terminal dihapus 🗑️", fmt.Sprintf("Preset dengan ID %d berhasil dihapus.", id), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -1749,6 +1857,7 @@ func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	presets, _ := s.database.ListTerminalPresets(userID)
+	s.notifyCurrentServerUser(r, "Preset terminal direset ♻️", fmt.Sprintf("Preset terminal berhasil direset. Total preset aktif: %d.", len(presets)), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }
 

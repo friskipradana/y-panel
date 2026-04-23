@@ -31,6 +31,23 @@ func userFromCtx(r *http.Request) *database.User {
 	return u
 }
 
+func (s *Server) notifyUserAction(userID int64, title, body, notifType string) {
+	if err := s.database.CreateNotification(userID, title, body, notifType, ""); err != nil {
+		return
+	}
+	latest, err := s.database.GetLatestNotification(userID)
+	if err != nil {
+		latest = nil
+	}
+	s.pushNotificationSnapshot(userID, "created", latest)
+}
+
+func (s *Server) notifyCurrentUserAction(r *http.Request, title, body, notifType string) {
+	if user := userFromCtx(r); user != nil {
+		s.notifyUserAction(user.ID, title, body, notifType)
+	}
+}
+
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 
 // requireAuthV2 validates the session cookie and injects the User into context.
@@ -292,7 +309,12 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := userFromCtx(r)
-	log.Printf("[users] created user=%q role=%q by=%q", u.Username, u.Role, actor.Username)
+	actorName := "system"
+	if actor != nil {
+		actorName = actor.Username
+		s.notifyUserAction(actor.ID, "User baru dibuat 👤", fmt.Sprintf("User '%s' dengan role %s berhasil dibuat.", u.Username, u.Role), "success")
+	}
+	log.Printf("[users] created user=%q role=%q by=%q", u.Username, u.Role, actorName)
 	s.writeJSON(w, http.StatusCreated, u)
 }
 
@@ -319,6 +341,9 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := s.database.GetUserByID(id)
+	if u != nil {
+		s.notifyCurrentUserAction(r, "User diperbarui ✏️", fmt.Sprintf("Perubahan pada user '%s' berhasil disimpan.", u.Username), "info")
+	}
 	s.writeJSON(w, http.StatusOK, u)
 }
 
@@ -329,28 +354,50 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "cannot delete yourself"})
 		return
 	}
+
+	targetUser, err := s.database.GetUserByID(id)
+	if err != nil || targetUser == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
+	}
+	if actor != nil {
+		s.notifyUserAction(actor.ID, "User dihapus 🗑️", fmt.Sprintf("User '%s' berhasil dihapus.", targetUser.Username), "warning")
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
 func (s *Server) handleSuspendUser(w http.ResponseWriter, r *http.Request) {
 	id := parsePathID(r, "id")
+	targetUser, err := s.database.GetUserByID(id)
+	if err != nil || targetUser == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
 	if err := users.SuspendUser(s.database, id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.notifyCurrentUserAction(r, "User disuspend ⛔", fmt.Sprintf("User '%s' berhasil disuspend.", targetUser.Username), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
 func (s *Server) handleActivateUser(w http.ResponseWriter, r *http.Request) {
 	id := parsePathID(r, "id")
+	targetUser, err := s.database.GetUserByID(id)
+	if err != nil || targetUser == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
 	if err := users.ActivateUser(s.database, id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.notifyCurrentUserAction(r, "User diaktifkan kembali ✅", fmt.Sprintf("User '%s' berhasil diaktifkan.", targetUser.Username), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -377,6 +424,7 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.notifyCurrentUserAction(r, "Quota user diperbarui 📦", fmt.Sprintf("Quota untuk user ID %d berhasil diperbarui.", id), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -427,6 +475,7 @@ func (s *Server) handleSetCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.notifyUserAction(u.ID, "Cloudflare config disimpan ☁️", "Konfigurasi Cloudflare berhasil disimpan dan siap diverifikasi.", "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Cloudflare config saved. Use /verify to validate."})
 }
 
@@ -447,10 +496,12 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 	if verifyErr := client.VerifyToken(); verifyErr != nil {
 		status = "invalid"
 		_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
+		s.notifyUserAction(u.ID, "Verifikasi Cloudflare gagal ⚠️", verifyErr.Error(), "warning")
 		s.writeJSON(w, http.StatusOK, jsonResponse{"valid": false, "error": verifyErr.Error()})
 		return
 	}
 	_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
+	s.notifyUserAction(u.ID, "Cloudflare aktif ✅", "Token Cloudflare berhasil diverifikasi dan siap digunakan.", "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"valid": true, "status": status})
 }
 
@@ -481,6 +532,7 @@ func (s *Server) handleDeleteCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.notifyUserAction(u.ID, "Cloudflare config dihapus 🗑️", "Konfigurasi Cloudflare berhasil dihapus dari akun Anda.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -553,6 +605,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("[projects] created id=%d name=%q user=%q port=%d", p.ID, p.Name, u.Username, p.AssignedPort)
+	s.notifyUserAction(u.ID, "Project dibuat 🚀", fmt.Sprintf("Project '%s' berhasil dibuat pada port %d.", p.Name, p.AssignedPort), "success")
 	s.writeJSON(w, http.StatusCreated, p)
 }
 
@@ -570,12 +623,18 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
 	id := parsePathID(r, "id")
+	p, err := s.database.GetProject(id, u.ID)
+	if err != nil || p == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
+		return
+	}
 	_ = s.projectManager.Stop(id)
 	if err := s.database.DeleteProject(id, u.ID); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	log.Printf("[projects] deleted id=%d user=%q", id, u.Username)
+	s.notifyUserAction(u.ID, "Project dihapus 🗑️", fmt.Sprintf("Project '%s' berhasil dihapus.", p.Name), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -589,10 +648,12 @@ func (s *Server) handleStartProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.projectManager.Start(u, p); err != nil {
 		_ = s.database.UpdateProjectStatus(id, "error")
+		s.notifyUserAction(u.ID, "Project gagal dijalankan ⚠️", fmt.Sprintf("Project '%s' gagal dijalankan: %s", p.Name, err.Error()), "warning")
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "active")
+	s.notifyUserAction(u.ID, "Project berjalan ▶️", fmt.Sprintf("Project '%s' berhasil dijalankan.", p.Name), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "active"})
 }
 
@@ -609,6 +670,7 @@ func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "stopped")
+	s.notifyUserAction(u.ID, "Project dihentikan ⏸️", fmt.Sprintf("Project '%s' berhasil dihentikan.", existing.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "stopped"})
 }
 
@@ -715,6 +777,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 			if cfErr != nil {
 				log.Printf("[tunnels] CF create failed db_id=%d err=%v", tunnelDBID, cfErr)
 				_ = s.database.UpdateTunnelStatus(tunnelDBID, "error")
+				s.notifyUserAction(userID, "Pembuatan tunnel gagal ⚠️", fmt.Sprintf("Tunnel '%s' gagal dibuat: %s", name, cfErr.Error()), "warning")
 				return
 			}
 			mainTunnelID = info.ID
@@ -769,11 +832,12 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		_ = s.cfDaemon.StopTunnel(mainTunnelID)
 		if daemonErr := s.cfDaemon.StartTunnel(mainTunnelID, userID, credJSON, configYAML); daemonErr != nil {
 			log.Printf("[tunnels] daemon start failed db_id=%d err=%v", tunnelDBID, daemonErr)
+			s.notifyUserAction(userID, "Daemon tunnel bermasalah ⚠️", fmt.Sprintf("Tunnel '%s' aktif tetapi daemon gagal start: %s", name, daemonErr.Error()), "warning")
 		}
 
 		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, "active")
 		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, mainTunnelID, hostname)
-		_ = s.database.CreateNotification(userID, "Rute Tunnel Aktif 🟢", "Rute '"+name+"' berhasil dibuat.", "success", "")
+		s.notifyUserAction(userID, "Rute Tunnel Aktif 🟢", "Rute '"+name+"' berhasil dibuat.", "success")
 	}(t.ID, u.ID, req.Name, req.Subdomain, req.Domain, req.ZoneID, cfCfg, apiToken)
 
 	s.writeJSON(w, http.StatusAccepted, jsonResponse{
@@ -869,6 +933,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 		}
 	}(t.ID, u.ID, t.CFTunnelID, hostname, req.ZoneID, cfCfg, apiToken)
 
+	s.notifyUserAction(u.ID, "Rute tunnel diperbarui 🌐", fmt.Sprintf("Rute '%s' berhasil diperbarui.", req.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Rute berhasil diperbarui"})
 }
 
@@ -957,6 +1022,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		}(t.CFTunnelID)
 	}
 
+	s.notifyUserAction(u.ID, "Rute tunnel dihapus 🗑️", fmt.Sprintf("Rute '%s' berhasil dihapus.", t.Name), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -976,12 +1042,14 @@ func (s *Server) handleMarkNotificationRead(w http.ResponseWriter, r *http.Reque
 	u := userFromCtx(r)
 	id := parsePathID(r, "id")
 	_ = s.database.MarkNotificationRead(id, u.ID)
+	s.pushNotificationSnapshot(u.ID, "read", nil)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
 func (s *Server) handleMarkAllNotificationsRead(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
 	_ = s.database.MarkAllNotificationsRead(u.ID)
+	s.pushNotificationSnapshot(u.ID, "read_all", nil)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

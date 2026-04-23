@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -1101,6 +1102,36 @@ func (m *Manager) MarkAllNotificationsRead(userID int64) error {
 	}
 	_, err := m.db.Exec("UPDATE notifications SET is_read = true WHERE user_id = $1", userID)
 	return err
+}
+
+func (m *Manager) CountUnreadNotifications(userID int64) (int, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	var count int
+	err := m.db.QueryRow("SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false", userID).Scan(&count)
+	return count, err
+}
+
+func (m *Manager) GetLatestNotification(userID int64) (*Notification, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var n Notification
+	err := m.db.QueryRow(`
+		SELECT id, user_id, title, COALESCE(body,''), type, is_read, COALESCE(action_url,''), created_at
+		FROM notifications
+		WHERE user_id = $1
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1
+	`, userID).Scan(&n.ID, &n.UserID, &n.Title, &n.Body, &n.Type, &n.IsRead, &n.ActionURL, &n.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &n, nil
 }
 
 // ─── Runtime Logs ─────────────────────────────────────────────────────────────

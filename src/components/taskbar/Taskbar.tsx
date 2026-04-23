@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Bell, CheckCheck, Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, type PanelNotification } from '@/api/agent'
+import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -68,25 +68,21 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     enabled: authenticated,
     retry: 1,
   })
-  const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: listNotifications,
-    enabled: authenticated,
-    retry: 1,
-    refetchInterval: 15_000,
-  })
-  const unreadCount = notifications.filter((item) => !item.isRead).length
+  const [notifications, setNotifications] = useState<PanelNotification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const latestNotifications = useMemo(() => notifications.slice(0, 8), [notifications])
   const markReadMutation = useMutation({
     mutationFn: markNotificationRead,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    onSuccess: (_, id) => {
+      setNotifications((current) => current.map((item) => (item.id === id ? { ...item, isRead: true } : item)))
+      setUnreadCount((current) => Math.max(0, current - 1))
     },
   })
   const markAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true })))
+      setUnreadCount(0)
     },
   })
 
@@ -149,6 +145,94 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     if (!authenticated) return
     void queryClient.invalidateQueries({ queryKey: ['me-v2'] })
   }, [authenticated, queryClient])
+
+  useEffect(() => {
+    if (!authenticated) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
+
+    let socket: WebSocket | null = null
+    let retryTimer: number | undefined
+    let disposed = false
+
+    const applySocketPayload = (payload: NotificationSocketPayload) => {
+      setUnreadCount(payload.unreadCount ?? 0)
+
+      if (payload.type === 'created' && payload.notification) {
+        const incomingNotification = payload.notification
+        setNotifications((current) => {
+          const deduped = current.filter((item) => item.id !== incomingNotification.id)
+          return [incomingNotification, ...deduped].slice(0, 30)
+        })
+        return
+      }
+
+      if (payload.type === 'read') {
+        setNotifications((current) => {
+          if (!current.length) return current
+          const nextUnread = payload.unreadCount ?? 0
+          const unreadIds = current.filter((item) => !item.isRead).map((item) => item.id)
+          const idsToMark = new Set(unreadIds.slice(0, Math.max(0, unreadIds.length - nextUnread)))
+          return current.map((item) => (idsToMark.has(item.id) ? { ...item, isRead: true } : item))
+        })
+        return
+      }
+
+      if (payload.type === 'read_all') {
+        setNotifications((current) => current.map((item) => ({ ...item, isRead: true })))
+      }
+    }
+
+    const connect = () => {
+      socket = new WebSocket(resolveNotificationsSocketUrl())
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as NotificationSocketPayload
+          applySocketPayload(payload)
+        } catch (error) {
+          console.error('[Notifications WS] Parse Error:', error)
+        }
+      }
+
+      socket.onclose = () => {
+        if (disposed) return
+        retryTimer = window.setTimeout(connect, 5000)
+      }
+    }
+
+    connect()
+
+    return () => {
+      disposed = true
+      if (retryTimer) window.clearTimeout(retryTimer)
+      socket?.close()
+    }
+  }, [authenticated])
+
+  useEffect(() => {
+    if (!authenticated || !showNotifications) return
+
+    let cancelled = false
+    listNotifications()
+      .then((items) => {
+        if (cancelled) return
+        setNotifications(items)
+        setUnreadCount(items.filter((item) => !item.isRead).length)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        runtimeLogger.error('notifications', 'failed to load notification list', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [authenticated, showNotifications])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
