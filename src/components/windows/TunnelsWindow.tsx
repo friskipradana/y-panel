@@ -451,16 +451,6 @@ function TunnelCard({
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-1">
-          {t.status === 'active' && (
-            <button
-              onClick={onSync}
-              disabled={isSyncing}
-              className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100"
-              title="Sync tunnel aktif"
-            >
-              <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            </button>
-          )}
           <button
             onClick={onEdit}
             className="panel-icon-btn panel-icon-btn--neutral ml-1 opacity-0 group-hover:opacity-100"
@@ -476,10 +466,20 @@ function TunnelCard({
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           {t.status === 'active' && (
-            <div className="panel-badge panel-badge--success">
-              <CheckCircle2 className="h-3 w-3" />
-              <span>Live</span>
-            </div>
+            <>
+              <button
+                onClick={onSync}
+                disabled={isSyncing}
+                className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100"
+                title="Sync tunnel aktif"
+              >
+                <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              </button>
+              <div className="panel-badge panel-badge--success">
+                <CheckCircle2 className="h-3 w-3" />
+                <span>Live</span>
+              </div>
+            </>
           )}
           {t.status === 'creating' && (
             <div className="panel-badge panel-badge--warning">

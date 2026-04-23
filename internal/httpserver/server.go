@@ -48,6 +48,8 @@ type Server struct {
 	cfDaemon              *cloudflareapi.Daemon
 	notificationClientsMu sync.RWMutex
 	notificationClients   map[int64]map[*websocket.Conn]struct{}
+	rateLimitMu           sync.Mutex
+	rateLimits            map[string]*rateLimitEntry
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -89,6 +91,17 @@ type legacyLoginRequest struct {
 
 type jsonResponse map[string]any
 
+type rateLimitRule struct {
+	Window time.Duration
+	Limit  int
+}
+
+type rateLimitEntry struct {
+	Count      int
+	ResetAt    time.Time
+	LastSeenAt time.Time
+}
+
 type terminalSocketMessage struct {
 	Type    string `json:"type"`
 	Data    string `json:"data,omitempty"`
@@ -110,8 +123,8 @@ type changelogResponse struct {
 }
 
 type databaseStatusResponse struct {
-	Status        database.Status              `json:"status"`
-	RuntimeLogs   []database.RuntimeLog        `json:"runtimeLogs"`
+	Status        database.Status               `json:"status"`
+	RuntimeLogs   []database.RuntimeLog         `json:"runtimeLogs"`
 	SettingsAudit []database.SettingsAuditEntry `json:"settingsAudit"`
 }
 
@@ -135,7 +148,6 @@ type resetDatabasePasswordResponse struct {
 	Message  string `json:"message"`
 }
 
-
 func New(cfg config.Config) *Server {
 	db := database.New(database.Config{
 		Enabled: cfg.DatabaseEnable,
@@ -145,14 +157,15 @@ func New(cfg config.Config) *Server {
 	authMgr := auth.NewManager(db, cfg.SessionTTL)
 
 	s := &Server{
-		cfg:            cfg,
-		auth:           authMgr,
-		mux:            http.NewServeMux(),
-		frontendFS:     newFrontendHandler(cfg.FrontendDir),
+		cfg:             cfg,
+		auth:            authMgr,
+		mux:             http.NewServeMux(),
+		frontendFS:      newFrontendHandler(cfg.FrontendDir),
 		terminalManager: terminal.NewManager(),
-		database:       db,
-		projectManager: projects.NewManager(cfg.StateDir),
-		cfDaemon:       cloudflareapi.NewDaemon(cfg.StateDir),
+		database:        db,
+		projectManager:  projects.NewManager(cfg.StateDir),
+		cfDaemon:        cloudflareapi.NewDaemon(cfg.StateDir),
+		rateLimits:      make(map[string]*rateLimitEntry),
 	}
 	s.terminalUpgrader = websocket.Upgrader{
 		ReadBufferSize:  4096,
@@ -174,7 +187,7 @@ func (s *Server) RestoreTunnels() {
 		log.Printf("[tunnels] failed to list active tunnels: %v", err)
 		return
 	}
-	
+
 	started := make(map[string]bool)
 	for _, t := range tunnels {
 		if t.CFTunnelID == "" || started[t.CFTunnelID] {
@@ -182,10 +195,10 @@ func (s *Server) RestoreTunnels() {
 		}
 		credFile := s.cfDaemon.CredFilePathFor(t.UserID, t.CFTunnelID)
 		configFile := filepath.Join(filepath.Dir(credFile), "config.yml")
-		
+
 		credJSON, err1 := os.ReadFile(credFile)
 		configYAML, err2 := os.ReadFile(configFile)
-		
+
 		if err1 == nil && err2 == nil {
 			_ = s.cfDaemon.StartTunnel(t.CFTunnelID, t.UserID, credJSON, configYAML)
 			started[t.CFTunnelID] = true
@@ -200,8 +213,8 @@ func (s *Server) routes() {
 	// ── Public ──────────────────────────────────────────────────────────────
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
-	s.mux.HandleFunc("GET /api/v1/settings/wallpaper", s.handleGetWallpaper)
-	s.mux.HandleFunc("POST /api/v1/settings/wallpaper", s.handleUpdateWallpaper)
+	s.mux.Handle("GET /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleGetWallpaper)))
+	s.mux.Handle("POST /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleUpdateWallpaper)))
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
@@ -244,7 +257,7 @@ func (s *Server) routes() {
 
 	// ── Notifications ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/notifications", s.requireAuthV2(http.HandlerFunc(s.handleListNotifications)))
-	s.mux.Handle("GET /api/v1/notifications/ws", http.HandlerFunc(s.handleNotificationsWebSocket))
+	s.mux.Handle("GET /api/v1/notifications/ws", s.requireAuthV2(http.HandlerFunc(s.handleNotificationsWebSocket)))
 	s.mux.Handle("POST /api/v1/notifications/{id}/read", s.requireAuthV2(http.HandlerFunc(s.handleMarkNotificationRead)))
 	s.mux.Handle("POST /api/v1/notifications/read-all", s.requireAuthV2(http.HandlerFunc(s.handleMarkAllNotificationsRead)))
 
@@ -282,7 +295,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionStart)))
 	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
 	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionClose)))
-	s.mux.HandleFunc("GET /api/v1/system/stats/ws", s.handleSystemStatsWebSocket)
+	s.mux.Handle("GET /api/v1/system/stats/ws", s.requireAuthV2(http.HandlerFunc(s.handleSystemStatsWebSocket)))
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))
 	s.mux.Handle("DELETE /api/v1/terminal/presets/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTerminalPreset)))
@@ -292,7 +305,7 @@ func (s *Server) routes() {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.withAccessLog(s.withHostGuard(s.withCORS(s.mux))).ServeHTTP(w, r)
+	s.withAccessLog(s.withHostGuard(s.withCORS(s.withRateLimit(s.mux)))).ServeHTTP(w, r)
 }
 
 func (s *Server) Close() error {
@@ -625,11 +638,11 @@ func (s *Server) handleGetWallpaper(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	
+
 	var req struct {
 		Data string `json:"data"`
 	}
-	
+
 	// Set limit reader for 8MB
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body structure or payload too large"})
@@ -644,12 +657,12 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 		return
 	}
-	
+
 	if err := s.database.SetWallpaper(currentUser.ID, req.Data); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	s.notifyCurrentServerUser(r, "Wallpaper diperbarui 🖼️", "Wallpaper desktop berhasil diperbarui.", "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
@@ -681,7 +694,6 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 	s.notifyCurrentServerUser(r, "Password database dirotasi 🔐", "Password database berhasil dirotasi dan kredensial runtime diperbarui.", "warning")
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
 }
-
 
 func (s *Server) handleContainersList(w http.ResponseWriter, _ *http.Request) {
 	containers, err := docker.ListContainers()
@@ -738,7 +750,7 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 
 	target := strings.TrimSpace(req.Target)
 	cwd := strings.TrimSpace(req.Cwd)
-	
+
 	id, err := s.terminalManager.Start(currentUser.Username, currentUser.DisplayName, currentUser.Role, target, cwd)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
@@ -872,9 +884,6 @@ func (s *Server) currentUserRecord(r *http.Request) *database.User {
 	return u
 }
 
-
-
-
 func (s *Server) requireHTMLAuth(next http.Handler) http.Handler {
 	return s.requireHTMLAuthV2(next)
 }
@@ -941,7 +950,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 				w.Header().Set("Vary", "Origin")
 			}
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -1165,6 +1174,78 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, duration, remoteAddr(r))
 		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": duration.String(), "remote": remoteAddr(r)})
 	})
+}
+
+func (s *Server) withRateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rule, key, enabled := s.rateLimitRuleForRequest(r)
+		if !enabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		allowed, retryAfter := s.allowRateLimit(key, rule)
+		if allowed {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+		log.Printf("[security] rate limit hit path=%s method=%s remote=%s retry_after=%s", r.URL.Path, r.Method, remoteAddr(r), retryAfter)
+		s.recordRuntimeLog("warning", "request rate limited", map[string]any{"path": r.URL.Path, "method": r.Method, "remote": remoteAddr(r), "retryAfter": retryAfter.String()})
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
+			s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many requests"})
+			return
+		}
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+	})
+}
+
+func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string, bool) {
+	path := r.URL.Path
+	remote := remoteAddr(r)
+	if remote == "" {
+		remote = "unknown"
+	}
+
+	switch {
+	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
+		return rateLimitRule{}, "", false
+	case path == "/api/v1/auth/login" || path == "/api/v1/setup/initialize":
+		return rateLimitRule{Window: time.Minute, Limit: 12}, "auth:" + remote, true
+	case websocket.IsWebSocketUpgrade(r):
+		return rateLimitRule{Window: time.Minute, Limit: 20}, "ws:" + remote, true
+	case strings.HasPrefix(path, "/api/"):
+		return rateLimitRule{Window: time.Minute, Limit: 240}, "api:" + remote, true
+	default:
+		return rateLimitRule{Window: time.Minute, Limit: 180}, "page:" + remote, true
+	}
+}
+
+func (s *Server) allowRateLimit(key string, rule rateLimitRule) (bool, time.Duration) {
+	now := time.Now()
+	s.rateLimitMu.Lock()
+	defer s.rateLimitMu.Unlock()
+
+	for candidate, entry := range s.rateLimits {
+		if now.Sub(entry.LastSeenAt) > 10*time.Minute {
+			delete(s.rateLimits, candidate)
+		}
+	}
+
+	entry := s.rateLimits[key]
+	if entry == nil || now.After(entry.ResetAt) {
+		s.rateLimits[key] = &rateLimitEntry{Count: 1, ResetAt: now.Add(rule.Window), LastSeenAt: now}
+		return true, 0
+	}
+
+	entry.LastSeenAt = now
+	if entry.Count >= rule.Limit {
+		return false, time.Until(entry.ResetAt).Round(time.Second)
+	}
+
+	entry.Count++
+	return true, 0
 }
 
 func (s *Server) recordRuntimeLog(level, message string, metadata map[string]any) {
@@ -1595,7 +1676,6 @@ func runDatabaseSQL(statement string) error {
 	return lastErr
 }
 
-
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if trimmed := strings.TrimSpace(value); trimmed != "" {
@@ -1787,7 +1867,6 @@ func (s *Server) handleNotificationsWebSocket(w http.ResponseWriter, r *http.Req
 	}
 }
 
-
 func (s *Server) handleListTerminalPresets(w http.ResponseWriter, r *http.Request) {
 	currentUser := s.currentUserRecord(r)
 	var userID *int64
@@ -1860,4 +1939,3 @@ func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Reque
 	s.notifyCurrentServerUser(r, "Preset terminal direset ♻️", fmt.Sprintf("Preset terminal berhasil direset. Total preset aktif: %d.", len(presets)), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }
-
