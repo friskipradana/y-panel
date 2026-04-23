@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Copy,
   Pencil,
+  RefreshCcw,
 } from 'lucide-react'
 
 const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
@@ -31,6 +32,54 @@ const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
   pending: { variant: 'panel-status--warning', label: 'Pending' },
   error: { variant: 'panel-status--danger', label: 'Error' },
   inactive: { variant: 'panel-status--neutral', label: 'Inactive' },
+}
+
+function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name: string }[]) {
+  let protocol = 'http'
+  let ip = 'localhost'
+  let port = '3000'
+  let path = ''
+  try {
+    const u = new URL(t.targetUrl)
+    protocol = u.protocol.replace(':', '')
+    const hostParts = u.host.split(':')
+    ip = hostParts[0] || 'localhost'
+    port = hostParts[1] || (protocol === 'https' ? '443' : '80')
+    path = u.pathname === '/' ? '' : u.pathname
+  } catch {}
+
+  let subdomain = ''
+  let domain = ''
+  let zoneId = ''
+  if (t.cfHostname) {
+    const zone = cfZones.find((z) => t.cfHostname.endsWith(z.name))
+    if (zone) {
+      zoneId = zone.id
+      domain = zone.name
+      if (t.cfHostname !== zone.name) {
+        subdomain = t.cfHostname.slice(0, -(zone.name.length + 1))
+      }
+    } else {
+      const parts = t.cfHostname.split('.')
+      if (parts.length > 2) {
+        subdomain = parts[0]
+        domain = parts.slice(1).join('.')
+      } else {
+        domain = t.cfHostname
+      }
+    }
+  }
+
+  return {
+    name: t.name,
+    subdomain,
+    domain,
+    zoneId,
+    path,
+    protocol,
+    ip,
+    port,
+  }
 }
 
 export default function TunnelsWindow() {
@@ -100,56 +149,30 @@ export default function TunnelsWindow() {
     },
   })
 
+  const syncMut = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof updateTunnel>[1] }) => updateTunnel(id, payload),
+    onSuccess: (res) => {
+      toast.success('Tunnel berhasil disinkronkan', { description: res.message ?? 'Konfigurasi tunnel aktif berhasil di-apply ulang.' })
+      qc.invalidateQueries({ queryKey: ['tunnels'] })
+    },
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal menyinkronkan tunnel'
+      toast.error('Gagal sync tunnel', { description: message })
+      alertLib.fire('Gagal Sync Tunnel', message, 'error', 'tunnels')
+    },
+  })
+
   const cfNotConfigured = !cfConfig?.configured || cfConfig?.status !== 'active'
 
   const handleEdit = (t: Tunnel) => {
-    let protocol = 'http'
-    let ip = 'localhost'
-    let port = '3000'
-    let path = ''
-    try {
-      const u = new URL(t.targetUrl)
-      protocol = u.protocol.replace(':', '')
-      const hostParts = u.host.split(':')
-      ip = hostParts[0] || 'localhost'
-      port = hostParts[1] || (protocol === 'https' ? '443' : '80')
-      path = u.pathname === '/' ? '' : u.pathname
-    } catch {}
-
-    let subdomain = ''
-    let domain = ''
-    let zoneId = ''
-    if (t.cfHostname) {
-      const zone = cfZones.find((z) => t.cfHostname.endsWith(z.name))
-      if (zone) {
-        zoneId = zone.id
-        domain = zone.name
-        if (t.cfHostname !== zone.name) {
-          subdomain = t.cfHostname.slice(0, -(zone.name.length + 1))
-        }
-      } else {
-        const parts = t.cfHostname.split('.')
-        if (parts.length > 2) {
-          subdomain = parts[0]
-          domain = parts.slice(1).join('.')
-        } else {
-          domain = t.cfHostname
-        }
-      }
-    }
-
-    setForm({
-      name: t.name,
-      subdomain,
-      domain,
-      zoneId,
-      path,
-      protocol,
-      ip,
-      port,
-    })
+    setForm(buildTunnelFormFromTunnel(t, cfZones))
     setEditingTunnelId(t.id)
     setShowCreate(true)
+  }
+
+  const handleSync = async (t: Tunnel) => {
+    const payload = buildTunnelFormFromTunnel(t, cfZones)
+    syncMut.mutate({ id: t.id, payload })
   }
 
   return (
@@ -334,6 +357,8 @@ export default function TunnelsWindow() {
                   )
                   if (confirmed) deleteMut.mutate(t.id)
                 }}
+                onSync={() => handleSync(t)}
+                isSyncing={syncMut.isPending && syncMut.variables?.id === t.id}
               />
             ))}
           </div>
@@ -343,7 +368,19 @@ export default function TunnelsWindow() {
   )
 }
 
-function TunnelCard({ tunnel: t, onEdit, onDelete }: { tunnel: Tunnel; onEdit: () => void; onDelete: () => void }) {
+function TunnelCard({
+  tunnel: t,
+  onEdit,
+  onDelete,
+  onSync,
+  isSyncing,
+}: {
+  tunnel: Tunnel
+  onEdit: () => void
+  onDelete: () => void
+  onSync: () => void
+  isSyncing: boolean
+}) {
   const sc = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.inactive
 
   const copyHostname = async () => {
@@ -373,10 +410,8 @@ function TunnelCard({ tunnel: t, onEdit, onDelete }: { tunnel: Tunnel; onEdit: (
         throw new Error('Clipboard API tidak tersedia')
       }
 
-      // toast.success('URL disalin!')
       alertLib.fire('Hostname Tersalin', `Domain <strong>${t.cfHostname}</strong> berhasil disalin ke clipboard.`, 'success', 'tunnels')
     } catch {
-      // toast.error('Gagal menyalin URL')
       alertLib.fire('Gagal Menyalin Hostname', 'Clipboard tidak tersedia pada environment ini.', 'error', 'tunnels')
     }
   }
@@ -416,6 +451,16 @@ function TunnelCard({ tunnel: t, onEdit, onDelete }: { tunnel: Tunnel; onEdit: (
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-1">
+          {t.status === 'active' && (
+            <button
+              onClick={onSync}
+              disabled={isSyncing}
+              className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100"
+              title="Sync tunnel aktif"
+            >
+              <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="panel-icon-btn panel-icon-btn--neutral ml-1 opacity-0 group-hover:opacity-100"
