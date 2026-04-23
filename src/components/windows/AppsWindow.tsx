@@ -1,6 +1,17 @@
 import { useContainers, useStartContainer, useStopContainer } from '@/hooks/useContainers'
-import { useEffect } from 'react'
-import { Boxes, Container as ContainerIcon, Play, RefreshCw, Square, Workflow } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Activity,
+  Boxes,
+  Container as ContainerIcon,
+  Play,
+  RefreshCw,
+  Search,
+  Square,
+  // Sparkles,
+  Layers3,
+  Server,
+} from 'lucide-react'
 import type { Container } from '@/types'
 
 const APP_ICONS: Record<string, string> = {
@@ -40,6 +51,8 @@ function StatusBadge({ state }: { state: Container['State'] }) {
 
 export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
   const { data, isLoading, isError, error, refetch, isFetching } = useContainers()
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (authenticated) {
@@ -51,6 +64,23 @@ export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
   const startMutation = useStartContainer()
   const stopMutation = useStopContainer()
   const containers = Array.isArray(data) ? data : []
+  const filteredContainers = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    if (!needle) return containers
+    return containers.filter((container) => {
+      const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
+      return [name, container.Image, container.State, container.Status, container.Id]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(needle))
+    })
+  }, [containers, search])
+
+  const stats = useMemo(() => {
+    const running = containers.filter((container) => container.State === 'running').length
+    const stopped = containers.filter((container) => ['exited', 'dead'].includes(container.State)).length
+    const attention = containers.filter((container) => ['paused', 'restarting'].includes(container.State)).length
+    return { running, stopped, attention }
+  }, [containers])
 
   return (
     <div className="panel-window">
@@ -63,12 +93,7 @@ export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__actions">
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            className="panel-icon-btn"
-            aria-label="Refresh apps"
-          >
+          <button type="button" onClick={() => void refetch()} className="panel-icon-btn" aria-label="Refresh apps">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -76,19 +101,55 @@ export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
 
       <div className="panel-window__body">
         <div className="panel-window__stack">
-          <section className="panel-hero">
-            <div className="panel-hero__eyebrow">
-              <Workflow className="h-3 w-3" />
-              Container runtime
+          <div className="panel-grid-compact panel-grid-compact--3">
+            <div className="panel-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="panel-avatar"><Layers3 className="h-4 w-4" /></div>
+                <div>
+                  <div className="panel-window__meta">Total container</div>
+                  <div className="text-lg font-semibold text-[var(--win-text)]">{containers.length}</div>
+                </div>
+              </div>
             </div>
-            <div className="panel-hero__title">Agent memantau dan mengontrol service aplikasi host</div>
-            <p className="panel-hero__description">
-              Semua container ditarik dari runtime host melalui backend agent. Perubahan status akan otomatis tersinkron secara berkala tanpa perlu refresh manual.
-            </p>
-          </section>
+            <div className="panel-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="panel-avatar"><Activity className="h-4 w-4" /></div>
+                <div>
+                  <div className="panel-window__meta">Sedang berjalan</div>
+                  <div className="text-lg font-semibold text-[var(--win-text)]">{stats.running}</div>
+                </div>
+              </div>
+            </div>
+            <div className="panel-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="panel-avatar"><Server className="h-4 w-4" /></div>
+                <div>
+                  <div className="panel-window__meta">Butuh perhatian</div>
+                  <div className="text-lg font-semibold text-[var(--win-text)]">{stats.attention + stats.stopped}</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <div className="panel-toolbar">
-            <p className="panel-window__meta">{containers.length} container · auto-refresh tiap 10 detik</p>
+          <div className="panel-toolbar panel-toolbar--search">
+            <form
+              className="panel-search"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setSearch(query.trim())
+              }}
+            >
+              <Search className="h-4 w-4" />
+              <input
+                id="apps-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="panel-search__input"
+                placeholder="Cari nama container, image, state, atau container id..."
+              />
+              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+            </form>
+            {/* <p className="panel-window__meta">{filteredContainers.length}/{containers.length} container • auto-refresh tiap 10 detik</p> */}
           </div>
 
           {isLoading ? (
@@ -105,33 +166,50 @@ export function AppsWindow({ authenticated }: { authenticated?: boolean }) {
                 <p className="mt-1 text-[12px] leading-6 opacity-80">Pastikan ui-panel-agent aktif dan Docker dapat diakses oleh backend.</p>
               </div>
             </div>
-          ) : containers.length === 0 ? (
-            <div className="panel-empty">
+          ) : filteredContainers.length === 0 ? (
+            <div className="panel-empty panel-empty--wide">
               <Boxes className="h-8 w-8" />
-              <span>Belum ada container aktif yang bisa ditampilkan.</span>
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-[var(--win-text)]">Tidak ada container yang cocok</div>
+                <div>Ubah kata kunci pencarian atau kosongkan filter untuk melihat semua runtime apps.</div>
+              </div>
             </div>
           ) : (
-            <div className="panel-window__stack">
-              {containers.map((container) => {
+            <div className="apps-grid">
+              {filteredContainers.map((container) => {
                 const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
                 const stateStyle = STATE_STYLES[container.State] ?? STATE_STYLES.dead
                 const ActionIcon = stateStyle.actionIcon
                 const isMutating = startMutation.isPending || stopMutation.isPending
 
                 return (
-                  <div key={container.Id} className="panel-card panel-card--interactive p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="panel-avatar text-lg">{getIcon(name)}</div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                  <div key={container.Id} className="panel-card panel-card--interactive apps-card">
+                    <div className="apps-card__header">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="panel-avatar text-lg">{getIcon(name)}</div>
+                        <div className="min-w-0">
                           <p className="truncate text-[13px] font-semibold text-[var(--win-text)]">{name}</p>
-                          <StatusBadge state={container.State} />
+                          <p className="panel-meta-line mt-1 truncate">{container.Image}</p>
                         </div>
-                        <p className="panel-meta-line mt-1 truncate">{container.Image}</p>
                       </div>
+                      <StatusBadge state={container.State} />
+                    </div>
+
+                    <div className="apps-card__meta">
+                      <div className="apps-card__meta-item">
+                        <span className="apps-card__meta-label">Container ID</span>
+                        <span className="panel-mono">{container.Id.slice(0, 12)}</span>
+                      </div>
+                      <div className="apps-card__meta-item">
+                        <span className="apps-card__meta-label">Runtime status</span>
+                        <span>{container.Status || container.State}</span>
+                      </div>
+                    </div>
+
+                    <div className="apps-card__footer">
                       <button
                         type="button"
-                        className={`panel-btn ${stateStyle.btn} min-w-[88px]`}
+                        className={`panel-btn ${stateStyle.btn} min-w-[104px]`}
                         onClick={() => container.State === 'running' ? stopMutation.mutate(container.Id) : startMutation.mutate(container.Id)}
                         disabled={isMutating}
                       >

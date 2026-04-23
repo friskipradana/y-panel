@@ -255,6 +255,13 @@ func (s *Server) routes() {
 	s.mux.Handle("PUT /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateTunnel)))
 	s.mux.Handle("DELETE /api/v1/tunnels/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTunnel)))
 
+	// ── Docs ──────────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/docs", s.requireAuthV2(http.HandlerFunc(s.handleListDocs)))
+	s.mux.Handle("POST /api/v1/docs", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateDoc)))
+	s.mux.Handle("GET /api/v1/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetDoc)))
+	s.mux.Handle("PATCH /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateDoc)))
+	s.mux.Handle("DELETE /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteDoc)))
+
 	// ── Notifications ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/notifications", s.requireAuthV2(http.HandlerFunc(s.handleListNotifications)))
 	s.mux.Handle("GET /api/v1/notifications/ws", s.requireAuthV2(http.HandlerFunc(s.handleNotificationsWebSocket)))

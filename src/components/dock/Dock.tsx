@@ -91,8 +91,9 @@ export function Dock() {
     () => windows.some((windowItem) => !windowItem.isMinimized && windowItem.isFullscreen),
     [windows],
   )
-  const forceAutoHideDock = hasMaximizedWindow || autoHideDock
-  const isDockForcedHidden = hasFullscreenWindow
+  const hasExpandedWindow = hasMaximizedWindow || hasFullscreenWindow
+  const forceAutoHideDock = autoHideDock && !hasExpandedWindow
+  const isDockForcedHidden = hasExpandedWindow
 
   useEffect(() => {
     const handleClickAway = () => setMenu(null)

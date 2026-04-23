@@ -1,5 +1,5 @@
-import { useState, type ReactElement } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, type ReactElement } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   listProjects,
   createProject,
@@ -21,6 +21,10 @@ import {
   Server,
   Code,
   Box,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  // Sparkles,
 } from 'lucide-react'
 
 const TYPE_ICON: Record<string, ReactElement> = {
@@ -42,10 +46,14 @@ const STATUS_PILL: Record<string, string> = {
 }
 
 const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'docker', 'proxy', 'custom']
+const PAGE_SIZE = 8
 
 export default function ProjectsWindow() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  const [offset, setOffset] = useState(0)
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -54,11 +62,17 @@ export default function ProjectsWindow() {
     workingDir: '',
   })
 
-  const { data: projects = [], isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => listProjects(),
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['projects', { search, offset }],
+    queryFn: () => listProjects({ q: search, limit: PAGE_SIZE, offset }),
     refetchInterval: 10_000,
   })
+
+  const projects = data?.items ?? []
+  const total = data?.total ?? 0
+  const activeCount = useMemo(() => projects.filter((project) => project.running || project.status === 'active').length, [projects])
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1
 
   const createMut = useMutation({
     mutationFn: createProject,
@@ -109,21 +123,14 @@ export default function ProjectsWindow() {
           <FolderCode className="panel-window__icon h-4 w-4" />
           <div>
             <div className="panel-window__title-text">Projects</div>
-            <div className="panel-window__meta">{projects.length} project tersedia</div>
+            <div className="panel-window__meta">{total} project terindeks • {activeCount} aktif di halaman ini</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button
-            onClick={() => refetch()}
-            className="panel-icon-btn"
-            aria-label="Refresh projects"
-          >
+          <button onClick={() => refetch()} className="panel-icon-btn" aria-label="Refresh projects">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="panel-btn panel-btn--primary-soft"
-          >
+          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
             <Plus className="h-3.5 w-3.5" />
             Buat Project
           </button>
@@ -140,12 +147,7 @@ export default function ProjectsWindow() {
             <div className="space-y-3">
               <div>
                 <label className="panel-section-label">Nama Project *</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="My Awesome App"
-                  className="panel-input"
-                />
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="My Awesome App" className="panel-input" />
               </div>
               <div>
                 <label className="panel-section-label">Tipe</label>
@@ -156,9 +158,7 @@ export default function ProjectsWindow() {
                       onClick={() => setForm((f) => ({ ...f, projectType: t }))}
                       className={[
                         'panel-btn justify-center rounded-[12px] px-2 py-2 text-[11px] font-medium capitalize shadow-none',
-                        form.projectType === t
-                          ? 'panel-btn--primary-soft'
-                          : 'panel-btn--ghost',
+                        form.projectType === t ? 'panel-btn--primary-soft' : 'panel-btn--ghost',
                       ].join(' ')}
                     >
                       {TYPE_ICON[t]} {t}
@@ -168,35 +168,16 @@ export default function ProjectsWindow() {
               </div>
               <div>
                 <label className="panel-section-label">Working Directory</label>
-                <input
-                  value={form.workingDir}
-                  onChange={(e) => setForm((f) => ({ ...f, workingDir: e.target.value }))}
-                  placeholder="/home/user/my-app"
-                  className="panel-input panel-input--mono"
-                />
+                <input value={form.workingDir} onChange={(e) => setForm((f) => ({ ...f, workingDir: e.target.value }))} placeholder="/home/user/my-app" className="panel-input panel-input--mono" />
               </div>
               <div>
                 <label className="panel-section-label">Deskripsi (opsional)</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  className="panel-textarea"
-                />
+                <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={3} className="panel-textarea" />
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="panel-btn panel-btn--ghost flex-1"
-              >
-                Batal
-              </button>
-              <button
-                onClick={() => createMut.mutate(form)}
-                disabled={createMut.isPending || !form.name}
-                className="panel-btn panel-btn--primary flex-1"
-              >
+              <button onClick={() => setShowCreate(false)} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+              <button onClick={() => createMut.mutate(form)} disabled={createMut.isPending || !form.name} className="panel-btn panel-btn--primary flex-1">
                 {createMut.isPending ? 'Membuat...' : 'Buat Project'}
               </button>
             </div>
@@ -205,38 +186,76 @@ export default function ProjectsWindow() {
       )}
 
       <div className="panel-window__body">
-        {isLoading ? (
-          <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
-        ) : projects.length === 0 ? (
-          <div className="panel-empty">
-            <FolderCode className="h-8 w-8" />
-            <span>Belum ada project. Buat project pertamamu.</span>
-          </div>
-        ) : (
-          <div className="panel-window__stack">
-            {projects.map((p) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                onStart={() => startMut.mutate(p.id)}
-                onStop={() => stopMut.mutate(p.id)}
-                onDelete={async () => {
-                  const confirmed = await alertLib.confirm(
-                    'Hapus Project?',
-                    `Project <strong>${p.name}</strong> akan dihapus dari sistem.`,
-                    'Hapus Project',
-                    'Batal',
-                    'warning',
-                    'projects',
-                  )
-                  if (confirmed) deleteMut.mutate(p.id)
-                }}
-                isStarting={startMut.isPending && startMut.variables === p.id}
-                isStopping={stopMut.isPending && stopMut.variables === p.id}
+        <div className="panel-window__stack">
+
+          <div className="panel-toolbar panel-toolbar--search">
+            <form
+              className="panel-search"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setOffset(0)
+                setSearch(query.trim())
+              }}
+            >
+              <Search className="h-4 w-4" />
+              <input
+                id="projects-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="panel-search__input"
+                placeholder="Cari project, slug, deskripsi, path kerja, atau tipe..."
               />
-            ))}
+              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+            </form>
+            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
           </div>
-        )}
+
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
+          ) : projects.length === 0 ? (
+            <div className="panel-empty">
+              <FolderCode className="h-8 w-8" />
+              <span>Belum ada project yang cocok. Coba kata kunci lain atau buat project baru.</span>
+            </div>
+          ) : (
+            <>
+              <div className="panel-window__stack">
+                {projects.map((p) => (
+                  <ProjectCard
+                    key={p.id}
+                    project={p}
+                    onStart={() => startMut.mutate(p.id)}
+                    onStop={() => stopMut.mutate(p.id)}
+                    onDelete={async () => {
+                      const confirmed = await alertLib.confirm(
+                        'Hapus Project?',
+                        `Project <strong>${p.name}</strong> akan dihapus dari sistem.`,
+                        'Hapus Project',
+                        'Batal',
+                        'warning',
+                        'projects',
+                      )
+                      if (confirmed) deleteMut.mutate(p.id)
+                    }}
+                    isStarting={startMut.isPending && startMut.variables === p.id}
+                    isStopping={stopMut.isPending && stopMut.variables === p.id}
+                  />
+                ))}
+              </div>
+
+              <div className="panel-pagination">
+                <button id="projects-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Sebelumnya
+                </button>
+                <button id="projects-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                  Berikutnya
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -267,9 +286,7 @@ function ProjectCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-semibold text-[var(--win-text)]">{p.name}</span>
-              <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>
-                {p.status}
-              </span>
+              <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>{p.status}</span>
             </div>
             <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
               <span className="capitalize">{p.projectType}</span>
@@ -281,26 +298,15 @@ function ProjectCard({
 
         <div className="flex flex-shrink-0 items-center gap-1">
           {p.running || p.status === 'active' ? (
-            <button
-              onClick={onStop}
-              disabled={isStopping}
-              className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs"
-            >
+            <button onClick={onStop} disabled={isStopping} className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs">
               <Square className="h-3 w-3" /> Stop
             </button>
           ) : (
-            <button
-              onClick={onStart}
-              disabled={isStarting}
-              className="panel-btn panel-btn--primary-soft px-2.5 py-1.5 text-xs"
-            >
+            <button onClick={onStart} disabled={isStarting} className="panel-btn panel-btn--primary-soft px-2.5 py-1.5 text-xs">
               <Play className="h-3 w-3" /> Start
             </button>
           )}
-          <button
-            onClick={onDelete}
-            className="panel-icon-btn panel-icon-btn--danger opacity-0 group-hover:opacity-100"
-          >
+          <button onClick={onDelete} className="panel-icon-btn panel-icon-btn--danger opacity-0 group-hover:opacity-100">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>

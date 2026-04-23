@@ -434,6 +434,21 @@ func (m *Manager) ensureSchema() error {
 			active         BOOLEAN      NOT NULL DEFAULT true,
 			created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
+
+		// ── Docs ───────────────────────────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS docs (
+			id             BIGSERIAL PRIMARY KEY,
+			author_user_id BIGINT       REFERENCES users(id) ON DELETE SET NULL,
+			title          VARCHAR(190) NOT NULL,
+			slug           VARCHAR(120) NOT NULL UNIQUE,
+			excerpt        TEXT         NOT NULL DEFAULT '',
+			content        TEXT         NOT NULL DEFAULT '',
+			status         VARCHAR(20)  NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published','archived')),
+			created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_docs_status_created ON docs(status, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_docs_author_id      ON docs(author_user_id)`,
 	}
 
 	for _, stmt := range stmts {
@@ -510,17 +525,46 @@ func (m *Manager) GetUserPasswordHash(userID int64) (string, error) {
 }
 
 func (m *Manager) ListUsers(limit, offset int) ([]User, int64, error) {
+	return m.ListUsersFiltered("", limit, offset)
+}
+
+func (m *Manager) ListUsersFiltered(query string, limit, offset int) ([]User, int64, error) {
 	if !m.IsConnected() {
 		return nil, 0, fmt.Errorf("database not connected")
 	}
+	query = strings.TrimSpace(query)
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	search := "%" + strings.ToLower(query) + "%"
+
 	var total int64
-	if err := m.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total); err != nil {
+	if err := m.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM users
+		WHERE $1 = ''
+			OR LOWER(username) LIKE $2
+			OR LOWER(email) LIKE $2
+			OR LOWER(COALESCE(display_name,'')) LIKE $2
+	`, query, search).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := m.db.Query(`
 		SELECT id, username, email, role, status, COALESCE(display_name,''), COALESCE(avatar_url,''), created_at, updated_at, last_login_at
-		FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2
-	`, limit, offset)
+		FROM users
+		WHERE $1 = ''
+			OR LOWER(username) LIKE $2
+			OR LOWER(email) LIKE $2
+			OR LOWER(COALESCE(display_name,'')) LIKE $2
+		ORDER BY created_at DESC
+		LIMIT $3 OFFSET $4
+	`, query, search, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -842,40 +886,60 @@ type Project struct {
 }
 
 func (m *Manager) ListProjects(userID int64) ([]Project, error) {
-	if !m.IsConnected() {
-		return nil, fmt.Errorf("database not connected")
-	}
-	rows, err := m.db.Query(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-		FROM projects WHERE user_id = $1 ORDER BY created_at DESC
-	`, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanProjects(rows)
+	projects, _, err := m.ListProjectsFiltered(userID, false, "", 200, 0)
+	return projects, err
 }
 
-func (m *Manager) ListAllProjects(limit, offset int) ([]Project, int64, error) {
+func (m *Manager) ListProjectsFiltered(userID int64, includeAll bool, query string, limit, offset int) ([]Project, int64, error) {
 	if !m.IsConnected() {
 		return nil, 0, fmt.Errorf("database not connected")
 	}
+	query = strings.TrimSpace(query)
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	search := "%" + strings.ToLower(query) + "%"
+	filters := []string{"($1 = '' OR LOWER(name) LIKE $2 OR LOWER(slug) LIKE $2 OR LOWER(COALESCE(description,'')) LIKE $2 OR LOWER(COALESCE(project_type,'')) LIKE $2 OR LOWER(COALESCE(working_dir,'')) LIKE $2)"}
+	args := []any{query, search}
+	if !includeAll {
+		filters = append(filters, fmt.Sprintf("user_id = $%d", len(args)+1))
+		args = append(args, userID)
+	}
+	whereClause := strings.Join(filters, " AND ")
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM projects WHERE %s", whereClause)
 	var total int64
-	m.db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&total)
-	rows, err := m.db.Query(`
+	if err := m.db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	listQuery := fmt.Sprintf(`
 		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
 			COALESCE(repo_url,''), COALESCE(working_dir,''),
 			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-		FROM projects ORDER BY created_at DESC LIMIT $1 OFFSET $2
-	`, limit, offset)
+		FROM projects
+		WHERE %s
+		ORDER BY created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
+	rows, err := m.db.Query(listQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 	ps, err := scanProjects(rows)
 	return ps, total, err
+}
+
+func (m *Manager) ListAllProjects(limit, offset int) ([]Project, int64, error) {
+	return m.ListProjectsFiltered(0, true, "", limit, offset)
 }
 
 func (m *Manager) GetProject(id, userID int64) (*Project, error) {
@@ -942,19 +1006,49 @@ type Tunnel struct {
 }
 
 func (m *Manager) ListTunnels(userID int64) ([]Tunnel, error) {
+	tunnels, _, err := m.ListTunnelsFiltered(userID, "", 200, 0)
+	return tunnels, err
+}
+
+func (m *Manager) ListTunnelsFiltered(userID int64, query string, limit, offset int) ([]Tunnel, int64, error) {
 	if !m.IsConnected() {
-		return nil, fmt.Errorf("database not connected")
+		return nil, 0, fmt.Errorf("database not connected")
+	}
+	query = strings.TrimSpace(query)
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	search := "%" + strings.ToLower(query) + "%"
+	var total int64
+	if err := m.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM tunnels
+		WHERE user_id = $1
+		  AND ($2 = '' OR LOWER(name) LIKE $3 OR LOWER(target_url) LIKE $3 OR LOWER(COALESCE(cf_hostname,'')) LIKE $3 OR LOWER(status) LIKE $3)
+	`, userID, query, search).Scan(&total); err != nil {
+		return nil, 0, err
 	}
 	rows, err := m.db.Query(`
 		SELECT id, user_id, project_id, name, target_url, status,
 			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
-		FROM tunnels WHERE user_id = $1 ORDER BY created_at DESC
-	`, userID)
+		FROM tunnels
+		WHERE user_id = $1
+		  AND ($2 = '' OR LOWER(name) LIKE $3 OR LOWER(target_url) LIKE $3 OR LOWER(COALESCE(cf_hostname,'')) LIKE $3 OR LOWER(status) LIKE $3)
+		ORDER BY created_at DESC
+		LIMIT $4 OFFSET $5
+	`, userID, query, search, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
-	return scanTunnels(rows)
+	items, err := scanTunnels(rows)
+	return items, total, err
 }
 
 func (m *Manager) ListAllActiveTunnels() ([]Tunnel, error) {
@@ -970,7 +1064,8 @@ func (m *Manager) ListAllActiveTunnels() ([]Tunnel, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanTunnels(rows)
+	items, err := scanTunnels(rows)
+	return items, err
 }
 
 func (m *Manager) GetTunnel(id, userID int64) (*Tunnel, error) {
@@ -1553,6 +1648,137 @@ func (m *Manager) TruncateData(target string, days int) (int64, error) {
 	return res.RowsAffected()
 }
 
+// ─── Docs ────────────────────────────────────────────────────────────────────
+
+type Doc struct {
+	ID           int64      `json:"id"`
+	AuthorUserID *int64     `json:"authorUserId"`
+	Title        string     `json:"title"`
+	Slug         string     `json:"slug"`
+	Excerpt      string     `json:"excerpt"`
+	Content      string     `json:"content"`
+	Status       string     `json:"status"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
+func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) ([]Doc, int64, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, 0, fmt.Errorf("database not connected")
+	}
+	query = strings.TrimSpace(query)
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	search := "%" + strings.ToLower(query) + "%"
+	statusFilter := "status = 'published'"
+	if includeDrafts {
+		statusFilter = "status != 'archived' OR status = 'archived'"
+	}
+	var total int64
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM docs
+		WHERE (%s)
+		  AND ($1 = '' OR LOWER(title) LIKE $2 OR LOWER(slug) LIKE $2 OR LOWER(excerpt) LIKE $2 OR LOWER(content) LIKE $2)
+	`, statusFilter)
+	if err := m.db.QueryRow(countQuery, query, search).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	listQuery := fmt.Sprintf(`
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		FROM docs
+		WHERE (%s)
+		  AND ($1 = '' OR LOWER(title) LIKE $2 OR LOWER(slug) LIKE $2 OR LOWER(excerpt) LIKE $2 OR LOWER(content) LIKE $2)
+		ORDER BY updated_at DESC, id DESC
+		LIMIT $3 OFFSET $4
+	`, statusFilter)
+	rows, err := m.db.Query(listQuery, query, search, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	items, err := scanDocs(rows)
+	return items, total, err
+}
+
+func (m *Manager) GetDocByID(id int64, includeDrafts bool) (*Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	query := `
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		FROM docs WHERE id = $1`
+	if !includeDrafts {
+		query += ` AND status = 'published'`
+	}
+	row := m.db.QueryRow(query, id)
+	return scanDoc(row)
+}
+
+func (m *Manager) GetDocBySlug(slug string, includeDrafts bool) (*Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	query := `
+		SELECT id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+		FROM docs WHERE slug = $1`
+	if !includeDrafts {
+		query += ` AND status = 'published'`
+	}
+	row := m.db.QueryRow(query, slug)
+	return scanDoc(row)
+}
+
+func (m *Manager) CreateDoc(authorUserID *int64, title, slug, excerpt, content, status string) (*Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var doc Doc
+	err := m.db.QueryRow(`
+		INSERT INTO docs (author_user_id, title, slug, excerpt, content, status)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+	`, authorUserID, title, slug, excerpt, content, status).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.CreatedAt, &doc.UpdatedAt,
+	)
+	return &doc, err
+}
+
+func (m *Manager) UpdateDoc(id int64, title, slug, excerpt, content, status string) (*Doc, error) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var doc Doc
+	err := m.db.QueryRow(`
+		UPDATE docs
+		SET title = $1, slug = $2, excerpt = $3, content = $4, status = $5, updated_at = NOW()
+		WHERE id = $6
+		RETURNING id, author_user_id, title, slug, COALESCE(excerpt,''), COALESCE(content,''), status, created_at, updated_at
+	`, title, slug, excerpt, content, status, id).Scan(
+		&doc.ID, &doc.AuthorUserID, &doc.Title, &doc.Slug, &doc.Excerpt, &doc.Content, &doc.Status, &doc.CreatedAt, &doc.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &doc, err
+}
+
+func (m *Manager) DeleteDoc(id int64) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`DELETE FROM docs WHERE id = $1`, id)
+	return err
+}
+
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func (m *Manager) setConnected(value bool) {
@@ -1647,6 +1873,27 @@ func scanTunnels(rows *sql.Rows) ([]Tunnel, error) {
 			return nil, err
 		}
 		result = append(result, t)
+	}
+	return result, rows.Err()
+}
+
+func scanDoc(row rowScanner) (*Doc, error) {
+	var d Doc
+	err := row.Scan(&d.ID, &d.AuthorUserID, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.CreatedAt, &d.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &d, err
+}
+
+func scanDocs(rows *sql.Rows) ([]Doc, error) {
+	result := make([]Doc, 0)
+	for rows.Next() {
+		var d Doc
+		if err := rows.Scan(&d.ID, &d.AuthorUserID, &d.Title, &d.Slug, &d.Excerpt, &d.Content, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, d)
 	}
 	return result, rows.Err()
 }

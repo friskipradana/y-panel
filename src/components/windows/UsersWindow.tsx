@@ -1,5 +1,5 @@
-import { useState, type ReactElement } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState, type ReactElement } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   listUsers,
   createUser,
@@ -29,6 +29,10 @@ import {
   Pencil,
   Check,
   X,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  // Sparkles,
 } from 'lucide-react'
 
 const ROLE_VARIANTS: Record<string, string> = {
@@ -55,11 +59,16 @@ const ROLE_OPTIONS = [
   { value: 'superadmin', label: 'Superadmin' },
 ]
 
+const PAGE_SIZE = 8
+
 export default function UsersWindow() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [showQuota, setShowQuota] = useState<number | null>(null)
   const [showPwd, setShowPwd] = useState(false)
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  const [offset, setOffset] = useState(0)
 
   const [form, setForm] = useState({
     username: '',
@@ -70,8 +79,8 @@ export default function UsersWindow() {
   })
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => listUsers(100, 0),
+    queryKey: ['users', { search, offset }],
+    queryFn: () => listUsers({ q: search, limit: PAGE_SIZE, offset }),
     refetchInterval: 30_000,
   })
 
@@ -121,7 +130,11 @@ export default function UsersWindow() {
     },
   })
 
-  const users = data?.users ?? []
+  const users = data?.items ?? []
+  const total = data?.total ?? 0
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const activeUsers = useMemo(() => users.filter((user) => user.status === 'active').length, [users])
 
   return (
     <div className="panel-window">
@@ -130,21 +143,14 @@ export default function UsersWindow() {
           <Users className="panel-window__icon h-4 w-4" />
           <div>
             <div className="panel-window__title-text">User Management</div>
-            <div className="panel-window__meta">{users.length} user terdaftar</div>
+            <div className="panel-window__meta">{total} user terdaftar • {activeUsers} aktif di halaman ini</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button
-            onClick={() => refetch()}
-            className="panel-icon-btn"
-            aria-label="Refresh users"
-          >
+          <button onClick={() => refetch()} className="panel-icon-btn" aria-label="Refresh users">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="panel-btn panel-btn--primary-soft"
-          >
+          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
             <UserPlus className="h-3.5 w-3.5" />
             Buat User
           </button>
@@ -196,11 +202,7 @@ export default function UsersWindow() {
               </div>
               <div>
                 <label className="panel-section-label">Role</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                  className="panel-select"
-                >
+                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="panel-select">
                   {ROLE_OPTIONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
@@ -209,16 +211,15 @@ export default function UsersWindow() {
             </div>
             <div className="mt-5 flex gap-2">
               <button
-                onClick={() => { setShowCreate(false); setForm({ username: '', email: '', password: '', role: 'user', displayName: '' }) }}
+                onClick={() => {
+                  setShowCreate(false)
+                  setForm({ username: '', email: '', password: '', role: 'user', displayName: '' })
+                }}
                 className="panel-btn panel-btn--ghost flex-1"
               >
                 Batal
               </button>
-              <button
-                onClick={() => createMut.mutate(form)}
-                disabled={createMut.isPending}
-                className="panel-btn panel-btn--primary flex-1"
-              >
+              <button onClick={() => createMut.mutate(form)} disabled={createMut.isPending} className="panel-btn panel-btn--primary flex-1">
                 {createMut.isPending ? 'Membuat...' : 'Buat User'}
               </button>
             </div>
@@ -227,58 +228,96 @@ export default function UsersWindow() {
       )}
 
       <div className="panel-window__body">
-        {isLoading ? (
-          <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
-        ) : users.length === 0 ? (
-          <div className="panel-empty">
-            <Users className="h-8 w-8" />
-            <span>Belum ada user.</span>
-          </div>
-        ) : (
-          <div className="panel-window__stack">
-            {users.map((u) => (
-              <UserRow
-                key={u.id}
-                user={u}
-                onSuspend={async () => {
-                  const confirmed = await alertLib.confirm(
-                    'Suspend User?',
-                    `User <strong>${u.username}</strong> akan kehilangan akses login sampai diaktifkan kembali.`,
-                    'Suspend User',
-                    'Batal',
-                    'warning',
-                    'users',
-                  )
-                  if (confirmed) suspendMut.mutate(u.id)
-                }}
-                onActivate={async () => {
-                  const confirmed = await alertLib.confirm(
-                    'Aktifkan User?',
-                    `Akses login untuk <strong>${u.username}</strong> akan dipulihkan kembali.`,
-                    'Aktifkan User',
-                    'Batal',
-                    'question',
-                    'users',
-                  )
-                  if (confirmed) activateMut.mutate(u.id)
-                }}
-                onDelete={async () => {
-                  const confirmed = await alertLib.confirm(
-                    'Hapus User?',
-                    `User <strong>${u.username}</strong> akan dihapus beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`,
-                    'Hapus Permanen',
-                    'Batal',
-                    'warning',
-                    'users',
-                  )
-                  if (confirmed) deleteMut.mutate(u.id)
-                }}
-                onQuota={() => setShowQuota(showQuota === u.id ? null : u.id)}
-                showQuota={showQuota === u.id}
+        <div className="panel-window__stack">
+
+          <div className="panel-toolbar panel-toolbar--search">
+            <form
+              className="panel-search"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setOffset(0)
+                setSearch(query.trim())
+              }}
+            >
+              <Search className="h-4 w-4" />
+              <input
+                id="users-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="panel-search__input"
+                placeholder="Cari username, email, role, atau display name..."
               />
-            ))}
+              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+            </form>
+            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
           </div>
-        )}
+
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
+          ) : users.length === 0 ? (
+            <div className="panel-empty">
+              <Users className="h-8 w-8" />
+              <span>Tidak ada user yang cocok dengan pencarian saat ini.</span>
+            </div>
+          ) : (
+            <>
+              <div className="panel-window__stack">
+                {users.map((u) => (
+                  <UserRow
+                    key={u.id}
+                    user={u}
+                    onSuspend={async () => {
+                      const confirmed = await alertLib.confirm(
+                        'Suspend User?',
+                        `User <strong>${u.username}</strong> akan kehilangan akses login sampai diaktifkan kembali.`,
+                        'Suspend User',
+                        'Batal',
+                        'warning',
+                        'users',
+                      )
+                      if (confirmed) suspendMut.mutate(u.id)
+                    }}
+                    onActivate={async () => {
+                      const confirmed = await alertLib.confirm(
+                        'Aktifkan User?',
+                        `Akses login untuk <strong>${u.username}</strong> akan dipulihkan kembali.`,
+                        'Aktifkan User',
+                        'Batal',
+                        'question',
+                        'users',
+                      )
+                      if (confirmed) activateMut.mutate(u.id)
+                    }}
+                    onDelete={async () => {
+                      const confirmed = await alertLib.confirm(
+                        'Hapus User?',
+                        `User <strong>${u.username}</strong> akan dihapus beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`,
+                        'Hapus Permanen',
+                        'Batal',
+                        'warning',
+                        'users',
+                      )
+                      if (confirmed) deleteMut.mutate(u.id)
+                    }}
+                    onQuota={() => setShowQuota(showQuota === u.id ? null : u.id)}
+                    showQuota={showQuota === u.id}
+                  />
+                ))}
+              </div>
+
+              <div className="panel-pagination">
+                <button id="users-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Sebelumnya
+                </button>
+                <button id="users-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                  Berikutnya
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -358,15 +397,12 @@ function UserRow({
   return (
     <div className="panel-card overflow-visible">
       <div className="flex items-center gap-3 overflow-visible p-3.5">
-        <div className="panel-avatar rounded-full text-sm">
-          {user.username[0]?.toUpperCase()}
-        </div>
+        <div className="panel-avatar rounded-full text-sm">{user.username[0]?.toUpperCase()}</div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate text-sm font-medium text-[var(--win-text)]">{user.username}</span>
 
-            {/* Role badge / inline role editor */}
             {editingRole ? (
               <div className="flex items-center gap-1 overflow-visible">
                 <select
@@ -383,24 +419,13 @@ function UserRow({
                   autoFocus
                 >
                   {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
+                    <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
-                <button
-                  onClick={handleRoleSave}
-                  disabled={changeRoleMut.isPending}
-                  title="Simpan role"
-                  className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md"
-                >
+                <button onClick={handleRoleSave} disabled={changeRoleMut.isPending} title="Simpan role" className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md">
                   <Check className="h-3 w-3" />
                 </button>
-                <button
-                  onClick={() => { setEditingRole(false); setSelectedRole(user.role) }}
-                  title="Batal"
-                  className="panel-icon-btn h-6 w-6 rounded-md"
-                >
+                <button onClick={() => { setEditingRole(false); setSelectedRole(user.role) }} title="Batal" className="panel-icon-btn h-6 w-6 rounded-md">
                   <X className="h-3 w-3" />
                 </button>
               </div>
@@ -415,43 +440,25 @@ function UserRow({
               </button>
             )}
 
-            <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>
-              {user.status}
-            </span>
+            <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>{user.status}</span>
           </div>
           <div className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{user.email}</div>
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            onClick={onQuota}
-            title="Kelola Quota"
-            className="panel-icon-btn panel-icon-btn--primary"
-          >
+          <button onClick={onQuota} title="Kelola Quota" className="panel-icon-btn panel-icon-btn--primary">
             <Settings2 className="h-3.5 w-3.5" />
           </button>
           {user.status === 'active' ? (
-            <button
-              onClick={onSuspend}
-              title="Suspend"
-              className="panel-icon-btn panel-icon-btn--warning"
-            >
+            <button onClick={onSuspend} title="Suspend" className="panel-icon-btn panel-icon-btn--warning">
               <ShieldOff className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <button
-              onClick={onActivate}
-              title="Aktifkan"
-              className="panel-icon-btn panel-icon-btn--success"
-            >
+            <button onClick={onActivate} title="Aktifkan" className="panel-icon-btn panel-icon-btn--success">
               <Shield className="h-3.5 w-3.5" />
             </button>
           )}
-          <button
-            onClick={onDelete}
-            title="Hapus"
-            className="panel-icon-btn panel-icon-btn--danger"
-          >
+          <button onClick={onDelete} title="Hapus" className="panel-icon-btn panel-icon-btn--danger">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -479,11 +486,7 @@ function UserRow({
               </div>
             ))}
           </div>
-          <button
-            onClick={() => updateQuotaMut.mutate(editQuota)}
-            disabled={updateQuotaMut.isPending}
-            className="panel-btn panel-btn--primary-soft mt-3 w-full"
-          >
+          <button onClick={() => updateQuotaMut.mutate(editQuota)} disabled={updateQuotaMut.isPending} className="panel-btn panel-btn--primary-soft mt-3 w-full">
             Simpan Quota
           </button>
         </div>

@@ -31,6 +31,40 @@ func userFromCtx(r *http.Request) *database.User {
 	return u
 }
 
+func parseLimitOffset(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
+	limit := defaultLimit
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("limit harus berupa angka")
+		}
+		limit = parsed
+	}
+	if limit <= 0 {
+		limit = defaultLimit
+	}
+	if maxLimit > 0 && limit > maxLimit {
+		limit = maxLimit
+	}
+
+	offset := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("offset")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, 0, fmt.Errorf("offset harus berupa angka")
+		}
+		offset = parsed
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset, nil
+}
+
+func querySearch(r *http.Request) string {
+	return strings.TrimSpace(r.URL.Query().Get("q"))
+}
+
 func (s *Server) notifyUserAction(userID int64, title, body, notifType string) {
 	if err := s.database.CreateNotification(userID, title, body, notifType, ""); err != nil {
 		return
@@ -264,24 +298,18 @@ type createUserRequest struct {
 }
 
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
-	limit := 50
-	offset := 0
-	if v := r.URL.Query().Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limit = n
-		}
+	limit, offset, err := parseLimitOffset(r, 12, 100)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
 	}
-	if v := r.URL.Query().Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
-		}
-	}
-	userList, total, err := s.database.ListUsers(limit, offset)
+	query := querySearch(r)
+	userList, total, err := s.database.ListUsersFiltered(query, limit, offset)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"users": userList, "total": total, "limit": limit, "offset": offset})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": userList, "total": total, "limit": limit, "offset": offset})
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -548,15 +576,15 @@ type createProjectRequest struct {
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	var (
-		projectList []database.Project
-		err         error
-	)
-	if auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1" {
-		projectList, _, err = s.database.ListAllProjects(100, 0)
-	} else {
-		projectList, err = s.database.ListProjects(u.ID)
+	limit, offset, err := parseLimitOffset(r, 12, 100)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
 	}
+	query := querySearch(r)
+	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
+
+	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, limit, offset)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -569,7 +597,12 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	for i, p := range projectList {
 		result[i] = projectWithRunning{Project: p, Running: s.projectManager.IsRunning(p.ID)}
 	}
-	s.writeJSON(w, http.StatusOK, result)
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"items":  result,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
@@ -690,7 +723,13 @@ type createTunnelRequest struct {
 
 func (s *Server) handleListTunnels(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	tunnels, err := s.database.ListTunnels(u.ID)
+	limit, offset, err := parseLimitOffset(r, 12, 100)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	query := querySearch(r)
+	tunnels, total, err := s.database.ListTunnelsFiltered(u.ID, query, limit, offset)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -703,7 +742,12 @@ func (s *Server) handleListTunnels(w http.ResponseWriter, r *http.Request) {
 	for i, t := range tunnels {
 		result[i] = tunnelWithDaemon{Tunnel: t, DaemonRunning: s.cfDaemon.IsRunning(t.CFTunnelID)}
 	}
-	s.writeJSON(w, http.StatusOK, result)
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"items":  result,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
 }
 
 func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
@@ -1050,6 +1094,143 @@ func (s *Server) handleMarkAllNotificationsRead(w http.ResponseWriter, r *http.R
 	u := userFromCtx(r)
 	_ = s.database.MarkAllNotificationsRead(u.ID)
 	s.pushNotificationSnapshot(u.ID, "read_all", nil)
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+type docPayload struct {
+	Title   string `json:"title"`
+	Slug    string `json:"slug"`
+	Excerpt string `json:"excerpt"`
+	Content string `json:"content"`
+	Status  string `json:"status"`
+}
+
+func normalizeDocPayload(req *docPayload) error {
+	req.Title = strings.TrimSpace(req.Title)
+	req.Slug = slugify(req.Slug)
+	if req.Slug == "" {
+		req.Slug = slugify(req.Title)
+	}
+	req.Excerpt = strings.TrimSpace(req.Excerpt)
+	req.Content = strings.TrimSpace(req.Content)
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	if req.Title == "" {
+		return fmt.Errorf("title is required")
+	}
+	if req.Slug == "" {
+		return fmt.Errorf("slug is required")
+	}
+	switch req.Status {
+	case "", "published":
+		req.Status = "published"
+	case "draft", "archived":
+	default:
+		return fmt.Errorf("status is invalid")
+	}
+	if req.Excerpt == "" {
+		runes := []rune(req.Content)
+		if len(runes) > 180 {
+			req.Excerpt = string(runes[:180]) + "..."
+		} else {
+			req.Excerpt = req.Content
+		}
+	}
+	return nil
+}
+
+func (s *Server) handleListDocs(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	limit, offset, err := parseLimitOffset(r, 8, 100)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	query := querySearch(r)
+	includeDrafts := auth.IsAdmin(u.Role) && r.URL.Query().Get("includeDrafts") == "1"
+	items, total, err := s.database.ListDocs(query, limit, offset, includeDrafts)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"items":  items,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+func (s *Server) handleGetDoc(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+	includeDrafts := auth.IsAdmin(u.Role)
+	doc, err := s.database.GetDocByID(id, includeDrafts)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if doc == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "doc not found"})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, doc)
+}
+
+func (s *Server) handleCreateDoc(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	var req docPayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	if err := normalizeDocPayload(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.notifyUserAction(u.ID, "Dokumentasi dibuat 📝", fmt.Sprintf("Artikel '%s' berhasil dibuat.", doc.Title), "success")
+	s.writeJSON(w, http.StatusCreated, doc)
+}
+
+func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+	var req docPayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	if err := normalizeDocPayload(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if doc == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "doc not found"})
+		return
+	}
+	s.notifyUserAction(u.ID, "Dokumentasi diperbarui ✨", fmt.Sprintf("Artikel '%s' berhasil diperbarui.", doc.Title), "info")
+	s.writeJSON(w, http.StatusOK, doc)
+}
+
+func (s *Server) handleDeleteDoc(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+	if err := s.database.DeleteDoc(id); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.notifyUserAction(u.ID, "Dokumentasi dihapus 🗑️", fmt.Sprintf("Artikel dengan ID %d berhasil dihapus.", id), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

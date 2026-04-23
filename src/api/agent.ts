@@ -64,7 +64,6 @@ agentApi.interceptors.response.use(
     const isRevisionCheck = error.config?.url?.includes('/api/v1/frontend/revision')
     const isStatsWS = error.config?.url?.includes('/api/v1/system/stats/ws')
 
-    // Silent logs on public paths, revision checks, or stats WS to keep console clean
     if (!isUnauthorized || (!isPublicPath && !isRevisionCheck && !isStatsWS)) {
       runtimeLogger.error('api', 'request failed', {
         method: error.config?.method,
@@ -82,8 +81,7 @@ agentApi.interceptors.response.use(
 
     if (isUnauthorized && unauthorizedEventArmed) {
       unauthorizedEventArmed = false
-      
-      // Only dispatch session-expired if we are NOT on a public path
+
       if (!isPublicPath) {
         runtimeLogger.warn('auth', 'session expired event dispatched')
         window.dispatchEvent(new CustomEvent('panel:session-expired'))
@@ -192,8 +190,6 @@ export const getWallpaper = () =>
 export const updateWallpaper = (data: string) =>
   agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)
 
-// ─── Extended AuthMe ──────────────────────────────────────────────────────────
-
 export interface AuthMeV2 {
   id: number
   username: string
@@ -210,7 +206,26 @@ export interface AuthMeV2 {
 export const getMeV2 = () =>
   agentApi.get<AuthMeV2>('/api/v1/me').then((r) => r.data)
 
-// ─── Users ────────────────────────────────────────────────────────────────────
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface PaginationParams {
+  q?: string
+  limit?: number
+  offset?: number
+}
+
+const withPagination = (params?: PaginationParams) => ({
+  params: {
+    q: params?.q ?? '',
+    limit: params?.limit,
+    offset: params?.offset,
+  },
+})
 
 export interface PanelUser {
   id: number
@@ -234,12 +249,8 @@ export interface UserQuota {
   memoryLimitMb: number
 }
 
-export const listUsers = (limit = 50, offset = 0) =>
-  agentApi
-    .get<{ users: PanelUser[]; total: number; limit: number; offset: number }>('/api/v1/users', {
-      params: { limit, offset },
-    })
-    .then((r) => r.data)
+export const listUsers = (params?: PaginationParams) =>
+  agentApi.get<PaginatedResponse<PanelUser>>('/api/v1/users', withPagination(params)).then((r) => r.data)
 
 export const createUser = (payload: {
   username: string
@@ -269,8 +280,6 @@ export const getUserQuota = (id: number) =>
 
 export const updateUserQuota = (id: number, quota: Partial<UserQuota>) =>
   agentApi.patch<{ ok: boolean }>(`/api/v1/users/${id}/quota`, quota).then((r) => r.data)
-
-// ─── Cloudflare Config (per-user) ─────────────────────────────────────────────
 
 export interface CFConfig {
   configured: boolean
@@ -305,8 +314,6 @@ export interface CFZone {
 export const getCFZones = () =>
   agentApi.get<CFZone[]>('/api/v1/me/cloudflare/zones').then((r) => r.data)
 
-// ─── Projects ─────────────────────────────────────────────────────────────────
-
 export interface Project {
   id: number
   userId: number
@@ -324,8 +331,21 @@ export interface Project {
   updatedAt: string
 }
 
-export const listProjects = (all = false) =>
-  agentApi.get<Project[]>('/api/v1/projects', { params: all ? { all: 1 } : {} }).then((r) => r.data)
+export interface ProjectListParams extends PaginationParams {
+  all?: boolean
+}
+
+export const listProjects = (params?: ProjectListParams) =>
+  agentApi
+    .get<PaginatedResponse<Project>>('/api/v1/projects', {
+      params: {
+        q: params?.q ?? '',
+        limit: params?.limit,
+        offset: params?.offset,
+        all: params?.all ? 1 : undefined,
+      },
+    })
+    .then((r) => r.data)
 
 export const createProject = (payload: {
   name: string
@@ -347,8 +367,6 @@ export const startProject = (id: number) =>
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)
 
-// ─── Tunnels ──────────────────────────────────────────────────────────────────
-
 export interface Tunnel {
   id: number
   userId: number
@@ -363,8 +381,8 @@ export interface Tunnel {
   updatedAt: string
 }
 
-export const listTunnels = () =>
-  agentApi.get<Tunnel[]>('/api/v1/tunnels').then((r) => r.data)
+export const listTunnels = (params?: PaginationParams) =>
+  agentApi.get<PaginatedResponse<Tunnel>>('/api/v1/tunnels', withPagination(params)).then((r) => r.data)
 
 export const createTunnel = (payload: {
   name: string
@@ -396,7 +414,53 @@ export const getTunnel = (id: number) =>
 export const deleteTunnel = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/tunnels/${id}`).then((r) => r.data)
 
-// ─── Notifications ────────────────────────────────────────────────────────────
+export interface DocRecord {
+  id: number
+  authorUserId: number | null
+  title: string
+  slug: string
+  excerpt: string
+  content: string
+  status: 'published' | 'draft' | 'archived'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface DocPayload {
+  title: string
+  slug?: string
+  excerpt?: string
+  content: string
+  status?: 'published' | 'draft' | 'archived'
+}
+
+export interface DocListParams extends PaginationParams {
+  includeDrafts?: boolean
+}
+
+export const listDocs = (params?: DocListParams) =>
+  agentApi
+    .get<PaginatedResponse<DocRecord>>('/api/v1/docs', {
+      params: {
+        q: params?.q ?? '',
+        limit: params?.limit,
+        offset: params?.offset,
+        includeDrafts: params?.includeDrafts ? 1 : undefined,
+      },
+    })
+    .then((r) => r.data)
+
+export const getDoc = (id: number) =>
+  agentApi.get<DocRecord>(`/api/v1/docs/${id}`).then((r) => r.data)
+
+export const createDoc = (payload: DocPayload) =>
+  agentApi.post<DocRecord>('/api/v1/docs', payload).then((r) => r.data)
+
+export const updateDoc = (id: number, payload: DocPayload) =>
+  agentApi.patch<DocRecord>(`/api/v1/docs/${id}`, payload).then((r) => r.data)
+
+export const deleteDoc = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/docs/${id}`).then((r) => r.data)
 
 export interface PanelNotification {
   id: number

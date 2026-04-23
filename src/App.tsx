@@ -22,6 +22,7 @@ const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow'
 const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
 const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
 const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
+const DocsWindow = lazy(() => import('@/components/windows/DocsWindow'))
 import { FileManagerWindow } from '@/components/windows/FileManagerWindow'
 const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((module) => ({ default: module.FileEditorWindow })))
 const UsersWindow = lazy(() => import('@/components/windows/UsersWindow'))
@@ -63,25 +64,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
       <span style={{ color: '#888' }}>Window ini sekarang dipakai sebagai petunjuk singkat.</span>
     </div>
   ),
-  docs: () => (
-    <div className="flex flex-col gap-2 py-3">
-      {[
-        { icon: '🚀', title: 'Install panel', cmd: 'sudo bash installer/linux/install.sh' },
-        { icon: '🧠', title: 'Agent health', cmd: 'curl http://127.0.0.1:8787/healthz' },
-        { icon: '📦', title: 'Portainer logs', cmd: 'docker logs -f ui-panel-portainer' },
-        { icon: '🪵', title: 'Agent logs', cmd: 'journalctl -u ui-panel -f' },
-        { icon: '💻', title: 'Host terminal', cmd: 'Buka window Host Terminal dari panel desktop' },
-        { icon: '📜', title: 'System logs panel', cmd: 'Buka tombol log di taskbar untuk melihat journalctl service' },
-        { icon: '🔁', title: 'Restart panel', cmd: 'ui-panel restart' },
-        { icon: '🧹', title: 'Uninstall', cmd: 'ui-panel uninstall' },
-      ].map((d) => (
-        <div key={d.title} className="rounded-lg p-3" style={{ background: 'var(--profile-btn-bg)', border: '1px solid var(--win-border)' }}>
-          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--win-text)' }}>{d.icon} {d.title}</p>
-          <code className="text-xs opacity-80" style={{ color: 'var(--win-text)', fontFamily: 'monospace' }}>{d.cmd}</code>
-        </div>
-      ))}
-    </div>
-  ),
+  docs: () => <DocsWindow />,
   changelog: () => <ChangelogWindow />,
   settings: (_win, auth) => <SettingsWindow authenticated={auth} />,
   database: (_win, auth) => <DatabaseWindow authenticated={auth} />,

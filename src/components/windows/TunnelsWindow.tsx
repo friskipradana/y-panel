@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listTunnels,
@@ -24,6 +24,10 @@ import {
   Copy,
   Pencil,
   RefreshCcw,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  // Sparkles,
 } from 'lucide-react'
 
 const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
@@ -33,6 +37,8 @@ const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
   error: { variant: 'panel-status--danger', label: 'Error' },
   inactive: { variant: 'panel-status--neutral', label: 'Inactive' },
 }
+
+const PAGE_SIZE = 8
 
 function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name: string }[]) {
   let protocol = 'http'
@@ -86,13 +92,22 @@ export default function TunnelsWindow() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editingTunnelId, setEditingTunnelId] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  const [offset, setOffset] = useState(0)
   const [form, setForm] = useState({ name: '', subdomain: '', domain: '', zoneId: '', path: '', protocol: 'http', ip: 'localhost', port: '3000' })
 
-  const { data: tunnels = [], isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['tunnels'],
-    queryFn: listTunnels,
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['tunnels', { search, offset }],
+    queryFn: () => listTunnels({ q: search, limit: PAGE_SIZE, offset }),
     refetchInterval: 8_000,
   })
+
+  const tunnels = data?.items ?? []
+  const total = data?.total ?? 0
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const activeCount = useMemo(() => tunnels.filter((tunnel) => tunnel.status === 'active').length, [tunnels])
 
   const { data: cfConfig } = useQuery({
     queryKey: ['cf-config'],
@@ -182,15 +197,11 @@ export default function TunnelsWindow() {
           <Network className="panel-window__icon h-4 w-4" />
           <div>
             <div className="panel-window__title-text">Cloudflare Tunnels</div>
-            <div className="panel-window__meta">{tunnels.length} tunnel tercatat</div>
+            <div className="panel-window__meta">{total} tunnel terindeks • {activeCount} aktif di halaman ini</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button
-            onClick={() => refetch()}
-            className="panel-icon-btn"
-            aria-label="Refresh tunnels"
-          >
+          <button onClick={() => refetch()} className="panel-icon-btn" aria-label="Refresh tunnels">
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
           <button
@@ -233,23 +244,13 @@ export default function TunnelsWindow() {
             <div className="space-y-4">
               <div>
                 <label className="panel-section-label">Nama Rute *</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="my-api-route"
-                  className="panel-input"
-                />
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="my-api-route" className="panel-input" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="panel-section-label">Subdomain</label>
-                  <input
-                    value={form.subdomain}
-                    onChange={(e) => setForm((f) => ({ ...f, subdomain: e.target.value }))}
-                    placeholder="api (opsional)"
-                    className="panel-input"
-                  />
+                  <input value={form.subdomain} onChange={(e) => setForm((f) => ({ ...f, subdomain: e.target.value }))} placeholder="api (opsional)" className="panel-input" />
                 </div>
                 <div>
                   <label className="panel-section-label">Domain (Zone) *</label>
@@ -259,7 +260,7 @@ export default function TunnelsWindow() {
                       const selected = cfZones.find((z) => z.id === e.target.value)
                       setForm((f) => ({ ...f, zoneId: e.target.value, domain: selected?.name || '' }))
                     }}
-                    className="panel-input"
+                    className="panel-select"
                   >
                     <option value="">-- Pilih Domain --</option>
                     {cfZones.map((z) => (
@@ -273,38 +274,19 @@ export default function TunnelsWindow() {
 
               <div>
                 <label className="panel-section-label">Path (opsional)</label>
-                <input
-                  value={form.path}
-                  onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))}
-                  placeholder="/api/v1"
-                  className="panel-input"
-                />
+                <input value={form.path} onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))} placeholder="/api/v1" className="panel-input" />
               </div>
 
               <div>
                 <label className="panel-section-label">Target URL *</label>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={form.protocol}
-                    onChange={(e) => setForm((f) => ({ ...f, protocol: e.target.value }))}
-                    className="panel-input !w-28 shrink-0"
-                  >
+                  <select value={form.protocol} onChange={(e) => setForm((f) => ({ ...f, protocol: e.target.value }))} className="panel-select !w-28 shrink-0">
                     <option value="http">http://</option>
                     <option value="https">https://</option>
                   </select>
-                  <input
-                    value={form.ip}
-                    onChange={(e) => setForm((f) => ({ ...f, ip: e.target.value }))}
-                    placeholder="localhost"
-                    className="panel-input flex-1 min-w-0"
-                  />
+                  <input value={form.ip} onChange={(e) => setForm((f) => ({ ...f, ip: e.target.value }))} placeholder="localhost" className="panel-input flex-1 min-w-0" />
                   <span className="text-[var(--text-secondary)] font-bold">:</span>
-                  <input
-                    value={form.port}
-                    onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))}
-                    placeholder="3000"
-                    className="panel-input !w-24 shrink-0"
-                  />
+                  <input value={form.port} onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))} placeholder="3000" className="panel-input !w-24 shrink-0" />
                 </div>
               </div>
 
@@ -313,17 +295,8 @@ export default function TunnelsWindow() {
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="panel-btn panel-btn--ghost flex-1"
-              >
-                Batal
-              </button>
-              <button
-                onClick={() => editingTunnelId ? updateMut.mutate(form) : createMut.mutate(form)}
-                disabled={createMut.isPending || updateMut.isPending || !form.name || !form.zoneId || !form.ip || !form.port}
-                className="panel-btn panel-btn--primary flex-1"
-              >
+              <button onClick={() => setShowCreate(false)} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+              <button onClick={() => editingTunnelId ? updateMut.mutate(form) : createMut.mutate(form)} disabled={createMut.isPending || updateMut.isPending || !form.name || !form.zoneId || !form.ip || !form.port} className="panel-btn panel-btn--primary flex-1">
                 {createMut.isPending || updateMut.isPending ? 'Menyimpan...' : 'Simpan Rute'}
               </button>
             </div>
@@ -332,37 +305,69 @@ export default function TunnelsWindow() {
       )}
 
       <div className="panel-window__body">
-        {isLoading ? (
-          <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat tunnels...</div>
-        ) : tunnels.length === 0 ? (
-          <div className="panel-empty">
-            <Network className="h-8 w-8" />
-            <span>Belum ada tunnel aktif.</span>
+        <div className="panel-window__stack">
+
+          <div className="panel-toolbar panel-toolbar--search">
+            <form
+              className="panel-search"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setOffset(0)
+                setSearch(query.trim())
+              }}
+            >
+              <Search className="h-4 w-4" />
+              <input id="tunnels-search-input" value={query} onChange={(e) => setQuery(e.target.value)} className="panel-search__input" placeholder="Cari nama tunnel, hostname, target URL, atau status..." />
+              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+            </form>
+            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
           </div>
-        ) : (
-          <div className="panel-window__stack">
-            {tunnels.map((t) => (
-              <TunnelCard
-                key={t.id}
-                tunnel={t}
-                onEdit={() => handleEdit(t)}
-                onDelete={async () => {
-                  const confirmed = await alertLib.confirm(
-                    'Hapus Tunnel?',
-                    `Tunnel <strong>${t.name}</strong> beserta DNS Cloudflare terkait akan dihapus.`,
-                    'Hapus Tunnel',
-                    'Batal',
-                    'warning',
-                    'tunnels',
-                  )
-                  if (confirmed) deleteMut.mutate(t.id)
-                }}
-                onSync={() => handleSync(t)}
-                isSyncing={syncMut.isPending && syncMut.variables?.id === t.id}
-              />
-            ))}
-          </div>
-        )}
+
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat tunnels...</div>
+          ) : tunnels.length === 0 ? (
+            <div className="panel-empty">
+              <Network className="h-8 w-8" />
+              <span>Belum ada tunnel yang cocok dengan pencarian saat ini.</span>
+            </div>
+          ) : (
+            <>
+              <div className="panel-window__stack">
+                {tunnels.map((t) => (
+                  <TunnelCard
+                    key={t.id}
+                    tunnel={t}
+                    onEdit={() => handleEdit(t)}
+                    onDelete={async () => {
+                      const confirmed = await alertLib.confirm(
+                        'Hapus Tunnel?',
+                        `Tunnel <strong>${t.name}</strong> beserta DNS Cloudflare terkait akan dihapus.`,
+                        'Hapus Tunnel',
+                        'Batal',
+                        'warning',
+                        'tunnels',
+                      )
+                      if (confirmed) deleteMut.mutate(t.id)
+                    }}
+                    onSync={() => handleSync(t)}
+                    isSyncing={syncMut.isPending && syncMut.variables?.id === t.id}
+                  />
+                ))}
+              </div>
+
+              <div className="panel-pagination">
+                <button id="tunnels-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Sebelumnya
+                </button>
+                <button id="tunnels-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                  Berikutnya
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -451,28 +456,15 @@ function TunnelCard({
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-1">
-          <button
-            onClick={onEdit}
-            className="panel-icon-btn panel-icon-btn--neutral ml-1 opacity-0 group-hover:opacity-100"
-            title="Edit rute"
-          >
+          <button onClick={onEdit} className="panel-icon-btn panel-icon-btn--neutral ml-1 opacity-0 group-hover:opacity-100" title="Edit rute">
             <Pencil className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={onDelete}
-            className="panel-icon-btn panel-icon-btn--danger ml-1 opacity-0 group-hover:opacity-100"
-            title="Hapus rute"
-          >
+          <button onClick={onDelete} className="panel-icon-btn panel-icon-btn--danger ml-1 opacity-0 group-hover:opacity-100" title="Hapus rute">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
           {t.status === 'active' && (
             <>
-              <button
-                onClick={onSync}
-                disabled={isSyncing}
-                className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100"
-                title="Sync tunnel aktif"
-              >
+              <button onClick={onSync} disabled={isSyncing} className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100" title="Sync tunnel aktif">
                 <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
               </button>
               <div className="panel-badge panel-badge--success">
@@ -489,8 +481,6 @@ function TunnelCard({
           )}
         </div>
       </div>
-
-      {/* {t.cfTunnelId && <div className="panel-meta-line mt-2.5 pl-[52px] panel-mono">{t.cfTunnelId}</div>} */}
     </div>
   )
 }

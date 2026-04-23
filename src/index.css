@@ -743,8 +743,76 @@ body {
   color: var(--text-secondary);
 }
 
+.panel-empty--wide {
+  min-height: 14rem;
+}
+
 .panel-empty svg {
   opacity: 0.56;
+}
+
+.apps-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.apps-card {
+  display: flex;
+  min-height: 176px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.apps-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.apps-card__meta {
+  display: grid;
+  gap: 10px;
+}
+
+.apps-card__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 14px;
+  border: 1px solid var(--win-border);
+  background: color-mix(in srgb, var(--panel-surface) 82%, transparent);
+  padding: 10px 12px;
+  font-size: 0.76rem;
+  color: var(--win-text);
+}
+
+.apps-card__meta-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.apps-card__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (min-width: 900px) {
+  .apps-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .apps-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .panel-input,
@@ -1243,9 +1311,238 @@ body {
   gap: 10px;
 }
 
+.panel-grid-compact--2 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.panel-search {
+  display: flex;
+  flex: 1;
+  min-width: min(100%, 340px);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--win-border);
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--panel-surface), color-mix(in srgb, var(--panel-primary-bg) 44%, var(--panel-surface)));
+  padding: 10px 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.panel-search:focus-within {
+  border-color: color-mix(in srgb, var(--panel-primary-text) 46%, var(--win-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 14%, transparent);
+}
+
+.panel-search__input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--win-text);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.panel-search__input::placeholder {
+  color: var(--text-secondary);
+}
+
+.panel-toolbar--search {
+  align-items: stretch;
+}
+
+.panel-pagination-summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  padding: 0 14px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.panel-pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.docs-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.docs-list,
+.docs-viewer {
+  border-radius: 24px;
+  border: 1px solid var(--win-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-surface) 82%, transparent), var(--panel-surface));
+  padding: 16px;
+}
+
+.docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docs-list__item {
+  width: 100%;
+  border: 1px solid var(--win-border);
+  border-radius: 18px;
+  background: var(--panel-surface);
+  padding: 14px;
+  text-align: left;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.docs-list__item:hover {
+  transform: translateY(-1px);
+  background: var(--panel-surface-hover);
+}
+
+.docs-list__item--active {
+  border-color: color-mix(in srgb, var(--panel-primary-text) 38%, var(--win-border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--panel-primary-bg) 72%, transparent), var(--panel-surface));
+  box-shadow: var(--panel-card-shadow);
+}
+
+.docs-list__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.docs-list__date {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.docs-list__title {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.docs-list__excerpt {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.docs-viewer {
+  min-height: 320px;
+}
+
+.docs-viewer__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.docs-viewer__title {
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--win-text);
+}
+
+.docs-viewer__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.docs-viewer__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.docs-viewer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.docs-viewer__excerpt {
+  margin-bottom: 14px;
+  border-left: 3px solid color-mix(in srgb, var(--panel-primary-text) 52%, transparent);
+  padding-left: 14px;
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+.docs-viewer__content {
+  white-space: pre-wrap;
+  font-size: 0.84rem;
+  line-height: 1.9;
+  color: var(--win-text);
+}
+
+.docs-viewer__empty {
+  min-height: 100%;
+}
+
+.docs-editor-modal {
+  width: min(100%, 860px);
+}
+
+.docs-editor-modal__header,
+.docs-editor-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.docs-editor-modal__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.docs-editor-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.docs-editor-modal__content {
+  min-height: 240px;
+}
+
+.docs-editor-modal__footer {
+  margin-top: 18px;
+}
+
 @media (min-width: 768px) {
+  .panel-grid-compact--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .panel-grid-compact--3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .docs-layout {
+    grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.4fr);
   }
 }
 
