@@ -81,7 +81,133 @@ export interface Container {
   State: 'running' | 'exited' | 'paused' | 'restarting' | 'dead'
   Status: string
   Ports: { PrivatePort: number; PublicPort?: number; Type: string }[]
+  Networks?: string[]
+  IpAddresses?: string[]
   Created: number
+  Labels?: Record<string, string>
+  ProjectName?: string
+  OwnerUserId?: number
+  OwnerName?: string
+  Source?: string
+  ComposePath?: string
+  Resources?: {
+    cpuLimitPct?: string | number
+    memoryLimitMb?: string | number
+    diskQuotaMb?: string | number
+  }
+  Metadata?: Record<string, unknown>
+}
+
+export interface DockerOwnerPreview {
+  id: number
+  username: string
+  displayName: string
+  role: string
+  homeDir: string
+  dockerRootDir: string
+  quota?: {
+    userId: number
+    diskQuotaMb: number
+    cpuLimitPct: number
+    memoryLimitMb: number
+    maxProjects?: number
+    maxTunnels?: number
+  }
+}
+
+export interface PaginationParams {
+  q?: string
+  limit?: number
+  offset?: number
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  limit?: number
+  offset?: number
+}
+
+export interface PortBindingInput {
+  hostIp?: string
+  hostPort: string
+  containerPort: string
+  protocol?: string
+}
+
+export interface EnvVarInput {
+  key: string
+  value: string
+}
+
+export interface VolumeBindingInput {
+  hostPath: string
+  containerPath: string
+  readOnly?: boolean
+}
+
+export interface DockerDeployImagePayload {
+  ownerUserId?: number
+  name: string
+  image: string
+  network?: string
+  ports: PortBindingInput[]
+  env: EnvVarInput[]
+  volumes: VolumeBindingInput[]
+}
+
+export interface DockerDeployComposePayload {
+  ownerUserId?: number
+  name: string
+  composeYaml: string
+}
+
+export interface DeployComposePayload {
+  name: string
+  composeYaml: string
+}
+
+export interface DockerNetwork {
+  Id: string
+  Name: string
+  Driver: string
+  Scope: string
+  CreatedAt: string
+  Subnet?: string
+  Gateway?: string
+}
+
+export interface DockerImage {
+  Id: string
+  Repository: string
+  Tag: string
+  Size: string
+  CreatedAt: string
+}
+
+export interface DockerTemplate {
+  id: number
+  name: string
+  description: string
+  yamlContent: string
+  createdAt: string
+}
+
+export interface DockerDeployResponse {
+  ok: boolean
+  projectName: string
+  composePath: string
+  projectDir: string
+  owner: {
+    userId: number
+    username: string
+    displayName: string
+    homeDir: string
+    dockerRootDir: string
+    diskQuotaMb: number
+    cpuLimitPct: number
+    memoryLimitMb: number
+  }
 }
 
 export interface ContainerStats {

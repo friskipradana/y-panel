@@ -14,7 +14,7 @@ import { getFrontendRevision, getMe, getMeV2 } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind, WindowState } from '@/types'
 
-const AppsWindow = lazy(() => import('@/components/windows/AppsWindow').then((module) => ({ default: module.AppsWindow })))
+const DockerWindow = lazy(() => import('@/components/windows/DockerWindow').then((module) => ({ default: module.DockerWindow })))
 const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
 const SettingsWindow = lazy(() => import('@/components/windows/SettingsWindow').then((module) => ({ default: module.SettingsWindow })))
 const DatabaseWindow = lazy(() => import('@/components/windows/DatabaseWindow').then((module) => ({ default: module.DatabaseWindow })))
@@ -40,7 +40,7 @@ const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
 const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
 
 const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
-  apps: (_win, auth) => <AppsWindow authenticated={auth} />,
+  apps: (_win, auth) => <DockerWindow authenticated={auth} />,
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
   'system-logs': (_win, auth) => <SystemLogsWindow authenticated={auth} />,
   'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,

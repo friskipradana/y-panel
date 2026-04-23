@@ -5,7 +5,7 @@ import { useThemeStore } from '@/store/themeStore'
 import type { WindowKind, WindowState } from '@/types'
 
 const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
-  { kind: 'apps', icon: '📁', label: 'My Apps' },
+  { kind: 'apps', icon: '🐋', label: 'Docker' },
   { kind: 'projects', icon: '🗂️', label: 'Projects' },
   { kind: 'tunnels', icon: '🌐', label: 'Tunnels' },
   { kind: 'profile', icon: '👤', label: 'Profile' },

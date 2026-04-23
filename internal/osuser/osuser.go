@@ -77,3 +77,11 @@ func WrapCommand(cmd *exec.Cmd, osUsername string) (*exec.Cmd, error) {
 	}
 	return wrapped, nil
 }
+
+func ResolveHomeDir(panelUsername string) string {
+	mapped := MappedUsername(panelUsername)
+	if account, err := osuser.Lookup(mapped); err == nil && strings.TrimSpace(account.HomeDir) != "" {
+		return account.HomeDir
+	}
+	return "/home/" + mapped
+}

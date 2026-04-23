@@ -1,8 +1,15 @@
 import axios, { AxiosError } from 'axios'
 import type {
   ChangelogResponse,
+  Container,
   DatabaseStatusResponse,
+  DockerDeployComposePayload,
+  DockerDeployImagePayload,
+  DockerDeployResponse,
+  DockerOwnerPreview,
   EditableSystemSettings,
+  PaginatedResponse,
+  PaginationParams,
   ResetDatabasePasswordResponse,
   SystemLogsResponse,
   SystemSummary,
@@ -190,6 +197,57 @@ export const getWallpaper = () =>
 export const updateWallpaper = (data: string) =>
   agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)
 
+export const listContainers = () =>
+  agentApi.get<Container[]>('/api/v1/containers').then((r) => r.data)
+
+export const listContainerOwners = (params?: PaginationParams) =>
+  agentApi.get<PaginatedResponse<DockerOwnerPreview>>('/api/v1/containers/owners', withPagination(params)).then((r) => r.data)
+
+export const deployImageContainer = (payload: DockerDeployImagePayload) =>
+  agentApi.post<DockerDeployResponse>('/api/v1/containers/deploy-image', payload).then((r) => r.data)
+
+export const deployComposeProject = (payload: DockerDeployComposePayload) =>
+  agentApi.post<DockerDeployResponse>('/api/v1/containers/deploy-compose', payload).then((r) => r.data)
+
+export const startContainer = (id: string) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/containers/${id}/start`).then((r) => r.data)
+
+export const stopContainer = (id: string) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/containers/${id}/stop`).then((r) => r.data)
+
+export const restartContainer = (id: string) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/containers/${id}/restart`).then((r) => r.data)
+
+export const deleteContainer = (id: string) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/containers/${id}`).then((r) => r.data)
+
+export const listDockerNetworks = () =>
+  agentApi.get<{ items: import('@/types').DockerNetwork[] }>('/api/v1/docker/networks').then((r) => r.data)
+
+export const createDockerNetwork = (payload: { name: string; subnet?: string; gateway?: string }) =>
+  agentApi.post<{ status: string }>('/api/v1/docker/networks', payload).then((r) => r.data)
+
+export const deleteDockerNetwork = (id: string) =>
+  agentApi.delete<{ status: string }>(`/api/v1/docker/networks/${id}`).then((r) => r.data)
+
+export const listDockerImages = () =>
+  agentApi.get<{ items: import('@/types').DockerImage[] }>('/api/v1/docker/images').then((r) => r.data)
+
+export const deleteDockerImage = (id: string) =>
+  agentApi.delete<{ status: string }>(`/api/v1/docker/images/${id}`).then((r) => r.data)
+
+export const listDockerTemplates = () =>
+  agentApi.get<{ items: import('@/types').DockerTemplate[] }>('/api/v1/docker/templates').then((r) => r.data)
+
+export const createDockerTemplate = (payload: { name: string; description: string; yamlContent: string }) =>
+  agentApi.post<import('@/types').DockerTemplate>('/api/v1/docker/templates', payload).then((r) => r.data)
+
+export const updateDockerTemplate = (id: number, payload: { name: string; description: string; yamlContent: string }) =>
+  agentApi.put<{ status: string }>(`/api/v1/docker/templates/${id}`, payload).then((r) => r.data)
+
+export const deleteDockerTemplate = (id: number) =>
+  agentApi.delete<{ status: string }>(`/api/v1/docker/templates/${id}`).then((r) => r.data)
+
 export interface AuthMeV2 {
   id: number
   username: string
@@ -205,19 +263,6 @@ export interface AuthMeV2 {
 
 export const getMeV2 = () =>
   agentApi.get<AuthMeV2>('/api/v1/me').then((r) => r.data)
-
-export interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  limit: number
-  offset: number
-}
-
-export interface PaginationParams {
-  q?: string
-  limit?: number
-  offset?: number
-}
 
 const withPagination = (params?: PaginationParams) => ({
   params: {

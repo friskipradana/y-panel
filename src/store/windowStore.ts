@@ -7,7 +7,7 @@ const DEFAULTS: Record<
   WindowKind,
   { title: string; icon: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "My Apps", icon: "📁", width: 615, height: 380, singleton: true },
+  apps: { title: "Docker", icon: "🐋", width: 900, height: 900, singleton: true },
   terminal: { title: "Terminal", icon: "💻", width: 518, height: 320, singleton: true },
   "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 1035, height: 640, singleton: true },
   system: { title: "System Info", icon: "⚙️", width: 1100, height: 680, singleton: true },

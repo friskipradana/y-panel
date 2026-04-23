@@ -449,6 +449,15 @@ func (m *Manager) ensureSchema() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_status_created ON docs(status, created_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_docs_author_id      ON docs(author_user_id)`,
+
+		// ── Docker Compose Templates ───────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS docker_compose_templates (
+			id BIGSERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			yaml_content TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
 	}
 
 	for _, stmt := range stmts {
