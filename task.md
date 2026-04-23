@@ -34,8 +34,8 @@
 - [x] Update Login screen untuk UX baru (tidak hanya single admin)
 
 ## Phase 7: Frontend — App.tsx Update
-- [ ] Role-based routing dan window visibility
-- [ ] Notification bell di taskbar
+- [x] Role-based routing dan window visibility
+- [x] Notification bell di taskbar
 - [x] Update dock untuk show Projects, Tunnels windows
 
 ## Phase 8: Testing + go mod tidy

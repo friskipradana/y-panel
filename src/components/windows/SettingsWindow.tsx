@@ -20,6 +20,7 @@ import {
   Waypoints,
 } from 'lucide-react'
 import {
+  copyTextToClipboard,
   getDatabaseStatus,
   getEditableSystemSettings,
   resetDatabasePassword,
@@ -720,7 +721,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     <button
                       id="settings-db-copy-password"
                       type="button"
-                      onClick={() => void navigator.clipboard.writeText(dbResetResult.password)}
+                      onClick={async () => {
+                        try {
+                          await copyTextToClipboard(dbResetResult.password)
+                          alertLib.fire('Password Tersalin', 'Password database baru berhasil disalin ke clipboard.', 'success', 'settings')
+                        } catch (error: any) {
+                          alertLib.fire('Gagal Menyalin', error?.message || 'Clipboard tidak tersedia di environment ini.', 'error', 'settings')
+                        }
+                      }}
                       className="panel-btn panel-btn--ghost rounded-[10px] px-3.5 py-[7px] text-[12px]"
                     >
                       <Copy size={13} />

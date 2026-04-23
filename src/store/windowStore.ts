@@ -29,8 +29,8 @@ const DEFAULTS: Record<
 // Z-index tiers
 const Z_NORMAL = 100;
 const Z_MAXIMIZED = 500;
-const Z_FULLSCREEN = 12000;
-const Z_FOCUS_BOOST = 50000; // window terfokus selalu di atas semua
+const Z_FOCUS_BOOST = 50000; // window terfokus non-fullscreen di atas window biasa
+const Z_FULLSCREEN = 120000; // fullscreen tetap layer tertinggi
 
 function reorder(windows: WindowState[]) {
   const non = windows.filter((w) => !w.isFullscreen);
@@ -41,7 +41,7 @@ function reorder(windows: WindowState[]) {
     w.zIndex = (w.isMaximized ? Z_MAXIMIZED : Z_NORMAL) + i;
   });
 
-  // fullscreen: 12000+ (always above normal windows)
+  // fullscreen: selalu di lapisan paling atas
   full.forEach((w, i) => {
     w.zIndex = Z_FULLSCREEN + i;
   });
@@ -80,7 +80,8 @@ function bringToFront(windows: WindowState[], id: string) {
   reorder(windows);
 
   // Jika window yang di-focus BUKAN fullscreen, beri z-index boost
-  // agar dia terlihat di atas semua fullscreen
+  // agar dia terlihat di atas semua window biasa/maksimasi,
+  // tetapi tetap di bawah overlay taskbar dan mode fullscreen.
   if (!isFullscreen) {
     win.zIndex = Z_FOCUS_BOOST;
   }

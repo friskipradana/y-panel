@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Bell, CheckCheck, Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { logoutAgent, getMeV2 } from '@/api/agent'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, type PanelNotification } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -36,6 +36,19 @@ const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
 
 const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users'])
 
+function getNotificationTone(type: PanelNotification['type']) {
+  switch (type) {
+    case 'success':
+      return 'panel-badge--success'
+    case 'warning':
+      return 'panel-badge--warning'
+    case 'error':
+      return 'panel-badge--danger'
+    default:
+      return 'panel-badge--info'
+  }
+}
+
 export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
@@ -47,11 +60,34 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const [stats, setStats] = useState<{ cpu: number, ram: number, temp: number }>({ cpu: 0, ram: 0, temp: 0 })
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const notificationPanelRef = useRef<HTMLDivElement>(null)
   const { data: currentUser } = useQuery({
     queryKey: ['me-v2'],
     queryFn: getMeV2,
     enabled: authenticated,
     retry: 1,
+  })
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: listNotifications,
+    enabled: authenticated,
+    retry: 1,
+    refetchInterval: 15_000,
+  })
+  const unreadCount = notifications.filter((item) => !item.isRead).length
+  const latestNotifications = useMemo(() => notifications.slice(0, 8), [notifications])
+  const markReadMutation = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+  const markAllMutation = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
   })
 
   useEffect(() => {
@@ -116,11 +152,24 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
+      const target = e.target as Node
+      const targetElement = target instanceof HTMLElement ? target : null
+
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setShowMenu(false)
+      }
+
+      const clickedNotificationButton = Boolean(targetElement?.closest('#taskbar-notifications-button'))
+      const clickedInsideNotifications = Boolean(notificationPanelRef.current?.contains(target))
+
+      if (!clickedNotificationButton && !clickedInsideNotifications) {
+        setShowNotifications(false)
+      }
     }
-    if (showMenu) window.addEventListener('mousedown', handler)
+
+    if (showMenu || showNotifications) window.addEventListener('mousedown', handler)
     return () => window.removeEventListener('mousedown', handler)
-  }, [showMenu])
+  }, [showMenu, showNotifications])
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -265,6 +314,104 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             </div>
           </motion.div>
         )}
+
+        {showNotifications && (
+          <motion.div
+            id="taskbar-notifications-panel"
+            ref={notificationPanelRef}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="taskbar-notifications"
+          >
+            <div className="taskbar-notifications__header">
+              <div>
+                <div className="taskbar-notifications__title-row">
+                  <div className="taskbar-notifications__title-icon">
+                    <Bell size={14} />
+                  </div>
+                  <div>
+                    <div className="taskbar-notifications__title">Notifications</div>
+                    <div className="taskbar-notifications__subtitle">
+                      Aktivitas terbaru akun panel Anda
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => markAllMutation.mutate()}
+                disabled={!unreadCount || markAllMutation.isPending}
+                className="panel-btn panel-btn--ghost taskbar-notifications__mark-all"
+              >
+                <CheckCheck size={12} />
+                Tandai semua
+              </button>
+            </div>
+
+            <div className="taskbar-notifications__meta">
+              <span className={`panel-badge ${unreadCount ? 'panel-badge--primary' : 'panel-badge--neutral'}`}>
+                <span className="panel-status-dot" />
+                {unreadCount} belum dibaca
+              </span>
+              <span className="taskbar-notifications__count">
+                {notifications.length} total notifikasi
+              </span>
+            </div>
+
+            <div className="taskbar-notifications__list">
+              {latestNotifications.length === 0 ? (
+                <div className="panel-empty taskbar-notifications__empty">
+                  <Bell size={18} />
+                  <span>Belum ada notifikasi baru untuk akun ini.</span>
+                </div>
+              ) : (
+                latestNotifications.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (!item.isRead) markReadMutation.mutate(item.id)
+                    }}
+                    className={`taskbar-notification-card ${item.isRead ? 'taskbar-notification-card--read' : 'taskbar-notification-card--unread'}`}
+                  >
+                    <div className="taskbar-notification-card__header">
+                      <div className="taskbar-notification-card__title-wrap">
+                        <span className={`panel-badge ${getNotificationTone(item.type)}`}>
+                          <span className="panel-status-dot" />
+                          {item.type}
+                        </span>
+                        <span className="taskbar-notification-card__title">{item.title}</span>
+                      </div>
+                      {!item.isRead ? <span className="taskbar-notification-card__unread-dot" /> : null}
+                    </div>
+                    <div className="taskbar-notification-card__body">{item.body}</div>
+                    <div className="taskbar-notification-card__footer">
+                      <span>{new Date(item.createdAt).toLocaleString('id-ID')}</span>
+                      <span>{item.isRead ? 'Sudah dibaca' : 'Klik untuk tandai dibaca'}</span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        <button
+          id="taskbar-notifications-button"
+          title="Notifications"
+          className="taskbar-icon-btn taskbar-icon-btn--notification"
+          onClick={() => {
+            setShowNotifications((current) => !current)
+            setShowMenu(false)
+          }}
+        >
+          <Bell size={14} />
+          {unreadCount > 0 && (
+            <span className="taskbar-notifications-badge">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
 
         <button id="taskbar-monitor" title="System Info" className="taskbar-icon-btn" onClick={() => openWindow('system')}>
           <Monitor size={14} />

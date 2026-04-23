@@ -93,10 +93,16 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
       <span className="text-sm">Trash is empty</span>
     </div>
   ),
-  // ── ServerPanel Pro windows ──
   users: () => <UsersWindow />,
   projects: () => <ProjectsWindow />,
   tunnels: () => <TunnelsWindow />,
+}
+
+const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
+
+function canAccessWindow(kind: WindowKind, role?: string | null) {
+  if (role === 'admin' || role === 'superadmin') return true
+  return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
 }
 
 function WindowFallback() {
@@ -119,13 +125,19 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
   const { windows } = useWindowStore()
   const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
+  const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
+  const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
+  const userRole = me?.role ?? null
+  const visibleWindows = useMemo(
+    () => windows.filter((win) => canAccessWindow(win.kind, userRole)),
+    [userRole, windows],
+  )
 
   useEffect(() => {
     if (!authenticated) return
     void syncCustomImage()
   }, [authenticated, syncCustomImage])
 
-  // Update background imperatively so we never unmount children (keeps dropdown open)
   useEffect(() => {
     if (rootRef.current) {
       rootRef.current.style.background = getBackground()
@@ -140,7 +152,7 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
     >
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
       <div className="absolute inset-0">
-        {windows.map((win) => {
+        {visibleWindows.map((win) => {
           const renderContent = WINDOW_CONTENT[win.kind]
           return (
             <Window key={win.id} win={win}>
@@ -394,48 +406,47 @@ function AppShell() {
     if (!authenticated) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input or textarea
       const isTyping = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) || (e.target as HTMLElement).isContentEditable
       if (isTyping && e.key !== 'Escape') return
 
       const { openWindow, closeWindow, focusedId } = useWindowStore.getState()
       const meRaw = window.localStorage.getItem('me-v2-cache')
       const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
-      const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
-
-      // Alt + T: Terminal
-      if (isAdmin && e.altKey && e.key.toLowerCase() === 't') {
-        e.preventDefault()
-        openWindow('host-terminal')
+      const userRole = me?.role ?? null
+      const tryOpenWindow = (kind: WindowKind) => {
+        if (!canAccessWindow(kind, userRole)) return
+        openWindow(kind)
       }
-      // Alt + F: File Manager
+
+      if (userRole && e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        tryOpenWindow('host-terminal')
+      }
       if (e.altKey && e.key.toLowerCase() === 'f') {
         e.preventDefault()
-        openWindow('file-manager')
+        tryOpenWindow('file-manager')
       }
-      // Alt + S: Settings
       if (e.altKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
-        openWindow('settings')
+        tryOpenWindow('settings')
       }
-      // Alt + U: Users (admin)
       if (e.altKey && e.key.toLowerCase() === 'u') {
         e.preventDefault()
-        openWindow('users')
+        tryOpenWindow('users')
       }
-      // Alt + P: Projects
       if (e.altKey && e.key.toLowerCase() === 'p') {
         e.preventDefault()
-        openWindow('projects')
+        tryOpenWindow('projects')
       }
-      // Alt + W: Close focused window
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        tryOpenWindow('changelog')
+      }
       if (e.altKey && e.key.toLowerCase() === 'w') {
         e.preventDefault()
         if (focusedId) closeWindow(focusedId)
       }
-      // Escape: Close/Minimize focused window
       if (e.key === 'Escape' && focusedId) {
-        // Only close if not typing, or if it's a specific UI case
         closeWindow(focusedId)
       }
     }
