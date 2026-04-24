@@ -12,6 +12,7 @@ import {
   createDockerNetwork,
   deleteDockerNetwork,
   listDockerImages,
+  pullDockerImage,
   deleteDockerImage,
   listDockerTemplates,
   createDockerTemplate,
@@ -124,6 +125,17 @@ export function useDockerImages() {
     queryKey: ['docker-images'],
     queryFn: listDockerImages,
     refetchInterval: 15_000,
+  })
+}
+
+export function usePullDockerImage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: pullDockerImage,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['docker-images'] })
+      qc.invalidateQueries({ queryKey: ['containers'] })
+    },
   })
 }
 

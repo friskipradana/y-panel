@@ -142,6 +142,13 @@ export interface EnvVarInput {
 
 export type DockerEnvMode = 'form' | 'raw'
 
+export interface DockerRegistryAuthPayload {
+  enabled?: boolean
+  registry?: string
+  usernameOrEmail?: string
+  password?: string
+}
+
 export interface DockerContainerConfig {
   name: string
   image: string
@@ -168,13 +175,20 @@ export interface DockerDeployImagePayload {
   env: EnvVarInput[]
   envMode?: DockerEnvMode
   envRaw?: string
+  registryAuth?: DockerRegistryAuthPayload
   volumes: VolumeBindingInput[]
+}
+
+export interface DockerPullImagePayload {
+  image: string
+  registryAuth?: DockerRegistryAuthPayload
 }
 
 export interface DockerDeployComposePayload {
   ownerUserId?: number
   name: string
   composeYaml: string
+  registryAuth?: DockerRegistryAuthPayload
 }
 
 export interface DeployComposePayload {

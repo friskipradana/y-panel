@@ -823,7 +823,7 @@ body {
   border: 1px solid var(--win-border);
   background: var(--panel-field-bg);
   color: var(--win-text);
-  padding: 10px 14px;
+  padding: 5px 14px;
   font-size: 0.8125rem;
   line-height: 1.5;
   outline: none;
@@ -1703,7 +1703,7 @@ body {
 .docker-modal {
   display: flex;
   flex-direction: column;
-  width: min(680px, 100%);
+  width: min(840px, 100%);
   max-height: 90vh;
   border-radius: 24px;
   border: 1px solid var(--win-border);
@@ -2005,7 +2005,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 2px;
+  /* padding: 2px; */
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel-surface-hover) 42%, transparent);
 }
@@ -2014,7 +2014,7 @@ body {
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  padding: 5px 11px;
+  padding: 0px 11px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
@@ -2047,12 +2047,39 @@ body {
   letter-spacing: 0.02em;
 }
 
+.docker-auth-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.docker-auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.docker-auth-grid__full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .docker-auth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-auth-grid__full {
+    grid-column: auto;
+  }
+}
+
 /* ── Save as template checkbox ── */
 .docker-save-tpl-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  /* padding: 8px 10px; */
   /* border-radius: 12px; */
   /* border: 1px solid var(--win-border); */
   /* background: color-mix(in srgb, var(--panel-surface-hover) 70%, transparent); */
@@ -4081,4 +4108,4 @@ input:-webkit-autofill:active{
   opacity: 0.75;
   margin-top: 4px;
   line-height: 1.5;
-}
+}

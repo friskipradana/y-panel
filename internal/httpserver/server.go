@@ -310,6 +310,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkCreate)))
 	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkDelete)))
 	s.mux.Handle("GET /api/v1/docker/images", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagesList)))
+	s.mux.Handle("POST /api/v1/docker/images/pull", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagePull)))
 	s.mux.Handle("GET /api/v1/docker/image-in-use", s.requireAuthV2(http.HandlerFunc(s.handleImageInUse)))
 	s.mux.Handle("DELETE /api/v1/docker/images/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerImageDelete)))
 	s.mux.Handle("GET /api/v1/docker/templates", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplatesList)))
@@ -723,22 +724,43 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 }
 
 type dockerDeployImageRequest struct {
-	OwnerUserID int64                  `json:"ownerUserId"`
-	Name        string                 `json:"name"`
-	Image       string                 `json:"image"`
-	Network     string                 `json:"network"`
-	Ports       []docker.PortBinding   `json:"ports"`
-	Env         []docker.EnvVar        `json:"env"`
-	EnvMode     string                 `json:"envMode"`
-	EnvRaw      string                 `json:"envRaw"`
-	Volumes     []docker.VolumeBinding `json:"volumes"`
+	OwnerUserID  int64                  `json:"ownerUserId"`
+	Name         string                 `json:"name"`
+	Image        string                 `json:"image"`
+	Network      string                 `json:"network"`
+	Ports        []docker.PortBinding   `json:"ports"`
+	Env          []docker.EnvVar        `json:"env"`
+	EnvMode      string                 `json:"envMode"`
+	EnvRaw       string                 `json:"envRaw"`
+	RegistryAuth *docker.RegistryAuth   `json:"registryAuth"`
+	Volumes      []docker.VolumeBinding `json:"volumes"`
+}
+
+type dockerPullImageRequest struct {
+	Image        string               `json:"image"`
+	RegistryAuth *docker.RegistryAuth `json:"registryAuth"`
 }
 
 type dockerDeployComposeRequest struct {
-	OwnerUserID  int64  `json:"ownerUserId"`
-	Name         string `json:"name"`
-	ComposeYAML  string `json:"composeYaml"`
+	OwnerUserID  int64                `json:"ownerUserId"`
+	Name         string               `json:"name"`
+	ComposeYAML  string               `json:"composeYaml"`
+	RegistryAuth *docker.RegistryAuth `json:"registryAuth"`
 }
+
+func validateRegistryAuthPayload(auth *docker.RegistryAuth) error {
+	if auth == nil || !auth.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(auth.UsernameOrEmail) == "" {
+		return errors.New("registry username/email is required when authentication is enabled")
+	}
+	if strings.TrimSpace(auth.Password) == "" {
+		return errors.New("registry password is required when authentication is enabled")
+	}
+	return nil
+}
+
 
 func (s *Server) handleContainersList(w http.ResponseWriter, _ *http.Request) {
 	containers, err := docker.ListContainers()
@@ -847,20 +869,25 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	if err := validateRegistryAuthPayload(req.RegistryAuth); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	owner, err := s.resolveDockerOwnerContext(actor, req.OwnerUserID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
 	result, err := docker.DeployFromImage(owner, docker.DeployImageRequest{
-		Name:    req.Name,
-		Image:   req.Image,
-		Network: req.Network,
-		Ports:   req.Ports,
-		Env:     req.Env,
-		EnvMode: req.EnvMode,
-		EnvRaw:  req.EnvRaw,
-		Volumes: req.Volumes,
+		Name:         req.Name,
+		Image:        req.Image,
+		Network:      req.Network,
+		Ports:        req.Ports,
+		Env:          req.Env,
+		EnvMode:      req.EnvMode,
+		EnvRaw:       req.EnvRaw,
+		RegistryAuth: req.RegistryAuth,
+		Volumes:      req.Volumes,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
@@ -896,14 +923,19 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	if err := validateRegistryAuthPayload(req.RegistryAuth); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	owner, err := s.resolveDockerOwnerContext(actor, req.OwnerUserID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
 	result, err := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
-		Name:        req.Name,
-		ComposeYAML: req.ComposeYAML,
+		Name:         req.Name,
+		ComposeYAML:  req.ComposeYAML,
+		RegistryAuth: req.RegistryAuth,
 	})
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)

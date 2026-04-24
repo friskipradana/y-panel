@@ -214,6 +214,27 @@ func (c *Client) DeleteDNSRecord(zoneID, recordID string) error {
 	return nil
 }
 
+// DeleteDNSRecordByHostname removes all CNAME records for a given hostname in the zone.
+func (c *Client) DeleteDNSRecordByHostname(zoneID, hostname string) error {
+	getResp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?name=%s&type=CNAME", zoneID, hostname))
+	if err != nil {
+		return err
+	}
+	if !getResp.Success {
+		return fmt.Errorf("list DNS records failed: %v", getResp.Errors)
+	}
+	var existingRecords []DNSRecord
+	if err := mapResult(getResp.Result, &existingRecords); err != nil {
+		return err
+	}
+	for _, rec := range existingRecords {
+		if err := c.DeleteDNSRecord(zoneID, rec.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ─── Tunnel Routing ───────────────────────────────────────────────────────────
 
 // IngressRule maps a hostname to a service URL within a tunnel config.

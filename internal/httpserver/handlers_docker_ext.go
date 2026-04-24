@@ -62,6 +62,25 @@ func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request)
 	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func (s *Server) handleDockerImagePull(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var payload dockerPullImageRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request body"))
+		return
+	}
+	if err := validateRegistryAuthPayload(payload.RegistryAuth); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := docker.PullImage(payload.Image, payload.RegistryAuth); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "image": payload.Image})
+}
+
 func (s *Server) handleDockerTemplatesList(w http.ResponseWriter, r *http.Request) {
 	templates, err := s.database.ListComposeTemplates()
 	if err != nil {

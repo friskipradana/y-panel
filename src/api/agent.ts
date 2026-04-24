@@ -7,6 +7,7 @@ import type {
   DockerDeployImagePayload,
   DockerDeployResponse,
   DockerOwnerPreview,
+  DockerPullImagePayload,
   EditableSystemSettings,
   PaginatedResponse,
   PaginationParams,
@@ -240,6 +241,9 @@ export const deleteDockerNetwork = (id: string) =>
 
 export const listDockerImages = () =>
   agentApi.get<{ items: import('@/types').DockerImage[] }>('/api/v1/docker/images').then((r) => r.data)
+
+export const pullDockerImage = (payload: DockerPullImagePayload) =>
+  agentApi.post<{ status: string; image: string }>('/api/v1/docker/images/pull', payload).then((r) => r.data)
 
 export const deleteDockerImage = (id: string) =>
   agentApi.delete<{ status: string }>(`/api/v1/docker/images/${id}`).then((r) => r.data)

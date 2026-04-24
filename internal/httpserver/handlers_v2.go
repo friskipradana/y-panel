@@ -934,8 +934,12 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname)
 
 	// Async CF update
-	go func(tunnelDBID int64, userID int64, cfTunnelID string, newHostname string, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
+	go func(tunnelDBID int64, userID int64, cfTunnelID string, oldHostname, newHostname string, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
 		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, "")
+
+		if oldHostname != "" && oldHostname != newHostname {
+			_ = cfClient.DeleteDNSRecordByHostname(reqZoneID, oldHostname)
+		}
 
 		if newHostname != "" && cfTunnelID != "" {
 			_, _ = cfClient.EnsureCNAMERecord(reqZoneID, newHostname, cfTunnelID)
@@ -975,7 +979,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 			_ = s.cfDaemon.StopTunnel(cfTunnelID)
 			_ = s.cfDaemon.StartTunnel(cfTunnelID, userID, credJSON, configYAML)
 		}
-	}(t.ID, u.ID, t.CFTunnelID, hostname, req.ZoneID, cfCfg, apiToken)
+	}(t.ID, u.ID, t.CFTunnelID, t.CFHostname, hostname, req.ZoneID, cfCfg, apiToken)
 
 	s.notifyUserAction(u.ID, "Rute tunnel diperbarui 🌐", fmt.Sprintf("Rute '%s' berhasil diperbarui.", req.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Rute berhasil diperbarui"})
@@ -1008,22 +1012,11 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 
 	if len(allRoutes) == 0 {
 		_ = s.cfDaemon.StopTunnel(t.CFTunnelID)
-		if t.CFTunnelID != "" {
-			go func(cfID string) {
-				cfCfg, _ := s.database.GetCFConfig(u.ID)
-				if cfCfg == nil {
-					return
-				}
-				apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
-				if err != nil {
-					return
-				}
-				_ = cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "").DeleteTunnel(cfID)
-			}(t.CFTunnelID)
-		}
-	} else if t.CFTunnelID != "" {
-		go func(cfID string) {
-			cfCfg, _ := s.database.GetCFConfig(u.ID)
+	}
+
+	if t.CFTunnelID != "" {
+		go func(cfID, hostname string, userID int64) {
+			cfCfg, _ := s.database.GetCFConfig(userID)
 			if cfCfg == nil {
 				return
 			}
@@ -1033,37 +1026,45 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 			}
 			cfClient := cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "")
 
-			var rules []cloudflareapi.IngressRule
-			for _, rRoute := range allRoutes {
-				if rRoute.CFHostname != "" {
-					uParse, parseErr := url.Parse(rRoute.TargetURL)
-					path := ""
-					service := rRoute.TargetURL
-					if parseErr == nil {
-						path = uParse.Path
-						service = uParse.Scheme + "://" + uParse.Host
-					}
-					rules = append(rules, cloudflareapi.IngressRule{
-						Hostname: rRoute.CFHostname,
-						Path:     path,
-						Service:  service,
-					})
-				}
+			if hostname != "" && cfCfg.ZoneID != "" {
+				_ = cfClient.DeleteDNSRecordByHostname(cfCfg.ZoneID, hostname)
 			}
 
-			_ = cfClient.UpdateTunnelConfig(cfID, rules)
+			if len(allRoutes) == 0 {
+				_ = cfClient.DeleteTunnel(cfID)
+			} else {
+				var rules []cloudflareapi.IngressRule
+				for _, rRoute := range allRoutes {
+					if rRoute.CFHostname != "" {
+						uParse, parseErr := url.Parse(rRoute.TargetURL)
+						path := ""
+						service := rRoute.TargetURL
+						if parseErr == nil {
+							path = uParse.Path
+							service = uParse.Scheme + "://" + uParse.Host
+						}
+						rules = append(rules, cloudflareapi.IngressRule{
+							Hostname: rRoute.CFHostname,
+							Path:     path,
+							Service:  service,
+						})
+					}
+				}
 
-			credFile := s.cfDaemon.CredFilePathFor(u.ID, cfID)
-			credJSON, _ := os.ReadFile(credFile)
-			configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
-				TunnelID: cfID,
-				CredFile: credFile,
-				Ingress:  rules,
-			})
+				_ = cfClient.UpdateTunnelConfig(cfID, rules)
 
-			_ = s.cfDaemon.StopTunnel(cfID)
-			_ = s.cfDaemon.StartTunnel(cfID, u.ID, credJSON, configYAML)
-		}(t.CFTunnelID)
+				credFile := s.cfDaemon.CredFilePathFor(userID, cfID)
+				credJSON, _ := os.ReadFile(credFile)
+				configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
+					TunnelID: cfID,
+					CredFile: credFile,
+					Ingress:  rules,
+				})
+
+				_ = s.cfDaemon.StopTunnel(cfID)
+				_ = s.cfDaemon.StartTunnel(cfID, userID, credJSON, configYAML)
+			}
+		}(t.CFTunnelID, t.CFHostname, u.ID)
 	}
 
 	s.notifyUserAction(u.ID, "Rute tunnel dihapus 🗑️", fmt.Sprintf("Rute '%s' berhasil dihapus.", t.Name), "warning")

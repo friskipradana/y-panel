@@ -70,20 +70,29 @@ type VolumeBinding struct {
 	ReadOnly      bool   `json:"readOnly,omitempty"`
 }
 
+type RegistryAuth struct {
+	Enabled         bool   `json:"enabled,omitempty"`
+	Registry        string `json:"registry,omitempty"`
+	UsernameOrEmail string `json:"usernameOrEmail,omitempty"`
+	Password        string `json:"password,omitempty"`
+}
+
 type DeployImageRequest struct {
-	Name    string          `json:"name"`
-	Image   string          `json:"image"`
-	Network string          `json:"network,omitempty"`
-	Ports   []PortBinding   `json:"ports"`
-	Env     []EnvVar        `json:"env"`
-	EnvMode string          `json:"envMode,omitempty"`
-	EnvRaw  string          `json:"envRaw,omitempty"`
-	Volumes []VolumeBinding `json:"volumes"`
+	Name         string          `json:"name"`
+	Image        string          `json:"image"`
+	Network      string          `json:"network,omitempty"`
+	Ports        []PortBinding   `json:"ports"`
+	Env          []EnvVar        `json:"env"`
+	EnvMode      string          `json:"envMode,omitempty"`
+	EnvRaw       string          `json:"envRaw,omitempty"`
+	RegistryAuth *RegistryAuth   `json:"registryAuth,omitempty"`
+	Volumes      []VolumeBinding `json:"volumes"`
 }
 
 type DeployComposeRequest struct {
-	Name        string `json:"name"`
-	ComposeYAML string `json:"composeYaml"`
+	Name         string        `json:"name"`
+	ComposeYAML  string        `json:"composeYaml"`
+	RegistryAuth *RegistryAuth `json:"registryAuth,omitempty"`
 }
 
 type DeployResult struct {
@@ -447,6 +456,13 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err != nil {
 		return nil, err
 	}
+	logout, err := loginRegistryIfNeeded(req.RegistryAuth)
+	if err != nil {
+		return nil, err
+	}
+	if logout != nil {
+		defer logout()
+	}
 	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, env, volumes)
 	if err != nil {
 		return nil, err
@@ -461,6 +477,25 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
+}
+
+func PullImage(image string, auth *RegistryAuth) error {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return errors.New("image is required")
+	}
+	logout, err := loginRegistryIfNeeded(auth)
+	if err != nil {
+		return err
+	}
+	if logout != nil {
+		defer logout()
+	}
+	cmd := exec.Command("docker", "pull", image)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("pull image: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployResult, error) {
@@ -481,6 +516,15 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	if err := os.WriteFile(composePath, []byte(content), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
 	}
+	
+	logout, err := loginRegistryIfNeeded(req.RegistryAuth)
+	if err != nil {
+		return nil, err
+	}
+	if logout != nil {
+		defer logout()
+	}
+
 	if err := runComposeUp(projectDir, composePath); err != nil {
 		return nil, err
 	}
@@ -651,6 +695,39 @@ func ensureComposeWithinOwnerRoot(content, homeDir string) error {
 		}
 	}
 	return nil
+}
+
+func loginRegistryIfNeeded(auth *RegistryAuth) (func(), error) {
+	if auth == nil || !auth.Enabled {
+		return nil, nil
+	}
+	username := strings.TrimSpace(auth.UsernameOrEmail)
+	password := auth.Password
+	if username == "" || strings.TrimSpace(password) == "" {
+		return nil, errors.New("registry username/email and password are required")
+	}
+	registry := normalizeRegistryAddress(auth.Registry)
+	cmd := exec.Command("docker", "login", registry, "-u", username, "--password-stdin")
+	cmd.Stdin = strings.NewReader(password)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return nil, fmt.Errorf("registry login failed: %s", strings.TrimSpace(string(output)))
+	}
+	return func() {
+		logoutRegistry(registry)
+	}, nil
+}
+
+func normalizeRegistryAddress(registry string) string {
+	trimmed := strings.TrimSpace(registry)
+	if trimmed == "" {
+		return "docker.io"
+	}
+	return trimmed
+}
+
+func logoutRegistry(registry string) {
+	cmd := exec.Command("docker", "logout", normalizeRegistryAddress(registry))
+	_, _ = cmd.CombinedOutput()
 }
 
 func normalizeEnvVars(mode, raw string, items []EnvVar) ([]EnvVar, error) {
