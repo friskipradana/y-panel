@@ -313,10 +313,13 @@ func (m *Manager) ensureSchema() error {
 			status        VARCHAR(20)  NOT NULL DEFAULT 'pending' CHECK (status IN ('active','inactive','error','pending','creating')),
 			cf_tunnel_id  VARCHAR(128),
 			cf_hostname   VARCHAR(253),
+			cf_zone_id    VARCHAR(64),
 			tunnel_config JSONB,
 			created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 			updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 		)`,
+		// ── Schema migrations (idempotent) ──────────────────────────────────────
+		`ALTER TABLE tunnels ADD COLUMN IF NOT EXISTS cf_zone_id VARCHAR(64)`,
 		`CREATE INDEX IF NOT EXISTS idx_tunnels_user_id    ON tunnels(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tunnels_project_id ON tunnels(project_id)`,
 
@@ -1009,6 +1012,7 @@ type Tunnel struct {
 	Status       string    `json:"status"`
 	CFTunnelID   string    `json:"cfTunnelId"`
 	CFHostname   string    `json:"cfHostname"`
+	CFZoneID     string    `json:"cfZoneId"`
 	TunnelConfig any       `json:"tunnelConfig"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
@@ -1045,7 +1049,7 @@ func (m *Manager) ListTunnelsFiltered(userID int64, query string, limit, offset 
 	}
 	rows, err := m.db.Query(`
 		SELECT id, user_id, project_id, name, target_url, status,
-			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
+			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), COALESCE(cf_zone_id,''), created_at, updated_at
 		FROM tunnels
 		WHERE user_id = $1
 		  AND ($2 = '' OR LOWER(name) LIKE $3 OR LOWER(target_url) LIKE $3 OR LOWER(COALESCE(cf_hostname,'')) LIKE $3 OR LOWER(status) LIKE $3)
@@ -1066,7 +1070,7 @@ func (m *Manager) ListAllActiveTunnels() ([]Tunnel, error) {
 	}
 	rows, err := m.db.Query(`
 		SELECT id, user_id, project_id, name, target_url, status,
-			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
+			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), COALESCE(cf_zone_id,''), created_at, updated_at
 		FROM tunnels WHERE cf_tunnel_id != '' AND status = 'active' ORDER BY created_at DESC
 	`)
 	if err != nil {
@@ -1083,7 +1087,7 @@ func (m *Manager) GetTunnel(id, userID int64) (*Tunnel, error) {
 	}
 	row := m.db.QueryRow(`
 		SELECT id, user_id, project_id, name, target_url, status,
-			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
+			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), COALESCE(cf_zone_id,''), created_at, updated_at
 		FROM tunnels WHERE id = $1 AND user_id = $2
 	`, id, userID)
 	return scanTunnel(row)
@@ -1098,33 +1102,33 @@ func (m *Manager) CreateTunnel(userID int64, projectID *int64, name, targetURL s
 		INSERT INTO tunnels (user_id, project_id, name, target_url)
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, user_id, project_id, name, target_url, status,
-			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), created_at, updated_at
+			COALESCE(cf_tunnel_id,''), COALESCE(cf_hostname,''), COALESCE(cf_zone_id,''), created_at, updated_at
 	`, userID, projectID, name, targetURL).Scan(
 		&t.ID, &t.UserID, &t.ProjectID, &t.Name, &t.TargetURL, &t.Status,
-		&t.CFTunnelID, &t.CFHostname, &t.CreatedAt, &t.UpdatedAt,
+		&t.CFTunnelID, &t.CFHostname, &t.CFZoneID, &t.CreatedAt, &t.UpdatedAt,
 	)
 	return &t, err
 }
 
-func (m *Manager) UpdateTunnel(id int64, userID int64, name, targetURL, hostname string) error {
+func (m *Manager) UpdateTunnel(id int64, userID int64, name, targetURL, hostname, zoneID string) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		UPDATE tunnels SET name = $1, target_url = $2, cf_hostname = $3, updated_at = NOW()
-		WHERE id = $4 AND user_id = $5
-	`, name, targetURL, hostname, id, userID)
+		UPDATE tunnels SET name = $1, target_url = $2, cf_hostname = $3, cf_zone_id = $4, updated_at = NOW()
+		WHERE id = $5 AND user_id = $6
+	`, name, targetURL, hostname, zoneID, id, userID)
 	return err
 }
 
-func (m *Manager) UpdateTunnelCF(id int64, cfTunnelID, cfHostname, status string) error {
+func (m *Manager) UpdateTunnelCF(id int64, cfTunnelID, cfHostname, cfZoneID, status string) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		UPDATE tunnels SET cf_tunnel_id = $1, cf_hostname = $2, status = $3, updated_at = NOW()
-		WHERE id = $4
-	`, cfTunnelID, cfHostname, status, id)
+		UPDATE tunnels SET cf_tunnel_id = $1, cf_hostname = $2, cf_zone_id = $3, status = $4, updated_at = NOW()
+		WHERE id = $5
+	`, cfTunnelID, cfHostname, cfZoneID, status, id)
 	return err
 }
 
@@ -1867,7 +1871,7 @@ func scanProjects(rows *sql.Rows) ([]Project, error) {
 
 func scanTunnel(row rowScanner) (*Tunnel, error) {
 	var t Tunnel
-	err := row.Scan(&t.ID, &t.UserID, &t.ProjectID, &t.Name, &t.TargetURL, &t.Status, &t.CFTunnelID, &t.CFHostname, &t.CreatedAt, &t.UpdatedAt)
+	err := row.Scan(&t.ID, &t.UserID, &t.ProjectID, &t.Name, &t.TargetURL, &t.Status, &t.CFTunnelID, &t.CFHostname, &t.CFZoneID, &t.CreatedAt, &t.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1878,7 +1882,7 @@ func scanTunnels(rows *sql.Rows) ([]Tunnel, error) {
 	result := make([]Tunnel, 0)
 	for rows.Next() {
 		var t Tunnel
-		if err := rows.Scan(&t.ID, &t.UserID, &t.ProjectID, &t.Name, &t.TargetURL, &t.Status, &t.CFTunnelID, &t.CFHostname, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.ProjectID, &t.Name, &t.TargetURL, &t.Status, &t.CFTunnelID, &t.CFHostname, &t.CFZoneID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, err
 		}
 		result = append(result, t)

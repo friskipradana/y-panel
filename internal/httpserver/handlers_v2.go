@@ -879,7 +879,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 			s.notifyUserAction(userID, "Daemon tunnel bermasalah ⚠️", fmt.Sprintf("Tunnel '%s' aktif tetapi daemon gagal start: %s", name, daemonErr.Error()), "warning")
 		}
 
-		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, "active")
+		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, reqZoneID, "active")
 		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, mainTunnelID, hostname)
 		s.notifyUserAction(userID, "Rute Tunnel Aktif 🟢", "Rute '"+name+"' berhasil dibuat.", "success")
 	}(t.ID, u.ID, req.Name, req.Subdomain, req.Domain, req.ZoneID, cfCfg, apiToken)
@@ -931,17 +931,20 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
 
-	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname)
+	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname, req.ZoneID)
 
 	// Async CF update
-	go func(tunnelDBID int64, userID int64, cfTunnelID string, oldHostname, newHostname string, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
+	go func(tunnelDBID int64, userID int64, cfTunnelID string, oldHostname, oldZoneID, newHostname, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
 		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, "")
 
-		if oldHostname != "" && oldHostname != newHostname {
+		if oldHostname != "" && oldZoneID != "" && (oldHostname != newHostname || oldZoneID != reqZoneID) {
+			_ = cfClient.DeleteDNSRecordByHostname(oldZoneID, oldHostname)
+		} else if oldHostname != "" && oldHostname != newHostname {
+			// Fallback if oldZoneID wasn't set but reqZoneID is the same
 			_ = cfClient.DeleteDNSRecordByHostname(reqZoneID, oldHostname)
 		}
 
-		if newHostname != "" && cfTunnelID != "" {
+		if newHostname != "" && cfTunnelID != "" && reqZoneID != "" {
 			_, _ = cfClient.EnsureCNAMERecord(reqZoneID, newHostname, cfTunnelID)
 		}
 
@@ -979,7 +982,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 			_ = s.cfDaemon.StopTunnel(cfTunnelID)
 			_ = s.cfDaemon.StartTunnel(cfTunnelID, userID, credJSON, configYAML)
 		}
-	}(t.ID, u.ID, t.CFTunnelID, t.CFHostname, hostname, req.ZoneID, cfCfg, apiToken)
+	}(t.ID, u.ID, t.CFTunnelID, t.CFHostname, t.CFZoneID, hostname, req.ZoneID, cfCfg, apiToken)
 
 	s.notifyUserAction(u.ID, "Rute tunnel diperbarui 🌐", fmt.Sprintf("Rute '%s' berhasil diperbarui.", req.Name), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Rute berhasil diperbarui"})
@@ -1015,7 +1018,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t.CFTunnelID != "" {
-		go func(cfID, hostname string, userID int64) {
+		go func(cfID, hostname, zoneID string, userID int64) {
 			cfCfg, _ := s.database.GetCFConfig(userID)
 			if cfCfg == nil {
 				return
@@ -1026,7 +1029,9 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 			}
 			cfClient := cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "")
 
-			if hostname != "" && cfCfg.ZoneID != "" {
+			if hostname != "" && zoneID != "" {
+				_ = cfClient.DeleteDNSRecordByHostname(zoneID, hostname)
+			} else if hostname != "" && cfCfg.ZoneID != "" {
 				_ = cfClient.DeleteDNSRecordByHostname(cfCfg.ZoneID, hostname)
 			}
 
@@ -1064,7 +1069,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 				_ = s.cfDaemon.StopTunnel(cfID)
 				_ = s.cfDaemon.StartTunnel(cfID, userID, credJSON, configYAML)
 			}
-		}(t.CFTunnelID, t.CFHostname, u.ID)
+		}(t.CFTunnelID, t.CFHostname, t.CFZoneID, u.ID)
 	}
 
 	s.notifyUserAction(u.ID, "Rute tunnel dihapus 🗑️", fmt.Sprintf("Rute '%s' berhasil dihapus.", t.Name), "warning")
