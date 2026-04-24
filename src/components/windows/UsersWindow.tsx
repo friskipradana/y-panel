@@ -12,6 +12,7 @@ import {
   type PanelUser,
   type UserQuota,
 } from '@/api/agent'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
@@ -58,6 +59,12 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Superadmin' },
 ]
+
+const ROLE_SELECT_OPTIONS = ROLE_OPTIONS.map((role) => ({
+  value: role.value,
+  label: role.label,
+  description: role.value,
+}))
 
 const PAGE_SIZE = 8
 
@@ -202,11 +209,16 @@ export default function UsersWindow() {
               </div>
               <div>
                 <label className="panel-section-label">Role</label>
-                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="panel-select">
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+                <PanelSelectMenu
+                  id="users-create-role-select"
+                  value={form.role}
+                  onChange={(nextValue) => setForm((current) => ({ ...current, role: nextValue }))}
+                  options={ROLE_SELECT_OPTIONS}
+                  buttonClassName="h-[42px]"
+                  searchable
+                  searchPlaceholder="Cari role..."
+                />
+
               </div>
             </div>
             <div className="mt-5 flex gap-2">
@@ -405,23 +417,17 @@ function UserRow({
 
             {editingRole ? (
               <div className="flex items-center gap-1 overflow-visible">
-                <select
+                <PanelSelectMenu
                   value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="panel-select rounded-full pl-3 pr-8 text-[12px] font-medium"
-                  style={{
-                    background: 'var(--panel-surface)',
-                    color: 'var(--win-text)',
-                    borderColor: 'var(--win-border)',
-                    appearance: 'auto',
-                    WebkitAppearance: 'menulist',
-                  }}
-                  autoFocus
-                >
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </select>
+                  onChange={setSelectedRole}
+                  options={ROLE_SELECT_OPTIONS}
+                  className="min-w-[150px]"
+                  buttonClassName="h-8 rounded-full border-[var(--win-border)] bg-[var(--panel-surface)] pl-3 pr-10 text-[12px] font-medium"
+                  dropdownClassName="min-w-[180px]"
+                  searchable
+                  searchPlaceholder="Cari role..."
+                />
+
                 <button onClick={handleRoleSave} disabled={changeRoleMut.isPending} title="Simpan role" className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md">
                   <Check className="h-3 w-3" />
                 </button>

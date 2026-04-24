@@ -133,8 +133,8 @@ export default function ProfileWindow() {
                   <div className="panel-muted-block space-y-2 rounded-[16px] p-4">
                     {[
                       { label: 'Account ID', value: cf.accountId },
-                      { label: 'Zone ID', value: cf.zoneId },
-                      { label: 'Base Domain', value: cf.baseDomain },
+                      // { label: 'Zone ID', value: cf.zoneId },
+                      // { label: 'Base Domain', value: cf.baseDomain },
                       cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
                     ].filter(Boolean).map((item) => (
                       <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">

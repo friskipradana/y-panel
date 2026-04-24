@@ -303,12 +303,14 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleContainerStop)))
 	s.mux.Handle("POST /api/v1/containers/{id}/restart", s.requireAuthV2(http.HandlerFunc(s.handleContainerRestart)))
 	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireAuthV2(http.HandlerFunc(s.handleContainerDelete)))
+	s.mux.Handle("GET /api/v1/containers/{id}/config", s.requireAuthV2(http.HandlerFunc(s.handleContainerInspectConfig)))
 
 	// ── Docker Networks & Images & Templates ──────────────────────────────────
 	s.mux.Handle("GET /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworksList)))
 	s.mux.Handle("POST /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkCreate)))
 	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkDelete)))
 	s.mux.Handle("GET /api/v1/docker/images", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagesList)))
+	s.mux.Handle("GET /api/v1/docker/image-in-use", s.requireAuthV2(http.HandlerFunc(s.handleImageInUse)))
 	s.mux.Handle("DELETE /api/v1/docker/images/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerImageDelete)))
 	s.mux.Handle("GET /api/v1/docker/templates", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplatesList)))
 	s.mux.Handle("POST /api/v1/docker/templates", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplateCreate)))
@@ -724,8 +726,11 @@ type dockerDeployImageRequest struct {
 	OwnerUserID int64                  `json:"ownerUserId"`
 	Name        string                 `json:"name"`
 	Image       string                 `json:"image"`
+	Network     string                 `json:"network"`
 	Ports       []docker.PortBinding   `json:"ports"`
 	Env         []docker.EnvVar        `json:"env"`
+	EnvMode     string                 `json:"envMode"`
+	EnvRaw      string                 `json:"envRaw"`
 	Volumes     []docker.VolumeBinding `json:"volumes"`
 }
 
@@ -792,11 +797,42 @@ func (s *Server) handleContainerDelete(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
 		return
 	}
-	if err := docker.DeleteContainer(id); err != nil {
+	removeVolumes := r.URL.Query().Get("removeVolumes") == "true"
+	removeImage := r.URL.Query().Get("removeImage") == "true"
+	if err := docker.DeleteContainer(id, removeVolumes, removeImage); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleImageInUse(w http.ResponseWriter, r *http.Request) {
+	imageRef := r.URL.Query().Get("image")
+	excludeID := r.URL.Query().Get("excludeContainer")
+	if imageRef == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing image param"})
+		return
+	}
+	inUse, err := docker.IsImageInUse(imageRef, excludeID)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"inUse": inUse})
+}
+
+func (s *Server) handleContainerInspectConfig(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
+		return
+	}
+	cfg, err := docker.InspectContainerConfig(id)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, cfg)
 }
 
 func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Request) {
@@ -819,8 +855,11 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 	result, err := docker.DeployFromImage(owner, docker.DeployImageRequest{
 		Name:    req.Name,
 		Image:   req.Image,
+		Network: req.Network,
 		Ports:   req.Ports,
 		Env:     req.Env,
+		EnvMode: req.EnvMode,
+		EnvRaw:  req.EnvRaw,
 		Volumes: req.Volumes,
 	})
 	if err != nil {

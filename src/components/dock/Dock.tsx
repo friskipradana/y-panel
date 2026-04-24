@@ -92,8 +92,10 @@ export function Dock() {
     [windows],
   )
   const hasExpandedWindow = hasMaximizedWindow || hasFullscreenWindow
-  const forceAutoHideDock = autoHideDock && !hasExpandedWindow
-  const isDockForcedHidden = hasExpandedWindow
+  // When any window is maximized/fullscreen, force auto-hide (dock slides away)
+  // but do NOT fully remove it — the reveal handle must remain so user can pull it back
+  const forceAutoHideDock = autoHideDock || hasExpandedWindow
+  const isDockForcedHidden = false // never fully hide — always allow reveal trigger
 
   useEffect(() => {
     const handleClickAway = () => setMenu(null)
@@ -125,7 +127,6 @@ export function Dock() {
   }
 
   const revealDock = () => {
-    if (isDockForcedHidden) return
     clearDockHideTimer()
     setRevealed(true)
   }
@@ -225,7 +226,7 @@ export function Dock() {
           id="dock-reveal-handle"
           onMouseEnter={revealDock}
           onFocus={revealDock}
-          className={`fixed left-1/2 bottom-2 h-[5px] w-[52px] -translate-x-1/2 rounded-full border-0 transition hover:scale-105 ${isDark ? 'bg-slate-200/72 shadow-[0_8px_18px_rgba(2,6,23,0.24)]' : 'bg-white/78 shadow-[0_8px_18px_rgba(15,23,42,0.12)]'} ${revealHandleLayerClass}`}
+          className={`fixed left-1/2 bottom-2 h-[5px] w-[52px] -translate-x-1/2 rounded-full border-0 transition hover:scale-105 ${!isDark ? 'bg-slate-200/72 shadow-[0_8px_18px_rgba(2,6,23,0.24)]' : 'bg-white/78 shadow-[0_8px_18px_rgba(15,23,42,0.12)]'} ${revealHandleLayerClass}`}
         />
       )}
 

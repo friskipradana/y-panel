@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeCheck,
   CheckCircle2,
-  ChevronDown,
   Clock,
   Copy,
   Database,
@@ -28,6 +27,7 @@ import {
   updatePanelOrigins,
   updatePanelPort,
 } from '@/api/agent'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
 import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
 
@@ -80,81 +80,21 @@ function SectionHeader({ icon, title, subtitle }: { icon: React.ReactNode; title
 }
 
 function TimezoneSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const ref = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
-    }
-    window.addEventListener('mousedown', handler)
-    setTimeout(() => inputRef.current?.focus(), 30)
-    return () => window.removeEventListener('mousedown', handler)
-  }, [open])
-
-  const filtered = useMemo(
-    () => TIMEZONES.filter((timezone) => timezone.toLowerCase().includes(search.toLowerCase())),
-    [search],
+  const timezoneOptions = useMemo(
+    () => TIMEZONES.map((timezone) => ({ value: timezone, label: timezone })),
+    [],
   )
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="panel-input flex h-[42px] items-center justify-between px-3.5 text-left text-[13px]"
-      >
-        <span className={value ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}>
-          {value || 'Pilih timezone...'}
-        </span>
-        <ChevronDown size={14} className={`shrink-0 text-[var(--text-secondary)] transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open ? (
-        <div className="panel-shell-card absolute inset-x-0 top-[calc(100%+6px)] z-[9999] overflow-hidden p-0 shadow-[var(--win-shadow)]">
-          <div className="border-b border-[var(--win-border)] p-2">
-            <input
-              ref={inputRef}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Cari timezone..."
-              className="panel-input h-[34px] px-3 text-[12px]"
-            />
-          </div>
-          <div className="max-h-[200px] overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="px-3.5 py-3 text-[12px] text-[var(--text-secondary)]">Tidak ditemukan</div>
-            ) : (
-              filtered.map((timezone) => {
-                const active = timezone === value
-                return (
-                  <button
-                    key={timezone}
-                    type="button"
-                    onClick={() => {
-                      onChange(timezone)
-                      setOpen(false)
-                      setSearch('')
-                    }}
-                    className={[
-                      'block w-full px-3.5 py-2 text-left text-[12px] transition',
-                      active
-                        ? 'bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
-                        : 'text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]',
-                    ].join(' ')}
-                  >
-                    {timezone}
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <PanelSelectMenu
+      id="settings-timezone-select"
+      value={value}
+      onChange={onChange}
+      options={timezoneOptions}
+      placeholder="Pilih timezone..."
+      searchable
+      searchPlaceholder="Cari timezone..."
+    />
   )
 }
 

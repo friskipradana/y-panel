@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
@@ -184,12 +185,30 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
               Pantau koneksi database, jumlah data persistensi, runtime log terbaru, dan jejak audit perubahan host dari backend UI Panel.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <select value={truncateTarget} onChange={(e) => setTruncateTarget(e.target.value)} className="panel-select max-w-[220px] rounded-full px-3 py-2 text-[12px]">
-                {TRUNCATE_TARGETS.map((target) => <option key={target.value} value={target.value}>{target.label}</option>)}
-              </select>
-              <select value={truncateDay} onChange={(e) => setTruncateDay(Number(e.target.value))} className="panel-select max-w-[140px] rounded-full px-3 py-2 text-[12px]">
-                {TRUNCATE_DAYS.map((day) => <option key={day} value={day}>{`> ${day} hari`}</option>)}
-              </select>
+              <PanelSelectMenu
+                id="database-truncate-target"
+                value={truncateTarget}
+                onChange={setTruncateTarget}
+                options={TRUNCATE_TARGETS}
+                className="max-w-[220px]"
+                buttonClassName="rounded-full px-3 py-2 text-[12px]"
+                dropdownClassName="min-w-[220px]"
+                searchable
+                searchPlaceholder="Cari target..."
+              />
+
+              <PanelSelectMenu
+                id="database-truncate-day"
+                value={String(truncateDay)}
+                onChange={(value) => setTruncateDay(Number(value))}
+                options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: `> ${day} hari` }))}
+                className="max-w-[140px]"
+                buttonClassName="rounded-full px-3 py-2 text-[12px]"
+                dropdownClassName="min-w-[140px]"
+                searchable
+                searchPlaceholder="Cari hari..."
+              />
+
               <button type="button" onClick={() => void handleTruncate()} disabled={truncating} className="panel-btn panel-btn--danger rounded-full px-4 py-2 text-[12px]">
                 {truncating ? 'Memotong...' : 'Potong'}
               </button>
@@ -258,16 +277,18 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                     />
                   </div>
 
-                  <select
+                  <PanelSelectMenu
                     id="database-log-limit"
-                    value={logLimit}
-                    onChange={(e) => setLogLimit(Number(e.target.value))}
-                    className="panel-select h-9 max-w-[120px] px-3 text-[12px]"
-                  >
-                    {LOG_ROW_OPTIONS.map((option) => (
-                      <option key={option} value={option}>{option} rows</option>
-                    ))}
-                  </select>
+                    value={String(logLimit)}
+                    onChange={(value) => setLogLimit(Number(value))}
+                    options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: `${option} rows` }))}
+                    className="max-w-[120px]"
+                    buttonClassName="h-9 px-3 text-[12px] panel-input--mono"
+                    dropdownClassName="min-w-[120px]"
+                    searchable
+                    searchPlaceholder="Cari limit..."
+                  />
+
                 </div>
               </div>
 

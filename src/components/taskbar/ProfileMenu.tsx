@@ -258,8 +258,8 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 dark:bg-[rgba(255,255,255,0.03)]">
                   {[
                     { label: 'Account ID', value: cf.accountId },
-                    { label: 'Zone ID', value: cf.zoneId },
-                    { label: 'Base Domain', value: cf.baseDomain },
+                    // { label: 'Zone ID', value: cf.zoneId },
+                    // { label: 'Base Domain', value: cf.baseDomain },
                     cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
                   ].filter(Boolean).map((item) => (
                     <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">

@@ -9,6 +9,7 @@ import {
   getCFZones,
   type Tunnel,
 } from '@/api/agent'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
@@ -16,7 +17,6 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  Globe,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -27,7 +27,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  // Sparkles,
 } from 'lucide-react'
 
 const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
@@ -178,6 +177,17 @@ export default function TunnelsWindow() {
   })
 
   const cfNotConfigured = !cfConfig?.configured || cfConfig?.status !== 'active'
+  const zoneOptions = useMemo(
+    () => cfZones.map((zone) => ({ value: zone.id, label: zone.name })),
+    [cfZones],
+  )
+  const protocolOptions = useMemo(
+    () => [
+      { value: 'http', label: 'http://' },
+      { value: 'https', label: 'https://' },
+    ],
+    [],
+  )
 
   const handleEdit = (t: Tunnel) => {
     setForm(buildTunnelFormFromTunnel(t, cfZones))
@@ -254,21 +264,19 @@ export default function TunnelsWindow() {
                 </div>
                 <div>
                   <label className="panel-section-label">Domain (Zone) *</label>
-                  <select
+                  <PanelSelectMenu
+                    id="tunnel-zone-select"
                     value={form.zoneId}
-                    onChange={(e) => {
-                      const selected = cfZones.find((z) => z.id === e.target.value)
-                      setForm((f) => ({ ...f, zoneId: e.target.value, domain: selected?.name || '' }))
+                    onChange={(nextValue) => {
+                      const selected = cfZones.find((zone) => zone.id === nextValue)
+                      setForm((current) => ({ ...current, zoneId: nextValue, domain: selected?.name || '' }))
                     }}
-                    className="panel-select"
-                  >
-                    <option value="">-- Pilih Domain --</option>
-                    {cfZones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={zoneOptions}
+                    placeholder="-- Pilih Domain --"
+                    searchable
+                    searchPlaceholder="Cari domain..."
+                  />
+
                 </div>
               </div>
 
@@ -280,10 +288,18 @@ export default function TunnelsWindow() {
               <div>
                 <label className="panel-section-label">Target URL *</label>
                 <div className="flex items-center gap-2">
-                  <select value={form.protocol} onChange={(e) => setForm((f) => ({ ...f, protocol: e.target.value }))} className="panel-select !w-28 shrink-0">
-                    <option value="http">http://</option>
-                    <option value="https">https://</option>
-                  </select>
+                  <PanelSelectMenu
+                    id="tunnel-protocol-select"
+                    value={form.protocol}
+                    onChange={(nextValue) => setForm((current) => ({ ...current, protocol: nextValue }))}
+                    options={protocolOptions}
+                    className="w-28 shrink-0"
+                    buttonClassName="!w-28 shrink-0"
+                    dropdownClassName="min-w-[9rem]"
+                    searchable
+                    searchPlaceholder="Cari protokol..."
+                  />
+
                   <input value={form.ip} onChange={(e) => setForm((f) => ({ ...f, ip: e.target.value }))} placeholder="localhost" className="panel-input flex-1 min-w-0" />
                   <span className="text-[var(--text-secondary)] font-bold">:</span>
                   <input value={form.port} onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))} placeholder="3000" className="panel-input !w-24 shrink-0" />
@@ -332,7 +348,7 @@ export default function TunnelsWindow() {
             </div>
           ) : (
             <>
-              <div className="panel-window__stack">
+              <div className="docker-flat-list">
                 {tunnels.map((t) => (
                   <TunnelCard
                     key={t.id}
@@ -390,9 +406,7 @@ function TunnelCard({
 
   const copyHostname = async () => {
     if (!t.cfHostname) return
-
     const url = `https://${t.cfHostname}`
-
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url)
@@ -404,17 +418,12 @@ function TunnelCard({
         textarea.style.opacity = '0'
         document.body.appendChild(textarea)
         textarea.select()
-
         const copied = document.execCommand('copy')
         document.body.removeChild(textarea)
-
-        if (!copied) {
-          throw new Error('Clipboard API tidak tersedia')
-        }
+        if (!copied) throw new Error('Clipboard API tidak tersedia')
       } else {
         throw new Error('Clipboard API tidak tersedia')
       }
-
       alertLib.fire('Hostname Tersalin', `Domain <strong>${t.cfHostname}</strong> berhasil disalin ke clipboard.`, 'success', 'tunnels')
     } catch {
       alertLib.fire('Gagal Menyalin Hostname', 'Clipboard tidak tersedia pada environment ini.', 'error', 'tunnels')
@@ -422,64 +431,64 @@ function TunnelCard({
   }
 
   return (
-    <div className="panel-card panel-card--interactive group p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="panel-avatar">
-            <Globe className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-semibold text-[var(--win-text)]">{t.name}</span>
-              <div className={`panel-badge ${sc.variant}`}>
-                <div className="panel-status-dot" />
-                <span>{sc.label}</span>
-              </div>
-            </div>
-            <div className="panel-meta-line mt-0.5 flex items-center gap-1.5 panel-mono">
-              {t.cfHostname ? (
-                <>
-                  <span>{t.cfHostname}</span>
-                  <button onClick={copyHostname} className="panel-icon-btn h-6 w-6">
-                    <Copy className="h-3 w-3" />
-                  </button>
-                  <a href={`https://${t.cfHostname}`} target="_blank" rel="noopener noreferrer" className="panel-icon-btn h-6 w-6 hover:text-[var(--panel-info-text)]">
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </>
-              ) : (
-                <span className="italic opacity-80">hostname pending...</span>
-              )}
-            </div>
-            <div className="panel-meta-line mt-0.5 panel-mono">→ {t.targetUrl}</div>
-          </div>
-        </div>
-
-        <div className="flex flex-shrink-0 items-center gap-1">
-          <button onClick={onEdit} className="panel-icon-btn panel-icon-btn--neutral ml-1 opacity-0 group-hover:opacity-100" title="Edit rute">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button onClick={onDelete} className="panel-icon-btn panel-icon-btn--danger ml-1 opacity-0 group-hover:opacity-100" title="Hapus rute">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+    <div className="tunnel-flat-row group">
+      {/* Left: name + status */}
+      <div className="tunnel-flat-row__main">
+        <div className="tunnel-flat-row__name-row">
+          <span className="tunnel-flat-row__name">{t.name}</span>
+          <span className={`panel-badge ${sc.variant}`}>
+            <div className="panel-status-dot" />
+            {sc.label}
+          </span>
           {t.status === 'active' && (
-            <>
-              <button onClick={onSync} disabled={isSyncing} className="panel-icon-btn panel-icon-btn--primary ml-1 opacity-100" title="Sync tunnel aktif">
-                <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
-              <div className="panel-badge panel-badge--success">
-                <CheckCircle2 className="h-3 w-3" />
-                <span>Live</span>
-              </div>
-            </>
+            <span className="panel-badge panel-badge--success">
+              <CheckCircle2 className="h-3 w-3" />
+              Live
+            </span>
           )}
           {t.status === 'creating' && (
-            <div className="panel-badge panel-badge--warning">
+            <span className="panel-badge panel-badge--warning">
               <Clock className="h-3 w-3 animate-spin" />
-              <span>Provisioning</span>
-            </div>
+              Provisioning
+            </span>
           )}
         </div>
+        <div className="tunnel-flat-row__meta">
+          {t.cfHostname ? (
+            <>
+              <span className="tunnel-flat-row__hostname">{t.cfHostname}</span>
+              <button onClick={copyHostname} className="panel-icon-btn h-5 w-5" title="Salin hostname">
+                <Copy className="h-3 w-3" />
+              </button>
+              <a href={`https://${t.cfHostname}`} target="_blank" rel="noopener noreferrer" className="panel-icon-btn h-5 w-5 hover:text-[var(--panel-info-text)]" title="Buka di browser">
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              <span className="tunnel-flat-row__arrow">→</span>
+              <span className="tunnel-flat-row__target">{t.targetUrl}</span>
+            </>
+          ) : (
+            <>
+              <span className="tunnel-flat-row__pending">hostname pending...</span>
+              <span className="tunnel-flat-row__arrow">→</span>
+              <span className="tunnel-flat-row__target">{t.targetUrl}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Right: actions */}
+      <div className="tunnel-flat-row__actions">
+        {t.status === 'active' && (
+          <button onClick={onSync} disabled={isSyncing} className="panel-icon-btn panel-icon-btn--primary" title="Sync tunnel">
+            <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+        )}
+        <button onClick={onEdit} className="panel-icon-btn opacity-0 group-hover:opacity-100 transition-opacity" title="Edit">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button onClick={onDelete} className="panel-icon-btn panel-icon-btn--danger opacity-0 group-hover:opacity-100 transition-opacity" title="Hapus">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   )

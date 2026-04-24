@@ -76,6 +76,8 @@ type DeployImageRequest struct {
 	Network string          `json:"network,omitempty"`
 	Ports   []PortBinding   `json:"ports"`
 	Env     []EnvVar        `json:"env"`
+	EnvMode string          `json:"envMode,omitempty"`
+	EnvRaw  string          `json:"envRaw,omitempty"`
 	Volumes []VolumeBinding `json:"volumes"`
 }
 
@@ -252,13 +254,181 @@ func RestartContainer(id string) error {
 	return nil
 }
 
-func DeleteContainer(id string) error {
-	cmd := exec.Command("docker", "rm", "-f", id)
+// ContainerConfig holds the editable configuration of a deployed container.
+type ContainerConfig struct {
+	Name    string          `json:"name"`
+	Image   string          `json:"image"`
+	Network string          `json:"network"`
+	Ports   []PortBinding   `json:"ports"`
+	Env     []EnvVar        `json:"env"`
+	EnvMode string          `json:"envMode,omitempty"`
+	EnvRaw  string          `json:"envRaw,omitempty"`
+	Volumes []VolumeBinding `json:"volumes"`
+}
+
+// InspectContainerConfig reads a container's runtime config and returns editable fields.
+func InspectContainerConfig(id string) (*ContainerConfig, error) {
+	// Use docker inspect to get JSON output
+	cmd := exec.Command("docker", "inspect", id)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("inspect container: %w", err)
+	}
+
+	var inspects []struct {
+		Name   string `json:"Name"`
+		Config struct {
+			Image  string            `json:"Image"`
+			Env    []string          `json:"Env"`
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+			Binds []string `json:"Binds"`
+		} `json:"HostConfig"`
+		NetworkSettings struct {
+			Networks map[string]struct{} `json:"Networks"`
+		} `json:"NetworkSettings"`
+	}
+
+	if err := json.Unmarshal(out, &inspects); err != nil || len(inspects) == 0 {
+		return nil, fmt.Errorf("parse inspect: %w", err)
+	}
+	insp := inspects[0]
+
+	// Container name (strip leading slash)
+	name := strings.TrimPrefix(insp.Name, "/")
+
+	// Primary network (skip loopback)
+	network := ""
+	for netName := range insp.NetworkSettings.Networks {
+		if netName != "bridge" && netName != "host" && netName != "none" {
+			network = netName
+			break
+		}
+	}
+
+	// Parse ports: "containerPort/proto" -> []{HostIP, HostPort}
+	var ports []PortBinding
+	for spec, bindings := range insp.HostConfig.PortBindings {
+		parts := strings.SplitN(spec, "/", 2)
+		containerPort := parts[0]
+		proto := "tcp"
+		if len(parts) == 2 {
+			proto = parts[1]
+		}
+		for _, b := range bindings {
+			if b.HostPort != "" {
+				ports = append(ports, PortBinding{
+					HostIP:        b.HostIP,
+					HostPort:      b.HostPort,
+					ContainerPort: containerPort,
+					Protocol:      proto,
+				})
+			}
+		}
+	}
+
+	// Parse env vars (skip internal docker vars)
+	var env []EnvVar
+	for _, e := range insp.Config.Env {
+		kv := strings.SplitN(e, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := kv[0]
+		// Skip PATH and other system-injected vars
+		if key == "PATH" || key == "HOME" || key == "HOSTNAME" {
+			continue
+		}
+		env = append(env, EnvVar{Key: key, Value: kv[1]})
+	}
+
+	// Parse volume binds: "hostPath:containerPath[:mode]"
+	var volumes []VolumeBinding
+	for _, bind := range insp.HostConfig.Binds {
+		parts := strings.SplitN(bind, ":", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		ro := len(parts) == 3 && parts[2] == "ro"
+		volumes = append(volumes, VolumeBinding{
+			HostPath:      parts[0],
+			ContainerPath: parts[1],
+			ReadOnly:      ro,
+		})
+	}
+
+	return &ContainerConfig{
+		Name:    name,
+		Image:   insp.Config.Image,
+		Network: network,
+		Ports:   ports,
+		Env:     env,
+		EnvMode: "form",
+		EnvRaw:  envVarsToRaw(env),
+		Volumes: volumes,
+	}, nil
+}
+
+func DeleteContainer(id string, removeVolumes bool, removeImage bool) error {
+	// Capture the image name BEFORE removing the container
+	var imageRef string
+	if removeImage {
+		inspectCmd := exec.Command("docker", "inspect", "--format", "{{.Config.Image}}", id)
+		if out, err := inspectCmd.Output(); err == nil {
+			imageRef = strings.TrimSpace(string(out))
+		}
+	}
+
+	args := []string{"rm", "-f"}
+	if removeVolumes {
+		args = append(args, "-v")
+	}
+	args = append(args, id)
+	cmd := exec.Command("docker", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("delete container: %s", strings.TrimSpace(string(output)))
 	}
+
+	if removeImage && imageRef != "" {
+		if inUse, _ := IsImageInUse(imageRef, ""); !inUse {
+			rmiCmd := exec.Command("docker", "rmi", imageRef)
+			// best-effort — ignore error if image is still used by another container
+			_ = rmiCmd.Run()
+		}
+	}
+
 	return nil
 }
+
+// IsImageInUse returns true if the image (by name or ID prefix) is used by any container
+// other than the one with excludeID.
+func IsImageInUse(imageRef, excludeID string) (bool, error) {
+	cmd := exec.Command("docker", "ps", "-a", "--format", "{{.ID}} {{.Image}}")
+	out, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("check image usage: %w", err)
+	}
+	for _, line := range splitNonEmptyLines(strings.TrimSpace(string(out))) {
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		cid, cimg := parts[0], parts[1]
+		if excludeID != "" && strings.HasPrefix(cid, excludeID) {
+			continue
+		}
+		if cimg == imageRef || strings.HasPrefix(cimg, imageRef) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 
 func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult, error) {
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
@@ -273,7 +443,11 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err != nil {
 		return nil, err
 	}
-	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, req.Env, volumes)
+	env, err := normalizeEnvVars(req.EnvMode, req.EnvRaw, req.Env)
+	if err != nil {
+		return nil, err
+	}
+	composeYAML, err := buildComposeForImage(owner, projectName, req.Image, req.Network, ports, env, volumes)
 	if err != nil {
 		return nil, err
 	}
@@ -477,6 +651,64 @@ func ensureComposeWithinOwnerRoot(content, homeDir string) error {
 		}
 	}
 	return nil
+}
+
+func normalizeEnvVars(mode, raw string, items []EnvVar) ([]EnvVar, error) {
+	if strings.EqualFold(strings.TrimSpace(mode), "raw") {
+		return parseRawEnv(raw)
+	}
+	return normalizeEnvList(items), nil
+}
+
+func normalizeEnvList(items []EnvVar) []EnvVar {
+	env := make([]EnvVar, 0, len(items))
+	seen := map[string]struct{}{}
+	for _, item := range items {
+		key := strings.TrimSpace(item.Key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		env = append(env, EnvVar{Key: key, Value: item.Value})
+	}
+	return env
+}
+
+func parseRawEnv(raw string) ([]EnvVar, error) {
+	lines := strings.Split(raw, "\n")
+	env := make([]EnvVar, 0, len(lines))
+	seen := map[string]struct{}{}
+	for idx, line := range lines {
+		trimmed := strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		parts := strings.SplitN(trimmed, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid env entry on line %d: expected KEY=value", idx+1)
+		}
+		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			return nil, fmt.Errorf("invalid env entry on line %d: key is required", idx+1)
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		env = append(env, EnvVar{Key: key, Value: parts[1]})
+	}
+	return env, nil
+}
+
+func envVarsToRaw(items []EnvVar) string {
+	var lines []string
+	for _, item := range normalizeEnvList(items) {
+		lines = append(lines, item.Key+"="+item.Value)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func buildComposeForImage(owner OwnerContext, projectName, image, network string, ports []PortBinding, env []EnvVar, volumes []VolumeBinding) (string, error) {

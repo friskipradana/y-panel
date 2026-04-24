@@ -27,6 +27,7 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
   const [limit, setLimit] = useState(160)
   const [autoScroll, setAutoScroll] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const logContainerRef = useRef<HTMLDivElement>(null)
 
   const query = useQuery({
     queryKey: ['system-logs', service, limit],
@@ -48,8 +49,8 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
   }, [query.data])
 
   useEffect(() => {
-    if (autoScroll && logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    if (autoScroll && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
     }
   }, [lines, autoScroll])
 
@@ -116,7 +117,7 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
               <span className="panel-mono text-[10px] text-[var(--text-secondary)]">{lines.length}/{limit}</span>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <div ref={logContainerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
               {query.isError ? (
                 <div className="flex h-full items-center justify-center p-6">
                   <div className="panel-error-state max-w-sm">

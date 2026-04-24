@@ -140,6 +140,19 @@ export interface EnvVarInput {
   value: string
 }
 
+export type DockerEnvMode = 'form' | 'raw'
+
+export interface DockerContainerConfig {
+  name: string
+  image: string
+  network: string
+  ports: PortBindingInput[]
+  env: EnvVarInput[]
+  envMode?: DockerEnvMode
+  envRaw?: string
+  volumes: VolumeBindingInput[]
+}
+
 export interface VolumeBindingInput {
   hostPath: string
   containerPath: string
@@ -153,6 +166,8 @@ export interface DockerDeployImagePayload {
   network?: string
   ports: PortBindingInput[]
   env: EnvVarInput[]
+  envMode?: DockerEnvMode
+  envRaw?: string
   volumes: VolumeBindingInput[]
 }
 

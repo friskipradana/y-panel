@@ -73,7 +73,8 @@ export function useRestartContainer() {
 export function useDeleteContainer() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (containerId: string) => deleteContainer(containerId),
+    mutationFn: ({ id, opts }: { id: string; opts?: { removeVolumes?: boolean; removeImage?: boolean } }) =>
+      deleteContainer(id, opts),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['containers'] }),
   })
 }

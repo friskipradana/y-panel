@@ -218,8 +218,16 @@ export const stopContainer = (id: string) =>
 export const restartContainer = (id: string) =>
   agentApi.post<{ ok: boolean }>(`/api/v1/containers/${id}/restart`).then((r) => r.data)
 
-export const deleteContainer = (id: string) =>
-  agentApi.delete<{ ok: boolean }>(`/api/v1/containers/${id}`).then((r) => r.data)
+export const deleteContainer = (id: string, opts?: { removeVolumes?: boolean; removeImage?: boolean }) => {
+  const params = new URLSearchParams()
+  if (opts?.removeVolumes) params.set('removeVolumes', 'true')
+  if (opts?.removeImage) params.set('removeImage', 'true')
+  const qs = params.toString() ? `?${params.toString()}` : ''
+  return agentApi.delete<{ ok: boolean }>(`/api/v1/containers/${id}${qs}`).then((r) => r.data)
+}
+
+export const fetchContainerConfig = (id: string) =>
+  agentApi.get<import('@/types').DockerContainerConfig>(`/api/v1/containers/${id}/config`).then((r) => r.data)
 
 export const listDockerNetworks = () =>
   agentApi.get<{ items: import('@/types').DockerNetwork[] }>('/api/v1/docker/networks').then((r) => r.data)

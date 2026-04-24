@@ -1279,12 +1279,14 @@ body {
 }
 
 .panel-modal-card {
+  position: relative;
   width: min(100%, 460px);
   border-radius: 24px;
   border: 1px solid var(--win-border);
   background: var(--win-bg);
   box-shadow: var(--panel-card-shadow);
   padding: 24px;
+  overflow: hidden;
 }
 
 .panel-section-label {
@@ -1557,6 +1559,89 @@ body {
   border-bottom: none;
 }
 
+/* ── Tunnel flat row ── */
+.tunnel-flat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--win-border) 80%, transparent);
+  transition: background 0.12s;
+}
+
+.tunnel-flat-row:last-child {
+  border-bottom: none;
+}
+
+.tunnel-flat-row:hover {
+  background: color-mix(in srgb, var(--panel-surface-hover) 60%, transparent);
+}
+
+.tunnel-flat-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tunnel-flat-row__name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.tunnel-flat-row__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--win-text);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.tunnel-flat-row__hostname {
+  font-size: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--panel-primary-text);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__arrow {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.tunnel-flat-row__target {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tunnel-flat-row__pending {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+.tunnel-flat-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+
 .docker-flat-row__info {
   display: flex;
   flex-wrap: wrap;
@@ -1680,6 +1765,36 @@ body {
   width: 100%;
 }
 
+.docker-image-combobox__button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 42px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.docker-image-combobox__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.docker-image-combobox__button-label,
+.docker-image-combobox__button-placeholder {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-image-combobox__button-label {
+  color: var(--win-text);
+}
+
+.docker-image-combobox__button-placeholder {
+  color: var(--text-secondary);
+}
+
 .docker-image-combobox__clear {
   position: absolute;
   right: 36px; /* sits left of the toggle */
@@ -1739,6 +1854,19 @@ body {
   padding: 6px;
 }
 
+.docker-image-combobox__search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: 6px;
+  background: var(--win-bg);
+}
+
+.docker-image-combobox__search-input {
+  min-height: 34px;
+  padding-inline: 12px;
+}
+
 .docker-image-combobox__item {
   display: flex;
   align-items: center;
@@ -1754,7 +1882,8 @@ body {
   color: var(--win-text);
 }
 
-.docker-image-combobox__item:hover {
+.docker-image-combobox__item:hover,
+.docker-image-combobox__item--highlighted {
   background: var(--panel-surface-hover);
 }
 
@@ -1774,6 +1903,12 @@ body {
   color: var(--text-secondary);
   font-family: 'JetBrains Mono', monospace;
   flex-shrink: 0;
+}
+
+.docker-image-combobox__empty {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 /* ── Network dropdown meta row (driver / subnet / gateway) ── */
@@ -1864,6 +1999,43 @@ body {
   background: var(--panel-surface-hover);
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+.docker-env-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-surface-hover) 42%, transparent);
+}
+
+.docker-env-mode-switch__btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.docker-env-mode-switch__btn:hover {
+  color: var(--win-text);
+  background: color-mix(in srgb, var(--panel-surface) 55%, transparent);
+}
+
+.docker-env-mode-switch__btn--active {
+  color: var(--win-text);
+  background: color-mix(in srgb, var(--panel-surface) 78%, transparent);
+  box-shadow: none;
+}
+
+.docker-env-mode-switch__btn--active:hover {
+  transform: none;
 }
 
 .docker-field-optional {
@@ -3759,3 +3931,154 @@ input:-webkit-autofill:active{
 .ht-manager-del:disabled {
   opacity: 0.35;
 }
+
+/* ── Docker Deploy Loading Overlay ─────────────────────────────────────── */
+
+.docker-deploy-loading-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  background: color-mix(in srgb, var(--panel-surface, #fff) 94%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.docker-deploy-loading__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+}
+
+/* Spinner */
+.docker-deploy-loading__spinner {
+  color: var(--panel-primary, #3b82f6);
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+}
+
+.docker-deploy-loading__arc {
+  transform-origin: 28px 28px;
+  animation: docker-spin 0.9s linear infinite;
+}
+
+@keyframes docker-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Title */
+.docker-deploy-loading__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--win-text);
+  letter-spacing: -0.01em;
+}
+
+/* Subtitle (container name) */
+.docker-deploy-loading__subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.docker-deploy-loading__subtitle code {
+  font-family: var(--font-mono, monospace);
+  background: var(--win-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.76rem;
+  color: var(--win-text);
+}
+
+/* Step list */
+.docker-deploy-loading__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.docker-deploy-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  animation: deploy-step-in 0.28s cubic-bezier(0.22,1,0.36,1) both;
+  transition: background 0.2s, color 0.2s;
+}
+
+@keyframes deploy-step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.docker-deploy-step--active {
+  background: color-mix(in srgb, var(--panel-info, #0ea5e9) 10%, transparent);
+  color: var(--panel-info-text, #0284c7);
+}
+
+.docker-deploy-step--done {
+  background: color-mix(in srgb, var(--panel-success, #22c55e) 10%, transparent);
+  color: var(--panel-success-text, #16a34a);
+}
+
+.docker-deploy-step__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Pulsing dot for active step */
+.docker-deploy-step__pulse {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: deploy-pulse 1s ease-in-out infinite;
+}
+
+@keyframes deploy-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.6); }
+}
+
+/* Check SVG */
+.docker-deploy-step__check {
+  width: 16px;
+  height: 16px;
+  animation: deploy-check-pop 0.3s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes deploy-check-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.docker-deploy-step__label {
+  flex: 1;
+  text-align: left;
+}
+
+/* Note */
+.docker-deploy-loading__note {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.75;
+  margin-top: 4px;
+  line-height: 1.5;
+}
