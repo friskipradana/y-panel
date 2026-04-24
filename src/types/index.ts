@@ -189,6 +189,7 @@ export interface DockerDeployComposePayload {
   name: string
   composeYaml: string
   registryAuth?: DockerRegistryAuthPayload
+  replaceContainerId?: string
 }
 
 export interface DeployComposePayload {

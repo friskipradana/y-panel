@@ -187,39 +187,38 @@ export default function ProjectsWindow() {
 
       <div className="panel-window__body">
         <div className="panel-window__stack">
-
-          <div className="panel-toolbar panel-toolbar--search">
-            <form
-              className="panel-search"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setOffset(0)
-                setSearch(query.trim())
-              }}
-            >
-              <Search className="h-4 w-4" />
-              <input
-                id="projects-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="panel-search__input"
-                placeholder="Cari project, slug, deskripsi, path kerja, atau tipe..."
-              />
-              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
-            </form>
-            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
-          </div>
-
-          {isLoading ? (
-            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
-          ) : projects.length === 0 ? (
-            <div className="panel-empty">
-              <FolderCode className="h-8 w-8" />
-              <span>Belum ada project yang cocok. Coba kata kunci lain atau buat project baru.</span>
+          <div className="panel-table-container">
+            <div className="panel-toolbar panel-toolbar--search">
+              <form
+                className="panel-search"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setOffset(0)
+                  setSearch(query.trim())
+                }}
+              >
+                <Search className="h-4 w-4" />
+                <input
+                  id="projects-search-input"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="panel-search__input"
+                  placeholder="Cari project, slug, deskripsi, path kerja, atau tipe..."
+                />
+                <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+              </form>
+              <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
             </div>
-          ) : (
-            <>
-              <div className="panel-window__stack">
+
+            {isLoading ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
+            ) : projects.length === 0 ? (
+              <div className="panel-empty">
+                <FolderCode className="h-8 w-8" />
+                <span>Belum ada project yang cocok. Coba kata kunci lain atau buat project baru.</span>
+              </div>
+            ) : (
+              <>
                 {projects.map((p) => (
                   <ProjectCard
                     key={p.id}
@@ -241,20 +240,20 @@ export default function ProjectsWindow() {
                     isStopping={stopMut.isPending && stopMut.variables === p.id}
                   />
                 ))}
-              </div>
+              </>
+            )}
 
-              <div className="panel-pagination">
-                <button id="projects-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Sebelumnya
-                </button>
-                <button id="projects-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
-                  Berikutnya
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </>
-          )}
+            <div className="panel-pagination">
+              <button id="projects-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Sebelumnya
+              </button>
+              <button id="projects-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                Berikutnya
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -277,7 +276,7 @@ function ProjectCard({
   isStopping: boolean
 }) {
   return (
-    <div className="panel-card panel-card--interactive group p-4">
+    <div className="panel-table-row group p-4">
       <div className="flex items-start justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="panel-avatar">

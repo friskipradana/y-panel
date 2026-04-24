@@ -322,33 +322,32 @@ export default function TunnelsWindow() {
 
       <div className="panel-window__body">
         <div className="panel-window__stack">
-
-          <div className="panel-toolbar panel-toolbar--search">
-            <form
-              className="panel-search"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setOffset(0)
-                setSearch(query.trim())
-              }}
-            >
-              <Search className="h-4 w-4" />
-              <input id="tunnels-search-input" value={query} onChange={(e) => setQuery(e.target.value)} className="panel-search__input" placeholder="Cari nama tunnel, hostname, target URL, atau status..." />
-              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
-            </form>
-            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
-          </div>
-
-          {isLoading ? (
-            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat tunnels...</div>
-          ) : tunnels.length === 0 ? (
-            <div className="panel-empty">
-              <Network className="h-8 w-8" />
-              <span>Belum ada tunnel yang cocok dengan pencarian saat ini.</span>
+          <div className="panel-table-container">
+            <div className="panel-toolbar panel-toolbar--search">
+              <form
+                className="panel-search"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setOffset(0)
+                  setSearch(query.trim())
+                }}
+              >
+                <Search className="h-4 w-4" />
+                <input id="tunnels-search-input" value={query} onChange={(e) => setQuery(e.target.value)} className="panel-search__input" placeholder="Cari nama tunnel, hostname, target URL, atau status..." />
+                <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+              </form>
+              <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
             </div>
-          ) : (
-            <>
-              <div className="docker-flat-list">
+
+            {isLoading ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat tunnels...</div>
+            ) : tunnels.length === 0 ? (
+              <div className="panel-empty">
+                <Network className="h-8 w-8" />
+                <span>Belum ada tunnel yang cocok dengan pencarian saat ini.</span>
+              </div>
+            ) : (
+              <>
                 {tunnels.map((t) => (
                   <TunnelCard
                     key={t.id}
@@ -369,20 +368,20 @@ export default function TunnelsWindow() {
                     isSyncing={syncMut.isPending && syncMut.variables?.id === t.id}
                   />
                 ))}
-              </div>
+              </>
+            )}
 
-              <div className="panel-pagination">
-                <button id="tunnels-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Sebelumnya
-                </button>
-                <button id="tunnels-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
-                  Berikutnya
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </>
-          )}
+            <div className="panel-pagination">
+              <button id="tunnels-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Sebelumnya
+              </button>
+              <button id="tunnels-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                Berikutnya
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -431,7 +430,7 @@ function TunnelCard({
   }
 
   return (
-    <div className="tunnel-flat-row group">
+    <div className="panel-table-row group">
       {/* Left: name + status */}
       <div className="tunnel-flat-row__main">
         <div className="tunnel-flat-row__name-row">

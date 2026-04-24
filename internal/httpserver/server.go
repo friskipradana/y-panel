@@ -724,16 +724,17 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 }
 
 type dockerDeployImageRequest struct {
-	OwnerUserID  int64                  `json:"ownerUserId"`
-	Name         string                 `json:"name"`
-	Image        string                 `json:"image"`
-	Network      string                 `json:"network"`
-	Ports        []docker.PortBinding   `json:"ports"`
-	Env          []docker.EnvVar        `json:"env"`
-	EnvMode      string                 `json:"envMode"`
-	EnvRaw       string                 `json:"envRaw"`
-	RegistryAuth *docker.RegistryAuth   `json:"registryAuth"`
-	Volumes      []docker.VolumeBinding `json:"volumes"`
+	OwnerUserID        int64                  `json:"ownerUserId"`
+	Name               string                 `json:"name"`
+	Image              string                 `json:"image"`
+	Network            string                 `json:"network"`
+	Ports              []docker.PortBinding   `json:"ports"`
+	Env                []docker.EnvVar        `json:"env"`
+	EnvMode            string                 `json:"envMode"`
+	EnvRaw             string                 `json:"envRaw"`
+	RegistryAuth       *docker.RegistryAuth   `json:"registryAuth"`
+	Volumes            []docker.VolumeBinding `json:"volumes"`
+	ReplaceContainerID string                 `json:"replaceContainerId"`
 }
 
 type dockerPullImageRequest struct {
@@ -742,10 +743,11 @@ type dockerPullImageRequest struct {
 }
 
 type dockerDeployComposeRequest struct {
-	OwnerUserID  int64                `json:"ownerUserId"`
-	Name         string               `json:"name"`
-	ComposeYAML  string               `json:"composeYaml"`
-	RegistryAuth *docker.RegistryAuth `json:"registryAuth"`
+	OwnerUserID        int64                `json:"ownerUserId"`
+	Name               string               `json:"name"`
+	ComposeYAML        string               `json:"composeYaml"`
+	RegistryAuth       *docker.RegistryAuth `json:"registryAuth"`
+	ReplaceContainerID string               `json:"replaceContainerId"`
 }
 
 func validateRegistryAuthPayload(auth *docker.RegistryAuth) error {
@@ -878,6 +880,11 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
+
+	if req.ReplaceContainerID != "" {
+		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
+	}
+
 	result, err := docker.DeployFromImage(owner, docker.DeployImageRequest{
 		Name:         req.Name,
 		Image:        req.Image,
@@ -932,6 +939,11 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
+
+	if req.ReplaceContainerID != "" {
+		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
+	}
+
 	result, err := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
 		Name:         req.Name,
 		ComposeYAML:  req.ComposeYAML,

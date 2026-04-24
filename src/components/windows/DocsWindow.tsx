@@ -173,30 +173,6 @@ export default function DocsWindow() {
 
       <div className="panel-window__body">
         <div className="panel-window__stack">
-          <div className="panel-toolbar panel-toolbar--search">
-            <form
-              className="panel-search"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setOffset(0)
-                setSearch(query.trim())
-              }}
-            >
-              <Search className="h-4 w-4" />
-              <input
-                id="docs-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="panel-search__input"
-                placeholder="Cari judul, slug, excerpt, atau isi dokumentasi..."
-              />
-              <button type="submit" className="panel-btn panel-btn--primary-soft">
-                Cari
-              </button>
-            </form>
-            <div className="panel-pagination-summary">{total} artikel • halaman {page}/{totalPages}</div>
-          </div>
-
           {docsQuery.isLoading ? (
             <div className="panel-loading">
               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -209,7 +185,30 @@ export default function DocsWindow() {
             </div>
           ) : (
             <div className="docs-layout">
-              <div className="docs-list">
+              <div className="panel-table-container">
+                <div className="panel-toolbar panel-toolbar--search">
+                  <form
+                    className="panel-search"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      setOffset(0)
+                      setSearch(query.trim())
+                    }}
+                  >
+                    <Search className="h-4 w-4" />
+                    <input
+                      id="docs-search-input"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="panel-search__input"
+                      placeholder="Cari judul, slug, excerpt, atau isi dokumentasi..."
+                    />
+                    <button type="submit" className="panel-btn panel-btn--primary-soft">
+                      Cari
+                    </button>
+                  </form>
+                  <div className="panel-pagination-summary">{total} artikel • halaman {page}/{totalPages}</div>
+                </div>
                 {docs.map((doc) => {
                   const active = selectedDoc?.id === doc.id
                   return (

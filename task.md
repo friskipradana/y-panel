@@ -32,6 +32,15 @@
 - [x] `src/components/windows/TunnelsWindow.tsx`
 - [x] Register semua window baru di `windowStore` / `App.tsx`
 - [x] Update Login screen untuk UX baru (tidak hanya single admin)
+- [x] Refactor `UsersWindow.tsx` to use unified `panel-table-container` instead of multiple bubble containers
+- [x] Refactor `ProjectsWindow.tsx` to use unified `panel-table-container`
+- [x] Refactor `TunnelsWindow.tsx` to use unified `panel-table-container`
+- [x] Refactor `DockerWindow.tsx` to wrap tab contents (Containers, Images, Networks, Templates) within `panel-table-container`
+- [x] Refactor `DocsWindow.tsx` to group search bar and document list seamlessly
+- [x] Implement backend fix to automatically handle name conflicts by deleting the old container when redeploying (utilizing `ReplaceContainerID`)
+- [x] Implement frontend logic to pass the `replaceContainerId` flag to the redeploy API
+- [x] Add CSS class `.docker-deploy-loading-overlay` with backdrop filter to resolve text overlapping with code editors
+- [x] Fine-tune overall visual alignments to maintain modern and professional aesthetics
 
 ## Phase 7: Frontend — App.tsx Update
 - [x] Role-based routing dan window visibility

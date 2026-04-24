@@ -241,39 +241,38 @@ export default function UsersWindow() {
 
       <div className="panel-window__body">
         <div className="panel-window__stack">
-
-          <div className="panel-toolbar panel-toolbar--search">
-            <form
-              className="panel-search"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setOffset(0)
-                setSearch(query.trim())
-              }}
-            >
-              <Search className="h-4 w-4" />
-              <input
-                id="users-search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="panel-search__input"
-                placeholder="Cari username, email, role, atau display name..."
-              />
-              <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
-            </form>
-            <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
-          </div>
-
-          {isLoading ? (
-            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
-          ) : users.length === 0 ? (
-            <div className="panel-empty">
-              <Users className="h-8 w-8" />
-              <span>Tidak ada user yang cocok dengan pencarian saat ini.</span>
+          <div className="panel-table-container">
+            <div className="panel-toolbar panel-toolbar--search">
+              <form
+                className="panel-search"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setOffset(0)
+                  setSearch(query.trim())
+                }}
+              >
+                <Search className="h-4 w-4" />
+                <input
+                  id="users-search-input"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="panel-search__input"
+                  placeholder="Cari username, email, role, atau display name..."
+                />
+                <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+              </form>
+              <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
             </div>
-          ) : (
-            <>
-              <div className="panel-window__stack">
+
+            {isLoading ? (
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
+            ) : users.length === 0 ? (
+              <div className="panel-empty">
+                <Users className="h-8 w-8" />
+                <span>Tidak ada user yang cocok dengan pencarian saat ini.</span>
+              </div>
+            ) : (
+              <>
                 {users.map((u) => (
                   <UserRow
                     key={u.id}
@@ -315,20 +314,20 @@ export default function UsersWindow() {
                     showQuota={showQuota === u.id}
                   />
                 ))}
-              </div>
+              </>
+            )}
 
-              <div className="panel-pagination">
-                <button id="users-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Sebelumnya
-                </button>
-                <button id="users-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
-                  Berikutnya
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </>
-          )}
+            <div className="panel-pagination">
+              <button id="users-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Sebelumnya
+              </button>
+              <button id="users-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
+                Berikutnya
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -407,7 +406,7 @@ function UserRow({
   }
 
   return (
-    <div className="panel-card overflow-visible">
+    <div className="panel-table-row overflow-visible">
       <div className="flex items-center gap-3 overflow-visible p-3.5">
         <div className="panel-avatar rounded-full text-sm">{user.username[0]?.toUpperCase()}</div>
 
