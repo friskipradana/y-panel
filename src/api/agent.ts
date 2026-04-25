@@ -12,6 +12,8 @@ import type {
   PaginatedResponse,
   PaginationParams,
   ResetDatabasePasswordResponse,
+  ResetPrimaryPanelPasswordPayload,
+  ResetPrimaryPanelPasswordResponse,
   SystemLogsResponse,
   SystemSummary,
   TerminalSessionStartResponse,
@@ -171,6 +173,9 @@ export const updatePanelOrigins = (payload: UpdatePanelOriginsPayload) =>
 
 export const resetDatabasePassword = () =>
   agentApi.post<ResetDatabasePasswordResponse>('/api/v1/settings/database/reset-password').then((r) => r.data)
+
+export const resetPrimaryPanelPassword = (payload: ResetPrimaryPanelPasswordPayload) =>
+  agentApi.post<ResetPrimaryPanelPasswordResponse>('/api/v1/settings/panel-primary/reset-password', payload).then((r) => r.data)
 
 export interface TerminalPreset {
   id: number

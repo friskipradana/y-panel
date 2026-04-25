@@ -11,10 +11,11 @@ type DockerComposeTemplate struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	YAMLContent string    `json:"yamlContent"`
+	OwnerUserID int64     `json:"ownerUserId"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
-func (m *Manager) CreateComposeTemplate(name, description, yamlContent string) (*DockerComposeTemplate, error) {
+func (m *Manager) CreateComposeTemplate(ownerUserID int64, name, description, yamlContent string) (*DockerComposeTemplate, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if !m.connected {
@@ -22,17 +23,18 @@ func (m *Manager) CreateComposeTemplate(name, description, yamlContent string) (
 	}
 
 	query := `
-		INSERT INTO docker_compose_templates (name, description, yaml_content)
-		VALUES ($1, $2, $3)
+		INSERT INTO docker_compose_templates (owner_user_id, name, description, yaml_content)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at
 	`
 	tmpl := &DockerComposeTemplate{
 		Name:        name,
 		Description: description,
 		YAMLContent: yamlContent,
+		OwnerUserID: ownerUserID,
 	}
 
-	err := m.db.QueryRow(query, name, description, yamlContent).Scan(&tmpl.ID, &tmpl.CreatedAt)
+	err := m.db.QueryRow(query, ownerUserID, name, description, yamlContent).Scan(&tmpl.ID, &tmpl.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert template: %w", err)
 	}
@@ -40,7 +42,7 @@ func (m *Manager) CreateComposeTemplate(name, description, yamlContent string) (
 	return tmpl, nil
 }
 
-func (m *Manager) UpdateComposeTemplate(id int64, name, description, yamlContent string) error {
+func (m *Manager) UpdateComposeTemplate(id, ownerUserID int64, name, description, yamlContent string) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if !m.connected {
@@ -50,9 +52,9 @@ func (m *Manager) UpdateComposeTemplate(id int64, name, description, yamlContent
 	query := `
 		UPDATE docker_compose_templates
 		SET name = $1, description = $2, yaml_content = $3
-		WHERE id = $4
+		WHERE id = $4 AND owner_user_id = $5
 	`
-	res, err := m.db.Exec(query, name, description, yamlContent, id)
+	res, err := m.db.Exec(query, name, description, yamlContent, id, ownerUserID)
 	if err != nil {
 		return fmt.Errorf("update template: %w", err)
 	}
@@ -87,7 +89,7 @@ func (m *Manager) ListComposeTemplates() ([]DockerComposeTemplate, error) {
 	}
 
 	query := `
-		SELECT id, name, description, yaml_content, created_at
+		SELECT id, owner_user_id, name, description, yaml_content, created_at
 		FROM docker_compose_templates
 		ORDER BY name ASC
 	`
@@ -101,7 +103,7 @@ func (m *Manager) ListComposeTemplates() ([]DockerComposeTemplate, error) {
 	for rows.Next() {
 		var tmpl DockerComposeTemplate
 		var desc sql.NullString
-		if err := rows.Scan(&tmpl.ID, &tmpl.Name, &desc, &tmpl.YAMLContent, &tmpl.CreatedAt); err != nil {
+		if err := rows.Scan(&tmpl.ID, &tmpl.OwnerUserID, &tmpl.Name, &desc, &tmpl.YAMLContent, &tmpl.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan template: %w", err)
 		}
 		tmpl.Description = desc.String

@@ -23,13 +23,19 @@ import {
   getDatabaseStatus,
   getEditableSystemSettings,
   resetDatabasePassword,
+  resetPrimaryPanelPassword,
   updateEditableSystemSettings,
   updatePanelOrigins,
   updatePanelPort,
 } from '@/api/agent'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
-import type { ResetDatabasePasswordResponse, UpdatePanelPortPayload, UpdateSystemSettingsPayload } from '@/types'
+import type {
+  ResetDatabasePasswordResponse,
+  ResetPrimaryPanelPasswordPayload,
+  UpdatePanelPortPayload,
+  UpdateSystemSettingsPayload,
+} from '@/types'
 
 const TIMEZONES = [
   'UTC',
@@ -227,6 +233,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const [panelPort, setPanelPort] = useState('')
   const [allowedOriginsText, setAllowedOriginsText] = useState('')
   const [dbResetResult, setDbResetResult] = useState<ResetDatabasePasswordResponse | null>(null)
+  const [primaryPassword, setPrimaryPassword] = useState('')
+  const [primaryPasswordConfirm, setPrimaryPasswordConfirm] = useState('')
 
   useEffect(() => {
     if (!query.data) return
@@ -246,6 +254,11 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const portPayload = useMemo<UpdatePanelPortPayload>(() => ({
     port: Number(panelPort.trim()),
   }), [panelPort])
+
+  const primaryPasswordPayload = useMemo<ResetPrimaryPanelPasswordPayload>(() => ({
+    newPassword: primaryPassword,
+    confirmPassword: primaryPasswordConfirm,
+  }), [primaryPassword, primaryPasswordConfirm])
 
   const syncSettingsSnapshot = (data: Awaited<ReturnType<typeof getEditableSystemSettings>>) => {
     queryClient.setQueryData(['editable-system-settings'], data)
@@ -298,6 +311,18 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     },
     onError: (error: any) => {
       alertLib.fire('Gagal Merotasi', error?.message || 'Gagal merotasi password root database.', 'error', 'settings')
+    }
+  })
+
+  const resetPrimaryPasswordMutation = useMutation({
+    mutationFn: resetPrimaryPanelPassword,
+    onSuccess: (data) => {
+      setPrimaryPassword('')
+      setPrimaryPasswordConfirm('')
+      alertLib.fire('Password Diperbarui', data.message || 'Password akun utama panel berhasil diperbarui.', 'success', 'settings')
+    },
+    onError: (error: any) => {
+      alertLib.fire('Gagal Mengubah Password', error?.message || 'Gagal memperbarui password akun utama panel.', 'error', 'settings')
     }
   })
 
@@ -354,6 +379,28 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       'settings'
     )
     if (isConfirmed) resetDatabaseMutation.mutate()
+  }
+
+  const handleResetPrimaryPassword = async () => {
+    if (!primaryPassword.trim() || !primaryPasswordConfirm.trim()) {
+      alertLib.fire('Data Tidak Lengkap', 'Password baru dan konfirmasi password wajib diisi.', 'warning', 'settings')
+      return
+    }
+    if (primaryPassword !== primaryPasswordConfirm) {
+      alertLib.fire('Konfirmasi Tidak Cocok', 'Konfirmasi password harus sama dengan password baru.', 'warning', 'settings')
+      return
+    }
+
+    const isConfirmed = await alertLib.confirm(
+      'Ubah Password Akun Utama',
+      'Password login akun utama panel hasil first setup akan langsung diganti. Setelah ini, gunakan password baru saat login berikutnya.<br/><br/>Lanjutkan?',
+      'Ya, Ubah Password',
+      'Batal',
+      'warning',
+      'settings'
+    )
+
+    if (isConfirmed) resetPrimaryPasswordMutation.mutate(primaryPasswordPayload)
   }
 
   if (query.isLoading) {
@@ -584,6 +631,60 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     {panelOriginsMutation.isPending ? 'Menyimpan origin...' : 'Simpan origins'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel-shell-card p-5">
+            <SectionHeader icon={<LockKeyhole size={17} />} title="Password akun utama panel" subtitle="Ubah password login superadmin hasil first setup langsung dari runtime" />
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+              <div className="space-y-3.5">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <FieldLabel label="Password baru" hint="minimal 8 karakter" />
+                    <input
+                      id="settings-primary-password"
+                      type="password"
+                      value={primaryPassword}
+                      onChange={(event) => setPrimaryPassword(event.target.value)}
+                      className="panel-input h-[42px] px-3.5 text-[13px]"
+                      placeholder="Masukkan password baru"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel label="Konfirmasi password" hint="harus sama" />
+                    <input
+                      id="settings-primary-password-confirm"
+                      type="password"
+                      value={primaryPasswordConfirm}
+                      onChange={(event) => setPrimaryPasswordConfirm(event.target.value)}
+                      className="panel-input h-[42px] px-3.5 text-[13px]"
+                      placeholder="Ulangi password baru"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    id="settings-primary-password-save"
+                    type="button"
+                    onClick={handleResetPrimaryPassword}
+                    disabled={resetPrimaryPasswordMutation.isPending || !primaryPassword.trim() || !primaryPasswordConfirm.trim()}
+                    className="panel-btn panel-btn--primary rounded-xl px-[18px] py-2.5 text-[13px]"
+                  >
+                    {resetPrimaryPasswordMutation.isPending ? <LoaderCircle size={14} className="animate-spin" /> : <LockKeyhole size={14} />}
+                    {resetPrimaryPasswordMutation.isPending ? 'Mengubah password...' : 'Ubah password utama'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="panel-muted-block rounded-[16px] px-4 py-4 text-[12px] leading-6 text-[var(--text-secondary)]">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--win-text)]">Runtime security note</div>
+                <p>
+                  Fitur ini hanya mengubah <strong className="text-[var(--win-text)]">password login panel</strong> untuk akun utama/superadmin hasil first setup.
+                  Password user Linux <code className="panel-mono text-[11px] text-[var(--win-text)]">ui-panel</code> tidak ikut berubah.
+                </p>
               </div>
             </div>
           </div>

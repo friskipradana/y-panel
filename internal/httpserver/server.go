@@ -30,6 +30,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
+	"github.com/friskipradana/panel-desktop-ui/internal/users"
 	"github.com/gorilla/websocket"
 )
 
@@ -149,6 +150,17 @@ type resetDatabasePasswordResponse struct {
 	Message  string `json:"message"`
 }
 
+type resetPrimaryPanelPasswordRequest struct {
+	NewPassword     string `json:"newPassword"`
+	ConfirmPassword string `json:"confirmPassword"`
+}
+
+type resetPrimaryPanelPasswordResponse struct {
+	OK       bool   `json:"ok"`
+	Message  string `json:"message"`
+	Username string `json:"username"`
+}
+
 func New(cfg config.Config) *Server {
 	db := database.New(database.Config{
 		Enabled: cfg.DatabaseEnable,
@@ -223,6 +235,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLoginV2)
 	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuthV2(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/v1/me", s.requireAuthV2(http.HandlerFunc(s.handleMeV2)))
+	s.mux.Handle("POST /api/v1/settings/panel-primary/reset-password", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleResetPrimaryPanelPassword)))
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
@@ -721,6 +734,51 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "dsn": redactDSNPassword(s.cfg.DatabaseDSN)})
 	s.notifyCurrentServerUser(r, "Password database dirotasi 🔐", "Password database berhasil dirotasi dan kredensial runtime diperbarui.", "warning")
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
+}
+
+func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var req resetPrimaryPanelPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid request body"})
+		return
+	}
+
+	req.NewPassword = strings.TrimSpace(req.NewPassword)
+	req.ConfirmPassword = strings.TrimSpace(req.ConfirmPassword)
+	if req.NewPassword == "" || req.ConfirmPassword == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "password baru dan konfirmasi wajib diisi"})
+		return
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "konfirmasi password tidak cocok"})
+		return
+	}
+	if err := users.ValidatePassword(req.NewPassword); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	targetUser, err := s.database.GetPrimarySuperadmin()
+	if err != nil || targetUser == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama panel tidak ditemukan"})
+		return
+	}
+
+	if err := s.auth.ResetPassword(targetUser.ID, req.NewPassword); err != nil {
+		log.Printf("[auth] reset primary panel password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "primary panel password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	actor, _ := s.currentUser(r)
+	message := fmt.Sprintf("Password akun utama panel (%s) berhasil diperbarui.", targetUser.Username)
+	log.Printf("[auth] primary panel password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
+	s.recordRuntimeLog("warning", "primary panel password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
+	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
+	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
 }
 
 type dockerDeployImageRequest struct {

@@ -348,6 +348,17 @@ export interface ResetDatabasePasswordResponse {
   message: string
 }
 
+export interface ResetPrimaryPanelPasswordPayload {
+  newPassword: string
+  confirmPassword: string
+}
+
+export interface ResetPrimaryPanelPasswordResponse {
+  ok: boolean
+  message: string
+  username: string
+}
+
 export interface ChangelogEntry {
   id: number
   version: string

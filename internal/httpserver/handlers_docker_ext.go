@@ -91,6 +91,12 @@ func (s *Server) handleDockerTemplatesList(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) handleDockerTemplateCreate(w http.ResponseWriter, r *http.Request) {
+	user := userFromCtx(r)
+	if user == nil {
+		s.writeError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+
 	var payload struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
@@ -100,7 +106,7 @@ func (s *Server) handleDockerTemplateCreate(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request body"))
 		return
 	}
-	tmpl, err := s.database.CreateComposeTemplate(payload.Name, payload.Description, payload.YAMLContent)
+	tmpl, err := s.database.CreateComposeTemplate(user.ID, payload.Name, payload.Description, payload.YAMLContent)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -109,6 +115,12 @@ func (s *Server) handleDockerTemplateCreate(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handleDockerTemplateUpdate(w http.ResponseWriter, r *http.Request) {
+	user := userFromCtx(r)
+	if user == nil {
+		s.writeError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+
 	idStr := r.PathValue("id")
 	id, _ := strconv.ParseInt(idStr, 10, 64)
 	var payload struct {
@@ -120,7 +132,7 @@ func (s *Server) handleDockerTemplateUpdate(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadRequest, fmt.Errorf("invalid request body"))
 		return
 	}
-	if err := s.database.UpdateComposeTemplate(id, payload.Name, payload.Description, payload.YAMLContent); err != nil {
+	if err := s.database.UpdateComposeTemplate(id, user.ID, payload.Name, payload.Description, payload.YAMLContent); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}

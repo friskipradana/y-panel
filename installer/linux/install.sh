@@ -476,6 +476,7 @@ set -euo pipefail
 
 ENV_FILE="/etc/ui-panel/agent.env"
 SERVICE_NAME="ui-panel.service"
+PASSWORD_HISTORY_FILE="/var/lib/ui-panel/password-history.log"
 
 require_root_cli() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -543,16 +544,59 @@ show_panel_info() {
 
 reset_password() {
   local password
-  local escaped_password
+  local confirm_password
+  local command_output
+  local status
+  local timestamp
 
   if ! env_file_exists; then
     printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
     exit 1
   fi
 
-  printf '\nPassword admin tidak lagi disimpan di file env.\n' >&2
-  printf 'Buka panel dan gunakan first-run setup untuk membuat admin pertama, atau kelola user dari UI setelah setup selesai.\n' >&2
-  exit 1
+  read -r -s -p 'Password admin baru: ' password
+  printf '\n'
+  read -r -s -p 'Konfirmasi password admin baru: ' confirm_password
+  printf '\n'
+
+  if [[ -z "$password" ]]; then
+    printf '\nPassword admin tidak boleh kosong.\n' >&2
+    exit 1
+  fi
+
+  if [[ "$password" != "$confirm_password" ]]; then
+    printf '\nKonfirmasi password admin tidak cocok.\n' >&2
+    exit 1
+  fi
+
+  set +e
+  command_output="$(printf '%s\n' "$password" | /usr/local/bin/ui-panel-agent reset-primary-password --password-stdin 2>&1)"
+  status=$?
+  set -e
+
+  printf '%s\n' "$command_output"
+
+  if [[ "$status" -ne 0 ]]; then
+    printf '\nGagal mengubah password akun utama panel.\n' >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$PASSWORD_HISTORY_FILE")"
+  touch "$PASSWORD_HISTORY_FILE"
+  chmod 600 "$PASSWORD_HISTORY_FILE"
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+  printf '[%s] primary panel password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
+}
+
+view_password_history() {
+  if [[ ! -f "$PASSWORD_HISTORY_FILE" ]]; then
+    printf '\nBelum ada riwayat ganti password yang tercatat.\n'
+    return
+  fi
+
+  printf '\nRiwayat Ganti Password UI Panel\n'
+  printf '%s\n' '----------------------------------------'
+  cat "$PASSWORD_HISTORY_FILE"
 }
 
 reset_db_password() {
@@ -572,8 +616,9 @@ reset_db_password() {
   db_name="$(grep '^PANEL_DB_NAME=' "$ENV_FILE" | cut -d= -f2-)"
 
   if [[ -z "$db_host" || -z "$db_user" || -z "$db_name" ]]; then
-    printf '\nKonfigurasi database belum lengkap di %s\n' "$ENV_FILE" >&2
-    exit 1
+    printf '\nReset Password Database dari CLI hanya didukung untuk mode env database lama.\n' >&2
+    printf 'Runtime saat ini memakai PANEL_DATABASE_DSN / PostgreSQL, jadi ubah password DB lewat flow PostgreSQL yang sesuai.\n' >&2
+    return
   fi
 
   read -r -s -p 'Password database baru: ' db_password
@@ -725,6 +770,12 @@ run_action() {
     edit-origins)
       edit_panel_origins
       ;;
+    view-logs)
+      journalctl -u "$SERVICE_NAME" -n 120 --no-pager
+      ;;
+    view-password-history)
+      view_password_history
+      ;;
     uninstall)
       bash /opt/ui-panel/installer/uninstall.sh
       ;;
@@ -743,9 +794,11 @@ show_menu() {
   printf '4. Reset Password Database\n'
   printf '5. Ubah Port Panel\n'
   printf '6. Edit Allowed Origins\n'
-  printf '7. Uninstall\n'
-  printf '8. Exit\n\n'
-  read -r -p 'Pilih opsi [1-8]: ' choice
+  printf '7. Lihat Log Service\n'
+  printf '8. Lihat History Ganti Password\n'
+  printf '9. Uninstall\n'
+  printf '10. Exit\n\n'
+  read -r -p 'Pilih opsi [1-10]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
@@ -754,8 +807,10 @@ show_menu() {
     4) run_action reset-db-password ;;
     5) run_action change-port ;;
     6) run_action edit-origins ;;
-    7) run_action uninstall ;;
-    8) exit 0 ;;
+    7) run_action view-logs ;;
+    8) run_action view-password-history ;;
+    9) run_action uninstall ;;
+    10) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
