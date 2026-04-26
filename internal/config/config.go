@@ -34,30 +34,38 @@ type Config struct {
 	StateDir    string
 	FrontendDir string
 
+	// Security hardening
+	TerminalEnabled            bool
+	TerminalAllowRemote        bool
+	AdminFileManagerRootAccess bool
+
 	// External services
 	PortainerURL   string
 	InstallChannel string
 
 	// Panel identity
-	BaseDomain     string // e.g. "panel.example.com" — used for generated subdomains
-	EncryptionKey  string // 32-byte hex key for encrypting CF tokens at rest
+	BaseDomain    string // e.g. "panel.example.com" — used for generated subdomains
+	EncryptionKey string // 32-byte hex key for encrypting CF tokens at rest
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		BindAddr:       getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
-		AllowedHosts:   parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
-		AllowedOrigins: loadAllowedOrigins(),
-		SessionSecret:  getenv("PANEL_SESSION_SECRET", "dev-session-secret-change-me"),
-		SessionTTL:     parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
-		DatabaseDSN:    os.Getenv("PANEL_DATABASE_DSN"),
-		DatabaseEnable: parseBoolEnv("PANEL_DB_ENABLED", true),
-		StateDir:       getenv("PANEL_STATE_DIR", "/var/lib/ui-panel"),
-		FrontendDir:    getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
-		PortainerURL:   getenv("PANEL_PORTAINER_URL", "http://127.0.0.1:9000"),
-		InstallChannel: getenv("PANEL_INSTALL_CHANNEL", "stable"),
-		BaseDomain:     os.Getenv("PANEL_BASE_DOMAIN"),
-		EncryptionKey:  os.Getenv("PANEL_ENCRYPTION_KEY"),
+		BindAddr:                   getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
+		AllowedHosts:               parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
+		AllowedOrigins:             loadAllowedOrigins(),
+		SessionSecret:              getenv("PANEL_SESSION_SECRET", "dev-session-secret-change-me"),
+		SessionTTL:                 parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
+		DatabaseDSN:                os.Getenv("PANEL_DATABASE_DSN"),
+		DatabaseEnable:             parseBoolEnv("PANEL_DB_ENABLED", true),
+		StateDir:                   getenv("PANEL_STATE_DIR", "/var/lib/ui-panel"),
+		FrontendDir:                getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
+		TerminalEnabled:            parseBoolEnv("PANEL_TERMINAL_ENABLED", true),
+		TerminalAllowRemote:        parseBoolEnv("PANEL_TERMINAL_ALLOW_REMOTE", false),
+		AdminFileManagerRootAccess: parseBoolEnv("PANEL_ADMIN_FILE_ROOT_ACCESS", false),
+		PortainerURL:               os.Getenv("PANEL_PORTAINER_URL"),
+		InstallChannel:             getenv("PANEL_INSTALL_CHANNEL", "stable"),
+		BaseDomain:                 os.Getenv("PANEL_BASE_DOMAIN"),
+		EncryptionKey:              os.Getenv("PANEL_ENCRYPTION_KEY"),
 	}
 
 	if cfg.DatabaseEnable && cfg.DatabaseDSN == "" {

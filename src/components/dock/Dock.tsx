@@ -7,7 +7,7 @@ import type { WindowKind, WindowState } from '@/types'
 const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'apps', icon: '🐋', label: 'Docker' },
   { kind: 'projects', icon: '🗂️', label: 'Projects' },
-  { kind: 'tunnels', icon: '🌐', label: 'Tunnels' },
+  { kind: 'tunnels', icon: '🌐', label: 'Cloudflare' },
   { kind: 'profile', icon: '👤', label: 'Profile' },
   { kind: 'host-terminal', icon: '💻', label: 'Host Terminal' },
   { kind: 'system', icon: '⚙️', label: 'System' },

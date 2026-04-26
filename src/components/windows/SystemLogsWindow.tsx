@@ -1,7 +1,8 @@
 import { useMemo, useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal } from 'lucide-react'
+import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal, Search } from 'lucide-react'
 import { getSystemLogs } from '@/api/agent'
+import type { WindowState } from '@/types'
 
 const SERVICE_OPTIONS = [
   { value: 'ui-panel', label: 'ui-panel' },
@@ -22,8 +23,9 @@ function lineToneClass(line: string): string {
   return 'text-[color:color-mix(in_srgb,var(--win-text)_82%,white)]'
 }
 
-export function SystemLogsWindow({ authenticated }: { authenticated?: boolean }) {
+export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const [service, setService] = useState('ui-panel')
+  const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
   const [autoScroll, setAutoScroll] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
@@ -37,6 +39,15 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
   })
 
   useEffect(() => {
+    if (typeof win?.params?.service === 'string' && win.params.service.trim()) {
+      setService(win.params.service.trim())
+    }
+    if (typeof win?.params?.search === 'string') {
+      setSearch(win.params.search)
+    }
+  }, [win?.params?.search, win?.params?.service])
+
+  useEffect(() => {
     if (authenticated) {
       void query.refetch()
     }
@@ -45,8 +56,11 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
 
   const lines = useMemo(() => {
     if (!query.data?.lines?.length) return []
-    return query.data.lines.map((entry) => entry.line)
-  }, [query.data])
+    const rawLines = query.data.lines.map((entry) => entry.line)
+    const normalizedSearch = search.trim().toLowerCase()
+    if (!normalizedSearch) return rawLines
+    return rawLines.filter((line) => line.toLowerCase().includes(normalizedSearch))
+  }, [query.data, search])
 
   useEffect(() => {
     if (autoScroll && logContainerRef.current) {
@@ -95,6 +109,17 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
                 ))}
               </select>
 
+              <label className="panel-search max-w-[320px] flex-1">
+                <Search className="h-4 w-4" />
+                <input
+                  id="system-logs-search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="panel-search__input"
+                  placeholder="Filter teks log, contoh: project-123 atau drift"
+                />
+              </label>
+
               <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} rounded-full px-3 py-2 text-[11px]`}>
                 ↓ {autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
               </button>
@@ -138,7 +163,7 @@ export function SystemLogsWindow({ authenticated }: { authenticated?: boolean })
               ) : lines.length === 0 ? (
                 <div className="panel-empty min-h-[320px] border-none bg-transparent">
                   <ScrollText className="h-8 w-8" />
-                  <span>Belum ada log tersedia.</span>
+                  <span>{search.trim() ? 'Tidak ada log yang cocok dengan filter teks saat ini.' : 'Belum ada log tersedia.'}</span>
                 </div>
               ) : (
                 <div className="py-2">

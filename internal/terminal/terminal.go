@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/creack/pty"
-	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
@@ -26,6 +25,7 @@ type Session struct {
 	cmd    *exec.Cmd
 	pty    *os.File
 	closed bool
+	meta   SessionMeta
 
 	mu         sync.RWMutex
 	onChunk    func(string)
@@ -37,6 +37,29 @@ type Session struct {
 	outputBuf  []byte
 }
 
+type SessionMeta struct {
+	Mode       string
+	Target     string
+	Cwd        string
+	OSUsername string
+}
+
+type StartRequest struct {
+	PanelUsername string
+	DisplayName   string
+	Role          string
+	Target        string
+	Cwd           string
+}
+
+type StartResult struct {
+	SessionID  string
+	Mode       string
+	Target     string
+	Cwd        string
+	OSUsername string
+}
+
 type Manager struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
@@ -46,35 +69,35 @@ func NewManager() *Manager {
 	return &Manager{sessions: map[string]*Session{}}
 }
 
-func (m *Manager) Start(panelUsername, displayName, role, target, cwd string) (string, error) {
+func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	id, err := randomID(12)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	target := strings.TrimSpace(req.Target)
+	cwd := strings.TrimSpace(req.Cwd)
+	mode := "local-user"
+	osUsername := ""
 
 	var cmd *exec.Cmd
 	if target == "" || target == "local" {
 		cmd = exec.Command("/bin/bash", "-i")
-		osUsername := ""
-		if auth.IsSuperAdmin(role) {
-			osUsername = "root"
-		} else {
-			osUsername, err = osuser.EnsureUser(panelUsername, displayName)
-			if err != nil {
-				return "", err
-			}
+		osUsername, err = osuser.EnsureUserForRole(req.PanelUsername, req.DisplayName, req.Role)
+		if err != nil {
+			return nil, err
 		}
 		cmd, err = osuser.WrapCommand(cmd, osUsername)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if cwd = strings.TrimSpace(cwd); cwd != "" {
+		if cwd != "" {
 			cmd.Dir = cwd
 		}
 	} else {
-		// target format: user@host or host
+		mode = "remote-ssh"
 		cmd = exec.Command("ssh", "-t", target)
-		if cwd = strings.TrimSpace(cwd); cwd != "" {
+		if cwd != "" {
 			cmd.Dir = cwd
 		}
 	}
@@ -86,13 +109,19 @@ func (m *Manager) Start(panelUsername, displayName, role, target, cwd string) (s
 
 	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})
 	if err != nil {
-		return "", fmt.Errorf("start pty shell: %w", err)
+		return nil, fmt.Errorf("start pty shell: %w", err)
 	}
 
 	session := &Session{
 		id:  id,
 		cmd: cmd,
 		pty: ptyFile,
+		meta: SessionMeta{
+			Mode:       mode,
+			Target:     target,
+			Cwd:        cwd,
+			OSUsername: osUsername,
+		},
 	}
 
 	m.mu.Lock()
@@ -102,7 +131,7 @@ func (m *Manager) Start(panelUsername, displayName, role, target, cwd string) (s
 	go m.captureOutput(session, ptyFile)
 	go m.waitForExit(session)
 
-	return id, nil
+	return &StartResult{SessionID: id, Mode: mode, Target: target, Cwd: cwd, OSUsername: osUsername}, nil
 }
 
 func (m *Manager) Write(id, input string) error {
@@ -297,4 +326,12 @@ func randomID(size int) (string, error) {
 		return "", fmt.Errorf("random id: %w", err)
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+func (m *Manager) SessionMeta(id string) (SessionMeta, error) {
+	session, err := m.get(id)
+	if err != nil {
+		return SessionMeta{}, err
+	}
+	return session.meta, nil
 }

@@ -58,3 +58,37 @@ sudo bash installer/linux/install.sh
 
 ## 📄 Lisensi
 Private / Proprietary - Renaldi
+
+## 🗃️ Database Migrations
+
+Schema PostgreSQL sekarang dikelola lewat **versioned migrations**, bukan lagi perubahan schema implisit saat startup.
+
+Panduan lengkap:
+- [docs/database-migrations.md](docs/database-migrations.md)
+
+Perintah utama:
+```bash
+ui-panel-agent migrate create <nama>
+ui-panel-agent migrate up
+ui-panel-agent migrate status
+ui-panel-agent migrate rollback
+```
+
+## 🔐 Security Hardening
+
+Panduan lengkap hardening runtime:
+- [docs/security-hardening.md](docs/security-hardening.md)
+
+Flag penting:
+```env
+PANEL_TERMINAL_ENABLED=false
+PANEL_TERMINAL_ALLOW_REMOTE=false
+PANEL_ADMIN_FILE_ROOT_ACCESS=false
+```
+
+Aksi sensitif sekarang juga dilindungi oleh **capability-based authorization** di backend, tidak hanya role kasar (`user/admin/superadmin`).
+
+Project API juga mulai mengekspos metadata runtime/drift ringan untuk membantu observability dan reconciliation.
+Background reconcile tick sekarang menyinkronkan status project secara konservatif tanpa auto-restart agresif.
+
+Operator workflow sekarang mendukung triage drift/degraded dari taskbar attention badge → System Overview incidents → Projects remediation banner, termasuk quick actions untuk refresh reconcile, start/stop, File Manager, filtered System Logs, dan terminal inspect command.

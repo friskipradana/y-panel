@@ -2,8 +2,10 @@ package osuser
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	osuser "os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -55,6 +57,40 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 		return "", fmt.Errorf("create os user %q: %w (%s)", mapped, err, strings.TrimSpace(string(output)))
 	}
 	return mapped, nil
+}
+
+// EnsureUserForRole creates/syncs the mapped OS account and applies host sudo policy
+// for privileged panel roles. Root escalation still happens inside the shell via sudo.
+func EnsureUserForRole(panelUsername, displayName, role string) (string, error) {
+	mapped, err := EnsureUser(panelUsername, displayName)
+	if err != nil {
+		return "", err
+	}
+	if runtime.GOOS != "linux" {
+		return mapped, nil
+	}
+	if err := syncSudoer(mapped, strings.TrimSpace(role) == "superadmin"); err != nil {
+		return "", err
+	}
+	return mapped, nil
+}
+
+func syncSudoer(osUsername string, allowed bool) error {
+	if strings.TrimSpace(osUsername) == "" || !strings.HasPrefix(osUsername, usernamePrefix) {
+		return nil
+	}
+	path := filepath.Join("/etc/sudoers.d", osUsername)
+	if !allowed {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove sudoers drop-in %q: %w", path, err)
+		}
+		return nil
+	}
+	content := fmt.Sprintf("%s ALL=(ALL) NOPASSWD:ALL\n", osUsername)
+	if err := os.WriteFile(path, []byte(content), 0440); err != nil {
+		return fmt.Errorf("write sudoers drop-in %q: %w", path, err)
+	}
+	return nil
 }
 
 // WrapCommand runs a command under a mapped OS account on Linux.

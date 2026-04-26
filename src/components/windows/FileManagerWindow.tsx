@@ -3,6 +3,7 @@ import { Folder, File as FileIcon, CornerLeftUp, Loader2, FilePlus, FolderPlus, 
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
+import { getFileRootAccessStatus, getMeV2, revokeFileRootAccess, verifyFileRootAccess } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useEditorStore } from '@/store/editorStore'
 import type { WindowState } from '@/types'
@@ -177,6 +178,11 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
   ])
   const [activeTabId, setActiveTabId] = useState<string>('tab-0')
   const [modalLoading, setModalLoading] = useState(false)
+  const [isSuperadmin, setIsSuperadmin] = useState(false)
+  const [rootAccess, setRootAccess] = useState<{ enabled: boolean; expiresAt?: string }>({ enabled: false })
+  const [showRootAccessModal, setShowRootAccessModal] = useState(false)
+  const [rootPassword, setRootPassword] = useState('')
+  const [rootAccessLoading, setRootAccessLoading] = useState(false)
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
 
@@ -186,6 +192,16 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       updateWindowParams(win.id, { currentPath: activeTab.currentPath })
     }
   }, [activeTab.currentPath, win.id, updateWindowParams])
+
+  useEffect(() => {
+    if (!authenticated) return
+    void getMeV2()
+      .then((me) => setIsSuperadmin(me.role === 'superadmin'))
+      .catch(() => setIsSuperadmin(false))
+    void getFileRootAccessStatus()
+      .then(setRootAccess)
+      .catch(() => setRootAccess({ enabled: false }))
+  }, [authenticated])
 
   const [menu, setMenu] = useState<{ x: number; y: number; item?: FileNode; targetPath: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -348,6 +364,45 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     setChmodMode('0644') // fallback default
     setChmodRecursive(false)
     setModal(m)
+  }
+
+  const submitRootAccess = async () => {
+    if (!rootPassword.trim()) {
+      alertLib.fire('Password Wajib', 'Masukkan password akun superadmin untuk membuka akses root.', 'warning', 'file-manager')
+      return
+    }
+    setRootAccessLoading(true)
+    try {
+      const status = await verifyFileRootAccess(rootPassword)
+      setRootAccess(status)
+      setShowRootAccessModal(false)
+      setRootPassword('')
+      setCurrentPath('/')
+      alertLib.fire('Akses Root Aktif', 'File Manager sekarang dapat membuka path root sampai sesi elevasi berakhir.', 'success', 'file-manager')
+    } catch (err: any) {
+      alertLib.fire('Validasi Gagal', err?.response?.data?.error || 'Password tidak valid.', 'error', 'file-manager')
+    } finally {
+      setRootAccessLoading(false)
+    }
+  }
+
+  const handleRootAccessButton = async () => {
+    if (!isSuperadmin) return
+    if (!rootAccess.enabled) {
+      setRootPassword('')
+      setShowRootAccessModal(true)
+      return
+    }
+    setRootAccessLoading(true)
+    try {
+      const status = await revokeFileRootAccess()
+      setRootAccess(status)
+      alertLib.fire('Akses Root Ditutup', 'Elevasi akses root File Manager telah dinonaktifkan.', 'success', 'file-manager')
+    } catch (err: any) {
+      alertLib.fire('Gagal Menutup Akses', err?.response?.data?.error || 'Tidak dapat menutup akses root.', 'error', 'file-manager')
+    } finally {
+      setRootAccessLoading(false)
+    }
   }
 
   // Execute Modal
@@ -761,19 +816,19 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="flex items-center gap-1.5 p-2 px-4 shadow-sm border-b border-[var(--win-border)] bg-[var(--win-bar)] backdrop-blur-md">
+      <div className="file-manager-toolbar panel-toolbar--flat border-b border-[var(--win-border)] bg-[var(--win-bar)] px-4 py-2">
         <button
           disabled={!activeTab.data?.parent}
           onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }}
-          className="p-1.5 rounded-md hover:bg-slate-200/50 disabled:opacity-30 transition text-[var(--text-secondary)] outline-none"
+          className="panel-icon-btn"
           title="Ke direktori induk"
         >
           <CornerLeftUp size={16} />
         </button>
-        <div className="flex-1 bg-[var(--win-bg)] border border-[var(--win-border)] rounded-md px-2 py-1.5 flex items-center gap-2 shadow-inner overflow-hidden max-w-full">
-          <span className="text-sm text-[var(--tb-clock)] hidden sm:inline select-none font-medium opacity-80">Path:</span>
+        <div className="file-manager-path flex min-w-0 flex-1 items-center gap-2">
+          <span className="hidden select-none text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] sm:inline">Path</span>
           <input
-            className="flex-1 bg-transparent border-none outline-none text-[13.5px] font-medium text-[var(--win-text)] min-w-0"
+            className="panel-input panel-input--mono h-[34px] min-w-0 flex-1 border-0 bg-transparent px-0 shadow-none focus:ring-0"
             value={activeTab.inputPath}
             onChange={(e) => setInputPath(e.target.value)}
             onBlur={() => setCurrentPath(activeTab.inputPath)}
@@ -782,10 +837,22 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             }}
           />
         </div>
-        <div className="flex items-center gap-1 shrink-0 ml-2 border-l border-slate-200 pl-2">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {isSuperadmin ? (
+            <button
+              type="button"
+              onClick={handleRootAccessButton}
+              disabled={rootAccessLoading}
+              className={`panel-btn ${rootAccess.enabled ? 'panel-btn--danger-soft' : 'panel-btn--ghost'} px-3 py-2 text-[12px]`}
+              title={rootAccess.enabled ? 'Tutup akses root File Manager' : 'Buka akses root dengan validasi password'}
+            >
+              <Key size={14} />
+              {rootAccess.enabled ? 'Root Aktif' : 'Akses Root'}
+            </button>
+          ) : null}
           <button
             onClick={() => openModal({ type: 'touch' })}
-            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] font-medium text-[12px] flex items-center gap-1.5 outline-none"
+            className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]"
             title="New File"
           >
             <FilePlus size={14} className="text-emerald-600" />
@@ -793,7 +860,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           </button>
           <button
             onClick={() => openModal({ type: 'mkdir' })}
-            className="px-2.5 py-1.5 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] font-medium text-[12px] flex items-center gap-1.5 outline-none"
+            className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]"
             title="New Folder"
           >
             <FolderPlus size={14} className="text-sky-600" />
@@ -802,7 +869,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
           <button
             onClick={() => loadDirectory(activeTab.currentPath, activeTabId)}
-            className="p-1.5 ml-1 rounded-md hover:bg-slate-200/50 transition text-[var(--text-secondary)] relative outline-none"
+            className="panel-icon-btn"
             title="Refresh"
           >
             {activeTab.loading ? <Loader2 size={15} className="animate-spin text-sky-600" /> : <RefreshCw size={15} />}
@@ -999,6 +1066,60 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               onClick={(e) => e.stopPropagation()}
             >
               {renderModalContent()}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showRootAccessModal && (
+          <div className="panel-modal-overlay absolute inset-0 z-[60]">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="panel-modal-card max-w-[430px]"
+            >
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
+                <Key className="panel-window__icon h-4 w-4" />
+                Konfirmasi Akses Root
+              </h3>
+              <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
+                Akses ini membuka navigasi dari <code className="rounded bg-black/5 px-1.5 py-0.5">/</code> untuk sesi File Manager saat ini selama 15 menit. Path sistem sensitif tetap diblokir.
+              </p>
+              <label className="panel-section-label">Password superadmin</label>
+              <input
+                type="password"
+                className="panel-input"
+                value={rootPassword}
+                autoFocus
+                onChange={(e) => setRootPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitRootAccess()
+                }}
+                placeholder="Masukkan password akun Anda"
+              />
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="panel-btn panel-btn--ghost"
+                  onClick={() => {
+                    setShowRootAccessModal(false)
+                    setRootPassword('')
+                  }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="panel-btn panel-btn--primary-soft"
+                  disabled={rootAccessLoading}
+                  onClick={() => void submitRootAccess()}
+                >
+                  {rootAccessLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
+                  Buka Root
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

@@ -64,11 +64,6 @@ func New(cfg Config) *Manager {
 	manager.db = db
 	manager.setConnected(true)
 
-	if err := manager.ensureSchema(); err != nil {
-		manager.setError(fmt.Sprintf("schema migration failed: %v", err))
-		return manager
-	}
-
 	if err := manager.seedDefaultChangelog(); err != nil {
 		manager.setError(fmt.Sprintf("changelog seed failed: %v", err))
 	}
@@ -798,12 +793,12 @@ func (m *Manager) CleanExpiredSessions() {
 // ─── Quotas ───────────────────────────────────────────────────────────────────
 
 type UserQuota struct {
-	UserID         int64 `json:"userId"`
-	MaxProjects    int   `json:"maxProjects"`
-	MaxTunnels     int   `json:"maxTunnels"`
-	DiskQuotaMB    int64 `json:"diskQuotaMb"`
-	CPULimitPct    int   `json:"cpuLimitPct"`
-	MemoryLimitMB  int   `json:"memoryLimitMb"`
+	UserID        int64 `json:"userId"`
+	MaxProjects   int   `json:"maxProjects"`
+	MaxTunnels    int   `json:"maxTunnels"`
+	DiskQuotaMB   int64 `json:"diskQuotaMb"`
+	CPULimitPct   int   `json:"cpuLimitPct"`
+	MemoryLimitMB int   `json:"memoryLimitMb"`
 }
 
 func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
@@ -843,16 +838,16 @@ func (m *Manager) UpdateUserQuota(q UserQuota) error {
 // ─── Cloudflare Configs ──────────────────────────────────────────────────────
 
 type CloudflareConfig struct {
-	ID                 int64      `json:"id"`
-	UserID             int64      `json:"userId"`
-	APITokenEncrypted  string     `json:"-"`
-	AccountID          string     `json:"accountId"`
-	ZoneID             string     `json:"zoneId"`
-	BaseDomain         string     `json:"baseDomain"`
-	Status             string     `json:"status"`
-	VerifiedAt         *time.Time `json:"verifiedAt"`
-	CreatedAt          time.Time  `json:"createdAt"`
-	UpdatedAt          time.Time  `json:"updatedAt"`
+	ID                int64      `json:"id"`
+	UserID            int64      `json:"userId"`
+	APITokenEncrypted string     `json:"-"`
+	AccountID         string     `json:"accountId"`
+	ZoneID            string     `json:"zoneId"`
+	BaseDomain        string     `json:"baseDomain"`
+	Status            string     `json:"status"`
+	VerifiedAt        *time.Time `json:"verifiedAt"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 func (m *Manager) GetCFConfig(userID int64) (*CloudflareConfig, error) {
@@ -1469,7 +1464,10 @@ type TerminalPreset struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-var defaultTerminalPresetCommands = []struct{ label, command string; order int }{
+var defaultTerminalPresetCommands = []struct {
+	label, command string
+	order          int
+}{
 	{"", "whoami", 1},
 	{"", "hostnamectl", 2},
 	{"", "uptime", 3},
@@ -1661,9 +1659,9 @@ func (m *Manager) TruncateData(target string, days int) (int64, error) {
 		days = 0
 	}
 	allowed := map[string]string{
-		"runtime_logs":    "runtime_logs",
-		"settings_audit":  "settings_audit",
-		"tunnel_logs":     "tunnel_logs",
+		"runtime_logs":   "runtime_logs",
+		"settings_audit": "settings_audit",
+		"tunnel_logs":    "tunnel_logs",
 	}
 	if target == "all" {
 		var total int64
@@ -1691,15 +1689,15 @@ func (m *Manager) TruncateData(target string, days int) (int64, error) {
 // ─── Docs ────────────────────────────────────────────────────────────────────
 
 type Doc struct {
-	ID           int64      `json:"id"`
-	AuthorUserID *int64     `json:"authorUserId"`
-	Title        string     `json:"title"`
-	Slug         string     `json:"slug"`
-	Excerpt      string     `json:"excerpt"`
-	Content      string     `json:"content"`
-	Status       string     `json:"status"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	ID           int64     `json:"id"`
+	AuthorUserID *int64    `json:"authorUserId"`
+	Title        string    `json:"title"`
+	Slug         string    `json:"slug"`
+	Excerpt      string    `json:"excerpt"`
+	Content      string    `json:"content"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 func (m *Manager) ListDocs(query string, limit, offset int, includeDrafts bool) ([]Doc, int64, error) {
@@ -1817,7 +1815,6 @@ func (m *Manager) DeleteDoc(id int64) error {
 	_, err := m.db.Exec(`DELETE FROM docs WHERE id = $1`, id)
 	return err
 }
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

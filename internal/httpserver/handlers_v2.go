@@ -114,6 +114,22 @@ func (s *Server) requireRole(role string, next http.Handler) http.Handler {
 	}))
 }
 
+func (s *Server) requireCapability(capability string, next http.Handler) http.Handler {
+	return s.requireAuthV2(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := userFromCtx(r)
+		if u == nil {
+			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+			return
+		}
+		if !auth.HasCapability(u.Role, capability) {
+			s.auditSensitiveAction(r, u, capability, "denied", map[string]any{"reason": "missing_capability"})
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "forbidden: missing capability"})
+			return
+		}
+		next.ServeHTTP(w, r)
+	}))
+}
+
 // ─── Auth V2 Handlers ─────────────────────────────────────────────────────────
 
 type loginRequest struct {
@@ -564,6 +580,388 @@ func (s *Server) handleDeleteCFConfig(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
+func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client, []cloudflareapi.ZoneInfo, error) {
+	u := userFromCtx(r)
+	cfg, _ := s.database.GetCFConfig(u.ID)
+	if cfg == nil || cfg.Status != "active" {
+		return nil, nil, errors.New("Cloudflare config not active")
+	}
+	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
+	if err != nil {
+		return nil, nil, errors.New("failed to decrypt token")
+	}
+	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
+	zones, err := client.ListZones()
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, zones, nil
+}
+
+func zoneAllowed(zones []cloudflareapi.ZoneInfo, zoneID string) bool {
+	for _, zone := range zones {
+		if zone.ID == zoneID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) handleCloudflareDomains(w http.ResponseWriter, r *http.Request) {
+	_, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, zones)
+}
+
+type createCloudflareDomainRequest struct {
+	Name string `json:"name"`
+}
+
+func (s *Server) handleCreateCloudflareDomain(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	client, _, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	var req createCloudflareDomainRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	domain := strings.ToLower(strings.TrimSpace(req.Name))
+	if domain == "" || strings.Contains(domain, "/") || strings.Contains(domain, " ") {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "domain tidak valid"})
+		return
+	}
+	zone, err := client.CreateZone(domain)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusCreated, zone)
+}
+
+func (s *Server) handleGetCloudflareDomain(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	zone, err := client.GetZone(zoneID)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, zone)
+}
+
+func (s *Server) handleDeleteCloudflareDomain(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	if err := client.DeleteZone(zoneID); err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleCloudflareDNSRecords(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	records, err := client.ListDNSRecords(zoneID)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": records})
+}
+
+func decodeDNSPayload(r *http.Request) (cloudflareapi.DNSRecordPayload, error) {
+	defer r.Body.Close()
+	var payload cloudflareapi.DNSRecordPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return payload, err
+	}
+	payload.Type = strings.ToUpper(strings.TrimSpace(payload.Type))
+	payload.Name = strings.TrimSpace(payload.Name)
+	payload.Content = strings.TrimSpace(payload.Content)
+	if payload.TTL == 0 {
+		payload.TTL = 1
+	}
+	if payload.Type == "" || payload.Name == "" || payload.Content == "" {
+		return payload, errors.New("type, name, and content are required")
+	}
+	return payload, nil
+}
+
+func (s *Server) handleCreateCloudflareDNSRecord(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	payload, err := decodeDNSPayload(r)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	record, err := client.CreateDNSRecord(zoneID, payload)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusCreated, record)
+}
+
+func (s *Server) handleUpdateCloudflareDNSRecord(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	payload, err := decodeDNSPayload(r)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	record, err := client.UpdateDNSRecord(zoneID, r.PathValue("recordId"), payload)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, record)
+}
+
+func (s *Server) handleDeleteCloudflareDNSRecord(w http.ResponseWriter, r *http.Request) {
+	client, zones, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if !zoneAllowed(zones, zoneID) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "zone not allowed"})
+		return
+	}
+	if err := client.DeleteDNSRecord(zoneID, r.PathValue("recordId")); err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+type cloudflareTunnelProfile struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Status        string `json:"status"`
+	RouteCount    int    `json:"routeCount"`
+	DaemonRunning bool   `json:"daemonRunning"`
+}
+
+type createCloudflareTunnelProfileRequest struct {
+	Name     string `json:"name"`
+	Mode     string `json:"mode"`
+	TunnelID string `json:"tunnelId"`
+}
+
+func (s *Server) handleCreateCloudflareTunnelProfile(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	client, _, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	var req createCloudflareTunnelProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		name = "panel-tunnel-" + fmt.Sprint(u.ID)
+	}
+	mode := strings.TrimSpace(req.Mode)
+	if mode == "" {
+		mode = "managed"
+	}
+	if mode == "custom" {
+		tunnelID := strings.TrimSpace(req.TunnelID)
+		if tunnelID == "" {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "tunnelId wajib diisi untuk custom profile"})
+			return
+		}
+		info, err := client.GetTunnel(tunnelID)
+		if err != nil {
+			s.writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		s.writeJSON(w, http.StatusCreated, cloudflareTunnelProfile{ID: info.ID, Name: info.Name, Status: info.Status, RouteCount: 0, DaemonRunning: s.cfDaemon.IsRunning(info.ID)})
+		return
+	}
+	info, creds, err := client.CreateTunnel(name)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	credFile := s.cfDaemon.CredFilePathFor(u.ID, info.ID)
+	configYAML := cloudflareapi.GenerateConfigYAML(cloudflareapi.TunnelConfigOptions{
+		TunnelID: info.ID,
+		CredFile: credFile,
+		Ingress:  []cloudflareapi.IngressRule{},
+	})
+	if err := s.cfDaemon.StartTunnel(info.ID, u.ID, creds, configYAML); err != nil {
+		log.Printf("[tunnels] managed profile daemon start failed id=%s err=%v", info.ID, err)
+	}
+	s.writeJSON(w, http.StatusCreated, cloudflareTunnelProfile{ID: info.ID, Name: info.Name, Status: info.Status, RouteCount: 0, DaemonRunning: s.cfDaemon.IsRunning(info.ID)})
+}
+
+func (s *Server) handleCloudflareTunnelProfiles(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	client, _, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	routes, err := s.database.ListTunnels(u.ID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	profiles := make([]cloudflareTunnelProfile, 0)
+	seen := map[string]int{}
+	tunnels, err := client.ListTunnels()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	for _, tunnel := range tunnels {
+		seen[tunnel.ID] = len(profiles)
+		profiles = append(profiles, cloudflareTunnelProfile{
+			ID:            tunnel.ID,
+			Name:          tunnel.Name,
+			Status:        tunnel.Status,
+			RouteCount:    0,
+			DaemonRunning: s.cfDaemon.IsRunning(tunnel.ID),
+		})
+	}
+	for _, route := range routes {
+		profileID := route.CFTunnelID
+		if profileID == "" {
+			profileID = "pending"
+		}
+		if idx, ok := seen[profileID]; ok {
+			profiles[idx].RouteCount++
+			if profiles[idx].Status == "" || profiles[idx].Status == "inactive" {
+				profiles[idx].Status = route.Status
+			}
+			continue
+		}
+		seen[profileID] = len(profiles)
+		status := route.Status
+		name := route.Name
+		if profileID == "pending" {
+			status = "creating"
+			name = "pending"
+		}
+		profiles = append(profiles, cloudflareTunnelProfile{
+			ID:            profileID,
+			Name:          name,
+			Status:        status,
+			RouteCount:    1,
+			DaemonRunning: profileID != "pending" && s.cfDaemon.IsRunning(profileID),
+		})
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": profiles})
+}
+
+func (s *Server) handleDeleteCloudflareTunnelProfile(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	profileID := strings.TrimSpace(r.PathValue("profileId"))
+	if profileID == "" || profileID == "pending" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "profile tunnel tidak valid"})
+		return
+	}
+	client, _, err := s.activeCloudflareClient(r)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	routes, err := s.database.ListTunnels(u.ID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	for _, route := range routes {
+		if route.CFTunnelID == profileID {
+			_ = s.database.DeleteTunnel(route.ID, u.ID)
+		}
+	}
+	_ = s.cfDaemon.StopTunnel(profileID)
+	if err := client.DeleteTunnel(profileID); err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleCloudflareTunnelProfileRoutes(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	profileID := r.PathValue("profileId")
+	routes, err := s.database.ListTunnels(u.ID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	type tunnelWithDaemon struct {
+		database.Tunnel
+		DaemonRunning bool `json:"daemonRunning"`
+	}
+	result := make([]tunnelWithDaemon, 0)
+	for _, route := range routes {
+		matches := route.CFTunnelID == profileID || (profileID == "pending" && route.CFTunnelID == "")
+		if matches {
+			result = append(result, tunnelWithDaemon{Tunnel: route, DaemonRunning: route.CFTunnelID != "" && s.cfDaemon.IsRunning(route.CFTunnelID)})
+		}
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": result})
+}
+
 // ─── Projects Handlers ────────────────────────────────────────────────────────
 
 type createProjectRequest struct {
@@ -572,6 +970,51 @@ type createProjectRequest struct {
 	ProjectType string `json:"projectType"`
 	RepoURL     string `json:"repoUrl"`
 	WorkingDir  string `json:"workingDir"`
+}
+
+type projectRuntimeState struct {
+	Known       bool   `json:"known"`
+	Running     bool   `json:"running"`
+	Status      string `json:"status"`
+	Drift       bool   `json:"drift"`
+	DriftReason string `json:"driftReason,omitempty"`
+}
+
+type projectWithRuntime struct {
+	database.Project
+	Running bool                `json:"running"`
+	Runtime projectRuntimeState `json:"runtime"`
+}
+
+type projectAttentionSummary struct {
+	Total          int64 `json:"total"`
+	AttentionCount int64 `json:"attentionCount"`
+	DegradedCount  int64 `json:"degradedCount"`
+	DriftCount     int64 `json:"driftCount"`
+}
+
+func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime {
+	snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+	if snapshot.Drift {
+		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
+			"projectId":     project.ID,
+			"projectName":   project.Name,
+			"desiredStatus": project.Status,
+			"runtimeStatus": snapshot.Status,
+			"driftReason":   snapshot.DriftReason,
+		})
+	}
+	return projectWithRuntime{
+		Project: project,
+		Running: snapshot.Running,
+		Runtime: projectRuntimeState{
+			Known:       snapshot.Known,
+			Running:     snapshot.Running,
+			Status:      snapshot.Status,
+			Drift:       snapshot.Drift,
+			DriftReason: snapshot.DriftReason,
+		},
+	}
 }
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
@@ -589,13 +1032,9 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	type projectWithRunning struct {
-		database.Project
-		Running bool `json:"running"`
-	}
-	result := make([]projectWithRunning, len(projectList))
+	result := make([]projectWithRuntime, len(projectList))
 	for i, p := range projectList {
-		result[i] = projectWithRunning{Project: p, Running: s.projectManager.IsRunning(p.ID)}
+		result[i] = s.projectWithRuntime(p)
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"items":  result,
@@ -603,6 +1042,35 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		"limit":  limit,
 		"offset": offset,
 	})
+}
+
+func (s *Server) handleProjectAttentionSummary(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	query := querySearch(r)
+	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
+
+	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, 250, 0)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	summary := projectAttentionSummary{Total: total}
+	for _, project := range projectList {
+		snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+		isDegraded := strings.EqualFold(strings.TrimSpace(project.Status), "degraded")
+		if isDegraded {
+			summary.DegradedCount++
+		}
+		if snapshot.Drift {
+			summary.DriftCount++
+		}
+		if isDegraded || snapshot.Drift {
+			summary.AttentionCount++
+		}
+	}
+
+	s.writeJSON(w, http.StatusOK, summary)
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
@@ -650,7 +1118,7 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, p)
+	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
 }
 
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -686,8 +1154,9 @@ func (s *Server) handleStartProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "active")
+	p.Status = "active"
 	s.notifyUserAction(u.ID, "Project berjalan ▶️", fmt.Sprintf("Project '%s' berhasil dijalankan.", p.Name), "success")
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "active"})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "active", "project": s.projectWithRuntime(*p)})
 }
 
 func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
@@ -703,8 +1172,9 @@ func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "stopped")
+	existing.Status = "stopped"
 	s.notifyUserAction(u.ID, "Project dihentikan ⏸️", fmt.Sprintf("Project '%s' berhasil dihentikan.", existing.Name), "info")
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "stopped"})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "stopped", "project": s.projectWithRuntime(*existing)})
 }
 
 // ─── Tunnels Handlers ─────────────────────────────────────────────────────────
@@ -718,6 +1188,7 @@ type createTunnelRequest struct {
 	Protocol  string `json:"protocol"`
 	IP        string `json:"ip"`
 	Port      string `json:"port"`
+	ProfileID string `json:"profileId"`
 	ProjectID *int64 `json:"projectId"`
 }
 
@@ -799,16 +1270,22 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	// Async CF provisioning
 	go func(tunnelDBID int64, userID int64, name, reqSubdomain, reqDomain, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
 		cfClient := cloudflareapi.NewClient(token, cfCopy.AccountID, "")
-		
+
 		hostname := reqDomain
 		if reqSubdomain != "" && reqSubdomain != "@" {
 			hostname = reqSubdomain + "." + reqDomain
 		}
 
 		allRoutes, _ := s.database.ListTunnels(userID)
-		
-		var mainTunnelID string
+
+		mainTunnelID := strings.TrimSpace(req.ProfileID)
+		if mainTunnelID == "pending" {
+			mainTunnelID = ""
+		}
 		for _, r := range allRoutes {
+			if mainTunnelID != "" {
+				break
+			}
 			if r.CFTunnelID != "" {
 				mainTunnelID = r.CFTunnelID
 				break
@@ -872,7 +1349,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 			CredFile: credFile,
 			Ingress:  rules,
 		})
-		
+
 		_ = s.cfDaemon.StopTunnel(mainTunnelID)
 		if daemonErr := s.cfDaemon.StartTunnel(mainTunnelID, userID, credJSON, configYAML); daemonErr != nil {
 			log.Printf("[tunnels] daemon start failed db_id=%d err=%v", tunnelDBID, daemonErr)
@@ -949,7 +1426,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 		}
 
 		allRoutes, _ := s.database.ListTunnels(userID)
-		
+
 		var rules []cloudflareapi.IngressRule
 		for _, rRoute := range allRoutes {
 			if rRoute.CFHostname != "" {
@@ -978,7 +1455,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 				CredFile: credFile,
 				Ingress:  rules,
 			})
-			
+
 			_ = s.cfDaemon.StopTunnel(cfTunnelID)
 			_ = s.cfDaemon.StartTunnel(cfTunnelID, userID, credJSON, configYAML)
 		}
@@ -1007,7 +1484,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "tunnel not found"})
 		return
 	}
-	
+
 	_ = s.database.DeleteTunnel(id, u.ID)
 	log.Printf("[tunnels] deleted route id=%d user=%q", id, u.Username)
 

@@ -2,32 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { BellRing, RefreshCcw, TriangleAlert, Zap } from 'lucide-react'
 import { getSystemChangelog } from '@/api/agent'
 import type { ChangelogEntry } from '@/types'
+import { formatDateID, formatDateTimeID } from '@/lib/datetime'
 
-function formatDate(dateStr: string) {
-  try {
-    return new Date(dateStr).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-function formatDateTime(dateStr: string) {
-  try {
-    return new Date(dateStr).toLocaleString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return dateStr
-  }
-}
 
 function TimelineEntry({ item, isLast }: { item: ChangelogEntry; isLast: boolean }) {
   return (
@@ -42,9 +18,9 @@ function TimelineEntry({ item, isLast }: { item: ChangelogEntry; isLast: boolean
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="panel-badge panel-badge--info">v{item.version}</span>
-              <span className="panel-meta-line">{formatDate(item.releasedAt)}</span>
+              <span className="panel-meta-line">{formatDateID(item.releasedAt)}</span>
             </div>
-            <span className="panel-muted-block panel-mono rounded-[10px] px-2 py-1 text-[10px]">{formatDateTime(item.createdAt)}</span>
+            <span className="panel-muted-block panel-mono rounded-[10px] px-2 py-1 text-[10px]">{formatDateTimeID(item.createdAt)}</span>
           </div>
 
           <h3 className="text-[15px] font-semibold leading-snug text-[var(--win-text)]">{item.title}</h3>

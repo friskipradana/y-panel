@@ -45,6 +45,11 @@ func Inspect(portainerURL, stateDir string) Summary {
 	dockerInstalled := hasCommand("docker")
 	dockerReachable := dockerReachable()
 
+	portainerReachable := false
+	if strings.TrimSpace(portainerURL) != "" {
+		portainerReachable = urlReachable(strings.TrimRight(portainerURL, "/") + "/api/status")
+	}
+
 	return Summary{
 		Hostname:           hostname,
 		OSName:             readOSName(),
@@ -57,7 +62,7 @@ func Inspect(portainerURL, stateDir string) Summary {
 		DockerInstalled:    dockerInstalled,
 		DockerReachable:    dockerReachable,
 		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
-		PortainerReachable: urlReachable(strings.TrimRight(portainerURL, "/") + "/api/status"),
+		PortainerReachable: portainerReachable,
 		IPAddresses:        readIPAddresses(),
 	}
 }

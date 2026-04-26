@@ -4,17 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
 type Network struct {
-	ID        string `json:"Id"`
-	Name      string `json:"Name"`
-	Driver    string `json:"Driver"`
-	Scope     string `json:"Scope"`
-	CreatedAt string `json:"CreatedAt"`
-	Subnet    string `json:"Subnet"`
-	Gateway   string `json:"Gateway"`
+	ID          string            `json:"Id"`
+	Name        string            `json:"Name"`
+	Driver      string            `json:"Driver"`
+	Scope       string            `json:"Scope"`
+	CreatedAt   string            `json:"CreatedAt"`
+	Subnet      string            `json:"Subnet"`
+	Gateway     string            `json:"Gateway"`
+	Labels      map[string]string `json:"Labels,omitempty"`
+	OwnerUserID int64             `json:"OwnerUserId,omitempty"`
+	OwnerName   string            `json:"OwnerName,omitempty"`
 }
 
 func ListNetworks() ([]Network, error) {
@@ -31,7 +35,7 @@ func ListNetworks() ([]Network, error) {
 
 	// Step 2: inspect all at once
 	args := append([]string{"network", "inspect", "--format",
-		`{"Id":"{{.ID}}","Name":"{{.Name}}","Driver":"{{.Driver}}","Scope":"{{.Scope}}","CreatedAt":"{{.Created}}","Subnet":"{{range .IPAM.Config}}{{.Subnet}}{{end}}","Gateway":"{{range .IPAM.Config}}{{.Gateway}}{{end}}"}`},
+		`{"Id":"{{.ID}}","Name":"{{.Name}}","Driver":"{{.Driver}}","Scope":"{{.Scope}}","CreatedAt":"{{.Created}}","Subnet":"{{range .IPAM.Config}}{{.Subnet}}{{end}}","Gateway":"{{range .IPAM.Config}}{{.Gateway}}{{end}}","Labels":{{json .Labels}}}`},
 		ids...)
 	inspectCmd := exec.Command("docker", args...)
 	inspectOut, err := inspectCmd.Output()
@@ -47,13 +51,29 @@ func ListNetworks() ([]Network, error) {
 		if err := json.Unmarshal([]byte(line), &n); err != nil {
 			continue // skip malformed lines
 		}
+		if n.Labels == nil {
+			n.Labels = map[string]string{}
+		}
+		n.OwnerUserID, _ = strconv.ParseInt(n.Labels[labelOwnerID], 10, 64)
+		n.OwnerName = n.Labels[labelOwnerName]
 		networks = append(networks, n)
 	}
 	return networks, nil
 }
 
 func CreateNetwork(name, subnet, gateway string) error {
+	return CreateNetworkForOwner(OwnerContext{}, name, subnet, gateway)
+}
+
+func CreateNetworkForOwner(owner OwnerContext, name, subnet, gateway string) error {
 	args := []string{"network", "create"}
+	if owner.UserID > 0 {
+		args = append(args,
+			"--label", labelManagedBy+"=panel",
+			"--label", fmt.Sprintf("%s=%d", labelOwnerID, owner.UserID),
+			"--label", labelOwnerName+"="+owner.Username,
+		)
+	}
 	if subnet != "" {
 		args = append(args, "--subnet", subnet)
 	}

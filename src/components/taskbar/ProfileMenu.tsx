@@ -18,7 +18,7 @@ import {
   User,
   XCircle,
 } from 'lucide-react'
-import { deleteCFConfig, getCFConfig, getMeV2, setCFConfig, verifyCFConfig } from '@/api/agent'
+import { deleteCFConfig, getCFConfig, getMeV2, getProjectAttentionSummary, setCFConfig, verifyCFConfig } from '@/api/agent'
 import { toast } from 'sonner'
 import { useThemeStore, WALLPAPERS, type WallpaperKey } from '@/store/themeStore'
 
@@ -43,6 +43,11 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const isDark = mode === 'dark'
   const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
   const { data: cf, isLoading: cfLoading } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
+  const { data: projectAttention } = useQuery({
+    queryKey: ['projects-attention-summary'],
+    queryFn: () => getProjectAttentionSummary(),
+    refetchInterval: 15_000,
+  })
 
   const saveCFMut = useMutation({
     mutationFn: setCFConfig,
@@ -114,6 +119,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     invalid: { cls: 'bg-red-500/12 text-red-600 dark:text-red-300', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
     unconfigured: { cls: 'bg-amber-500/12 text-amber-600 dark:text-amber-300', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
   }[(cf?.status ?? 'unconfigured') as 'active' | 'invalid' | 'unconfigured']
+  const attentionCount = projectAttention?.attentionCount ?? 0
 
   const dropdown = open
     ? createPortal(
@@ -124,6 +130,12 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <div className="profile-name">{displayName}</div>
               <div className="profile-role">{displayRole}</div>
             </div>
+            {attentionCount > 0 && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+                <AlertTriangle className="h-3 w-3" />
+                {attentionCount} attention
+              </span>
+            )}
           </div>
 
           <div className="profile-menu-section">
@@ -295,11 +307,17 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                   <div className="flex items-start gap-2.5">
                     <Cloud className="h-4 w-4 text-sky-500 shrink-0 mt-0.5" />
                     <div className="text-[12px] leading-relaxed text-[var(--win-text)]">
-                      Buat API Token (Custom Token) di Cloudflare dengan 2 permission ini:
+                      Buat API Token (Custom Token) di Cloudflare dengan permission berikut:
                       <ul className="list-disc pl-4 mt-1 mb-2 space-y-0.5 text-sky-600 dark:text-sky-400 font-medium">
                         <li>Account → Cloudflare Tunnel → Edit</li>
+                        <li>Zone → Zone → Edit <span className="text-[var(--text-secondary)] font-normal">(wajib untuk tambah domain/zone baru)</span></li>
+                        <li>Zone → Zone → Read <span className="text-[var(--text-secondary)] font-normal">(untuk status domain & nameserver)</span></li>
                         <li>Zone → DNS → Edit</li>
                       </ul>
+                      <div className="mb-2 rounded-lg bg-white/45 px-3 py-2 text-[11px] text-[var(--text-secondary)] dark:bg-black/10">
+                        Resource scope: pilih <strong>Account Resources → Include → akun kamu</strong>, lalu
+                        <strong> Zone Resources → Include → All zones</strong> agar domain baru bisa dibuat dan DNS bisa dikelola.
+                      </div>
                       <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-sky-500 hover:text-sky-600 dark:hover:text-sky-400 font-semibold underline underline-offset-2">
                         Buka halaman Cloudflare Tokens ↗
                       </a>
@@ -364,6 +382,12 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
       >
         <User size={13} />
         <span>{username ?? 'Profile'}</span>
+        {attentionCount > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+            <AlertTriangle className="h-3 w-3" />
+            {attentionCount}
+          </span>
+        )}
       </button>
 
       {dropdown}

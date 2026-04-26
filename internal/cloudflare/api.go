@@ -49,13 +49,23 @@ func (c *Client) VerifyToken() error {
 
 // ZoneInfo represents a Cloudflare Zone (Domain).
 type ZoneInfo struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Status      string   `json:"status,omitempty"`
+	NameServers []string `json:"name_servers,omitempty"`
 }
 
-// ListZones returns all active zones accessible by the API token.
+type CreateZonePayload struct {
+	Name    string `json:"name"`
+	Type    string `json:"type,omitempty"`
+	Account struct {
+		ID string `json:"id"`
+	} `json:"account"`
+}
+
+// ListZones returns all zones accessible by the API token.
 func (c *Client) ListZones() ([]ZoneInfo, error) {
-	resp, err := c.get("/zones?status=active")
+	resp, err := c.get("/zones?per_page=200")
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +77,52 @@ func (c *Client) ListZones() ([]ZoneInfo, error) {
 		return nil, err
 	}
 	return zones, nil
+}
+
+func (c *Client) CreateZone(name string) (*ZoneInfo, error) {
+	payload := CreateZonePayload{Name: strings.TrimSpace(name), Type: "full"}
+	payload.Account.ID = strings.TrimSpace(c.accountID)
+	if payload.Account.ID == "" {
+		return nil, fmt.Errorf("account ID is required to create a Cloudflare zone")
+	}
+	resp, err := c.post("/zones", payload)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("create zone failed: %v", resp.Errors)
+	}
+	var zone ZoneInfo
+	if err := mapResult(resp.Result, &zone); err != nil {
+		return nil, err
+	}
+	return &zone, nil
+}
+
+func (c *Client) GetZone(zoneID string) (*ZoneInfo, error) {
+	resp, err := c.get(fmt.Sprintf("/zones/%s", zoneID))
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("get zone failed: %v", resp.Errors)
+	}
+	var zone ZoneInfo
+	if err := mapResult(resp.Result, &zone); err != nil {
+		return nil, err
+	}
+	return &zone, nil
+}
+
+func (c *Client) DeleteZone(zoneID string) error {
+	resp, err := c.delete(fmt.Sprintf("/zones/%s", zoneID))
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("delete zone failed: %v", resp.Errors)
+	}
+	return nil
 }
 
 // ─── Tunnel Operations ────────────────────────────────────────────────────────
@@ -122,6 +178,21 @@ func (c *Client) DeleteTunnel(tunnelID string) error {
 	return nil
 }
 
+func (c *Client) GetTunnel(tunnelID string) (*TunnelInfo, error) {
+	resp, err := c.get(fmt.Sprintf("/accounts/%s/cfd_tunnel/%s", c.accountID, tunnelID))
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("get tunnel failed: %v", resp.Errors)
+	}
+	var info TunnelInfo
+	if err := mapResult(resp.Result, &info); err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
 // ListTunnels returns all non-deleted tunnels for the account.
 func (c *Client) ListTunnels() ([]TunnelInfo, error) {
 	resp, err := c.get(fmt.Sprintf("/accounts/%s/cfd_tunnel?is_deleted=false", c.accountID))
@@ -142,12 +213,71 @@ func (c *Client) ListTunnels() ([]TunnelInfo, error) {
 
 // DNSRecord represents a Cloudflare DNS record.
 type DNSRecord struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
-	TTL     int    `json:"ttl"`
+	ID         string    `json:"id"`
+	Type       string    `json:"type"`
+	Name       string    `json:"name"`
+	Content    string    `json:"content"`
+	Proxied    bool      `json:"proxied"`
+	TTL        int       `json:"ttl"`
+	Priority   *int      `json:"priority,omitempty"`
+	Comment    string    `json:"comment,omitempty"`
+	CreatedOn  time.Time `json:"created_on,omitempty"`
+	ModifiedOn time.Time `json:"modified_on,omitempty"`
+}
+
+type DNSRecordPayload struct {
+	Type     string `json:"type"`
+	Name     string `json:"name"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Proxied  bool   `json:"proxied"`
+	Priority *int   `json:"priority,omitempty"`
+	Comment  string `json:"comment,omitempty"`
+}
+
+func (c *Client) ListDNSRecords(zoneID string) ([]DNSRecord, error) {
+	resp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?per_page=200", zoneID))
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list DNS records failed: %v", resp.Errors)
+	}
+	var records []DNSRecord
+	if err := mapResult(resp.Result, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (c *Client) CreateDNSRecord(zoneID string, payload DNSRecordPayload) (*DNSRecord, error) {
+	resp, err := c.post(fmt.Sprintf("/zones/%s/dns_records", zoneID), payload)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("create DNS record failed: %v", resp.Errors)
+	}
+	var record DNSRecord
+	if err := mapResult(resp.Result, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (c *Client) UpdateDNSRecord(zoneID, recordID string, payload DNSRecordPayload) (*DNSRecord, error) {
+	resp, err := c.put(fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, recordID), payload)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("update DNS record failed: %v", resp.Errors)
+	}
+	var record DNSRecord
+	if err := mapResult(resp.Result, &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 // EnsureCNAMERecord creates or updates a CNAME record pointing hostname → tunnelID.cfargotunnel.com.
@@ -163,43 +293,14 @@ func (c *Client) EnsureCNAMERecord(zoneID, hostname, tunnelID string) (*DNSRecor
 			if record.Content == content {
 				return &record, nil // Already correct
 			}
-			// Update existing
-			body := map[string]any{
-				"type":    "CNAME",
-				"name":    hostname,
-				"content": content,
-				"proxied": true,
-				"ttl":     1,
-			}
-			putResp, putErr := c.put(fmt.Sprintf("/zones/%s/dns_records/%s", zoneID, record.ID), body)
-			if putErr == nil && putResp.Success {
-				var updated DNSRecord
-				_ = mapResult(putResp.Result, &updated)
-				return &updated, nil
+			updated, putErr := c.UpdateDNSRecord(zoneID, record.ID, DNSRecordPayload{Type: "CNAME", Name: hostname, Content: content, Proxied: true, TTL: 1})
+			if putErr == nil {
+				return updated, nil
 			}
 		}
 	}
 
-	// Create new
-	body := map[string]any{
-		"type":    "CNAME",
-		"name":    hostname,
-		"content": content,
-		"proxied": true,
-		"ttl":     1,
-	}
-	resp, err := c.post(fmt.Sprintf("/zones/%s/dns_records", zoneID), body)
-	if err != nil {
-		return nil, err
-	}
-	if !resp.Success {
-		return nil, fmt.Errorf("create CNAME failed: %v", resp.Errors)
-	}
-	var record DNSRecord
-	if err := mapResult(resp.Result, &record); err != nil {
-		return nil, err
-	}
-	return &record, nil
+	return c.CreateDNSRecord(zoneID, DNSRecordPayload{Type: "CNAME", Name: hostname, Content: content, Proxied: true, TTL: 1})
 }
 
 // DeleteDNSRecord removes a DNS record from the zone by record ID.
@@ -303,6 +404,10 @@ func (c *Client) put(path string, body any) (*apiResponse, error) {
 	return c.request("PUT", path, body)
 }
 
+func (c *Client) delete(path string) (*apiResponse, error) {
+	return c.request("DELETE", path, nil)
+}
+
 func (c *Client) request(method, path string, body any) (*apiResponse, error) {
 	var bodyReader io.Reader
 	if body != nil {
@@ -334,7 +439,10 @@ func (c *Client) request(method, path string, body any) (*apiResponse, error) {
 
 	var resp apiResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, fmt.Errorf("parse response: %w (body: %s)", err, strings.TrimSpace(string(data)))
+		return nil, fmt.Errorf("cloudflare returned non-json response for %s %s (status %d): %s", method, path, httpResp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
+		return &resp, fmt.Errorf("cloudflare API %s %s returned status %d: %v", method, path, httpResp.StatusCode, resp.Errors)
 	}
 
 	return &resp, nil

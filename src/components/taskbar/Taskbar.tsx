@@ -8,26 +8,19 @@ import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { ProfileMenu } from './ProfileMenu'
 import type { WindowKind } from '@/types'
+import { formatDateTimeID } from '@/lib/datetime'
 
 interface TaskbarProps {
   onLogout: () => void
   authenticated: boolean
 }
 
-function formatDateTime(value: Date) {
-  const day = String(value.getDate()).padStart(2, '0')
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const year = value.getFullYear()
-  const hours = String(value.getHours()).padStart(2, '0')
-  const minutes = String(value.getMinutes()).padStart(2, '0')
-  const seconds = String(value.getSeconds()).padStart(2, '0')
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
-}
 
-const QUICK_LAUNCH: { label: string; kind: WindowKind }[] = [
-  { label: 'Apps', kind: 'apps' },
+const QUICK_LAUNCH: { label: string; kind: WindowKind; params?: Record<string, any>; accent?: boolean }[] = [
+  { label: 'Dockers', kind: 'apps' },
   { label: 'Projects', kind: 'projects' },
-  { label: 'Tunnels', kind: 'tunnels' },
+  { label: 'Cloudflare', kind: 'tunnels' },
+  // { label: 'Buat Tunnel', kind: 'tunnels', params: { tab: 'tunnels', action: 'createTunnel' }, accent: true },
   { label: 'Users', kind: 'users' },
   { label: 'Terminal', kind: 'host-terminal' },
   { label: 'Files', kind: 'file-manager' },
@@ -87,7 +80,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   })
 
   useEffect(() => {
-    const tick = () => setTime(formatDateTime(new Date()))
+    const tick = () => setTime(formatDateTimeID(new Date()))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
@@ -288,8 +281,8 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           <button
             key={item.kind}
             id={`taskbar-open-${item.kind}`}
-            className="taskbar-nav-btn"
-            onClick={() => openWindow(item.kind)}
+            className={`taskbar-nav-btn ${item.accent ? 'taskbar-nav-btn--accent' : ''}`}
+            onClick={() => openWindow(item.kind, item.params ? { ...item.params, shortcutNonce: Date.now() } : undefined)}
           >
             {item.label}
           </button>

@@ -21,6 +21,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import {
+  // formatDockerDateTimeID,
+  formatDateTimeID
+} from '@/lib/datetime'
+import {
   Activity,
   Boxes,
   Container as ContainerIcon,
@@ -332,6 +336,16 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
     return { running, stopped, attention, withPublishedPorts, withIPs }
   }, [containers])
 
+  // const selectedPorts = deployForm.ports.filter((port) => port.containerPort.trim()).length
+  // const selectedVolumes = deployForm.volumes.filter((volume) => volume.containerPath.trim()).length
+  // const selectedEnv = deployForm.envMode === 'raw'
+  //   ? toEnvRows(deployForm.envRaw).filter((item) => item.key.trim()).length
+  //   : deployForm.env.filter((item) => item.key.trim()).length
+  // const deployPrimaryTarget = deployType === 'image' ? (deployForm.image || 'image belum dipilih') : 'compose.yml'
+  const deployReady = deployType === 'image'
+    ? Boolean(deployForm.name.trim() && deployForm.image.trim())
+    : Boolean(deployForm.name.trim() && deployForm.composeYaml.trim())
+
   return (
     <div className="panel-window">
       <div className="panel-window__header">
@@ -366,28 +380,38 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
 
       {showDeploy && (
         <div className="panel-modal-overlay">
-          <div className="panel-modal-card" style={{ width: 'min(100%, 840px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+          <div className="panel-modal-card docker-deploy-modal-card" style={{ width: 'min(100%, 900px)', height: 'min(90%, 800px)' }}>
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
               {editContainer ? <Pencil className="panel-window__icon h-4 w-4" /> : <Boxes className="panel-window__icon h-4 w-4" />}
               {editContainer ? 'Edit & Re-deploy Container' : 'Deploy Container'}
             </h3>
 
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1" style={{ overflowX: 'visible' }}>
-              {/* Deployment Type Tabs */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setDeployType('image')}
-                  className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'image' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-                >
-                  <Box className="h-4 w-4" /> Deploy from Image
-                </button>
-                <button
-                  onClick={() => setDeployType('compose')}
-                  className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'compose' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
-                >
-                  <Code className="h-4 w-4" /> Deploy from Compose
-                </button>
-              </div>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDeployType('image')}
+                className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'image' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
+              >
+                <Box className="h-4 w-4" /> Deploy from Image
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeployType('compose')}
+                className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'compose' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
+              >
+                <Code className="h-4 w-4" /> Deploy from Compose
+              </button>
+            </div>
+
+            {/* <div className="docker-deploy-summary mb-4">
+              <MetaChip label="target" value={deployPrimaryTarget} tone={deployType === 'image' && !deployForm.image ? 'warning' : 'info'} />
+              <MetaChip label="network" value={deployForm.network || 'Default bridge'} tone={deployForm.network ? 'success' : 'neutral'} />
+              <MetaChip label="ports" value={`${selectedPorts}`} tone={selectedPorts ? 'success' : 'neutral'} />
+              <MetaChip label="env" value={`${selectedEnv}`} tone={selectedEnv ? 'info' : 'neutral'} />
+              <MetaChip label="volumes" value={`${selectedVolumes}`} tone={selectedVolumes ? 'warning' : 'neutral'} />
+            </div> */}
+
+            <div className="docker-deploy-modal__body">
 
               {/* Project / Container Name — combobox */}
               <div>
@@ -439,7 +463,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
               </div>
 
               {deployType === 'image' ? (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-6 mt-4">
                   <div className="space-y-4">
                     <div>
                       <label className="panel-section-label">Docker Image *</label>
@@ -749,7 +773,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                 </div>
               ) : (
                 <div>
-                  <div className="flex justify-between items-center mb-1">
+                  <div className="flex justify-between items-center mb-1 mt-2">
                     <label className="panel-section-label mb-0">docker-compose.yml</label>
                     {/* {(templatesData?.items?.length ?? 0) > 0 && (
                       <button
@@ -783,22 +807,18 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                     value={deployForm.composeYaml}
                     onChange={(e) => setDeployForm({ ...deployForm, composeYaml: e.target.value })}
                     rows={12}
-                    className="panel-textarea panel-input--mono"
+                    className="panel-textarea panel-input--mono docker-compose-editor"
                     placeholder={"version: '3'\nservices:\n..."}
                   />
-                </div>
-              )}
 
-            </div>
-
-            <div className="mt-5 pt-2 border-t border-[var(--win-border)]" onClick={() => { setImgDropdownOpen(false); setNameDropdownOpen(false); setNetDropdownOpen(false) }}>
-
-              {/* Simpan sebagai template checkbox (compose only) */}
-              {deployType === 'compose' && (
-                <>
-                  <div className="docker-auth-block mt-3">
-                    {/* Registry Auth for Compose */}
-                    <label className="docker-save-tpl-check">
+                  <div className="docker-compose-options">
+                    <div className="docker-compose-options__header">
+                      <div>
+                        <div className="docker-compose-options__title">Compose options</div>
+                        <div className="docker-compose-options__desc">Registry credential dan penyimpanan template untuk deploy berikutnya.</div>
+                      </div>
+                    </div>
+                    <label className="docker-save-tpl-check docker-save-tpl-check--card">
                       <input
                         type="checkbox"
                         checked={deployForm.registryAuth.enabled}
@@ -810,7 +830,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                       <span>Gunakan autentikasi registry</span>
                     </label>
                     {deployForm.registryAuth.enabled && (
-                      <div className="docker-auth-grid mt-2">
+                      <div className="docker-auth-grid">
                         <div className="panel-field">
                           <label className="panel-label">Registry <span className="docker-field-optional">opsional</span></label>
                           <input
@@ -850,7 +870,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                         </div>
                       </div>
                     )}
-                    <label className="docker-save-tpl-check">
+                    <label className="docker-save-tpl-check docker-save-tpl-check--card">
                       <input
                         type="checkbox"
                         checked={showSaveAsTpl}
@@ -862,91 +882,93 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                       )}
                     </label>
                   </div>
-                </>
+                </div>
               )}
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => { resetDeployModal() }} className="panel-btn panel-btn--ghost flex-1">Batal</button>
-                <button
-                  onClick={async () => {
-                    if (deployType === 'image') {
-                      if (!deployForm.network) {
-                        const confirmed = await alertLib.confirm(
-                          'Network Masih Kosong',
-                          'Anda belum memilih network. Container akan dijalankan menggunakan <strong>Default (bridge)</strong>. Lanjutkan deploy?',
-                          'Ya, pakai Default',
-                          'Pilih Network Dulu',
-                          'warning',
-                          'apps',
-                        )
-                        if (!confirmed) return
-                      }
 
-                      const normalizedEnv = deployForm.envMode === 'raw'
-                        ? toEnvRows(deployForm.envRaw)
-                        : deployForm.env.filter(e => e.key.trim())
+            </div>
 
-                      const payload = {
-                        ownerUserId: deployForm.ownerUserId,
-                        name: deployForm.name,
-                        image: deployForm.image,
-                        network: deployForm.network || undefined,
-                        ports: deployForm.ports.filter(p => p.containerPort),
-                        env: normalizedEnv.filter(e => e.key.trim()),
-                        envMode: deployForm.envMode,
-                        envRaw: deployForm.envMode === 'raw' ? deployForm.envRaw : undefined,
-                        registryAuth: deployForm.registryAuth.enabled
-                          ? {
-                            enabled: true,
-                            registry: deployForm.registryAuth.registry || undefined,
-                            usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
-                            password: deployForm.registryAuth.password,
-                          }
-                          : undefined,
-                        volumes: deployForm.volumes.filter(v => v.containerPath),
-                        replaceContainerId: editContainer ? editContainer.id : undefined,
-                      }
-                      deployImageMut.mutate(payload, {
-                        onSuccess: () => {
-                          toast.success(editContainer ? 'Container berhasil di-redeploy' : 'Container deployed successfully')
-                          resetDeployModal()
-                        },
-                        onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
-                      })
-                    } else {
-                      // optionally save as template first
-                      if (showSaveAsTpl && deployForm.name.trim()) {
-                        try {
-                          await createTemplateMut.mutateAsync({ name: deployForm.name.trim(), description: '', yamlContent: deployForm.composeYaml })
-                          toast.success(`Template "${deployForm.name}" tersimpan`)
-                        } catch { /* ignore template save error */ }
-                      }
-                      deployComposeMut.mutate({
-                        ownerUserId: deployForm.ownerUserId,
-                        name: deployForm.name,
-                        composeYaml: deployForm.composeYaml,
-                        registryAuth: deployForm.registryAuth.enabled
-                          ? {
-                            enabled: true,
-                            registry: deployForm.registryAuth.registry || undefined,
-                            usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
-                          }
-                          : undefined,
-                        replaceContainerId: editContainer ? editContainer.id : undefined,
-                      }, {
-                        onSuccess: () => {
-                          toast.success('Compose project deployed successfully')
-                          resetDeployModal()
-                        },
-                        onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
-                      })
+            <div className="mt-5 flex gap-2" onClick={() => { setImgDropdownOpen(false); setNameDropdownOpen(false); setNetDropdownOpen(false) }}>
+              <button onClick={() => { resetDeployModal() }} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+              <button
+                onClick={async () => {
+                  if (deployType === 'image') {
+                    if (!deployForm.network) {
+                      const confirmed = await alertLib.confirm(
+                        'Network Masih Kosong',
+                        'Anda belum memilih network. Container akan dijalankan menggunakan <strong>Default (bridge)</strong>. Lanjutkan deploy?',
+                        'Ya, pakai Default',
+                        'Pilih Network Dulu',
+                        'warning',
+                        'apps',
+                      )
+                      if (!confirmed) return
                     }
-                  }}
-                  disabled={deployImageMut.isPending || deployComposeMut.isPending || createTemplateMut.isPending || !deployForm.name}
-                  className="panel-btn panel-btn--primary flex-1"
-                >
-                  {deployImageMut.isPending || deployComposeMut.isPending ? (editContainer ? 'Re-deploying...' : 'Deploying...') : (editContainer ? 'Simpan & Re-deploy' : 'Deploy')}
-                </button>
-              </div>
+
+                    const normalizedEnv = deployForm.envMode === 'raw'
+                      ? toEnvRows(deployForm.envRaw)
+                      : deployForm.env.filter(e => e.key.trim())
+
+                    const payload = {
+                      ownerUserId: deployForm.ownerUserId,
+                      name: deployForm.name,
+                      image: deployForm.image,
+                      network: deployForm.network || undefined,
+                      ports: deployForm.ports.filter(p => p.containerPort),
+                      env: normalizedEnv.filter(e => e.key.trim()),
+                      envMode: deployForm.envMode,
+                      envRaw: deployForm.envMode === 'raw' ? deployForm.envRaw : undefined,
+                      registryAuth: deployForm.registryAuth.enabled
+                        ? {
+                          enabled: true,
+                          registry: deployForm.registryAuth.registry || undefined,
+                          usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
+                          password: deployForm.registryAuth.password,
+                        }
+                        : undefined,
+                      volumes: deployForm.volumes.filter(v => v.containerPath),
+                      replaceContainerId: editContainer ? editContainer.id : undefined,
+                    }
+                    deployImageMut.mutate(payload, {
+                      onSuccess: () => {
+                        toast.success(editContainer ? 'Container berhasil di-redeploy' : 'Container deployed successfully')
+                        resetDeployModal()
+                      },
+                      onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
+                    })
+                  } else {
+                    // optionally save as template first
+                    if (showSaveAsTpl && deployForm.name.trim()) {
+                      try {
+                        await createTemplateMut.mutateAsync({ name: deployForm.name.trim(), description: '', yamlContent: deployForm.composeYaml })
+                        toast.success(`Template "${deployForm.name}" tersimpan`)
+                      } catch { /* ignore template save error */ }
+                    }
+                    deployComposeMut.mutate({
+                      ownerUserId: deployForm.ownerUserId,
+                      name: deployForm.name,
+                      composeYaml: deployForm.composeYaml,
+                      registryAuth: deployForm.registryAuth.enabled
+                        ? {
+                          enabled: true,
+                          registry: deployForm.registryAuth.registry || undefined,
+                          usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
+                        }
+                        : undefined,
+                      replaceContainerId: editContainer ? editContainer.id : undefined,
+                    }, {
+                      onSuccess: () => {
+                        toast.success('Compose project deployed successfully')
+                        resetDeployModal()
+                      },
+                      onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
+                    })
+                  }
+                }}
+                disabled={deployImageMut.isPending || deployComposeMut.isPending || createTemplateMut.isPending || !deployReady}
+                className="panel-btn panel-btn--primary flex-1"
+              >
+                {deployImageMut.isPending || deployComposeMut.isPending ? (editContainer ? 'Re-deploying...' : 'Deploying...') : (editContainer ? 'Simpan & Re-deploy' : 'Deploy')}
+              </button>
             </div>
 
           </div>
@@ -1452,7 +1474,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                           <span className="panel-badge panel-badge--detail">
                             ID : {img.Id.slice(0, 12)}<br />
                             Size : {img.Size}<br />
-                            Created : {img.CreatedAt}
+                            Created : {formatDateTimeID(img.CreatedAt)}
                           </span>
                         </div>
                       </div>
@@ -1759,7 +1781,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
 
                         <div className="docker-flat-row__desc">
                           <span className="panel-badge panel-badge--detail">
-                            Dibuat : {tmpl.createdAt}
+                            Dibuat : {formatDateTimeID(tmpl.createdAt)}
                           </span>
                         </div>
                       </div>

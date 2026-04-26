@@ -13,7 +13,7 @@ CLI_PATH="/usr/local/bin/ui-panel"
 FRONTEND_DIR="$INSTALL_ROOT/frontend"
 PORTAINER_CONTAINER="ui-panel-portainer"
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
-DEFAULT_PORTAINER_URL="http://127.0.0.1:9000"
+DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
 DEFAULT_DB_PORT="3306"
 DEFAULT_DB_NAME="ui_panel"
@@ -477,6 +477,7 @@ set -euo pipefail
 ENV_FILE="/etc/ui-panel/agent.env"
 SERVICE_NAME="ui-panel.service"
 PASSWORD_HISTORY_FILE="/var/lib/ui-panel/password-history.log"
+AGENT_BIN="/usr/local/bin/ui-panel-agent"
 
 require_root_cli() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -597,6 +598,30 @@ view_password_history() {
   printf '\nRiwayat Ganti Password UI Panel\n'
   printf '%s\n' '----------------------------------------'
   cat "$PASSWORD_HISTORY_FILE"
+}
+
+migrate_up() {
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+  "$AGENT_BIN" migrate up
+}
+
+rollback_last_migration() {
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+  "$AGENT_BIN" migrate rollback
+}
+
+migration_status() {
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+  "$AGENT_BIN" migrate status
 }
 
 reset_db_password() {
@@ -776,6 +801,15 @@ run_action() {
     view-password-history)
       view_password_history
       ;;
+    migrate-up)
+      migrate_up
+      ;;
+    migrate-rollback)
+      rollback_last_migration
+      ;;
+    migrate-status)
+      migration_status
+      ;;
     uninstall)
       bash /opt/ui-panel/installer/uninstall.sh
       ;;
@@ -796,9 +830,12 @@ show_menu() {
   printf '6. Edit Allowed Origins\n'
   printf '7. Lihat Log Service\n'
   printf '8. Lihat History Ganti Password\n'
-  printf '9. Uninstall\n'
-  printf '10. Exit\n\n'
-  read -r -p 'Pilih opsi [1-10]: ' choice
+  printf '9. Jalankan Migrasi Database\n'
+  printf '10. Rollback Migrasi Terakhir\n'
+  printf '11. Lihat Status Migrasi\n'
+  printf '12. Uninstall\n'
+  printf '13. Exit\n\n'
+  read -r -p 'Pilih opsi [1-13]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
@@ -809,8 +846,11 @@ show_menu() {
     6) run_action edit-origins ;;
     7) run_action view-logs ;;
     8) run_action view-password-history ;;
-    9) run_action uninstall ;;
-    10) exit 0 ;;
+    9) run_action migrate-up ;;
+    10) run_action migrate-rollback ;;
+    11) run_action migrate-status ;;
+    12) run_action uninstall ;;
+    13) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
@@ -833,34 +873,13 @@ EOF
   chmod 755 "$INSTALL_ROOT/installer/uninstall.sh"
 }
 
-ensure_portainer() {
-  log "memastikan Portainer berjalan secara lokal"
+disable_portainer() {
+  log "Portainer dinonaktifkan; memastikan sidecar Portainer bawaan panel tidak berjalan"
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${PORTAINER_CONTAINER}$"; then
     docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
   fi
-
-  docker volume create portainer_data >/dev/null 2>&1 || true
-
-  local attempt
-  for attempt in 1 2 3; do
-    if docker pull portainer/portainer-ce:lts >/dev/null 2>&1 && \
-      docker run -d \
-        --name "$PORTAINER_CONTAINER" \
-        --restart unless-stopped \
-        -p 127.0.0.1:9000:9000 \
-        -p 127.0.0.1:9443:9443 \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        -v portainer_data:/data \
-        portainer/portainer-ce:lts >/dev/null 2>&1; then
-      return
-    fi
-
-    docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
-    sleep 3
-  done
-
-  fail "gagal menjalankan Portainer setelah beberapa percobaan"
+  docker volume rm portainer_data >/dev/null 2>&1 || true
 }
 
 print_summary() {
@@ -875,7 +894,7 @@ print_summary() {
   printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
   printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
-  printf 'Portainer      : hanya localhost melalui backend agent\n'
+  printf 'Docker         : dikelola langsung oleh backend panel tanpa Portainer\n'
   printf 'CLI command    : ui-panel\n'
   printf '\nLangkah berikutnya:\n'
   printf '  1. Buka panel di browser\n'
@@ -908,9 +927,11 @@ main() {
   build_agent
   prepare_frontend
   write_env_file
+  log "menjalankan migrasi database"
+  run_quiet "$BIN_PATH" migrate up
   install_service
   install_cli
-  ensure_portainer
+  disable_portainer
   print_summary
 }
 

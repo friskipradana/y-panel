@@ -57,6 +57,14 @@ type Manager struct {
 	stateDir string
 }
 
+type RuntimeSnapshot struct {
+	Known       bool   `json:"known"`
+	Running     bool   `json:"running"`
+	Status      string `json:"status"`
+	Drift       bool   `json:"drift"`
+	DriftReason string `json:"driftReason,omitempty"`
+}
+
 // NewManager creates a project process Manager.
 func NewManager(stateDir string) *Manager {
 	return &Manager{
@@ -113,10 +121,52 @@ func (m *Manager) Stop(projectID int64) error {
 
 // IsRunning reports if a project is currently running.
 func (m *Manager) IsRunning(projectID int64) bool {
+	snapshot := m.Snapshot(projectID, "")
+	return snapshot.Running
+}
+
+func (m *Manager) Snapshot(projectID int64, desiredStatus string) RuntimeSnapshot {
 	m.mu.RLock()
 	proc, ok := m.procs[projectID]
 	m.mu.RUnlock()
-	return ok && isAlive(proc.cmd)
+
+	running := ok && isAlive(proc.cmd)
+	snapshot := RuntimeSnapshot{
+		Known:   ok,
+		Running: running,
+		Status:  "stopped",
+	}
+	if running {
+		snapshot.Status = "active"
+	}
+
+	desired := strings.TrimSpace(strings.ToLower(desiredStatus))
+	switch desired {
+	case "active":
+		if !running {
+			snapshot.Drift = true
+			if ok {
+				snapshot.DriftReason = "expected_active_but_not_running"
+			} else {
+				snapshot.DriftReason = "expected_active_but_runtime_unknown"
+			}
+		}
+	case "stopped":
+		if running {
+			snapshot.Drift = true
+			snapshot.DriftReason = "expected_stopped_but_running"
+		}
+	}
+
+	return snapshot
+}
+
+func (m *Manager) SnapshotAll(projects []database.Project) map[int64]RuntimeSnapshot {
+	result := make(map[int64]RuntimeSnapshot, len(projects))
+	for _, project := range projects {
+		result[project.ID] = m.Snapshot(project.ID, project.Status)
+	}
+	return result
 }
 
 // StopAll terminates all running projects.

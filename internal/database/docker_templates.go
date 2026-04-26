@@ -52,7 +52,7 @@ func (m *Manager) UpdateComposeTemplate(id, ownerUserID int64, name, description
 	query := `
 		UPDATE docker_compose_templates
 		SET name = $1, description = $2, yaml_content = $3
-		WHERE id = $4 AND owner_user_id = $5
+		WHERE id = $4 AND ($5 = 0 OR owner_user_id = $5)
 	`
 	res, err := m.db.Exec(query, name, description, yamlContent, id, ownerUserID)
 	if err != nil {
@@ -66,17 +66,21 @@ func (m *Manager) UpdateComposeTemplate(id, ownerUserID int64, name, description
 	return nil
 }
 
-func (m *Manager) DeleteComposeTemplate(id int64) error {
+func (m *Manager) DeleteComposeTemplateForOwner(id, ownerUserID int64) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if !m.connected {
 		return fmt.Errorf("database not connected")
 	}
 
-	query := `DELETE FROM docker_compose_templates WHERE id = $1`
-	_, err := m.db.Exec(query, id)
+	query := `DELETE FROM docker_compose_templates WHERE id = $1 AND ($2 = 0 OR owner_user_id = $2)`
+	res, err := m.db.Exec(query, id, ownerUserID)
 	if err != nil {
 		return fmt.Errorf("delete template: %w", err)
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("template with id %d not found", id)
 	}
 	return nil
 }

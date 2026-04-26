@@ -52,6 +52,10 @@ type Server struct {
 	notificationClients   map[int64]map[*websocket.Conn]struct{}
 	rateLimitMu           sync.Mutex
 	rateLimits            map[string]*rateLimitEntry
+	reconcileStop         chan struct{}
+	reconcileDone         chan struct{}
+	fileRootAccessMu      sync.Mutex
+	fileRootAccess        map[string]time.Time
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -179,6 +183,9 @@ func New(cfg config.Config) *Server {
 		projectManager:  projects.NewManager(cfg.StateDir),
 		cfDaemon:        cloudflareapi.NewDaemon(cfg.StateDir),
 		rateLimits:      make(map[string]*rateLimitEntry),
+		reconcileStop:   make(chan struct{}),
+		reconcileDone:   make(chan struct{}),
+		fileRootAccess:  make(map[string]time.Time),
 	}
 	s.terminalUpgrader = websocket.Upgrader{
 		ReadBufferSize:  4096,
@@ -188,6 +195,7 @@ func New(cfg config.Config) *Server {
 	s.authedFrontend = s.requireHTMLAuthV2(s.frontendFS)
 
 	s.routes()
+	go s.runProjectReconcileLoop(25 * time.Second)
 	return s
 }
 
@@ -211,13 +219,94 @@ func (s *Server) RestoreTunnels() {
 
 		credJSON, err1 := os.ReadFile(credFile)
 		configYAML, err2 := os.ReadFile(configFile)
-
 		if err1 == nil && err2 == nil {
 			_ = s.cfDaemon.StartTunnel(t.CFTunnelID, t.UserID, credJSON, configYAML)
 			started[t.CFTunnelID] = true
 			log.Printf("[tunnels] restored cloudflared for tunnel id=%s", t.CFTunnelID)
 		} else {
 			log.Printf("[tunnels] skip restore tunnel %s: missing creds or config", t.CFTunnelID)
+		}
+	}
+}
+
+func deriveReconciledProjectStatus(desiredStatus string, snapshot projects.RuntimeSnapshot) string {
+	desired := strings.TrimSpace(strings.ToLower(desiredStatus))
+	switch desired {
+	case "active":
+		if snapshot.Running {
+			return "active"
+		}
+		return "degraded"
+	case "stopped":
+		if snapshot.Running {
+			return "active"
+		}
+		return "stopped"
+	case "error", "degraded":
+		if snapshot.Running {
+			return "active"
+		}
+		if desired == "degraded" {
+			return "degraded"
+		}
+		return "error"
+	default:
+		if snapshot.Running {
+			return "active"
+		}
+		if desired != "" {
+			return desired
+		}
+		return snapshot.Status
+	}
+}
+
+func (s *Server) reconcileProjectStatuses() {
+	if s == nil || s.database == nil || s.projectManager == nil || !s.database.IsConnected() {
+		return
+	}
+	projectList, _, err := s.database.ListAllProjects(200, 0)
+	if err != nil {
+		log.Printf("[reconcile] failed to list projects: %v", err)
+		return
+	}
+	for _, project := range projectList {
+		snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+		nextStatus := deriveReconciledProjectStatus(project.Status, snapshot)
+		if nextStatus == strings.TrimSpace(project.Status) {
+			continue
+		}
+		if err := s.database.UpdateProjectStatus(project.ID, nextStatus); err != nil {
+			log.Printf("[reconcile] failed to update project=%d status=%q: %v", project.ID, nextStatus, err)
+			continue
+		}
+		s.recordRuntimeLog("info", "project status reconciled", map[string]any{
+			"projectId":      project.ID,
+			"projectName":    project.Name,
+			"previousStatus": project.Status,
+			"nextStatus":     nextStatus,
+			"runtimeKnown":   snapshot.Known,
+			"runtimeRunning": snapshot.Running,
+			"runtimeStatus":  snapshot.Status,
+			"drift":          snapshot.Drift,
+			"driftReason":    snapshot.DriftReason,
+		})
+	}
+}
+
+func (s *Server) runProjectReconcileLoop(interval time.Duration) {
+	defer close(s.reconcileDone)
+	if interval <= 0 {
+		interval = 25 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.reconcileStop:
+			return
+		case <-ticker.C:
+			s.reconcileProjectStatuses()
 		}
 	}
 }
@@ -235,7 +324,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLoginV2)
 	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuthV2(http.HandlerFunc(s.handleLogout)))
 	s.mux.Handle("GET /api/v1/me", s.requireAuthV2(http.HandlerFunc(s.handleMeV2)))
-	s.mux.Handle("POST /api/v1/settings/panel-primary/reset-password", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleResetPrimaryPanelPassword)))
+	s.mux.Handle("POST /api/v1/settings/panel-primary/reset-password", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityPanelPrimaryReset, http.HandlerFunc(s.handleResetPrimaryPanelPassword))))
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
@@ -254,8 +343,21 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCFConfig)))
 	s.mux.Handle("POST /api/v1/me/cloudflare/verify", s.requireAuthV2(http.HandlerFunc(s.handleVerifyCFConfig)))
 	s.mux.Handle("GET /api/v1/me/cloudflare/zones", s.requireAuthV2(http.HandlerFunc(s.handleGetCFZones)))
+	s.mux.Handle("GET /api/v1/cloudflare/domains", s.requireAuthV2(http.HandlerFunc(s.handleCloudflareDomains)))
+	s.mux.Handle("POST /api/v1/cloudflare/domains", s.requireAuthV2(http.HandlerFunc(s.handleCreateCloudflareDomain)))
+	s.mux.Handle("GET /api/v1/cloudflare/domains/{zoneId}", s.requireAuthV2(http.HandlerFunc(s.handleGetCloudflareDomain)))
+	s.mux.Handle("DELETE /api/v1/cloudflare/domains/{zoneId}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCloudflareDomain)))
+	s.mux.Handle("GET /api/v1/cloudflare/domains/{zoneId}/dns", s.requireAuthV2(http.HandlerFunc(s.handleCloudflareDNSRecords)))
+	s.mux.Handle("POST /api/v1/cloudflare/domains/{zoneId}/dns", s.requireAuthV2(http.HandlerFunc(s.handleCreateCloudflareDNSRecord)))
+	s.mux.Handle("PUT /api/v1/cloudflare/domains/{zoneId}/dns/{recordId}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateCloudflareDNSRecord)))
+	s.mux.Handle("DELETE /api/v1/cloudflare/domains/{zoneId}/dns/{recordId}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCloudflareDNSRecord)))
+	s.mux.Handle("GET /api/v1/cloudflare/tunnel-profiles", s.requireAuthV2(http.HandlerFunc(s.handleCloudflareTunnelProfiles)))
+	s.mux.Handle("POST /api/v1/cloudflare/tunnel-profiles", s.requireAuthV2(http.HandlerFunc(s.handleCreateCloudflareTunnelProfile)))
+	s.mux.Handle("DELETE /api/v1/cloudflare/tunnel-profiles/{profileId}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteCloudflareTunnelProfile)))
+	s.mux.Handle("GET /api/v1/cloudflare/tunnel-profiles/{profileId}/routes", s.requireAuthV2(http.HandlerFunc(s.handleCloudflareTunnelProfileRoutes)))
 	// ── Projects ──────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleListProjects)))
+	s.mux.Handle("GET /api/v1/projects/attention-summary", s.requireAuthV2(http.HandlerFunc(s.handleProjectAttentionSummary)))
 	s.mux.Handle("POST /api/v1/projects", s.requireAuthV2(http.HandlerFunc(s.handleCreateProject)))
 	s.mux.Handle("GET /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetProject)))
 	s.mux.Handle("DELETE /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteProject)))
@@ -287,55 +389,57 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/system/logs", s.requireAuthV2(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuthV2(http.HandlerFunc(s.handleSystemChangelog)))
 	s.mux.Handle("GET /api/v1/database/status", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDatabaseStatus)))
-	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDatabaseTruncate)))
+	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityDatabaseTruncate, http.HandlerFunc(s.handleDatabaseTruncate))))
 	s.mux.Handle("GET /api/v1/settings/system", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetSystemSettings)))
-	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateSystemSettings)))
-	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdatePanelPort)))
-	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdatePanelOrigins)))
+	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdateSystemSettings))))
+	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelPort))))
+	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelOrigins))))
 
 	// ── Files ────────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/files/root-access/status", s.requireAuthV2(http.HandlerFunc(s.handleFileRootAccessStatus)))
+	s.mux.Handle("POST /api/v1/files/root-access/verify", s.requireAuthV2(http.HandlerFunc(s.handleFileRootAccessVerify)))
+	s.mux.Handle("POST /api/v1/files/root-access/revoke", s.requireAuthV2(http.HandlerFunc(s.handleFileRootAccessRevoke)))
 	s.mux.Handle("GET /api/v1/files", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerList)))
 	s.mux.Handle("GET /api/v1/files/read", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerRead)))
-	s.mux.Handle("POST /api/v1/files/write", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerWrite)))
-	s.mux.Handle("POST /api/v1/files/delete", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerDelete)))
-	s.mux.Handle("POST /api/v1/files/rename", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerRename)))
-	s.mux.Handle("POST /api/v1/files/move", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerMove)))
-	s.mux.Handle("POST /api/v1/files/copy", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerCopy)))
-	s.mux.Handle("POST /api/v1/files/mkdir", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerMkdir)))
-	s.mux.Handle("POST /api/v1/files/touch", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerTouch)))
-	s.mux.Handle("POST /api/v1/files/chmod", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerChmod)))
-	s.mux.Handle("POST /api/v1/files/compress", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerCompress)))
-	s.mux.Handle("POST /api/v1/files/extract", s.requireAuthV2(http.HandlerFunc(s.handleFileManagerExtract)))
+	s.mux.Handle("POST /api/v1/files/write", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerWrite)))
+	s.mux.Handle("POST /api/v1/files/delete", s.requireCapability(auth.CapabilityFilesDelete, http.HandlerFunc(s.handleFileManagerDelete)))
+	s.mux.Handle("POST /api/v1/files/rename", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerRename)))
+	s.mux.Handle("POST /api/v1/files/move", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerMove)))
+	s.mux.Handle("POST /api/v1/files/copy", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerCopy)))
+	s.mux.Handle("POST /api/v1/files/mkdir", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerMkdir)))
+	s.mux.Handle("POST /api/v1/files/touch", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerTouch)))
+	s.mux.Handle("POST /api/v1/files/chmod", s.requireCapability(auth.CapabilityFilesChmod, http.HandlerFunc(s.handleFileManagerChmod)))
+	s.mux.Handle("POST /api/v1/files/compress", s.requireCapability(auth.CapabilityFilesWrite, http.HandlerFunc(s.handleFileManagerCompress)))
+	s.mux.Handle("POST /api/v1/files/extract", s.requireCapability(auth.CapabilityFilesExtract, http.HandlerFunc(s.handleFileManagerExtract)))
 
 	// ── Containers ────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/containers", s.requireAuthV2(http.HandlerFunc(s.handleContainersList)))
 	s.mux.Handle("GET /api/v1/containers/owners", s.requireAuthV2(http.HandlerFunc(s.handleContainerOwners)))
-	s.mux.Handle("POST /api/v1/containers/deploy-image", s.requireAuthV2(http.HandlerFunc(s.handleContainerDeployImage)))
-	s.mux.Handle("POST /api/v1/containers/deploy-compose", s.requireAuthV2(http.HandlerFunc(s.handleContainerDeployCompose)))
-	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireAuthV2(http.HandlerFunc(s.handleContainerStart)))
-	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleContainerStop)))
-	s.mux.Handle("POST /api/v1/containers/{id}/restart", s.requireAuthV2(http.HandlerFunc(s.handleContainerRestart)))
-	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireAuthV2(http.HandlerFunc(s.handleContainerDelete)))
+	s.mux.Handle("POST /api/v1/containers/deploy-image", s.requireCapability(auth.CapabilityDockerDeploy, http.HandlerFunc(s.handleContainerDeployImage)))
+	s.mux.Handle("POST /api/v1/containers/deploy-compose", s.requireCapability(auth.CapabilityDockerDeploy, http.HandlerFunc(s.handleContainerDeployCompose)))
+	s.mux.Handle("POST /api/v1/containers/{id}/start", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerStart)))
+	s.mux.Handle("POST /api/v1/containers/{id}/stop", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerStop)))
+	s.mux.Handle("POST /api/v1/containers/{id}/restart", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerRestart)))
+	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerDelete)))
 	s.mux.Handle("GET /api/v1/containers/{id}/config", s.requireAuthV2(http.HandlerFunc(s.handleContainerInspectConfig)))
 
 	// ── Docker Networks & Images & Templates ──────────────────────────────────
 	s.mux.Handle("GET /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworksList)))
-	s.mux.Handle("POST /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkCreate)))
-	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworkDelete)))
+	s.mux.Handle("POST /api/v1/docker/networks", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkCreate)))
+	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkDelete)))
 	s.mux.Handle("GET /api/v1/docker/images", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagesList)))
-	s.mux.Handle("POST /api/v1/docker/images/pull", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagePull)))
+	s.mux.Handle("POST /api/v1/docker/images/pull", s.requireCapability(auth.CapabilityDockerImageManage, http.HandlerFunc(s.handleDockerImagePull)))
 	s.mux.Handle("GET /api/v1/docker/image-in-use", s.requireAuthV2(http.HandlerFunc(s.handleImageInUse)))
-	s.mux.Handle("DELETE /api/v1/docker/images/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerImageDelete)))
+	s.mux.Handle("DELETE /api/v1/docker/images/{id}", s.requireCapability(auth.CapabilityDockerImageManage, http.HandlerFunc(s.handleDockerImageDelete)))
 	s.mux.Handle("GET /api/v1/docker/templates", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplatesList)))
-	s.mux.Handle("POST /api/v1/docker/templates", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplateCreate)))
-	s.mux.Handle("PUT /api/v1/docker/templates/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplateUpdate)))
-	s.mux.Handle("DELETE /api/v1/docker/templates/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDockerTemplateDelete)))
-
+	s.mux.Handle("POST /api/v1/docker/templates", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateCreate)))
+	s.mux.Handle("PUT /api/v1/docker/templates/{id}", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateUpdate)))
+	s.mux.Handle("DELETE /api/v1/docker/templates/{id}", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateDelete)))
 
 	// ── Terminal ──────────────────────────────────────────────────────────────
-	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionStart)))
-	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
-	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTerminalSessionClose)))
+	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionStart))))
+	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionWebSocket))))
+	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionClose))))
 	s.mux.Handle("GET /api/v1/system/stats/ws", s.requireAuthV2(http.HandlerFunc(s.handleSystemStatsWebSocket)))
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))
@@ -350,6 +454,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) Close() error {
+	if s.reconcileStop != nil {
+		close(s.reconcileStop)
+		s.reconcileStop = nil
+	}
+	if s.reconcileDone != nil {
+		<-s.reconcileDone
+	}
 	if s.database != nil {
 		return s.database.Close()
 	}
@@ -448,6 +559,56 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 	summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
 	dbStatus := s.database.Status()
+
+	projectSummary := map[string]any{
+		"total":          0,
+		"active":         0,
+		"degraded":       0,
+		"drift":          0,
+		"attention":      0,
+		"reconcileFresh": false,
+	}
+	if s.database != nil && s.database.IsConnected() {
+		var (
+			projectList []database.Project
+			total       int64
+		)
+		var err error
+		projectList, total, err = s.database.ListAllProjects(250, 0)
+		if err != nil {
+			log.Printf("[system] failed to summarize projects: %v", err)
+		} else {
+			activeCount := 0
+			degradedCount := 0
+			driftCount := 0
+			attentionCount := 0
+			for _, project := range projectList {
+				snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+				if strings.EqualFold(strings.TrimSpace(project.Status), "active") || snapshot.Running {
+					activeCount++
+				}
+				isDegraded := strings.EqualFold(strings.TrimSpace(project.Status), "degraded")
+				if isDegraded {
+					degradedCount++
+				}
+				if snapshot.Drift {
+					driftCount++
+				}
+				if isDegraded || snapshot.Drift {
+					attentionCount++
+				}
+			}
+			projectSummary = map[string]any{
+				"total":          total,
+				"active":         activeCount,
+				"degraded":       degradedCount,
+				"drift":          driftCount,
+				"attention":      attentionCount,
+				"reconcileFresh": true,
+			}
+		}
+	}
+
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"hostname":           summary.Hostname,
 		"osName":             summary.OSName,
@@ -464,6 +625,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		"portainerUrl":       s.cfg.PortainerURL,
 		"stateDir":           s.cfg.StateDir,
 		"database":           dbStatus,
+		"projects":           projectSummary,
 	})
 }
 
@@ -821,23 +983,65 @@ func validateRegistryAuthPayload(auth *docker.RegistryAuth) error {
 	return nil
 }
 
-
-func (s *Server) handleContainersList(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
 	containers, err := docker.ListContainers()
 	if err != nil {
 		s.writeJSON(w, http.StatusOK, []docker.Container{})
 		return
 	}
+	containers = filterContainersForUser(actor, containers)
 	if containers == nil {
 		containers = []docker.Container{}
 	}
 	s.writeJSON(w, http.StatusOK, containers)
 }
 
+func filterContainersForUser(actor *database.User, containers []docker.Container) []docker.Container {
+	if actor == nil || auth.IsAdmin(actor.Role) {
+		return containers
+	}
+	filtered := make([]docker.Container, 0, len(containers))
+	for _, container := range containers {
+		if container.OwnerUserID == actor.ID {
+			filtered = append(filtered, container)
+		}
+	}
+	return filtered
+}
+
+func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.User, error) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		return nil, errors.New("unauthorized")
+	}
+	if auth.IsAdmin(actor.Role) {
+		return actor, nil
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		return nil, err
+	}
+	for _, container := range containers {
+		if (container.ID == id || strings.HasPrefix(container.ID, id)) && container.OwnerUserID == actor.ID {
+			return actor, nil
+		}
+	}
+	return nil, errors.New("forbidden: container bukan milik user ini")
+}
+
 func (s *Server) handleContainerStart(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
+		return
+	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
 		return
 	}
 	if err := docker.StartContainer(id); err != nil {
@@ -853,6 +1057,10 @@ func (s *Server) handleContainerStop(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
 		return
 	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if err := docker.StopContainer(id); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -864,6 +1072,10 @@ func (s *Server) handleContainerRestart(w http.ResponseWriter, r *http.Request) 
 	id := r.PathValue("id")
 	if id == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
+		return
+	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
 		return
 	}
 	if err := docker.RestartContainer(id); err != nil {
@@ -881,6 +1093,10 @@ func (s *Server) handleContainerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	removeVolumes := r.URL.Query().Get("removeVolumes") == "true"
 	removeImage := r.URL.Query().Get("removeImage") == "true"
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if err := docker.DeleteContainer(id, removeVolumes, removeImage); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -907,6 +1123,10 @@ func (s *Server) handleContainerInspectConfig(w http.ResponseWriter, r *http.Req
 	id := r.PathValue("id")
 	if id == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
+		return
+	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
 		return
 	}
 	cfg, err := docker.InspectContainerConfig(id)
@@ -940,6 +1160,10 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 	}
 
 	if req.ReplaceContainerID != "" {
+		if _, err := s.ensureContainerAccess(r, req.ReplaceContainerID); err != nil {
+			s.writeError(w, http.StatusForbidden, err)
+			return
+		}
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -999,6 +1223,10 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 	}
 
 	if req.ReplaceContainerID != "" {
+		if _, err := s.ensureContainerAccess(r, req.ReplaceContainerID); err != nil {
+			s.writeError(w, http.StatusForbidden, err)
+			return
+		}
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -1136,7 +1364,6 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 		Target string `json:"target"`
 		Cwd    string `json:"cwd"`
 	}
-	// Target is optional, default is handled in terminalManager.Start
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	currentUser := s.currentUserRecord(r)
@@ -1144,19 +1371,44 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 		return
 	}
+	if !s.cfg.TerminalEnabled {
+		s.auditSensitiveAction(r, currentUser, "terminal.start", "blocked", map[string]any{"reason": "terminal_disabled"})
+		s.writeError(w, http.StatusForbidden, errors.New("terminal host dinonaktifkan oleh konfigurasi panel"))
+		return
+	}
 
 	target := strings.TrimSpace(req.Target)
 	cwd := strings.TrimSpace(req.Cwd)
+	isRemote := target != "" && target != "local"
+	if isRemote && !auth.HasCapability(currentUser.Role, auth.CapabilityTerminalRemote) {
+		s.auditSensitiveAction(r, currentUser, "terminal.start", "blocked", map[string]any{"reason": "missing_remote_terminal_capability", "target": target, "cwd": cwd})
+		s.writeError(w, http.StatusForbidden, errors.New("terminal remote tidak diizinkan untuk role ini"))
+		return
+	}
+	if isRemote && !s.cfg.TerminalAllowRemote {
+		s.auditSensitiveAction(r, currentUser, "terminal.start", "blocked", map[string]any{"reason": "remote_terminal_disabled", "target": target, "cwd": cwd})
+		s.writeError(w, http.StatusForbidden, errors.New("terminal remote SSH dinonaktifkan oleh konfigurasi panel"))
+		return
+	}
 
-	id, err := s.terminalManager.Start(currentUser.Username, currentUser.DisplayName, currentUser.Role, target, cwd)
+	startResult, err := s.terminalManager.Start(terminal.StartRequest{
+		PanelUsername: currentUser.Username,
+		DisplayName:   currentUser.DisplayName,
+		Role:          currentUser.Role,
+		Target:        target,
+		Cwd:           cwd,
+	})
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
+		s.auditSensitiveAction(r, currentUser, "terminal.start", "failed", map[string]any{"target": target, "cwd": cwd, "error": err.Error()})
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+
 	username, _ := s.currentUser(r)
-	log.Printf("[terminal] session started id=%s user=%q remote=%s", id, username, remoteAddr(r))
-	s.writeJSON(w, http.StatusOK, jsonResponse{"sessionId": id})
+	log.Printf("[terminal] session started id=%s user=%q remote=%s", startResult.SessionID, username, remoteAddr(r))
+	s.auditSensitiveAction(r, currentUser, "terminal.start", "success", map[string]any{"sessionId": startResult.SessionID, "mode": startResult.Mode, "target": startResult.Target, "cwd": startResult.Cwd, "osUsername": startResult.OSUsername})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"sessionId": startResult.SessionID})
 }
 
 func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -1249,9 +1501,13 @@ func (s *Server) handleTerminalSessionClose(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	meta, _ := s.terminalManager.SessionMeta(id)
 	if err := s.terminalManager.Close(id); err != nil {
 		s.writeError(w, http.StatusNotFound, err)
 		return
+	}
+	if currentUser := s.currentUserRecord(r); currentUser != nil {
+		s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
@@ -1650,6 +1906,40 @@ func (s *Server) recordRuntimeLog(level, message string, metadata map[string]any
 		return
 	}
 	s.database.RecordRuntimeLog("ui-panel", level, message, metadata)
+}
+
+func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, action, result string, metadata map[string]any) {
+	if s.database == nil {
+		return
+	}
+	meta := map[string]any{
+		"action": action,
+		"result": result,
+		"path":   r.URL.Path,
+		"method": r.Method,
+		"remote": remoteAddr(r),
+	}
+	for key, value := range metadata {
+		meta[key] = value
+	}
+	message := strings.TrimSpace(action)
+	if message == "" {
+		message = "sensitive_action"
+	}
+	if result != "" {
+		message += " " + result
+	}
+	var userID *int64
+	if user != nil {
+		userID = &user.ID
+		meta["actorUsername"] = user.Username
+		meta["actorRole"] = user.Role
+	}
+	s.database.RecordRuntimeLogWithContext("security", "info", message, userID, nil, meta)
+}
+
+func (s *Server) auditFileAction(r *http.Request, action, result string, metadata map[string]any) {
+	s.auditSensitiveAction(r, s.currentUserRecord(r), action, result, metadata)
 }
 
 func requestKind(r *http.Request) string {

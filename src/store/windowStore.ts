@@ -7,7 +7,7 @@ const DEFAULTS: Record<
   WindowKind,
   { title: string; icon: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "Docker", icon: "🐋", width: 900, height: 900, singleton: true },
+  apps: { title: "Docker", icon: "🐋", width: 1200, height: 900, singleton: true },
   terminal: { title: "Terminal", icon: "💻", width: 518, height: 320, singleton: true },
   "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 1035, height: 640, singleton: true },
   system: { title: "System Info", icon: "⚙️", width: 1100, height: 680, singleton: true },
@@ -22,7 +22,7 @@ const DEFAULTS: Record<
   trash: { title: "Trash", icon: "🗑️", width: 485, height: 300, singleton: true },
   users: { title: "User Management", icon: "👥", width: 860, height: 740, singleton: true },
   projects: { title: "Projects", icon: "🗂️", width: 900, height: 740, singleton: true },
-  tunnels: { title: "Cloudflare Tunnels", icon: "🌐", width: 1235, height: 740, singleton: true },
+  tunnels: { title: "Cloudflare", icon: "🌐", width: 1235, height: 740, singleton: true },
   profile: { title: "Profile & Integrasi", icon: "👤", width: 520, height: 640, singleton: true },
 };
 

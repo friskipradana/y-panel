@@ -18,6 +18,115 @@ import (
 	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
+var deniedFileManagerPrefixes = []string{"/proc", "/sys", "/dev", "/boot", "/run", "/etc/shadow", "/root/.ssh"}
+
+const fileRootAccessTTL = 15 * time.Minute
+
+type fileRootAccessResponse struct {
+	Enabled   bool   `json:"enabled"`
+	ExpiresAt string `json:"expiresAt,omitempty"`
+}
+
+func (s *Server) fileRootAccessKey(r *http.Request) string {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err == nil && strings.TrimSpace(cookie.Value) != "" {
+		return cookie.Value
+	}
+	if u := userFromCtx(r); u != nil {
+		return u.Username
+	}
+	return ""
+}
+
+func (s *Server) fileRootAccessStatus(r *http.Request) (bool, time.Time) {
+	key := s.fileRootAccessKey(r)
+	if key == "" {
+		return false, time.Time{}
+	}
+	now := time.Now()
+	s.fileRootAccessMu.Lock()
+	defer s.fileRootAccessMu.Unlock()
+	expiresAt, ok := s.fileRootAccess[key]
+	if !ok {
+		return false, time.Time{}
+	}
+	if now.After(expiresAt) {
+		delete(s.fileRootAccess, key)
+		return false, time.Time{}
+	}
+	return true, expiresAt
+}
+
+func (s *Server) grantFileRootAccess(r *http.Request) time.Time {
+	key := s.fileRootAccessKey(r)
+	expiresAt := time.Now().Add(fileRootAccessTTL)
+	if key == "" {
+		return time.Time{}
+	}
+	s.fileRootAccessMu.Lock()
+	s.fileRootAccess[key] = expiresAt
+	s.fileRootAccessMu.Unlock()
+	return expiresAt
+}
+
+func (s *Server) revokeFileRootAccess(r *http.Request) {
+	key := s.fileRootAccessKey(r)
+	if key == "" {
+		return
+	}
+	s.fileRootAccessMu.Lock()
+	delete(s.fileRootAccess, key)
+	s.fileRootAccessMu.Unlock()
+}
+
+func (s *Server) handleFileRootAccessStatus(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || !auth.IsSuperAdmin(u.Role) {
+		s.writeJSON(w, http.StatusOK, fileRootAccessResponse{Enabled: false})
+		return
+	}
+	enabled, expiresAt := s.fileRootAccessStatus(r)
+	resp := fileRootAccessResponse{Enabled: enabled}
+	if enabled {
+		resp.ExpiresAt = expiresAt.Format(time.RFC3339)
+	}
+	s.writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handleFileRootAccessVerify(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || !auth.IsSuperAdmin(u.Role) {
+		s.writeError(w, http.StatusForbidden, errors.New("akses root hanya tersedia untuk superadmin"))
+		return
+	}
+	var payload struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, errors.New("format payload tidak valid"))
+		return
+	}
+	if err := s.auth.VerifyPassword(u.ID, payload.Password); err != nil {
+		s.auditFileAction(r, "file.root_access.verify", "failed", map[string]any{"reason": "invalid_password"})
+		s.writeError(w, http.StatusUnauthorized, errors.New("password tidak valid"))
+		return
+	}
+	expiresAt := s.grantFileRootAccess(r)
+	s.auditFileAction(r, "file.root_access.grant", "success", map[string]any{"expiresAt": expiresAt.Format(time.RFC3339)})
+	s.writeJSON(w, http.StatusOK, fileRootAccessResponse{Enabled: true, ExpiresAt: expiresAt.Format(time.RFC3339)})
+}
+
+func (s *Server) handleFileRootAccessRevoke(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	if u == nil || !auth.IsSuperAdmin(u.Role) {
+		s.writeError(w, http.StatusForbidden, errors.New("akses root hanya tersedia untuk superadmin"))
+		return
+	}
+	s.revokeFileRootAccess(r)
+	s.auditFileAction(r, "file.root_access.revoke", "success", nil)
+	s.writeJSON(w, http.StatusOK, fileRootAccessResponse{Enabled: false})
+}
+
 type FileInfoNode struct {
 	Name     string `json:"name"`
 	Path     string `json:"path"`
@@ -54,15 +163,22 @@ func pathWithinRoot(targetPath, rootPath string) bool {
 	return strings.HasPrefix(target, rootWithSep)
 }
 
+func pathBlockedByPolicy(targetPath string) bool {
+	cleanTarget := normalizePathForAccess(targetPath)
+	for _, blocked := range deniedFileManagerPrefixes {
+		if pathWithinRoot(cleanTarget, blocked) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 	u := userFromCtx(r)
 	if u == nil {
 		return nil, errors.New("unauthorized")
 	}
-	if auth.IsAdmin(u.Role) {
-		return []string{string(filepath.Separator)}, nil
-	}
-	roots := make([]string, 0, 4)
+	roots := make([]string, 0, 8)
 	seen := map[string]struct{}{}
 	appendRoot := func(path string) {
 		wd := strings.TrimSpace(path)
@@ -77,7 +193,8 @@ func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 		roots = append(roots, clean)
 	}
 
-	appendRoot(filepath.Join("/home", panelosuser.MappedUsername(u.Username)))
+	appendRoot(panelosuser.ResolveHomeDir(u.Username))
+	appendRoot(s.cfg.StateDir)
 
 	projects, err := s.database.ListProjects(u.ID)
 	if err != nil {
@@ -85,6 +202,20 @@ func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 	}
 	for _, p := range projects {
 		appendRoot(p.WorkingDir)
+	}
+
+	if auth.IsAdmin(u.Role) {
+		allProjects, _, err := s.database.ListAllProjects(1000, 0)
+		if err == nil {
+			for _, p := range allProjects {
+				appendRoot(p.WorkingDir)
+			}
+		}
+		if auth.IsSuperAdmin(u.Role) {
+			if elevated, _ := s.fileRootAccessStatus(r); elevated {
+				appendRoot(string(filepath.Separator))
+			}
+		}
 	}
 	if len(roots) == 0 {
 		return nil, errors.New("anda belum memiliki project atau home directory yang dapat diakses")
@@ -98,12 +229,15 @@ func (s *Server) ensureFileManagerAccess(r *http.Request, targetPath string) err
 		return err
 	}
 	cleanTarget := normalizePathForAccess(targetPath)
+	if pathBlockedByPolicy(cleanTarget) {
+		return errors.New("akses file ditolak: path sistem sensitif diblokir")
+	}
 	for _, root := range roots {
 		if pathWithinRoot(cleanTarget, root) {
 			return nil
 		}
 	}
-	return errors.New("akses file ditolak: path di luar project milik user")
+	return errors.New("akses file ditolak: path di luar root yang diizinkan")
 }
 
 func (s *Server) ensureFileManagerPathPairAccess(r *http.Request, paths ...string) error {
@@ -260,6 +394,7 @@ func (s *Server) handleFileManagerWrite(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	s.auditFileAction(r, "file.write", "success", map[string]any{"path": cleanPath, "bytes": len(payload.Content)})
 	s.writeJSON(w, http.StatusOK, map[string]interface{}{
 		"ok":      true,
 		"message": "File berhasil disimpan",
@@ -287,6 +422,7 @@ func (s *Server) handleFileManagerDelete(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal menghapus: "+err.Error()))
 		return
 	}
+	s.auditFileAction(r, "file.delete", "success", map[string]any{"path": cleanPath})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -313,6 +449,7 @@ func (s *Server) handleFileManagerRename(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal mengubah nama: "+err.Error()))
 		return
 	}
+	s.auditFileAction(r, "file.rename", "success", map[string]any{"oldPath": oldC, "newPath": newC})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -386,6 +523,7 @@ func (s *Server) handleFileManagerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.auditFileAction(r, "file.move", "success", map[string]any{"oldPath": oldPath, "newPath": newPath})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -542,6 +680,7 @@ func (s *Server) handleFileManagerChmod(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	}
+	s.auditFileAction(r, "file.chmod", "success", map[string]any{"path": cleanPath, "mode": payload.Mode, "recursive": payload.Recursive})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -556,8 +695,6 @@ func addPathToZip(zipWriter *zip.Writer, baseParent, sourcePath string) error {
 			if walkErr != nil {
 				return walkErr
 			}
-
-
 
 			relPath, err := filepath.Rel(baseParent, path)
 			if err != nil {
@@ -644,8 +781,6 @@ func addPathToTar(tw *tar.Writer, baseParent, sourcePath string) error {
 			if walkErr != nil {
 				return walkErr
 			}
-
-
 
 			relPath, err := filepath.Rel(baseParent, path)
 			if err != nil {
@@ -914,5 +1049,6 @@ func (s *Server) handleFileManagerExtract(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	s.auditFileAction(r, "file.extract", "success", map[string]any{"source": cleanSource, "dest": cleanDest})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

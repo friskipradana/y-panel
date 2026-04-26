@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/database/migrations"
 	"github.com/friskipradana/panel-desktop-ui/internal/httpserver"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
@@ -24,6 +26,11 @@ func main() {
 		case "reset-primary-password":
 			if err := runResetPrimaryPassword(os.Args[2:]); err != nil {
 				log.Fatalf("reset primary password: %v", err)
+			}
+			return
+		case "migrate":
+			if err := runMigrate(os.Args[2:]); err != nil {
+				log.Fatalf("migrate: %v", err)
 			}
 			return
 		}
@@ -60,8 +67,9 @@ func runResetPrimaryPassword(args []string) error {
 		return fmt.Errorf("gunakan --password-stdin")
 	}
 
-	if err := loadRuntimeEnv(); err != nil {
-		return fmt.Errorf("load runtime env: %w", err)
+	cfg, err := loadRuntimeConfig()
+	if err != nil {
+		return err
 	}
 
 	password, err := readPasswordFromStdin()
@@ -70,11 +78,6 @@ func runResetPrimaryPassword(args []string) error {
 	}
 	if err := users.ValidatePassword(password); err != nil {
 		return err
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
 	}
 
 	db := database.New(database.Config{
@@ -150,4 +153,100 @@ func loadRuntimeEnv() error {
 	}
 	_ = os.Setenv("PANEL_ENV_FILE", envPath)
 	return nil
+}
+
+func loadRuntimeConfig() (config.Config, error) {
+	if err := loadRuntimeEnv(); err != nil {
+		return config.Config{}, fmt.Errorf("load runtime env: %w", err)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return config.Config{}, fmt.Errorf("load config: %w", err)
+	}
+	return cfg, nil
+}
+
+func openMigrationDB() (*sql.DB, error) {
+	cfg, err := loadRuntimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.DatabaseEnable {
+		return nil, fmt.Errorf("database dinonaktifkan")
+	}
+	db, err := migrations.Open(cfg.DatabaseDSN)
+	if err != nil {
+		return nil, err
+	}
+	return db, nil
+}
+
+func runMigrate(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("gunakan subcommand: up | down | status | create")
+	}
+
+	switch args[0] {
+	case "up":
+		db, err := openMigrationDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		if err := migrations.Up(db); err != nil {
+			return err
+		}
+		version, err := migrations.Version(db)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Migration up berhasil. Version saat ini: %d\n", version)
+		return nil
+	case "down", "rollback":
+		db, err := openMigrationDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		if err := migrations.Down(db); err != nil {
+			return err
+		}
+		version, err := migrations.Version(db)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Rollback migration terakhir berhasil. Version saat ini: %d\n", version)
+		return nil
+	case "status":
+		db, err := openMigrationDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		rows, err := migrations.Status(db)
+		if err != nil {
+			return err
+		}
+		if len(rows) == 0 {
+			fmt.Println("Belum ada migration yang terdaftar.")
+			return nil
+		}
+		fmt.Println("Version\tState")
+		for _, row := range rows {
+			fmt.Printf("%d\t%s\n", row.Version, row.State)
+		}
+		return nil
+	case "create":
+		if len(args) < 2 {
+			return fmt.Errorf("gunakan: migrate create <nama_migration>")
+		}
+		path, err := migrations.CreateMigrationFile(filepath.Join("internal", "database", "migrations"), strings.Join(args[1:], "_"))
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Migration template dibuat: %s\n", path)
+		return nil
+	default:
+		return fmt.Errorf("subcommand migration tidak dikenal: %s", args[0])
+	}
 }

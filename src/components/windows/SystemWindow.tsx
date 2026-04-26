@@ -1,7 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
-import { getSystemSummary } from '@/api/agent'
+import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
+import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
+import { useWindowStore } from '@/store/windowStore'
+import type { RuntimeDatabaseLog } from '@/types'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -72,6 +74,28 @@ function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: str
   )
 }
 
+function extractProjectId(metadata: string) {
+  if (!metadata || metadata === '{}') return null
+  try {
+    const parsed = JSON.parse(metadata) as { projectId?: number; projectID?: number }
+    const raw = parsed.projectId ?? parsed.projectID
+    const nextId = Number(raw ?? 0)
+    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
+  } catch {
+    const match = metadata.match(/"project(?:Id|ID)"\s*:\s*(\d+)/)
+    if (!match) return null
+    const nextId = Number(match[1])
+    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
+  }
+}
+
+function extractAttentionType(message: string, metadata: string) {
+  const haystack = `${message} ${metadata}`.toLowerCase()
+  if (haystack.includes('drift')) return 'drift'
+  if (haystack.includes('degraded') || haystack.includes('project status reconciled')) return 'degraded'
+  return 'all'
+}
+
 export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
@@ -79,10 +103,18 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     retry: 1,
     refetchInterval: 5_000,
   })
+  const databaseQuery = useQuery({
+    queryKey: ['database-status'],
+    queryFn: getDatabaseStatus,
+    retry: 1,
+    refetchInterval: 15_000,
+  })
+  const openWindow = useWindowStore((state) => state.openWindow)
 
   useEffect(() => {
     if (authenticated) {
       void refetch()
+      void databaseQuery.refetch()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
@@ -136,6 +168,27 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
   const memoryPercent = data.memory.total ? (data.memory.used / data.memory.total) * 100 : 0
   const storagePercent = data.storage.total ? (data.storage.used / data.storage.total) * 100 : 0
+  const reconcileIncidents = useMemo(() => {
+    const runtimeLogs = databaseQuery.data?.runtimeLogs ?? []
+    return runtimeLogs
+      .filter((entry) => {
+        const message = entry.message.toLowerCase()
+        return message.includes('reconcile') || message.includes('drift') || message.includes('degraded')
+      })
+      .slice(0, 5)
+  }, [databaseQuery.data?.runtimeLogs])
+  const openProjectsAttention = (entry: RuntimeDatabaseLog) => {
+    const projectId = extractProjectId(entry.metadata)
+    const attentionType = extractAttentionType(entry.message, entry.metadata)
+    openWindow('projects', {
+      attentionOnly: true,
+      attentionType,
+      highlightProjectId: projectId ?? undefined,
+      incidentMessage: entry.message,
+      incidentMetadata: entry.metadata,
+      incidentAt: entry.createdAt,
+    })
+  }
 
   return (
     <div className="panel-window">
@@ -184,6 +237,13 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
 
           <div className="panel-kpi-grid panel-kpi-grid--4">
+            <MetricCard icon={<Activity size={15} />} title="Projects total" value={`${data.projects?.total ?? 0}`} subtitle="Jumlah workload project yang terdaftar" />
+            <MetricCard icon={<CheckCircle2 size={15} />} title="Projects active" value={`${data.projects?.active ?? 0}`} subtitle="Project yang aktif atau runtime-nya terdeteksi berjalan" />
+            <MetricCard icon={<ShieldAlert size={15} />} title="Need attention" value={`${data.projects?.attention ?? 0}`} subtitle="Gabungan project degraded atau drifted" percent={data.projects?.total ? ((data.projects.attention / data.projects.total) * 100) : 0} />
+            <MetricCard icon={<AlertTriangle size={15} />} title="Runtime drift" value={`${data.projects?.drift ?? 0}`} subtitle={(data.projects?.reconcileFresh ?? false) ? 'Data reconcile segar dari agent runtime' : 'Reconcile belum segar / database belum siap'} />
+          </div>
+
+          <div className="panel-kpi-grid panel-kpi-grid--4">
             <InfoCard icon={<Activity size={15} />} title="Docker status">
               <p className="panel-shell-card__title">{data.dockerStatus}</p>
               <p className="panel-shell-card__meta">Status ini diambil langsung dari host untuk memastikan Docker benar-benar terpasang dan daemon bisa diakses.</p>
@@ -208,6 +268,15 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
               </p>
             </InfoCard>
 
+            <InfoCard icon={<ShieldAlert size={15} />} title="Orchestrator health">
+              <p className="panel-shell-card__title">
+                {data.projects?.attention > 0 ? `${data.projects.attention} workload perlu perhatian` : 'Semua workload terpantau stabil'}
+              </p>
+              <p className="panel-shell-card__meta">
+                {`${data.projects?.degraded ?? 0} degraded · ${data.projects?.drift ?? 0} drift · reconcile ${data.projects?.reconcileFresh ? 'fresh' : 'pending'}`}
+              </p>
+            </InfoCard>
+
             <InfoCard icon={<Network size={15} />} title="IP Address">
               {data.ipAddresses && data.ipAddresses.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
@@ -220,6 +289,41 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
               )}
             </InfoCard>
           </div>
+
+          <InfoCard icon={<AlertTriangle size={15} />} title="Recent reconcile incidents">
+            {reconcileIncidents.length === 0 ? (
+              <p className="panel-shell-card__meta">Belum ada incident drift/degraded yang tersimpan di runtime logs.</p>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {reconcileIncidents.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => openProjectsAttention(entry)}
+                    className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(15,23,42,0.12)]"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`panel-badge ${entry.level === 'warning' ? 'panel-badge--warning' : entry.level === 'error' ? 'panel-badge--danger' : 'panel-badge--info'}`}>
+                        {entry.level}
+                      </span>
+                      <span className="text-[11px] font-semibold text-[var(--win-text)]">{entry.message}</span>
+                      <span className="ml-auto text-[10px] text-[var(--text-secondary)]">
+                        {new Date(entry.createdAt).toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-5 text-[var(--text-secondary)]">
+                      {entry.metadata && entry.metadata !== '{}'
+                        ? entry.metadata
+                        : 'Tidak ada metadata tambahan untuk incident ini.'}
+                    </p>
+                    <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--panel-primary-text)]">
+                      Open Projects attention view
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </InfoCard>
         </div>
       </div>
     </div>

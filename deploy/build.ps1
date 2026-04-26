@@ -556,6 +556,15 @@ __ARCHIVE__
     }
     Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
 
+    step 'Menjalankan migrasi database'
+    $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ui-panel-agent migrate up"
+    $migrationOut = Invoke-Remote $migrationCmd -AllowFail
+    $migrationText = ($migrationOut -join "`n").Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
+      throw "Migrasi database gagal.`n$($migrationOut -join "`n")"
+    }
+    ok ($migrationText -split "`n" | Select-Object -Last 1)
+
     if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ui-panel -n 50' }
     else { ok 'Service berjalan' }
 

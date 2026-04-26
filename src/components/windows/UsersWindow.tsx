@@ -407,7 +407,7 @@ function UserRow({
 
   return (
     <div className="panel-table-row overflow-visible">
-      <div className="flex items-center gap-3 overflow-visible p-3.5">
+      <div className="flex items-center gap-3 overflow-visible">
         <div className="panel-avatar rounded-full text-sm">{user.username[0]?.toUpperCase()}</div>
 
         <div className="min-w-0 flex-1">

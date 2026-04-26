@@ -71,6 +71,14 @@ export interface SystemSummary {
     runtimeLogCount: number
     settingsAuditCount: number
   }
+  projects: {
+    total: number
+    active: number
+    degraded: number
+    drift: number
+    attention: number
+    reconcileFresh: boolean
+  }
   ipAddresses: string[]
 }
 

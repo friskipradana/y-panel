@@ -21,6 +21,21 @@ const (
 	SuperadminRole = "superadmin"
 	AdminRole      = "admin"
 	UserRole       = "user"
+
+	CapabilityTerminalAccess       = "terminal.access"
+	CapabilityTerminalRemote       = "terminal.remote"
+	CapabilityFilesWrite           = "files.write"
+	CapabilityFilesDelete          = "files.delete"
+	CapabilityFilesChmod           = "files.chmod"
+	CapabilityFilesExtract         = "files.extract"
+	CapabilityDockerDeploy         = "docker.deploy"
+	CapabilityDockerLifecycle      = "docker.lifecycle"
+	CapabilityDockerNetworkManage  = "docker.network.manage"
+	CapabilityDockerImageManage    = "docker.image.manage"
+	CapabilityDockerTemplateManage = "docker.template.manage"
+	CapabilitySystemSettingsWrite  = "system.settings.write"
+	CapabilityDatabaseTruncate     = "database.truncate"
+	CapabilityPanelPrimaryReset    = "panel.primary.reset_password"
 )
 
 var (
@@ -123,7 +138,7 @@ func (m *Manager) CreateUser(username, email, password, role, displayName string
 	if err != nil {
 		return nil, err
 	}
-	if _, err := osuser.EnsureUser(u.Username, u.DisplayName); err != nil {
+	if _, err := osuser.EnsureUserForRole(u.Username, u.DisplayName, u.Role); err != nil {
 		return u, fmt.Errorf("user created in panel, but OS account provisioning failed: %w", err)
 	}
 	return u, nil
@@ -143,6 +158,21 @@ func (m *Manager) ChangePassword(userID int64, currentPassword, newPassword stri
 		return err
 	}
 	return m.db.UpdateUserPasswordHash(userID, newHash)
+}
+
+// VerifyPassword validates a user's current password without creating a session.
+func (m *Manager) VerifyPassword(userID int64, password string) error {
+	if strings.TrimSpace(password) == "" {
+		return errors.New("password is required")
+	}
+	hash, err := m.db.GetUserPasswordHash(userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+	return nil
 }
 
 // ResetPassword sets a new password for any user (admin operation, no current password required).
@@ -197,4 +227,58 @@ func randomToken(length int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+func CapabilitiesForRole(role string) map[string]struct{} {
+	capabilities := map[string]struct{}{}
+	grant := func(values ...string) {
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+			capabilities[value] = struct{}{}
+		}
+	}
+
+	switch role {
+	case SuperadminRole:
+		grant(
+			CapabilityTerminalAccess,
+			CapabilityTerminalRemote,
+			CapabilityFilesWrite,
+			CapabilityFilesDelete,
+			CapabilityFilesChmod,
+			CapabilityFilesExtract,
+			CapabilityDockerDeploy,
+			CapabilityDockerLifecycle,
+			CapabilityDockerNetworkManage,
+			CapabilityDockerImageManage,
+			CapabilityDockerTemplateManage,
+			CapabilitySystemSettingsWrite,
+			CapabilityDatabaseTruncate,
+			CapabilityPanelPrimaryReset,
+		)
+	case AdminRole:
+		grant(
+			CapabilityTerminalAccess,
+			CapabilityFilesWrite,
+			CapabilityFilesDelete,
+			CapabilityFilesChmod,
+			CapabilityFilesExtract,
+			CapabilityDockerDeploy,
+			CapabilityDockerLifecycle,
+			CapabilityDockerNetworkManage,
+			CapabilityDockerImageManage,
+			CapabilityDockerTemplateManage,
+			CapabilitySystemSettingsWrite,
+		)
+	case UserRole:
+		// intentionally minimal for now
+	}
+	return capabilities
+}
+
+func HasCapability(role, capability string) bool {
+	_, ok := CapabilitiesForRole(role)[strings.TrimSpace(capability)]
+	return ok
 }

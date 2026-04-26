@@ -14,20 +14,20 @@ import { getFrontendRevision, getMe, getMeV2 } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind, WindowState } from '@/types'
 
-const DockerWindow = lazy(() => import('@/components/windows/DockerWindow').then((module) => ({ default: module.DockerWindow })))
-const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((module) => ({ default: module.SystemWindow })))
-const SettingsWindow = lazy(() => import('@/components/windows/SettingsWindow').then((module) => ({ default: module.SettingsWindow })))
-const DatabaseWindow = lazy(() => import('@/components/windows/DatabaseWindow').then((module) => ({ default: module.DatabaseWindow })))
-const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow').then((module) => ({ default: module.ChangelogWindow })))
-const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((module) => ({ default: module.SystemLogsWindow })))
-const LoginScreen = lazy(() => import('@/components/windows/LoginScreen').then((module) => ({ default: module.LoginScreen })))
-const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((module) => ({ default: module.HostTerminalWindow })))
-const DocsWindow = lazy(() => import('@/components/windows/DocsWindow'))
+import { DockerWindow } from '@/components/windows/DockerWindow'
+import { SystemWindow } from '@/components/windows/SystemWindow'
+import { SettingsWindow } from '@/components/windows/SettingsWindow'
+import { DatabaseWindow } from '@/components/windows/DatabaseWindow'
+import { ChangelogWindow } from '@/components/windows/ChangelogWindow'
+import { SystemLogsWindow } from '@/components/windows/SystemLogsWindow'
+import { LoginScreen } from '@/components/windows/LoginScreen'
+import { HostTerminalWindow } from '@/components/windows/HostTerminalWindow'
+import DocsWindow from '@/components/windows/DocsWindow'
 import { FileManagerWindow } from '@/components/windows/FileManagerWindow'
-const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((module) => ({ default: module.FileEditorWindow })))
-const UsersWindow = lazy(() => import('@/components/windows/UsersWindow'))
-const ProjectsWindow = lazy(() => import('@/components/windows/ProjectsWindow'))
-const TunnelsWindow = lazy(() => import('@/components/windows/TunnelsWindow'))
+import { FileEditorWindow } from '@/components/windows/FileEditorWindow'
+import UsersWindow from '@/components/windows/UsersWindow'
+import ProjectsWindow from '@/components/windows/ProjectsWindow'
+import TunnelsWindow from '@/components/windows/TunnelsWindow'
 const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
   : null
@@ -42,7 +42,7 @@ const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
 const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
   apps: (_win, auth) => <DockerWindow authenticated={auth} />,
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
-  'system-logs': (_win, auth) => <SystemLogsWindow authenticated={auth} />,
+  'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
   'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
   portainer: () => (
     <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
@@ -77,8 +77,8 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
     </div>
   ),
   users: () => <UsersWindow />,
-  projects: () => <ProjectsWindow />,
-  tunnels: () => <TunnelsWindow />,
+  projects: (win) => <ProjectsWindow win={win} />,
+  tunnels: (win) => <TunnelsWindow win={win} />,
 }
 
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
