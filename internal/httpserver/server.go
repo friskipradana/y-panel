@@ -422,6 +422,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/containers/{id}/restart", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerRestart)))
 	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerDelete)))
 	s.mux.Handle("GET /api/v1/containers/{id}/config", s.requireAuthV2(http.HandlerFunc(s.handleContainerInspectConfig)))
+	s.mux.Handle("GET /api/v1/containers/{id}/logs", s.requireAuthV2(http.HandlerFunc(s.handleContainerLogs)))
 
 	// ── Docker Networks & Images & Templates ──────────────────────────────────
 	s.mux.Handle("GET /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworksList)))
@@ -1119,6 +1120,30 @@ func (s *Server) handleImageInUse(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"inUse": inUse})
 }
 
+func (s *Server) handleContainerLogs(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing container id"})
+		return
+	}
+	if _, err := s.ensureContainerAccess(r, id); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
+	tail := 200
+	if rawTail := strings.TrimSpace(r.URL.Query().Get("tail")); rawTail != "" {
+		if parsed, err := strconv.Atoi(rawTail); err == nil {
+			tail = parsed
+		}
+	}
+	logs, err := docker.ReadContainerLogs(id, tail)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, logs)
+}
+
 func (s *Server) handleContainerInspectConfig(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -1179,7 +1204,7 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		Volumes:      req.Volumes,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
@@ -1236,7 +1261,7 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		RegistryAuth: req.RegistryAuth,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{

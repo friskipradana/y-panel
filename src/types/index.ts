@@ -103,6 +103,12 @@ export interface Container {
     memoryLimitMb?: string | number
     diskQuotaMb?: string | number
   }
+  RestartCount?: number
+  ExitCode?: number
+  Health?: string
+  StartedAt?: string
+  FinishedAt?: string
+  CreatedAt?: string
   Metadata?: Record<string, unknown>
 }
 

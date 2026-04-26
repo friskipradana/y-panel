@@ -235,6 +235,9 @@ export const deleteContainer = (id: string, opts?: { removeVolumes?: boolean; re
 export const fetchContainerConfig = (id: string) =>
   agentApi.get<import('@/types').DockerContainerConfig>(`/api/v1/containers/${id}/config`).then((r) => r.data)
 
+export const fetchContainerLogs = (id: string, tail = 200) =>
+  agentApi.get<{ id: string; tail: number; lines: string[] }>(`/api/v1/containers/${id}/logs`, { params: { tail } }).then((r) => r.data)
+
 export const listDockerNetworks = () =>
   agentApi.get<{ items: import('@/types').DockerNetwork[] }>('/api/v1/docker/networks').then((r) => r.data)
 

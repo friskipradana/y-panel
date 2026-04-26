@@ -28,12 +28,12 @@ import type {
   PaginationParams,
 } from '@/types'
 
-export function useContainers() {
+export function useContainers(active = true) {
   return useQuery<Container[]>({
     queryKey: ['containers'],
     queryFn: listContainers,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
+    refetchInterval: active ? 10_000 : false,
+    refetchIntervalInBackground: false,
     retry: 2,
     staleTime: 5_000,
   })
@@ -96,11 +96,11 @@ export function useDeployComposeProject() {
   })
 }
 
-export function useDockerNetworks() {
+export function useDockerNetworks(active = true) {
   return useQuery({
     queryKey: ['docker-networks'],
     queryFn: listDockerNetworks,
-    refetchInterval: 15_000,
+    refetchInterval: active ? 15_000 : false,
   })
 }
 
@@ -120,11 +120,11 @@ export function useDeleteDockerNetwork() {
   })
 }
 
-export function useDockerImages() {
+export function useDockerImages(active = true) {
   return useQuery({
     queryKey: ['docker-images'],
     queryFn: listDockerImages,
-    refetchInterval: 15_000,
+    refetchInterval: active ? 15_000 : false,
   })
 }
 

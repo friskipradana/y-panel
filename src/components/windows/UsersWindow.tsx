@@ -14,6 +14,8 @@ import {
 } from '@/api/agent'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import type { WindowState } from '@/types'
 import { toast } from 'sonner'
 import {
   Users,
@@ -68,7 +70,8 @@ const ROLE_SELECT_OPTIONS = ROLE_OPTIONS.map((role) => ({
 
 const PAGE_SIZE = 8
 
-export default function UsersWindow() {
+export default function UsersWindow({ win }: { win?: WindowState }) {
+  const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [showQuota, setShowQuota] = useState<number | null>(null)
@@ -88,7 +91,7 @@ export default function UsersWindow() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['users', { search, offset }],
     queryFn: () => listUsers({ q: search, limit: PAGE_SIZE, offset }),
-    refetchInterval: 30_000,
+    refetchInterval: pollingActive ? 30_000 : false,
   })
 
   const createMut = useMutation({

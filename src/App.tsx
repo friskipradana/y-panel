@@ -40,7 +40,7 @@ const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
 const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
 
 const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
-  apps: (_win, auth) => <DockerWindow authenticated={auth} />,
+  apps: (win, auth) => <DockerWindow win={win} authenticated={auth} />,
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
   'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
   'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
@@ -76,7 +76,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
       <span className="text-sm">Trash is empty</span>
     </div>
   ),
-  users: () => <UsersWindow />,
+  users: (win) => <UsersWindow win={win} />,
   projects: (win) => <ProjectsWindow win={win} />,
   tunnels: (win) => <TunnelsWindow win={win} />,
 }

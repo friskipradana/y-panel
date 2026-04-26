@@ -13,6 +13,7 @@ import type { WindowState } from '@/types'
 import { alertLib } from '@/lib/alert'
 import { useWindowStore } from '@/store/windowStore'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { toast } from 'sonner'
 import {
   FolderCode,
@@ -61,6 +62,7 @@ interface ProjectsWindowProps {
 type AttentionFilter = 'all' | 'drift' | 'degraded'
 
 export default function ProjectsWindow({ win }: ProjectsWindowProps) {
+  const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
   const openWindow = useWindowStore((state) => state.openWindow)
   const [showCreate, setShowCreate] = useState(false)
@@ -80,12 +82,12 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['projects', { search, offset }],
     queryFn: () => listProjects({ q: search, limit: PAGE_SIZE, offset }),
-    refetchInterval: 10_000,
+    refetchInterval: pollingActive ? 10_000 : false,
   })
   const { data: attentionSummary, refetch: refetchAttentionSummary, isFetching: isFetchingAttentionSummary } = useQuery({
     queryKey: ['projects-attention-summary', { search }],
     queryFn: () => getProjectAttentionSummary({ q: search }),
-    refetchInterval: 10_000,
+    refetchInterval: pollingActive ? 10_000 : false,
   })
 
   const projects = data?.items ?? []

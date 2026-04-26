@@ -1747,26 +1747,33 @@ body {
 }
 
 /* ── Modal ── */
+.docker-window-root {
+  position: relative;
+}
+
 .docker-modal-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.45);
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.34);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 24px;
+  padding: 14px;
+  overflow: hidden;
 }
 
 .docker-modal {
   display: flex;
   flex-direction: column;
   width: min(840px, 100%);
-  max-height: 90vh;
-  border-radius: 24px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 18px;
   border: 1px solid var(--win-border);
   background: var(--win-bg);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
   overflow: hidden;
 }
 
@@ -1805,6 +1812,73 @@ body {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
   resize: vertical;
+}
+
+.docker-log-modal {
+  width: min(1040px, 100%);
+}
+
+.docker-log-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.docker-log-toolbar__left,
+.docker-log-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.docker-log-toolbar__right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.docker-log-autoscroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--win-border);
+  border-radius: 10px;
+  background: var(--panel-surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.docker-log-autoscroll input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent);
+}
+
+.docker-log-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.94);
+  color: #d1fae5;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ── Docker deploy modal: keep shared panel modal style, only size/scroll large form ── */

@@ -14,23 +14,35 @@ import (
 )
 
 type Container struct {
-	ID          string                 `json:"Id"`
-	Names       []string               `json:"Names"`
-	Image       string                 `json:"Image"`
-	State       string                 `json:"State"`
-	Status      string                 `json:"Status"`
-	Ports       []ContainerPort        `json:"Ports"`
-	Networks    []string               `json:"Networks"`
-	IPAddresses []string               `json:"IpAddresses"`
-	Created     int64                  `json:"Created"`
-	Labels      map[string]string      `json:"Labels,omitempty"`
-	ProjectName string                 `json:"ProjectName,omitempty"`
-	OwnerUserID int64                  `json:"OwnerUserId,omitempty"`
-	OwnerName   string                 `json:"OwnerName,omitempty"`
-	Source      string                 `json:"Source,omitempty"`
-	ComposePath string                 `json:"ComposePath,omitempty"`
-	Resources   map[string]any         `json:"Resources,omitempty"`
-	Metadata    map[string]interface{} `json:"Metadata,omitempty"`
+	ID           string                 `json:"Id"`
+	Names        []string               `json:"Names"`
+	Image        string                 `json:"Image"`
+	State        string                 `json:"State"`
+	Status       string                 `json:"Status"`
+	Ports        []ContainerPort        `json:"Ports"`
+	Networks     []string               `json:"Networks"`
+	IPAddresses  []string               `json:"IpAddresses"`
+	Created      int64                  `json:"Created"`
+	Labels       map[string]string      `json:"Labels,omitempty"`
+	ProjectName  string                 `json:"ProjectName,omitempty"`
+	OwnerUserID  int64                  `json:"OwnerUserId,omitempty"`
+	OwnerName    string                 `json:"OwnerName,omitempty"`
+	Source       string                 `json:"Source,omitempty"`
+	ComposePath  string                 `json:"ComposePath,omitempty"`
+	Resources    map[string]any         `json:"Resources,omitempty"`
+	RestartCount int                    `json:"RestartCount,omitempty"`
+	ExitCode     int                    `json:"ExitCode,omitempty"`
+	Health       string                 `json:"Health,omitempty"`
+	StartedAt    string                 `json:"StartedAt,omitempty"`
+	FinishedAt   string                 `json:"FinishedAt,omitempty"`
+	CreatedAt    string                 `json:"CreatedAt,omitempty"`
+	Metadata     map[string]interface{} `json:"Metadata,omitempty"`
+}
+
+type ContainerLogs struct {
+	ID    string   `json:"id"`
+	Tail  int      `json:"tail"`
+	Lines []string `json:"lines"`
 }
 
 type ContainerPort struct {
@@ -109,6 +121,29 @@ const (
 	labelComposeDir = "panel.compose_path"
 )
 
+func ReadContainerLogs(id string, tail int) (ContainerLogs, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ContainerLogs{}, errors.New("container id is required")
+	}
+	if tail <= 0 {
+		tail = 200
+	}
+	if tail > 1000 {
+		tail = 1000
+	}
+	cmd := exec.Command("docker", "logs", "--tail", strconv.Itoa(tail), "--timestamps", id)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(output))
+		if message == "" {
+			message = err.Error()
+		}
+		return ContainerLogs{}, fmt.Errorf("read container logs: %s", message)
+	}
+	return ContainerLogs{ID: id, Tail: tail, Lines: splitNonEmptyLines(string(output))}, nil
+}
+
 func ListContainers() ([]Container, error) {
 	cmd := exec.Command("docker", "ps", "-a", "--format", "{{json .}}")
 	output, err := cmd.Output()
@@ -121,10 +156,10 @@ func ListContainers() ([]Container, error) {
 
 	for _, line := range lines {
 		var row struct {
-			ID      string `json:"ID"`
-			Names   string `json:"Names"`
-			Image   string `json:"Image"`
-			State   string `json:"State"`
+			ID       string `json:"ID"`
+			Names    string `json:"Names"`
+			Image    string `json:"Image"`
+			State    string `json:"State"`
 			Status   string `json:"Status"`
 			Ports    string `json:"Ports"`
 			Networks string `json:"Networks"`
@@ -200,7 +235,7 @@ func InspectContainerNetworks(containers []Container) error {
 		idToIndex[c.ID] = i
 	}
 
-	args := append([]string{"inspect", "--format", `{"Id": "{{.Id}}", "Networks": {{json .NetworkSettings.Networks}}}`}, ids...)
+	args := append([]string{"inspect", "--format", `{"Id": "{{.Id}}", "Created": {{json .Created}}, "Networks": {{json .NetworkSettings.Networks}}, "RestartCount": {{.RestartCount}}, "State": {{json .State}}}`}, ids...)
 	cmd := exec.Command("docker", args...)
 	output, err := cmd.Output()
 	if err != nil {
@@ -214,6 +249,17 @@ func InspectContainerNetworks(containers []Container) error {
 			Networks map[string]struct {
 				IPAddress string `json:"IPAddress"`
 			} `json:"Networks"`
+			RestartCount int    `json:"RestartCount"`
+			Created      string `json:"Created"`
+			State        struct {
+				Status     string `json:"Status"`
+				ExitCode   int    `json:"ExitCode"`
+				StartedAt  string `json:"StartedAt"`
+				FinishedAt string `json:"FinishedAt"`
+				Health     *struct {
+					Status string `json:"Status"`
+				} `json:"Health"`
+			} `json:"State"`
 		}
 		if err := json.Unmarshal([]byte(line), &row); err == nil {
 			idx, ok := idToIndex[row.ID]
@@ -233,6 +279,14 @@ func InspectContainerNetworks(containers []Container) error {
 				sort.Strings(ips)
 				containers[idx].Networks = nets
 				containers[idx].IPAddresses = ips
+				containers[idx].RestartCount = row.RestartCount
+				containers[idx].ExitCode = row.State.ExitCode
+				containers[idx].StartedAt = row.State.StartedAt
+				containers[idx].FinishedAt = row.State.FinishedAt
+				containers[idx].CreatedAt = row.Created
+				if row.State.Health != nil {
+					containers[idx].Health = strings.TrimSpace(row.State.Health.Status)
+				}
 			}
 		}
 	}
@@ -299,7 +353,10 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 			Binds []string `json:"Binds"`
 		} `json:"HostConfig"`
 		NetworkSettings struct {
-			Networks map[string]struct{} `json:"Networks"`
+			Networks map[string]struct {
+				NetworkID string `json:"NetworkID"`
+				IPAddress string `json:"IPAddress"`
+			} `json:"Networks"`
 		} `json:"NetworkSettings"`
 	}
 
@@ -311,13 +368,20 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 	// Container name (strip leading slash)
 	name := strings.TrimPrefix(insp.Name, "/")
 
-	// Primary network (skip loopback)
+	// Primary network (skip Docker built-in networks when a user network exists).
 	network := ""
+	var fallbackNetwork string
 	for netName := range insp.NetworkSettings.Networks {
+		if fallbackNetwork == "" {
+			fallbackNetwork = netName
+		}
 		if netName != "bridge" && netName != "host" && netName != "none" {
 			network = netName
 			break
 		}
+	}
+	if network == "" {
+		network = fallbackNetwork
 	}
 
 	// Parse ports: "containerPort/proto" -> []{HostIP, HostPort}
@@ -330,14 +394,12 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 			proto = parts[1]
 		}
 		for _, b := range bindings {
-			if b.HostPort != "" {
-				ports = append(ports, PortBinding{
-					HostIP:        b.HostIP,
-					HostPort:      b.HostPort,
-					ContainerPort: containerPort,
-					Protocol:      proto,
-				})
-			}
+			ports = append(ports, PortBinding{
+				HostIP:        b.HostIP,
+				HostPort:      b.HostPort,
+				ContainerPort: containerPort,
+				Protocol:      proto,
+			})
 		}
 	}
 
@@ -349,8 +411,7 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 			continue
 		}
 		key := kv[0]
-		// Skip PATH and other system-injected vars
-		if key == "PATH" || key == "HOME" || key == "HOSTNAME" {
+		if key == "HOSTNAME" {
 			continue
 		}
 		env = append(env, EnvVar{Key: key, Value: kv[1]})
@@ -438,7 +499,6 @@ func IsImageInUse(imageRef, excludeID string) (bool, error) {
 	return false, nil
 }
 
-
 func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult, error) {
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
 	if err != nil {
@@ -473,7 +533,7 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err := os.WriteFile(composePath, []byte(composeYAML), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
 	}
-	if err := runComposeUp(projectDir, composePath); err != nil {
+	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
@@ -510,13 +570,14 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
 		return nil, err
 	}
+	content = namespaceComposeContainerNames(content, projectName)
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
 	}
 	if err := os.WriteFile(composePath, []byte(content), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
 	}
-	
+
 	logout, err := loginRegistryIfNeeded(req.RegistryAuth)
 	if err != nil {
 		return nil, err
@@ -525,7 +586,7 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 		defer logout()
 	}
 
-	if err := runComposeUp(projectDir, composePath); err != nil {
+	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
@@ -568,7 +629,7 @@ func parsePorts(raw string) []ContainerPort {
 	}
 	parts := strings.Split(raw, ",")
 	ports := make([]ContainerPort, 0, len(parts))
-	pattern := regexp.MustCompile(`(?:(\d+\.\d+\.\d+\.\d+|\[::\]|::):)?(\d+)->(\d+)/(tcp|udp)`) 
+	pattern := regexp.MustCompile(`(?:(\d+\.\d+\.\d+\.\d+|\[::\]|::):)?(\d+)->(\d+)/(tcp|udp)`)
 	containerOnly := regexp.MustCompile(`(\d+)/(tcp|udp)`)
 	for _, part := range parts {
 		item := strings.TrimSpace(part)
@@ -695,6 +756,25 @@ func ensureComposeWithinOwnerRoot(content, homeDir string) error {
 		}
 	}
 	return nil
+}
+
+func namespaceComposeContainerNames(content, projectName string) string {
+	projectName = slugify(projectName)
+	if projectName == "" {
+		return content
+	}
+	re := regexp.MustCompile(`(?m)^(\s*container_name\s*:\s*)(["']?)([^"'\n#]+)(["']?)(\s*(?:#.*)?)$`)
+	return re.ReplaceAllStringFunc(content, func(line string) string {
+		match := re.FindStringSubmatch(line)
+		if len(match) != 6 {
+			return line
+		}
+		name := slugify(strings.TrimSpace(match[3]))
+		if name == "" || strings.HasPrefix(name, projectName+"-") {
+			return line
+		}
+		return match[1] + match[2] + projectName + "-" + name + match[4] + match[5]
+	})
 }
 
 func loginRegistryIfNeeded(auth *RegistryAuth) (func(), error) {
@@ -860,13 +940,90 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 	return b.String(), nil
 }
 
-func runComposeUp(projectDir, composePath string) error {
-	cmd := exec.Command("docker", "compose", "-f", composePath, "up", "-d")
+func runComposeUp(projectDir, composePath, projectName string) error {
+	args := []string{"compose", "-f", composePath}
+	if strings.TrimSpace(projectName) != "" {
+		args = append(args, "-p", projectName)
+	}
+	args = append(args, "up", "-d")
+	cmd := exec.Command("docker", args...)
 	cmd.Dir = projectDir
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("deploy compose: %s", strings.TrimSpace(string(output)))
+		return fmt.Errorf("deploy compose: %s", formatComposeError(string(output)))
 	}
 	return nil
+}
+
+func formatComposeError(output string) string {
+	message := normalizeDockerOutput(output)
+	if message == "" {
+		return "Docker Compose gagal dijalankan. Periksa konfigurasi compose lalu coba lagi."
+	}
+	lower := strings.ToLower(message)
+
+	if strings.Contains(lower, "port is already allocated") || strings.Contains(lower, "bind for 0.0.0.0:") {
+		port := extractFirstRegexGroup(message, `(?i)bind for [^:]+:(\d+) failed`)
+		if port == "" {
+			port = extractFirstRegexGroup(message, `(?i)port (\d+) is already allocated`)
+		}
+		if port != "" {
+			return fmt.Sprintf("Port host %s sudah dipakai oleh container atau service lain. Ganti mapping port di docker-compose.yml, misalnya \"%s:...\" menjadi port lain, atau hentikan service yang memakai port tersebut.", port, port)
+		}
+		return "Ada port host yang sudah dipakai oleh container atau service lain. Ganti mapping port di docker-compose.yml atau hentikan service yang memakai port tersebut."
+	}
+
+	if strings.Contains(lower, "container name") && strings.Contains(lower, "is already in use") {
+		containerName := extractFirstRegexGroup(message, `(?i)container name\s+"?/?([^"\s]+)"?\s+is already in use`)
+		if containerName != "" {
+			return fmt.Sprintf("Nama container %q sudah dipakai. Ganti/hapus `container_name` pada template compose, atau hapus container lama yang memakai nama tersebut.", containerName)
+		}
+		return "Ada nama container yang sudah dipakai. Ganti/hapus `container_name` pada template compose, atau hapus container lama terlebih dahulu."
+	}
+
+	if strings.Contains(lower, "pull access denied") || strings.Contains(lower, "repository does not exist") {
+		return "Image Docker tidak bisa diunduh. Pastikan nama image benar dan registry credential sudah diisi bila image bersifat private."
+	}
+
+	if strings.Contains(lower, "authentication required") || strings.Contains(lower, "unauthorized") || strings.Contains(lower, "denied: requested access") {
+		return "Autentikasi registry gagal. Periksa registry, username/email, dan password/token lalu coba deploy lagi."
+	}
+
+	if strings.Contains(lower, "no such image") {
+		return "Image Docker tidak ditemukan di host atau registry. Periksa nama image dan tag pada compose."
+	}
+
+	if strings.Contains(lower, "invalid compose") || strings.Contains(lower, "yaml") {
+		return "Format docker-compose.yml tidak valid. Periksa indentasi YAML, nama service, image, ports, volumes, dan env."
+	}
+
+	if strings.Contains(lower, "berada di luar root user") {
+		return message
+	}
+
+	return message
+}
+
+func normalizeDockerOutput(output string) string {
+	lines := strings.Split(strings.ReplaceAll(output, "\r\n", "\n"), "\n")
+	cleaned := make([]string, 0, len(lines))
+	warningObsoleteVersion := regexp.MustCompile(`(?i)the attribute .version. is obsolete`)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || warningObsoleteVersion.MatchString(line) {
+			continue
+		}
+		line = regexp.MustCompile(`^time="[^"]+"\s+level=\w+\s+msg="(.*)"$`).ReplaceAllString(line, "$1")
+		cleaned = append(cleaned, line)
+	}
+	return strings.TrimSpace(strings.Join(cleaned, " "))
+}
+
+func extractFirstRegexGroup(value, pattern string) string {
+	matches := regexp.MustCompile(pattern).FindStringSubmatch(value)
+	if len(matches) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(matches[1])
 }
 
 func yamlScalar(value string) string {

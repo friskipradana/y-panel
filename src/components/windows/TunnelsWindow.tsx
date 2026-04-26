@@ -27,6 +27,7 @@ import {
 } from '@/api/agent'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
@@ -110,6 +111,7 @@ function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name: strin
 }
 
 export default function TunnelsWindow({ win }: { win?: WindowState }) {
+  const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
   const [tab, setTab] = useState<'domains' | 'tunnels'>('domains')
   const [selectedDomainId, setSelectedDomainId] = useState('')
@@ -136,8 +138,8 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   const { data: domains = [], isLoading: domainsLoading, refetch: refetchDomains, isFetching: domainsFetching } = useQuery({ queryKey: ['cloudflare-domains'], queryFn: listCloudflareDomains, enabled: !cfNotConfigured })
   const { data: selectedDomainDetail } = useQuery({ queryKey: ['cloudflare-domain', selectedDomainId], queryFn: () => getCloudflareDomain(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
   const { data: dnsRecords = [], isLoading: dnsLoading } = useQuery({ queryKey: ['cloudflare-dns', selectedDomainId], queryFn: () => listCloudflareDNSRecords(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
-  const { data: profiles = [], isLoading: profilesLoading, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: 8_000 })
-  const { data: profileRoutes = [], isLoading: routesLoading } = useQuery({ queryKey: ['cloudflare-profile-routes', selectedProfileId], queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId), enabled: !cfNotConfigured && !!selectedProfileId, refetchInterval: 8_000 })
+  const { data: profiles = [], isLoading: profilesLoading, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: pollingActive ? 8_000 : false })
+  const { data: profileRoutes = [], isLoading: routesLoading } = useQuery({ queryKey: ['cloudflare-profile-routes', selectedProfileId], queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId), enabled: !cfNotConfigured && !!selectedProfileId, refetchInterval: pollingActive ? 8_000 : false })
 
   useEffect(() => {
     if (!win?.params) return

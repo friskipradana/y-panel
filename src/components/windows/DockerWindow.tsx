@@ -16,9 +16,13 @@ import {
   useDeleteDockerTemplate,
   useCreateDockerTemplate,
 } from '@/hooks/useContainers'
-import { fetchContainerConfig } from '@/api/agent'
+import { fetchContainerConfig, fetchContainerLogs } from '@/api/agent'
+import { useQuery } from '@tanstack/react-query'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import type { WindowState } from '@/types'
 import { toast } from 'sonner'
 import {
   // formatDockerDateTimeID,
@@ -45,6 +49,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  ScrollText,
 } from 'lucide-react'
 import type { Container, DockerEnvMode, EnvVarInput } from '@/types'
 
@@ -145,6 +150,29 @@ function StatusBadge({ state }: { state: Container['State'] }) {
   )
 }
 
+function getContainerRuntimeIssues(container: Container) {
+  const issues: Array<{ key: string; label: string; tone: 'warning' | 'danger' }> = []
+  const restartCount = container.RestartCount ?? 0
+  const exitCode = container.ExitCode ?? 0
+  const health = container.Health?.trim().toLowerCase()
+
+  if (restartCount > 0) {
+    issues.push({ key: 'restart', label: `restart ${restartCount}x`, tone: restartCount >= 3 ? 'danger' : 'warning' })
+  }
+  if (health && health !== 'healthy') {
+    issues.push({ key: 'health', label: `health ${health}`, tone: 'danger' })
+  }
+  if (exitCode !== 0) {
+    issues.push({ key: 'exit', label: `last exit ${exitCode}`, tone: 'danger' })
+  }
+
+  return issues
+}
+
+function isContainerAttention(container: Container) {
+  return ['paused', 'restarting'].includes(container.State) || getContainerRuntimeIssues(container).length > 0
+}
+
 
 function getContainerPorts(container: Container) {
   const ports = Array.isArray(container.Ports) ? container.Ports : []
@@ -203,11 +231,12 @@ function DeployStep({ label, delay }: { label: string; delay: number }) {
   )
 }
 
-export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
+export function DockerWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
+  const pollingActive = useWindowPollingActive(win)
   const [activeTab, setActiveTab] = useState<'containers' | 'images' | 'networks' | 'templates'>('containers')
-  const { data, isLoading, isError, error, refetch, isFetching } = useContainers()
-  const { data: networksData, refetch: refetchNetworks } = useDockerNetworks()
-  const { data: imagesData, refetch: refetchImages } = useDockerImages()
+  const { data, isLoading, isError, error, refetch, isFetching } = useContainers(pollingActive)
+  const { data: networksData, refetch: refetchNetworks } = useDockerNetworks(pollingActive)
+  const { data: imagesData, refetch: refetchImages } = useDockerImages(pollingActive)
   const { data: templatesData, refetch: refetchTemplates } = useDockerTemplates()
 
   const [query, setQuery] = useState('')
@@ -231,6 +260,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
   const [showDeploy, setShowDeploy] = useState(false)
   const [showPullImage, setShowPullImage] = useState(false)
   const [showSaveAsTpl, setShowSaveAsTpl] = useState(false)
+  const [saveTemplateName, setSaveTemplateName] = useState('')
   const [imgDropdownOpen, setImgDropdownOpen] = useState(false)
   const [imgInputValue, setImgInputValue] = useState('')
   // const [showTplPicker, setShowTplPicker] = useState(false)
@@ -254,6 +284,10 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; image: string } | null>(null)
+  const [logModal, setLogModal] = useState<{ id: string; name: string } | null>(null)
+  const [logTail, setLogTail] = useState(200)
+  const [logAutoScroll, setLogAutoScroll] = useState(true)
+  const logViewerRef = useRef<HTMLPreElement>(null)
   const [deleteOpts, setDeleteOpts] = useState({ removeVolumes: false, removeImage: false })
   const [editContainer, setEditContainer] = useState<{ id: string } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
@@ -278,6 +312,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
     setNameDropdownOpen(false)
     setNetDropdownOpen(false)
     setShowSaveAsTpl(false)
+    setSaveTemplateName('')
   }
 
   const openDeployModal = () => {
@@ -304,6 +339,18 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
   const deleteImageMut = useDeleteDockerImage()
   const deleteTemplateMut = useDeleteDockerTemplate()
   const createTemplateMut = useCreateDockerTemplate()
+  const logsQuery = useQuery({
+    queryKey: ['docker-container-logs', logModal?.id, logTail],
+    queryFn: () => fetchContainerLogs(logModal!.id, logTail),
+    enabled: !!logModal,
+    refetchInterval: logModal ? 2_000 : false,
+    refetchIntervalInBackground: false,
+  })
+
+  useEffect(() => {
+    if (!logAutoScroll || !logViewerRef.current) return
+    logViewerRef.current.scrollTop = logViewerRef.current.scrollHeight
+  }, [logAutoScroll, logsQuery.data?.lines])
 
   const rawContainers = Array.isArray(data) ? data : []
   const containers = useMemo(() => {
@@ -321,8 +368,8 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
       const networks = (container.Networks ?? []).join(' ')
       const ips = (container.IpAddresses ?? []).join(' ')
       const ports = (container.Ports ?? []).map((port) => `${port.PublicPort ?? ''} ${port.PrivatePort} ${port.Type}`).join(' ')
-      return [name, container.Image, container.State, container.Status, container.Id, networks, ips, ports]
-        .filter(Boolean)
+      return [name, container.Image, container.State, container.Status, container.Id, container.Health, container.RestartCount ? `restart ${container.RestartCount}` : '', networks, ips, ports]
+        .filter((value): value is string => value !== undefined && value !== null && value !== '')
         .some((value) => value.toLowerCase().includes(needle))
     })
   }, [containers, search])
@@ -330,7 +377,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
   const stats = useMemo(() => {
     const running = containers.filter((container) => container.State === 'running').length
     const stopped = containers.filter((container) => ['exited', 'dead'].includes(container.State)).length
-    const attention = containers.filter((container) => ['paused', 'restarting'].includes(container.State)).length
+    const attention = containers.filter((container) => isContainerAttention(container)).length
     const withPublishedPorts = containers.filter((container) => (container.Ports ?? []).some((port) => port.PublicPort)).length
     const withIPs = containers.filter((container) => (container.IpAddresses ?? []).length > 0).length
     return { running, stopped, attention, withPublishedPorts, withIPs }
@@ -347,7 +394,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
     : Boolean(deployForm.name.trim() && deployForm.composeYaml.trim())
 
   return (
-    <div className="panel-window">
+    <div className="panel-window docker-window-root">
       <div className="panel-window__header">
         <div className="panel-window__title">
           <Boxes className="panel-window__icon h-4 w-4" />
@@ -449,6 +496,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                             className={`docker-image-combobox__item ${deployForm.name === tmpl.name ? 'docker-image-combobox__item--selected' : ''}`}
                             onClick={() => {
                               setDeployForm((f) => ({ ...f, name: tmpl.name, composeYaml: tmpl.yamlContent }))
+                              setSaveTemplateName(tmpl.name)
                               setNameDropdownOpen(false)
                             }}
                           >
@@ -874,13 +922,33 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                       <input
                         type="checkbox"
                         checked={showSaveAsTpl}
-                        onChange={(e) => setShowSaveAsTpl(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setShowSaveAsTpl(checked)
+                          if (checked && !saveTemplateName.trim()) {
+                            setSaveTemplateName(deployForm.name.trim())
+                          }
+                        }}
                       />
                       <span>Simpan sebagai template</span>
-                      {showSaveAsTpl && deployForm.name && (
-                        <span className="docker-save-tpl-check__name">"{deployForm.name}"</span>
+                      {showSaveAsTpl && saveTemplateName.trim() && (
+                        <span className="docker-save-tpl-check__name">"{saveTemplateName.trim()}"</span>
                       )}
                     </label>
+                    {showSaveAsTpl && (
+                      <div className="panel-field">
+                        <label className="panel-label">Nama template *</label>
+                        <input
+                          className="panel-input"
+                          placeholder="nama-template-untuk-digunakan-lagi"
+                          value={saveTemplateName}
+                          onChange={(e) => setSaveTemplateName(e.target.value)}
+                        />
+                        <p className="mt-1 text-[10px] leading-5 text-[var(--text-secondary)]">
+                          Nama deploy tetap memakai field Project / Container Name. Nama template ini hanya untuk penyimpanan preset compose.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -937,10 +1005,10 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                     })
                   } else {
                     // optionally save as template first
-                    if (showSaveAsTpl && deployForm.name.trim()) {
+                    if (showSaveAsTpl && saveTemplateName.trim()) {
                       try {
-                        await createTemplateMut.mutateAsync({ name: deployForm.name.trim(), description: '', yamlContent: deployForm.composeYaml })
-                        toast.success(`Template "${deployForm.name}" tersimpan`)
+                        await createTemplateMut.mutateAsync({ name: saveTemplateName.trim(), description: '', yamlContent: deployForm.composeYaml })
+                        toast.success(`Template "${saveTemplateName.trim()}" tersimpan`)
                       } catch { /* ignore template save error */ }
                     }
                     deployComposeMut.mutate({
@@ -952,6 +1020,7 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                           enabled: true,
                           registry: deployForm.registryAuth.registry || undefined,
                           usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
+                          password: deployForm.registryAuth.password,
                         }
                         : undefined,
                       replaceContainerId: editContainer ? editContainer.id : undefined,
@@ -1145,9 +1214,9 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
               ) : (
                 <>
                   {filteredContainers.map((container) => {
-                    console.log("container", container);
                     const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
                     const stateStyle = STATE_STYLES[container.State] ?? STATE_STYLES.dead
+                    const runtimeIssues = getContainerRuntimeIssues(container)
                     const ActionIcon = stateStyle.actionIcon
                     const {
                       // primaryInternal,
@@ -1175,6 +1244,14 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                                 <span className="docker-inline-code">Port {primaryPublished}</span>
                                 <span className="docker-inline-dot" />
                                 <span>{container.Status}</span>
+                                {runtimeIssues.map((issue) => (
+                                  <span
+                                    key={`${container.Id}-${issue.key}`}
+                                    className={`panel-badge ${issue.tone === 'danger' ? 'panel-badge--danger' : 'panel-badge--warning'}`}
+                                  >
+                                    {issue.label}
+                                  </span>
+                                ))}
                               </div>
                             </div>
                             <div className="docker-container-row__actions">
@@ -1198,7 +1275,12 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                                       image: cfg.image,
                                       network: cfg.network || '',
                                       ports: cfg.ports.length > 0
-                                        ? cfg.ports.map((p) => ({ hostPort: p.hostPort, containerPort: p.containerPort }))
+                                        ? cfg.ports.map((p) => ({
+                                          hostIp: p.hostIp || '',
+                                          hostPort: p.hostPort || '',
+                                          containerPort: p.containerPort || '',
+                                          protocol: p.protocol || 'tcp',
+                                        }))
                                         : [{ hostPort: '', containerPort: '' }],
                                       env: envRows,
                                       envMode: cfg.envMode || 'form',
@@ -1219,6 +1301,17 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                                 }}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                className="panel-icon-btn"
+                                title="Lihat Log Realtime"
+                                onClick={() => {
+                                  setLogAutoScroll(true)
+                                  setLogModal({ id: container.Id, name })
+                                }}
+                              >
+                                <ScrollText className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 type="button"
@@ -1283,6 +1376,67 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                   })}
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {logModal && (
+          <div className="docker-modal-overlay" onClick={() => setLogModal(null)}>
+            <div className="docker-modal docker-log-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="docker-modal__header">
+                <div>
+                  <span className="docker-modal__title">Realtime Container Logs</span>
+                  <div className="panel-window__meta">{logModal.name} • refresh tiap 2 detik</div>
+                </div>
+                <button type="button" className="panel-icon-btn" onClick={() => setLogModal(null)}><X className="h-4 w-4" /></button>
+              </div>
+              <div className="docker-modal__body">
+                <div className="docker-log-toolbar">
+                  <div className="docker-log-toolbar__left">
+                    <span className="panel-badge panel-badge--neutral">tail {logTail}</span>
+                    {logsQuery.isFetching && <span className="panel-badge panel-badge--info">syncing...</span>}
+                  </div>
+                  <div className="docker-log-toolbar__right">
+                    <label className="docker-log-autoscroll">
+                      <input
+                        type="checkbox"
+                        checked={logAutoScroll}
+                        onChange={(e) => setLogAutoScroll(e.target.checked)}
+                      />
+                      <span>Auto scroll</span>
+                    </label>
+                    <PanelSelectMenu
+                      id="docker-log-tail-select"
+                      value={String(logTail)}
+                      onChange={(value) => setLogTail(Number(value))}
+                      options={[
+                        { value: '100', label: '100 lines' },
+                        { value: '200', label: '200 lines' },
+                        { value: '500', label: '500 lines' },
+                        { value: '1000', label: '1000 lines' },
+                      ]}
+                      className="min-w-[140px]"
+                      buttonClassName="h-[34px] rounded-[10px] py-0 text-xs"
+                      dropdownClassName="left-auto right-0 min-w-[160px]"
+                    />
+                    <button type="button" className="panel-btn panel-btn--ghost" onClick={() => logsQuery.refetch()} disabled={logsQuery.isFetching}>
+                      <RefreshCw className={`h-3.5 w-3.5 ${logsQuery.isFetching ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+                {logsQuery.isError ? (
+                  <div className="panel-empty panel-empty--danger">Gagal memuat log container.</div>
+                ) : (
+                  <pre ref={logViewerRef} className="docker-log-viewer">
+                    {(logsQuery.data?.lines ?? []).length > 0
+                      ? logsQuery.data?.lines.join('\n')
+                      : logsQuery.isLoading
+                        ? 'Memuat log container...'
+                        : 'Belum ada log yang tersedia.'}
+                  </pre>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -1464,7 +1618,18 @@ export function DockerWindow({ authenticated }: { authenticated?: boolean }) {
                           </div>
 
                           <button type="button" className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
-                            onClick={async () => { const ok = await alertLib.confirm('Delete Image', `Delete ${img.Repository}:${img.Tag}?`, 'Delete', 'Cancel', 'warning', 'apps'); if (ok) deleteImageMut.mutate(img.Id) }}
+                            onClick={async () => {
+                              const imageLabel = `${img.Repository}:${img.Tag}`
+                              const ok = await alertLib.confirm('Delete Image', `Delete ${imageLabel}?`, 'Delete', 'Cancel', 'warning', 'apps')
+                              if (!ok) return
+                              deleteImageMut.mutate(img.Id, {
+                                onSuccess: () => {
+                                  toast.success(`Image ${imageLabel} berhasil dihapus`)
+                                  void refetchImages()
+                                },
+                                onError: (e: any) => alertLib.fire('Delete Image Failed', e.response?.data?.error || 'Image gagal dihapus', 'error', 'apps'),
+                              })
+                            }}
                             disabled={deleteImageMut.isPending} title="Delete Image">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
