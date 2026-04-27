@@ -468,7 +468,12 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyCurrentUserAction(r, "Quota user diperbarui 📦", fmt.Sprintf("Quota untuk user ID %d berhasil diperbarui.", id), "info")
+	targetUser, _ := s.database.GetUserByID(id)
+	targetName := "user tersebut"
+	if targetUser != nil {
+		targetName = fmt.Sprintf("user '%s'", targetUser.Username)
+	}
+	s.notifyCurrentUserAction(r, "Quota user diperbarui 📦", fmt.Sprintf("Quota untuk %s berhasil diperbarui.", targetName), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -1694,11 +1699,16 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteDoc(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
 	id := parsePathID(r, "id")
+	doc, _ := s.database.GetDocByID(id, true)
+	docTitle := "Artikel tersebut"
+	if doc != nil && strings.TrimSpace(doc.Title) != "" {
+		docTitle = fmt.Sprintf("Artikel '%s'", doc.Title)
+	}
 	if err := s.database.DeleteDoc(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.notifyUserAction(u.ID, "Dokumentasi dihapus 🗑️", fmt.Sprintf("Artikel dengan ID %d berhasil dihapus.", id), "warning")
+	s.notifyUserAction(u.ID, "Dokumentasi dihapus 🗑️", fmt.Sprintf("%s berhasil dihapus.", docTitle), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

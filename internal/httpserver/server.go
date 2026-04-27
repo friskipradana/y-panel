@@ -2645,7 +2645,7 @@ func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
-	s.notifyCurrentServerUser(r, "Preset terminal dihapus 🗑️", fmt.Sprintf("Preset dengan ID %d berhasil dihapus.", id), "warning")
+	s.notifyCurrentServerUser(r, "Preset terminal dihapus 🗑️", "Preset terminal berhasil dihapus.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
