@@ -6,7 +6,7 @@ type LandingPageProps = {
 }
 
 const HERO_IMAGE = '/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png'
-const INSTALLER_URL = 'https://github.com/friskipradana/panel-desktop-ui/releases/latest/download/ypanel-installer.run'
+const INSTALLER_URL = 'https://github.com/friskipradana/y-panel/releases/latest/download/ypanel-installer.run'
 const INSTALL_COMMAND = `wget -O ypanel-installer.run ${INSTALLER_URL}
 sudo bash ypanel-installer.run`
 
@@ -31,7 +31,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <span>YPanel</span>
         </button>
         <div className="landing-nav-actions">
-          <a id="landing-github-link" href="https://github.com/friskipradana/panel-desktop-ui" target="_blank" rel="noreferrer">
+          <a id="landing-github-link" href="https://github.com/friskipradana/y-panel" target="_blank" rel="noreferrer">
             <GitFork size={15} /> GitHub
           </a>
           <a id="landing-download-installer" className="landing-nav-cta" href={INSTALLER_URL}>
@@ -57,7 +57,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               {authenticated ? 'Buka Home Dashboard' : 'Login Agent'}
               <ArrowRight size={18} />
             </button>
-            <a id="landing-installer-cta" className="landing-secondary-cta" href={INSTALLER_URL}>
+            <a id="landing-installer-cta" className="landing-secondary-cta space-between" href={INSTALLER_URL}>
               <Download size={17} /> Download Installer
             </a>
           </div>
