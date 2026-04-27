@@ -177,6 +177,9 @@ ensure_go() {
 
   run_quiet tar -C /usr/local -xzf "$archive_path"
   export PATH="/usr/local/go/bin:$PATH"
+  if [[ ! -x /usr/local/go/bin/go ]]; then
+    fail "instalasi Go gagal: /usr/local/go/bin/go tidak ditemukan setelah ekstraksi"
+  fi
   log "go berhasil diinstall: $(/usr/local/go/bin/go version)"
 }
 
@@ -224,6 +227,8 @@ ypanel_config() {
     current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
     current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
     current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
+    PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-$(grep '^PANEL_DATABASE_DSN=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)}"
+    PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(grep '^PANEL_ENCRYPTION_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)}"
   fi
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
@@ -978,13 +983,17 @@ main() {
   migrate_legacy_runtime
   setup_directories
   ensure_hostname_resolution
-  ensure_postgres
-  provision_database
+  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
+    log "PANEL_DATABASE_DSN terdeteksi; setup PostgreSQL lokal dilewati"
+  else
+    ensure_postgres
+    provision_database
+  fi
   build_agent
   prepare_frontend
   write_env_file
   log "menjalankan migrasi database"
-  run_quiet "$BIN_PATH" migrate up
+  PANEL_ENV_FILE="$ENV_FILE" run_quiet "$BIN_PATH" migrate up
   install_service
   install_cli
   install_legacy_aliases

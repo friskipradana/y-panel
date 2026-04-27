@@ -14,6 +14,7 @@ set -euo pipefail
 : "${PANEL_ENCRYPTION_KEY:?PANEL_ENCRYPTION_KEY required}"
 : "${PANEL_STATE_DIR:=/var/lib/ypanel}"
 : "${PANEL_FRONTEND_DIR:=/opt/ypanel/frontend}"
+: "${ENV_CONTENT_FILE:=}"
 : "${LOG_PATH:=/tmp/ypanel-install.log}"
 
 LOG="$LOG_PATH"
@@ -36,82 +37,41 @@ export PATH=/usr/local/go/bin:$PATH
 GO_VERSION=$($GO_BIN version 2>/dev/null | head -1 || echo 'go ok')
 log "Go: $GO_VERSION"
 
-# ── 2. Fix go.sum — jalankan go mod download di copy temp source ──────
-# Installer .run akan extract dan build ulang, jadi kita perlu
-# patch go.sum sebelum installer dijalankan.
-# Caranya: extract installer, cd ke backend, go mod tidy, repack.
-
-WORK=$(mktemp -d /tmp/ypanel-preflight.XXXXXX)
-cleanup() { rm -rf "$WORK"; }
-trap cleanup EXIT
-
-log "Pre-flight: extracting installer for go mod tidy..."
-cp "$INSTALLER_PATH" "$WORK/installer.run"
-chmod +x "$WORK/installer.run"
-
-# Extract payload dari .run (base64 setelah marker __ARCHIVE__)
-mkdir -p "$WORK/payload"
-awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$WORK/installer.run" | base64 -d > "$WORK/payload.tar.gz" 2>/dev/null || {
-  log "Warning: could not extract payload (old format), trying self-extraction..."
-  # For old format that uses __ARCHIVE_BELOW__
-  awk 'found{print}/^__ARCHIVE_BELOW__$/{found=1;next}' "$WORK/installer.run" | base64 -d > "$WORK/payload.tar.gz" 2>/dev/null || true
-}
-
-if [ -f "$WORK/payload.tar.gz" ] && [ -s "$WORK/payload.tar.gz" ]; then
-  tar -xzf "$WORK/payload.tar.gz" -C "$WORK/payload" 2>/dev/null || true
-
-  # Find go.mod (could be in backend/ or root)
-  GOMOD_DIR=""
-  if [ -f "$WORK/payload/backend/go.mod" ]; then
-    GOMOD_DIR="$WORK/payload/backend"
-  elif [ -f "$WORK/payload/go.mod" ]; then
-    GOMOD_DIR="$WORK/payload"
-  fi
-
-  if [ -n "$GOMOD_DIR" ]; then
-    log "Running go mod download in $GOMOD_DIR..."
-    export GOPATH=/tmp/go-ypanel-cache
-    export GOCACHE=/tmp/go-ypanel-build-cache
-    cd "$GOMOD_DIR"
-    $GO_BIN mod download 2>> "$LOG" || true
-    $GO_BIN mod tidy 2>> "$LOG" || true
-    cd /tmp
-    
-    # Repack with updated go.sum
-    log "Repacking installer with updated go.sum..."
-    STUB_LINES=$(awk '/^__ARCHIVE__|^__ARCHIVE_BELOW__$/{print NR; exit}' "$WORK/installer.run")
-    head -n "$STUB_LINES" "$WORK/installer.run" > "$WORK/installer_new.run"
-    BACK_SUBDIR=$(basename "$GOMOD_DIR")
-    
-    # Repack payload with new go.sum
-    cd "$WORK/payload"
-    tar -czf "$WORK/new_payload.tar.gz" .
-    base64 "$WORK/new_payload.tar.gz" >> "$WORK/installer_new.run"
-    chmod +x "$WORK/installer_new.run"
-    
-    # Replace original installer
-    cp "$WORK/installer_new.run" "$INSTALLER_PATH"
-    log "Installer repacked with updated go.sum"
-  else
-    log "Warning: go.mod not found in payload, skipping pre-flight mod update"
-  fi
-else
-  log "Warning: could not extract payload for pre-flight. Proceeding anyway..."
-fi
+# The uploaded .run already contains the production bundle produced by build.ps1.
+# Run it directly so the actual installer log is preserved and failures are easier to diagnose.
 
 # ── 3. Run panel installer ────────────────────────────────────────────
+if [ -n "$ENV_CONTENT_FILE" ] && [ -f "$ENV_CONTENT_FILE" ]; then
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    case "$key" in
+      ''|'#'*) continue ;;
+      PANEL_BIND_ADDR|PANEL_DATABASE_DSN|PANEL_ENCRYPTION_KEY|PANEL_STATE_DIR|PANEL_FRONTEND_DIR|PANEL_ALLOWED_HOSTS|PANEL_ALLOWED_ORIGINS|PANEL_SESSION_TTL)
+        export "${key}=${value}"
+        ;;
+    esac
+  done < "$ENV_CONTENT_FILE"
+  log "Loaded installer env from $ENV_CONTENT_FILE"
+fi
+
 log "Running panel installer at: $INSTALLER_PATH"
 chmod +x "$INSTALLER_PATH"
 
-printf '%s\n' "$SUDO_PASS" | sudo -S -p '' env \
+if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' env \
   PANEL_BIND_ADDR="$PANEL_BIND_ADDR" \
   PANEL_DATABASE_DSN="$PANEL_DATABASE_DSN" \
   PANEL_ENCRYPTION_KEY="$PANEL_ENCRYPTION_KEY" \
   PANEL_STATE_DIR="$PANEL_STATE_DIR" \
   PANEL_FRONTEND_DIR="$PANEL_FRONTEND_DIR" \
+  PANEL_ALLOWED_HOSTS="${PANEL_ALLOWED_HOSTS:-}" \
+  PANEL_ALLOWED_ORIGINS="${PANEL_ALLOWED_ORIGINS:-}" \
+  PANEL_SESSION_TTL="${PANEL_SESSION_TTL:-12h}" \
   GOPATH=/tmp/go-ypanel-cache \
   GOCACHE=/tmp/go-ypanel-build-cache \
-  bash "$INSTALLER_PATH" >> "$LOG" 2>&1
+  bash "$INSTALLER_PATH" >> "$LOG" 2>&1; then
+  log "Installer failed. Last log lines:"
+  tail -n 120 "$LOG" || true
+  exit 1
+fi
 
 log "Installer finished successfully"
 echo "INSTALLER_OK"

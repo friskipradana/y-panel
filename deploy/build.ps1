@@ -353,55 +353,51 @@ banner
 
 try {
 
-    # ── STEP 1: Build frontend ─────────────────────────────────────
-    if (-not $SkipFrontendBuild) {
-      step 'Build frontend (bun)'
-      $bo = & cmd /c "cd /d `"$ProjRoot`" && bun run build 2>&1"
-      if ($LASTEXITCODE -ne 0) { throw 'bun run build gagal.' }
-      $sum = (($bo -split "`n" | Where-Object { $_ -match 'built in' } | Select-Object -Last 1) | ForEach-Object { $_.Trim() })
-      ok $(if ($sum) { $sum } else { 'bun build OK' })
+  # ── STEP 1: Build frontend ─────────────────────────────────────
+  if (-not $SkipFrontendBuild) {
+    step 'Build frontend (bun)'
+    $bo = & cmd /c "cd /d `"$ProjRoot`" && bun run build 2>&1"
+    if ($LASTEXITCODE -ne 0) { throw 'bun run build gagal.' }
+    $sum = (($bo -split "`n" | Where-Object { $_ -match 'built in' } | Select-Object -Last 1) | ForEach-Object { $_.Trim() })
+    ok $(if ($sum) { $sum } else { 'bun build OK' })
+  }
+
+  # ── STEP 2: Bundle productions ────────────────────────────────
+  step 'Menyiapkan bundle productions'
+
+  $distDir = Join-Path $ProjRoot 'dist'
+  if (-not (Test-Path $distDir)) { throw "dist/ tidak ditemukan. Jalankan bun run build terlebih dahulu." }
+
+  if (Test-Path $ProdFront) { Remove-Item "$ProdFront\*" -Recurse -Force -ErrorAction SilentlyContinue }
+  Copy-Item "$distDir\*" $ProdFront -Recurse -Force
+
+  if (-not $OnlyFrontend) {
+    if (Test-Path $ProdBack) { Remove-Item "$ProdBack\*" -Recurse -Force -ErrorAction SilentlyContinue }
+    foreach ($item in @('go.mod', 'go.sum', 'cmd', 'internal', 'main.go')) {
+      $s = Join-Path $ProjRoot $item
+      if (Test-Path $s) { Copy-Item $s $ProdBack -Recurse -Force }
     }
+    if (Test-Path $ProdInst) { Remove-Item "$ProdInst\*" -Recurse -Force -ErrorAction SilentlyContinue }
+    $srcInst = Join-Path $ProjRoot 'installer\linux'
+    if (Test-Path $srcInst) { Copy-Item "$srcInst\*" $ProdInst -Recurse -Force }
+  }
 
-    # ── STEP 2: Bundle productions ────────────────────────────────
-    step 'Menyiapkan bundle productions'
+  $sizeMB = [math]::Round(((Get-ChildItem $ProdsDir -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
+  ok "bundle ${sizeMB}MB"
 
-    $distDir = Join-Path $ProjRoot 'dist'
-    if (-not (Test-Path $distDir)) { throw "dist/ tidak ditemukan. Jalankan bun run build terlebih dahulu." }
+  # ── STEP 3: Create installer .run ────────────────────────────
+  if (-not $OnlyFrontend) {
+    step 'Buat installer Linux (.run)'
+    if (Test-Path $ArchivePath) { Remove-Item $ArchivePath -Force }
+    if (Test-Path $RunPath) { Remove-Item $RunPath     -Force }
 
-    if (Test-Path $ProdFront) { Remove-Item "$ProdFront\*" -Recurse -Force -ErrorAction SilentlyContinue }
-    Copy-Item "$distDir\*" $ProdFront -Recurse -Force
+    Push-Location $ProdsDir
+    try { & tar -czf $ArchivePath . 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'tar gagal.' } }
+    finally { Pop-Location }
 
-    if (-not $OnlyFrontend) {
-      if (Test-Path $ProdBack) { Remove-Item "$ProdBack\*" -Recurse -Force -ErrorAction SilentlyContinue }
-      foreach ($item in @('go.mod', 'go.sum', 'cmd', 'internal', 'main.go')) {
-        $s = Join-Path $ProjRoot $item
-        if (Test-Path $s) { Copy-Item $s $ProdBack -Recurse -Force }
-      }
-      if (Test-Path $ProdInst) { Remove-Item "$ProdInst\*" -Recurse -Force -ErrorAction SilentlyContinue }
-      $srcInst = Join-Path $ProjRoot 'installer\linux'
-      if (Test-Path $srcInst) { Copy-Item "$srcInst\*" $ProdInst -Recurse -Force }
-    }
+    $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
 
-    $sizeMB = [math]::Round(((Get-ChildItem $ProdsDir -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
-    ok "bundle ${sizeMB}MB"
-
-    # ── STEP 3: Create installer .run ────────────────────────────
-    if (-not $OnlyFrontend) {
-      step 'Buat installer Linux (.run)'
-      if (Test-Path $ArchivePath) { Remove-Item $ArchivePath -Force }
-      if (Test-Path $RunPath) { Remove-Item $RunPath     -Force }
-
-      Push-Location $ProdsDir
-      try { & tar -czf $ArchivePath . 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { throw 'tar gagal.' } }
-      finally { Pop-Location }
-
-      $installerLib = Join-Path $LibDir 'remote_install.sh'
-      if (-not (Test-Path $installerLib)) { throw "File lib/remote_install.sh tidak ditemukan." }
-      $stub = (Get-Content $installerLib -Raw) -replace "`r`n", "`n"
-
-      $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
-
-      $selfExtract = @'
+    $selfExtract = @'
 #!/usr/bin/env bash
 set -euo pipefail
 WORK=$(mktemp -d /tmp/ypanel.XXXXXX)
@@ -421,194 +417,193 @@ bash installer/linux/install.sh
 exit 0
 __ARCHIVE__
 '@
-      $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
-      [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
-      $runMB = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
-      ok "installer ${runMB}MB"
+    $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
+    [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
+    $runMB = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
+    ok "installer ${runMB}MB"
 
-      if ($PackageOnly) {
-        $ReleaseDir = Join-Path $ProjRoot 'dist-release'
-        if (-not (Test-Path $ReleaseDir)) { New-Item -ItemType Directory -Path $ReleaseDir | Out-Null }
-        $ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
-        Copy-Item $RunPath $ReleaseInstaller -Force
-        Write-Host "`n  Installer artifact: $ReleaseInstaller`n" -ForegroundColor Cyan
-        return
-      }
-    }
-
-    # ── STEP 4: SSH connect ───────────────────────────────────────
-    step 'Koneksi SSH'
-    $sess = New-SSHSession -ComputerName $HostName -Credential $Script:Cred `
-      -AcceptKey -Force -WarningAction SilentlyContinue 3>$null 4>$null 5>$null 6>$null
-    if (-not $sess) { throw 'Gagal buka koneksi SSH.' }
-    $Script:SessId = $sess.SessionId
-    ok "terhubung ke $HostName"
-
-    # ── STEP 5: Sudo check ────────────────────────────────────────
-    step 'Verifikasi sudo'
-    $escSudo = Escape-Sq $SudoPass
-    Invoke-Remote "printf '%s\n' '$escSudo' | sudo -S -p '' true" | Out-Null
-    ok 'sudo OK'
-
-    # ── Resolve remote base dir ───────────────────────────────────
-    $lines = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
-    $RemBase = ($lines | Select-Object -Last 1).Trim()
-    if (-not $RemBase) { throw 'Gagal resolve remote dir.' }
-
-    $OldEnv = @{}
-    $envReadCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sh -c 'cat $ENV_FILE 2>/dev/null; cat /etc/ui-panel/agent.env 2>/dev/null; true'"
-    $envLines = Invoke-Remote $envReadCmd -AllowFail
-    foreach ($envLine in $envLines) {
-      if ($envLine -match '^([A-Z0-9_]+)=(.*)$') { $OldEnv[$Matches[1]] = $Matches[2] }
-    }
-    $IsNew = ($OldEnv.Count -eq 0)
-
-    if (-not $IsNew -and $OldEnv.ContainsKey('PANEL_ENCRYPTION_KEY') -and $OldEnv['PANEL_ENCRYPTION_KEY']) {
-      $EncryptionKey = $OldEnv['PANEL_ENCRYPTION_KEY']
-    }
-    if (-not $HasExplicitDatabaseDSN -and $OldEnv.ContainsKey('PANEL_DATABASE_DSN') -and $OldEnv['PANEL_DATABASE_DSN']) {
-      $DatabaseDSN = $OldEnv['PANEL_DATABASE_DSN']
-      $HasExplicitDatabaseDSN = $true
-    }
-    if ($HasExplicitDatabaseDSN) {
-      step 'PostgreSQL (DSN existing/manual)'
-      ok 'Menggunakan DSN existing/manual'
-
-      if ($DatabaseDSN -match '^postgres(?:ql)?://[^:]+:([^@]+)@127\.0\.0\.1:5432/serverpanel') {
-        $pgExistingPass = [System.Uri]::UnescapeDataString($Matches[1])
-        $escPgExistingPass = Escape-Sq $pgExistingPass
-        $alterCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sudo -u postgres psql -c `"ALTER USER panel_user WITH PASSWORD '$escPgExistingPass';`" >/dev/null"
-        Invoke-Remote -Cmd $alterCmd | Out-Null
-      }
-    }
-
-    if ($OnlyFrontend) {
-      step "Upload frontend (${sizeMB}MB)"
-      Upload-File $ProdFront $RemBase
-      ok 'upload OK'
-
-      step 'Update frontend di server'
-      $frontLib = Join-Path $LibDir 'remote_frontend_update.sh'
-      if (-not (Test-Path $frontLib)) { throw "lib/remote_frontend_update.sh tidak ditemukan." }
-      $fOut = Run-RemoteScript -LocalScript $frontLib -RemoteDir $RemBase -Timeout 60 -Env @{
-        SUDO_PASS         = $SudoPass
-        REMOTE_FRONT_DIR  = "$RemBase/frontend"
-        INSTALL_FRONT_DIR = "$INSTALL_DIR/frontend"
-        PANEL_USER        = $PANEL_USER
-        SERVICE_NAME      = $SVC_NAME
-      }
-      if ($fOut -contains 'FRONT_OK') { ok 'Frontend diperbarui' } else { warn 'Perlu restart manual' }
-
-      summary "http://${HostName}:$PanelPort" -NewInstall $false
+    if ($PackageOnly) {
+      $ReleaseDir = Join-Path $ProjRoot 'dist-release'
+      if (-not (Test-Path $ReleaseDir)) { New-Item -ItemType Directory -Path $ReleaseDir | Out-Null }
+      $ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
+      Copy-Item $RunPath $ReleaseInstaller -Force
+      Write-Host "`n  Installer artifact: $ReleaseInstaller`n" -ForegroundColor Cyan
       return
     }
+  }
 
-    if (-not $HasExplicitDatabaseDSN) {
-      step 'Setup PostgreSQL'
-      $pgPass = New-RandPass 24
-      $pgLib = Join-Path $LibDir 'remote_pg_setup.sh'
-      if (-not (Test-Path $pgLib)) { throw "lib/remote_pg_setup.sh tidak ditemukan." }
+  # ── STEP 4: SSH connect ───────────────────────────────────────
+  step 'Koneksi SSH'
+  $sess = New-SSHSession -ComputerName $HostName -Credential $Script:Cred `
+    -AcceptKey -Force -WarningAction SilentlyContinue 3>$null 4>$null 5>$null 6>$null
+  if (-not $sess) { throw 'Gagal buka koneksi SSH.' }
+  $Script:SessId = $sess.SessionId
+  ok "terhubung ke $HostName"
 
-      $pgOut = Run-RemoteScript -LocalScript $pgLib -RemoteDir $RemBase -Timeout 300 -Env @{
-        SUDO_PASS = $SudoPass
-        PG_USER   = 'panel_user'
-        PG_DBNAME = 'serverpanel'
-        PG_PASS   = $pgPass
-      }
+  # ── STEP 5: Sudo check ────────────────────────────────────────
+  step 'Verifikasi sudo'
+  $escSudo = Escape-Sq $SudoPass
+  Invoke-Remote "printf '%s\n' '$escSudo' | sudo -S -p '' true" | Out-Null
+  ok 'sudo OK'
 
-      if ($pgOut -notcontains 'PG_READY') { throw 'Setup PostgreSQL gagal.' }
-      $DatabaseDSN = "postgres://panel_user:${pgPass}@127.0.0.1:5432/serverpanel?sslmode=disable"
-      $HasExplicitDatabaseDSN = $true
-      ok "PostgreSQL ready"
+  # ── Resolve remote base dir ───────────────────────────────────
+  $lines = Invoke-Remote "mkdir -p $RemoteBaseDir && cd $RemoteBaseDir && pwd"
+  $RemBase = ($lines | Select-Object -Last 1).Trim()
+  if (-not $RemBase) { throw 'Gagal resolve remote dir.' }
+
+  $OldEnv = @{}
+  $envReadCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sh -c 'cat $ENV_FILE 2>/dev/null; cat /etc/ui-panel/agent.env 2>/dev/null; true'"
+  $envLines = Invoke-Remote $envReadCmd -AllowFail
+  foreach ($envLine in $envLines) {
+    if ($envLine -match '^([A-Z0-9_]+)=(.*)$') { $OldEnv[$Matches[1]] = $Matches[2] }
+  }
+  $IsNew = ($OldEnv.Count -eq 0)
+
+  if (-not $IsNew -and $OldEnv.ContainsKey('PANEL_ENCRYPTION_KEY') -and $OldEnv['PANEL_ENCRYPTION_KEY']) {
+    $EncryptionKey = $OldEnv['PANEL_ENCRYPTION_KEY']
+  }
+  if (-not $HasExplicitDatabaseDSN -and $OldEnv.ContainsKey('PANEL_DATABASE_DSN') -and $OldEnv['PANEL_DATABASE_DSN']) {
+    $DatabaseDSN = $OldEnv['PANEL_DATABASE_DSN']
+    $HasExplicitDatabaseDSN = $true
+  }
+  if ($HasExplicitDatabaseDSN) {
+    step 'PostgreSQL (DSN existing/manual)'
+    ok 'Menggunakan DSN existing/manual'
+
+    if ($DatabaseDSN -match '^postgres(?:ql)?://[^:]+:([^@]+)@127\.0\.0\.1:5432/serverpanel') {
+      $pgExistingPass = [System.Uri]::UnescapeDataString($Matches[1])
+      $escPgExistingPass = Escape-Sq $pgExistingPass
+      $alterCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sudo -u postgres psql -c `"ALTER USER panel_user WITH PASSWORD '$escPgExistingPass';`" >/dev/null"
+      Invoke-Remote -Cmd $alterCmd | Out-Null
     }
+  }
 
-    $serverIPs = Invoke-Remote "hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]' | head -5 || true" -AllowFail
-    $allHosts = (@($serverIPs) + @('localhost', '127.0.0.1', $HostName)) | Where-Object { $_ } | Select-Object -Unique
-    $allOrigins = $allHosts | ForEach-Object { "http://${_}:$PanelPort" }
-
-    $envContent = @(
-      "PANEL_BIND_ADDR=$BindAddress",
-      "PANEL_DB_ENABLED=true",
-      "PANEL_DATABASE_DSN=$DatabaseDSN",
-      "PANEL_ENCRYPTION_KEY=$EncryptionKey",
-      "PANEL_STATE_DIR=$STATE_DIR",
-      "PANEL_FRONTEND_DIR=$INSTALL_DIR/frontend",
-      "PANEL_SESSION_TTL=12h",
-      "PANEL_ALLOWED_HOSTS=$($allHosts -join ',')",
-      "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
-    )
-
-    $localEnvTmp = Join-Path $TmpDir 'ypanel_env_upload.txt'
-    [System.IO.File]::WriteAllLines($localEnvTmp, $envContent, (New-Object System.Text.UTF8Encoding($false)))
-
-    $remEnvTmp = "$RemBase/ypanel_env_content"
-    Upload-File $localEnvTmp $RemBase
-    Invoke-Remote "mv '$RemBase/ypanel_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
-
-
-
-    $runMB2 = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
-    step "Upload installer (${runMB2}MB)"
-    Upload-File $RunPath $RemBase
+  if ($OnlyFrontend) {
+    step "Upload frontend (${sizeMB}MB)"
+    Upload-File $ProdFront $RemBase
     ok 'upload OK'
 
-    step 'Instalasi panel di server'
-    $remInstaller = "$RemBase/ypanel-installer.run"
-    $remLog = "$RemBase/install.log"
-    $instLib = Join-Path $LibDir 'remote_install.sh'
-    if (-not (Test-Path $instLib)) { throw "lib/remote_install.sh tidak ditemukan." }
+    step 'Update frontend di server'
+    $frontLib = Join-Path $LibDir 'remote_frontend_update.sh'
+    if (-not (Test-Path $frontLib)) { throw "lib/remote_frontend_update.sh tidak ditemukan." }
+    $fOut = Run-RemoteScript -LocalScript $frontLib -RemoteDir $RemBase -Timeout 60 -Env @{
+      SUDO_PASS         = $SudoPass
+      REMOTE_FRONT_DIR  = "$RemBase/frontend"
+      INSTALL_FRONT_DIR = "$INSTALL_DIR/frontend"
+      PANEL_USER        = $PANEL_USER
+      SERVICE_NAME      = $SVC_NAME
+    }
+    if ($fOut -contains 'FRONT_OK') { ok 'Frontend diperbarui' } else { warn 'Perlu restart manual' }
 
-    $instOut = Run-RemoteScript -LocalScript $instLib -RemoteDir $RemBase -Timeout 1200 -Env @{
-      SUDO_PASS            = $SudoPass
-      INSTALLER_PATH       = $remInstaller
-      PANEL_BIND_ADDR      = $BindAddress
-      PANEL_DATABASE_DSN   = $DatabaseDSN
-      PANEL_ENCRYPTION_KEY = $EncryptionKey
-      PANEL_STATE_DIR      = $STATE_DIR
-      PANEL_FRONTEND_DIR   = "$INSTALL_DIR/frontend"
-      LOG_PATH             = $remLog
+    summary "http://${HostName}:$PanelPort" -NewInstall $false
+    return
+  }
+
+  if (-not $HasExplicitDatabaseDSN) {
+    step 'Setup PostgreSQL'
+    $pgPass = New-RandPass 24
+    $pgLib = Join-Path $LibDir 'remote_pg_setup.sh'
+    if (-not (Test-Path $pgLib)) { throw "lib/remote_pg_setup.sh tidak ditemukan." }
+
+    $pgOut = Run-RemoteScript -LocalScript $pgLib -RemoteDir $RemBase -Timeout 300 -Env @{
+      SUDO_PASS = $SudoPass
+      PG_USER   = 'panel_user'
+      PG_DBNAME = 'serverpanel'
+      PG_PASS   = $pgPass
     }
 
-    if ($instOut -notcontains 'INSTALLER_OK') {
-      $log = Invoke-Remote "tail -n 60 '$remLog' 2>/dev/null || true" -AllowFail
-      throw "Installer gagal.`n$($log -join "`n")"
-    }
-    ok 'Instalasi selesai'
+    if ($pgOut -notcontains 'PG_READY') { throw 'Setup PostgreSQL gagal.' }
+    $DatabaseDSN = "postgres://panel_user:${pgPass}@127.0.0.1:5432/serverpanel?sslmode=disable"
+    $HasExplicitDatabaseDSN = $true
+    ok "PostgreSQL ready"
+  }
 
-    step 'Konfigurasi env & restart service'
-    $svcLib = Join-Path $LibDir 'remote_svc_config.sh'
-    if (-not (Test-Path $svcLib)) { throw "lib/remote_svc_config.sh tidak ditemukan." }
+  $serverIPs = Invoke-Remote "hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]' | head -5 || true" -AllowFail
+  $allHosts = (@($serverIPs) + @('localhost', '127.0.0.1', $HostName)) | Where-Object { $_ } | Select-Object -Unique
+  $allOrigins = $allHosts | ForEach-Object { "http://${_}:$PanelPort" }
 
-    $svcOut = Run-RemoteScript -LocalScript $svcLib -RemoteDir $RemBase -Timeout 60 -Env @{
-      SUDO_PASS        = $SudoPass
-      ENV_FILE         = $ENV_FILE
-      ENV_CONTENT_FILE = $remEnvTmp
-      SERVICE_NAME     = $SVC_NAME
-      PANEL_USER       = $PANEL_USER
-    }
-    Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
+  $envContent = @(
+    "PANEL_BIND_ADDR=$BindAddress",
+    "PANEL_DB_ENABLED=true",
+    "PANEL_DATABASE_DSN=$DatabaseDSN",
+    "PANEL_ENCRYPTION_KEY=$EncryptionKey",
+    "PANEL_STATE_DIR=$STATE_DIR",
+    "PANEL_FRONTEND_DIR=$INSTALL_DIR/frontend",
+    "PANEL_SESSION_TTL=12h",
+    "PANEL_ALLOWED_HOSTS=$($allHosts -join ',')",
+    "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
+  )
 
-    step 'Menjalankan migrasi database'
-    $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ypanel-agent migrate up"
-    $migrationOut = Invoke-Remote $migrationCmd -AllowFail
-    $migrationText = ($migrationOut -join "`n").Trim()
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
-      throw "Migrasi database gagal.`n$($migrationOut -join "`n")"
-    }
-    ok ($migrationText -split "`n" | Select-Object -Last 1)
+  $localEnvTmp = Join-Path $TmpDir 'ypanel_env_upload.txt'
+  [System.IO.File]::WriteAllLines($localEnvTmp, $envContent, (New-Object System.Text.UTF8Encoding($false)))
 
-    if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ypanel -n 50' }
-    else { ok 'Service berjalan' }
-
-    step 'Healthcheck'
-    $hc = Invoke-Remote "curl -fsS http://127.0.0.1:$PanelPort/healthz 2>&1 || echo HC_FAIL" -AllowFail
-    $hcStr = ($hc -join '').Trim()
-    if ($hcStr -match 'HC_FAIL|curl.*failed') { warn "Healthcheck gagal: $hcStr" }
-    else { ok $hcStr }
-
-    summary "http://${HostName}:$PanelPort" -NewInstall $IsNew
+  $remEnvTmp = "$RemBase/ypanel_env_content"
+  Upload-File $localEnvTmp $RemBase
+  Invoke-Remote "mv '$RemBase/ypanel_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
 
 
+
+  $runMB2 = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
+  step "Upload installer (${runMB2}MB)"
+  Upload-File $RunPath $RemBase
+  ok 'upload OK'
+
+  step 'Instalasi panel di server'
+  $remInstaller = "$RemBase/ypanel-installer.run"
+  $remLog = "$RemBase/install.log"
+  $instLib = Join-Path $LibDir 'remote_install.sh'
+  if (-not (Test-Path $instLib)) { throw "lib/remote_install.sh tidak ditemukan." }
+
+  $instOut = Run-RemoteScript -LocalScript $instLib -RemoteDir $RemBase -Timeout 1200 -Env @{
+    SUDO_PASS            = $SudoPass
+    INSTALLER_PATH       = $remInstaller
+    PANEL_BIND_ADDR      = $BindAddress
+    PANEL_DATABASE_DSN   = $DatabaseDSN
+    PANEL_ENCRYPTION_KEY = $EncryptionKey
+    PANEL_STATE_DIR      = $STATE_DIR
+    PANEL_FRONTEND_DIR   = "$INSTALL_DIR/frontend"
+    ENV_CONTENT_FILE     = $remEnvTmp
+    LOG_PATH             = $remLog
+  }
+
+  if ($instOut -notcontains 'INSTALLER_OK') {
+    $log = Invoke-Remote "tail -n 60 '$remLog' 2>/dev/null || true" -AllowFail
+    throw "Installer gagal.`n$($log -join "`n")"
+  }
+  ok 'Instalasi selesai'
+
+  step 'Konfigurasi env & restart service'
+  $svcLib = Join-Path $LibDir 'remote_svc_config.sh'
+  if (-not (Test-Path $svcLib)) { throw "lib/remote_svc_config.sh tidak ditemukan." }
+
+  $svcOut = Run-RemoteScript -LocalScript $svcLib -RemoteDir $RemBase -Timeout 60 -Env @{
+    SUDO_PASS        = $SudoPass
+    ENV_FILE         = $ENV_FILE
+    ENV_CONTENT_FILE = $remEnvTmp
+    SERVICE_NAME     = $SVC_NAME
+    PANEL_USER       = $PANEL_USER
+  }
+  Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
+
+  step 'Menjalankan migrasi database'
+  $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ypanel-agent migrate up"
+  $migrationOut = Invoke-Remote $migrationCmd -AllowFail
+  $migrationText = ($migrationOut -join "`n").Trim()
+  if ($Script:LastErr.Count -gt 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
+    throw "Migrasi database gagal.`n$($migrationOut -join "`n")`n$($Script:LastErr -join "`n")"
+  }
+  ok ($migrationText -split "`n" | Select-Object -Last 1)
+
+  if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ypanel -n 50' }
+  else { ok 'Service berjalan' }
+
+  step 'Healthcheck'
+  $hc = Invoke-Remote "curl -fsS http://127.0.0.1:$PanelPort/healthz 2>&1 || echo HC_FAIL" -AllowFail
+  $hcStr = ($hc -join '').Trim()
+  if ($hcStr -match 'HC_FAIL|curl.*failed') { warn "Healthcheck gagal: $hcStr" }
+  else { ok $hcStr }
+
+  summary "http://${HostName}:$PanelPort" -NewInstall $IsNew
 }
 catch {
   $msg = $_.Exception.Message
