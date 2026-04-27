@@ -342,6 +342,17 @@ run_psql() {
   run_quiet su - postgres -c "psql -v ON_ERROR_STOP=1 -c \"$statement\""
 }
 
+psql_scalar() {
+  local statement="$1"
+
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -tAc "$statement" 2>>"$INSTALL_LOG_FILE" | tr -d '[:space:]'
+    return
+  fi
+
+  su - postgres -c "psql -v ON_ERROR_STOP=1 -tAc \"$statement\"" 2>>"$INSTALL_LOG_FILE" | tr -d '[:space:]'
+}
+
 psql_literal() {
   printf "%s" "$1" | sed "s/'/''/g"
 }
@@ -354,7 +365,11 @@ provision_database() {
 
   log "menyiapkan database PostgreSQL untuk runtime panel"
   run_psql "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${db_user}') THEN CREATE ROLE \"${db_user}\" LOGIN PASSWORD '${db_password}'; ELSE ALTER ROLE \"${db_user}\" WITH LOGIN PASSWORD '${db_password}'; END IF; END \$\$;"
-  run_psql "SELECT 'CREATE DATABASE \"${db_name}\" OWNER \"${db_user}\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${db_name}')\\gexec"
+  if [[ "$(psql_scalar "SELECT 1 FROM pg_database WHERE datname = '${db_name}';")" != "1" ]]; then
+    run_psql "CREATE DATABASE \"${db_name}\" OWNER \"${db_user}\";"
+  else
+    run_psql "ALTER DATABASE \"${db_name}\" OWNER TO \"${db_user}\";"
+  fi
   run_psql "GRANT ALL PRIVILEGES ON DATABASE \"${db_name}\" TO \"${db_user}\";"
 }
 
@@ -674,6 +689,7 @@ reset_db_password() {
   local db_host
   local db_user
   local db_name
+  local db_port
   local db_password
   local escaped_password
 
@@ -683,12 +699,12 @@ reset_db_password() {
   fi
 
   db_host="$(grep '^PANEL_DB_HOST=' "$ENV_FILE" | cut -d= -f2-)"
+  db_port="$(grep '^PANEL_DB_PORT=' "$ENV_FILE" | cut -d= -f2-)"
   db_user="$(grep '^PANEL_DB_USER=' "$ENV_FILE" | cut -d= -f2-)"
   db_name="$(grep '^PANEL_DB_NAME=' "$ENV_FILE" | cut -d= -f2-)"
 
   if [[ -z "$db_host" || -z "$db_user" || -z "$db_name" ]]; then
-    printf '\nReset Password Database dari CLI hanya didukung untuk mode env database lama.\n' >&2
-    printf 'Runtime saat ini memakai PANEL_DATABASE_DSN / PostgreSQL, jadi ubah password DB lewat flow PostgreSQL yang sesuai.\n' >&2
+    printf '\nReset Password Database membutuhkan PANEL_DB_HOST, PANEL_DB_PORT, PANEL_DB_USER, dan PANEL_DB_NAME di %s.\n' "$ENV_FILE" >&2
     return
   fi
 
@@ -700,19 +716,16 @@ reset_db_password() {
     exit 1
   fi
 
-  if command -v mariadb >/dev/null 2>&1; then
-    mariadb -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
-  elif command -v mysql >/dev/null 2>&1; then
-    mysql -u root -e "ALTER USER '${db_user}'@'${db_host}' IDENTIFIED BY '${db_password}'; GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'${db_host}'; FLUSH PRIVILEGES;"
-  else
-    printf '\nClient MariaDB/MySQL tidak ditemukan.\n' >&2
-    exit 1
-  fi
+  run_psql "ALTER ROLE \"$(psql_literal "$db_user")\" WITH LOGIN PASSWORD '$(psql_literal "$db_password")';"
 
   escaped_password="$(printf '%s' "$db_password" | sed 's/[\\&]/\\&/g')"
-  sed -i "s/^PANEL_DB_PASSWORD=.*/PANEL_DB_PASSWORD=${escaped_password}/" "$ENV_FILE"
+  if grep -q '^PANEL_DATABASE_DSN=' "$ENV_FILE"; then
+    local escaped_dsn
+    escaped_dsn="$(printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable' "$db_user" "$db_password" "${db_host:-$DEFAULT_DB_HOST}" "${db_port:-$DEFAULT_DB_PORT}" "$db_name" | sed 's/[\\&]/\\&/g')"
+    sed -i "s#^PANEL_DATABASE_DSN=.*#PANEL_DATABASE_DSN=${escaped_dsn}#" "$ENV_FILE"
+  fi
   systemctl restart "$SERVICE_NAME"
-  printf '\nPassword database berhasil direset dan service direstart.\n'
+  printf '\nPassword database PostgreSQL berhasil direset dan service direstart.\n'
 }
 
 change_panel_port() {
