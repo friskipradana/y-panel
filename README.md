@@ -251,8 +251,8 @@ Script akan:
 8. restart service
 9. healthcheck runtime
 
-> [!NOTE]
-> Rebranding public sudah menggunakan nama YPanel. Namun service/path/binary production masih dipertahankan untuk compatibility dan akan direbrand bertahap melalui migration plan khusus.
+<!-- > [!NOTE]
+> Rebranding public sudah menggunakan nama YPanel. Namun service/path/binary production masih dipertahankan untuk compatibility dan akan direbrand bertahap melalui migration plan khusus. -->
 
 ## Database Migrations
 
@@ -296,7 +296,7 @@ Aksi sensitif dilindungi oleh role dan capability-based authorization di backend
 - [Backend Go Structure](docs/architecture/backend-go-structure.md)
 - [Frontend Structure](docs/architecture/frontend-structure.md)
 
-## Roadmap Rebrand Runtime
+<!-- ## Roadmap Rebrand Runtime
 
 Tahap saat ini:
 
@@ -308,9 +308,8 @@ Tahap berikutnya dilakukan terpisah dan bertahap:
 1. siapkan migration script untuk systemd service, binary, path, env, dan state directory
 2. support alias command lama selama masa transisi
 3. update deploy script agar bisa detect instalasi lama dan migrasi otomatis
-4. validasi rollback jika service baru gagal start
+4. validasi rollback jika service baru gagal start -->
 
 ## Lisensi
 
 Private / Proprietary - Renaldi
-

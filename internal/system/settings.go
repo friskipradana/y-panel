@@ -703,18 +703,29 @@ func sanitizeOrigins(values []string) []string {
 		if !strings.Contains(trimmed, "://") {
 			trimmed = "http://" + trimmed
 		}
-		if _, _, err := net.SplitHostPort(strings.TrimPrefix(strings.TrimPrefix(trimmed, "http://"), "https://")); err != nil {
-			parsedHost := strings.TrimPrefix(strings.TrimPrefix(trimmed, "http://"), "https://")
-			if !strings.Contains(parsedHost, ":") {
-				continue
-			}
-		}
-		trimmed = strings.TrimRight(trimmed, "/")
-		if _, ok := seen[trimmed]; ok {
+
+		parsed, err := neturl.Parse(strings.TrimRight(trimmed, "/"))
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			continue
 		}
-		seen[trimmed] = struct{}{}
-		result = append(result, trimmed)
+		scheme := strings.ToLower(parsed.Scheme)
+		if scheme != "http" && scheme != "https" {
+			continue
+		}
+		host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+		if host == "" {
+			continue
+		}
+
+		origin := scheme + "://" + host
+		if port := parsed.Port(); port != "" {
+			origin = scheme + "://" + net.JoinHostPort(host, port)
+		}
+		if _, ok := seen[origin]; ok {
+			continue
+		}
+		seen[origin] = struct{}{}
+		result = append(result, origin)
 	}
 	return result
 }
