@@ -1,5 +1,5 @@
 // Package users provides user management, quota management, and
-// per-user Cloudflare configuration for ServerPanel Pro.
+// per-user Cloudflare configuration for YPanel.
 package users
 
 import (

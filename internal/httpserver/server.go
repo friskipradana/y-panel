@@ -471,7 +471,7 @@ func (s *Server) Close() error {
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"status":  "ok",
-		"service": "ui-panel-agent",
+		"service": "ypanel-agent",
 		"time":    time.Now().UTC().Format(time.RFC3339),
 	})
 }
@@ -633,7 +633,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
 	service := strings.TrimSpace(r.URL.Query().Get("service"))
 	if service == "" {
-		service = "ui-panel"
+		service = "ypanel"
 	}
 	limit := 160
 	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
@@ -925,21 +925,21 @@ func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.
 
 	targetUser, err := s.database.GetPrimarySuperadmin()
 	if err != nil || targetUser == nil {
-		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama panel tidak ditemukan"})
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama YPanel tidak ditemukan"})
 		return
 	}
 
 	if err := s.auth.ResetPassword(targetUser.ID, req.NewPassword); err != nil {
-		log.Printf("[auth] reset primary panel password failed remote=%s err=%v", remoteAddr(r), err)
-		s.recordRuntimeLog("error", "primary panel password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
+		log.Printf("[auth] reset primary YPanel password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "primary YPanel password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	actor, _ := s.currentUser(r)
-	message := fmt.Sprintf("Password akun utama panel (%s) berhasil diperbarui.", targetUser.Username)
-	log.Printf("[auth] primary panel password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
-	s.recordRuntimeLog("warning", "primary panel password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
+	message := fmt.Sprintf("Password akun utama YPanel (%s) berhasil diperbarui.", targetUser.Username)
+	log.Printf("[auth] primary YPanel password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
+	s.recordRuntimeLog("warning", "primary YPanel password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
 	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
 	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
 }
@@ -1930,7 +1930,7 @@ func (s *Server) recordRuntimeLog(level, message string, metadata map[string]any
 	if s.database == nil {
 		return
 	}
-	s.database.RecordRuntimeLog("ui-panel", level, message, metadata)
+	s.database.RecordRuntimeLog("ypanel", level, message, metadata)
 }
 
 func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, action, result string, metadata map[string]any) {
@@ -2013,7 +2013,7 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>%d • %s</title>
-  <meta name="description" content="Halaman status UI Panel untuk %s" />
+  <meta name="description" content="Halaman status YPanel untuk %s" />
   <style>
     :root {
       color-scheme: dark;
@@ -2244,7 +2244,7 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   <main class="status-shell">
     <section class="status-grid">
       <div class="status-hero">
-        <div class="brand"><span class="brand-mark"></span> UI Panel Runtime</div>
+        <div class="brand"><span class="brand-mark"></span> YPanel Runtime</div>
         <div class="code">%d</div>
         <h1>%s</h1>
         <p class="lead">%s</p>
@@ -2358,7 +2358,7 @@ func rotateDatabasePassword(cfg config.Config, password string) error {
 		return err
 	}
 
-	envPath := firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+	envPath := firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), runtimeEnvPath())
 	if err := rewriteEnvValue(envPath, "PANEL_DATABASE_DSN", updatedDSN); err != nil {
 		return err
 	}
@@ -2386,6 +2386,18 @@ func runDatabaseSQL(statement string) error {
 		lastErr = fmt.Errorf("MariaDB/MySQL client tidak tersedia")
 	}
 	return lastErr
+}
+
+func runtimeEnvPath() string {
+	newPath := filepath.Join("/etc", "ypanel", "agent.env")
+	if _, err := os.Stat(newPath); err == nil {
+		return newPath
+	}
+	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
+	if _, err := os.Stat(legacyPath); err == nil {
+		return legacyPath
+	}
+	return newPath
 }
 
 func firstNonEmpty(values ...string) string {

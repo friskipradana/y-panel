@@ -50,7 +50,7 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 	}
 	comment := strings.TrimSpace(displayName)
 	if comment == "" {
-		comment = "ServerPanel Pro user " + strings.TrimSpace(panelUsername)
+		comment = "YPanel user " + strings.TrimSpace(panelUsername)
 	}
 	cmd := exec.Command("useradd", "-m", "-s", "/bin/bash", "-c", comment, mapped)
 	if output, err := cmd.CombinedOutput(); err != nil {

@@ -2,13 +2,13 @@
 
 <#
 .SYNOPSIS
-  ServerPanel Pro — Build & Deploy Script v2
+  YPanel - Build & Deploy Script v2
 
 .DESCRIPTION
   Melakukan build frontend (bun), bundle backend Go, lalu deploy ke server Linux
   via SSH (Posh-SSH) dengan dukungan:
   - PostgreSQL auto-setup
-  - AES-256 encryption key generation 
+  - AES-256 encryption key generation
   - Multi-user bootstrap (superadmin)
   - Per-user Cloudflare CF token enkripsi
   - Rollback otomatis jika deploy gagal
@@ -31,7 +31,7 @@ param(
 
   [string]$SshUsername = 'renaldi',
   [string]$SshPassword = '',
-  [string]$RemoteBaseDir = '~/ui-panel-deploy',
+  [string]$RemoteBaseDir = '~/ypanel-deploy',
   [string]$BindAddress = '0.0.0.0:8787',
   [string]$DatabaseDSN = '',
   [string]$EncryptionKey = '',
@@ -47,19 +47,19 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $WarningPreference = 'SilentlyContinue'
 
-# ═══════════════════════════════════════════════════════════════════
+# ==================================================================
 #  CONSTANTS
-# ═══════════════════════════════════════════════════════════════════
+# ==================================================================
 $SCRIPT_VERSION = '2.1.0'
-$SVC_NAME = 'ui-panel'
-$ENV_FILE = '/etc/ui-panel/agent.env'
-$INSTALL_DIR = '/opt/ui-panel'
-$STATE_DIR = '/var/lib/ui-panel'
-$PANEL_USER = 'ui-panel'
+$SVC_NAME = 'ypanel'
+$ENV_FILE = '/etc/ypanel/agent.env'
+$INSTALL_DIR = '/opt/ypanel'
+$STATE_DIR = '/var/lib/ypanel'
+$PANEL_USER = 'root'
 
-# ═══════════════════════════════════════════════════════════════════
+# ==================================================================
 #  WIN32 CONSOLE HELPER (animated spinner)
-# ═══════════════════════════════════════════════════════════════════
+# ==================================================================
 $consoleNative = @'
 using System; using System.Runtime.InteropServices; using System.Threading;
 public class ConsoleNative {
@@ -194,7 +194,7 @@ function err([string]$Msg) {
 function banner {
   $l = $Script:Theme.L * 62
   Write-Host "  $l" -ForegroundColor DarkGray
-  Write-Host "   ServerPanel Pro " -NoNewline -ForegroundColor White
+  Write-Host "   YPanel " -NoNewline -ForegroundColor White
   Write-Host "v$SCRIPT_VERSION" -NoNewline -ForegroundColor Cyan
   Write-Host " — Deploy Script" -ForegroundColor DarkGray
   Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor Cyan
@@ -211,7 +211,7 @@ function summary([string]$Url, [bool]$NewInstall) {
   Write-Host "   $($Script:Theme.Ok)  Deploy Berhasil " -NoNewline -ForegroundColor Green
   Write-Host "($(elapsed))" -ForegroundColor DarkGray
   Write-Host "  $l" -ForegroundColor DarkGray
-  Write-Host "   Panel URL      : " -NoNewline -ForegroundColor DarkGray; Write-Host $Url -ForegroundColor Cyan
+  Write-Host "   YPanel URL      : " -NoNewline -ForegroundColor DarkGray; Write-Host $Url -ForegroundColor Cyan
   Write-Host "   Server         : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor White
   if ($NewInstall) {
     Write-Host "   Langkah awal   : " -NoNewline -ForegroundColor DarkGray; Write-Host 'Buka panel lalu buat Admin Pertama di first-run setup.' -ForegroundColor Yellow
@@ -315,8 +315,8 @@ $ProdFront = Join-Path $ProdsDir 'frontend'
 $ProdBack = Join-Path $ProdsDir 'backend'
 $ProdInst = Join-Path $ProdsDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'panel-bundle.tar.gz'
-$RunPath = Join-Path $TmpDir 'panel-installer.run'
+$ArchivePath = Join-Path $TmpDir 'ypanel-bundle.tar.gz'
+$RunPath = Join-Path $TmpDir 'ypanel-installer.run'
 $PanelPort = Get-Port $BindAddress
 
 foreach ($d in @($ProdsDir, $ProdFront, $ProdBack, $ProdInst, $TmpDir, $LibDir)) {
@@ -344,7 +344,6 @@ $HasExplicitDatabaseDSN = -not [string]::IsNullOrWhiteSpace($DatabaseDSN)
 banner
 
 try {
-  & {
 
     # ── STEP 1: Build frontend ─────────────────────────────────────
     if (-not $SkipFrontendBuild) {
@@ -394,14 +393,14 @@ try {
 
       $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
 
-      $selfExtract = @"
+      $selfExtract = @'
 #!/usr/bin/env bash
 set -euo pipefail
-WORK=`$(mktemp -d /tmp/ui-panel.XXXXXX)
-trap 'rm -rf `$WORK' EXIT
-awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "`$0" | base64 -d > "`$WORK/payload.tar.gz"
-tar -xzf "`$WORK/payload.tar.gz" -C "`$WORK"
-cd "`$WORK"
+WORK=$(mktemp -d /tmp/ypanel.XXXXXX)
+trap 'rm -rf $WORK' EXIT
+awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0" | base64 -d > "$WORK/payload.tar.gz"
+tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
+cd "$WORK"
 [ -d frontend ] && mv frontend dist
 [ -d backend  ] && { cp -r backend/* . 2>/dev/null||true; rm -rf backend; }
 mkdir -p installer/linux
@@ -413,7 +412,7 @@ chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||tr
 bash installer/linux/install.sh
 exit 0
 __ARCHIVE__
-"@
+'@
       $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
       [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
       $runMB = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
@@ -440,16 +439,30 @@ __ARCHIVE__
     if (-not $RemBase) { throw 'Gagal resolve remote dir.' }
 
     $OldEnv = @{}
-    (Invoke-Remote "printf '%s\n' '$escSudo' | sudo -S cat $ENV_FILE 2>/dev/null || true" -AllowFail) |
-    ForEach-Object { if ($_ -match '^([A-Z0-9_]+)=(.*)$') { $OldEnv[$Matches[1]] = $Matches[2] } }
+    $envReadCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sh -c 'cat $ENV_FILE 2>/dev/null; cat /etc/ui-panel/agent.env 2>/dev/null; true'"
+    $envLines = Invoke-Remote $envReadCmd -AllowFail
+    foreach ($envLine in $envLines) {
+      if ($envLine -match '^([A-Z0-9_]+)=(.*)$') { $OldEnv[$Matches[1]] = $Matches[2] }
+    }
     $IsNew = ($OldEnv.Count -eq 0)
 
     if (-not $IsNew -and $OldEnv.ContainsKey('PANEL_ENCRYPTION_KEY') -and $OldEnv['PANEL_ENCRYPTION_KEY']) {
       $EncryptionKey = $OldEnv['PANEL_ENCRYPTION_KEY']
     }
+    if (-not $HasExplicitDatabaseDSN -and $OldEnv.ContainsKey('PANEL_DATABASE_DSN') -and $OldEnv['PANEL_DATABASE_DSN']) {
+      $DatabaseDSN = $OldEnv['PANEL_DATABASE_DSN']
+      $HasExplicitDatabaseDSN = $true
+    }
     if ($HasExplicitDatabaseDSN) {
-      step 'PostgreSQL (DSN manual)'
-      ok 'Menggunakan DSN yang diberikan'
+      step 'PostgreSQL (DSN existing/manual)'
+      ok 'Menggunakan DSN existing/manual'
+
+      if ($DatabaseDSN -match '^postgres(?:ql)?://[^:]+:([^@]+)@127\.0\.0\.1:5432/serverpanel') {
+        $pgExistingPass = [System.Uri]::UnescapeDataString($Matches[1])
+        $escPgExistingPass = Escape-Sq $pgExistingPass
+        $alterCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sudo -u postgres psql -c `"ALTER USER panel_user WITH PASSWORD '$escPgExistingPass';`" >/dev/null"
+        Invoke-Remote -Cmd $alterCmd | Out-Null
+      }
     }
 
     if ($OnlyFrontend) {
@@ -488,8 +501,34 @@ __ARCHIVE__
 
       if ($pgOut -notcontains 'PG_READY') { throw 'Setup PostgreSQL gagal.' }
       $DatabaseDSN = "postgres://panel_user:${pgPass}@127.0.0.1:5432/serverpanel?sslmode=disable"
+      $HasExplicitDatabaseDSN = $true
       ok "PostgreSQL ready"
     }
+
+    $serverIPs = Invoke-Remote "hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]' | head -5 || true" -AllowFail
+    $allHosts = (@($serverIPs) + @('localhost', '127.0.0.1', $HostName)) | Where-Object { $_ } | Select-Object -Unique
+    $allOrigins = $allHosts | ForEach-Object { "http://${_}:$PanelPort" }
+
+    $envContent = @(
+      "PANEL_BIND_ADDR=$BindAddress",
+      "PANEL_DB_ENABLED=true",
+      "PANEL_DATABASE_DSN=$DatabaseDSN",
+      "PANEL_ENCRYPTION_KEY=$EncryptionKey",
+      "PANEL_STATE_DIR=$STATE_DIR",
+      "PANEL_FRONTEND_DIR=$INSTALL_DIR/frontend",
+      "PANEL_SESSION_TTL=12h",
+      "PANEL_ALLOWED_HOSTS=$($allHosts -join ',')",
+      "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
+    )
+
+    $localEnvTmp = Join-Path $TmpDir 'ypanel_env_upload.txt'
+    [System.IO.File]::WriteAllLines($localEnvTmp, $envContent, (New-Object System.Text.UTF8Encoding($false)))
+
+    $remEnvTmp = "$RemBase/ypanel_env_content"
+    Upload-File $localEnvTmp $RemBase
+    Invoke-Remote "mv '$RemBase/ypanel_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
+
+
 
     $runMB2 = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
     step "Upload installer (${runMB2}MB)"
@@ -497,7 +536,7 @@ __ARCHIVE__
     ok 'upload OK'
 
     step 'Instalasi panel di server'
-    $remInstaller = "$RemBase/panel-installer.run"
+    $remInstaller = "$RemBase/ypanel-installer.run"
     $remLog = "$RemBase/install.log"
     $instLib = Join-Path $LibDir 'remote_install.sh'
     if (-not (Test-Path $instLib)) { throw "lib/remote_install.sh tidak ditemukan." }
@@ -520,30 +559,6 @@ __ARCHIVE__
     ok 'Instalasi selesai'
 
     step 'Konfigurasi env & restart service'
-
-    $serverIPs = Invoke-Remote "hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]' | head -5 || true" -AllowFail
-    $allHosts = (@($serverIPs) + @('localhost', '127.0.0.1', $HostName)) | Where-Object { $_ } | Select-Object -Unique
-    $allOrigins = $allHosts | ForEach-Object { "http://${_}:$PanelPort" }
-
-    $envContent = @(
-      "PANEL_BIND_ADDR=$BindAddress",
-      "PANEL_DB_ENABLED=true",
-      "PANEL_DATABASE_DSN=$DatabaseDSN",
-      "PANEL_ENCRYPTION_KEY=$EncryptionKey",
-      "PANEL_STATE_DIR=$STATE_DIR",
-      "PANEL_FRONTEND_DIR=$INSTALL_DIR/frontend",
-      "PANEL_SESSION_TTL=12h",
-      "PANEL_ALLOWED_HOSTS=$($allHosts -join ',')",
-      "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
-    )
-
-    $localEnvTmp = Join-Path $TmpDir 'panel_env_upload.txt'
-    [System.IO.File]::WriteAllLines($localEnvTmp, $envContent, (New-Object System.Text.UTF8Encoding($false)))
-
-    $remEnvTmp = "$RemBase/panel_env_content"
-    Upload-File $localEnvTmp $RemBase
-    Invoke-Remote "mv '$RemBase/panel_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
-
     $svcLib = Join-Path $LibDir 'remote_svc_config.sh'
     if (-not (Test-Path $svcLib)) { throw "lib/remote_svc_config.sh tidak ditemukan." }
 
@@ -557,7 +572,7 @@ __ARCHIVE__
     Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
 
     step 'Menjalankan migrasi database'
-    $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ui-panel-agent migrate up"
+    $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ypanel-agent migrate up"
     $migrationOut = Invoke-Remote $migrationCmd -AllowFail
     $migrationText = ($migrationOut -join "`n").Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
@@ -565,7 +580,7 @@ __ARCHIVE__
     }
     ok ($migrationText -split "`n" | Select-Object -Last 1)
 
-    if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ui-panel -n 50' }
+    if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ypanel -n 50' }
     else { ok 'Service berjalan' }
 
     step 'Healthcheck'
@@ -576,7 +591,7 @@ __ARCHIVE__
 
     summary "http://${HostName}:$PanelPort" -NewInstall $IsNew
 
-  }
+
 }
 catch {
   $msg = $_.Exception.Message
@@ -594,3 +609,5 @@ finally {
   }
   $SudoPass = $null; $SshPassword = $null
 }
+
+

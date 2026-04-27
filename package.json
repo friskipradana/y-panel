@@ -1,8 +1,8 @@
 {
-  "name": "homeserver-desktop",
+  "name": "ypanel",
   "private": true,
   "version": "0.1.0",
-  "description": "Desktop-themed control panel for Linux home servers built with React 19 and Go",
+  "description": "YPanel is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -168,7 +168,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
     <StatusPage
       code="404"
       title="Halaman aplikasi tidak ditemukan"
-      description="Route yang Anda buka tidak tersedia di frontend UI Panel yang sedang aktif. Anda masih berada di dalam runtime aplikasi, tetapi halaman ini memang tidak dikenali oleh shell frontend."
+      description="Route yang Anda buka tidak tersedia di frontend YPanel yang sedang aktif. Anda masih berada di dalam runtime aplikasi, tetapi halaman ini memang tidak dikenali oleh shell frontend."
       hint="Gunakan route yang tersedia seperti / atau /login. Jika ini seharusnya route valid, periksa frontend revision yang aktif atau hasil deploy terbaru."
       badge="Frontend Route"
       eyebrow="App-level status page"

@@ -44,13 +44,13 @@ func main() {
 	srv := httpserver.New(cfg)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			log.Printf("ui-panel-agent close warning: %v", err)
+			log.Printf("YPanel agent close warning: %v", err)
 		}
 	}()
 
 	srv.RestoreTunnels()
 
-	log.Printf("ui-panel-agent listening on %s", cfg.BindAddr)
+	log.Printf("YPanel agent listening on %s", cfg.BindAddr)
 	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {
 		log.Fatalf("listen and serve: %v", err)
 	}
@@ -98,19 +98,19 @@ func runResetPrimaryPassword(args []string) error {
 	targetUser, err := db.GetPrimarySuperadmin()
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no rows") {
-			return fmt.Errorf("akun utama panel tidak ditemukan: tabel users kosong")
+			return fmt.Errorf("akun utama YPanel tidak ditemukan: tabel users kosong")
 		}
-		return fmt.Errorf("gagal menemukan akun utama panel: %w", err)
+		return fmt.Errorf("gagal menemukan akun utama YPanel: %w", err)
 	}
 	if targetUser == nil {
-		return fmt.Errorf("akun utama panel tidak ditemukan")
+		return fmt.Errorf("akun utama YPanel tidak ditemukan")
 	}
 	if err := authMgr.ResetPassword(targetUser.ID, password); err != nil {
 		return err
 	}
 
-	log.Printf("[auth] primary panel password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
-	fmt.Printf("Password akun utama panel (%s) berhasil diperbarui.\n", targetUser.Username)
+	log.Printf("[auth] primary YPanel password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
+	fmt.Printf("Password akun utama YPanel (%s) berhasil diperbarui.\n", targetUser.Username)
 	return nil
 }
 

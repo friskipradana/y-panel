@@ -1,4 +1,4 @@
-// Package database provides the PostgreSQL-backed persistence layer for ServerPanel Pro.
+// Package database provides the PostgreSQL-backed persistence layer for YPanel.
 // It manages schema migrations, all entity CRUD operations, and connection lifecycle.
 package database
 
@@ -1395,7 +1395,7 @@ func (m *Manager) seedDefaultChangelog() error {
 func defaultChangelogEntries() []ChangelogEntry {
 	now := time.Now()
 	return []ChangelogEntry{
-		{Version: "1.0.0", Title: "ServerPanel Pro — Multi-User Launch", Summary: "Full multi-user support with PostgreSQL, per-user Cloudflared tunnels, project management, and isolated environments.", ReleasedAt: "2026-04-17", CreatedAt: now},
+		{Version: "1.0.0", Title: "YPanel — Multi-User Launch", Summary: "Full multi-user support with PostgreSQL, per-user Cloudflared tunnels, project management, and isolated environments.", ReleasedAt: "2026-04-17", CreatedAt: now},
 		{Version: "0.7.0", Title: "Database persistence", Summary: "Added MariaDB persistence for runtime logs, changelog, and settings audit.", ReleasedAt: "2026-04-05", CreatedAt: now.Add(-24 * time.Hour)},
 		{Version: "0.6.0", Title: "Settings editor", Summary: "Added responsive Settings UI with hostname/timezone/nameserver controls.", ReleasedAt: "2026-04-05", CreatedAt: now.Add(-48 * time.Hour)},
 	}
@@ -1474,8 +1474,8 @@ var defaultTerminalPresetCommands = []struct {
 	{"", "df -h", 4},
 	{"", "free -h", 5},
 	{"", "docker ps -a", 6},
-	{"", "systemctl status ui-panel --no-pager", 7},
-	{"", "journalctl -u ui-panel -n 50 --no-pager", 8},
+	{"", "systemctl status ypanel --no-pager", 7},
+	{"", "journalctl -u ypanel -n 50 --no-pager", 8},
 }
 
 func (m *Manager) seedDefaultTerminalPresets() error {

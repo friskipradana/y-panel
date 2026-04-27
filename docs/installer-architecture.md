@@ -1,4 +1,4 @@
-# UI Panel Installer Architecture
+# YPanel Installer Architecture
 
 ## Goal
 
@@ -96,7 +96,7 @@ Posisi Portainer:
 - **bukan core product**, tapi service pendukung
 - dipakai untuk observability dan operasi container tertentu
 - agent dapat melakukan health check Portainer
-- panel utama tetap login ke **ui-panel-agent**, bukan login langsung ke Portainer
+- YPanel utama tetap login ke **ui-panel-agent**, bukan login langsung ke Portainer
 
 ### 4. Web Panel
 

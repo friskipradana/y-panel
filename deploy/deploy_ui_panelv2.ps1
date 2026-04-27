@@ -262,7 +262,7 @@ function Write-Summary {
   Write-Host "   $($Script:UiTheme.OkMark)  Deploy Berhasil " -NoNewline -ForegroundColor Green
   Write-Host "(total: $total)" -ForegroundColor DarkGray
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host "   Panel URL       : " -NoNewline -ForegroundColor DarkGray
+  Write-Host "   YPanel URL       : " -NoNewline -ForegroundColor DarkGray
   Write-Host $Url -ForegroundColor Cyan
   Write-Host "   Server          : " -NoNewline -ForegroundColor DarkGray
   Write-Host "${User}@${TargetHost}" -ForegroundColor White

@@ -11,7 +11,10 @@ import (
 	"strings"
 )
 
-const managedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
+const (
+	managedResolvedConfigPath       = "/etc/systemd/resolved.conf.d/ypanel.conf"
+	legacyManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
+)
 
 type SettingsSnapshot struct {
 	Hostname          string   `json:"hostname"`
@@ -165,7 +168,7 @@ func readNameservers() []string {
 }
 
 func readManagedNameservers() []string {
-	data, err := os.ReadFile(managedResolvedConfigPath)
+	data, err := os.ReadFile(managedResolvedPath())
 	if err != nil {
 		return []string{}
 	}
@@ -238,10 +241,21 @@ func writeManagedNameservers(nameservers []string) error {
 	if err := os.WriteFile(managedResolvedConfigPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("gagal menulis konfigurasi dns terkelola")
 	}
+	_ = os.Remove(legacyManagedResolvedConfigPath)
 	if err := exec.Command("systemctl", "restart", "systemd-resolved").Run(); err != nil {
 		return fmt.Errorf("gagal me-restart systemd-resolved")
 	}
 	return nil
+}
+
+func managedResolvedPath() string {
+	if _, err := os.Stat(managedResolvedConfigPath); err == nil {
+		return managedResolvedConfigPath
+	}
+	if _, err := os.Stat(legacyManagedResolvedConfigPath); err == nil {
+		return legacyManagedResolvedConfigPath
+	}
+	return managedResolvedConfigPath
 }
 
 func readPanelAccessSettings() (string, []string, []string) {
@@ -326,7 +340,18 @@ const (
 )
 
 func panelEnvPath() string {
-	return firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
+		return envPath
+	}
+	newPath := filepath.Join("/etc", "ypanel", "agent.env")
+	if _, err := os.Stat(newPath); err == nil {
+		return newPath
+	}
+	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
+	if _, err := os.Stat(legacyPath); err == nil {
+		return legacyPath
+	}
+	return newPath
 }
 
 func panelOriginsRawPath() string {

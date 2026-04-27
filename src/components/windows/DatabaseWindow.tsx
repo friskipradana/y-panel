@@ -182,7 +182,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
             <div className="panel-hero__title">MariaDB runtime health</div>
             <p className="panel-hero__description">
-              Pantau koneksi database, jumlah data persistensi, runtime log terbaru, dan jejak audit perubahan host dari backend UI Panel.
+              Pantau koneksi database, jumlah data persistensi, runtime log terbaru, dan jejak audit perubahan host dari backend YPanel.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <PanelSelectMenu

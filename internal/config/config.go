@@ -57,8 +57,8 @@ func Load() (Config, error) {
 		SessionTTL:                 parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
 		DatabaseDSN:                os.Getenv("PANEL_DATABASE_DSN"),
 		DatabaseEnable:             parseBoolEnv("PANEL_DB_ENABLED", true),
-		StateDir:                   getenv("PANEL_STATE_DIR", "/var/lib/ui-panel"),
-		FrontendDir:                getenv("PANEL_FRONTEND_DIR", "/opt/ui-panel/frontend"),
+		StateDir:                   getenv("PANEL_STATE_DIR", "/var/lib/ypanel"),
+		FrontendDir:                getenv("PANEL_FRONTEND_DIR", "/opt/ypanel/frontend"),
 		TerminalEnabled:            parseBoolEnv("PANEL_TERMINAL_ENABLED", true),
 		TerminalAllowRemote:        parseBoolEnv("PANEL_TERMINAL_ALLOW_REMOTE", false),
 		AdminFileManagerRootAccess: parseBoolEnv("PANEL_ADMIN_FILE_ROOT_ACCESS", false),
@@ -159,7 +159,7 @@ func loadAllowedOrigins() []string {
 }
 
 func readAllowedOriginsFromRawFile() ([]string, bool) {
-	envPath := firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+	envPath := runtimeEnvPath()
 	rawPath := filepath.Join(filepath.Dir(envPath), "allowed-origins.raw")
 	data, err := os.ReadFile(rawPath)
 	if err != nil {
@@ -186,7 +186,7 @@ func readAllowedOriginsFromRawFile() ([]string, bool) {
 }
 
 func readAllowedOriginsFromManagedBlock() ([]string, bool) {
-	envPath := firstNonEmpty(os.Getenv("PANEL_ENV_FILE"), filepath.Join("/etc", "ui-panel", "agent.env"))
+	envPath := runtimeEnvPath()
 	data, err := os.ReadFile(envPath)
 	if err != nil {
 		return nil, false
@@ -241,6 +241,21 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 		result = append(result, value)
 	}
 	return result, true
+}
+
+func runtimeEnvPath() string {
+	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
+		return envPath
+	}
+	newPath := filepath.Join("/etc", "ypanel", "agent.env")
+	if _, err := os.Stat(newPath); err == nil {
+		return newPath
+	}
+	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
+	if _, err := os.Stat(legacyPath); err == nil {
+		return legacyPath
+	}
+	return newPath
 }
 
 func firstNonEmpty(values ...string) string {

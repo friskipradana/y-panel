@@ -1,6 +1,6 @@
 # Database Migrations
 
-ServerPanel sekarang memakai **versioned SQL migrations** untuk PostgreSQL.
+YPanel sekarang memakai **versioned SQL migrations** untuk PostgreSQL.
 
 ## Prinsip
 

@@ -319,10 +319,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     onSuccess: (data) => {
       setPrimaryPassword('')
       setPrimaryPasswordConfirm('')
-      alertLib.fire('Password Diperbarui', data.message || 'Password akun utama panel berhasil diperbarui.', 'success', 'settings')
+      alertLib.fire('Password Diperbarui', data.message || 'Password akun utama YPanel berhasil diperbarui.', 'success', 'settings')
     },
     onError: (error: any) => {
-      alertLib.fire('Gagal Mengubah Password', error?.message || 'Gagal memperbarui password akun utama panel.', 'error', 'settings')
+      alertLib.fire('Gagal Mengubah Password', error?.message || 'Gagal memperbarui password akun utama YPanel.', 'error', 'settings')
     }
   })
 
@@ -393,7 +393,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
     const isConfirmed = await alertLib.confirm(
       'Ubah Password Akun Utama',
-      'Password login akun utama panel hasil first setup akan langsung diganti. Setelah ini, gunakan password baru saat login berikutnya.<br/><br/>Lanjutkan?',
+      'Password login akun utama YPanel hasil first setup akan langsung diganti. Setelah ini, gunakan password baru saat login berikutnya.<br/><br/>Lanjutkan?',
       'Ya, Ubah Password',
       'Batal',
       'warning',
@@ -636,7 +636,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
 
           <div className="panel-shell-card p-5">
-            <SectionHeader icon={<LockKeyhole size={17} />} title="Password akun utama panel" subtitle="Ubah password login superadmin hasil first setup langsung dari runtime" />
+            <SectionHeader icon={<LockKeyhole size={17} />} title="Password akun utama YPanel" subtitle="Ubah password login superadmin hasil first setup langsung dari runtime" />
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
               <div className="space-y-3.5">

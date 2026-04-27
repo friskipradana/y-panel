@@ -1,5 +1,5 @@
 [Unit]
-Description=YPanel Agent (legacy template)
+Description=YPanel Agent
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service

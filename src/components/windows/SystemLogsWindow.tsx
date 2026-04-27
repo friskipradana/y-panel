@@ -5,7 +5,8 @@ import { getSystemLogs } from '@/api/agent'
 import type { WindowState } from '@/types'
 
 const SERVICE_OPTIONS = [
-  { value: 'ui-panel', label: 'ui-panel' },
+  { value: 'ypanel', label: 'YPanel Agent' },
+  { value: 'ui-panel', label: 'Legacy UI Panel' },
   { value: 'docker', label: 'docker' },
   { value: 'mariadb', label: 'mariadb' },
   { value: 'nginx', label: 'nginx' },
@@ -24,7 +25,7 @@ function lineToneClass(line: string): string {
 }
 
 export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
-  const [service, setService] = useState('ui-panel')
+  const [service, setService] = useState('ypanel')
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
   const [autoScroll, setAutoScroll] = useState(true)

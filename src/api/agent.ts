@@ -147,7 +147,7 @@ export const startTerminalSession = (target = 'local') =>
 export const closeTerminalSession = (sessionId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/terminal/sessions/${sessionId}`).then((r) => r.data)
 
-export const getSystemLogs = (service = 'ui-panel', limit = 160) =>
+export const getSystemLogs = (service = 'ypanel', limit = 160) =>
   agentApi.get<SystemLogsResponse>('/api/v1/system/logs', { params: { service, limit } }).then((r) => r.data)
 
 export const getSystemChangelog = () =>

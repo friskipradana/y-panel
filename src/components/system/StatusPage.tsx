@@ -18,7 +18,7 @@ export function StatusPage({
   title,
   description,
   hint,
-  eyebrow = 'UI Panel Experience',
+  eyebrow = 'YPanel Experience',
   badge = 'Runtime Frontend',
   actions,
   showActions = true,

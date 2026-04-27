@@ -158,7 +158,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             <ServerCrash className="h-5 w-5" />
             <div>
               <p className="font-semibold">Gagal memuat system summary</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">Pastikan kamu sudah login dan service ui-panel-agent berjalan normal.</p>
+              <p className="mt-1 text-[12px] leading-6 opacity-90">Pastikan kamu sudah login dan service YPanel agent berjalan normal.</p>
             </div>
           </div>
         </div>

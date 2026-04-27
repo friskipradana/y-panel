@@ -1200,7 +1200,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                   <div>
                     <p className="font-semibold">Tidak bisa memuat container dari agent</p>
                     <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
-                    <p className="mt-1 text-[12px] leading-6 opacity-80">Pastikan ui-panel-agent aktif dan Docker dapat diakses oleh backend.</p>
+                    <p className="mt-1 text-[12px] leading-6 opacity-80">Pastikan YPanel agent aktif dan Docker dapat diakses oleh backend.</p>
                   </div>
                 </div>
               ) : filteredContainers.length === 0 ? (

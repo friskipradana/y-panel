@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-# ServerPanel Pro — Remote Install Script v2
+# YPanel — Remote Install Script v2
 # Di-upload oleh build.ps1 lalu dieksekusi via SSH.
 # Semua konfigurasi diterima via environment variables.
 # ─────────────────────────────────────────────────────────────────────
@@ -12,9 +12,9 @@ set -euo pipefail
 : "${PANEL_BIND_ADDR:=0.0.0.0:8787}"
 : "${PANEL_DATABASE_DSN:?PANEL_DATABASE_DSN required}"
 : "${PANEL_ENCRYPTION_KEY:?PANEL_ENCRYPTION_KEY required}"
-: "${PANEL_STATE_DIR:=/var/lib/ui-panel}"
-: "${PANEL_FRONTEND_DIR:=/opt/ui-panel/frontend}"
-: "${LOG_PATH:=/tmp/panel-install.log}"
+: "${PANEL_STATE_DIR:=/var/lib/ypanel}"
+: "${PANEL_FRONTEND_DIR:=/opt/ypanel/frontend}"
+: "${LOG_PATH:=/tmp/ypanel-install.log}"
 
 LOG="$LOG_PATH"
 : > "$LOG"
@@ -41,7 +41,7 @@ log "Go: $GO_VERSION"
 # patch go.sum sebelum installer dijalankan.
 # Caranya: extract installer, cd ke backend, go mod tidy, repack.
 
-WORK=$(mktemp -d /tmp/panel-preflight.XXXXXX)
+WORK=$(mktemp -d /tmp/ypanel-preflight.XXXXXX)
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
@@ -70,8 +70,8 @@ if [ -f "$WORK/payload.tar.gz" ] && [ -s "$WORK/payload.tar.gz" ]; then
 
   if [ -n "$GOMOD_DIR" ]; then
     log "Running go mod download in $GOMOD_DIR..."
-    export GOPATH=/tmp/go-panel-cache
-    export GOCACHE=/tmp/go-panel-build-cache
+    export GOPATH=/tmp/go-ypanel-cache
+    export GOCACHE=/tmp/go-ypanel-build-cache
     cd "$GOMOD_DIR"
     $GO_BIN mod download 2>> "$LOG" || true
     $GO_BIN mod tidy 2>> "$LOG" || true
@@ -109,9 +109,10 @@ printf '%s\n' "$SUDO_PASS" | sudo -S -p '' env \
   PANEL_ENCRYPTION_KEY="$PANEL_ENCRYPTION_KEY" \
   PANEL_STATE_DIR="$PANEL_STATE_DIR" \
   PANEL_FRONTEND_DIR="$PANEL_FRONTEND_DIR" \
-  GOPATH=/tmp/go-panel-cache \
-  GOCACHE=/tmp/go-panel-build-cache \
+  GOPATH=/tmp/go-ypanel-cache \
+  GOCACHE=/tmp/go-ypanel-build-cache \
   bash "$INSTALLER_PATH" >> "$LOG" 2>&1
 
 log "Installer finished successfully"
 echo "INSTALLER_OK"
+

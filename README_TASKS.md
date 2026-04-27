@@ -1,7 +1,7 @@
-# UI Panel Task Log
+# YPanel Task Log
 
 ## Tujuan
-Dokumen ini menjadi task tracker utama untuk setiap perbaikan dan penambahan fitur pada UI Panel. Setiap perubahan baru harus ditambahkan ke bagian **Task Updates** dan diringkas kembali pada bagian **Project Changelog**.
+Dokumen ini menjadi task tracker utama untuk setiap perbaikan dan penambahan fitur pada YPanel. Setiap perubahan baru harus ditambahkan ke bagian **Task Updates** dan diringkas kembali pada bagian **Project Changelog**.
 
 ## Cara Update
 1. Tambahkan entri baru di bagian **Task Updates** dengan tanggal, area, status, dan deskripsi singkat.

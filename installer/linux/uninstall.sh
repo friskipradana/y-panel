@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="ui-panel"
-SERVICE_FILE="/etc/systemd/system/ui-panel.service"
-BIN_PATH="/usr/local/bin/ui-panel-agent"
-CLI_PATH="/usr/local/bin/ui-panel"
-INSTALL_ROOT="/opt/ui-panel"
-CONFIG_DIR="/etc/ui-panel"
-STATE_DIR="/var/lib/ui-panel"
-PORTAINER_CONTAINER="ui-panel-portainer"
+APP_NAME="ypanel"
+SERVICE_FILE="/etc/systemd/system/ypanel.service"
+BIN_PATH="/usr/local/bin/ypanel-agent"
+CLI_PATH="/usr/local/bin/ypanel"
+INSTALL_ROOT="/opt/ypanel"
+CONFIG_DIR="/etc/ypanel"
+STATE_DIR="/var/lib/ypanel"
+PORTAINER_CONTAINER="ypanel-portainer"
 PORTAINER_VOLUME="portainer_data"
 PG_DB_NAME="serverpanel"
 PG_DB_USER="panel_user"
@@ -46,10 +46,16 @@ ask_remove_everything() {
 }
 
 remove_service() {
+  if systemctl list-unit-files | grep -q '^ypanel.service'; then
+    log "menghapus service ypanel"
+    systemctl stop ypanel.service || true
+    systemctl disable ypanel.service || true
+  fi
   if systemctl list-unit-files | grep -q '^ui-panel.service'; then
-    log "menghapus service ui-panel"
+    log "menghapus service legacy ui-panel"
     systemctl stop ui-panel.service || true
     systemctl disable ui-panel.service || true
+    rm -f /etc/systemd/system/ui-panel.service
   fi
 
   rm -f "$SERVICE_FILE"
@@ -60,6 +66,11 @@ remove_binary_and_data() {
   log "menghapus binary, config, state, dan frontend"
   rm -f "$BIN_PATH"
   rm -f "$CLI_PATH"
+  rm -f /usr/local/bin/ui-panel-agent
+  rm -f /usr/local/bin/ui-panel
+  if [[ -L /etc/ui-panel/agent.env ]]; then
+    rm -f /etc/ui-panel/agent.env
+  fi
   rm -rf "$CONFIG_DIR"
   rm -rf "$STATE_DIR"
   rm -rf "$INSTALL_ROOT"
@@ -109,3 +120,4 @@ main() {
 }
 
 main "$@"
+

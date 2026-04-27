@@ -1,18 +1,18 @@
 #!/bin/bash
-# ServerPanel Pro — Deploy Script
+# YPanel — Deploy Script
 # Run on: server 100.65.152.14
 
 set -e
 
-PANEL_USER="ui-panel"
-PANEL_DIR="/opt/ui-panel"
-STATE_DIR="/var/lib/ui-panel"
-SERVICE_NAME="ui-panel"
+PANEL_USER="ypanel"
+PANEL_DIR="/opt/ypanel"
+STATE_DIR="/var/lib/ypanel"
+SERVICE_NAME="ypanel"
 REPO_DIR="/tmp/panel-deploy-$$"
 GO_BIN="/usr/local/go/bin/go"
 
 echo "═══════════════════════════════════════════"
-echo "  ServerPanel Pro — Deploy Script"
+echo "  YPanel — Deploy Script"
 echo "═══════════════════════════════════════════"
 
 # ─── 0. Dependencies ─────────────────────────────────────────────
@@ -99,11 +99,11 @@ cd "$REPO_DIR"
 
 # Download deps and build
 $GO_BIN mod download
-$GO_BIN build -o "$PANEL_DIR/ui-panel-agent" ./cmd/agent/main.go 2>/dev/null || \
-    $GO_BIN build -o "$PANEL_DIR/ui-panel-agent" ./main.go
+$GO_BIN build -o "$PANEL_DIR/ypanel-agent" ./cmd/agent/main.go 2>/dev/null || \
+    $GO_BIN build -o "$PANEL_DIR/ypanel-agent" ./main.go
 
-sudo chown "$PANEL_USER:$PANEL_USER" "$PANEL_DIR/ui-panel-agent"
-sudo chmod +x "$PANEL_DIR/ui-panel-agent"
+sudo chown "$PANEL_USER:$PANEL_USER" "$PANEL_DIR/ypanel-agent"
+sudo chmod +x "$PANEL_DIR/ypanel-agent"
 echo "  ✓ Backend built"
 
 # ─── 5. Build frontend ────────────────────────────────────────────
@@ -119,7 +119,7 @@ echo "  ✓ Frontend built"
 # ─── 6. Write .env ────────────────────────────────────────────────
 
 echo "[7/8] Writing environment config..."
-sudo tee /etc/ui-panel.env > /dev/null <<ENVFILE
+sudo tee /etc/ypanel.env > /dev/null <<ENVFILE
 PANEL_BIND_ADDR=0.0.0.0:8787
 PANEL_DB_ENABLED=true
 PANEL_DATABASE_DSN=postgres://panel_user:${DB_PASS}@127.0.0.1:5432/serverpanel?sslmode=disable
@@ -129,8 +129,8 @@ PANEL_FRONTEND_DIR=${PANEL_DIR}/frontend
 PANEL_SESSION_TTL=12h
 ENVFILE
 
-sudo chmod 600 /etc/ui-panel.env
-sudo chown "$PANEL_USER:$PANEL_USER" /etc/ui-panel.env
+sudo chmod 600 /etc/ypanel.env
+sudo chown "$PANEL_USER:$PANEL_USER" /etc/ypanel.env
 echo "  ✓ Environment configured"
 
 # ─── 7. Systemd service ───────────────────────────────────────────
@@ -138,7 +138,7 @@ echo "  ✓ Environment configured"
 echo "[8/8] Installing systemd service..."
 sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null <<SERVICE
 [Unit]
-Description=ServerPanel Pro — UI Panel Agent
+Description=YPanel — UI Panel Agent
 After=network.target postgresql.service
 Wants=postgresql.service
 
@@ -147,13 +147,13 @@ Type=simple
 User=${PANEL_USER}
 Group=${PANEL_USER}
 WorkingDirectory=${STATE_DIR}
-EnvironmentFile=/etc/ui-panel.env
-ExecStart=${PANEL_DIR}/ui-panel-agent
+EnvironmentFile=/etc/ypanel.env
+ExecStart=${PANEL_DIR}/ypanel-agent
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ui-panel
+SyslogIdentifier=ypanel
 
 # Security hardening
 NoNewPrivileges=yes
@@ -183,7 +183,7 @@ rm -rf "$REPO_DIR"
 
 echo ""
 echo "═══════════════════════════════════════════"
-echo "  ✅ ServerPanel Pro Deployed!"
+echo "  ✅ YPanel Deployed!"
 echo ""
 echo "  URL    : http://$(hostname -I | awk '{print $1}'):8787"
 echo "  Login  : admin"
@@ -191,3 +191,4 @@ echo "  Pass   : Admin@Panel2024!"
 echo ""
 echo "  ⚠️  Harap ganti password setelah login pertama!"
 echo "═══════════════════════════════════════════"
+

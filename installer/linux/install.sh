@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="ui-panel"
+APP_NAME="ypanel"
 APP_USER="root"
-INSTALL_ROOT="/opt/ui-panel"
-STATE_DIR="/var/lib/ui-panel"
-CONFIG_DIR="/etc/ui-panel"
+INSTALL_ROOT="/opt/ypanel"
+STATE_DIR="/var/lib/ypanel"
+CONFIG_DIR="/etc/ypanel"
 ENV_FILE="$CONFIG_DIR/agent.env"
-SERVICE_FILE="/etc/systemd/system/ui-panel.service"
-BIN_PATH="/usr/local/bin/ui-panel-agent"
-CLI_PATH="/usr/local/bin/ui-panel"
+SERVICE_FILE="/etc/systemd/system/ypanel.service"
+BIN_PATH="/usr/local/bin/ypanel-agent"
+CLI_PATH="/usr/local/bin/ypanel"
 FRONTEND_DIR="$INSTALL_ROOT/frontend"
-PORTAINER_CONTAINER="ui-panel-portainer"
+PORTAINER_CONTAINER="ypanel-portainer"
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
@@ -207,8 +207,8 @@ ensure_cloudflared() {
   log "cloudflared berhasil diinstall: $(cloudflared -V)"
 }
 
-ui_panel_config() {
-  log "konfigurasi ui-panel"
+ypanel_config() {
+  log "konfigurasi YPanel"
 
   local current_bind_addr=""
   local current_allowed_hosts=""
@@ -349,6 +349,37 @@ provision_database() {
   run_sql "GRANT ALL PRIVILEGES ON \`${PANEL_DB_NAME}\`.* TO '${PANEL_DB_USER}'@'${PANEL_DB_HOST}'; FLUSH PRIVILEGES;"
 }
 
+migrate_legacy_runtime() {
+  local legacy_config_dir="/etc/ui-panel"
+  local legacy_env_file="${legacy_config_dir}/agent.env"
+  local legacy_state_dir="/var/lib/ui-panel"
+  local legacy_install_root="/opt/ui-panel"
+
+  if [[ -f "$legacy_env_file" && ! -f "$ENV_FILE" ]]; then
+    log "migrasi konfigurasi legacy ui-panel ke ypanel"
+    mkdir -p "$CONFIG_DIR"
+    cp "$legacy_env_file" "$ENV_FILE"
+  fi
+
+  if [[ -d "$legacy_state_dir" && ! -d "$STATE_DIR" ]]; then
+    log "migrasi state legacy ui-panel ke ypanel"
+    mkdir -p "$STATE_DIR"
+    cp -a "$legacy_state_dir/." "$STATE_DIR/" 2>/dev/null || true
+  fi
+
+  if [[ -d "$legacy_install_root" && ! -d "$INSTALL_ROOT" ]]; then
+    mkdir -p "$INSTALL_ROOT"
+  fi
+}
+
+install_legacy_aliases() {
+  log "menyiapkan alias compatibility ui-panel"
+  ln -sfn "$BIN_PATH" /usr/local/bin/ui-panel-agent
+  ln -sfn "$CLI_PATH" /usr/local/bin/ui-panel
+  mkdir -p /etc/ui-panel
+  ln -sfn "$ENV_FILE" /etc/ui-panel/agent.env
+}
+
 setup_directories() {
   log "menyiapkan direktori runtime"
   mkdir -p "$INSTALL_ROOT" "$STATE_DIR" "$CONFIG_DIR" "$FRONTEND_DIR"
@@ -453,11 +484,11 @@ prepare_frontend() {
 install_service() {
   log "menginstall systemd service"
 
-  if [[ ! -f "$REPO_ROOT/installer/linux/ui-panel.service.tpl" ]]; then
-    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ui-panel.service.tpl"
+  if [[ ! -f "$REPO_ROOT/installer/linux/ypanel.service.tpl" ]]; then
+    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ypanel.service.tpl"
   fi
 
-  cp "$REPO_ROOT/installer/linux/ui-panel.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
+  cp "$REPO_ROOT/installer/linux/ypanel.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
   chmod 644 "$SERVICE_FILE" || fail "gagal chmod service file $SERVICE_FILE"
 
   if ! command -v systemctl >/dev/null 2>&1; then
@@ -465,24 +496,26 @@ install_service() {
   fi
 
   run_quiet systemctl daemon-reload
-  run_quiet systemctl enable ui-panel.service
+  systemctl stop ui-panel.service >/dev/null 2>&1 || true
+  systemctl disable ui-panel.service >/dev/null 2>&1 || true
+  run_quiet systemctl enable ypanel.service
 }
 
 install_cli() {
-  log "menginstall command line ui-panel"
+  log "menginstall command line ypanel"
   cat > "$CLI_PATH" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV_FILE="/etc/ui-panel/agent.env"
-SERVICE_NAME="ui-panel.service"
-PASSWORD_HISTORY_FILE="/var/lib/ui-panel/password-history.log"
-AGENT_BIN="/usr/local/bin/ui-panel-agent"
+ENV_FILE="/etc/ypanel/agent.env"
+SERVICE_NAME="ypanel.service"
+PASSWORD_HISTORY_FILE="/var/lib/ypanel/password-history.log"
+AGENT_BIN="/usr/local/bin/ypanel-agent"
 
 require_root_cli() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    printf '\nui-panel harus dijalankan dengan sudo atau sebagai root.\n' >&2
-    printf 'Contoh: sudo ui-panel\n\n' >&2
+    printf '\nypanel harus dijalankan dengan sudo atau sebagai root.\n' >&2
+    printf 'Contoh: sudo ypanel\n\n' >&2
     exit 1
   fi
 }
@@ -536,7 +569,7 @@ show_panel_info() {
   hostname_value="$(hostname 2>/dev/null || true)"
   hostname_value="${hostname_value:-localhost}"
 
-  printf '\nUI Panel Service Manager\n'
+  printf '\nYPanel Service Manager\n'
   printf 'Panel bind    : %s\n' "$bind_addr"
   printf 'Panel local   : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Panel network : http://%s:%s\n' "$host_ip" "$bind_port"
@@ -571,14 +604,14 @@ reset_password() {
   fi
 
   set +e
-  command_output="$(printf '%s\n' "$password" | /usr/local/bin/ui-panel-agent reset-primary-password --password-stdin 2>&1)"
+  command_output="$(printf '%s\n' "$password" | /usr/local/bin/ypanel-agent reset-primary-password --password-stdin 2>&1)"
   status=$?
   set -e
 
   printf '%s\n' "$command_output"
 
   if [[ "$status" -ne 0 ]]; then
-    printf '\nGagal mengubah password akun utama panel.\n' >&2
+    printf '\nGagal mengubah password akun utama YPanel.\n' >&2
     exit 1
   fi
 
@@ -586,7 +619,7 @@ reset_password() {
   touch "$PASSWORD_HISTORY_FILE"
   chmod 600 "$PASSWORD_HISTORY_FILE"
   timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
-  printf '[%s] primary panel password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
+  printf '[%s] primary YPanel password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
 }
 
 view_password_history() {
@@ -595,7 +628,7 @@ view_password_history() {
     return
   fi
 
-  printf '\nRiwayat Ganti Password UI Panel\n'
+  printf '\nRiwayat Ganti Password YPanel\n'
   printf '%s\n' '----------------------------------------'
   cat "$PASSWORD_HISTORY_FILE"
 }
@@ -720,7 +753,7 @@ change_panel_port() {
 }
 
 edit_panel_origins() {
-  local raw_file="/etc/ui-panel/allowed-origins.raw"
+  local raw_file="/etc/ypanel/allowed-origins.raw"
   local current_allowed_origins
   local temp_file
   local edited_origins
@@ -731,7 +764,7 @@ edit_panel_origins() {
     exit 1
   fi
 
-  temp_file="$(mktemp /tmp/ui-panel-origins.XXXXXX)"
+  temp_file="$(mktemp /tmp/ypanel-origins.XXXXXX)"
 
   if [[ -f "$raw_file" ]]; then
     cat "$raw_file" > "$temp_file"
@@ -776,11 +809,11 @@ change_panel_access() {
 run_action() {
   case "$1" in
     restart)
-      systemctl restart ui-panel.service
+      systemctl restart ypanel.service
       printf '\nService berhasil direstart.\n'
       ;;
     stop)
-      systemctl stop ui-panel.service
+      systemctl stop ypanel.service
       printf '\nService berhasil dihentikan.\n'
       ;;
     reset-password)
@@ -811,7 +844,7 @@ run_action() {
       migration_status
       ;;
     uninstall)
-      bash /opt/ui-panel/installer/uninstall.sh
+      bash /opt/ypanel/installer/uninstall.sh
       ;;
     *)
       printf '\nAksi tidak dikenal: %s\n' "$1"
@@ -890,21 +923,21 @@ print_summary() {
   bind_port="${PANEL_BIND_ADDR##*:}"
 
   log "instalasi selesai"
-  printf '\nPanel URL      : http://%s\n' "$host_ip:$bind_port"
+  printf '\nYPanel URL     : http://%s\n' "$host_ip:$bind_port"
   printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
   printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
-  printf 'Docker         : dikelola langsung oleh backend panel tanpa Portainer\n'
-  printf 'CLI command    : ui-panel\n'
+  printf 'Docker         : dikelola langsung oleh backend YPanel tanpa Portainer\n'
+  printf 'CLI command    : ypanel\n'
   printf '\nLangkah berikutnya:\n'
-  printf '  1. Buka panel di browser\n'
+  printf '  1. Buka YPanel di browser\n'
   printf '  2. Jalankan first-run setup\n'
   printf '  3. Buat Admin Pertama dari UI\n'
 
   printf '\nPerintah penting:\n'
-  printf '  ui-panel\n'
-  printf '  systemctl status ui-panel\n'
-  printf '  journalctl -u ui-panel -f\n'
+  printf '  ypanel\n'
+  printf '  systemctl status ypanel\n'
+  printf '  journalctl -u ypanel -f\n'
 }
 
 main() {
@@ -915,7 +948,8 @@ main() {
   ensure_docker
   ensure_go
   ensure_cloudflared
-  ui_panel_config
+  ypanel_config
+  migrate_legacy_runtime
   setup_directories
   ensure_hostname_resolution
   if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
@@ -931,8 +965,10 @@ main() {
   run_quiet "$BIN_PATH" migrate up
   install_service
   install_cli
+  install_legacy_aliases
   disable_portainer
   print_summary
 }
 
 main "$@"
+

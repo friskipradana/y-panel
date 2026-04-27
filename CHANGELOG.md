@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the UI Panel project will be documented in this file.
+All notable changes to the YPanel project will be documented in this file.
 
 ## [0.7.0] - 2026-04-05
 ### Added
