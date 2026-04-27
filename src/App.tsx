@@ -8,6 +8,7 @@ import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
 import { StatusPage } from '@/components/system/StatusPage'
+import { LandingPage } from '@/components/landing/LandingPage'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { getFrontendRevision, getMe, getMeV2 } from '@/api/agent'
@@ -36,8 +37,9 @@ const DebugGrid = import.meta.env.DEV
   : null
 
 const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
+const HOME_PATH = '/home'
 const SHOW_DEBUG_OVERLAY = import.meta.env.DEV
-const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/'])
+const PUBLIC_APP_PATHS = new Set([LOGIN_PATH, '/', HOME_PATH])
 
 const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
   apps: (win, auth) => <DockerWindow win={win} authenticated={auth} />,
@@ -169,7 +171,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
       code="404"
       title="Halaman aplikasi tidak ditemukan"
       description="Route yang Anda buka tidak tersedia di frontend YPanel yang sedang aktif. Anda masih berada di dalam runtime aplikasi, tetapi halaman ini memang tidak dikenali oleh shell frontend."
-      hint="Gunakan route yang tersedia seperti / atau /login. Jika ini seharusnya route valid, periksa frontend revision yang aktif atau hasil deploy terbaru."
+      hint="Gunakan route yang tersedia seperti /, /home, atau /login. Jika ini seharusnya route valid, periksa frontend revision yang aktif atau hasil deploy terbaru."
       badge="Frontend Route"
       eyebrow="App-level status page"
       details={[
@@ -183,7 +185,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
             type="button"
             className="status-page-action status-page-action-primary"
             onClick={() => {
-              window.history.replaceState({}, '', '/')
+              window.history.replaceState({}, '', HOME_PATH)
               window.dispatchEvent(new Event('panel:navigation'))
             }}
           >
@@ -195,7 +197,8 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
               type="button"
               className="status-page-action status-page-action-secondary"
               onClick={() => {
-                window.history.replaceState({}, '', LOGIN_PATH)
+                const nextPath = authenticated ? HOME_PATH : LOGIN_PATH
+                window.history.replaceState({}, '', nextPath)
                 window.dispatchEvent(new Event('panel:navigation'))
               }}
             >
@@ -219,7 +222,7 @@ function AppShell() {
   const sessionCheckStarted = useRef(false)
 
   const isKnownPath = useMemo(() => {
-    if (currentPath === '/' || currentPath === LOGIN_PATH) {
+    if (currentPath === '/' || currentPath === HOME_PATH || currentPath === LOGIN_PATH) {
       return true
     }
     return PUBLIC_APP_PATHS.has(currentPath)
@@ -249,14 +252,14 @@ function AppShell() {
     }
 
     const syncLoggedOutRoute = () => {
-      if (window.location.pathname === '/' || window.location.pathname === LOGIN_PATH) {
+      if (window.location.pathname === HOME_PATH) {
         replaceRoute(LOGIN_PATH)
       }
     }
 
     const syncLoggedInRoute = () => {
       if (window.location.pathname === LOGIN_PATH) {
-        replaceRoute('/')
+        replaceRoute(HOME_PATH)
       }
     }
 
@@ -313,6 +316,12 @@ function AppShell() {
       window.removeEventListener('panel:session-expired', handleSessionExpired)
     }
   }, [])
+
+  useEffect(() => {
+    if (checkingSession || !authenticated || currentPath !== LOGIN_PATH) return
+    window.history.replaceState({}, '', HOME_PATH)
+    setCurrentPath(HOME_PATH)
+  }, [authenticated, checkingSession, currentPath])
 
   useEffect(() => {
     let disposed = false
@@ -448,24 +457,41 @@ function AppShell() {
     )
   }
 
+  const navigateTo = (path: string) => {
+    const nextPath = authenticated && path === LOGIN_PATH ? HOME_PATH : path
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath)
+      setCurrentPath(nextPath)
+      window.dispatchEvent(new Event('panel:navigation'))
+    }
+  }
+
+  const showLanding = currentPath === '/'
+  const showDesktop = currentPath === HOME_PATH && authenticated
+  const showLogin = !authenticated && currentPath === LOGIN_PATH
+  const showAuthenticatedLoginRedirect = authenticated && currentPath === LOGIN_PATH
+  const showUnknown = !isKnownPath
+
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Desktop selalu ada di background */}
-      <motion.div
-        animate={{
-          filter: authenticated ? 'blur(0px)' : 'blur(20px)',
-          scale: authenticated ? 1 : 1.05,
-          opacity: authenticated ? 1 : 0.6
-        }}
-        transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-        className="absolute inset-0 z-0"
-      >
-        <Desktop onLogout={handleLogout} authenticated={authenticated} />
-      </motion.div>
+      {showLanding ? (
+        <LandingPage authenticated={authenticated} onNavigate={navigateTo} />
+      ) : null}
 
-      {/* Login Screen Overlay */}
+      {showDesktop ? (
+        <motion.div
+          key="desktop-home"
+          initial={{ opacity: 0, scale: 1.015 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+          className="absolute inset-0 z-0"
+        >
+          <Desktop onLogout={handleLogout} authenticated={authenticated} />
+        </motion.div>
+      ) : null}
+
       <AnimatePresence>
-        {!authenticated && (
+        {showLogin ? (
           <motion.div
             key="login-overlay"
             initial={{ opacity: 1, y: 0 }}
@@ -473,43 +499,51 @@ function AppShell() {
             transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
             className="absolute inset-0 z-[10000] overflow-hidden"
           >
-            {!isKnownPath && currentPath !== LOGIN_PATH ? (
-              <FrontendNotFoundPage authenticated={authenticated} />
-            ) : (
-              <LoginScreen onLoginSuccess={() => {
-                runtimeLogger.info('auth', 'login success propagated to app shell')
-                setAuthenticated(true)
-                void getMeV2()
-                  .then((fullMe) => {
-                    window.localStorage.setItem('me-v2-cache', JSON.stringify({
-                      id: fullMe.id,
-                      username: fullMe.username,
-                      displayName: fullMe.displayName,
-                      role: fullMe.role,
-                    }))
-                  })
-                  .catch(() => {
-                    window.localStorage.removeItem('me-v2-cache')
-                  })
-                if (window.location.pathname === LOGIN_PATH) {
-                  window.history.replaceState({}, '', '/')
-                  setCurrentPath('/')
-                }
-              }} />
-            )}
+            <LoginScreen onLoginSuccess={() => {
+              runtimeLogger.info('auth', 'login success propagated to app shell')
+              setAuthenticated(true)
+              void getMeV2()
+                .then((fullMe) => {
+                  window.localStorage.setItem('me-v2-cache', JSON.stringify({
+                    id: fullMe.id,
+                    username: fullMe.username,
+                    displayName: fullMe.displayName,
+                    role: fullMe.role,
+                  }))
+                })
+                .catch(() => {
+                  window.localStorage.removeItem('me-v2-cache')
+                })
+              window.history.replaceState({}, '', HOME_PATH)
+              setCurrentPath(HOME_PATH)
+            }} />
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      {/* 404 Overlay for Authenticated Users */}
-      {authenticated && !isKnownPath && (
-        <div className="absolute inset-0 z-[20000]">
-          <FrontendNotFoundPage authenticated={authenticated} />
+      {showAuthenticatedLoginRedirect ? (
+        <div className="absolute inset-0 z-[20000] grid place-items-center bg-slate-950 text-white">
+          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
+            Mengalihkan ke dashboard...
+          </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Debug Overlays */}
-      {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid && authenticated ? (
+      {showUnknown || (currentPath === HOME_PATH && !authenticated) ? (
+        <div className="absolute inset-0 z-[20000]">
+          {currentPath === HOME_PATH && !authenticated ? (
+            <LoginScreen onLoginSuccess={() => {
+              setAuthenticated(true)
+              window.history.replaceState({}, '', HOME_PATH)
+              setCurrentPath(HOME_PATH)
+            }} />
+          ) : (
+            <FrontendNotFoundPage authenticated={authenticated} />
+          )}
+        </div>
+      ) : null}
+
+      {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid && authenticated && currentPath === HOME_PATH ? (
         <Suspense fallback={null}>
           <DebugPanel />
           <DebugGrid />
