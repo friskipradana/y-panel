@@ -256,7 +256,11 @@ ypanel_config() {
   PANEL_DB_ENABLED="true"
   PANEL_ALLOWED_HOSTS="${current_allowed_hosts:-${DEFAULT_ALLOWED_HOSTS}}"
   PANEL_ALLOWED_ORIGINS="${current_allowed_origins:-${DEFAULT_ALLOWED_ORIGINS}}"
-  PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(random_string 64)}"
+  PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+  if [[ ! "$PANEL_ENCRYPTION_KEY" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    log "PANEL_ENCRYPTION_KEY tidak valid; membuat key AES-256 baru"
+    PANEL_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+  fi
   PANEL_DB_HOST="${PANEL_DB_HOST:-$DEFAULT_DB_HOST}"
   PANEL_DB_PORT="${PANEL_DB_PORT:-$DEFAULT_DB_PORT}"
   PANEL_DB_NAME="${PANEL_DB_NAME:-$DEFAULT_DB_NAME}"

@@ -460,7 +460,14 @@ __ARCHIVE__
   $IsNew = ($OldEnv.Count -eq 0)
 
   if (-not $IsNew -and $OldEnv.ContainsKey('PANEL_ENCRYPTION_KEY') -and $OldEnv['PANEL_ENCRYPTION_KEY']) {
-    $EncryptionKey = $OldEnv['PANEL_ENCRYPTION_KEY']
+    $oldKey = ([string]$OldEnv['PANEL_ENCRYPTION_KEY']).Trim()
+    if ($oldKey -match '^[0-9a-fA-F]{64}$') {
+      $EncryptionKey = $oldKey
+    }
+    else {
+      warn 'PANEL_ENCRYPTION_KEY lama tidak valid; membuat key AES-256 baru'
+      $EncryptionKey = New-RandHex 32
+    }
   }
   if (-not $HasExplicitDatabaseDSN -and $OldEnv.ContainsKey('PANEL_DATABASE_DSN') -and $OldEnv['PANEL_DATABASE_DSN']) {
     $DatabaseDSN = $OldEnv['PANEL_DATABASE_DSN']

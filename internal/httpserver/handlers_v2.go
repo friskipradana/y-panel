@@ -517,6 +517,11 @@ func (s *Server) handleSetCFConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	encrypted, err := crypto.Encrypt(s.cfg.EncryptionKey, req.APIToken)
 	if err != nil {
+		log.Printf("[cloudflare] token encryption failed user=%q err=%v", u.Username, err)
+		if strings.Contains(err.Error(), "encryption key") || strings.Contains(err.Error(), "invalid encryption key") {
+			s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "server encryption key is invalid; redeploy to regenerate PANEL_ENCRYPTION_KEY"})
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, errors.New("failed to encrypt token"))
 		return
 	}
