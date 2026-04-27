@@ -312,4 +312,8 @@ Tahap berikutnya dilakukan terpisah dan bertahap:
 
 ## Lisensi
 
-Private / Proprietary - Renaldi
+YPanel menggunakan **YPanel Public Use License**.
+
+Semua orang boleh mengakses, mengunduh, memasang, menjalankan, dan memakai YPanel. Namun perubahan pada repository resmi, push commit, merge, release, atau tindakan maintainer hanya boleh dilakukan oleh owner atau contributor yang memiliki izin.
+
+Detail lengkap tersedia di [LICENSE](LICENSE).

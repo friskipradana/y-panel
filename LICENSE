@@ -1,0 +1,60 @@
+# YPanel Public Use License
+
+Copyright (c) 2026 Renaldi
+
+Permission is hereby granted to any person or organization to access, download,
+copy, install, run, and use this software for personal, educational, internal,
+non-commercial, or commercial server-management purposes, subject to the terms
+below.
+
+## 1. Public Use Rights
+
+You may:
+
+- use YPanel on your own local machine, VPS, homeserver, private server, or
+  organization-owned infrastructure;
+- copy and redistribute unmodified copies of the public release;
+- study the source code for learning, auditing, and operational review;
+- create private modifications for your own internal use.
+
+## 2. Contribution and Repository Write Access
+
+Public access to the source code does not grant permission to modify the official
+repository, push commits, create releases, publish official builds, or represent
+changes as approved by the project owner.
+
+Editing, committing, pushing, merging, publishing, or maintaining the official
+YPanel repository requires explicit permission from the project owner or an
+authorized maintainer.
+
+## 3. Redistribution and Modified Versions
+
+If you redistribute modified versions, forks, or derivative builds, you must:
+
+- clearly state that the version is modified and unofficial;
+- not use the project owner's name to imply endorsement;
+- not misrepresent the modified version as the official YPanel release;
+- preserve this license notice and copyright notice.
+
+## 4. Trademark and Branding
+
+The names "YPanel", project logos, icons, social preview images, and other brand
+assets may be used to identify the official project, but may not be used in a way
+that suggests endorsement, ownership, or official maintainer status without
+permission.
+
+## 5. No Warranty
+
+This software is provided "as is", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability, fitness
+for a particular purpose, and non-infringement.
+
+In no event shall the copyright holder or contributors be liable for any claim,
+damages, data loss, service interruption, security incident, or other liability,
+whether in an action of contract, tort, or otherwise, arising from, out of, or in
+connection with the software or the use of the software.
+
+## 6. Summary
+
+Everyone may access and use YPanel. Official repository edits, pushes, releases,
+and maintainer actions require permission.
