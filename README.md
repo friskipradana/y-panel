@@ -314,6 +314,9 @@ Tahap berikutnya dilakukan terpisah dan bertahap:
 
 YPanel menggunakan **YPanel Public Use License**.
 
+- **Owner:** Y_Corp
+- **Contributors:** AknalRe, FriskiPradana
+
 Semua orang boleh mengakses, mengunduh, memasang, menjalankan, dan memakai YPanel. Namun perubahan pada repository resmi, push commit, merge, release, atau tindakan maintainer hanya boleh dilakukan oleh owner atau contributor yang memiliki izin.
 
 Detail lengkap tersedia di [LICENSE](LICENSE).
