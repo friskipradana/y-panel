@@ -232,7 +232,7 @@ function Invoke-Remote {
     3>$null 4>$null 5>$null 6>$null
   $out = @($r.Output | ForEach-Object { if ($null -ne $_) { [string]$_ } })
   $errs = @($r.Error  | ForEach-Object { if ($null -ne $_) { [string]$_ } })
-  $Script:LastOut = $out; $Script:LastErr = $errs
+  $Script:LastOut = $out; $Script:LastErr = $errs; $Script:LastExitStatus = [int]$r.ExitStatus
   if ($r.ExitStatus -ne 0 -and -not $AllowFail) {
     $lines = (@($out) + @($errs) | ForEach-Object { strip $_ } | Where-Object { $_ } | Select-Object -Unique)
     $hint = ($lines | Select-Object -First 10) -join ' | '
@@ -588,9 +588,10 @@ __ARCHIVE__
   step 'Menjalankan migrasi database'
   $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ypanel-agent migrate up"
   $migrationOut = Invoke-Remote $migrationCmd -AllowFail
-  $migrationText = ($migrationOut -join "`n").Trim()
-  if ($Script:LastErr.Count -gt 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
-    throw "Migrasi database gagal.`n$($migrationOut -join "`n")`n$($Script:LastErr -join "`n")"
+  $migrationCombined = (@($migrationOut) + @($Script:LastErr) | Where-Object { $_ })
+  $migrationText = ($migrationCombined -join "`n").Trim()
+  if ($Script:LastExitStatus -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
+    throw "Migrasi database gagal.`n$($migrationCombined -join "`n")"
   }
   ok ($migrationText -split "`n" | Select-Object -Last 1)
 
