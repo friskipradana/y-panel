@@ -1574,13 +1574,13 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(path, "/assets/") || path == "/favicon.ico" {
+		if strings.HasPrefix(path, "/assets/") || path == "/favicon.ico" || path == "/favicon.svg" || path == "/icons.svg" || strings.HasPrefix(path, "/ChatGPT Image ") {
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		_, authed := s.currentUser(r)
-		if !authed && path != "/login" {
+		if !authed && path != "/" && path != "/login" {
 			if acceptsHTML(r) {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return
@@ -1589,7 +1589,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 		if authed && path == "/login" {
-			http.Redirect(w, r, "/", http.StatusFound)
+			http.Redirect(w, r, "/home", http.StatusFound)
 			return
 		}
 
@@ -1637,7 +1637,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 			return
 		}
 
-		if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" {
+		if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" || r.URL.Path == "/favicon.svg" || r.URL.Path == "/icons.svg" || strings.HasPrefix(r.URL.Path, "/ChatGPT Image ") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1974,7 +1974,7 @@ func requestKind(r *http.Request) string {
 	if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 		return "api"
 	}
-	if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" {
+	if strings.HasPrefix(r.URL.Path, "/assets/") || r.URL.Path == "/favicon.ico" || r.URL.Path == "/favicon.svg" || r.URL.Path == "/icons.svg" || strings.HasPrefix(r.URL.Path, "/ChatGPT Image ") {
 		return "asset"
 	}
 	return "page"

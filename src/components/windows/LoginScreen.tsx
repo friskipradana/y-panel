@@ -1,9 +1,10 @@
 // import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { 
+import {
   // AlertCircle, 
-  LoaderCircle, ArrowRight, User, Eye, EyeOff } from 'lucide-react'
+  LoaderCircle, ArrowRight, User, Eye, EyeOff
+} from 'lucide-react'
 import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
@@ -94,7 +95,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
   const statusMessage = useMemo(() => {
     if (setupStatusQuery.isLoading) return 'Memeriksa status panel...'
     if (mode === 'setup') return 'Panel masih kosong. Buat admin utama untuk memulai.'
-    return 'Masuk ke panel untuk melanjutkan.'
+    return 'Masuk ke ypanel untuk melanjutkan.'
   }, [mode, setupStatusQuery.isLoading])
 
   return (
