@@ -130,9 +130,17 @@ func readPasswordFromStdin() (string, error) {
 func loadRuntimeEnv() error {
 	envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE"))
 	if envPath == "" {
-		envPath = filepath.Join("/etc", "ui-panel", "agent.env")
+		envPath = filepath.Join("/etc", "ypanel", "agent.env")
 	}
 	data, err := os.ReadFile(envPath)
+	if err != nil && envPath == filepath.Join("/etc", "ypanel", "agent.env") {
+		legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
+		if legacyData, legacyErr := os.ReadFile(legacyPath); legacyErr == nil {
+			envPath = legacyPath
+			data = legacyData
+			err = nil
+		}
+	}
 	if err != nil {
 		return err
 	}
