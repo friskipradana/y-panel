@@ -1,5 +1,7 @@
 # 🌌 YPanel
 
+![YPanel social preview](public/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png)
+
 **YPanel** adalah panel kontrol server Linux dengan pengalaman antarmuka bergaya Desktop OS. Proyek ini menggabungkan frontend React modern dan backend Go agent agar administrator dapat mengelola server, Docker, file, terminal, user, project, Cloudflare, database, dan observability dari satu workspace visual.
 
 YPanel dibuat untuk kebutuhan homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan panel ringan, self-hosted, dan tetap nyaman digunakan seperti desktop environment.
