@@ -38,6 +38,7 @@ param(
 
   [switch]$SkipFrontendBuild,
   [switch]$OnlyFrontend,
+  [switch]$PackageOnly,
 
   [ValidateSet('Auto', 'Legacy', 'Modern')]
   [string]$PowerShellMode = 'Auto'
@@ -102,7 +103,7 @@ $LIVE = ($CON -ne [IntPtr]::Zero)
 $Script:IsLegacy = $PSVersionTable.PSVersion.Major -lt 7
 $Script:Theme = @{}
 $Script:StepN = 0
-$Script:StepOf = if ($OnlyFrontend) { 5 } else { 10 }
+$Script:StepOf = if ($PackageOnly) { 3 } elseif ($OnlyFrontend) { 5 } else { 10 }
 $Script:T0 = Get-Date
 $Script:Ts = $null
 $Script:Live = $false
@@ -198,7 +199,10 @@ function banner {
   Write-Host "v$SCRIPT_VERSION" -NoNewline -ForegroundColor Cyan
   Write-Host " — Deploy Script" -ForegroundColor DarkGray
   Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor Cyan
-  if ($OnlyFrontend) {
+  if ($PackageOnly) {
+    Write-Host "   Mode    : " -NoNewline -ForegroundColor DarkGray; Write-Host "Package Only (installer artifact)" -ForegroundColor Yellow
+  }
+  elseif ($OnlyFrontend) {
     Write-Host "   Mode    : " -NoNewline -ForegroundColor DarkGray; Write-Host "Frontend Only (fast update)" -ForegroundColor Yellow
   }
   Write-Host "  $l" -ForegroundColor DarkGray; Write-Host ""
@@ -293,16 +297,18 @@ function Escape-Sq([string]$s) { $s.Replace("'", "'\\''") }
 # ═══════════════════════════════════════════════════════════════════
 Init-Theme
 
-# Install Posh-SSH if needed
-if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
-  Write-Host "  Installing Posh-SSH..." -ForegroundColor Yellow -NoNewline
-  if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge '2.8.5.201' })) {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+if (-not $PackageOnly) {
+  # Install Posh-SSH if needed
+  if (-not (Get-Module -ListAvailable -Name Posh-SSH)) {
+    Write-Host "  Installing Posh-SSH..." -ForegroundColor Yellow -NoNewline
+    if (-not (Get-PackageProvider NuGet -ErrorAction SilentlyContinue | Where-Object { $_.Version -ge '2.8.5.201' })) {
+      Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+    }
+    Install-Module Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery | Out-Null
+    Write-Host " $($Script:Theme.Ok)" -ForegroundColor Green
   }
-  Install-Module Posh-SSH -Scope CurrentUser -Force -AllowClobber -Repository PSGallery | Out-Null
-  Write-Host " $($Script:Theme.Ok)" -ForegroundColor Green
+  Import-Module Posh-SSH -WarningAction SilentlyContinue -ErrorAction Stop
 }
-Import-Module Posh-SSH -WarningAction SilentlyContinue -ErrorAction Stop
 Require-Command bun
 Require-Command tar
 
@@ -323,16 +329,18 @@ foreach ($d in @($ProdsDir, $ProdFront, $ProdBack, $ProdInst, $TmpDir, $LibDir))
   if (-not (Test-Path $d)) { New-Item -ItemType Directory $d -Force | Out-Null }
 }
 
-# Password
-if ([string]::IsNullOrWhiteSpace($SshPassword)) {
-  $sec = Read-Host 'Password SSH/sudo server' -AsSecureString
-  $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
-  $SshPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+if (-not $PackageOnly) {
+  # Password
+  if ([string]::IsNullOrWhiteSpace($SshPassword)) {
+    $sec = Read-Host 'Password SSH/sudo server' -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+    $SshPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+  }
+  $SudoPass = $SshPassword
+  $secPass = ConvertTo-SecureString $SshPassword -AsPlainText -Force
+  $Script:Cred = New-Object System.Management.Automation.PSCredential($SshUsername, $secPass)
 }
-$SudoPass = $SshPassword
-$secPass = ConvertTo-SecureString $SshPassword -AsPlainText -Force
-$Script:Cred = New-Object System.Management.Automation.PSCredential($SshUsername, $secPass)
 
 # Secrets
 if ([string]::IsNullOrWhiteSpace($EncryptionKey)) { $EncryptionKey = New-RandHex 32 }
@@ -417,6 +425,15 @@ __ARCHIVE__
       [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
       $runMB = [math]::Round((Get-Item $RunPath).Length / 1MB, 1)
       ok "installer ${runMB}MB"
+
+      if ($PackageOnly) {
+        $ReleaseDir = Join-Path $ProjRoot 'dist-release'
+        if (-not (Test-Path $ReleaseDir)) { New-Item -ItemType Directory -Path $ReleaseDir | Out-Null }
+        $ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
+        Copy-Item $RunPath $ReleaseInstaller -Force
+        Write-Host "`n  Installer artifact: $ReleaseInstaller`n" -ForegroundColor Cyan
+        return
+      }
     }
 
     # ── STEP 4: SSH connect ───────────────────────────────────────
