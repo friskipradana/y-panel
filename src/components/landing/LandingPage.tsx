@@ -1,4 +1,5 @@
-import { ArrowRight, CheckCircle2, Copy, Download, GitFork, ShieldCheck, Sparkles, Terminal } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowRight, CheckCircle, CheckCircle2, Copy, Download, GitFork, ShieldCheck, Sparkles, Terminal } from 'lucide-react'
 
 type LandingPageProps = {
   authenticated: boolean
@@ -14,10 +15,18 @@ const highlights = ['Docker workspace', 'Terminal & files', 'Cloudflare tunnel',
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const primaryPath = authenticated ? '/home' : '/login'
+  const [installCopied, setInstallCopied] = useState(false)
+
+  useEffect(() => {
+    if (!installCopied) return
+    const timeoutId = window.setTimeout(() => setInstallCopied(false), 2600)
+    return () => window.clearTimeout(timeoutId)
+  }, [installCopied])
 
   const copyInstallCommand = async () => {
     try {
       await navigator.clipboard.writeText(INSTALL_COMMAND)
+      setInstallCopied(true)
     } catch {
       window.prompt('Copy install command:', INSTALL_COMMAND)
     }
@@ -66,7 +75,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <div className="landing-install-card__header">
               <span><Terminal size={16} /> Public install</span>
               <button id="landing-copy-install-command" type="button" onClick={copyInstallCommand}>
-                <Copy size={14} /> Copy
+                {installCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                {installCopied ? 'Copied' : 'Copy'}
               </button>
             </div>
             <pre><code>{INSTALL_COMMAND}</code></pre>
@@ -93,6 +103,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      <div className={`landing-copy-toast${installCopied ? ' landing-copy-toast--visible' : ''}`} role="status" aria-live="polite">
+        <span><CheckCircle size={18} /></span>
+        <div>
+          <strong>Install command copied</strong>
+          <small>Paste di terminal Linux lalu jalankan dengan sudo.</small>
+        </div>
+      </div>
     </main>
   )
 }

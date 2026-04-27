@@ -15,9 +15,9 @@ PORTAINER_CONTAINER="ypanel-portainer"
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
-DEFAULT_DB_PORT="3306"
-DEFAULT_DB_NAME="ui_panel"
-DEFAULT_DB_USER="ui_panel"
+DEFAULT_DB_PORT="5432"
+DEFAULT_DB_NAME="ypanel"
+DEFAULT_DB_USER="ypanel"
 DEFAULT_ALLOWED_HOSTS=""
 DEFAULT_ALLOWED_ORIGINS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -252,7 +252,12 @@ ypanel_config() {
   PANEL_ALLOWED_HOSTS="${current_allowed_hosts:-${DEFAULT_ALLOWED_HOSTS}}"
   PANEL_ALLOWED_ORIGINS="${current_allowed_origins:-${DEFAULT_ALLOWED_ORIGINS}}"
   PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(random_string 64)}"
-  PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-}"
+  PANEL_DB_HOST="${PANEL_DB_HOST:-$DEFAULT_DB_HOST}"
+  PANEL_DB_PORT="${PANEL_DB_PORT:-$DEFAULT_DB_PORT}"
+  PANEL_DB_NAME="${PANEL_DB_NAME:-$DEFAULT_DB_NAME}"
+  PANEL_DB_USER="${PANEL_DB_USER:-$DEFAULT_DB_USER}"
+  PANEL_DB_PASSWORD="${PANEL_DB_PASSWORD:-$(random_string 32)}"
+  PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-postgres://${PANEL_DB_USER}:${PANEL_DB_PASSWORD}@${PANEL_DB_HOST}:${PANEL_DB_PORT}/${PANEL_DB_NAME}?sslmode=disable}"
   PANEL_SESSION_TTL="${PANEL_SESSION_TTL:-12h}"
 
   if [[ -z "$PANEL_ALLOWED_HOSTS" ]]; then
@@ -277,25 +282,31 @@ ypanel_config() {
   fi
 }
 
-ensure_mariadb() {
+ensure_postgres() {
   local db_service=""
 
-  if command -v mariadb >/dev/null 2>&1 || command -v mysql >/dev/null 2>&1; then
-    log "MariaDB/MySQL client sudah tersedia"
+  if command -v psql >/dev/null 2>&1; then
+    log "PostgreSQL client sudah tersedia"
   else
-    log "menginstall MariaDB server"
+    log "menginstall PostgreSQL server"
     if command -v apt-get >/dev/null 2>&1; then
-      run_quiet apt-get install -y mariadb-server mariadb-client
+      run_quiet apt-get install -y postgresql postgresql-client
     elif command -v dnf >/dev/null 2>&1; then
-      run_quiet dnf install -y mariadb-server mariadb
+      run_quiet dnf install -y postgresql-server postgresql
+      if [[ ! -d /var/lib/pgsql/data/base ]]; then
+        run_quiet postgresql-setup --initdb
+      fi
     elif command -v yum >/dev/null 2>&1; then
-      run_quiet yum install -y mariadb-server mariadb
+      run_quiet yum install -y postgresql-server postgresql
+      if [[ ! -d /var/lib/pgsql/data/base ]]; then
+        run_quiet postgresql-setup --initdb
+      fi
     else
-      fail "installer MariaDB belum didukung untuk distro ini"
+      fail "installer PostgreSQL belum didukung untuk distro ini"
     fi
   fi
 
-  for candidate in mariadb mysql mysqld; do
+  for candidate in postgresql postgresql@15-main postgresql@14-main postgresql@13-main; do
     if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${candidate}\\.service"; then
       db_service="$candidate"
       break
@@ -311,7 +322,7 @@ ensure_mariadb() {
   done
 
   if [[ -z "$db_service" ]]; then
-    fail "service MariaDB/MySQL tidak ditemukan setelah instalasi (cek nama unit: mariadb/mysql/mysqld)"
+    fail "service PostgreSQL tidak ditemukan setelah instalasi"
   fi
 
   log "mengaktifkan service database: ${db_service}.service"
@@ -320,33 +331,31 @@ ensure_mariadb() {
   run_quiet systemctl restart "${db_service}.service"
 }
 
-run_sql() {
+run_psql() {
   local statement="$1"
 
-  if command -v mariadb >/dev/null 2>&1; then
-    run_quiet mariadb -u root -e "$statement"
+  if command -v sudo >/dev/null 2>&1; then
+    run_quiet sudo -u postgres psql -v ON_ERROR_STOP=1 -c "$statement"
     return
   fi
 
-  if command -v mysql >/dev/null 2>&1; then
-    run_quiet mysql -u root -e "$statement"
-    return
-  fi
+  run_quiet su - postgres -c "psql -v ON_ERROR_STOP=1 -c \"$statement\""
+}
 
-  fail "client MariaDB/MySQL tidak tersedia"
+psql_literal() {
+  printf "%s" "$1" | sed "s/'/''/g"
 }
 
 provision_database() {
-  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
-    log "menggunakan PostgreSQL dari PANEL_DATABASE_DSN; provisioning MariaDB dilewati"
-    return
-  fi
+  local db_name db_user db_password
+  db_name="$(psql_literal "$PANEL_DB_NAME")"
+  db_user="$(psql_literal "$PANEL_DB_USER")"
+  db_password="$(psql_literal "$PANEL_DB_PASSWORD")"
 
-  log "menyiapkan database MariaDB untuk runtime panel"
-  run_sql "CREATE DATABASE IF NOT EXISTS \`${PANEL_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-  run_sql "CREATE USER IF NOT EXISTS '${PANEL_DB_USER}'@'${PANEL_DB_HOST}' IDENTIFIED BY '${PANEL_DB_PASSWORD}';"
-  run_sql "ALTER USER '${PANEL_DB_USER}'@'${PANEL_DB_HOST}' IDENTIFIED BY '${PANEL_DB_PASSWORD}';"
-  run_sql "GRANT ALL PRIVILEGES ON \`${PANEL_DB_NAME}\`.* TO '${PANEL_DB_USER}'@'${PANEL_DB_HOST}'; FLUSH PRIVILEGES;"
+  log "menyiapkan database PostgreSQL untuk runtime panel"
+  run_psql "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${db_user}') THEN CREATE ROLE \"${db_user}\" LOGIN PASSWORD '${db_password}'; ELSE ALTER ROLE \"${db_user}\" WITH LOGIN PASSWORD '${db_password}'; END IF; END \$\$;"
+  run_psql "SELECT 'CREATE DATABASE \"${db_name}\" OWNER \"${db_user}\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${db_name}')\\gexec"
+  run_psql "GRANT ALL PRIVILEGES ON DATABASE \"${db_name}\" TO \"${db_user}\";"
 }
 
 migrate_legacy_runtime() {
@@ -446,6 +455,10 @@ PANEL_PORTAINER_URL=${PANEL_PORTAINER_URL}
 PANEL_INSTALL_CHANNEL=${PANEL_INSTALL_CHANNEL}
 PANEL_FRONTEND_DIR=${FRONTEND_DIR}
 PANEL_DB_ENABLED=${PANEL_DB_ENABLED}
+PANEL_DB_HOST=${PANEL_DB_HOST}
+PANEL_DB_PORT=${PANEL_DB_PORT}
+PANEL_DB_NAME=${PANEL_DB_NAME}
+PANEL_DB_USER=${PANEL_DB_USER}
 PANEL_DATABASE_DSN=${PANEL_DATABASE_DSN}
 PANEL_ENCRYPTION_KEY=${PANEL_ENCRYPTION_KEY}
 PANEL_ENV_FILE=${ENV_FILE}
@@ -952,12 +965,8 @@ main() {
   migrate_legacy_runtime
   setup_directories
   ensure_hostname_resolution
-  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
-    log "PANEL_DATABASE_DSN terdeteksi; setup MariaDB lokal dilewati"
-  else
-    ensure_mariadb
-    provision_database
-  fi
+  ensure_postgres
+  provision_database
   build_agent
   prepare_frontend
   write_env_file
