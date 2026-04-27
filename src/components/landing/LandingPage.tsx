@@ -16,6 +16,7 @@ const highlights = ['Docker workspace', 'Terminal & files', 'Cloudflare tunnel',
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const primaryPath = authenticated ? '/home' : '/login'
   const [installCopied, setInstallCopied] = useState(false)
+  const [showCopyFallback, setShowCopyFallback] = useState(false)
 
   useEffect(() => {
     if (!installCopied) return
@@ -24,12 +25,18 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   }, [installCopied])
 
   const copyInstallCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(INSTALL_COMMAND)
-      setInstallCopied(true)
-    } catch {
-      window.prompt('Copy install command:', INSTALL_COMMAND)
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(INSTALL_COMMAND)
+        setShowCopyFallback(false)
+        setInstallCopied(true)
+        return
+      } catch {
+        // Fall through to the modern manual-copy panel below.
+      }
     }
+
+    setShowCopyFallback(true)
   }
 
   return (
@@ -111,6 +118,33 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <small>Paste di terminal Linux lalu jalankan dengan sudo.</small>
         </div>
       </div>
+
+      {showCopyFallback ? (
+        <div className="landing-copy-fallback" role="dialog" aria-modal="true" aria-labelledby="landing-copy-fallback-title">
+          <div className="landing-copy-fallback__panel">
+            <div className="landing-copy-fallback__header">
+              <span><Terminal size={16} /></span>
+              <div>
+                <strong id="landing-copy-fallback-title">Copy install command</strong>
+                <small>Clipboard otomatis diblokir karena halaman belum HTTPS.</small>
+              </div>
+            </div>
+            <textarea id="landing-copy-fallback-command" readOnly value={INSTALL_COMMAND} onFocus={(event) => event.currentTarget.select()} autoFocus />
+            <div className="landing-copy-fallback__actions">
+              <button type="button" onClick={() => setShowCopyFallback(false)}>Tutup</button>
+              <button type="button" onClick={() => {
+                const field = document.getElementById('landing-copy-fallback-command') as HTMLTextAreaElement | null
+                field?.select()
+                document.execCommand('copy')
+                setShowCopyFallback(false)
+                setInstallCopied(true)
+              }}>
+                <CheckCircle size={15} /> Salin Manual
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
