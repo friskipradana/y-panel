@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
@@ -11,7 +10,7 @@ export default defineConfig(({ mode }) => {
   const portainerTarget = env.VITE_PORTAINER_PROXY_TARGET || 'http://localhost:9000'
 
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react()],
     resolve: {
       alias: { '@': path.resolve(__dirname, './src') },
     },
@@ -21,6 +20,11 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       chunkSizeWarningLimit: 800,
       rollupOptions: {
+        // YPanel intentionally ships a large desktop-style CSS skin.
+        // Keep production build output clean by disabling Rolldown's informational timing diagnostic.
+        checks: {
+          pluginTimings: false,
+        },
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return undefined
