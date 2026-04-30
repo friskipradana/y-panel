@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ypanel-pwa-v1'
+const CACHE_VERSION = 'ypanel-pwa-v2'
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -6,6 +6,8 @@ const APP_SHELL = [
   '/favicon.svg',
   '/pwa-maskable.svg',
 ]
+
+const API_PREFIXES = ['/api', '/agent', '/portainer']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -30,6 +32,7 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(request.url)
 
   if (request.method !== 'GET' || requestUrl.origin !== self.location.origin) return
+  if (API_PREFIXES.some((prefix) => requestUrl.pathname.startsWith(prefix))) return
 
   if (request.mode === 'navigate') {
     event.respondWith(
