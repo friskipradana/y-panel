@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:fast": "vite build",
+    "build:check": "tsc -b --pretty false",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -388,6 +388,9 @@ function AppShell() {
     queryClient.clear()
     useWindowStore.getState().resetWindows()
     window.localStorage.removeItem('me-v2-cache')
+    if ('caches' in window) {
+      void caches.keys().then((cacheNames) => Promise.all(cacheNames.map((name) => caches.delete(name))))
+    }
     setLoginEntryMode('logout')
     setAuthenticated(false)
     if (window.location.pathname !== LOGIN_PATH) {
