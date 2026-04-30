@@ -1264,7 +1264,7 @@ body {
   border: 1px solid var(--win-border);
   background: linear-gradient(180deg, color-mix(in srgb, var(--win-bg) 72%, black), color-mix(in srgb, var(--win-bg) 60%, black));
   color: color-mix(in srgb, var(--win-text) 82%, white);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .panel-timeline {
@@ -1959,7 +1959,8 @@ body {
 }
 
 .docker-image-combobox__input {
-  padding-right: 64px !important; /* room for clear + chevron */
+  padding-right: 64px !important;
+  /* room for clear + chevron */
   width: 100%;
 }
 
@@ -1995,7 +1996,8 @@ body {
 
 .docker-image-combobox__clear {
   position: absolute;
-  right: 36px; /* sits left of the toggle */
+  right: 36px;
+  /* sits left of the toggle */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2714,8 +2716,13 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .panel-pagination-summary {
@@ -2761,15 +2768,15 @@ body {
   overflow: hidden;
 }
 
-.panel-table-container > .panel-toolbar,
-.panel-table-container > .docker-tab-toolbar {
+.panel-table-container>.panel-toolbar,
+.panel-table-container>.docker-tab-toolbar {
   border: none;
   border-radius: 0;
   border-bottom: 1px solid var(--win-border);
   background: transparent;
 }
 
-.panel-table-container > .panel-pagination {
+.panel-table-container>.panel-pagination {
   border: none;
   border-radius: 0;
   border-top: 1px solid var(--win-border);
@@ -2949,7 +2956,8 @@ body {
   overflow: hidden;
   color: white;
   background: transparent !important;
-  backdrop-filter: blur(40px) brightness(0.85); /* macOS-like blurred lockscreen */
+  backdrop-filter: blur(40px) brightness(0.85);
+  /* macOS-like blurred lockscreen */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4353,7 +4361,9 @@ select:-webkit-autofill:focus {
 }
 
 @keyframes docker-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Title */
@@ -4395,13 +4405,20 @@ select:-webkit-autofill:focus {
   padding: 5px 10px;
   border-radius: 8px;
   font-size: 0.75rem;
-  animation: deploy-step-in 0.28s cubic-bezier(0.22,1,0.36,1) both;
+  animation: deploy-step-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: background 0.2s, color 0.2s;
 }
 
 @keyframes deploy-step-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .docker-deploy-step--active {
@@ -4434,20 +4451,36 @@ select:-webkit-autofill:focus {
 }
 
 @keyframes deploy-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.35; transform: scale(0.6); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: scale(0.6);
+  }
 }
 
 /* Check SVG */
 .docker-deploy-step__check {
   width: 16px;
   height: 16px;
-  animation: deploy-check-pop 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  animation: deploy-check-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes deploy-check-pop {
-  from { opacity: 0; transform: scale(0.5); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .docker-deploy-step__label {
@@ -4735,10 +4768,13 @@ select:-webkit-autofill:focus {
 }
 
 @keyframes cloudflare-loader-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.35;
     transform: scaleX(0.72);
   }
+
   50% {
     opacity: 1;
     transform: scaleX(1.1);
@@ -5140,15 +5176,16 @@ select:-webkit-autofill:focus {
 
 .taskbar-nav-btn--accent {
   color: var(--win-text);
-  background: linear-gradient(135deg, rgba(56,189,248,.22), rgba(34,197,94,.16));
-  border: 1px solid rgba(125,211,252,.25);
+  background: linear-gradient(135deg, rgba(56, 189, 248, .22), rgba(34, 197, 94, .16));
+  border: 1px solid rgba(125, 211, 252, .25);
 }
 
 .taskbar-nav-btn--accent:hover {
-  background: linear-gradient(135deg, rgba(56,189,248,.3), rgba(34,197,94,.22));
+  background: linear-gradient(135deg, rgba(56, 189, 248, .3), rgba(34, 197, 94, .22));
 }
 
 @media (max-width: 980px) {
+
   .cloudflare-topbar,
   .cloudflare-window__header {
     align-items: flex-start;
@@ -5448,6 +5485,7 @@ select:-webkit-autofill:focus {
 }
 
 @media (max-width: 960px) {
+
   .landing-hero,
   .landing-showcase {
     grid-template-columns: 1fr;
@@ -5460,8 +5498,27 @@ select:-webkit-autofill:focus {
 
 @media (max-width: 640px) {
   .landing-nav {
-    align-items: flex-start;
-    flex-direction: column;
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .landing-brand {
+    font-size: 14px;
+  }
+
+  .landing-brand img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .landing-nav-actions {
+    gap: 8px;
+  }
+
+  .landing-nav-actions a,
+  .landing-nav-cta {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   .landing-hero {
@@ -5481,7 +5538,7 @@ select:-webkit-autofill:focus {
 .landing-page-shell--single {
   min-height: 100vh;
   height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .landing-nav--single {
@@ -5611,8 +5668,7 @@ select:-webkit-autofill:focus {
 
 @media (max-width: 960px) {
   .landing-page-shell--single {
-    height: auto;
-    min-height: 100vh;
+    height: 100vh;
     overflow-y: auto;
   }
 
@@ -5686,7 +5742,7 @@ select:-webkit-autofill:focus {
   transform: translateY(0) scale(1);
 }
 
-.landing-copy-toast > span {
+.landing-copy-toast>span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
