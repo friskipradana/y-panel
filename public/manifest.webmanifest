@@ -1,0 +1,45 @@
+{
+  "name": "YPanel - Linux Server Control Panel",
+  "short_name": "YPanel",
+  "description": "Panel kontrol server Linux bergaya Desktop OS untuk Docker, project, file, terminal, Cloudflare, database, dan observability.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#080712",
+  "theme_color": "#863bff",
+  "categories": ["productivity", "utilities", "developer"],
+  "lang": "id-ID",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buka Terminal",
+      "short_name": "Terminal",
+      "description": "Akses terminal server dari YPanel.",
+      "url": "/?shortcut=terminal",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Log Sistem",
+      "short_name": "Logs",
+      "description": "Pantau log dan aktivitas sistem.",
+      "url": "/?shortcut=logs",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}
