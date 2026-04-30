@@ -6,9 +6,8 @@ import type { WindowState } from '@/types'
 
 const SERVICE_OPTIONS = [
   { value: 'ypanel', label: 'YPanel Agent' },
-  { value: 'ui-panel', label: 'Legacy UI Panel' },
   { value: 'docker', label: 'docker' },
-  { value: 'mariadb', label: 'mariadb' },
+  { value: 'postgresql', label: 'postgresql' },
   { value: 'nginx', label: 'nginx' },
   { value: 'ssh', label: 'ssh' },
 ]

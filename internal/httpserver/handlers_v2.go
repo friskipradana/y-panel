@@ -893,13 +893,24 @@ func (s *Server) handleCloudflareTunnelProfiles(w http.ResponseWriter, r *http.R
 	for _, route := range routes {
 		profileID := strings.TrimSpace(route.CFTunnelID)
 		if profileID == "" {
-			continue
+			profileID = "pending"
 		}
 		if idx, ok := seen[profileID]; ok {
 			profiles[idx].RouteCount++
 			if profiles[idx].Status == "" || profiles[idx].Status == "inactive" {
 				profiles[idx].Status = route.Status
 			}
+			continue
+		}
+		if profileID == "pending" {
+			seen[profileID] = len(profiles)
+			profiles = append(profiles, cloudflareTunnelProfile{
+				ID:            "pending",
+				Name:          "Provisioning Routes",
+				Status:        "creating",
+				RouteCount:    1,
+				DaemonRunning: false,
+			})
 		}
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"items": profiles})

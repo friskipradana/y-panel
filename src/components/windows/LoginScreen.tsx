@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  // AlertCircle, 
+  // AlertCircle,
   LoaderCircle, ArrowRight, User, Eye, EyeOff
 } from 'lucide-react'
 import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
@@ -16,7 +16,7 @@ interface Props {
 type ScreenMode = 'login' | 'setup'
 
 const pillStyle = {
-  background: 'rgba(255, 255, 255, 0.14)',
+  background: 'var(--login-panel-bg)',
   backdropFilter: 'blur(30px)',
 } as const
 
@@ -102,22 +102,22 @@ export function LoginScreen({ onLoginSuccess }: Props) {
     <main className="mac-login-page" id="panel-login-screen">
       <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 pb-20 z-10">
         <div
-          className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border border-white/10 shadow-2xl"
+          className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border shadow-2xl login-avatar-shell"
           style={{
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(99, 102, 241, 0.4))',
+            background: 'var(--login-avatar-bg)',
             backdropFilter: 'blur(20px)',
           }}
         >
-          <User size={40} className="text-white opacity-80" />
+          <User size={40} className="opacity-80 login-primary-icon" />
         </div>
 
-        <div className="mb-3 text-center text-white/80">
+        <div className="mb-3 text-center login-copy">
           <p className="text-sm font-medium">{mode === 'setup' ? 'First-run setup' : 'Welcome back'}</p>
-          <p className="mt-1 text-xs text-white/55">{statusMessage}</p>
+          <p className="mt-1 text-xs login-copy-muted">{statusMessage}</p>
         </div>
 
         {setupStatusQuery.isLoading ? (
-          <div className="mt-2 flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm text-white/80" style={pillStyle}>
+          <div className="mt-2 flex items-center gap-2 rounded-full border px-4 py-2 text-sm login-pill" style={pillStyle}>
             <LoaderCircle size={14} className="animate-spin" />
             <span>Memeriksa konfigurasi awal...</span>
           </div>
@@ -129,55 +129,55 @@ export function LoginScreen({ onLoginSuccess }: Props) {
               setupMutation.mutate()
             }}
           >
-            <div className="relative overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-setup-username"
                 type="text"
                 value={setupUsername}
                 onChange={(e) => setSetupUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide outline-none login-input"
                 placeholder="Username"
                 autoComplete="username"
               />
             </div>
 
-            <div className="relative overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-setup-display-name"
                 type="text"
                 value={setupDisplayName}
                 onChange={(e) => setSetupDisplayName(e.target.value)}
-                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide outline-none login-input"
                 placeholder="Nama tampilan"
                 autoComplete="name"
               />
             </div>
 
-            <div className="relative overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-setup-email"
                 type="email"
                 value={setupEmail}
                 onChange={(e) => setSetupEmail(e.target.value)}
-                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide outline-none login-input"
                 placeholder="Email admin"
                 autoComplete="email"
               />
             </div>
 
-            <div className="relative flex items-center overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-setup-password"
                 type={showSetupPassword ? 'text' : 'password'}
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-10 py-1.5 text-sm font-medium tracking-wider text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent pl-4 pr-10 py-1.5 text-sm font-medium tracking-wider outline-none login-input"
                 placeholder="Password"
                 autoComplete="new-password"
               />
               <button
                 type="button"
-                className="absolute right-3 text-white/60 hover:text-white/90 transition-colors"
+                className="absolute right-3 transition-colors login-icon-button"
                 onClick={() => setShowSetupPassword(!showSetupPassword)}
                 title={showSetupPassword ? 'Hide password' : 'Show password'}
               >
@@ -185,19 +185,19 @@ export function LoginScreen({ onLoginSuccess }: Props) {
               </button>
             </div>
 
-            <div className="relative flex items-center overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-setup-confirm-password"
                 type={showSetupConfirmPassword ? 'text' : 'password'}
                 value={setupConfirmPassword}
                 onChange={(e) => setSetupConfirmPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-10 py-1.5 text-sm font-medium tracking-wider text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent pl-4 pr-10 py-1.5 text-sm font-medium tracking-wider outline-none login-input"
                 placeholder="Konfirmasi password"
                 autoComplete="new-password"
               />
               <button
                 type="button"
-                className="absolute right-3 text-white/60 hover:text-white/90 transition-colors"
+                className="absolute right-3 transition-colors login-icon-button"
                 onClick={() => setShowSetupConfirmPassword(!showSetupConfirmPassword)}
                 title={showSetupConfirmPassword ? 'Hide password' : 'Show password'}
               >
@@ -208,7 +208,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
             <button
               id="panel-setup-submit"
               type="submit"
-              className="mt-1 rounded-full border border-white/20 bg-white/15 px-4 py-1.5 text-sm font-medium text-white shadow-[0_4px_24px_rgba(0,0,0,0.2)] transition-all hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-1 rounded-full border px-4 py-1.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-70 login-submit-wide login-pill-shadow"
               disabled={activePending}
             >
               {activePending ? 'Memproses...' : 'Buat admin & masuk'}
@@ -222,25 +222,25 @@ export function LoginScreen({ onLoginSuccess }: Props) {
               loginMutation.mutate()
             }}
           >
-            <div className="relative overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-login-username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent px-4 py-1.5 text-sm font-medium tracking-wide outline-none login-input"
                 placeholder="Username"
                 autoComplete="username"
               />
             </div>
 
-            <div className="relative flex items-center overflow-hidden rounded-full border border-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.2)]" style={pillStyle}>
+            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-login-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-16 py-1.5 text-sm font-medium tracking-wider text-white/90 placeholder-white/50 outline-none"
+                className="w-full bg-transparent pl-4 pr-16 py-1.5 text-sm font-medium tracking-wider outline-none login-input"
                 placeholder="Password"
                 autoComplete="current-password"
                 autoFocus
@@ -248,7 +248,7 @@ export function LoginScreen({ onLoginSuccess }: Props) {
 
               <button
                 type="button"
-                className="absolute right-8 text-white/60 hover:text-white/90 transition-colors"
+                className="absolute right-8 transition-colors login-icon-button"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
@@ -258,10 +258,10 @@ export function LoginScreen({ onLoginSuccess }: Props) {
               <button
                 id="panel-login-submit"
                 type="submit"
-                className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-white/20 text-white shadow-sm transition-all hover:bg-white/40"
+                className="absolute right-1 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-all login-submit-round"
                 disabled={activePending}
               >
-                {activePending ? <LoaderCircle size={14} className="animate-spin text-white" /> : <ArrowRight size={14} strokeWidth={2.5} />}
+                {activePending ? <LoaderCircle size={14} className="animate-spin" /> : <ArrowRight size={14} strokeWidth={2.5} />}
               </button>
             </div>
           </form>

@@ -1555,7 +1555,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* ── Tab toolbar ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab toolbar Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-tab-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1591,7 +1591,7 @@ body {
   min-width: 200px;
 }
 
-/* ── Flat list rows ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Flat list rows Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-flat-list {
   display: flex;
   flex-direction: column;
@@ -1614,7 +1614,7 @@ body {
   border-bottom: none;
 }
 
-/* ── Tunnel flat row ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tunnel flat row Ã¢â€â‚¬Ã¢â€â‚¬ */
 .tunnel-flat-row {
   display: flex;
   align-items: center;
@@ -1732,7 +1732,7 @@ body {
   align-items: flex-start;
 }
 
-/* ── Pagination ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Pagination Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-pagination {
   display: flex;
   align-items: center;
@@ -1746,7 +1746,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* ── Modal ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Modal Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-window-root {
   position: relative;
 }
@@ -1881,7 +1881,7 @@ body {
   word-break: break-word;
 }
 
-/* ── Docker deploy modal: keep shared panel modal style, only size/scroll large form ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Docker deploy modal: keep shared panel modal style, only size/scroll large form Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-deploy-modal-card {
   max-height: 90vh;
   display: flex;
@@ -1947,7 +1947,7 @@ body {
   }
 }
 
-/* ── Deploy image combobox ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Deploy image combobox Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-image-combobox {
   position: relative;
 }
@@ -2123,7 +2123,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* ── Network dropdown meta row (driver / subnet / gateway) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Network dropdown meta row (driver / subnet / gateway) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-net-dropdown-meta {
   display: flex;
   align-items: center;
@@ -2154,7 +2154,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* ── Template picker (inside deploy compose) ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Template picker (inside deploy compose) Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-tpl-picker {
   display: flex;
   flex-direction: column;
@@ -2198,7 +2198,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* ── Form helper styles ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Form helper styles Ã¢â€â‚¬Ã¢â€â‚¬ */
 .panel-hint {
   margin-top: 4px;
   font-size: 0.72rem;
@@ -2286,7 +2286,7 @@ body {
   }
 }
 
-/* ── Save as template checkbox ── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Save as template checkbox Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-save-tpl-check {
   display: flex;
   align-items: center;
@@ -2955,15 +2955,48 @@ body {
   justify-content: center;
 }
 
-/* Fix browser autofill background for transparent dark-themed inputs */
+/* Keep Chrome saved credentials/autofill aligned with YPanel themes. */
 input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px transparent inset !important;
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.9) !important;
-    transition: background-color 5000s ease-in-out 0s;
-    background-color: transparent !important;
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--win-text) !important;
+  caret-color: var(--panel-primary-text);
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: var(--win-border) !important;
+  box-shadow:
+    0 0 0 1000px color-mix(in srgb, var(--win-bg) 92%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--win-border) 88%, transparent) inset !important;
+  -webkit-box-shadow:
+    0 0 0 1000px color-mix(in srgb, var(--win-bg) 92%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--win-border) 88%, transparent) inset !important;
+  transition:
+    background-color 999999s ease-in-out 0s,
+    color 0s,
+    -webkit-text-fill-color 0s;
+}
+
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:focus {
+  border-color: color-mix(in srgb, var(--panel-primary-text) 70%, var(--win-border)) !important;
+  box-shadow:
+    0 0 0 1000px color-mix(in srgb, var(--win-bg) 90%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--panel-primary-text) 72%, transparent) inset,
+    0 0 0 4px color-mix(in srgb, var(--panel-primary-text) 16%, transparent) !important;
+  -webkit-box-shadow:
+    0 0 0 1000px color-mix(in srgb, var(--win-bg) 90%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--panel-primary-text) 72%, transparent) inset,
+    0 0 0 4px color-mix(in srgb, var(--panel-primary-text) 16%, transparent) !important;
 }
 
 .login-grid {
@@ -3839,9 +3872,9 @@ input:-webkit-autofill:active{
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
    Multi-tab Host Terminal (.ht-*)
-   ═══════════════════════════════════════════════════════════════ */
+   Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 .ht-root {
   display: flex;
   flex-direction: column;
@@ -3850,7 +3883,7 @@ input:-webkit-autofill:active{
   overflow: hidden;
 }
 
-/* ── Tab bar ─────────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-tabbar {
   display: flex;
   align-items: center;
@@ -3939,7 +3972,7 @@ input:-webkit-autofill:active{
   color: #f85149;
 }
 
-/* ── Status dot ──────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Status dot Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-status-dot {
   flex-shrink: 0;
   width: 7px;
@@ -3948,7 +3981,7 @@ input:-webkit-autofill:active{
   display: inline-block;
 }
 
-/* ── Tab bar right actions ───────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab bar right actions Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-tabbar-actions {
   display: flex;
   align-items: center;
@@ -3990,7 +4023,7 @@ input:-webkit-autofill:active{
   color: #79c0ff;
 }
 
-/* ── Pane area ───────────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Pane area Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-panes {
   flex: 1;
   min-height: 0;
@@ -4043,7 +4076,7 @@ input:-webkit-autofill:active{
   display: block;
 }
 
-/* ── Preset footer bar ───────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Preset footer bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-footer {
   display: flex;
   align-items: center;
@@ -4111,7 +4144,7 @@ input:-webkit-autofill:active{
   color: #79c0ff;
 }
 
-/* ── Preset manager panel ────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Preset manager panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .ht-manager {
   background: #0d1117;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -4280,7 +4313,7 @@ input:-webkit-autofill:active{
   opacity: 0.35;
 }
 
-/* ── Docker Deploy Loading Overlay ─────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Docker Deploy Loading Overlay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 
 .docker-deploy-loading-overlay {
   position: absolute;
@@ -4431,7 +4464,7 @@ input:-webkit-autofill:active{
   line-height: 1.5;
 }
 
-/* ── Cloudflare workspace polish ───────────────────────────────────────────── */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Cloudflare workspace polish Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 .cloudflare-window {
   min-height: 0;
 }
@@ -4779,7 +4812,7 @@ input:-webkit-autofill:active{
 }
 
 .cloudflare-profile-row__meta-grid span:not(:last-child)::after {
-  content: '•';
+  content: 'Ã¢â‚¬Â¢';
   margin-left: 8px;
   color: color-mix(in srgb, var(--text-secondary) 55%, transparent);
 }
@@ -5691,126 +5724,103 @@ input:-webkit-autofill:active{
   }
 }
 
-/* Modern manual copy fallback for non-HTTPS landing pages */
-.landing-copy-fallback {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.16), transparent 34%), rgba(2, 6, 23, 0.62);
-  backdrop-filter: blur(14px);
+
+/* Login theme colors only: keep existing login markup, spacing, and layout unchanged. */
+.login-shell,
+.mac-login-page {
+  --login-page-bg:
+    radial-gradient(circle at 50% 32%, rgba(59, 130, 246, 0.14), transparent 24%),
+    radial-gradient(circle at 44% 45%, rgba(124, 58, 237, 0.10), transparent 22%),
+    linear-gradient(180deg, #f8fafc 0%, #eef6ff 48%, #eaf0f8 100%);
+  --login-panel-bg: rgba(255, 255, 255, 0.88);
+  --login-panel-border: rgba(148, 163, 184, 0.46);
+  --login-panel-shadow: 0 4px 24px rgba(15, 23, 42, 0.11);
+  --login-text: #0f172a;
+  --login-text-muted: #475569;
+  --login-placeholder: #64748b;
+  --login-icon: #2563eb;
+  --login-icon-hover: #1d4ed8;
+  --login-submit-bg: rgba(37, 99, 235, 0.14);
+  --login-submit-hover: rgba(37, 99, 235, 0.24);
+  --login-submit-text: #1d4ed8;
+  --login-avatar-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(124, 58, 237, 0.18));
+  background: var(--login-page-bg) !important;
 }
 
-.landing-copy-fallback__panel {
-  width: min(560px, 100%);
-  border: 1px solid rgba(125, 211, 252, 0.24);
-  border-radius: 24px;
-  background:
-    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.94)),
-    radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.2), transparent 44%);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.045) inset;
-  padding: 18px;
-  color: #f8fafc;
-  animation: copyPanelIn 180ms ease-out;
+[data-theme="dark"] .login-shell,
+[data-theme="dark"] .mac-login-page {
+  --login-page-bg: linear-gradient(180deg, #0f172a 0%, #111827 60%, #0b1120 100%);
+  --login-panel-bg: rgba(255, 255, 255, 0.14);
+  --login-panel-border: rgba(255, 255, 255, 0.2);
+  --login-panel-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  --login-text: rgba(255, 255, 255, 0.9);
+  --login-text-muted: rgba(255, 255, 255, 0.58);
+  --login-placeholder: rgba(255, 255, 255, 0.52);
+  --login-icon: rgba(255, 255, 255, 0.68);
+  --login-icon-hover: rgba(255, 255, 255, 0.92);
+  --login-submit-bg: rgba(255, 255, 255, 0.2);
+  --login-submit-hover: rgba(255, 255, 255, 0.4);
+  --login-submit-text: #ffffff;
+  --login-avatar-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.4), rgba(99, 102, 241, 0.4));
 }
 
-.landing-copy-fallback__header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+.mac-login-page .login-avatar-shell {
+  background: var(--login-avatar-bg) !important;
+  border-color: var(--login-panel-border) !important;
 }
 
-.landing-copy-fallback__header > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(99, 102, 241, 0.18));
-  color: #67e8f9;
+.mac-login-page .login-pill {
+  background: var(--login-panel-bg) !important;
+  border-color: var(--login-panel-border) !important;
+  color: var(--login-text) !important;
 }
 
-.landing-copy-fallback__header strong,
-.landing-copy-fallback__header small {
-  display: block;
+.mac-login-page .login-pill-shadow {
+  box-shadow: var(--login-panel-shadow) !important;
 }
 
-.landing-copy-fallback__header strong {
-  font-size: 14px;
-  letter-spacing: -0.01em;
+.mac-login-page .login-copy,
+.mac-login-page .login-primary-icon,
+.mac-login-page .login-input {
+  color: var(--login-text) !important;
 }
 
-.landing-copy-fallback__header small {
-  margin-top: 2px;
-  color: rgba(203, 213, 225, 0.68);
-  font-size: 12px;
+.mac-login-page .login-copy-muted {
+  color: var(--login-text-muted) !important;
 }
 
-.landing-copy-fallback textarea {
-  width: 100%;
-  min-height: 92px;
-  resize: none;
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  border-radius: 16px;
-  outline: none;
-  background: rgba(2, 6, 23, 0.62);
-  color: #dff7ff;
-  font: 600 12px/1.7 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  padding: 14px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+.mac-login-page .login-input::placeholder {
+  color: var(--login-placeholder) !important;
+  opacity: 1;
 }
 
-.landing-copy-fallback textarea:focus {
-  border-color: rgba(103, 232, 249, 0.52);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+.mac-login-page .login-icon-button {
+  color: var(--login-icon) !important;
 }
 
-.landing-copy-fallback__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 14px;
+.mac-login-page .login-icon-button:hover {
+  color: var(--login-icon-hover) !important;
 }
 
-.landing-copy-fallback__actions button {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 13px;
-  padding: 10px 14px;
-  background: rgba(15, 23, 42, 0.68);
-  color: rgba(226, 232, 240, 0.86);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+.mac-login-page .login-submit-wide,
+.mac-login-page .login-submit-round {
+  background-color: var(--login-submit-bg) !important;
+  border-color: var(--login-panel-border) !important;
+  color: var(--login-submit-text) !important;
 }
 
-.landing-copy-fallback__actions button:last-child {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-color: rgba(56, 189, 248, 0.34);
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.9), rgba(79, 70, 229, 0.84));
-  color: white;
-  box-shadow: 0 16px 36px rgba(14, 165, 233, 0.2);
+.mac-login-page .login-submit-wide:hover,
+.mac-login-page .login-submit-round:hover {
+  background-color: var(--login-submit-hover) !important;
 }
 
-.landing-copy-fallback__actions button:hover {
-  transform: translateY(-1px);
-  border-color: rgba(125, 211, 252, 0.45);
-}
-
-@keyframes copyPanelIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.mac-login-page input:-webkit-autofill,
+.mac-login-page input:-webkit-autofill:hover,
+.mac-login-page input:-webkit-autofill:focus,
+.mac-login-page input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--login-text) !important;
+  caret-color: var(--login-submit-text);
+  box-shadow: 0 0 0 1000px var(--login-panel-bg) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--login-panel-bg) inset !important;
+  transition: background-color 999999s ease-in-out 0s, color 0s, -webkit-text-fill-color 0s;
 }

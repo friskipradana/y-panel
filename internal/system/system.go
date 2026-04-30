@@ -313,11 +313,6 @@ func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
 
 	cmd := exec.Command("journalctl", "-u", service, "-n", strconv.Itoa(limit), "--no-pager", "-o", "short-iso")
 	out, err := cmd.Output()
-	if err != nil && service == "ypanel" {
-		service = "ui-panel"
-		cmd = exec.Command("journalctl", "-u", service, "-n", strconv.Itoa(limit), "--no-pager", "-o", "short-iso")
-		out, err = cmd.Output()
-	}
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			stderr := strings.TrimSpace(string(exitErr.Stderr))

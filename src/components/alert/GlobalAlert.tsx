@@ -20,8 +20,11 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-[4px]"
-        style={{ zIndex: 999998 }}
+        className="absolute inset-0 backdrop-blur-[5px]"
+        style={{
+          zIndex: 999998,
+          background: 'color-mix(in srgb, var(--win-text) 32%, transparent)',
+        }}
         onClick={() => {
           if (data.type !== 'loading') closeDialog(false)
         }}
@@ -31,24 +34,32 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -15 }}
         transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        className="relative w-full max-w-[340px] overflow-hidden rounded-[20px] border border-white/10 bg-white/5 p-6 text-center shadow-[0_32px_64px_rgba(0,0,0,0.6)] backdrop-blur-[48px] sm:max-w-[380px]"
+        className="relative w-full max-w-[340px] overflow-hidden rounded-[20px] border p-6 text-center backdrop-blur-[48px] sm:max-w-[380px]"
         style={{
           zIndex: 999999,
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9))',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 32px 64px rgba(0,0,0,0.6)'
+          color: 'var(--win-text)',
+          borderColor: 'var(--win-border)',
+          background: 'linear-gradient(135deg, color-mix(in srgb, var(--win-bg) 94%, transparent), color-mix(in srgb, var(--panel-surface) 88%, transparent))',
+          boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 28%, transparent), var(--win-shadow-focus)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/5 shadow-inner ring-1 ring-white/10">
+        <div
+          className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-inner"
+          style={{
+            background: 'color-mix(in srgb, var(--panel-primary-bg) 58%, transparent)',
+            boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--win-border) 82%, transparent)',
+          }}
+        >
           {iconMap[data.type as AlertType]}
         </div>
 
-        <h3 className="mb-2 text-[16px] font-semibold tracking-[-0.02em] text-white">
+        <h3 className="mb-2 text-[16px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
           {data.title}
         </h3>
         
         <div 
-          className="mb-6 text-[12.5px] leading-relaxed text-slate-300"
+          className="mb-6 text-[12.5px] leading-relaxed text-[var(--text-secondary)]"
           dangerouslySetInnerHTML={{ __html: String(data.description) }}
         />
 
@@ -57,14 +68,24 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
             {data.type === 'confirm' && (
               <button
                 onMouseDown={(e) => { e.stopPropagation(); closeDialog(false) }}
-                className="flex-1 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-slate-400/50"
+                className="flex-1 rounded-full border px-4 py-2 text-[12px] font-medium transition focus:outline-none focus:ring-2"
+                style={{
+                  borderColor: 'var(--win-border)',
+                  background: 'var(--panel-surface)',
+                  color: 'var(--win-text)',
+                  ['--tw-ring-color' as string]: 'color-mix(in srgb, var(--win-text) 24%, transparent)',
+                }}
               >
                 {data.cancelText || 'Batal'}
               </button>
             )}
             <button
               onMouseDown={(e) => { e.stopPropagation(); closeDialog(true) }}
-              className="flex-1 rounded-full border border-white/10 bg-sky-500/90 px-4 py-2 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--panel-primary-solid) 75%, var(--win-border))',
+                background: 'linear-gradient(135deg, var(--panel-primary-solid), var(--panel-primary-text))',
+              }}
             >
               {data.confirmText || 'Tutup'}
             </button>
