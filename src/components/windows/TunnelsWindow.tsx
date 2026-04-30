@@ -277,11 +277,40 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
 
   const createTunnelMut = useMutation({
     mutationFn: createTunnel,
-    onSuccess: (res) => {
+    onSuccess: (res, variables) => {
+      const profileId = variables.profileId || selectedProfileId
+      const hostname = variables.subdomain && variables.subdomain !== '@'
+        ? `${variables.subdomain}.${variables.domain}`
+        : variables.domain
+      const targetPath = variables.path?.startsWith('/') ? variables.path : variables.path ? `/${variables.path}` : ''
+      const optimisticRoute: Tunnel = {
+        id: res.id,
+        userId: 0,
+        projectId: variables.projectId ?? null,
+        name: variables.name,
+        targetUrl: `${variables.protocol}://${variables.ip}:${variables.port}${targetPath}`,
+        status: 'creating',
+        cfTunnelId: profileId || 'pending',
+        cfHostname: hostname,
+        daemonRunning: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
       alertLib.fire('Rute Tunnel Diproses', res.message ?? 'Rute sedang ditambahkan.', 'info', 'tunnels')
+      setTab('tunnels')
+      setRouteSearch('')
+      if (profileId) {
+        setSelectedProfileId(profileId)
+        qc.setQueryData<Tunnel[]>(['cloudflare-profile-routes', profileId], (current = []) => {
+          if (current.some((route) => route.id === res.id)) return current
+          return [optimisticRoute, ...current]
+        })
+      }
       closeTunnelModal()
       qc.invalidateQueries({ queryKey: ['cloudflare-tunnel-profiles'] })
-      qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
+      if (profileId) qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes', profileId] })
+      else qc.invalidateQueries({ queryKey: ['cloudflare-profile-routes'] })
     },
     onError: (e: any) => toast.error('Gagal membuat rute', { description: e.response?.data?.error ?? e.message }),
   })

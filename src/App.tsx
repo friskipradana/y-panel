@@ -381,11 +381,14 @@ function AppShell() {
     }
   }, [authenticated])
 
+  const [loginEntryMode, setLoginEntryMode] = useState<'default' | 'logout'>('default')
+
   const handleLogout = () => {
     runtimeLogger.info('auth', 'manual logout requested from desktop')
     queryClient.clear()
     useWindowStore.getState().resetWindows()
     window.localStorage.removeItem('me-v2-cache')
+    setLoginEntryMode('logout')
     setAuthenticated(false)
     if (window.location.pathname !== LOGIN_PATH) {
       window.history.replaceState({}, '', LOGIN_PATH)
@@ -494,13 +497,15 @@ function AppShell() {
         {showLogin ? (
           <motion.div
             key="login-overlay"
-            initial={{ opacity: 1, y: 0 }}
+            initial={loginEntryMode === 'logout' ? { opacity: 0, y: -window.innerHeight } : { opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -window.innerHeight, scale: 1.1 }}
-            transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: loginEntryMode === 'logout' ? 0.72 : 0.7, ease: [0.4, 0, 0.2, 1] }}
             className="absolute inset-0 z-[10000] overflow-hidden"
           >
             <LoginScreen onLoginSuccess={() => {
               runtimeLogger.info('auth', 'login success propagated to app shell')
+              setLoginEntryMode('default')
               setAuthenticated(true)
               void getMeV2()
                 .then((fullMe) => {
@@ -533,6 +538,7 @@ function AppShell() {
         <div className="absolute inset-0 z-[20000]">
           {currentPath === HOME_PATH && !authenticated ? (
             <LoginScreen onLoginSuccess={() => {
+              setLoginEntryMode('default')
               setAuthenticated(true)
               window.history.replaceState({}, '', HOME_PATH)
               setCurrentPath(HOME_PATH)

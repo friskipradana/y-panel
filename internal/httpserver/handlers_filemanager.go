@@ -223,13 +223,22 @@ func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 	return roots, nil
 }
 
+func (s *Server) hasElevatedFileRootAccess(r *http.Request) bool {
+	u := userFromCtx(r)
+	if u == nil || !auth.IsSuperAdmin(u.Role) {
+		return false
+	}
+	elevated, _ := s.fileRootAccessStatus(r)
+	return elevated
+}
+
 func (s *Server) ensureFileManagerAccess(r *http.Request, targetPath string) error {
 	roots, err := s.allowedFileManagerRoots(r)
 	if err != nil {
 		return err
 	}
 	cleanTarget := normalizePathForAccess(targetPath)
-	if pathBlockedByPolicy(cleanTarget) {
+	if pathBlockedByPolicy(cleanTarget) && !s.hasElevatedFileRootAccess(r) {
 		return errors.New("akses file ditolak: path sistem sensitif diblokir")
 	}
 	for _, root := range roots {
@@ -253,7 +262,9 @@ func (s *Server) handleFileManagerList(w http.ResponseWriter, r *http.Request) {
 	roots, rootsErr := s.allowedFileManagerRoots(r)
 	qPath := r.URL.Query().Get("path")
 	if qPath == "" || qPath == "/" {
-		if rootsErr == nil && len(roots) > 0 {
+		if qPath == "/" && s.hasElevatedFileRootAccess(r) {
+			qPath = "/"
+		} else if rootsErr == nil && len(roots) > 0 {
 			qPath = roots[0]
 		} else if qPath == "" {
 			qPath = "/"
@@ -262,7 +273,7 @@ func (s *Server) handleFileManagerList(w http.ResponseWriter, r *http.Request) {
 
 	cleanPath := filepath.Clean(qPath)
 	if err := s.ensureFileManagerAccess(r, cleanPath); err != nil {
-		if rootsErr == nil && len(roots) > 0 {
+		if rootsErr == nil && len(roots) > 0 && !(cleanPath == "/" && s.hasElevatedFileRootAccess(r)) {
 			cleanPath = roots[0]
 		} else {
 			s.writeError(w, http.StatusForbidden, err)
