@@ -1,18 +1,21 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, AlertTriangle, XCircle, Info, Loader2, HelpCircle } from 'lucide-react'
 import { useAlertStore, AlertType } from '@/store/alertStore'
+import { useI18n } from '@/lib/i18n'
 
 const iconMap: Record<AlertType, React.ReactNode> = {
-  success: <CheckCircle2 className="text-emerald-400" size={32} />,
-  warning: <AlertTriangle className="text-amber-400" size={32} />,
-  error: <XCircle className="text-red-400" size={32} />,
-  info: <Info className="text-sky-400" size={32} />,
+  success: <CheckCircle2 className="text-[var(--panel-success-text)]" size={32} />,
+  warning: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
+  error: <XCircle className="text-[var(--panel-danger-text)]" size={32} />,
+  info: <Info className="text-[var(--panel-primary-text)]" size={32} />,
   question: <HelpCircle className="text-violet-400" size={32} />,
-  loading: <Loader2 className="text-sky-400 animate-spin" size={32} />,
-  confirm: <AlertTriangle className="text-amber-400" size={32} />,
+  loading: <Loader2 className="text-[var(--panel-primary-text)] animate-spin" size={32} />,
+  confirm: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
 }
 
 export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val: boolean) => void }) {
+  const { t } = useI18n()
+
   return (
     <>
       <motion.div
@@ -76,18 +79,18 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
                   ['--tw-ring-color' as string]: 'color-mix(in srgb, var(--win-text) 24%, transparent)',
                 }}
               >
-                {data.cancelText || 'Batal'}
+                {data.cancelText || t('common.cancel')}
               </button>
             )}
             <button
               onMouseDown={(e) => { e.stopPropagation(); closeDialog(true) }}
-              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-white shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-[var(--win-text)] shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
               style={{
                 borderColor: 'color-mix(in srgb, var(--panel-primary-solid) 75%, var(--win-border))',
                 background: 'linear-gradient(135deg, var(--panel-primary-solid), var(--panel-primary-text))',
               }}
             >
-              {data.confirmText || 'Tutup'}
+              {data.confirmText || t('common.close')}
             </button>
           </div>
         )}
@@ -109,3 +112,7 @@ export function GlobalAlert() {
     </AnimatePresence>
   )
 }
+
+
+
+

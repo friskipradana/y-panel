@@ -6,6 +6,7 @@ import { alertLib } from '@/lib/alert'
 import { getFileRootAccessStatus, getMeV2, revokeFileRootAccess, verifyFileRootAccess } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useEditorStore } from '@/store/editorStore'
+import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
 
 interface FileNode {
@@ -54,55 +55,34 @@ interface FileManagerTab {
 let nextFileManagerTabId = 1
 
 // Constants for Modal Configuration
-const MODAL_CONFIGS: Record<string, { title: string; description: (item?: FileNode) => string; icon: React.ReactNode; confirmBtn: string; confirmText: string }> = {
+const MODAL_CONFIGS: Record<string, { icon: React.ReactNode; confirmBtn: string }> = {
   delete: {
-    title: 'Hapus Permanen?',
-    description: (item) => `Anda akan menghapus <strong>${item?.name}</strong> beserta seluruh isinya.`,
-    icon: <Trash className="text-red-400" size={32} />,
+    icon: <Trash className="text-[var(--panel-danger-text)]" size={32} />,
     confirmBtn: 'bg-red-500/90 shadow-[0_2px_12px_rgba(239,68,68,0.3)] hover:bg-red-400',
-    confirmText: 'Ya, Hapus!'
   },
   rename: {
-    title: 'Ubah Nama File/Folder',
-    description: () => 'Ganti nama berkas berserta ekstensinya pada baris di bawah.',
-    icon: <Edit2 className="text-sky-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Terapkan'
+    icon: <Edit2 className="text-[var(--panel-primary-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   },
   compress: {
-    title: 'Kompres Arsip',
-    description: (item) => `Kompres <strong>${item?.name}</strong> ke format .zip / .tar.gz.`,
-    icon: <Archive className="text-amber-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Kompres'
+    icon: <Archive className="text-[var(--panel-warning-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   },
   extract: {
-    title: 'Ekstrak Arsip',
-    description: (item) => `Destinasi (folder tujuan) ekstrak untuk <strong>${item?.name}</strong>.`,
-    icon: <PackageOpen className="text-sky-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Ekstrak'
+    icon: <PackageOpen className="text-[var(--panel-primary-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   },
   mkdir: {
-    title: 'Buat Folder Baru',
-    description: () => 'Masukkan nama koleksi/direktori tanpa karakter terlarang (/, null).',
-    icon: <FolderPlus className="text-emerald-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Buat'
+    icon: <FolderPlus className="text-[var(--panel-success-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   },
   touch: {
-    title: 'Buat File Berkas Baru',
-    description: () => 'Ekstensi didukung. Contoh: index.html, script.js',
-    icon: <FilePlus className="text-emerald-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Buat'
+    icon: <FilePlus className="text-[var(--panel-success-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   },
   chmod: {
-    title: 'Ubah Hak Akses (UNIX)',
-    description: (item) => `Modifikasi mode octal pada <strong>${item?.name}</strong>`,
-    icon: <Key className="text-amber-400" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-sky-400',
-    confirmText: 'Terapkan'
+    icon: <Key className="text-[var(--panel-warning-text)]" size={32} />,
+    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
   }
 }
 
@@ -137,7 +117,7 @@ const FileRow = memo(({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-1.5 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-sky-500/20 border-sky-400 shadow-[var(--win-shadow)]' : isSelected ? 'bg-sky-500/10 border-sky-500/30' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
+      className={`grid grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
@@ -148,18 +128,18 @@ const FileRow = memo(({
         <input type="checkbox" checked={isSelected} onChange={(e) => onToggleSelect(item.path, e.target.checked)} className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all" onClick={(e) => e.stopPropagation()} />
       </div>
       <div className="flex items-center gap-3 overflow-hidden">
-        {item.isDir ? <Folder size={17} className="text-sky-500 fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-slate-400 shrink-0" />}
-        <span className="text-[13px] font-medium text-[var(--win-text)] truncate group-hover:text-sky-500 transition-colors">{item.name}</span>
+        {item.isDir ? <Folder size={17} className="text-[var(--panel-primary-text)] fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />}
+        <span className="text-[13px] font-medium text-[var(--win-text)] truncate group-hover:text-[var(--panel-primary-text)] transition-colors">{item.name}</span>
       </div>
       <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight">
         {item.isDir ? '--' : formatSize(item.size)}
       </div>
       <div className="flex items-center">
-        <div className="text-[11px] text-[var(--tb-clock)] bg-[rgba(255,255,255,0.06)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
+        <div className="text-[12px] text-[var(--tb-clock)] bg-[rgba(255,255,255,0.06)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
           {item.mode}
         </div>
       </div>
-      <div className="text-[11px] text-[var(--text-secondary)] p-1 truncate font-medium">
+      <div className="text-[12px] text-[var(--text-secondary)] p-1 truncate font-medium">
         {formatDate(item.modified)}
       </div>
     </div>
@@ -169,6 +149,7 @@ const FileRow = memo(({
 export function FileManagerWindow({ win, authenticated }: { win: WindowState, authenticated?: boolean }) {
   const { openWindow, updateWindowParams } = useWindowStore()
   const { setPendingFile } = useEditorStore()
+  const { t } = useI18n()
 
   // Initialize tabs from snapshot params if available, otherwise default to root
   const initialPath = win.params?.currentPath || '/'
@@ -275,7 +256,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       } : t))
     } catch (err: any) {
       if (err?.response?.status !== 401) {
-        alertLib.fire('Akses Ditolak', err?.response?.data?.error || 'Gagal membaca direktori.', 'error', 'file-manager')
+        alertLib.fire(t('fileManager.accessDeniedTitle'), err?.response?.data?.error || t('fileManager.readDirectoryFailed'), 'error', 'file-manager')
       }
       setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: false } : t))
     }
@@ -368,7 +349,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
   const submitRootAccess = async () => {
     if (!rootPassword.trim()) {
-      alertLib.fire('Password Wajib', 'Masukkan password akun superadmin untuk membuka akses root.', 'warning', 'file-manager')
+      alertLib.fire(t('fileManager.passwordRequiredTitle'), t('fileManager.passwordRequiredMessage'), 'warning', 'file-manager')
       return
     }
     setRootAccessLoading(true)
@@ -378,9 +359,9 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       setShowRootAccessModal(false)
       setRootPassword('')
       setCurrentPath('/')
-      alertLib.fire('Akses Root Aktif', 'File Manager sekarang dapat membuka path root sampai sesi elevasi berakhir.', 'success', 'file-manager')
+      alertLib.fire(t('fileManager.rootAccessActiveTitle'), t('fileManager.rootAccessActiveMessage'), 'success', 'file-manager')
     } catch (err: any) {
-      alertLib.fire('Validasi Gagal', err?.response?.data?.error || 'Password tidak valid.', 'error', 'file-manager')
+      alertLib.fire(t('fileManager.validationFailedTitle'), err?.response?.data?.error || t('fileManager.invalidPassword'), 'error', 'file-manager')
     } finally {
       setRootAccessLoading(false)
     }
@@ -397,9 +378,9 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     try {
       const status = await revokeFileRootAccess()
       setRootAccess(status)
-      alertLib.fire('Akses Root Ditutup', 'Elevasi akses root File Manager telah dinonaktifkan.', 'success', 'file-manager')
+      alertLib.fire(t('fileManager.rootAccessClosedTitle'), t('fileManager.rootAccessClosedMessage'), 'success', 'file-manager')
     } catch (err: any) {
-      alertLib.fire('Gagal Menutup Akses', err?.response?.data?.error || 'Tidak dapat menutup akses root.', 'error', 'file-manager')
+      alertLib.fire(t('fileManager.rootAccessCloseFailedTitle'), err?.response?.data?.error || t('fileManager.rootAccessCloseFailedMessage'), 'error', 'file-manager')
     } finally {
       setRootAccessLoading(false)
     }
@@ -416,29 +397,29 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         reqUrl = '/api/v1/files/delete'
         payload = { path: modal.item.path }
       } else if (modal.type === 'rename') {
-        if (!modalInput) throw new Error('Nama tujuan wajib diisi.')
+        if (!modalInput) throw new Error(t('fileManager.errorTargetNameRequired'))
         reqUrl = '/api/v1/files/rename'
         payload = { oldPath: modal.item.path, newPath: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'mkdir') {
-        if (!modalInput) throw new Error('Nama folder wajib diisi.')
+        if (!modalInput) throw new Error(t('fileManager.errorFolderNameRequired'))
         reqUrl = '/api/v1/files/mkdir'
         payload = { path: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'touch') {
-        if (!modalInput) throw new Error('Nama berkas wajib diisi.')
+        if (!modalInput) throw new Error(t('fileManager.errorFileNameRequired'))
         reqUrl = '/api/v1/files/touch'
         payload = { path: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'compress') {
-        if (!modalInput) throw new Error('Nama arsip wajib diisi.')
+        if (!modalInput) throw new Error(t('fileManager.errorArchiveNameRequired'))
         reqUrl = '/api/v1/files/compress'
         payload = { target: modal.item.path, destName: joinPath(activeTab.currentPath, modalInput) }
       } else if (modal.type === 'extract') {
-        if (!modalPathInput) throw new Error('Direktori tujuan ekstraksi wajib diisi.')
-        if (!modalInput) throw new Error('Nama folder ekstraksi wajib diisi.')
+        if (!modalPathInput) throw new Error(t('fileManager.errorExtractDirectoryRequired'))
+        if (!modalInput) throw new Error(t('fileManager.errorExtractFolderRequired'))
         reqUrl = '/api/v1/files/extract'
         payload = { source: modal.item.path, dest: joinPath(modalPathInput, modalInput) }
       } else if (modal.type === 'chmod') {
         const numericMode = parseInt(chmodMode, 8)
-        if (isNaN(numericMode)) throw new Error('Format oktal tidak valid (Cth: 0644).')
+        if (isNaN(numericMode)) throw new Error(t('fileManager.errorInvalidOctal'))
         reqUrl = '/api/v1/files/chmod'
         payload = { path: modal.item.path, mode: numericMode, recursive: chmodRecursive }
       }
@@ -447,14 +428,14 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       setModal(null)
       void loadDirectory(activeTab.currentPath, activeTabId)
 
-      if (modal.type === 'delete') alertLib.fire('Berhasil Terhapus', `Item <strong>${modal.item.name}</strong> berhasil dihapus permanen.`, 'success', 'file-manager')
-      else if (modal.type === 'rename') alertLib.fire('Berhasil Mengganti Nama', 'Nama item berhasil diubah.', 'success', 'file-manager')
-      else if (modal.type === 'mkdir') alertLib.fire('Berhasil', 'Folder baru berhasil dibuat.', 'success', 'file-manager')
-      else if (modal.type === 'touch') alertLib.fire('Berhasil', 'File baru berhasil dibuat.', 'success', 'file-manager')
-      else if (modal.type === 'chmod') alertLib.fire('Berhasil', 'Akses permission berhasil diperbarui.', 'success', 'file-manager')
+      if (modal.type === 'delete') alertLib.fire(t('fileManager.deleteSuccessTitle'), t('fileManager.deleteSuccessMessage', { name: modal.item.name }), 'success', 'file-manager')
+      else if (modal.type === 'rename') alertLib.fire(t('fileManager.renameSuccessTitle'), t('fileManager.renameSuccessMessage'), 'success', 'file-manager')
+      else if (modal.type === 'mkdir') alertLib.fire(t('common.success'), t('fileManager.mkdirSuccessMessage'), 'success', 'file-manager')
+      else if (modal.type === 'touch') alertLib.fire(t('common.success'), t('fileManager.touchSuccessMessage'), 'success', 'file-manager')
+      else if (modal.type === 'chmod') alertLib.fire(t('common.success'), t('fileManager.chmodSuccessMessage'), 'success', 'file-manager')
 
     } catch (err: any) {
-      alertLib.fire('Kegagalan Operasi', err?.response?.data?.error || err.message || 'Terjadi kesalahan internal.', 'error', 'file-manager')
+      alertLib.fire(t('fileManager.operationFailedTitle'), err?.response?.data?.error || err.message || t('fileManager.internalError'), 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -490,14 +471,14 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       await loadDirectory(activeTab.currentPath, activeTabId)
 
       if (count > 0 && failed === 0) {
-        alertLib.fire('Berhasil Memindahkan', `<strong>${count}</strong> item berhasil dipindahkan melalui drag-and-drop.`, 'success', 'file-manager')
+        alertLib.fire(t('fileManager.moveSuccessTitle'), t('fileManager.moveSuccessMessage', { count }), 'success', 'file-manager')
       } else if (count > 0 && failed > 0) {
-        alertLib.fire('Sebagian Berhasil', `<strong>${count}</strong> item berhasil dipindah, namun <strong>${failed}</strong> gagal. (mungkin bentrok label/nama kembar)`, 'warning', 'file-manager')
+        alertLib.fire(t('fileManager.movePartialTitle'), t('fileManager.movePartialMessage', { count, failed }), 'warning', 'file-manager')
       } else if (failed > 0) {
-        alertLib.fire('Gagal Memindahkan', 'Sistem tidak dapat memindahkan item karena terjadi penolakan atau duplikasi.', 'error', 'file-manager')
+        alertLib.fire(t('fileManager.moveFailedTitle'), t('fileManager.moveFailedMessage'), 'error', 'file-manager')
       }
     } catch (err: any) {
-      alertLib.fire('Error Memindahkan', err?.response?.data?.error || err.message || 'Error eksekusi runtime sistem.', 'error', 'file-manager')
+      alertLib.fire(t('fileManager.moveErrorTitle'), err?.response?.data?.error || err.message || t('fileManager.moveRuntimeError'), 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -517,10 +498,10 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
   const handleBulkDelete = async () => {
     const isConfirmed = await alertLib.confirm(
-      'Hapus Permanen',
-      `Anda akan menghapus permanen <strong>${selectedPaths.size}</strong> item terpilih beserta isinya. Lanjutkan?`,
-      'Ya, Hapus',
-      'Batal',
+      t('fileManager.bulkDeleteConfirmTitle'),
+      t('fileManager.bulkDeleteConfirmMessage', { count: selectedPaths.size }),
+      t('fileManager.bulkDeleteConfirmAction'),
+      t('common.cancel'),
       'warning',
       'file-manager'
     )
@@ -535,7 +516,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       const count = paths.length
       setSelectedPaths(new Set())
       await loadDirectory(activeTab.currentPath, activeTabId)
-      alertLib.fire('Berhasil Terhapus', `<strong>${count}</strong> item berhasil dihapus permanen.`, 'success', 'file-manager')
+      alertLib.fire(t('fileManager.deleteSuccessTitle'), t('fileManager.bulkDeleteSuccessMessage', { count }), 'success', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -567,9 +548,9 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       }
 
       await loadDirectory(activeTab.currentPath, activeTabId)
-      alertLib.fire('Berhasil Paste', `<strong>${clipboard.items.length}</strong> item berhasil di${clipboard.mode === 'cut' ? 'pindahkan' : 'salin'}.`, 'success', 'file-manager')
+      alertLib.fire(t('fileManager.pasteSuccessTitle'), t(clipboard.mode === 'cut' ? 'fileManager.pasteMovedMessage' : 'fileManager.pasteCopiedMessage', { count: clipboard.items.length }), 'success', 'file-manager')
     } catch (err: any) {
-      alertLib.fire('Gagal Paste', err?.response?.data?.error || err.message || 'Tidak dapat menempelkan item.', 'error', 'file-manager')
+      alertLib.fire(t('fileManager.pasteFailedTitle'), err?.response?.data?.error || err.message || t('fileManager.pasteFailedMessage'), 'error', 'file-manager')
     } finally {
       setModalLoading(false)
     }
@@ -599,8 +580,12 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     const config = MODAL_CONFIGS[modal.type]
     if (!config) return null
 
-    const { title, icon, confirmBtn, confirmText } = config
-    const description = config.description('item' in modal ? modal.item : undefined)
+    const { icon, confirmBtn } = config
+    const modalItem = 'item' in modal ? modal.item : undefined
+    const modalKey = modal.type
+    const title = t(`fileManager.modal.${modalKey}.title`)
+    const confirmText = t(`fileManager.modal.${modalKey}.confirm`)
+    const description = t(`fileManager.modal.${modalKey}.description`, { name: modalItem?.name ?? '' })
 
     return (
       <div className="flex flex-col items-center">
@@ -617,8 +602,8 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <div className="w-full mb-6">
             <input
               autoFocus
-              className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
-              placeholder={modal.type === 'rename' ? modal.item.name : 'Ketik di sini...'}
+              className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+              placeholder={modal.type === 'rename' ? modal.item.name : t('fileManager.typeHere')}
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
@@ -628,25 +613,25 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
         {modal.type === 'extract' && (
           <div className="w-full mb-6 space-y-3">
-            <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-[11.5px] text-sky-700 dark:text-sky-100/90">
-              <div className="font-semibold text-sky-600 dark:text-sky-300">Arah ekstraksi</div>
-              <div className="mt-1 text-slate-700 dark:text-slate-300">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || 'folder_tujuan')}</div>
+            <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-primary-bg)] px-3 py-2 text-[11.5px] text-[var(--panel-primary-text)] dark:text-sky-100/90">
+              <div className="font-semibold text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)]">{t('fileManager.extractionDirection')}</div>
+              <div className="mt-1 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || t('fileManager.destinationFolderFallback'))}</div>
             </div>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">Direktori tujuan</label>
+              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.destinationDirectory')}</label>
               <input
                 autoFocus
-                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
-                placeholder="Contoh: /home/renaldi/extract"
+                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+                placeholder={t('fileManager.destinationDirectoryPlaceholder')}
                 value={modalPathInput}
                 onChange={(e) => setModalPathInput(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">Nama folder hasil ekstrak</label>
+              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.extractFolderName')}</label>
               <input
-                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner placeholder-[var(--text-secondary)]"
-                placeholder="Nama folder hasil ekstrak"
+                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+                placeholder={t('fileManager.extractFolderNamePlaceholder')}
                 value={modalInput}
                 onChange={(e) => setModalInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
@@ -660,21 +645,21 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <div className="w-full mb-6 flex flex-col mt-2">
             <div className="flex justify-between gap-3 px-1 mb-6">
               {(['u', 'g', 'o'] as const).map((pos) => {
-                const titleMap = { u: 'Owner', g: 'Group', o: 'Public' }
+                const titleMap = { u: t('fileManager.owner'), g: t('fileManager.group'), o: t('fileManager.public') }
                 const val = parseOctal(chmodMode.substring(1))[pos]
                 return (
                   <div key={pos} className="flex-col gap-2 p-3 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl relative flex-1 text-left">
-                    <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-sky-600 dark:text-sky-400 rounded backdrop-blur border border-[var(--win-border)]">
+                    <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] rounded backdrop-blur border border-[var(--win-border)]">
                       {titleMap[pos]}
                     </label>
-                    <label className="flex items-center gap-2 mt-3 mb-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-sky-500 w-3.5 h-3.5" /> Read
+                    <label className="flex items-center gap-2 mt-3 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
+                      <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.read')}
                     </label>
-                    <label className="flex items-center gap-2 mb-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-sky-500 w-3.5 h-3.5" /> Write
+                    <label className="flex items-center gap-2 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
+                      <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.write')}
                     </label>
-                    <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-sky-500 w-3.5 h-3.5" /> Exec
+                    <label className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
+                      <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.execute')}
                     </label>
                   </div>
                 )
@@ -683,18 +668,18 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
             <div className="flex items-center justify-between px-2 gap-3">
               <div className="flex items-center gap-3">
-                <label className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">Octal</label>
+                <label className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">{t('fileManager.octal')}</label>
                 <input
                   value={chmodMode}
                   onChange={e => setChmodMode(e.target.value)}
-                  className="w-20 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-lg py-1 px-3 text-[13px] text-sky-600 dark:text-sky-400 font-mono outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500 transition shadow-inner"
+                  className="w-20 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-lg py-2 px-3 text-[13px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] font-mono outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner"
                   onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
                 />
               </div>
               {modal.item.isDir && (
-                <label className="flex items-center gap-2 text-[11.5px] font-medium text-amber-600 dark:text-amber-200/80 cursor-pointer hover:text-amber-500 transition">
+                <label className="flex items-center gap-2 text-[11.5px] font-medium text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]/80 cursor-pointer hover:text-[var(--panel-warning-text)] transition">
                   <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5 cursor-pointer" />
-                  Terapkan Rekursif
+                  {t('fileManager.applyRecursive')}
                 </label>
               )}
             </div>
@@ -708,15 +693,15 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             disabled={modalLoading}
             className="flex-1 rounded-full border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--win-text)] transition hover:brightness-[0.95] dark:hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-slate-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Batal
+            {t('common.cancel')}
           </button>
           <button
             onClick={executeModal}
             disabled={modalLoading}
-            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-[var(--win-border)] px-4 py-2.5 text-[12.5px] font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
+            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-[var(--win-border)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--win-text)] transition focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
           >
             {modalLoading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {modalLoading ? 'Memproses...' : confirmText}
+            {modalLoading ? t('fileManager.processing') : confirmText}
           </button>
         </div>
       </div>
@@ -760,7 +745,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
   return (
     <div
       ref={containerRef}
-      className="flex flex-col h-full bg-slate-50 text-slate-800 relative select-none"
+      className="flex flex-col h-full bg-[var(--win-content-bg)] text-[var(--text-secondary)] relative select-none"
       style={{ background: 'var(--win-bg)' }}
       onClick={() => setMenu(null)}
       onContextMenu={(e) => {
@@ -772,7 +757,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       {/* ── Tabs Strip ── */}
       <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: 'var(--win-bg)' }}>
         <div
-          className="flex flex-1 overflow-x-auto no-scrollbar items-end border-b border-black/10 transition-colors"
+          className="flex flex-1 overflow-x-auto no-scrollbar items-end border-b border-[var(--win-border)] transition-colors"
           ref={tabsScrollRef}
           onMouseDown={handleTabsMouseDown}
           onMouseLeave={handleTabsMouseLeave}
@@ -796,11 +781,11 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 }}
                 onClick={() => setActiveTabId(tab.id)}
               >
-                <Folder size={14} className={isActive ? 'text-sky-500' : 'text-slate-400'} />
+                <Folder size={14} className={isActive ? 'text-[var(--panel-primary-text)]' : 'text-[var(--text-secondary)]'} />
                 <span className="truncate max-w-[150px] font-medium">{tab.currentPath.split('/').pop() || '/'}</span>
                 {tabs.length > 1 && (
                   <button
-                    className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/5 transition opacity-0 group-hover:opacity-100`}
+                    className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] transition opacity-0 group-hover:opacity-100`}
                     onClick={(e) => closeTab(tab.id, e)}
                   >
                     <X size={12} strokeWidth={2.5} />
@@ -810,7 +795,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             )
           })}
         </div>
-        <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-[var(--tb-hover)] transition text-[var(--tb-clock)] shrink-0" onClick={openNewTab} title="New Tab">
+        <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-[var(--tb-hover)] transition text-[var(--tb-clock)] shrink-0" onClick={openNewTab} title={t('fileManager.newTab')}>
           <Plus size={18} />
         </button>
       </div>
@@ -821,12 +806,12 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           disabled={!activeTab.data?.parent}
           onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }}
           className="panel-icon-btn"
-          title="Ke direktori induk"
+          title={t('fileManager.parentDirectory')}
         >
           <CornerLeftUp size={16} />
         </button>
         <div className="file-manager-path flex min-w-0 flex-1 items-center gap-2">
-          <span className="hidden select-none text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] sm:inline">Path</span>
+          <span className="hidden select-none text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] sm:inline">{t('fileManager.path')}</span>
           <input
             className="panel-input panel-input--mono h-[34px] min-w-0 flex-1 border-0 bg-transparent px-0 shadow-none focus:ring-0"
             value={activeTab.inputPath}
@@ -844,35 +829,35 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               onClick={handleRootAccessButton}
               disabled={rootAccessLoading}
               className={`panel-btn ${rootAccess.enabled ? 'panel-btn--danger-soft' : 'panel-btn--ghost'} px-3 py-2 text-[12px]`}
-              title={rootAccess.enabled ? 'Tutup akses root File Manager' : 'Buka akses root dengan validasi password'}
+              title={rootAccess.enabled ? t('fileManager.closeRootAccessTitle') : t('fileManager.openRootAccessTitle')}
             >
               <Key size={14} />
-              {rootAccess.enabled ? 'Root Aktif' : 'Akses Root'}
+              {rootAccess.enabled ? t('fileManager.rootActive') : t('fileManager.rootAccess')}
             </button>
           ) : null}
           <button
             onClick={() => openModal({ type: 'touch' })}
             className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]"
-            title="New File"
+            title={t('fileManager.newFile')}
           >
-            <FilePlus size={14} className="text-emerald-600" />
-            <span className="hidden md:inline">File</span>
+            <FilePlus size={14} className="text-[var(--panel-success-text)]" />
+            <span className="hidden md:inline">{t('fileManager.file')}</span>
           </button>
           <button
             onClick={() => openModal({ type: 'mkdir' })}
             className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]"
-            title="New Folder"
+            title={t('fileManager.newFolder')}
           >
-            <FolderPlus size={14} className="text-sky-600" />
-            <span className="hidden md:inline">Folder</span>
+            <FolderPlus size={14} className="text-[var(--panel-primary-text)]" />
+            <span className="hidden md:inline">{t('fileManager.folder')}</span>
           </button>
 
           <button
             onClick={() => loadDirectory(activeTab.currentPath, activeTabId)}
             className="panel-icon-btn"
-            title="Refresh"
+            title={t('common.refresh')}
           >
-            {activeTab.loading ? <Loader2 size={15} className="animate-spin text-sky-600" /> : <RefreshCw size={15} />}
+            {activeTab.loading ? <Loader2 size={15} className="animate-spin text-[var(--panel-primary-text)]" /> : <RefreshCw size={15} />}
           </button>
         </div>
       </div>
@@ -893,15 +878,15 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             }}
           />
         </div>
-        <div>Nama Berkas</div>
-        <div>Ukuran</div>
-        <div>Akses</div>
-        <div>Tgl Diubah</div>
+        <div>{t('fileManager.nameColumn')}</div>
+        <div>{t('fileManager.sizeColumn')}</div>
+        <div>{t('fileManager.accessColumn')}</div>
+        <div>{t('fileManager.modifiedColumn')}</div>
       </div>
 
       {/* ── File List ── */}
       <div
-        className={`flex-1 overflow-y-auto p-2 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-sky-500/10' : ''}`}
+        className={`flex-1 overflow-y-auto p-2 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-[var(--panel-primary-bg)]' : ''}`}
         onDragOver={(e) => {
           const raw = e.dataTransfer.getData('application/x-ui-panel-file')
           if (!raw) return
@@ -928,16 +913,16 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         {(activeTab.loading || (!activeTab.data && !activeTab.loading)) && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--win-bg)]/60 backdrop-blur-[1px] transition-opacity">
             <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[var(--win-bg)] shadow-[var(--win-shadow)] border border-[var(--win-border)]">
-              <Loader2 size={24} className="animate-spin text-sky-600" />
-              <span className="text-xs font-semibold text-[var(--tb-clock)] uppercase tracking-widest">Memuat file...</span>
+              <Loader2 size={24} className="animate-spin text-[var(--panel-primary-text)]" />
+              <span className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">{t('fileManager.loadingFiles')}</span>
             </div>
           </div>
         )}
 
         {activeTab.data && (activeTab.data.contents || []).length === 0 && !activeTab.loading && (
-          <div className="flex flex-col items-center justify-center p-14 text-slate-400">
+          <div className="flex flex-col items-center justify-center p-14 text-[var(--text-secondary)]">
             <Folder size={46} className="mb-3 opacity-30" />
-            <p className="text-[13px] font-medium opacity-80">Folder ini kosong</p>
+            <p className="text-[13px] font-medium opacity-80">{t('fileManager.emptyFolder')}</p>
           </div>
         )}
         {activeTab.data && (activeTab.data.contents || []).map((item) => (
@@ -970,7 +955,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
               if (drags.length > 1) {
                 const el = document.createElement('div')
-                el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-white text-[12px] font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur z-[9999]'
+                el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-[var(--win-text)] text-[12px] font-bold px-3 py-2 rounded shadow-lg backdrop-blur z-[9999]'
                 el.innerText = `${drags.length} item`
                 document.body.appendChild(el)
                 e.dataTransfer.setDragImage(el, -10, -10)
@@ -1017,9 +1002,9 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
       </div>
 
       {/* ── Status Bar ── */}
-      <div className="px-4 py-1.5 bg-[var(--tb-hover)] border-t border-[var(--win-border)] text-[11px] text-[var(--tb-clock)] flex justify-between tracking-wide font-medium">
-        <span>{activeTab.data ? `${(activeTab.data.contents || []).length} item(s)` : 'Memuat objek...'}</span>
-        {/* <span className="text-emerald-700/70 font-bold uppercase flex items-center gap-1">
+      <div className="px-4 py-2 bg-[var(--tb-hover)] border-t border-[var(--win-border)] text-[12px] text-[var(--tb-clock)] flex justify-between tracking-wide font-medium">
+        <span>{activeTab.data ? t('fileManager.itemCount', { count: (activeTab.data.contents || []).length }) : t('fileManager.loadingObjects')}</span>
+        {/* <span className="text-[var(--panel-success-text)]/70 font-bold uppercase flex items-center gap-1">
           Root Access
         </span> */}
       </div>
@@ -1031,16 +1016,16 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[#1e293b]/95 backdrop-blur-xl border border-white/10 text-white px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
+            className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] text-[var(--win-text)] px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
           >
-            <span className="text-[13px] font-semibold pr-3 border-r border-slate-600">
-              {selectedPaths.size} item terpilih
+            <span className="text-[13px] font-semibold pr-3 border-r border-[var(--win-border)]">
+              {t('fileManager.selectedCount', { count: selectedPaths.size })}
             </span>
-            <button title="Pindahkan" onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-amber-400 transition" ><Scissors size={16} /></button>
-            <button title="Salin" onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-sky-400 transition"><Copy size={16} /></button>
-            <button title="Hapus" onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-rose-400 transition"><Trash size={16} /></button>
+            <button title={t('fileManager.move')} onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-warning-text)] transition" ><Scissors size={16} /></button>
+            <button title={t('common.copy')} onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-primary-text)] transition"><Copy size={16} /></button>
+            <button title={t('common.delete')} onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-danger-text)] transition"><Trash size={16} /></button>
             <div className="w-[1px] h-4 bg-slate-600 mx-1" />
-            <button title="Batal" onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-white/10 rounded-lg text-slate-300 transition"><X size={16} /></button>
+            <button title={t('common.cancel')} onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--text-secondary)] transition"><X size={16} /></button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1052,7 +1037,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-[4px]"
+              className="absolute inset-0 bg-[var(--panel-overlay)] backdrop-blur-[4px]"
               onClick={() => setModal(null)}
             />
             {/* Dialog Box */}
@@ -1082,12 +1067,12 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             >
               <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
                 <Key className="panel-window__icon h-4 w-4" />
-                Konfirmasi Akses Root
+                {t('fileManager.rootAccessTitle')}
               </h3>
               <p className="mb-4 text-[12.5px] leading-relaxed text-[var(--text-secondary)]">
-                Akses ini membuka navigasi dari <code className="rounded bg-black/5 px-1.5 py-0.5">/</code> untuk sesi File Manager saat ini selama 15 menit. Path sistem sensitif tetap diblokir.
+                {t('fileManager.rootAccessDescriptionStart')} <code className="rounded bg-[var(--panel-surface)] px-1.5 py-0.5">/</code> {t('fileManager.rootAccessDescriptionEnd')}
               </p>
-              <label className="panel-section-label">Password superadmin</label>
+              <label className="panel-section-label">{t('fileManager.superadminPassword')}</label>
               <input
                 type="password"
                 className="panel-input"
@@ -1097,7 +1082,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void submitRootAccess()
                 }}
-                placeholder="Masukkan password akun Anda"
+                placeholder={t('fileManager.passwordPlaceholder')}
               />
               <div className="mt-5 flex justify-end gap-2">
                 <button
@@ -1108,7 +1093,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                     setRootPassword('')
                   }}
                 >
-                  Batal
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -1117,7 +1102,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                   onClick={() => void submitRootAccess()}
                 >
                   {rootAccessLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Key className="h-3.5 w-3.5" />}
-                  Buka Root
+                  {t('fileManager.openRoot')}
                 </button>
               </div>
             </motion.div>
@@ -1133,79 +1118,79 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.1 }}
-            className="absolute bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--menu-border)] shadow-[var(--menu-shadow)] rounded-xl py-1.5 z-[9998] min-w-[170px]"
+            className="absolute bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--menu-border)] shadow-[var(--menu-shadow)] rounded-xl py-2 z-[9998] min-w-[170px]"
             style={{ top: getSafeMenuStyles().top, left: getSafeMenuStyles().left }}
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-[var(--text-secondary)] border-b border-slate-100/80 mb-1 truncate max-w-[170px]">
+            <div className="px-3 py-2 text-[12px] uppercase tracking-wider font-bold text-[var(--text-secondary)] border-b border-[var(--win-border)] mb-1 truncate max-w-[170px]">
               {menu.item ? menu.item.name : menu.targetPath}
             </div>
 
             {!menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'touch' })}>
-                  <FilePlus size={13} className="text-[var(--text-secondary)]" /> New File
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'touch' })}>
+                  <FilePlus size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.newFile')}
                 </button>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
-                  <FolderPlus size={13} className="text-[var(--text-secondary)]" /> New Folder
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
+                  <FolderPlus size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.newFolder')}
                 </button>
               </>
             )}
 
             {menu.item && !menu.item.isDir && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handleEdit(menu.item!)}>
-                <Edit2 size={13} className="text-[var(--text-secondary)]" /> Open Editor
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handleEdit(menu.item!)}>
+                <Edit2 size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.openEditor')}
               </button>
             )}
 
             {menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
-                  <Scissors size={13} className="text-[var(--text-secondary)]" /> Cut
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
+                  <Scissors size={13} className="text-[var(--text-secondary)]" /> {t('common.cut')}
                 </button>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
-                  <Copy size={13} className="text-[var(--text-secondary)]" /> Copy
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
+                  <Copy size={13} className="text-[var(--text-secondary)]" /> {t('common.copy')}
                 </button>
               </>
             )}
 
             {clipboard && clipboard.items.length > 0 && (
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-emerald-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
-                <ClipboardPaste size={13} className="text-[var(--text-secondary)]" /> Paste {clipboard.mode === 'cut' ? 'Move' : 'Copy'} ({clipboard.items.length})
+              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-success-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
+                <ClipboardPaste size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.pasteAction', { action: clipboard.mode === 'cut' ? t('fileManager.move') : t('common.copy'), count: clipboard.items.length })}
               </button>
             )}
 
             {menu.item && (
               <>
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
-                  <Edit2 size={13} className="text-[var(--text-secondary)]" /> Rename ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
+                  <Edit2 size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.renameAction')}
                 </button>
 
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
-                  <Key size={13} className="text-[var(--text-secondary)]" /> Permission ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
+                  <Key size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.permissionAction')}
                 </button>
 
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
-                  <Archive size={13} className="text-[var(--text-secondary)]" /> Compress ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
+                  <Archive size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.compressAction')}
                 </button>
 
                 {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
-                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
-                    <PackageOpen size={13} className="text-[var(--text-secondary)]" /> Extract Here ...
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
+                    <PackageOpen size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.extractHereAction')}
                   </button>
                 )}
 
                 {!menu.item.isDir && (
-                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-sky-50 text-[var(--text-secondary)] font-medium transition" onClick={() => handleDownload(menu.item!)}>
-                    <Download size={13} className="text-[var(--text-secondary)]" /> Download
+                  <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handleDownload(menu.item!)}>
+                    <Download size={13} className="text-[var(--text-secondary)]" /> {t('common.download')}
                   </button>
                 )}
 
-                <div className="border-t border-slate-100/80 my-1"></div>
+                <div className="border-t border-[var(--win-border)] my-1"></div>
 
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-red-50 text-red-600 font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item! })}>
-                  <Trash size={13} className="group-hover:scale-110 transition-transform" /> Delete ...
+                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item! })}>
+                  <Trash size={13} className="group-hover:scale-110 transition-transform" /> {t('fileManager.deleteAction')}
                 </button>
               </>
             )}
@@ -1215,3 +1200,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     </div>
   )
 }
+
+
+
+

@@ -1,0 +1,83 @@
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - gofmt
+    - goimports
+    - misspell
+    - gocritic
+    - revive
+  disable:
+    - structcheck
+    - varcheck
+    - deadcode
+    - ifshort
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+    disabled-checks:
+      - hugeParam
+      - ifElseChain
+      - singleCaseSwitch
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: exported
+        disabled: true
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+        disabled: true
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Don't lint test files as strictly
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+        - revive
+    # Allow unused parameters in interface implementations
+    - linters:
+        - revive
+      text: "unused-parameter"
+  max-issues-per-linter: 50
+  max-same-issues: 5
+  fix: false
+
+output:
+  formats:
+    - format: colored-line-number
+  sort-results: true

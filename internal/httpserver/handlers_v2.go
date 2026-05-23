@@ -31,6 +31,18 @@ func userFromCtx(r *http.Request) *database.User {
 	return u
 }
 
+func (s *Server) writeCloudflareDecryptError(w http.ResponseWriter, userLabel string, err error) {
+	if userLabel != "" {
+		log.Printf("[cloudflare] decrypt failed user=%q — key may have changed since token was saved: %v", userLabel, err)
+	} else {
+		log.Printf("[cloudflare] decrypt failed — key may have changed since token was saved: %v", err)
+	}
+	s.writeJSON(w, http.StatusInternalServerError, jsonResponse{
+		"error":  "failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config",
+		"action": "re-save-cloudflare-config",
+	})
+}
+
 func parseLimitOffset(r *http.Request, defaultLimit, maxLimit int) (int, int, error) {
 	limit := defaultLimit
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
@@ -542,7 +554,7 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt token"})
+		s.writeCloudflareDecryptError(w, u.Username, err)
 		return
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, cfg.ZoneID)
@@ -568,7 +580,7 @@ func (s *Server) handleGetCFZones(w http.ResponseWriter, r *http.Request) {
 	}
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt token"})
+		s.writeCloudflareDecryptError(w, u.Username, err)
 		return
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
@@ -598,7 +610,7 @@ func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client,
 	}
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
 	if err != nil {
-		return nil, nil, errors.New("failed to decrypt token")
+		return nil, nil, fmt.Errorf("failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config: %w", err)
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
 	zones, err := client.ListZones()
@@ -1262,7 +1274,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt CF token"})
+		s.writeCloudflareDecryptError(w, "", err)
 		return
 	}
 
@@ -1404,7 +1416,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "failed to decrypt CF token"})
+		s.writeCloudflareDecryptError(w, "", err)
 		return
 	}
 
@@ -1508,6 +1520,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 			}
 			apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfCfg.APITokenEncrypted)
 			if err != nil {
+				log.Printf("[cloudflare] background decrypt failed — key may have changed: %v", err)
 				return
 			}
 			cfClient := cloudflareapi.NewClient(apiToken, cfCfg.AccountID, "")

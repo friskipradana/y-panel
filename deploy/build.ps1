@@ -344,6 +344,7 @@ if (-not $PackageOnly) {
 
 # Secrets
 if ([string]::IsNullOrWhiteSpace($EncryptionKey)) { $EncryptionKey = New-RandHex 32 }
+$SessionSecret = New-RandPass 48
 $HasExplicitDatabaseDSN = -not [string]::IsNullOrWhiteSpace($DatabaseDSN)
 
 # ═══════════════════════════════════════════════════════════════════
@@ -413,6 +414,7 @@ if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
 fi
 find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
 chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
+export YPANEL_REPO_ROOT="$WORK"
 bash installer/linux/install.sh
 exit 0
 __ARCHIVE__
@@ -534,15 +536,19 @@ __ARCHIVE__
     "PANEL_DB_ENABLED=true",
     "PANEL_DATABASE_DSN=$DatabaseDSN",
     "PANEL_ENCRYPTION_KEY=$EncryptionKey",
+    "PANEL_SESSION_SECRET=$SessionSecret",
     "PANEL_STATE_DIR=$STATE_DIR",
     "PANEL_FRONTEND_DIR=$INSTALL_DIR/frontend",
     "PANEL_SESSION_TTL=12h",
+    "PANEL_ENV_FILE=$ENV_FILE",
     "PANEL_ALLOWED_HOSTS=$($allHosts -join ',')",
     "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
   )
 
   $localEnvTmp = Join-Path $TmpDir 'ypanel_env_upload.txt'
-  [System.IO.File]::WriteAllLines($localEnvTmp, $envContent, (New-Object System.Text.UTF8Encoding($false)))
+  # Write with LF-only line endings (Linux compatibility)
+  $envContentLF = ($envContent -join "`n") + "`n"
+  [System.IO.File]::WriteAllText($localEnvTmp, $envContentLF, (New-Object System.Text.UTF8Encoding($false)))
 
   $remEnvTmp = "$RemBase/ypanel_env_content"
   Upload-File $localEnvTmp $RemBase

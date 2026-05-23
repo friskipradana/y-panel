@@ -7,6 +7,7 @@ import { GlobalAlert } from '@/components/alert/GlobalAlert'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
+import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
 import { StatusPage } from '@/components/system/StatusPage'
 import { LandingPage } from '@/components/landing/LandingPage'
 import { useWindowStore } from '@/store/windowStore'
@@ -14,21 +15,24 @@ import { useThemeStore } from '@/store/themeStore'
 import { getFrontendRevision, getMe, getMeV2 } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import type { WindowKind, WindowState } from '@/types'
+import { useI18n } from '@/lib/i18n'
 
-import { DockerWindow } from '@/components/windows/DockerWindow'
-import { SystemWindow } from '@/components/windows/SystemWindow'
-import { SettingsWindow } from '@/components/windows/SettingsWindow'
-import { DatabaseWindow } from '@/components/windows/DatabaseWindow'
-import { ChangelogWindow } from '@/components/windows/ChangelogWindow'
-import { SystemLogsWindow } from '@/components/windows/SystemLogsWindow'
 import { LoginScreen } from '@/components/windows/LoginScreen'
-import { HostTerminalWindow } from '@/components/windows/HostTerminalWindow'
-import DocsWindow from '@/components/windows/DocsWindow'
-import { FileManagerWindow } from '@/components/windows/FileManagerWindow'
-import { FileEditorWindow } from '@/components/windows/FileEditorWindow'
-import UsersWindow from '@/components/windows/UsersWindow'
-import ProjectsWindow from '@/components/windows/ProjectsWindow'
-import TunnelsWindow from '@/components/windows/TunnelsWindow'
+
+// Lazy-loaded window components (code-split for faster initial load)
+const DockerWindow = lazy(() => import('@/components/windows/DockerWindow').then((m) => ({ default: m.DockerWindow })))
+const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((m) => ({ default: m.SystemWindow })))
+const SettingsWindow = lazy(() => import('@/components/windows/SettingsWindow').then((m) => ({ default: m.SettingsWindow })))
+const DatabaseWindow = lazy(() => import('@/components/windows/DatabaseWindow').then((m) => ({ default: m.DatabaseWindow })))
+const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow').then((m) => ({ default: m.ChangelogWindow })))
+const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((m) => ({ default: m.SystemLogsWindow })))
+const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((m) => ({ default: m.HostTerminalWindow })))
+const DocsWindow = lazy(() => import('@/components/windows/DocsWindow'))
+const FileManagerWindow = lazy(() => import('@/components/windows/FileManagerWindow').then((m) => ({ default: m.FileManagerWindow })))
+const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((m) => ({ default: m.FileEditorWindow })))
+const UsersWindow = lazy(() => import('@/components/windows/UsersWindow'))
+const ProjectsWindow = lazy(() => import('@/components/windows/ProjectsWindow'))
+const TunnelsWindow = lazy(() => import('@/components/windows/TunnelsWindow'))
 const DebugPanel = import.meta.env.DEV
   ? lazy(() => import('@/components/debug/DebugPanel').then((module) => ({ default: module.DebugPanel })))
   : null
@@ -46,38 +50,15 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
   'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
   'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
-  portainer: () => (
-    <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
-      <span className="text-4xl">🛡️</span>
-      <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
-        Portainer sekarang diamankan di localhost.
-      </p>
-      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'rgba(226,232,240,0.74)' }}>
-        Semua operasi container harus melewati backend Go agent. Gunakan menu Apps untuk kontrol container.
-      </p>
-    </div>
-  ),
-  terminal: () => (
-    <div className="rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: '#1a1108', color: '#c8f59a' }}>
-      <span style={{ color: '#f76707' }}>panel@ui</span>
-      <span style={{ color: 'white' }}>:</span>
-      <span style={{ color: '#c8f59a' }}>~</span>$ buka window <strong>Host Terminal</strong> untuk akses shell host Linux.
-      <br />
-      <span style={{ color: '#888' }}>Window ini sekarang dipakai sebagai petunjuk singkat.</span>
-    </div>
-  ),
+  portainer: () => <PortainerPlaceholder />,
+  terminal: () => <TerminalPlaceholder />,
   docs: () => <DocsWindow />,
   changelog: () => <ChangelogWindow />,
   settings: (_win, auth) => <SettingsWindow authenticated={auth} />,
   database: (_win, auth) => <DatabaseWindow authenticated={auth} />,
   'file-manager': (win, auth) => <FileManagerWindow win={win} authenticated={auth} />,
   'file-editor': (_win, auth) => <FileEditorWindow authenticated={auth} />,
-  trash: () => (
-    <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
-      <span className="text-4xl">🗑️</span>
-      <span className="text-sm">Trash is empty</span>
-    </div>
-  ),
+  trash: () => <TrashPlaceholder />,
   users: (win) => <UsersWindow win={win} />,
   projects: (win) => <ProjectsWindow win={win} />,
   tunnels: (win) => <TunnelsWindow win={win} />,
@@ -85,18 +66,57 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
 
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 
+function PortainerPlaceholder() {
+  const { t } = useI18n()
+  return (
+    <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
+      <span className="text-4xl">🛡️</span>
+      <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
+        {t('app.portainerTitle')}
+      </p>
+      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'rgba(226,232,240,0.74)' }}>
+        {t('app.portainerBody')}
+      </p>
+    </div>
+  )
+}
+
+function TerminalPlaceholder() {
+  const { t } = useI18n()
+  return (
+    <div className="rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: '#1a1108', color: '#c8f59a' }}>
+      <span style={{ color: '#f76707' }}>panel@ui</span>
+      <span style={{ color: 'white' }}>:</span>
+      <span style={{ color: '#c8f59a' }}>~</span>$ {t('app.terminalHint')}
+      <br />
+      <span style={{ color: '#888' }}>{t('app.terminalSubhint')}</span>
+    </div>
+  )
+}
+
+function TrashPlaceholder() {
+  const { t } = useI18n()
+  return (
+    <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
+      <span className="text-4xl">🗑️</span>
+      <span className="text-sm">{t('app.trashEmpty')}</span>
+    </div>
+  )
+}
+
 function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'admin' || role === 'superadmin') return true
   return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
 }
 
 function WindowFallback() {
+  const { t } = useI18n()
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
       <Loader2 size={32} className="animate-spin text-sky-500 opacity-80" />
       <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-semibold text-slate-600">Menyiapkan Aplikasi</span>
-        <span className="text-[11px] text-slate-400 uppercase tracking-widest font-medium">Sedang memuat modul...</span>
+        <span className="text-sm font-semibold text-slate-600">{t('common.loadingApp')}</span>
+        <span className="text-[11px] text-slate-400 uppercase tracking-widest font-medium">{t('common.loadingModule')}</span>
       </div>
     </div>
   )
@@ -107,6 +127,7 @@ const queryClient = new QueryClient({
 })
 
 function Desktop({ onLogout, authenticated }: { onLogout: () => void; authenticated: boolean }) {
+  const { t } = useI18n()
   const { windows } = useWindowStore()
   const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -141,11 +162,13 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
           const renderContent = WINDOW_CONTENT[win.kind]
           return (
             <Window key={win.id} win={win}>
-              <Suspense fallback={<WindowFallback />}>
-                {renderContent ? renderContent(win, authenticated) : (
-                  <p className="text-sm" style={{ color: 'var(--sand-400)' }}>No content.</p>
-                )}
-              </Suspense>
+              <WindowErrorBoundary>
+                <Suspense fallback={<WindowFallback />}>
+                  {renderContent ? renderContent(win, authenticated) : (
+                    <p className="text-sm" style={{ color: 'var(--sand-400)' }}>{t('common.noContent')}</p>
+                  )}
+                </Suspense>
+              </WindowErrorBoundary>
             </Window>
           )
         })}
@@ -155,7 +178,7 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
         <div className="pointer-events-none absolute inset-0 z-[1200] flex items-center justify-center bg-[color:rgba(6,10,20,0.28)] backdrop-blur-md">
           <div className="flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-medium text-white shadow-[0_24px_80px_rgba(15,23,42,0.35)]">
             <Loader2 size={16} className="animate-spin text-cyan-300" />
-            <span>Menyiapkan wallpaper desktop...</span>
+            <span>{t('app.preparingWallpaper')}</span>
           </div>
         </div>
       ) : null}
@@ -164,19 +187,20 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
 }
 
 function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
+  const { t } = useI18n()
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
 
   return (
     <StatusPage
       code="404"
-      title="Halaman aplikasi tidak ditemukan"
-      description="Route yang Anda buka tidak tersedia di frontend YPanel yang sedang aktif. Anda masih berada di dalam runtime aplikasi, tetapi halaman ini memang tidak dikenali oleh shell frontend."
-      hint="Gunakan route yang tersedia seperti /, /home, atau /login. Jika ini seharusnya route valid, periksa frontend revision yang aktif atau hasil deploy terbaru."
+      title={t('app.notFoundTitle')}
+      description={t('app.notFoundDescription')}
+      hint={t('app.notFoundHint')}
       badge="Frontend Route"
       eyebrow="App-level status page"
       details={[
-        { label: 'Route aktif', value: currentPath },
-        { label: 'Mode shell', value: 'Frontend-managed 404' },
+        { label: t('app.activeRoute'), value: currentPath },
+        { label: t('app.shellMode'), value: 'Frontend-managed 404' },
       ]}
       actions={(
         <>
@@ -189,7 +213,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
               window.dispatchEvent(new Event('panel:navigation'))
             }}
           >
-            Kembali ke dashboard
+            {t('app.backDashboard')}
           </button>
           {!authenticated ? (
             <button
@@ -202,7 +226,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
                 window.dispatchEvent(new Event('panel:navigation'))
               }}
             >
-              Buka login panel
+              {t('app.openLogin')}
             </button>
           ) : null}
         </>
@@ -215,6 +239,7 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
 let sessionCheckPromise: Promise<any> | null = null
 
 function AppShell() {
+  const { t } = useI18n()
   const [checkingSession, setCheckingSession] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
@@ -457,7 +482,7 @@ function AppShell() {
     return (
       <div className="min-h-screen grid place-items-center text-white login-shell">
         <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
-          Mengecek session agent...
+          {t('app.checkingSession')}
         </div>
       </div>
     )
@@ -532,7 +557,7 @@ function AppShell() {
       {showAuthenticatedLoginRedirect ? (
         <div className="absolute inset-0 z-[20000] grid place-items-center bg-slate-950 text-white">
           <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
-            Mengalihkan ke dashboard...
+            {t('app.redirectingDashboard')}
           </div>
         </div>
       ) : null}

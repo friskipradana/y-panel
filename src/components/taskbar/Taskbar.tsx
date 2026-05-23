@@ -9,6 +9,8 @@ import { useThemeStore } from '@/store/themeStore'
 import { ProfileMenu } from './ProfileMenu'
 import type { WindowKind } from '@/types'
 import { formatDateTimeID } from '@/lib/datetime'
+import { useI18n, windowTitleKey, type Language } from '@/lib/i18n'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -43,6 +45,7 @@ function getNotificationTone(type: PanelNotification['type']) {
 }
 
 export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
+  const { language, setLanguage, t } = useI18n()
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
   const queryClient = useQueryClient()
@@ -64,6 +67,13 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const [notifications, setNotifications] = useState<PanelNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const latestNotifications = useMemo(() => notifications.slice(0, 8), [notifications])
+  const languageOptions = useMemo(
+    () => [
+      { value: 'id', label: 'ID', description: t('language.indonesian') },
+      { value: 'en', label: 'EN', description: t('language.english') },
+    ],
+    [t],
+  )
   const markReadMutation = useMutation({
     mutationFn: markNotificationRead,
     onSuccess: (_, id) => {
@@ -284,7 +294,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             className={`taskbar-nav-btn ${item.accent ? 'taskbar-nav-btn--accent' : ''}`}
             onClick={() => openWindow(item.kind, item.params ? { ...item.params, shortcutNonce: Date.now() } : undefined)}
           >
-            {item.label}
+            {t(windowTitleKey(item.kind))}
           </button>
         ))}
       </nav>
@@ -296,28 +306,28 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
               initial={{ opacity: 0, scale: 0.95, x: 10 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.95, x: 10 }}
-              className="flex items-center gap-3.5 mr-3 px-2 py-1 transition-all"
+              className="flex items-center gap-3.5 mr-3 px-3 py-2 transition-all"
             >
               {systemStatsConfig.cpu && (
-                <div className="flex items-center gap-1.5" title="CPU Usage">
-                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-sky-400' : 'bg-sky-600'}`} />
-                  <span className={`text-[11px] font-mono font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-700'}`}>
+                <div className="flex items-center gap-1.5" title={t('taskbar.cpuUsage')}>
+                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-[var(--panel-primary-text)]' : 'bg-[var(--panel-primary-solid)]'}`} />
+                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
                     {stats.cpu.toFixed(0)}%
                   </span>
                 </div>
               )}
               {systemStatsConfig.ram && (
-                <div className="flex items-center gap-1.5 pl-2" title="RAM Usage">
-                  <Zap size={11} className={isDark ? 'text-amber-400/80' : 'text-amber-600'} />
-                  <span className={`text-[11px] font-mono font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-700'}`}>
+                <div className="flex items-center gap-1.5 pl-2" title={t('taskbar.ramUsage')}>
+                  <Zap size={11} className={isDark ? 'text-[var(--panel-warning-text)]/80' : 'text-[var(--panel-warning-text)]'} />
+                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
                     {stats.ram.toFixed(0)}%
                   </span>
                 </div>
               )}
               {systemStatsConfig.temp && (
-                <div className="flex items-center gap-1.5 pl-2" title="CPU Temperature">
-                  <Thermometer size={11} className={isDark ? 'text-rose-400/80' : 'text-rose-600'} />
-                  <span className={`text-[11px] font-mono font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-700'}`}>
+                <div className="flex items-center gap-1.5 pl-2" title={t('taskbar.cpuTemperature')}>
+                  <Thermometer size={11} className={isDark ? 'text-[var(--panel-danger-text)]/80' : 'text-[var(--panel-danger-text)]'} />
+                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
                     {stats.temp > 0 ? `${stats.temp.toFixed(0)}°` : 'N/A'}
                   </span>
                 </div>
@@ -326,7 +336,19 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           )}
         </AnimatePresence>
 
-        <span id="taskbar-clock" className={`taskbar-clock ${!isDark ? 'text-slate-700' : ''}`}>{time}</span>
+        <PanelSelectMenu
+          id="taskbar-language-select"
+          value={language}
+          onChange={(value) => setLanguage(value as Language)}
+          options={languageOptions}
+          placeholder={t('language.label')}
+          className="taskbar-language-select"
+          buttonClassName="taskbar-language-select__button"
+          dropdownClassName="taskbar-language-select__dropdown"
+          searchable={false}
+        />
+
+        <span id="taskbar-clock" className={`taskbar-clock ${!isDark ? 'text-[var(--text-secondary)]' : ''}`}>{time}</span>
 
         {showMenu && (
           <motion.div
@@ -334,47 +356,47 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             ref={menuRef}
             className={`absolute right-4 top-[50px] w-60 p-2 rounded-2xl backdrop-blur-2xl z-[999999] ${isDark
-              ? 'bg-slate-900/90 text-white'
-              : 'bg-white/95 text-slate-800'
+              ? 'bg-slate-900/90 text-[var(--win-text)]'
+              : 'bg-[var(--menu-bg)] text-[var(--text-secondary)]'
               }`}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-slate-500' : 'text-slate-400'
+            <div className={`px-3 py-2 text-[12px] font-bold uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'
               }`}>
-              Taskbar Settings
+              {t('taskbar.settings')}
             </div>
             <button
               className={`flex items-center justify-between w-full px-3 py-2 text-[12.5px] font-semibold rounded-lg transition-all group ${isDark
                 ? 'hover:bg-white/5'
-                : 'hover:bg-black/5'
+                : 'hover:bg-[var(--panel-surface-hover)]'
                 }`}
               onClick={() => { setShowSystemStats(!showSystemStats); setShowMenu(false); }}
             >
               <div className="flex items-center gap-2.5">
-                <Activity size={14} className="text-sky-500" />
-                <span>System Stats Tray</span>
+                <Activity size={14} className="text-[var(--panel-primary-text)]" />
+                <span>{t('taskbar.systemStatsTray')}</span>
               </div>
-              <div className={`w-8 h-4 rounded-full transition-all duration-300 relative ${showSystemStats ? 'bg-sky-500' : 'bg-slate-400/30'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showSystemStats ? 'left-4.5' : 'left-0.5'}`} />
+              <div className={`w-8 h-4 rounded-full transition-all duration-300 relative ${showSystemStats ? 'bg-sky-500' : 'bg-[var(--panel-neutral-bg)]'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 bg-[var(--win-content-bg)] rounded-full shadow-sm transition-all duration-300 ${showSystemStats ? 'left-4.5' : 'left-0.5'}`} />
               </div>
             </button>
 
             <div className="mt-1 pt-1">
-              <div className={`px-3 pb-1 text-[9px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>Metrics</div>
+              <div className={`px-3 pb-1 text-[12px] font-bold uppercase tracking-wider ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>{t('taskbar.metrics')}</div>
               <div className="space-y-0.5">
                 {[
-                  { key: 'cpu' as const, label: 'CPU Load', icon: <Cpu size={14} />, color: isDark ? 'text-sky-400' : 'text-sky-600' },
-                  { key: 'ram' as const, label: 'RAM Usage', icon: <Zap size={14} />, color: isDark ? 'text-amber-400' : 'text-amber-600' },
-                  { key: 'temp' as const, label: 'CPU Temp', icon: <Thermometer size={14} />, color: isDark ? 'text-rose-400' : 'text-rose-600' },
+                  { key: 'cpu' as const, label: t('taskbar.cpuLoad'), icon: <Cpu size={14} />, color: isDark ? 'text-[var(--panel-primary-text)]' : 'text-[var(--panel-primary-text)]' },
+                  { key: 'ram' as const, label: t('taskbar.ramUsage'), icon: <Zap size={14} />, color: isDark ? 'text-[var(--panel-warning-text)]' : 'text-[var(--panel-warning-text)]' },
+                  { key: 'temp' as const, label: t('taskbar.cpuTemp'), icon: <Thermometer size={14} />, color: isDark ? 'text-[var(--panel-danger-text)]' : 'text-[var(--panel-danger-text)]' },
                 ].map(item => (
                   <button
                     key={item.key}
                     disabled={!showSystemStats}
-                    className={`flex items-center justify-between w-full px-3 py-1.5 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
+                    className={`flex items-center justify-between w-full px-3 py-2 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
                       ? 'opacity-50 grayscale cursor-not-allowed'
                       : isDark
-                        ? 'hover:bg-white/5 text-slate-400 hover:text-white'
-                        : 'hover:bg-black/5 text-slate-500 hover:text-slate-900'
+                        ? 'hover:bg-white/5 text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                        : 'hover:bg-[var(--panel-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                       }`}
                     onClick={() => toggleConfig(item.key)}
                   >
@@ -383,7 +405,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                       <span>{item.label}</span>
                     </div>
                     {systemStatsConfig[item.key] && (
-                      <div className={`w-1 h-1 rounded-full ${isDark ? 'bg-sky-400' : 'bg-sky-600'}`} />
+                      <div className={`w-1 h-1 rounded-full ${isDark ? 'bg-[var(--panel-primary-text)]' : 'bg-[var(--panel-primary-solid)]'}`} />
                     )}
                   </button>
                 ))}
@@ -407,9 +429,9 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                     <Bell size={14} />
                   </div>
                   <div>
-                    <div className="taskbar-notifications__title">Notifications</div>
+                    <div className="taskbar-notifications__title">{t('taskbar.notifications')}</div>
                     <div className="taskbar-notifications__subtitle">
-                      Aktivitas terbaru akun panel Anda
+                      {t('taskbar.notificationsSubtitle')}
                     </div>
                   </div>
                 </div>
@@ -421,17 +443,17 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                 className="panel-btn panel-btn--ghost taskbar-notifications__mark-all"
               >
                 <CheckCheck size={12} />
-                Tandai semua
+                {t('taskbar.markAll')}
               </button>
             </div>
 
             <div className="taskbar-notifications__meta">
               <span className={`panel-badge ${unreadCount ? 'panel-badge--primary' : 'panel-badge--neutral'}`}>
                 <span className="panel-status-dot" />
-                {unreadCount} belum dibaca
+                {t('taskbar.unreadCount', { count: unreadCount })}
               </span>
               <span className="taskbar-notifications__count">
-                {notifications.length} total notifikasi
+                {t('taskbar.totalNotifications', { count: notifications.length })}
               </span>
             </div>
 
@@ -439,7 +461,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
               {latestNotifications.length === 0 ? (
                 <div className="panel-empty taskbar-notifications__empty">
                   <Bell size={18} />
-                  <span>Belum ada notifikasi baru untuk akun ini.</span>
+                  <span>{t('taskbar.noNotifications')}</span>
                 </div>
               ) : (
                 latestNotifications.map((item) => (
@@ -464,7 +486,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                     <div className="taskbar-notification-card__body">{item.body}</div>
                     <div className="taskbar-notification-card__footer">
                       <span>{new Date(item.createdAt).toLocaleString('id-ID')}</span>
-                      <span>{item.isRead ? 'Sudah dibaca' : 'Klik untuk tandai dibaca'}</span>
+                      <span>{item.isRead ? t('taskbar.read') : t('taskbar.clickToRead')}</span>
                     </div>
                   </button>
                 ))
@@ -475,7 +497,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
 
         <button
           id="taskbar-notifications-button"
-          title="Notifications"
+          title={t('taskbar.notifications')}
           className="taskbar-icon-btn taskbar-icon-btn--notification"
           onClick={() => {
             setShowNotifications((current) => !current)
@@ -490,27 +512,27 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           )}
         </button>
 
-        <button id="taskbar-monitor" title="System Info" className="taskbar-icon-btn" onClick={() => openWindow('system')}>
+        <button id="taskbar-monitor" title={t('window.system')} className="taskbar-icon-btn" onClick={() => openWindow('system')}>
           <Monitor size={14} />
         </button>
 
-        <button id="taskbar-settings" title="System Settings" className="taskbar-icon-btn" onClick={() => openWindow('settings')}>
+        <button id="taskbar-settings" title={t('window.settings')} className="taskbar-icon-btn" onClick={() => openWindow('settings')}>
           <Settings size={14} />
         </button>
 
-        <button id="taskbar-database" title="Database" className="taskbar-icon-btn" onClick={() => openWindow('database')}>
+        <button id="taskbar-database" title={t('window.database')} className="taskbar-icon-btn" onClick={() => openWindow('database')}>
           <Database size={14} />
         </button>
 
-        <button id="taskbar-system-log" title="System Logs" className="taskbar-icon-btn" onClick={() => openWindow('system-logs')}>
+        <button id="taskbar-system-log" title={t('window.system-logs')} className="taskbar-icon-btn" onClick={() => openWindow('system-logs')}>
           <ScrollText size={14} />
         </button>
 
-        <button id="taskbar-runtime-log" title="Changelog" className="taskbar-icon-btn" onClick={() => openWindow('changelog')}>
+        <button id="taskbar-runtime-log" title={t('window.changelog')} className="taskbar-icon-btn" onClick={() => openWindow('changelog')}>
           <FileText size={14} />
         </button>
 
-        <button id="taskbar-reset-windows" title="Reset windows" className="taskbar-icon-btn" onClick={resetWindows}>
+        <button id="taskbar-reset-windows" title={t('taskbar.resetWindows')} className="taskbar-icon-btn" onClick={resetWindows}>
           <RotateCcw size={12} />
         </button>
 
@@ -523,3 +545,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     </div>
   )
 }
+
+
+
+

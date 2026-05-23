@@ -4,6 +4,7 @@ import { X, Save, RefreshCcw, FileCode2 } from 'lucide-react'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useThemeStore } from '@/store/themeStore'
+import { useI18n } from '@/lib/i18n'
 
 import { useEditorStore } from '@/store/editorStore'
 
@@ -50,6 +51,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const isDark = useThemeStore((state) => state.mode) === 'dark'
   const { pendingFile, setPendingFile } = useEditorStore()
+  const { t } = useI18n()
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -113,7 +115,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     }
 
     const id = existing?.id || `tab-${nextTabId++}`
-    
+
     if (existing) {
       // If force reloading an existing tab, set loading state first
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, isLoading: true } : t))
@@ -140,8 +142,8 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       })
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, content: String(data), originalContent: String(data), isLoading: false } : t))
     } catch (err: any) {
-      alertLib.fire('Loaded Error', err?.response?.data?.error || 'Gagal membaca isi file.', 'error', 'file-editor')
-      setTabs((prev) => prev.map((t) => t.id === id ? { ...t, isLoading: false, content: '// Akses ditolak atau file tidak terbaca.' } : t))
+      alertLib.fire(t('fileEditor.loadErrorTitle'), err?.response?.data?.error || t('fileEditor.loadErrorMessage'), 'error', 'file-editor')
+      setTabs((prev) => prev.map((tab) => tab.id === id ? { ...tab, isLoading: false, content: t('fileEditor.unreadableContent') } : tab))
     }
   }, [tabs])
 
@@ -149,9 +151,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     if (authenticated) {
       tabs.forEach(tab => {
         // Only retry if it was in an error state or stuck loading
-        if (tab.isLoading || (tab.content === '// Akses ditolak atau file tidak terbaca.' && tab.originalContent === '')) {
-           console.log(`[FileEditor] Re-trying to load file: ${tab.path}`)
-           void handleOpenFile(tab.path, tab.name, true)
+        if (tab.isLoading || (tab.content === t('fileEditor.unreadableContent') && tab.originalContent === '')) {
+          console.log(`[FileEditor] Re-trying to load file: ${tab.path}`)
+          void handleOpenFile(tab.path, tab.name, true)
         }
       })
     }
@@ -172,10 +174,10 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     const isDirty = tabToClose.content !== tabToClose.originalContent
     if (isDirty && !force) {
       alertLib.confirm(
-        'Tutup Berkas?',
-        'File ini memiliki perubahan yang belum disimpan. Perubahan akan hilang.',
-        'Tutup Tanpa Simpan',
-        'Batal',
+        t('fileEditor.closeConfirmTitle'),
+        t('fileEditor.closeConfirmMessage'),
+        t('fileEditor.closeConfirmAction'),
+        t('common.cancel'),
         'warning',
         'file-editor'
       ).then((confirmed) => {
@@ -209,9 +211,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
         withCredentials: true,
       })
       setTabs((prev) => prev.map((t) => t.id === tab.id ? { ...t, originalContent: tab.content } : t))
-      alertLib.fire('Tersimpan', `File ${tab.name} berhasil disimpan.`, 'success', 'file-editor')
+      alertLib.fire(t('fileEditor.savedTitle'), t('fileEditor.savedMessage', { file: tab.name }), 'success', 'file-editor')
     } catch (err: any) {
-      alertLib.fire('Gagal Menyimpan', err?.response?.data?.error || 'Terjadi kesalahan sistem saat menyimpan file.', 'error', 'file-editor')
+      alertLib.fire(t('fileEditor.saveFailedTitle'), err?.response?.data?.error || t('fileEditor.saveFailedMessage'), 'error', 'file-editor')
     }
   }
 
@@ -226,8 +228,8 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
   }
 
   return (
-    <div 
-      className="flex flex-col h-full bg-[var(--win-bg)] overflow-hidden" 
+    <div
+      className="flex flex-col h-full bg-[var(--win-bg)] overflow-hidden"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -273,9 +275,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
               >
                 <FileCode2 size={14} className="opacity-80" />
                 <span className="truncate max-w-[150px]">{tab.name}</span>
-                {isDirty && <div className="w-[8px] h-[8px] bg-yellow-500 rounded-full ml-1" title="Unsaved changes" />}
+                {isDirty && <div className="w-[8px] h-[8px] bg-[var(--panel-warning-text)] rounded-full ml-1" title={t('fileEditor.unsavedChanges')} />}
                 <button
-                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-black/10 dark:hover:bg-white/10 transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)] transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
                 >
                   <X size={12} strokeWidth={2.5} />
@@ -285,7 +287,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
           })}
           {tabs.length === 0 && (
             <div className="flex items-center px-4 h-full text-[12px] opacity-70 text-[var(--win-text)]">
-              Tidak ada file yang sedang dibuka...
+              {t('fileEditor.noOpenFiles')}
             </div>
           )}
         </div>
@@ -293,27 +295,27 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
 
       {/* ── Editor Toolbar ──────────────────────────────────────────────── */}
       {activeTab && (
-        <div className="flex items-center justify-between px-4 py-1.5 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
+        <div className="flex items-center justify-between px-4 py-2 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
           <div className="text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate max-w-[60%] select-all">
             {activeTab.path}
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
-              className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
-              title="Reload File from Disk"
+              className="px-3 py-2 flex items-center gap-1 text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
+              title={t('fileEditor.reloadTitle')}
             >
-              <RefreshCcw size={12} /> Reload
+              <RefreshCcw size={12} /> {t('fileEditor.reload')}
             </button>
             <button
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
-              className={`px-3 py-1 flex items-center gap-1.5 text-[11px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                  : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
+              className={`px-3 py-2 flex items-center gap-1.5 text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
+                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-lg shadow-blue-500/20'
+                : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
                 }`}
             >
-              <Save size={13} /> Simpan Perubahan
+              <Save size={13} /> {t('fileEditor.saveChanges')}
             </button>
           </div>
         </div>
@@ -330,12 +332,12 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
               <line x1="16" y1="17" x2="8" y2="17" />
               <polyline points="10 9 9 9 8 9" />
             </svg>
-            <p className="text-xl font-medium tracking-wide">Monaco Code Editor</p>
-            <p className="text-sm mt-2 opacity-60">Pilih file dari Explorer untuk mengedit</p>
+            <p className="text-xl font-medium tracking-wide">{t('fileEditor.title')}</p>
+            <p className="text-sm mt-2 opacity-60">{t('fileEditor.selectFileHint')}</p>
           </div>
         ) : activeTab.isLoading ? (
           <div className="absolute inset-0 flex items-center justify-center opacity-50">
-            Fetching {activeTab.name}...
+            {t('fileEditor.fetching', { file: activeTab.name })}
           </div>
         ) : (
           <Editor
@@ -361,3 +363,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     </div>
   )
 }
+
+
+
+

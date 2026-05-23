@@ -1,0 +1,52 @@
+# ──────────────────────────────────────────────
+# YPanel Local Development Stack
+# Usage: docker compose up -d
+# ──────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ypanel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ypanel
+      POSTGRES_PASSWORD: ypanel_dev_secret
+      POSTGRES_DB: ypanel
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ypanel -d ypanel"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ypanel-agent
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8787:8787"
+    environment:
+      PANEL_BIND_ADDR: "0.0.0.0:8787"
+      PANEL_DB_ENABLED: "true"
+      PANEL_DATABASE_DSN: "postgres://ypanel:ypanel_dev_secret@postgres:5432/ypanel?sslmode=disable"
+      PANEL_SESSION_SECRET: "dev-only-please-change-this-in-production-32chars"
+      # Dev-only deterministic key so encrypted CF tokens survive container restarts.
+      # Never reuse this value in production.
+      PANEL_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+      PANEL_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      PANEL_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      PANEL_TERMINAL_ENABLED: "true"
+    volumes:
+      - agent-state:/var/lib/ypanel
+
+volumes:
+  pgdata:
+  agent-state:

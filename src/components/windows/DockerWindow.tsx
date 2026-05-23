@@ -18,24 +18,21 @@ import {
 } from '@/hooks/useContainers'
 import { fetchContainerConfig, fetchContainerLogs } from '@/api/agent'
 import { useQuery } from '@tanstack/react-query'
-import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
 import { toast } from 'sonner'
+import { formatDateTimeID } from '@/lib/datetime'
+import { useI18n } from '@/lib/i18n'
+
 import {
-  // formatDockerDateTimeID,
-  formatDateTimeID
-} from '@/lib/datetime'
-import {
-  Activity,
   Boxes,
   Container as ContainerIcon,
   Play,
   RefreshCw,
   Search,
-  Square,
   Layers3,
   Server,
   Plus,
@@ -50,189 +47,27 @@ import {
   ChevronRight,
   Pencil,
   ScrollText,
+  Activity,
 } from 'lucide-react'
-import type { Container, DockerEnvMode, EnvVarInput } from '@/types'
+import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 
-// const APP_ICONS: Record<string, string> = {
-//   grafana: '📊',
-//   portainer: '🐋',
-//   uptime: '💓',
-//   jellyfin: '🎬',
-//   nextcloud: '☁️',
-//   nginx: '🌐',
-//   postgres: '🐘',
-//   redis: '⚡',
-//   default: '📦',
-// }
-
-// function getIcon(name: string): string {
-//   const lower = name.toLowerCase()
-//   return Object.entries(APP_ICONS).find(([k]) => lower.includes(k))?.[1] ?? APP_ICONS.default
-// }
-
-const STATE_STYLES: Record<Container['State'], { badge: string; btn: string; btnText: string; actionIcon: typeof Play }> = {
-  running: { badge: 'panel-badge--success', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  exited: { badge: 'panel-badge--danger', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  paused: { badge: 'panel-badge--warning', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  restarting: { badge: 'panel-badge--info', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  dead: { badge: 'panel-badge--neutral', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-}
-
-const EMPTY_ENV_ROW: EnvVarInput = { key: '', value: '' }
-const DEFAULT_COMPOSE_YAML = 'version: "3.8"\nservices:\n  app:\n    image: nginx:latest\n    ports:\n      - "8080:80"\n'
-
-function createEmptyRegistryAuth() {
-  return {
-    enabled: false,
-    registry: '',
-    usernameOrEmail: '',
-    password: '',
-  }
-}
-
-function createDefaultDeployForm() {
-  return {
-    ownerUserId: 0,
-    network: '',
-    name: '',
-    image: '',
-    ports: [{ hostPort: '', containerPort: '' }],
-    env: [EMPTY_ENV_ROW],
-    envMode: 'form' as DockerEnvMode,
-    envRaw: '',
-    registryAuth: createEmptyRegistryAuth(),
-    volumes: [{ hostPath: '', containerPath: '' }],
-    composeYaml: DEFAULT_COMPOSE_YAML,
-  }
-}
-
-function createDefaultPullImageForm() {
-  return {
-    image: '',
-    registryAuth: createEmptyRegistryAuth(),
-  }
-}
-
-function toRawEnv(env: EnvVarInput[]) {
-  return env
-    .filter((item) => item.key.trim())
-    .map((item) => `${item.key}=${item.value}`)
-    .join('\n')
-}
-
-function toEnvRows(raw: string) {
-  const rows = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-    .map((line) => {
-      const idx = line.indexOf('=')
-      if (idx === -1) {
-        return { key: line, value: '' }
-      }
-      return {
-        key: line.slice(0, idx).trim(),
-        value: line.slice(idx + 1),
-      }
-    })
-    .filter((item) => item.key)
-
-  return rows.length > 0 ? rows : [EMPTY_ENV_ROW]
-}
-
-function StatusBadge({ state }: { state: Container['State'] }) {
-  const stateStyle = STATE_STYLES[state] ?? STATE_STYLES.dead
-  return (
-    <span className={`panel-badge ${stateStyle.badge}`}>
-      <span className="panel-status-dot" />
-      {state}
-    </span>
-  )
-}
-
-function getContainerRuntimeIssues(container: Container) {
-  const issues: Array<{ key: string; label: string; tone: 'warning' | 'danger' }> = []
-  const restartCount = container.RestartCount ?? 0
-  const exitCode = container.ExitCode ?? 0
-  const health = container.Health?.trim().toLowerCase()
-
-  if (restartCount > 0) {
-    issues.push({ key: 'restart', label: `restart ${restartCount}x`, tone: restartCount >= 3 ? 'danger' : 'warning' })
-  }
-  if (health && health !== 'healthy') {
-    issues.push({ key: 'health', label: `health ${health}`, tone: 'danger' })
-  }
-  if (exitCode !== 0) {
-    issues.push({ key: 'exit', label: `last exit ${exitCode}`, tone: 'danger' })
-  }
-
-  return issues
-}
-
-function isContainerAttention(container: Container) {
-  return ['paused', 'restarting'].includes(container.State) || getContainerRuntimeIssues(container).length > 0
-}
-
-
-function getContainerPorts(container: Container) {
-  const ports = Array.isArray(container.Ports) ? container.Ports : []
-  const published = Array.from(
-    new Set(
-      ports
-        .filter((port) => port.PublicPort)
-        .map((port) => `${port.PublicPort}->${port.PrivatePort}/${port.Type}`),
-    ),
-  )
-
-  const internal = Array.from(new Set(ports.map((port) => `${port.PrivatePort}/${port.Type}`)))
-
-  return {
-    published,
-    internal,
-    primaryPublished: published[0] ?? 'Tidak ada port forward',
-    primaryInternal: internal[0] ?? 'Tidak terdeteksi',
-  }
-}
-
-function MetaChip({ label, value, tone = 'neutral' }: { label?: string; value: string; tone?: 'neutral' | 'primary' | 'success' | 'warning' | 'info' }) {
-  return (
-    <span className={`docker-meta-chip docker-meta-chip--${tone}`}>
-      {label ? <span className="docker-meta-chip__label">{label}</span> : null}
-      <span className="docker-meta-chip__value">{value}</span>
-    </span>
-  )
-}
-
-function DeployStep({ label, delay }: { label: string; delay: number }) {
-  const [visible, setVisible] = useState(false)
-  const [done, setDone] = useState(false)
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setVisible(true), delay)
-    const t2 = setTimeout(() => setDone(true), delay + 900)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
-  }, [delay])
-
-  if (!visible) return null
-
-  return (
-    <div className={`docker-deploy-step ${done ? 'docker-deploy-step--done' : 'docker-deploy-step--active'}`}>
-      <span className="docker-deploy-step__dot">
-        {done ? (
-          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="docker-deploy-step__check">
-            <path d="M3 8.5L6.5 12L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        ) : (
-          <span className="docker-deploy-step__pulse" />
-        )}
-      </span>
-      <span className="docker-deploy-step__label">{label}</span>
-    </div>
-  )
-}
+import {
+  STATE_STYLES,
+  EMPTY_ENV_ROW,
+  DEFAULT_COMPOSE_YAML,
+  createDefaultDeployForm,
+  createDefaultPullImageForm,
+  createEmptyRegistryAuth,
+  toRawEnv,
+  toEnvRows,
+  getContainerRuntimeIssues,
+  getContainerPorts,
+} from './docker/constants'
+import { StatusBadge, MetaChip, DeployStep } from './docker/DockerComponents'
 
 export function DockerWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const pollingActive = useWindowPollingActive(win)
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<'containers' | 'images' | 'networks' | 'templates'>('containers')
   const { data, isLoading, isError, error, refetch, isFetching } = useContainers(pollingActive)
   const { data: networksData, refetch: refetchNetworks } = useDockerNetworks(pollingActive)
@@ -255,7 +90,11 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
   // Templates tab state
   const [tplSearch, setTplSearch] = useState('')
   const [showCreateTpl, setShowCreateTpl] = useState(false)
-  const [tplForm, setTplForm] = useState({ name: '', description: '', yamlContent: 'version: "3.8"\nservices:\n  app:\n    image: nginx:latest\n    ports:\n      - "8080:80"\n' })
+  const [tplForm, setTplForm] = useState({
+    name: '',
+    description: '',
+    yamlContent: DEFAULT_COMPOSE_YAML,
+  })
 
   const [showDeploy, setShowDeploy] = useState(false)
   const [showPullImage, setShowPullImage] = useState(false)
@@ -263,7 +102,6 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
   const [saveTemplateName, setSaveTemplateName] = useState('')
   const [imgDropdownOpen, setImgDropdownOpen] = useState(false)
   const [imgInputValue, setImgInputValue] = useState('')
-  // const [showTplPicker, setShowTplPicker] = useState(false)
   const [nameDropdownOpen, setNameDropdownOpen] = useState(false)
   const [netDropdownOpen, setNetDropdownOpen] = useState(false)
   const [netInputValue, setNetInputValue] = useState('')
@@ -283,6 +121,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; image: string } | null>(null)
   const [logModal, setLogModal] = useState<{ id: string; name: string } | null>(null)
   const [logTail, setLogTail] = useState(200)
@@ -295,9 +134,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
   const [deployForm, setDeployForm] = useState(createDefaultDeployForm)
 
   useEffect(() => {
-    if (authenticated) {
-      void refetch()
-    }
+    if (authenticated) void refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
@@ -339,6 +176,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
   const deleteImageMut = useDeleteDockerImage()
   const deleteTemplateMut = useDeleteDockerTemplate()
   const createTemplateMut = useCreateDockerTemplate()
+
   const logsQuery = useQuery({
     queryKey: ['docker-container-logs', logModal?.id, logTail],
     queryFn: () => fetchContainerLogs(logModal!.id, logTail),
@@ -375,107 +213,102 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
   }, [containers, search])
 
   const stats = useMemo(() => {
-    const running = containers.filter((container) => container.State === 'running').length
-    const stopped = containers.filter((container) => ['exited', 'dead'].includes(container.State)).length
-    const attention = containers.filter((container) => isContainerAttention(container)).length
-    const withPublishedPorts = containers.filter((container) => (container.Ports ?? []).some((port) => port.PublicPort)).length
-    const withIPs = containers.filter((container) => (container.IpAddresses ?? []).length > 0).length
-    return { running, stopped, attention, withPublishedPorts, withIPs }
+    const running = containers.filter((c) => c.State === 'running').length
+    const withPublishedPorts = containers.filter((c) => (c.Ports ?? []).some((p) => p.PublicPort)).length
+    const withIPs = containers.filter((c) => (c.IpAddresses ?? []).length > 0).length
+    return { running, withPublishedPorts, withIPs }
   }, [containers])
 
-  // const selectedPorts = deployForm.ports.filter((port) => port.containerPort.trim()).length
-  // const selectedVolumes = deployForm.volumes.filter((volume) => volume.containerPath.trim()).length
-  // const selectedEnv = deployForm.envMode === 'raw'
-  //   ? toEnvRows(deployForm.envRaw).filter((item) => item.key.trim()).length
-  //   : deployForm.env.filter((item) => item.key.trim()).length
-  // const deployPrimaryTarget = deployType === 'image' ? (deployForm.image || 'image belum dipilih') : 'compose.yml'
-  const deployReady = deployType === 'image'
-    ? Boolean(deployForm.name.trim() && deployForm.image.trim())
-    : Boolean(deployForm.name.trim() && deployForm.composeYaml.trim())
+  const deployReady =
+    deployType === 'image'
+      ? Boolean(deployForm.name.trim() && deployForm.image.trim())
+      : Boolean(deployForm.name.trim() && deployForm.composeYaml.trim())
 
   return (
     <div className="panel-window docker-window-root">
+      {/* ── Header ── */}
       <div className="panel-window__header">
         <div className="panel-window__title">
           <Boxes className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Docker Workspace</div>
-            <div className="panel-window__meta">Manage your docker resources</div>
+            <div className="panel-window__title-text">{t('docker.workspaceTitle')}</div>
+            <div className="panel-window__meta">{t('docker.workspaceSubtitle')}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button type="button" onClick={() => {
-            void refetch(); void refetchNetworks(); void refetchImages(); void refetchTemplates()
-          }} className="panel-icon-btn" aria-label="Refresh">
+          <button
+            type="button"
+            onClick={() => {
+              void refetch(); void refetchNetworks(); void refetchImages(); void refetchTemplates()
+            }}
+            className="panel-icon-btn"
+            aria-label={t('docker.refresh')}
+          >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={() => {
-            openDeployModal()
-          }} className="panel-btn panel-btn--primary-soft">
+          <button onClick={openDeployModal} className="panel-btn panel-btn--primary-soft">
             <Plus className="h-3.5 w-3.5" />
-            Deploy
+            {t('docker.deploy')}
           </button>
         </div>
       </div>
 
+      {/* ── Tabs ── */}
       <div className="docker-tabs">
-        <button className={`docker-tab ${activeTab === 'containers' ? 'docker-tab--active' : ''}`} onClick={() => setActiveTab('containers')}>Containers</button>
-        <button className={`docker-tab ${activeTab === 'images' ? 'docker-tab--active' : ''}`} onClick={() => setActiveTab('images')}>Images</button>
-        <button className={`docker-tab ${activeTab === 'networks' ? 'docker-tab--active' : ''}`} onClick={() => setActiveTab('networks')}>Networks</button>
-        <button className={`docker-tab ${activeTab === 'templates' ? 'docker-tab--active' : ''}`} onClick={() => setActiveTab('templates')}>Templates</button>
+        {(['containers', 'images', 'networks', 'templates'] as const).map((tab) => (
+          <button
+            key={tab}
+            className={`docker-tab ${activeTab === tab ? 'docker-tab--active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {t(`docker.tab.${tab}`)}
+          </button>
+        ))}
       </div>
 
+      {/* ── Deploy Modal ── */}
       {showDeploy && (
-        <div className="panel-modal-overlay">
-          <div className="panel-modal-card docker-deploy-modal-card" style={{ width: 'min(100%, 900px)', height: 'min(90%, 800px)' }}>
-            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
+        <div className="panel-modal-overlay docker-deploy-overlay">
+          <div className="panel-modal-card docker-deploy-modal-card">
+            <h3 className="docker-deploy-modal__title">
               {editContainer ? <Pencil className="panel-window__icon h-4 w-4" /> : <Boxes className="panel-window__icon h-4 w-4" />}
-              {editContainer ? 'Edit & Re-deploy Container' : 'Deploy Container'}
+              {editContainer ? t('docker.editRedeploy') : t('docker.deployContainer')}
             </h3>
 
-            <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="docker-deploy-tabs">
               <button
                 type="button"
                 onClick={() => setDeployType('image')}
-                className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'image' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
+                className={`panel-btn justify-center text-[12px] font-semibold shadow-none ${deployType === 'image' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
               >
-                <Box className="h-4 w-4" /> Deploy from Image
+                <Box className="h-4 w-4" /> {t('docker.deployFromImage')}
               </button>
               <button
                 type="button"
                 onClick={() => setDeployType('compose')}
-                className={`panel-btn justify-center py-2 text-[12px] font-medium shadow-none ${deployType === 'compose' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
+                className={`panel-btn justify-center text-[12px] font-semibold shadow-none ${deployType === 'compose' ? 'panel-btn--primary-soft' : 'panel-btn--ghost'}`}
               >
-                <Code className="h-4 w-4" /> Deploy from Compose
+                <Code className="h-4 w-4" /> {t('docker.deployFromCompose')}
               </button>
             </div>
 
-            {/* <div className="docker-deploy-summary mb-4">
-              <MetaChip label="target" value={deployPrimaryTarget} tone={deployType === 'image' && !deployForm.image ? 'warning' : 'info'} />
-              <MetaChip label="network" value={deployForm.network || 'Default bridge'} tone={deployForm.network ? 'success' : 'neutral'} />
-              <MetaChip label="ports" value={`${selectedPorts}`} tone={selectedPorts ? 'success' : 'neutral'} />
-              <MetaChip label="env" value={`${selectedEnv}`} tone={selectedEnv ? 'info' : 'neutral'} />
-              <MetaChip label="volumes" value={`${selectedVolumes}`} tone={selectedVolumes ? 'warning' : 'neutral'} />
-            </div> */}
-
             <div className="docker-deploy-modal__body">
-
               {/* Project / Container Name — combobox */}
               <div>
-                <label className="panel-section-label">Project / Container Name *</label>
+                <label className="panel-section-label">{t('docker.projectContainerName')}</label>
                 <div className="docker-image-combobox" ref={nameComboRef}>
                   <div className="docker-image-combobox__input-wrap">
                     <input
                       value={deployForm.name}
                       onChange={(e) => !editContainer && setDeployForm({ ...deployForm, name: e.target.value })}
                       onFocus={() => { if (!editContainer) { setNameDropdownOpen(true); setImgDropdownOpen(false); setNetDropdownOpen(false) } }}
-                      placeholder="my-awesome-app"
+                      placeholder={t('docker.projectNamePlaceholder')}
                       className={`panel-input docker-image-combobox__input ${editContainer ? 'opacity-60 cursor-not-allowed' : ''}`}
                       autoComplete="off"
                       readOnly={!!editContainer}
                     />
                     {deployForm.name && !editContainer && (
-                      <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, name: '' }); setNameDropdownOpen(false) }} title="Hapus">
+                      <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, name: '' }); setNameDropdownOpen(false) }} title={t('docker.clear')}>
                         <X className="h-3 w-3" />
                       </button>
                     )}
@@ -513,20 +346,21 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
               {deployType === 'image' ? (
                 <div className="grid grid-cols-2 gap-6 mt-4">
                   <div className="space-y-4">
+                    {/* Docker Image combobox */}
                     <div>
-                      <label className="panel-section-label">Docker Image *</label>
+                      <label className="panel-section-label">{t('docker.dockerImageRequired')}</label>
                       <div className="docker-image-combobox" ref={imgComboRef}>
                         <div className="docker-image-combobox__input-wrap">
                           <input
                             value={deployForm.image}
                             onChange={(e) => { setDeployForm({ ...deployForm, image: e.target.value }); setImgInputValue(e.target.value) }}
                             onFocus={() => { setImgDropdownOpen(true); setNameDropdownOpen(false); setNetDropdownOpen(false) }}
-                            placeholder="nginx:latest atau pilih dari list..."
+                            placeholder={t('docker.imagePlaceholder')}
                             className="panel-input docker-image-combobox__input"
                             autoComplete="off"
                           />
                           {deployForm.image && (
-                            <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, image: '' }); setImgInputValue(''); setImgDropdownOpen(false) }} title="Hapus">
+                            <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, image: '' }); setImgInputValue(''); setImgDropdownOpen(false) }} title={t('docker.clear')}>
                               <X className="h-3 w-3" />
                             </button>
                           )}
@@ -567,21 +401,18 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                           checked={deployForm.registryAuth.enabled}
                           onChange={(e) => setDeployForm((current) => ({
                             ...current,
-                            registryAuth: {
-                              ...current.registryAuth,
-                              enabled: e.target.checked,
-                            },
+                            registryAuth: { ...current.registryAuth, enabled: e.target.checked },
                           }))}
                         />
-                        <span>Gunakan autentikasi registry</span>
+                        <span>{t('docker.useRegistryAuth')}</span>
                       </label>
                       {deployForm.registryAuth.enabled && (
                         <div className="docker-auth-grid">
                           <div className="panel-field">
-                            <label className="panel-label">Registry <span className="docker-field-optional">opsional</span></label>
+                            <label className="panel-label">{t('docker.registry')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
                             <input
                               className="panel-input"
-                              placeholder="docker.io atau ghcr.io"
+                              placeholder={t('docker.registryPlaceholder')}
                               value={deployForm.registryAuth.registry}
                               onChange={(e) => setDeployForm((current) => ({
                                 ...current,
@@ -590,10 +421,10 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                             />
                           </div>
                           <div className="panel-field">
-                            <label className="panel-label">Username / Email *</label>
+                            <label className="panel-label">{t('docker.usernameEmailRequired')}</label>
                             <input
                               className="panel-input"
-                              placeholder="username atau email registry"
+                              placeholder={t('docker.usernameEmailPlaceholder')}
                               value={deployForm.registryAuth.usernameOrEmail}
                               onChange={(e) => setDeployForm((current) => ({
                                 ...current,
@@ -602,11 +433,11 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                             />
                           </div>
                           <div className="panel-field docker-auth-grid__full">
-                            <label className="panel-label">Password *</label>
+                            <label className="panel-label">{t('docker.passwordRequired')}</label>
                             <input
                               type="password"
                               className="panel-input"
-                              placeholder="••••••••"
+                              placeholder={t('docker.passwordPlaceholder')}
                               value={deployForm.registryAuth.password}
                               onChange={(e) => setDeployForm((current) => ({
                                 ...current,
@@ -620,7 +451,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
 
                     {/* Network combobox */}
                     <div>
-                      <label className="panel-section-label">Network</label>
+                      <label className="panel-section-label">{t('docker.network')}</label>
                       <div className="docker-image-combobox" ref={netComboRef}>
                         <div className="docker-image-combobox__input-wrap">
                           <input
@@ -636,7 +467,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                               setImgDropdownOpen(false)
                               setNameDropdownOpen(false)
                             }}
-                            placeholder="Default (bridge) / cari network..."
+                            placeholder={t('docker.networkPlaceholder')}
                             className="panel-input docker-image-combobox__input"
                             autoComplete="off"
                           />
@@ -649,7 +480,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                 setNetInputValue('')
                                 setNetDropdownOpen(false)
                               }}
-                              title="Reset ke default"
+                              title={t('docker.resetDefault')}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -669,15 +500,11 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                 setNetDropdownOpen(false)
                               }}
                             >
-                              <span className="docker-image-combobox__item-name">Default (bridge)</span>
+                              <span className="docker-image-combobox__item-name">{t('docker.defaultBridge')}</span>
                               {!deployForm.network && <Check className="h-3.5 w-3.5 ml-auto" />}
                             </button>
                             {(networksData?.items ?? [])
-                              .filter((net) => {
-                                if (!netInputValue) return true
-                                const needle = netInputValue.toLowerCase()
-                                return [net.Name, net.Driver, net.Subnet, net.Gateway].filter(Boolean).join(' ').toLowerCase().includes(needle)
-                              })
+                              .filter((net) => !netInputValue || net.Name.toLowerCase().includes(netInputValue.toLowerCase()))
                               .map((net) => (
                                 <button
                                   key={net.Id}
@@ -690,385 +517,313 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                   }}
                                 >
                                   <span className="docker-image-combobox__item-name">{net.Name}</span>
-                                  <span className="docker-net-dropdown-meta">
-                                    <span className="docker-net-dropdown-meta__driver">{net.Driver}</span>
-                                    {net.Subnet && <span className="docker-net-dropdown-meta__subnet">{net.Subnet}</span>}
-                                    {net.Gateway && <span className="docker-net-dropdown-meta__gw">gw {net.Gateway}</span>}
-                                  </span>
-                                  {deployForm.network === net.Name && <Check className="h-3.5 w-3.5 ml-auto flex-shrink-0" />}
+                                  <span className="docker-image-combobox__item-size">{net.Driver}</span>
+                                  {deployForm.network === net.Name && <Check className="h-3.5 w-3.5 ml-auto" />}
                                 </button>
                               ))}
-
                           </div>
                         )}
                       </div>
                     </div>
-
-                    {/* Ports */}
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="panel-section-label mb-0">Ports (Host : Container)</label>
-                        <button onClick={() => setDeployForm({ ...deployForm, ports: [...deployForm.ports, { hostPort: '', containerPort: '' }] })} className="text-[10px] text-blue-500 hover:underline">Add Port</button>
-                      </div>
-                      {deployForm.ports.map((p, i) => (
-                        <div key={i} className="flex gap-2 mb-2 items-center">
-                          <input value={p.hostPort} onChange={(e) => { const newP = [...deployForm.ports]; newP[i].hostPort = e.target.value; setDeployForm({ ...deployForm, ports: newP }) }} placeholder="8080" className="panel-input flex-1" />
-                          <span className="text-[var(--text-secondary)] py-2">:</span>
-                          <input value={p.containerPort} onChange={(e) => { const newP = [...deployForm.ports]; newP[i].containerPort = e.target.value; setDeployForm({ ...deployForm, ports: newP }) }} placeholder="80" className="panel-input flex-1" />
-                          <button onClick={() => setDeployForm({ ...deployForm, ports: deployForm.ports.filter((_, idx) => idx !== i) })} className="panel-icon-btn"><X className="h-3.5 w-3.5" /></button>
-                        </div>
-                      ))}
-                    </div>
                   </div>
 
+                  {/* Right side: ports, env, volumes */}
                   <div className="space-y-4">
+                    {/* Ports */}
+                    <div>
+                      <label className="panel-section-label">{t('docker.ports')}</label>
+                      {deployForm.ports.map((port, idx) => (
+                        <div key={idx} className="docker-port-row">
+                          <input
+                            className="panel-input docker-port-input"
+                            placeholder={t('docker.hostPortPlaceholder')}
+                            value={port.hostPort}
+                            onChange={(e) => {
+                              const ports = [...deployForm.ports]
+                              ports[idx] = { ...ports[idx], hostPort: e.target.value }
+                              setDeployForm({ ...deployForm, ports })
+                            }}
+                          />
+                          <span className="docker-port-sep">:</span>
+                          <input
+                            className="panel-input docker-port-input"
+                            placeholder={t('docker.containerPortPlaceholder')}
+                            value={port.containerPort}
+                            onChange={(e) => {
+                              const ports = [...deployForm.ports]
+                              ports[idx] = { ...ports[idx], containerPort: e.target.value }
+                              setDeployForm({ ...deployForm, ports })
+                            }}
+                          />
+                          {deployForm.ports.length > 1 && (
+                            <button
+                              type="button"
+                              className="panel-icon-btn text-[var(--panel-danger-text)]"
+                              onClick={() => {
+                                const ports = deployForm.ports.filter((_, i) => i !== idx)
+                                setDeployForm({ ...deployForm, ports })
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--ghost text-[12px]"
+                        onClick={() => setDeployForm({ ...deployForm, ports: [...deployForm.ports, { hostPort: '', containerPort: '' }] })}
+                      >
+                        <Plus className="h-3 w-3" /> {t('docker.addPort')}
+                      </button>
+                    </div>
+
                     {/* Environment Variables */}
                     <div>
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <label className="panel-section-label mb-0">Environment Variables</label>
-                        <div className="flex justify-end gap-2">
-                          <div className="docker-env-mode-switch" role="tablist" aria-label="Environment input mode">
-                            <button
-                              type="button"
-                              className={`docker-env-mode-switch__btn ${deployForm.envMode === 'form' ? 'docker-env-mode-switch__btn--active' : ''}`}
-                              onClick={() => {
-                                setDeployForm((current) => ({
-                                  ...current,
-                                  envMode: 'form',
-                                  env: toEnvRows(current.envRaw || toRawEnv(current.env)),
-                                }))
-                              }}
-                            >
-                              Form
-                            </button>
-                            <button
-                              type="button"
-                              className={`docker-env-mode-switch__btn ${deployForm.envMode === 'raw' ? 'docker-env-mode-switch__btn--active' : ''}`}
-                              onClick={() => {
-                                setDeployForm((current) => ({
-                                  ...current,
-                                  envMode: 'raw',
-                                  envRaw: current.envRaw || toRawEnv(current.env),
-                                }))
-                              }}
-                            >
-                              Raw
-                            </button>
-                            {/* <button
-                              type="button"
-                              className={`docker-env-mode-switch__btn text-[10px] text-blue-500 hover:underline`}
-                              onClick={() => {
-                                setDeployForm((current) => ({
-                                  ...current,
-                                  envMode: 'raw',
-                                  envRaw: current.envRaw || toRawEnv(current.env),
-                                }))
-                              }}
-                            >
-                              Add Env
-                            </button> */}
-                          </div>
-                          {deployForm.envMode === 'form' && <button onClick={() => setDeployForm({ ...deployForm, env: [...deployForm.env, { key: '', value: '' }] })} className="text-[10px] text-blue-500 hover:underline">Add Env</button>}
-                        </div>
+                      <label className="panel-section-label">{t('docker.environmentVariables')}</label>
+                      <div className="mb-2 flex gap-2">
+                        <button
+                          type="button"
+                          className={`panel-btn panel-btn--ghost text-[12px] ${deployForm.envMode === 'form' ? 'panel-btn--active' : ''}`}
+                          onClick={() => {
+                            if (deployForm.envMode === 'form') return
+                            setDeployForm({ ...deployForm, envMode: 'form', env: toEnvRows(deployForm.envRaw) })
+                          }}
+                        >
+                          {t('docker.envFormMode')}
+                        </button>
+                        <button
+                          type="button"
+                          className={`panel-btn panel-btn--ghost text-[12px] ${deployForm.envMode === 'raw' ? 'panel-btn--active' : ''}`}
+                          onClick={() => {
+                            if (deployForm.envMode === 'raw') return
+                            setDeployForm({ ...deployForm, envMode: 'raw', envRaw: toRawEnv(deployForm.env) })
+                          }}
+                        >
+                          {t('docker.envRawMode')}
+                        </button>
                       </div>
-
                       {deployForm.envMode === 'form' ? (
                         <>
-                          {/* <div className="flex justify-end mb-1">
-                            <button onClick={() => setDeployForm({ ...deployForm, env: [...deployForm.env, { key: '', value: '' }] })} className="text-[10px] text-blue-500 hover:underline">Add Env</button>
-                          </div> */}
-                          {deployForm.env.map((e, i) => (
-                            <div key={i} className="flex gap-2 mb-2 items-center">
-                              <input value={e.key} onChange={(evt) => { const newE = [...deployForm.env]; newE[i].key = evt.target.value; setDeployForm({ ...deployForm, env: newE, envRaw: toRawEnv(newE) }) }} placeholder="TZ" className="panel-input flex-1" />
-                              <span className="text-[var(--text-secondary)] py-2">=</span>
-                              <input value={e.value} onChange={(evt) => { const newE = [...deployForm.env]; newE[i].value = evt.target.value; setDeployForm({ ...deployForm, env: newE, envRaw: toRawEnv(newE) }) }} placeholder="Asia/Jakarta" className="panel-input flex-1" />
-                              <button onClick={() => { const newEnv = deployForm.env.filter((_, idx) => idx !== i); const nextEnv = newEnv.length > 0 ? newEnv : [EMPTY_ENV_ROW]; setDeployForm({ ...deployForm, env: nextEnv, envRaw: toRawEnv(nextEnv) }) }} className="panel-icon-btn"><X className="h-3.5 w-3.5" /></button>
+                          {deployForm.env.map((envRow, idx) => (
+                            <div key={idx} className="docker-env-row">
+                              <input
+                                className="panel-input docker-env-key"
+                                placeholder={t('docker.envKeyPlaceholder')}
+                                value={envRow.key}
+                                onChange={(e) => {
+                                  const env = [...deployForm.env]
+                                  env[idx] = { ...env[idx], key: e.target.value }
+                                  setDeployForm({ ...deployForm, env })
+                                }}
+                              />
+                              <input
+                                className="panel-input docker-env-value"
+                                placeholder={t('docker.envValuePlaceholder')}
+                                value={envRow.value}
+                                onChange={(e) => {
+                                  const env = [...deployForm.env]
+                                  env[idx] = { ...env[idx], value: e.target.value }
+                                  setDeployForm({ ...deployForm, env })
+                                }}
+                              />
+                              {deployForm.env.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="panel-icon-btn text-[var(--panel-danger-text)]"
+                                  onClick={() => {
+                                    const env = deployForm.env.filter((_, i) => i !== idx)
+                                    setDeployForm({ ...deployForm, env: env.length > 0 ? env : [EMPTY_ENV_ROW] })
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
                             </div>
                           ))}
-                          <p className="panel-hint">Mode form cocok untuk edit cepat per pasangan <code>KEY=VALUE</code>.</p>
+                          <button
+                            type="button"
+                            className="panel-btn panel-btn--ghost text-[12px]"
+                            onClick={() => setDeployForm({ ...deployForm, env: [...deployForm.env, { key: '', value: '' }] })}
+                          >
+                            <Plus className="h-3 w-3" /> {t('docker.addEnv')}
+                          </button>
                         </>
                       ) : (
-                        <>
-                          <textarea
-                            value={deployForm.envRaw}
-                            onChange={(e) => setDeployForm({ ...deployForm, envRaw: e.target.value })}
-                            rows={8}
-                            className="panel-textarea panel-input--mono"
-                            placeholder={'TZ=Asia/Jakarta\nAPP_ENV=production\n# komentar diperbolehkan'}
-                          />
-                          <p className="panel-hint">Gunakan satu baris per variabel. Baris kosong dan komentar <code>#</code> akan diabaikan.</p>
-                        </>
+                        <textarea
+                          className="panel-input docker-modal__yaml"
+                          rows={6}
+                          placeholder={t('docker.envRawPlaceholder')}
+                          value={deployForm.envRaw}
+                          onChange={(e) => setDeployForm({ ...deployForm, envRaw: e.target.value })}
+                        />
                       )}
                     </div>
 
                     {/* Volumes */}
                     <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="panel-section-label mb-0">Volumes (Host Path : Container Path)</label>
-                        <button onClick={() => setDeployForm({ ...deployForm, volumes: [...deployForm.volumes, { hostPath: '', containerPath: '' }] })} className="text-[10px] text-blue-500 hover:underline">Add Volume</button>
-                      </div>
-                      <p className="text-[10px] text-[var(--text-secondary)] mb-2">Host path must be a relative directory inside your home root, e.g. "data/app" or "config".</p>
-                      {deployForm.volumes.map((v, i) => (
-                        <div key={i} className="flex gap-2 mb-2 items-center">
-                          <input value={v.hostPath} onChange={(evt) => { const newV = [...deployForm.volumes]; newV[i].hostPath = evt.target.value; setDeployForm({ ...deployForm, volumes: newV }) }} placeholder="data/app" className="panel-input flex-1" />
-                          <span className="text-[var(--text-secondary)] py-2">:</span>
-                          <input value={v.containerPath} onChange={(evt) => { const newV = [...deployForm.volumes]; newV[i].containerPath = evt.target.value; setDeployForm({ ...deployForm, volumes: newV }) }} placeholder="/app/data" className="panel-input flex-1" />
-                          <button onClick={() => setDeployForm({ ...deployForm, volumes: deployForm.volumes.filter((_, idx) => idx !== i) })} className="panel-icon-btn"><X className="h-3.5 w-3.5" /></button>
+                      <label className="panel-section-label">{t('docker.volumes')}</label>
+                      {deployForm.volumes.map((vol, idx) => (
+                        <div key={idx} className="docker-port-row">
+                          <input
+                            className="panel-input docker-port-input"
+                            placeholder={t('docker.hostPathPlaceholder')}
+                            value={vol.hostPath}
+                            onChange={(e) => {
+                              const volumes = [...deployForm.volumes]
+                              volumes[idx] = { ...volumes[idx], hostPath: e.target.value }
+                              setDeployForm({ ...deployForm, volumes })
+                            }}
+                          />
+                          <span className="docker-port-sep">:</span>
+                          <input
+                            className="panel-input docker-port-input"
+                            placeholder={t('docker.containerPathPlaceholder')}
+                            value={vol.containerPath}
+                            onChange={(e) => {
+                              const volumes = [...deployForm.volumes]
+                              volumes[idx] = { ...volumes[idx], containerPath: e.target.value }
+                              setDeployForm({ ...deployForm, volumes })
+                            }}
+                          />
+                          {deployForm.volumes.length > 1 && (
+                            <button
+                              type="button"
+                              className="panel-icon-btn text-[var(--panel-danger-text)]"
+                              onClick={() => {
+                                const volumes = deployForm.volumes.filter((_, i) => i !== idx)
+                                setDeployForm({ ...deployForm, volumes })
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       ))}
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--ghost text-[12px]"
+                        onClick={() => setDeployForm({ ...deployForm, volumes: [...deployForm.volumes, { hostPath: '', containerPath: '' }] })}
+                      >
+                        <Plus className="h-3 w-3" /> {t('docker.addVolume')}
+                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div>
-                  <div className="flex justify-between items-center mb-1 mt-2">
-                    <label className="panel-section-label mb-0">docker-compose.yml</label>
-                    {/* {(templatesData?.items?.length ?? 0) > 0 && (
-                      <button
-                        type="button"
-                        className="text-[10px] text-[var(--panel-primary-text)] hover:underline flex items-center gap-1"
-                        onClick={() => setShowTplPicker((v) => !v)}
-                      >
-                        <Layers3 className="h-3 w-3" /> Pilih Template
-                      </button>
-                    )} */}
+                /* Compose YAML editor */
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="panel-section-label">{t('docker.composeYamlRequired')}</label>
+                    <textarea
+                      className="panel-input docker-modal__yaml"
+                      rows={16}
+                      value={deployForm.composeYaml}
+                      onChange={(e) => setDeployForm({ ...deployForm, composeYaml: e.target.value })}
+                    />
                   </div>
-                  {/* {showTplPicker && (
-                    <div className="docker-tpl-picker">
-                      {(templatesData?.items ?? []).map((tmpl) => (
-                        <button
-                          key={tmpl.id}
-                          type="button"
-                          className="docker-tpl-picker__item"
-                          onClick={() => {
-                            setDeployForm((f) => ({ ...f, composeYaml: tmpl.yamlContent, name: f.name || tmpl.name }))
-                            setShowTplPicker(false)
-                          }}
-                        >
-                          <span className="docker-tpl-picker__name">{tmpl.name}</span>
-                          {tmpl.description && <span className="docker-tpl-picker__desc">{tmpl.description}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )} */}
-                  <textarea
-                    value={deployForm.composeYaml}
-                    onChange={(e) => setDeployForm({ ...deployForm, composeYaml: e.target.value })}
-                    rows={12}
-                    className="panel-textarea panel-input--mono docker-compose-editor"
-                    placeholder={"version: '3'\nservices:\n..."}
-                  />
-
-                  <div className="docker-compose-options">
-                    <div className="docker-compose-options__header">
-                      <div>
-                        <div className="docker-compose-options__title">Compose options</div>
-                        <div className="docker-compose-options__desc">Registry credential dan penyimpanan template untuk deploy berikutnya.</div>
-                      </div>
-                    </div>
-                    <label className="docker-save-tpl-check docker-save-tpl-check--card">
+                  <label className="docker-save-tpl-check">
+                    <input
+                      type="checkbox"
+                      checked={showSaveAsTpl}
+                      onChange={(e) => {
+                        setShowSaveAsTpl(e.target.checked)
+                        if (e.target.checked && !saveTemplateName) setSaveTemplateName(deployForm.name)
+                      }}
+                    />
+                    <span>{t('docker.saveAsTemplate')}</span>
+                  </label>
+                  {showSaveAsTpl && (
+                    <div className="panel-field">
+                      <label className="panel-label">{t('docker.templateName')}</label>
                       <input
-                        type="checkbox"
-                        checked={deployForm.registryAuth.enabled}
-                        onChange={(e) => setDeployForm((current) => ({
-                          ...current,
-                          registryAuth: { ...current.registryAuth, enabled: e.target.checked },
-                        }))}
+                        className="panel-input"
+                        placeholder={t('docker.composeTemplateNamePlaceholder')}
+                        value={saveTemplateName}
+                        onChange={(e) => setSaveTemplateName(e.target.value)}
                       />
-                      <span>Gunakan autentikasi registry</span>
-                    </label>
-                    {deployForm.registryAuth.enabled && (
-                      <div className="docker-auth-grid">
-                        <div className="panel-field">
-                          <label className="panel-label">Registry <span className="docker-field-optional">opsional</span></label>
-                          <input
-                            className="panel-input"
-                            placeholder="docker.io atau ghcr.io"
-                            value={deployForm.registryAuth.registry}
-                            onChange={(e) => setDeployForm((current) => ({
-                              ...current,
-                              registryAuth: { ...current.registryAuth, registry: e.target.value },
-                            }))}
-                          />
-                        </div>
-                        <div className="panel-field">
-                          <label className="panel-label">Username / Email *</label>
-                          <input
-                            className="panel-input"
-                            placeholder="username atau email registry"
-                            value={deployForm.registryAuth.usernameOrEmail}
-                            onChange={(e) => setDeployForm((current) => ({
-                              ...current,
-                              registryAuth: { ...current.registryAuth, usernameOrEmail: e.target.value },
-                            }))}
-                          />
-                        </div>
-                        <div className="panel-field docker-auth-grid__full">
-                          <label className="panel-label">Password *</label>
-                          <input
-                            type="password"
-                            className="panel-input"
-                            placeholder="••••••••"
-                            value={deployForm.registryAuth.password}
-                            onChange={(e) => setDeployForm((current) => ({
-                              ...current,
-                              registryAuth: { ...current.registryAuth, password: e.target.value },
-                            }))}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    <label className="docker-save-tpl-check docker-save-tpl-check--card">
-                      <input
-                        type="checkbox"
-                        checked={showSaveAsTpl}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setShowSaveAsTpl(checked)
-                          if (checked && !saveTemplateName.trim()) {
-                            setSaveTemplateName(deployForm.name.trim())
-                          }
-                        }}
-                      />
-                      <span>Simpan sebagai template</span>
-                      {showSaveAsTpl && saveTemplateName.trim() && (
-                        <span className="docker-save-tpl-check__name">"{saveTemplateName.trim()}"</span>
-                      )}
-                    </label>
-                    {showSaveAsTpl && (
-                      <div className="panel-field">
-                        <label className="panel-label">Nama template *</label>
-                        <input
-                          className="panel-input"
-                          placeholder="nama-template-untuk-digunakan-lagi"
-                          value={saveTemplateName}
-                          onChange={(e) => setSaveTemplateName(e.target.value)}
-                        />
-                        <p className="mt-1 text-[10px] leading-5 text-[var(--text-secondary)]">
-                          Nama deploy tetap memakai field Project / Container Name. Nama template ini hanya untuk penyimpanan preset compose.
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
-
             </div>
 
-            <div className="mt-5 flex gap-2" onClick={() => { setImgDropdownOpen(false); setNameDropdownOpen(false); setNetDropdownOpen(false) }}>
-              <button onClick={() => { resetDeployModal() }} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+            {/* Deploy modal footer */}
+            <div className="mt-4 flex gap-2">
+              <button className="panel-btn panel-btn--ghost flex-1" onClick={resetDeployModal}>
+                {t('common.cancel')}
+              </button>
               <button
-                onClick={async () => {
+                className="panel-btn panel-btn--primary flex-1"
+                disabled={!deployReady || deployImageMut.isPending || deployComposeMut.isPending}
+                onClick={() => {
                   if (deployType === 'image') {
-                    if (!deployForm.network) {
-                      const confirmed = await alertLib.confirm(
-                        'Network Masih Kosong',
-                        'Anda belum memilih network. Container akan dijalankan menggunakan <strong>Default (bridge)</strong>. Lanjutkan deploy?',
-                        'Ya, pakai Default',
-                        'Pilih Network Dulu',
-                        'warning',
-                        'apps',
-                      )
-                      if (!confirmed) return
-                    }
-
-                    const normalizedEnv = deployForm.envMode === 'raw'
-                      ? toEnvRows(deployForm.envRaw)
-                      : deployForm.env.filter(e => e.key.trim())
-
-                    const payload = {
-                      ownerUserId: deployForm.ownerUserId,
-                      name: deployForm.name,
-                      image: deployForm.image,
-                      network: deployForm.network || undefined,
-                      ports: deployForm.ports.filter(p => p.containerPort),
-                      env: normalizedEnv.filter(e => e.key.trim()),
-                      envMode: deployForm.envMode,
-                      envRaw: deployForm.envMode === 'raw' ? deployForm.envRaw : undefined,
-                      registryAuth: deployForm.registryAuth.enabled
-                        ? {
-                          enabled: true,
-                          registry: deployForm.registryAuth.registry || undefined,
-                          usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
-                          password: deployForm.registryAuth.password,
-                        }
-                        : undefined,
-                      volumes: deployForm.volumes.filter(v => v.containerPath),
-                      replaceContainerId: editContainer ? editContainer.id : undefined,
-                    }
-                    deployImageMut.mutate(payload, {
-                      onSuccess: () => {
-                        toast.success(editContainer ? 'Container berhasil di-redeploy' : 'Container deployed successfully')
-                        resetDeployModal()
+                    deployImageMut.mutate(
+                      {
+                        name: deployForm.name.trim(),
+                        image: deployForm.image.trim(),
+                        network: deployForm.network.trim() || undefined,
+                        ports: deployForm.ports
+                          .filter((p) => p.containerPort.trim())
+                          .map((p) => ({
+                            hostIp: '0.0.0.0',
+                            hostPort: p.hostPort.trim(),
+                            containerPort: p.containerPort.trim(),
+                            protocol: 'tcp',
+                          })),
+                        env: deployForm.envMode === 'form'
+                          ? deployForm.env.filter((e) => e.key.trim()).map((e) => ({ key: e.key.trim(), value: e.value }))
+                          : toEnvRows(deployForm.envRaw).filter((e) => e.key.trim()),
+                        volumes: deployForm.volumes
+                          .filter((v) => v.containerPath.trim())
+                          .map((v) => ({ hostPath: v.hostPath.trim(), containerPath: v.containerPath.trim() })),
+                        registryAuth: deployForm.registryAuth.enabled
+                          ? { enabled: true, registry: deployForm.registryAuth.registry || undefined, usernameOrEmail: deployForm.registryAuth.usernameOrEmail, password: deployForm.registryAuth.password }
+                          : undefined,
                       },
-                      onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
-                    })
+                      {
+                        onSuccess: () => {
+                          toast.success(editContainer ? t('docker.containerRedeployed') : t('docker.containerDeployed'))
+                          resetDeployModal()
+                          void refetch()
+                        },
+                        onError: (e: any) => alertLib.fire(t('docker.deployFailed'), e.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
+                      },
+                    )
                   } else {
-                    // optionally save as template first
-                    if (showSaveAsTpl && saveTemplateName.trim()) {
-                      try {
-                        await createTemplateMut.mutateAsync({ name: saveTemplateName.trim(), description: '', yamlContent: deployForm.composeYaml })
-                        toast.success(`Template "${saveTemplateName.trim()}" tersimpan`)
-                      } catch { /* ignore template save error */ }
-                    }
-                    deployComposeMut.mutate({
-                      ownerUserId: deployForm.ownerUserId,
-                      name: deployForm.name,
-                      composeYaml: deployForm.composeYaml,
-                      registryAuth: deployForm.registryAuth.enabled
-                        ? {
-                          enabled: true,
-                          registry: deployForm.registryAuth.registry || undefined,
-                          usernameOrEmail: deployForm.registryAuth.usernameOrEmail,
-                          password: deployForm.registryAuth.password,
-                        }
-                        : undefined,
-                      replaceContainerId: editContainer ? editContainer.id : undefined,
-                    }, {
-                      onSuccess: () => {
-                        toast.success('Compose project deployed successfully')
-                        resetDeployModal()
+                    deployComposeMut.mutate(
+                      {
+                        name: deployForm.name.trim(),
+                        composeYaml: deployForm.composeYaml,
                       },
-                      onError: (e: any) => alertLib.fire('Deploy Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
-                    })
+                      {
+                        onSuccess: async () => {
+                          toast.success(t('docker.composeProjectDeployed', { name: deployForm.name }))
+                          if (showSaveAsTpl && saveTemplateName.trim()) {
+                            try {
+                              await createTemplateMut.mutateAsync({ name: saveTemplateName.trim(), description: '', yamlContent: deployForm.composeYaml })
+                              toast.success(t('docker.templateSaved'))
+                            } catch { /* silent */ }
+                          }
+                          resetDeployModal()
+                          void refetch()
+                        },
+                        onError: (e: any) => alertLib.fire(t('docker.composeDeployFailed'), e.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
+                      },
+                    )
                   }
                 }}
-                disabled={deployImageMut.isPending || deployComposeMut.isPending || createTemplateMut.isPending || !deployReady}
-                className="panel-btn panel-btn--primary flex-1"
               >
-                {deployImageMut.isPending || deployComposeMut.isPending ? (editContainer ? 'Re-deploying...' : 'Deploying...') : (editContainer ? 'Simpan & Re-deploy' : 'Deploy')}
+                {(deployImageMut.isPending || deployComposeMut.isPending) ? (
+                  <>
+                    <DeployStep label={t('docker.pullingImage')} delay={0} />
+                    <DeployStep label={t('docker.creatingContainer')} delay={1200} />
+                    <DeployStep label={t('docker.starting')} delay={2400} />
+                  </>
+                ) : editContainer ? t('docker.redeploy') : t('docker.deploy')}
               </button>
             </div>
-
           </div>
-
-          {/* ── Deploy Loading Overlay ── */}
-          {(deployImageMut.isPending || deployComposeMut.isPending) && (
-            <div className="docker-deploy-loading-overlay">
-              <div className="docker-deploy-loading__inner">
-                <div className="docker-deploy-loading__spinner">
-                  <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
-                    <path d="M28 4a24 24 0 0 1 24 24" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="docker-deploy-loading__arc" />
-                  </svg>
-                </div>
-                <div className="docker-deploy-loading__title">
-                  {editContainer ? 'Re-deploying Container...' : 'Deploying Container...'}
-                </div>
-                <div className="docker-deploy-loading__subtitle">
-                  {deployForm.name && <code>{deployForm.name}</code>}
-                </div>
-                <div className="docker-deploy-loading__steps">
-                  <DeployStep label={deployType === 'image' ? 'Pull / verify image' : 'Parse compose YAML'} delay={0} />
-                  <DeployStep label="Create container & mount volumes" delay={1200} />
-                  <DeployStep label="Attach network & bind ports" delay={2800} />
-                  <DeployStep label="Start service" delay={4500} />
-                </div>
-                <p className="docker-deploy-loading__note">Proses bisa memakan waktu jika image perlu diunduh.</p>
-              </div>
-            </div>
-          )}
-
         </div>
       )}
 
@@ -1078,46 +833,30 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           <div className="panel-modal-card" style={{ width: 'min(100%, 440px)' }}>
             <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
               <Trash2 className="h-4 w-4 text-[var(--panel-danger-text)]" />
-              Hapus Container
+              {t('docker.deleteContainerTitle')}
             </h3>
-            <p className="mb-4 text-xs text-[var(--text-secondary)] leading-relaxed">
-              Container <strong className="text-[var(--win-text)]">{deleteConfirm.name}</strong> akan dihapus secara permanen.
-              Pilih opsi tambahan di bawah ini.
+            <p className="mb-4 text-[12px] text-[var(--text-secondary)] leading-relaxed">
+              {t('docker.deleteContainerDescription', { name: deleteConfirm.name })}
             </p>
-
             <div className="space-y-3 mb-5">
               <label className="docker-save-tpl-check">
-                <input
-                  type="checkbox"
-                  checked={deleteOpts.removeVolumes}
-                  onChange={(e) => setDeleteOpts((v) => ({ ...v, removeVolumes: e.target.checked }))}
-                />
-                <span>Hapus volume & data container</span>
+                <input type="checkbox" checked={deleteOpts.removeVolumes} onChange={(e) => setDeleteOpts((v) => ({ ...v, removeVolumes: e.target.checked }))} />
+                <span>{t('docker.deleteVolumesData')}</span>
                 <span className="docker-save-tpl-check__name text-[var(--panel-danger-text)]">(-v)</span>
               </label>
               <label className="docker-save-tpl-check">
-                <input
-                  type="checkbox"
-                  checked={deleteOpts.removeImage}
-                  onChange={(e) => setDeleteOpts((v) => ({ ...v, removeImage: e.target.checked }))}
-                />
-                <span>Hapus image</span>
-                <span className="docker-save-tpl-check__name font-mono text-[11px]">{deleteConfirm.image}</span>
+                <input type="checkbox" checked={deleteOpts.removeImage} onChange={(e) => setDeleteOpts((v) => ({ ...v, removeImage: e.target.checked }))} />
+                <span>{t('docker.removeImage')}</span>
+                <span className="docker-save-tpl-check__name font-mono text-[12px]">{deleteConfirm.image}</span>
               </label>
               {deleteOpts.removeImage && (
-                <p className="text-[11px] text-[var(--panel-warning-text)] pl-5 leading-relaxed">
-                  ⚠ Image hanya akan dihapus jika tidak digunakan oleh container lain.
+                <p className="text-[12px] text-[var(--panel-warning-text)] pl-5 leading-relaxed">
+                  {t('docker.removeImageWarning')}
                 </p>
               )}
             </div>
-
             <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="panel-btn panel-btn--ghost flex-1"
-              >
-                Batal
-              </button>
+              <button onClick={() => setDeleteConfirm(null)} className="panel-btn panel-btn--ghost flex-1">{t('common.cancel')}</button>
               <button
                 onClick={() => {
                   deleteMutation.mutate({ id: deleteConfirm.id, opts: deleteOpts })
@@ -1127,42 +866,101 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                 className="panel-btn panel-btn--danger flex-1"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {deleteMutation.isPending ? 'Menghapus...' : 'Hapus'}
+                {deleteMutation.isPending ? t('docker.deleting') : t('common.delete')}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Log Modal ── */}
+      {logModal && (
+        <div className="docker-modal-overlay" onClick={() => setLogModal(null)}>
+          <div className="docker-modal docker-log-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="docker-modal__header">
+              <div>
+                <span className="docker-modal__title">{t('docker.realtimeLogs')}</span>
+                <div className="panel-window__meta">{t('docker.refreshEverySeconds', { name: logModal.name })}</div>
+              </div>
+              <button type="button" className="panel-icon-btn" onClick={() => setLogModal(null)}><X className="h-4 w-4" /></button>
+            </div>
+            <div className="docker-modal__body">
+              <div className="docker-log-toolbar">
+                <div className="docker-log-toolbar__left">
+                  <span className="panel-badge panel-badge--neutral">tail {logTail}</span>
+                  {logsQuery.isFetching && <span className="panel-badge panel-badge--info">{t('docker.syncing')}</span>}
+                </div>
+                <div className="docker-log-toolbar__right">
+                  <label className="docker-log-autoscroll">
+                    <input type="checkbox" checked={logAutoScroll} onChange={(e) => setLogAutoScroll(e.target.checked)} />
+                    <span>{t('docker.autoScroll')}</span>
+                  </label>
+                  <PanelSelectMenu
+                    id="docker-log-tail-select"
+                    value={String(logTail)}
+                    onChange={(value: string) => setLogTail(Number(value))}
+                    options={[
+                      { value: '100', label: t('docker.lines', { count: 100 }) },
+                      { value: '200', label: t('docker.lines', { count: 200 }) },
+                      { value: '500', label: t('docker.lines', { count: 500 }) },
+                      { value: '1000', label: t('docker.lines', { count: 1000 }) },
+                    ]}
+                    className="min-w-[140px]"
+                    buttonClassName="h-[34px] rounded-[10px] py-0 text-[12px]"
+                    dropdownClassName="left-auto right-0 min-w-[160px]"
+                  />
+                  <button type="button" className="panel-btn panel-btn--ghost" onClick={() => logsQuery.refetch()} disabled={logsQuery.isFetching}>
+                    <RefreshCw className={`h-3.5 w-3.5 ${logsQuery.isFetching ? 'animate-spin' : ''}`} />
+                    {t('common.refresh')}
+                  </button>
+                </div>
+              </div>
+              {logsQuery.isError ? (
+                <div className="panel-empty panel-empty--danger">{t('docker.logLoadFailed')}</div>
+              ) : (
+                <pre ref={logViewerRef} className="docker-log-viewer">
+                  {(logsQuery.data?.lines ?? []).length > 0
+                    ? logsQuery.data?.lines.join('\n')
+                    : logsQuery.isLoading
+                      ? t('docker.loadingLogs')
+                      : t('docker.noLogs')}
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="panel-window__body">
+        {/* ── Containers Tab ── */}
         {activeTab === 'containers' && (
           <div className="panel-window__stack">
             <div className="docker-summary-grid">
               <div className="panel-card docker-summary-card">
                 <div className="docker-summary-card__icon"><Layers3 className="h-4 w-4" /></div>
                 <div>
-                  <div className="panel-window__meta">Total container</div>
+                  <div className="panel-window__meta">{t('docker.totalContainers')}</div>
                   <div className="docker-summary-card__value">{containers.length}</div>
                 </div>
               </div>
               <div className="panel-card docker-summary-card">
                 <div className="docker-summary-card__icon"><Activity className="h-4 w-4" /></div>
                 <div>
-                  <div className="panel-window__meta">Sedang berjalan</div>
+                  <div className="panel-window__meta">{t('docker.running')}</div>
                   <div className="docker-summary-card__value">{stats.running}</div>
                 </div>
               </div>
               <div className="panel-card docker-summary-card">
                 <div className="docker-summary-card__icon"><Server className="h-4 w-4" /></div>
                 <div>
-                  <div className="panel-window__meta">Memiliki IP aktif</div>
+                  <div className="panel-window__meta">{t('docker.activeIp')}</div>
                   <div className="docker-summary-card__value">{stats.withIPs}</div>
                 </div>
               </div>
               <div className="panel-card docker-summary-card">
                 <div className="docker-summary-card__icon"><Box className="h-4 w-4" /></div>
                 <div>
-                  <div className="panel-window__meta">Port ter-publish</div>
+                  <div className="panel-window__meta">{t('docker.publishedPorts')}</div>
                   <div className="docker-summary-card__value">{stats.withPublishedPorts}</div>
                 </div>
               </div>
@@ -1170,45 +968,39 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
 
             <div className="panel-table-container">
               <div className="panel-toolbar panel-toolbar--search docker-toolbar-card">
-                <form
-                  className="panel-search"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    setSearch(query.trim())
-                  }}
-                >
+                <form className="panel-search" onSubmit={(e) => { e.preventDefault(); setSearch(query.trim()) }}>
                   <Search className="h-4 w-4" />
                   <input
                     id="docker-search-input"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     className="panel-search__input"
-                    placeholder="Cari nama container, image, state, network, atau container id..."
+                    placeholder={t('docker.searchContainers')}
                   />
-                  <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+                  <button type="submit" className="panel-btn panel-btn--primary-soft">{t('common.search')}</button>
                 </form>
               </div>
 
               {isLoading ? (
                 <div className="panel-loading">
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Menghubungkan ke runtime agent...
+                  {t('docker.connectingAgent')}
                 </div>
               ) : isError ? (
                 <div className="panel-error-state">
                   <ContainerIcon className="h-5 w-5" />
                   <div>
-                    <p className="font-semibold">Tidak bisa memuat container dari agent</p>
+                    <p className="font-semibold">{t('docker.containersLoadFailed')}</p>
                     <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
-                    <p className="mt-1 text-[12px] leading-6 opacity-80">Pastikan YPanel agent aktif dan Docker dapat diakses oleh backend.</p>
+                    <p className="mt-1 text-[12px] leading-6 opacity-80">{t('docker.agentAccessHint')}</p>
                   </div>
                 </div>
               ) : filteredContainers.length === 0 ? (
                 <div className="panel-empty panel-empty--wide">
                   <Boxes className="h-8 w-8" />
                   <div className="space-y-1">
-                    <div className="text-sm font-medium text-[var(--win-text)]">Tidak ada container yang cocok</div>
-                    <div>Ubah kata kunci pencarian atau kosongkan filter untuk melihat semua runtime apps.</div>
+                    <div className="text-sm font-medium text-[var(--win-text)]">{t('docker.noContainersMatch')}</div>
+                    <div>{t('docker.emptyContainersHint')}</div>
                   </div>
                 </div>
               ) : (
@@ -1218,37 +1010,29 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                     const stateStyle = STATE_STYLES[container.State] ?? STATE_STYLES.dead
                     const runtimeIssues = getContainerRuntimeIssues(container)
                     const ActionIcon = stateStyle.actionIcon
-                    const {
-                      // primaryInternal,
-                      primaryPublished, internal, published } = getContainerPorts(container)
+                    const { primaryPublished, internal, published } = getContainerPorts(container)
                     const networks = container.Networks?.length ? container.Networks.join(', ') : 'bridge/default'
-                    const ipAddresses = container.IpAddresses?.length ? container.IpAddresses.join(', ') : 'Tidak tersedia'
+                    const ipAddresses = container.IpAddresses?.length ? container.IpAddresses.join(', ') : t('docker.unavailable')
 
                     return (
                       <div key={container.Id} className="panel-table-row">
                         <div className="docker-container-row__main">
                           <div className="docker-container-row__header">
-                            {/* <div className="panel-avatar docker-container-row__actions">{getIcon(name)}</div> */}
                             <div className="docker-container-card__title-wrap">
                               <div className="docker-container-card__title-row">
                                 <span className="docker-container-card__title">{name}</span>
                                 <StatusBadge state={container.State} />
-                                {/* <span className="panel-badge panel-badge--neutral">{formatRelativeCreated(container.Created)}</span> */}
                               </div>
                               <div className="docker-container-card__subtitle">{container.Image}</div>
                               <div className="docker-container-card__meta-row">
                                 <span className="docker-inline-code">ID {container.Id.slice(0, 12)}</span>
                                 <span className="docker-inline-code">Network {networks}</span>
                                 <span className="docker-inline-code">IP {ipAddresses}</span>
-                                {/* <span className="docker-inline-code">Internal {primaryInternal}</span> */}
                                 <span className="docker-inline-code">Port {primaryPublished}</span>
                                 <span className="docker-inline-dot" />
                                 <span>{container.Status}</span>
                                 {runtimeIssues.map((issue) => (
-                                  <span
-                                    key={`${container.Id}-${issue.key}`}
-                                    className={`panel-badge ${issue.tone === 'danger' ? 'panel-badge--danger' : 'panel-badge--warning'}`}
-                                  >
+                                  <span key={`${container.Id}-${issue.key}`} className={`panel-badge ${issue.tone === 'danger' ? 'panel-badge--danger' : 'panel-badge--warning'}`}>
                                     {issue.label}
                                   </span>
                                 ))}
@@ -1258,7 +1042,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                               <button
                                 type="button"
                                 className="panel-icon-btn"
-                                title="Edit & Re-deploy Container"
+                                title={t('docker.editRedeploy')}
                                 disabled={editLoading}
                                 onClick={async () => {
                                   setEditLoading(true)
@@ -1275,26 +1059,21 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                       image: cfg.image,
                                       network: cfg.network || '',
                                       ports: cfg.ports.length > 0
-                                        ? cfg.ports.map((p) => ({
-                                          hostIp: p.hostIp || '',
-                                          hostPort: p.hostPort || '',
-                                          containerPort: p.containerPort || '',
-                                          protocol: p.protocol || 'tcp',
-                                        }))
+                                        ? cfg.ports.map((p: any) => ({ hostIp: p.hostIp || '', hostPort: p.hostPort || '', containerPort: p.containerPort || '', protocol: p.protocol || 'tcp' }))
                                         : [{ hostPort: '', containerPort: '' }],
                                       env: envRows,
                                       envMode: cfg.envMode || 'form',
                                       envRaw,
                                       registryAuth: createEmptyRegistryAuth(),
                                       volumes: cfg.volumes.length > 0
-                                        ? cfg.volumes.map((v) => ({ hostPath: v.hostPath, containerPath: v.containerPath }))
+                                        ? cfg.volumes.map((v: any) => ({ hostPath: v.hostPath, containerPath: v.containerPath }))
                                         : [{ hostPath: '', containerPath: '' }],
                                       composeYaml: DEFAULT_COMPOSE_YAML,
                                     })
                                     setEditContainer({ id: container.Id })
                                     setShowDeploy(true)
-                                  } catch (e: any) {
-                                    toast.error('Gagal mengambil konfigurasi container')
+                                  } catch {
+                                    toast.error(t('docker.configLoadFailed'))
                                   } finally {
                                     setEditLoading(false)
                                   }
@@ -1305,11 +1084,8 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                               <button
                                 type="button"
                                 className="panel-icon-btn"
-                                title="Lihat Log Realtime"
-                                onClick={() => {
-                                  setLogAutoScroll(true)
-                                  setLogModal({ id: container.Id, name })
-                                }}
+                                title={t('docker.viewRealtimeLog')}
+                                onClick={() => { setLogAutoScroll(true); setLogModal({ id: container.Id, name }) }}
                               >
                                 <ScrollText className="h-3.5 w-3.5" />
                               </button>
@@ -1318,7 +1094,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                 className="panel-icon-btn panel-icon-btn--warning"
                                 onClick={() => restartMutation.mutate(container.Id)}
                                 disabled={restartMutation.isPending}
-                                title="Restart Container"
+                                title={t('docker.restartContainer')}
                               >
                                 <RefreshCcw className="h-3.5 w-3.5" />
                               </button>
@@ -1339,7 +1115,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                   setDeleteConfirm({ id: container.Id, name, image: container.Image })
                                 }}
                                 disabled={deleteMutation.isPending}
-                                title="Delete Container"
+                                title={t('docker.deleteContainer')}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -1350,21 +1126,17 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                             <div className="docker-token-groups docker-token-groups--inline">
                               {internal.length > 1 && (
                                 <div className="docker-token-group">
-                                  <div className="docker-port-section__label">Port internal lain</div>
+                                  <div className="docker-port-section__label">{t('docker.otherInternalPorts')}</div>
                                   <div className="docker-token-row">
-                                    {internal.slice(1).map((value) => (
-                                      <MetaChip key={value} value={value} />
-                                    ))}
+                                    {internal.slice(1).map((value) => <MetaChip key={value} value={value} />)}
                                   </div>
                                 </div>
                               )}
                               {published.length > 1 && (
                                 <div className="docker-token-group">
-                                  <div className="docker-port-section__label">Forward lain</div>
+                                  <div className="docker-port-section__label">{t('docker.otherForwards')}</div>
                                   <div className="docker-token-row">
-                                    {published.slice(1).map((value) => (
-                                      <MetaChip key={value} value={value} tone="primary" />
-                                    ))}
+                                    {published.slice(1).map((value) => <MetaChip key={value} value={value} tone="primary" />)}
                                   </div>
                                 </div>
                               )}
@@ -1380,67 +1152,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           </div>
         )}
 
-        {logModal && (
-          <div className="docker-modal-overlay" onClick={() => setLogModal(null)}>
-            <div className="docker-modal docker-log-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="docker-modal__header">
-                <div>
-                  <span className="docker-modal__title">Realtime Container Logs</span>
-                  <div className="panel-window__meta">{logModal.name} • refresh tiap 2 detik</div>
-                </div>
-                <button type="button" className="panel-icon-btn" onClick={() => setLogModal(null)}><X className="h-4 w-4" /></button>
-              </div>
-              <div className="docker-modal__body">
-                <div className="docker-log-toolbar">
-                  <div className="docker-log-toolbar__left">
-                    <span className="panel-badge panel-badge--neutral">tail {logTail}</span>
-                    {logsQuery.isFetching && <span className="panel-badge panel-badge--info">syncing...</span>}
-                  </div>
-                  <div className="docker-log-toolbar__right">
-                    <label className="docker-log-autoscroll">
-                      <input
-                        type="checkbox"
-                        checked={logAutoScroll}
-                        onChange={(e) => setLogAutoScroll(e.target.checked)}
-                      />
-                      <span>Auto scroll</span>
-                    </label>
-                    <PanelSelectMenu
-                      id="docker-log-tail-select"
-                      value={String(logTail)}
-                      onChange={(value) => setLogTail(Number(value))}
-                      options={[
-                        { value: '100', label: '100 lines' },
-                        { value: '200', label: '200 lines' },
-                        { value: '500', label: '500 lines' },
-                        { value: '1000', label: '1000 lines' },
-                      ]}
-                      className="min-w-[140px]"
-                      buttonClassName="h-[34px] rounded-[10px] py-0 text-xs"
-                      dropdownClassName="left-auto right-0 min-w-[160px]"
-                    />
-                    <button type="button" className="panel-btn panel-btn--ghost" onClick={() => logsQuery.refetch()} disabled={logsQuery.isFetching}>
-                      <RefreshCw className={`h-3.5 w-3.5 ${logsQuery.isFetching ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </button>
-                  </div>
-                </div>
-                {logsQuery.isError ? (
-                  <div className="panel-empty panel-empty--danger">Gagal memuat log container.</div>
-                ) : (
-                  <pre ref={logViewerRef} className="docker-log-viewer">
-                    {(logsQuery.data?.lines ?? []).length > 0
-                      ? logsQuery.data?.lines.join('\n')
-                      : logsQuery.isLoading
-                        ? 'Memuat log container...'
-                        : 'Belum ada log yang tersedia.'}
-                  </pre>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* ── Images Tab ── */}
         {activeTab === 'images' && (() => {
           const allImgs = imagesData?.items ?? []
           const filteredImgs = allImgs.filter((img) => {
@@ -1449,132 +1161,84 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           })
           const totalPages = Math.max(1, Math.ceil(filteredImgs.length / IMG_PAGE_SIZE))
           const pagedImgs = filteredImgs.slice((imgPage - 1) * IMG_PAGE_SIZE, imgPage * IMG_PAGE_SIZE)
+
           return (
             <div className="panel-window__stack">
               <div className="panel-table-container">
                 <div className="docker-tab-toolbar">
                   <div className="docker-tab-toolbar__left">
-                    <span className="docker-tab-toolbar__title">Local Images</span>
+                    <span className="docker-tab-toolbar__title">{t('docker.localImages')}</span>
                     <span className="panel-badge panel-badge--neutral">{allImgs.length}</span>
                   </div>
                   <div className="docker-tab-toolbar__right">
                     <form className="panel-search docker-tab-toolbar__search" onSubmit={(e) => { e.preventDefault(); setImgPage(1) }}>
                       <Search className="h-3.5 w-3.5" />
-                      <input className="panel-search__input" placeholder="Cari image..." value={imgSearch} onChange={(e) => { setImgSearch(e.target.value); setImgPage(1) }} />
+                      <input className="panel-search__input" placeholder={t('docker.searchImageShort')} value={imgSearch} onChange={(e) => { setImgSearch(e.target.value); setImgPage(1) }} />
                     </form>
-                    <button
-                      type="button"
-                      className="panel-btn panel-btn--primary-soft"
-                      onClick={() => setShowPullImage(true)}
-                      disabled={pullImageMut.isPending}
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Pull Image
+                    <button type="button" className="panel-btn panel-btn--primary-soft" onClick={() => setShowPullImage(true)} disabled={pullImageMut.isPending}>
+                      <Plus className="h-3.5 w-3.5" /> {t('docker.pullImage')}
                     </button>
                   </div>
                 </div>
+
+                {/* Pull Image Modal */}
                 {showPullImage && (
-                  <div className="docker-modal-overlay" onClick={() => resetPullImageModal()}>
+                  <div className="docker-modal-overlay" onClick={resetPullImageModal}>
                     <div className="docker-modal" onClick={(e) => e.stopPropagation()}>
                       <div className="docker-modal__header">
-                        <span className="docker-modal__title">Pull Docker Image</span>
-                        <button type="button" className="panel-icon-btn" onClick={() => resetPullImageModal()}><X className="h-4 w-4" /></button>
+                        <span className="docker-modal__title">{t('docker.pullDockerImage')}</span>
+                        <button type="button" className="panel-icon-btn" onClick={resetPullImageModal}><X className="h-4 w-4" /></button>
                       </div>
                       <div className="docker-modal__body">
                         <div className="panel-field">
-                          <label className="panel-label">Image *</label>
-                          <input
-                            className="panel-input"
-                            placeholder="ghcr.io/owner/app:latest"
-                            value={pullImageForm.image}
-                            onChange={(e) => setPullImageForm((current) => ({ ...current, image: e.target.value }))}
-                          />
+                          <label className="panel-label">{t('docker.imageRequired')}</label>
+                          <input className="panel-input" placeholder={t('docker.pullImagePlaceholder')} value={pullImageForm.image} onChange={(e) => setPullImageForm((c) => ({ ...c, image: e.target.value }))} />
                         </div>
                         <div className="docker-auth-block">
                           <label className="docker-save-tpl-check">
-                            <input
-                              type="checkbox"
-                              checked={pullImageForm.registryAuth.enabled}
-                              onChange={(e) => setPullImageForm((current) => ({
-                                ...current,
-                                registryAuth: {
-                                  ...current.registryAuth,
-                                  enabled: e.target.checked,
-                                },
-                              }))}
-                            />
-                            <span>Gunakan autentikasi registry</span>
+                            <input type="checkbox" checked={pullImageForm.registryAuth.enabled} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, enabled: e.target.checked } }))} />
+                            <span>{t('docker.useRegistryAuth')}</span>
                           </label>
                           {pullImageForm.registryAuth.enabled && (
                             <div className="docker-auth-grid">
                               <div className="panel-field">
-                                <label className="panel-label">Registry <span className="docker-field-optional">opsional</span></label>
-                                <input
-                                  className="panel-input"
-                                  placeholder="docker.io atau ghcr.io"
-                                  value={pullImageForm.registryAuth.registry}
-                                  onChange={(e) => setPullImageForm((current) => ({
-                                    ...current,
-                                    registryAuth: { ...current.registryAuth, registry: e.target.value },
-                                  }))}
-                                />
+                                <label className="panel-label">{t('docker.registry')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
+                                <input className="panel-input" placeholder={t('docker.registryPlaceholder')} value={pullImageForm.registryAuth.registry} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, registry: e.target.value } }))} />
                               </div>
                               <div className="panel-field">
-                                <label className="panel-label">Username / Email *</label>
-                                <input
-                                  className="panel-input"
-                                  placeholder="username atau email registry"
-                                  value={pullImageForm.registryAuth.usernameOrEmail}
-                                  onChange={(e) => setPullImageForm((current) => ({
-                                    ...current,
-                                    registryAuth: { ...current.registryAuth, usernameOrEmail: e.target.value },
-                                  }))}
-                                />
+                                <label className="panel-label">{t('docker.usernameEmailRequired')}</label>
+                                <input className="panel-input" placeholder={t('docker.usernameEmailPlaceholder')} value={pullImageForm.registryAuth.usernameOrEmail} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, usernameOrEmail: e.target.value } }))} />
                               </div>
                               <div className="panel-field docker-auth-grid__full">
-                                <label className="panel-label">Password *</label>
-                                <input
-                                  type="password"
-                                  className="panel-input"
-                                  placeholder="••••••••"
-                                  value={pullImageForm.registryAuth.password}
-                                  onChange={(e) => setPullImageForm((current) => ({
-                                    ...current,
-                                    registryAuth: { ...current.registryAuth, password: e.target.value },
-                                  }))}
-                                />
+                                <label className="panel-label">{t('docker.passwordRequired')}</label>
+                                <input type="password" className="panel-input" placeholder={t('docker.passwordPlaceholder')} value={pullImageForm.registryAuth.password} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, password: e.target.value } }))} />
                               </div>
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="docker-modal__footer">
-                        <button type="button" className="panel-btn panel-btn--ghost" onClick={() => resetPullImageModal()}>Batal</button>
+                        <button type="button" className="panel-btn panel-btn--ghost" onClick={resetPullImageModal}>{t('common.cancel')}</button>
                         <button
                           type="button"
                           className="panel-btn panel-btn--primary"
                           disabled={pullImageMut.isPending || !pullImageForm.image.trim()}
                           onClick={() => {
-                            pullImageMut.mutate({
-                              image: pullImageForm.image.trim(),
-                              registryAuth: pullImageForm.registryAuth.enabled
-                                ? {
-                                  enabled: true,
-                                  registry: pullImageForm.registryAuth.registry || undefined,
-                                  usernameOrEmail: pullImageForm.registryAuth.usernameOrEmail,
-                                  password: pullImageForm.registryAuth.password,
-                                }
-                                : undefined,
-                            }, {
-                              onSuccess: () => {
-                                toast.success(`Image ${pullImageForm.image.trim()} berhasil di-pull`)
-                                resetPullImageModal()
-                                void refetchImages()
+                            pullImageMut.mutate(
+                              {
+                                image: pullImageForm.image.trim(),
+                                registryAuth: pullImageForm.registryAuth.enabled
+                                  ? { enabled: true, registry: pullImageForm.registryAuth.registry || undefined, usernameOrEmail: pullImageForm.registryAuth.usernameOrEmail, password: pullImageForm.registryAuth.password }
+                                  : undefined,
                               },
-                              onError: (e: any) => alertLib.fire('Pull Image Failed', e.response?.data?.error || 'Unknown error', 'error', 'apps')
-                            })
+                              {
+                                onSuccess: () => { toast.success(t('docker.imagePulled', { image: pullImageForm.image.trim() })); resetPullImageModal(); void refetchImages() },
+                                onError: (e: any) => alertLib.fire(t('docker.pullImageFailed'), e.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
+                              },
+                            )
                           }}
                         >
-                          {pullImageMut.isPending ? 'Pulling...' : 'Pull Image'}
+                          {pullImageMut.isPending ? t('docker.pulling') : t('docker.pullImage')}
                         </button>
                       </div>
                     </div>
@@ -1584,62 +1248,40 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                 {pagedImgs.length === 0 ? (
                   <div className="panel-empty panel-empty--wide">
                     <Box className="h-8 w-8" />
-                    <div className="text-sm font-medium text-[var(--win-text)]">{imgSearch ? 'Tidak ada hasil' : 'Belum ada image lokal'}</div>
+                    <div className="text-sm font-medium text-[var(--win-text)]">{imgSearch ? t('docker.noResults') : t('docker.noLocalImages')}</div>
                   </div>
                 ) : (
                   <>
                     {pagedImgs.map((img) => (
-                      // <div key={img.Id} className="panel-table-row">
-                      //   <div className="docker-flat-row__info">
-                      //     <span className="docker-flat-row__name">{img.Repository}</span>
-                      //     <span className="panel-badge panel-badge--neutral">{img.Tag}</span>
-                      //     {/* <span className="docker-inline-code">ID {img.Id.slice(0, 12)}</span>
-                      //     <MetaChip label="Size" value={img.Size} />
-                      //     <MetaChip label="Created" value={img.CreatedAt} tone="info" /> */}
-                      //   </div>
-                      //   <div className="docker-flat-row__desc">
-                      //     <span className="panel-badge panel-badge--detail">
-                      //       ID : {img.Id.slice(0, 12)}
-                      //       Size : {img.Size}
-                      //       Created : {img.CreatedAt}
-                      //     </span>
-                      //   </div>
-                      //   <button type="button" className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
-                      //     onClick={async () => { const ok = await alertLib.confirm('Delete Image', `Delete ${img.Repository}:${img.Tag}?`, 'Delete', 'Cancel', 'warning', 'apps'); if (ok) deleteImageMut.mutate(img.Id) }}
-                      //     disabled={deleteImageMut.isPending} title="Delete Image">
-                      //     <Trash2 className="h-3.5 w-3.5" />
-                      //   </button>
-                      // </div>
                       <div key={img.Id} className="panel-table-row">
                         <div className="row-top">
                           <div className="docker-flat-row__info">
                             <span className="docker-flat-row__name">{img.Repository}</span>
                             <span className="panel-badge panel-badge--neutral">{img.Tag}</span>
                           </div>
-
-                          <button type="button" className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
+                          <button
+                            type="button"
+                            className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
                             onClick={async () => {
                               const imageLabel = `${img.Repository}:${img.Tag}`
-                              const ok = await alertLib.confirm('Delete Image', `Delete ${imageLabel}?`, 'Delete', 'Cancel', 'warning', 'apps')
+                              const ok = await alertLib.confirm(t('docker.deleteImage'), t('docker.deleteImageConfirm', { image: imageLabel }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
                               if (!ok) return
                               deleteImageMut.mutate(img.Id, {
-                                onSuccess: () => {
-                                  toast.success(`Image ${imageLabel} berhasil dihapus`)
-                                  void refetchImages()
-                                },
-                                onError: (e: any) => alertLib.fire('Delete Image Failed', e.response?.data?.error || 'Image gagal dihapus', 'error', 'apps'),
+                                onSuccess: () => { toast.success(t('docker.imageDeleted', { image: imageLabel })); void refetchImages() },
+                                onError: (e: any) => alertLib.fire(t('docker.deleteImageFailed'), e.response?.data?.error || t('docker.imageDeleteFailed'), 'error', 'apps'),
                               })
                             }}
-                            disabled={deleteImageMut.isPending} title="Delete Image">
+                            disabled={deleteImageMut.isPending}
+                            title={t('docker.deleteImage')}
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-
                         <div className="docker-flat-row__desc">
                           <span className="panel-badge panel-badge--detail">
                             ID : {img.Id.slice(0, 12)}<br />
-                            Size : {img.Size}<br />
-                            Created : {formatDateTimeID(img.CreatedAt)}
+                            {t('docker.size')} : {img.Size}<br />
+                            {t('docker.createdLabel')} : {formatDateTimeID(img.CreatedAt)}
                           </span>
                         </div>
                       </div>
@@ -1648,9 +1290,9 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                 )}
                 {totalPages > 1 && (
                   <div className="panel-pagination">
-                    <button className="panel-btn panel-btn--ghost" disabled={imgPage <= 1} onClick={() => setImgPage((v) => Math.max(1, v - 1))}><ChevronLeft className="h-3.5 w-3.5" /> Prev</button>
-                    <span className="text-xs text-[var(--text-secondary)] font-medium">Page {imgPage} of {totalPages}</span>
-                    <button className="panel-btn panel-btn--ghost" disabled={imgPage >= totalPages} onClick={() => setImgPage((v) => Math.min(totalPages, v + 1))}>Next <ChevronRight className="h-3.5 w-3.5" /></button>
+                    <button className="panel-btn panel-btn--ghost" disabled={imgPage <= 1} onClick={() => setImgPage((v) => Math.max(1, v - 1))}><ChevronLeft className="h-3.5 w-3.5" /> {t('docker.prev')}</button>
+                    <span className="text-[12px] text-[var(--text-secondary)] font-medium">{t('docker.pageOf', { page: imgPage, total: totalPages })}</span>
+                    <button className="panel-btn panel-btn--ghost" disabled={imgPage >= totalPages} onClick={() => setImgPage((v) => Math.min(totalPages, v + 1))}>{t('docker.next')} <ChevronRight className="h-3.5 w-3.5" /></button>
                   </div>
                 )}
               </div>
@@ -1658,119 +1300,83 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           )
         })()}
 
+        {/* ── Networks Tab ── */}
         {activeTab === 'networks' && (() => {
           const allNets = networksData?.items ?? []
           const filteredNets = allNets.filter((net) => {
             const q = netSearch.toLowerCase()
             return !q || net.Name.toLowerCase().includes(q) || net.Driver.toLowerCase().includes(q) || net.Id.toLowerCase().includes(q)
           })
+
           return (
             <div className="panel-window__stack">
               {showCreateNet && (
                 <div className="docker-modal-overlay" onClick={() => setShowCreateNet(false)}>
                   <div className="docker-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="docker-modal__header">
-                      <span className="docker-modal__title">Buat Network Baru</span>
+                      <span className="docker-modal__title">{t('docker.createNetworkTitle')}</span>
                       <button type="button" className="panel-icon-btn" onClick={() => setShowCreateNet(false)}><X className="h-4 w-4" /></button>
                     </div>
                     <div className="docker-modal__body">
                       <div className="panel-field">
-                        <label className="panel-label">Nama Network *</label>
-                        <input className="panel-input" placeholder="my-network" value={netForm.name} onChange={(e) => setNetForm((f) => ({ ...f, name: e.target.value }))} />
+                        <label className="panel-label">{t('docker.networkNameRequired')}</label>
+                        <input className="panel-input" placeholder={t('docker.networkNamePlaceholder')} value={netForm.name} onChange={(e) => setNetForm((f) => ({ ...f, name: e.target.value }))} />
                       </div>
                       <div className="panel-field">
-                        <label className="panel-label">Subnet (CIDR) <span className="docker-field-optional">opsional</span></label>
-                        <input className="panel-input" placeholder="172.20.0.0/16" value={netForm.subnet} onChange={(e) => setNetForm((f) => ({ ...f, subnet: e.target.value }))} />
-                        <p className="panel-hint">Rentang IP untuk network ini, contoh: <code>172.20.0.0/16</code></p>
+                        <label className="panel-label">{t('docker.subnetCidr')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
+                        <input className="panel-input" placeholder={t('docker.subnetPlaceholder')} value={netForm.subnet} onChange={(e) => setNetForm((f) => ({ ...f, subnet: e.target.value }))} />
+                        <p className="panel-hint">{t('docker.ipRangeHint')} <code>172.20.0.0/16</code></p>
                       </div>
                       <div className="panel-field">
-                        <label className="panel-label">Gateway <span className="docker-field-optional">opsional</span></label>
-                        <input className="panel-input" placeholder="172.20.0.1" value={netForm.gateway} onChange={(e) => setNetForm((f) => ({ ...f, gateway: e.target.value }))} />
-                        <p className="panel-hint">IP gateway untuk subnet di atas, contoh: <code>172.20.0.1</code></p>
+                        <label className="panel-label">{t('docker.gateway')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
+                        <input className="panel-input" placeholder={t('docker.gatewayPlaceholder')} value={netForm.gateway} onChange={(e) => setNetForm((f) => ({ ...f, gateway: e.target.value }))} />
+                        <p className="panel-hint">{t('docker.gatewayHint')} <code>172.20.0.1</code></p>
                       </div>
                     </div>
                     <div className="docker-modal__footer">
-                      <button type="button" className="panel-btn panel-btn--ghost" onClick={() => setShowCreateNet(false)}>Batal</button>
-                      <button type="button" className="panel-btn panel-btn--primary"
+                      <button type="button" className="panel-btn panel-btn--ghost" onClick={() => setShowCreateNet(false)}>{t('common.cancel')}</button>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--primary"
                         disabled={createNetworkMut.isPending || !netForm.name.trim()}
                         onClick={async () => {
                           await createNetworkMut.mutateAsync({ name: netForm.name.trim(), subnet: netForm.subnet.trim() || undefined, gateway: netForm.gateway.trim() || undefined })
-                          toast.success(`Network "${netForm.name}" berhasil dibuat`)
+                          toast.success(t('docker.networkCreated', { name: netForm.name }))
                           setShowCreateNet(false)
                           setNetForm({ name: '', subnet: '', gateway: '' })
-                        }}>
-                        {createNetworkMut.isPending ? 'Membuat...' : 'Buat Network'}
+                        }}
+                      >
+                        {createNetworkMut.isPending ? t('common.creating') : t('docker.createNetwork')}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
+
               <div className="panel-table-container">
                 <div className="docker-tab-toolbar">
                   <div className="docker-tab-toolbar__left">
-                    <span className="docker-tab-toolbar__title">Docker Networks</span>
+                    <span className="docker-tab-toolbar__title">{t('docker.dockerNetworks')}</span>
                     <span className="panel-badge panel-badge--neutral">{allNets.length}</span>
                   </div>
                   <div className="docker-tab-toolbar__right">
                     <form className="panel-search docker-tab-toolbar__search" onSubmit={(e) => e.preventDefault()}>
                       <Search className="h-3.5 w-3.5" />
-                      <input className="panel-search__input" placeholder="Cari network..." value={netSearch} onChange={(e) => setNetSearch(e.target.value)} />
+                      <input className="panel-search__input" placeholder={t('docker.searchNetworkShort')} value={netSearch} onChange={(e) => setNetSearch(e.target.value)} />
                     </form>
-                    <button type="button" className="panel-btn panel-btn--primary-soft"
-                      onClick={() => setShowCreateNet(true)}
-                      disabled={createNetworkMut.isPending}>
-                      <Plus className="h-3.5 w-3.5" /> Buat Network
+                    <button type="button" className="panel-btn panel-btn--primary-soft" onClick={() => setShowCreateNet(true)} disabled={createNetworkMut.isPending}>
+                      <Plus className="h-3.5 w-3.5" /> {t('docker.createNetwork')}
                     </button>
                   </div>
                 </div>
                 {filteredNets.length === 0 ? (
                   <div className="panel-empty panel-empty--wide">
                     <Activity className="h-8 w-8" />
-                    <div className="text-sm font-medium text-[var(--win-text)]">{netSearch ? 'Tidak ada hasil' : 'Belum ada network'}</div>
+                    <div className="text-sm font-medium text-[var(--win-text)]">{netSearch ? t('docker.noResults') : t('docker.noNetworks')}</div>
                   </div>
                 ) : (
                   <>
                     {filteredNets.map((net) => (
-                      // <div key={net.Id} className="panel-table-row">
-
-                      //   <div className="docker-row-left">
-                      //     <div className="docker-flat-row__info">
-                      //       <span className="docker-flat-row__name">{net.Name}</span>
-
-                      //       <MetaChip label="Driver" value={net.Driver} tone="info" />
-                      //       <MetaChip label="Scope" value={net.Scope} />
-                      //       {net.Subnet && <MetaChip label="Subnet" value={net.Subnet} tone="info" />}
-                      //       {net.Gateway && <MetaChip label="Gateway" value={net.Gateway} />}
-                      //     </div>
-
-                      //     <div className="docker-flat-row__desc">
-                      //       <span className="docker-inline-code">
-                      //         ID {net.Id.slice(0, 12)}
-                      //       </span>
-                      //     </div>
-                      //   </div>
-
-                      //   <button
-                      //     type="button"
-                      //     className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
-                      //     onClick={async () => {
-                      //       const ok = await alertLib.confirm(
-                      //         'Delete Network',
-                      //         `Delete network ${net.Name}?`,
-                      //         'Delete',
-                      //         'Cancel',
-                      //         'warning',
-                      //         'apps'
-                      //       );
-                      //       if (ok) deleteNetworkMut.mutate(net.Id);
-                      //     }}
-                      //     disabled={deleteNetworkMut.isPending}
-                      //     title="Delete Network"
-                      //   >
-                      //     <Trash2 className="h-3.5 w-3.5" />
-                      //   </button>
-
-                      // </div>
                       <div key={net.Id} className="panel-table-row">
                         <div className="row-top">
                           <div className="docker-flat-row__info">
@@ -1781,28 +1387,20 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                             type="button"
                             className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
                             onClick={async () => {
-                              const ok = await alertLib.confirm(
-                                'Delete Network',
-                                `Delete network ${net.Name}?`,
-                                'Delete',
-                                'Cancel',
-                                'warning',
-                                'apps'
-                              );
-                              if (ok) deleteNetworkMut.mutate(net.Id);
+                              const ok = await alertLib.confirm(t('docker.deleteNetwork'), t('docker.deleteNetworkConfirm', { name: net.Name }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
+                              if (ok) deleteNetworkMut.mutate(net.Id)
                             }}
                             disabled={deleteNetworkMut.isPending}
-                            title="Delete Network"
+                            title={t('docker.deleteNetwork')}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-
                         <div className="docker-flat-row__desc">
                           <span className="panel-badge panel-badge--detail">
-                            Scope : {net.Scope}<br />
-                            Subnet : {net.Subnet}<br />
-                            Gateway : {net.Gateway}<br />
+                            {t('docker.scope')} : {net.Scope}<br />
+                            {t('docker.subnet')} : {net.Subnet}<br />
+                            {t('docker.gateway')} : {net.Gateway}<br />
                             ID : {net.Id.slice(0, 12)}
                           </span>
                         </div>
@@ -1815,138 +1413,116 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           )
         })()}
 
+        {/* ── Templates Tab ── */}
         {activeTab === 'templates' && (() => {
           const allTpls = templatesData?.items ?? []
           const filteredTpls = allTpls.filter((t) => {
             const q = tplSearch.toLowerCase()
             return !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
           })
+
           return (
             <div className="panel-window__stack">
               {showCreateTpl && (
                 <div className="docker-modal-overlay" onClick={() => setShowCreateTpl(false)}>
                   <div className="docker-modal" onClick={(e) => e.stopPropagation()}>
                     <div className="docker-modal__header">
-                      <span className="docker-modal__title">Buat Template Baru</span>
+                      <span className="docker-modal__title">{t('docker.createTemplateTitle')}</span>
                       <button type="button" className="panel-icon-btn" onClick={() => setShowCreateTpl(false)}><X className="h-4 w-4" /></button>
                     </div>
                     <div className="docker-modal__body">
                       <div className="panel-field">
-                        <label className="panel-label">Nama Template</label>
-                        <input className="panel-input" placeholder="nginx-basic" value={tplForm.name} onChange={(e) => setTplForm((f) => ({ ...f, name: e.target.value }))} />
+                        <label className="panel-label">{t('docker.templateName')}</label>
+                        <input className="panel-input" placeholder={t('docker.templateNamePlaceholder')} value={tplForm.name} onChange={(e) => setTplForm((f) => ({ ...f, name: e.target.value }))} />
                       </div>
                       <div className="panel-field">
-                        <label className="panel-label">Deskripsi</label>
-                        <input className="panel-input" placeholder="Deskripsi singkat..." value={tplForm.description} onChange={(e) => setTplForm((f) => ({ ...f, description: e.target.value }))} />
+                        <label className="panel-label">{t('docker.description')}</label>
+                        <input className="panel-input" placeholder={t('docker.descriptionPlaceholder')} value={tplForm.description} onChange={(e) => setTplForm((f) => ({ ...f, description: e.target.value }))} />
                       </div>
                       <div className="panel-field">
-                        <label className="panel-label">Docker Compose YAML</label>
+                        <label className="panel-label">{t('docker.composeYaml')}</label>
                         <textarea className="panel-input docker-modal__yaml" rows={10} value={tplForm.yamlContent} onChange={(e) => setTplForm((f) => ({ ...f, yamlContent: e.target.value }))} />
                       </div>
                     </div>
                     <div className="docker-modal__footer">
-                      <button type="button" className="panel-btn panel-btn--ghost" onClick={() => setShowCreateTpl(false)}>Batal</button>
-                      <button type="button" className="panel-btn panel-btn--primary"
+                      <button type="button" className="panel-btn panel-btn--ghost" onClick={() => setShowCreateTpl(false)}>{t('common.cancel')}</button>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--primary"
                         disabled={createTemplateMut.isPending || !tplForm.name.trim()}
                         onClick={async () => {
                           await createTemplateMut.mutateAsync(tplForm)
-                          toast.success('Template berhasil dibuat')
+                          toast.success(t('docker.templateCreated'))
                           setShowCreateTpl(false)
-                          setTplForm({ name: '', description: '', yamlContent: 'version: "3.8"\nservices:\n  app:\n    image: nginx:latest\n    ports:\n      - "8080:80"\n' })
-                        }}>
-                        {createTemplateMut.isPending ? 'Menyimpan...' : 'Simpan Template'}
+                          setTplForm({ name: '', description: '', yamlContent: DEFAULT_COMPOSE_YAML })
+                        }}
+                      >
+                        {createTemplateMut.isPending ? t('common.saving') : t('docker.saveTemplate')}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
+
               <div className="panel-table-container">
                 <div className="docker-tab-toolbar">
                   <div className="docker-tab-toolbar__left">
-                    <span className="docker-tab-toolbar__title">Compose Templates</span>
+                    <span className="docker-tab-toolbar__title">{t('docker.composeTemplates')}</span>
                     <span className="panel-badge panel-badge--neutral">{allTpls.length}</span>
                   </div>
                   <div className="docker-tab-toolbar__right">
                     <form className="panel-search docker-tab-toolbar__search" onSubmit={(e) => e.preventDefault()}>
                       <Search className="h-3.5 w-3.5" />
-                      <input className="panel-search__input" placeholder="Cari template..." value={tplSearch} onChange={(e) => setTplSearch(e.target.value)} />
+                      <input className="panel-search__input" placeholder={t('docker.searchTemplateShort')} value={tplSearch} onChange={(e) => setTplSearch(e.target.value)} />
                     </form>
                     <button type="button" className="panel-btn panel-btn--primary" onClick={() => setShowCreateTpl(true)}>
-                      <Plus className="h-3.5 w-3.5" /> Buat Template
+                      <Plus className="h-3.5 w-3.5" /> {t('docker.createTemplate')}
                     </button>
                   </div>
                 </div>
                 {filteredTpls.length === 0 ? (
                   <div className="panel-empty panel-empty--wide">
                     <Code className="h-8 w-8" />
-                    <div className="text-sm font-medium text-[var(--win-text)]">{tplSearch ? 'Tidak ada hasil' : 'Belum ada template'}</div>
+                    <div className="text-sm font-medium text-[var(--win-text)]">{tplSearch ? t('docker.noResults') : t('docker.noTemplates')}</div>
                   </div>
                 ) : (
                   <>
                     {filteredTpls.map((tmpl) => (
-                      // <div key={tmpl.id} className="panel-table-row docker-flat-row--template">
-                      //   <div className="docker-flat-row__info">
-                      //     <span className="docker-flat-row__name">{tmpl.name}</span>
-                      //     {tmpl.description && <span className="docker-flat-row__desc">{tmpl.description}</span>}
-                      //     <MetaChip label="Dibuat" value={tmpl.createdAt} tone="info" />
-                      //   </div>
-                      //   <div className="docker-flat-row__actions">
-                      //     <button type="button" className="panel-btn panel-btn--primary-soft"
-                      //       onClick={() => { setDeployType('compose'); setDeployForm((f) => ({ ...f, name: tmpl.name, composeYaml: tmpl.yamlContent })); setShowDeploy(true) }}>
-                      //       <Play className="h-3.5 w-3.5" /> Gunakan
-                      //     </button>
-                      //     <button type="button" className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
-                      //       onClick={async () => { const ok = await alertLib.confirm('Delete Template', `Delete ${tmpl.name}?`, 'Delete', 'Cancel', 'warning', 'apps'); if (ok) deleteTemplateMut.mutate(tmpl.id) }}
-                      //       disabled={deleteTemplateMut.isPending} title="Delete Template">
-                      //       <Trash2 className="h-3.5 w-3.5" />
-                      //     </button>
-                      //   </div>
-                      // </div>
                       <div key={tmpl.id} className="panel-table-row">
                         <div className="row-top">
                           <div className="docker-flat-row__info">
                             <span className="docker-flat-row__name">{tmpl.name}</span>
-                            {tmpl.description && (
-                              <span className="panel-badge panel-badge--neutral">{tmpl.description}</span>
-                            )}
+                            {tmpl.description && <span className="panel-badge panel-badge--neutral">{tmpl.description}</span>}
                           </div>
                           <div className="docker-flat-row__actions">
                             <button
                               type="button"
                               className="panel-btn panel-btn--primary-soft"
                               onClick={() => {
-                                setDeployType('compose');
-                                setDeployForm((f) => ({ ...f, name: tmpl.name, composeYaml: tmpl.yamlContent }));
-                                setShowDeploy(true);
+                                setDeployType('compose')
+                                setDeployForm((f) => ({ ...f, name: tmpl.name, composeYaml: tmpl.yamlContent }))
+                                setShowDeploy(true)
                               }}
                             >
-                              <Play className="h-3.5 w-3.5" /> Gunakan
+                              <Play className="h-3.5 w-3.5" /> {t('docker.use')}
                             </button>
                             <button
                               type="button"
                               className="panel-icon-btn text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
                               onClick={async () => {
-                                const ok = await alertLib.confirm(
-                                  'Delete Template',
-                                  `Delete ${tmpl.name}?`,
-                                  'Delete',
-                                  'Cancel',
-                                  'warning',
-                                  'apps'
-                                );
-                                if (ok) deleteTemplateMut.mutate(tmpl.id);
+                                const ok = await alertLib.confirm(t('docker.deleteTemplate'), t('docker.deleteTemplateConfirm', { name: tmpl.name }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
+                                if (ok) deleteTemplateMut.mutate(tmpl.id)
                               }}
                               disabled={deleteTemplateMut.isPending}
-                              title="Delete Template"
+                              title={t('docker.deleteTemplate')}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </div>
-
                         <div className="docker-flat-row__desc">
                           <span className="panel-badge panel-badge--detail">
-                            Dibuat : {formatDateTimeID(tmpl.createdAt)}
+                            {t('docker.created')} : {formatDateTimeID(tmpl.createdAt)}
                           </span>
                         </div>
                       </div>
@@ -1957,8 +1533,11 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
             </div>
           )
         })()}
-
       </div>
     </div>
   )
 }
+
+
+
+

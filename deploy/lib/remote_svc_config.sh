@@ -14,6 +14,8 @@ set -euo pipefail
 sudo_exec() { printf '%s\n' "$SUDO_PASS" | sudo -S -p '' bash -c "$*"; }
 
 sudo_exec "mkdir -p $(dirname "$ENV_FILE")"
+# Strip \r (Windows CRLF compatibility) before copying to final location
+sed -i 's/\r$//' "$ENV_CONTENT_FILE"
 printf '%s\n' "$SUDO_PASS" | sudo -S -p '' cp "$ENV_CONTENT_FILE" "$ENV_FILE"
 sudo_exec "chmod 600 '$ENV_FILE'"
 sudo_exec "chown $PANEL_USER:$PANEL_USER '$ENV_FILE' 2>/dev/null || true"

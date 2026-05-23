@@ -56,6 +56,14 @@
   --panel-info-text: #0369a1;
   --panel-neutral-bg: rgba(100, 116, 139, 0.12);
   --panel-neutral-text: #475569;
+  --panel-primary-soft: rgba(59, 130, 246, 0.10);
+  --panel-accent-gradient: linear-gradient(135deg, rgba(5, 150, 105, 0.10), rgba(2, 132, 199, 0.10), rgba(37, 99, 235, 0.10));
+  --panel-elevated-surface: rgba(255, 255, 255, 0.66);
+  --panel-elevated-border: rgba(203, 213, 225, 0.55);
+  --panel-code-bg: #0f172a;
+  --panel-code-text: #dbeafe;
+  --panel-soft-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
+  --panel-hover-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
 
   /* Dock */
   --dock-bg: rgba(255, 255, 255, 0.92);
@@ -69,6 +77,10 @@
   --menu-border: rgba(226, 232, 240, 0.9);
   --menu-divider: rgba(226, 232, 240, 0.8);
   --menu-shadow: 0 16px 48px rgba(15, 23, 42, 0.16);
+  --focus-ring: #1d4ed8;
+  --focus-ring-offset: #ffffff;
+  --panel-danger-solid: #b91c1c;
+  --panel-danger-solid-hover: #991b1b;
 }
 
 [data-theme="dark"] {
@@ -115,6 +127,14 @@
   --panel-info-text: #bae6fd;
   --panel-neutral-bg: rgba(148, 163, 184, 0.16);
   --panel-neutral-text: #cbd5e1;
+  --panel-primary-soft: rgba(96, 165, 250, 0.14);
+  --panel-accent-gradient: linear-gradient(135deg, rgba(52, 211, 153, 0.11), rgba(56, 189, 248, 0.11), rgba(96, 165, 250, 0.12));
+  --panel-elevated-surface: rgba(15, 23, 42, 0.34);
+  --panel-elevated-border: rgba(255, 255, 255, 0.10);
+  --panel-code-bg: rgba(2, 6, 23, 0.86);
+  --panel-code-text: #dbeafe;
+  --panel-soft-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+  --panel-hover-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
 
   --dock-bg: rgba(15, 23, 42, 0.92);
   --dock-border: rgba(255, 255, 255, 0.08);
@@ -126,6 +146,10 @@
   --menu-border: rgba(255, 255, 255, 0.08);
   --menu-divider: rgba(255, 255, 255, 0.07);
   --menu-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+  --focus-ring: #93c5fd;
+  --focus-ring-offset: #0f172a;
+  --panel-danger-solid: #dc2626;
+  --panel-danger-solid-hover: #b91c1c;
 }
 
 * {
@@ -145,6 +169,22 @@ body,
 body {
   font-family: 'Outfit', system-ui, sans-serif;
   background: #020617;
+  font-size: 16px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 ::selection {
@@ -241,6 +281,91 @@ body {
   padding-right: 8px;
 }
 
+.taskbar-language-select {
+  /* width: 64px; */
+  /* min-width: 14px; */
+  /* max-width: 24px; */
+  z-index: 60020;
+}
+
+.taskbar-language-select .docker-image-combobox__input-wrap {
+  min-height: 28px;
+}
+
+.taskbar-language-select__button {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 26px 0 10px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--profile-btn-bg) !important;
+  color: var(--tb-clock) !important;
+  border-color: var(--tb-border) !important;
+}
+
+.taskbar-language-select__dropdown {
+  top: calc(100% + 10px) !important;
+  right: 0;
+  left: auto !important;
+  width: 116px;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--tb-border) 80%, transparent);
+  background: color-mix(in srgb, var(--menu-bg) 88%, transparent);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255,255,255,0.45);
+  backdrop-filter: blur(22px) saturate(1.25);
+  z-index: 999999 !important;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item {
+  min-height: 34px;
+  padding: 7px 9px;
+  gap: 7px;
+  border-radius: 12px;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item-name {
+  min-width: 22px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item-size {
+  margin-left: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item--selected {
+  background: color-mix(in srgb, var(--panel-primary-bg) 82%, transparent);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 35%, transparent);
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item svg {
+  margin-left: 0 !important;
+  width: 13px;
+  height: 13px;
+  color: var(--panel-primary-text);
+}
+
+.taskbar-language-select .docker-image-combobox__toggle {
+  width: 22px;
+  height: 28px;
+  color: var(--tb-clock);
+}
+
 .taskbar-icon-btn {
   width: 28px;
   height: 28px;
@@ -276,7 +401,7 @@ body {
   padding: 0 4px;
   background: var(--panel-primary-solid);
   color: #fff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1;
   box-shadow: 0 0 0 2px var(--tb-bg);
@@ -331,7 +456,7 @@ body {
 
 .taskbar-notifications__subtitle {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -340,7 +465,7 @@ body {
   flex-shrink: 0;
   border-radius: 999px;
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .taskbar-notifications__meta {
@@ -352,7 +477,7 @@ body {
 }
 
 .taskbar-notifications__count {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -433,7 +558,7 @@ body {
 
 .taskbar-notification-card__body {
   margin-top: 10px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--text-secondary);
 }
@@ -444,7 +569,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -525,12 +650,12 @@ body {
 }
 
 .profile-role {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--tb-clock);
 }
 
 .profile-section-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.10em;
@@ -606,7 +731,7 @@ body {
   bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
@@ -627,7 +752,7 @@ body {
   justify-content: center;
   gap: 2px;
   color: var(--tb-clock);
-  font-size: 10px;
+  font-size: 12px;
   font-family: Outfit, sans-serif;
   font-weight: 500;
   transition: background 120ms, border-color 120ms;
@@ -824,7 +949,7 @@ body {
 }
 
 .apps-card__meta-label {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
@@ -855,8 +980,9 @@ body {
   border: 1px solid var(--win-border);
   background: var(--panel-field-bg);
   color: var(--win-text);
-  padding: 5px 14px;
-  font-size: 0.8125rem;
+  padding: 10px 14px;
+  min-height: 44px;
+  font-size: 0.875rem;
   line-height: 1.5;
   outline: none;
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
@@ -872,8 +998,13 @@ body {
 .panel-select:focus,
 .panel-textarea:focus {
   background: var(--panel-field-focus);
-  border-color: var(--panel-primary-text);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 20%, transparent);
+  border-color: var(--focus-ring);
+}
+
+.panel-input:focus-visible,
+.panel-select:focus-visible,
+.panel-textarea:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring-offset), 0 0 0 5px var(--focus-ring);
   transform: translateY(-1px);
 }
 
@@ -905,12 +1036,25 @@ body {
   gap: 7px;
   border-radius: 10px;
   border: 1px solid transparent;
-  padding: 8px 12px;
-  font-size: 0.75rem;
+  padding: 10px 14px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.panel-btn:focus-visible,
+.panel-icon-btn:focus-visible,
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px var(--focus-ring-offset);
 }
 
 .panel-btn:hover:not(:disabled) {
@@ -962,23 +1106,25 @@ body {
 }
 
 .panel-btn--danger {
-  background: #ef4444;
+  background: var(--panel-danger-solid);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--panel-danger-solid) 32%, transparent);
   border: none;
 }
 
 .panel-btn--danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--panel-danger-solid-hover);
 }
 
 .panel-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
@@ -1021,10 +1167,11 @@ body {
   align-items: center;
   gap: 6px;
   border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.6875rem;
+  padding: 6px 12px;
+  min-height: 28px;
+  font-size: 0.75rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .panel-badge--primary,
@@ -1114,7 +1261,7 @@ body {
   padding: 5px 10px;
   background: color-mix(in srgb, var(--win-bg) 76%, transparent);
   color: var(--panel-primary-text);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.16em;
@@ -1498,7 +1645,7 @@ body {
   padding: 6px 10px;
   background: color-mix(in srgb, var(--win-bg) 70%, transparent);
   color: var(--panel-primary-text);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1852,7 +1999,7 @@ body {
   border-radius: 10px;
   background: var(--panel-surface);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   user-select: none;
@@ -1875,7 +2022,7 @@ body {
   background: rgba(2, 6, 23, 0.94);
   color: #d1fae5;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1883,9 +2030,34 @@ body {
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Docker deploy modal: keep shared panel modal style, only size/scroll large form Ã¢â€â‚¬Ã¢â€â‚¬ */
 .docker-deploy-modal-card {
-  max-height: 90vh;
+  width: min(94vw, 980px);
+  max-height: min(92vh, 860px);
   display: flex;
   flex-direction: column;
+  padding: 22px;
+  border-radius: 26px;
+}
+
+.docker-deploy-modal__title {
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--win-text);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.docker-deploy-tabs {
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 6px;
+  border-radius: 18px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
 }
 
 .docker-deploy-summary {
@@ -1899,7 +2071,8 @@ body {
   min-height: 0;
   overflow-y: auto;
   overflow-x: visible;
-  padding-right: 4px;
+  padding: 2px 8px 2px 2px;
+  scrollbar-gutter: stable;
 }
 
 .docker-compose-editor {
@@ -1940,6 +2113,12 @@ body {
   .docker-deploy-modal-card {
     width: min(100%, 94vw) !important;
     max-height: 94vh;
+    padding: 16px;
+  }
+
+  .docker-deploy-tabs,
+  .docker-deploy-modal-card .grid.grid-cols-2 {
+    grid-template-columns: 1fr;
   }
 
   .docker-auth-grid {
@@ -1959,8 +2138,7 @@ body {
 }
 
 .docker-image-combobox__input {
-  padding-right: 64px !important;
-  /* room for clear + chevron */
+  padding-right: 82px !important;
   width: 100%;
 }
 
@@ -1996,14 +2174,13 @@ body {
 
 .docker-image-combobox__clear {
   position: absolute;
-  right: 36px;
-  /* sits left of the toggle */
+  right: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -2018,18 +2195,18 @@ body {
 
 .docker-image-combobox__toggle {
   position: absolute;
-  right: 10px;
+  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .docker-image-combobox__toggle:hover {
@@ -2038,20 +2215,21 @@ body {
 
 .docker-image-combobox__dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 500;
+  z-index: 700;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 220px;
+  gap: 4px;
+  max-height: 240px;
   overflow-y: auto;
-  border-radius: 16px;
+  border-radius: 18px;
   border: 1px solid var(--win-border);
-  background: var(--win-bg);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
-  padding: 6px;
+  background: var(--menu-bg);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+  padding: 8px;
+  backdrop-filter: blur(18px);
 }
 
 .docker-image-combobox__search-wrap {
@@ -2070,25 +2248,33 @@ body {
 .docker-image-combobox__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  border-radius: 10px;
-  border: none;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid transparent;
   background: transparent;
-  padding: 8px 10px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
   color: var(--win-text);
 }
 
 .docker-image-combobox__item:hover,
 .docker-image-combobox__item--highlighted {
   background: var(--panel-surface-hover);
+  border-color: var(--win-border);
+}
+
+.docker-image-combobox__item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring-offset), 0 0 0 5px var(--focus-ring);
 }
 
 .docker-image-combobox__item--selected {
-  background: color-mix(in srgb, var(--panel-primary-bg) 65%, transparent);
+  background: color-mix(in srgb, var(--panel-primary-bg) 78%, transparent);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 35%, transparent);
 }
 
 .docker-image-combobox__item-name {
@@ -2151,7 +2337,7 @@ body {
 }
 
 .docker-net-dropdown-meta__gw {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-family: 'JetBrains Mono', monospace;
   color: var(--text-secondary);
 }
@@ -2253,7 +2439,7 @@ body {
 }
 
 .docker-field-optional {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 400;
   color: var(--text-secondary);
   margin-left: 4px;
@@ -2499,7 +2685,7 @@ body {
   background: color-mix(in srgb, var(--panel-surface-hover) 92%, transparent);
   color: var(--win-text);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .docker-inline-dot {
@@ -2597,7 +2783,7 @@ body {
   background: color-mix(in srgb, var(--panel-surface-hover) 96%, transparent);
   color: var(--win-text);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .docker-token--primary {
@@ -2823,7 +3009,7 @@ body {
 }
 
 .docs-list__date {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
@@ -3068,7 +3254,7 @@ select:-webkit-autofill:focus {
 }
 
 .simple-login-kicker {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: rgba(125, 211, 252, 0.78);
@@ -3118,7 +3304,7 @@ select:-webkit-autofill:focus {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.08);
   padding: 10px 14px;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.24em;
   color: rgba(255, 255, 255, 0.74);
@@ -3410,7 +3596,7 @@ select:-webkit-autofill:focus {
 }
 
 .host-terminal-kicker {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.2em;
   color: var(--sand-400);
@@ -3440,7 +3626,7 @@ select:-webkit-autofill:focus {
   padding: 6px 10px;
   background: rgba(10, 10, 10, 0.06);
   color: var(--sand-500);
-  font-size: 10px;
+  font-size: 12px;
   border: 1px solid transparent;
 }
 
@@ -3484,7 +3670,7 @@ select:-webkit-autofill:focus {
   color: var(--sand-600);
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
   transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
@@ -3575,7 +3761,7 @@ select:-webkit-autofill:focus {
 
 .host-terminal-console-label {
   margin-left: 4px;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #94a3b8;
@@ -3587,7 +3773,7 @@ select:-webkit-autofill:focus {
   gap: 6px;
   border-radius: 999px;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: #cbd5e1;
   background: rgba(15, 23, 42, 0.52);
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -3602,7 +3788,7 @@ select:-webkit-autofill:focus {
   overflow: hidden;
   margin: 0;
   padding: 12px;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   font-family: 'JetBrains Mono', monospace;
   color: #dbeafe;
@@ -3616,7 +3802,7 @@ select:-webkit-autofill:focus {
   height: 100%;
   max-height: 100%;
   padding: 12px;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -3693,7 +3879,7 @@ select:-webkit-autofill:focus {
 }
 
 .host-terminal-hint {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--sand-400);
   line-height: 1.5;
   max-width: 680px;
@@ -3750,7 +3936,7 @@ select:-webkit-autofill:focus {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
 }
@@ -3799,7 +3985,7 @@ select:-webkit-autofill:focus {
 }
 
 .host-terminal-output-title {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #94a3b8;
@@ -3849,7 +4035,7 @@ select:-webkit-autofill:focus {
   }
 
   .login-badge {
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.18em;
   }
 
@@ -4143,7 +4329,7 @@ select:-webkit-autofill:focus {
 
 .ht-manage-btn {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .ht-action-btn--active {
@@ -4169,7 +4355,7 @@ select:-webkit-autofill:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   color: #8b949e;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -4185,7 +4371,7 @@ select:-webkit-autofill:focus {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
   color: #6e7681;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.1s, color 0.1s;
 }
@@ -4523,7 +4709,7 @@ select:-webkit-autofill:focus {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -4592,7 +4778,7 @@ select:-webkit-autofill:focus {
   gap: 6px;
   padding: 5px 9px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
   white-space: nowrap;
@@ -4611,7 +4797,7 @@ select:-webkit-autofill:focus {
 .cloudflare-domain-status-panel__copy {
   min-width: 0;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
   text-align: right;
 }
@@ -4643,7 +4829,7 @@ select:-webkit-autofill:focus {
 
 .cloudflare-domain-status-panel__ns-item span {
   color: var(--panel-info-text);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
 }
 
@@ -4653,7 +4839,7 @@ select:-webkit-autofill:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .cloudflare-pane__title {
@@ -4670,7 +4856,7 @@ select:-webkit-autofill:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -4736,7 +4922,7 @@ select:-webkit-autofill:focus {
 
 .cloudflare-loading-state__content p {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .cloudflare-loading-state__bars {
@@ -4843,7 +5029,7 @@ select:-webkit-autofill:focus {
   flex-wrap: wrap;
   gap: 4px 8px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -4882,7 +5068,7 @@ select:-webkit-autofill:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -4927,7 +5113,7 @@ select:-webkit-autofill:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
@@ -4972,7 +5158,7 @@ select:-webkit-autofill:focus {
   place-items: center;
   padding: 0 5px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--win-bg) 70%, transparent);
 }
@@ -5026,7 +5212,7 @@ select:-webkit-autofill:focus {
 }
 
 .cloudflare-domain-success__eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -5043,7 +5229,7 @@ select:-webkit-autofill:focus {
 .cloudflare-domain-success__status {
   padding: 5px 9px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
 }
@@ -5080,7 +5266,7 @@ select:-webkit-autofill:focus {
   place-items: center;
   border-radius: 999px;
   color: #0369a1;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   background: color-mix(in srgb, #38bdf8 22%, transparent);
 }
@@ -5096,7 +5282,7 @@ select:-webkit-autofill:focus {
 
 .cloudflare-ns-card__label {
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -5132,7 +5318,7 @@ select:-webkit-autofill:focus {
   padding: 3px 7px;
   border-radius: 999px;
   color: #0284c7;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 900;
   background: color-mix(in srgb, #38bdf8 15%, transparent);
 }
@@ -5170,7 +5356,7 @@ select:-webkit-autofill:focus {
 .cloudflare-domain-success__note {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -5768,7 +5954,7 @@ select:-webkit-autofill:focus {
 .landing-copy-toast small {
   margin-top: 2px;
   color: rgba(203, 213, 225, 0.72);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 640px) {
@@ -5879,4 +6065,48 @@ select:-webkit-autofill:focus {
   box-shadow: 0 0 0 1000px var(--login-panel-bg) inset !important;
   -webkit-box-shadow: 0 0 0 1000px var(--login-panel-bg) inset !important;
   transition: background-color 999999s ease-in-out 0s, color 0s, -webkit-text-fill-color 0s;
+}
+
+/* Docker deploy form alignment polish */
+.docker-deploy-modal-card .grid.grid-cols-2.gap-6 {
+  align-items: start;
+}
+
+.docker-deploy-modal-card .space-y-4 > * + * {
+  margin-top: 18px;
+}
+
+.docker-port-row,
+.docker-env-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.docker-env-row {
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr) auto;
+}
+
+.docker-port-row .panel-input,
+.docker-env-row .panel-input {
+  min-width: 0;
+}
+
+.docker-port-sep {
+  color: var(--text-secondary);
+  font-weight: 800;
+  line-height: 1;
+}
+
+@media (max-width: 860px) {
+  .docker-port-row,
+  .docker-env-row {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-port-sep {
+    display: none;
+  }
 }

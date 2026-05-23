@@ -1,5 +1,6 @@
 import './status-page.css'
 import type { ReactNode } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 type StatusPageProps = {
   code: string
@@ -24,6 +25,8 @@ export function StatusPage({
   showActions = true,
   details = [],
 }: StatusPageProps) {
+  const { t } = useI18n()
+
   return (
     <div className="status-page-shell login-shell">
       <div className="login-noise absolute inset-0 pointer-events-none" aria-hidden="true" />
@@ -39,7 +42,7 @@ export function StatusPage({
           <p className="status-page-description">{description}</p>
 
           {details.length > 0 ? (
-            <div className="status-page-details" aria-label="Status details">
+            <div className="status-page-details" aria-label={t('status.detailsAria')}>
               {details.map((detail) => (
                 <div key={detail.label} className="status-page-detail-card">
                   <span className="status-page-detail-label">{detail.label}</span>
@@ -54,22 +57,22 @@ export function StatusPage({
 
         <aside className="status-page-side">
           <div className="status-page-tip-card">
-            <span className="status-page-tip-label">Diagnostic hint</span>
-            <p className="status-page-tip-copy">{hint || 'Periksa route aktif, status autentikasi, dan runtime frontend yang sedang dimuat sebelum melanjutkan.'}</p>
+            <span className="status-page-tip-label">{t('status.diagnosticHint')}</span>
+            <p className="status-page-tip-copy">{hint || t('status.defaultHint')}</p>
           </div>
 
           <div className="status-page-side-list">
             <div className="status-page-side-item">
-              <strong>404 · Route aplikasi</strong>
-              <span>Gunakan frontend page agar desain lebih mudah diubah tanpa menyentuh runtime backend.</span>
+              <strong>{t('status.routeAppTitle')}</strong>
+              <span>{t('status.routeAppDescription')}</span>
             </div>
             <div className="status-page-side-item">
-              <strong>403 · Runtime blocked</strong>
-              <span>Kasus host atau origin yang ditolak tetap butuh fallback backend karena React belum sempat dimuat.</span>
+              <strong>{t('status.runtimeBlockedTitle')}</strong>
+              <span>{t('status.runtimeBlockedDescription')}</span>
             </div>
             <div className="status-page-side-item">
-              <strong>SPA-friendly</strong>
-              <span>Halaman ini aman untuk route internal dan dapat dikembangkan menjadi library error state bersama.</span>
+              <strong>{t('status.spaFriendlyTitle')}</strong>
+              <span>{t('status.spaFriendlyDescription')}</span>
             </div>
           </div>
         </aside>
@@ -77,3 +80,7 @@ export function StatusPage({
     </div>
   )
 }
+
+
+
+

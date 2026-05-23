@@ -12,6 +12,7 @@ import {
   resetTerminalPresets,
   type TerminalPreset,
 } from '@/api/agent'
+import { useI18n } from '@/lib/i18n'
 
 // ─── Xterm theme ─────────────────────────────────────────────────────────────
 const XTERM_THEME = {
@@ -182,9 +183,11 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
   const fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
   const fontSize   = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
 
+  const { t } = useI18n()
+
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: 'Local server', target: 'local', connected: false, error: false, startFn: null, sendInputFn: null },
+    { id: nextTabId++, label: t('hostTerminal.localServer'), target: 'local', connected: false, error: false, startFn: null, sendInputFn: null },
   ])
   const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
 
@@ -202,7 +205,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     const id = nextTabId++
     setTabs((prev) => [...prev, { 
       id, 
-      label: label || (target === 'local' ? 'Local server' : target), 
+      label: label || (target === 'local' ? t('hostTerminal.localServer') : target), 
       target,
       connected: false, 
       error: false, 
@@ -428,27 +431,27 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           ))}
         </div>
         <div className="ht-tabbar-actions">
-          <button className="ht-action-btn" onClick={handleReconnect} title="Reconnect">
-            <RefreshCcw size={13} /><span>Reconnect</span>
+          <button className="ht-action-btn" onClick={handleReconnect} title={t('hostTerminal.reconnect')}>
+            <RefreshCcw size={13} /><span>{t('hostTerminal.reconnect')}</span>
           </button>
           
-          <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-white/10">
+          <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-[var(--win-border)]">
             <button 
-              className={`ht-action-btn ${showSshModal ? 'bg-sky-500/20 text-sky-400' : ''}`} 
+              className={`ht-action-btn ${showSshModal ? 'bg-[var(--panel-primary-hover)] text-[var(--panel-primary-text)]' : ''}`} 
               onClick={() => setShowSshModal(!showSshModal)} 
-              title="Connect via SSH"
+              title={t('hostTerminal.connectViaSsh')}
             >
               <Plus size={14} className="rotate-45" />
               <span>SSH</span>
             </button>
 
             {showSshModal && (
-              <div className="absolute top-[40px] right-0 w-64 p-3 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/20 shadow-2xl z-[50]">
-                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Connect to Remote (SSH)</div>
+              <div className="absolute top-[40px] right-0 w-64 p-3 rounded-2xl bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] shadow-2xl z-[50]">
+                <div className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">{t('hostTerminal.connectRemote')}</div>
                 <input 
                   autoFocus
-                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-xs focus:border-sky-500/50 outline-none transition-all"
-                  placeholder="user@192.168.1.x"
+                  className="w-full px-3 py-2 bg-[var(--panel-code-bg)] border border-[var(--win-border)] rounded-xl text-[var(--win-text)] text-[12px] focus:border-[var(--focus-ring)]/50 outline-none transition-all"
+                  placeholder={t('hostTerminal.sshPlaceholder')}
                   value={sshInput}
                   onChange={(e) => setSshInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -457,13 +460,13 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
                   }}
                 />
                 <div className="flex justify-end gap-2 mt-3">
-                  <button className="px-3 py-1.5 text-[10px] font-bold text-slate-400 hover:text-white" onClick={() => setShowSshModal(false)}>Cancel</button>
-                  <button className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded-lg shadow-lg" onClick={handleSshConnect}>Connect</button>
+                  <button className="px-3 py-2 text-[12px] font-bold text-[var(--text-secondary)] hover:text-[var(--win-text)]" onClick={() => setShowSshModal(false)}>{t('common.cancel')}</button>
+                  <button className="px-3 py-2 bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] text-[12px] font-bold rounded-lg shadow-lg" onClick={handleSshConnect}>{t('hostTerminal.connect')}</button>
                 </div>
               </div>
             )}
 
-            <button className="ht-action-btn ht-action-btn--add" onClick={() => addTab()} title="New local terminal">
+            <button className="ht-action-btn ht-action-btn--add" onClick={() => addTab()} title={t('hostTerminal.newLocalTerminal')}>
               <Plus size={14} />
             </button>
           </div>
@@ -495,9 +498,9 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
         <button
           className={`ht-action-btn ht-manage-btn${showPresetManager ? ' ht-action-btn--active' : ''}`}
           onClick={() => setShowPresetManager((v) => !v)}
-          title="Kelola pintasan perintah"
+          title={t('hostTerminal.manageCommandShortcuts')}
         >
-          Kelola
+          {t('hostTerminal.manage')}
         </button>
       </div>
 
@@ -505,10 +508,10 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
       {showPresetManager && (
         <div className="ht-manager">
           <div className="ht-manager-header">
-            <span>Kelola Pintasan Perintah</span>
-            <button className="ht-manager-reset" onClick={handleResetPresets} disabled={resetting} title="Reset ke default">
+            <span>{t('hostTerminal.manageCommandShortcutsTitle')}</span>
+            <button className="ht-manager-reset" onClick={handleResetPresets} disabled={resetting} title={t('hostTerminal.resetToDefault')}>
               <RotateCcw size={13} />
-              <span>{resetting ? 'Mereset...' : 'Reset default'}</span>
+              <span>{resetting ? t('hostTerminal.resetting') : t('hostTerminal.resetDefault')}</span>
             </button>
           </div>
 
@@ -516,13 +519,13 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           <div className="ht-manager-add">
             <input
               className="ht-manager-input"
-              placeholder="Label (opsional)"
+              placeholder={t('hostTerminal.optionalLabel')}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
             />
             <input
               className="ht-manager-input ht-manager-input--flex"
-              placeholder="Perintah, mis: df -h"
+              placeholder={t('hostTerminal.commandExample')}
               value={newCommand}
               onChange={(e) => setNewCommand(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void handleAddPreset() }}
@@ -532,14 +535,14 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
               onClick={() => void handleAddPreset()}
               disabled={addingPreset || !newCommand.trim()}
             >
-              {addingPreset ? '...' : <><Plus size={13} /> Tambah</>}
+              {addingPreset ? '...' : <><Plus size={13} /> {t('hostTerminal.add')}</>}
             </button>
           </div>
 
           {/* List */}
           <div className="ht-manager-list">
             {presets.length === 0 && (
-              <span className="ht-manager-empty">Belum ada pintasan.</span>
+              <span className="ht-manager-empty">{t('hostTerminal.noShortcuts')}</span>
             )}
             {presets.map((p) => (
               <div key={p.id} className="ht-manager-row">
@@ -549,7 +552,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
                   className="ht-manager-del"
                   onClick={() => void handleDeletePreset(p.id)}
                   disabled={deletingId === p.id}
-                  title="Hapus"
+                  title={t('common.delete')}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -578,3 +581,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     </div>
   )
 }
+
+
+
+

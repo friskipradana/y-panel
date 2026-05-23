@@ -219,6 +219,9 @@ export interface DockerNetwork {
   CreatedAt: string
   Subnet?: string
   Gateway?: string
+  Labels?: Record<string, string>
+  OwnerUserId?: number
+  OwnerName?: string
 }
 
 export interface DockerImage {
@@ -227,6 +230,8 @@ export interface DockerImage {
   Tag: string
   Size: string
   CreatedAt: string
+  OwnerUserIds?: number[]
+  OwnerNames?: string[]
 }
 
 export interface DockerTemplate {
@@ -384,4 +389,79 @@ export interface ChangelogEntry {
 
 export interface ChangelogResponse {
   items: ChangelogEntry[]
+}
+
+// -- Payment Gateway Settings -------------------------------------------
+
+export interface PaymentSetting {
+  key: string
+  value: string
+  isSecret: boolean
+  label: string
+  description: string
+}
+
+export interface PaymentSettingsResponse {
+  ok: boolean
+  settings: PaymentSetting[]
+}
+
+export interface UpdatePaymentSettingsPayload {
+  settings: Record<string, string>
+}
+
+export interface PaymentGatewayTestResponse {
+  ok: boolean
+  gateway: string
+  environment?: string
+  message: string
+}
+
+// -- Notification Listener (Android) ------------------------------------
+
+export interface NotificationDevice {
+  id: number
+  deviceId: string
+  packageFilter: string[]
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NotificationDeviceListResponse {
+  ok: boolean
+  devices: NotificationDevice[]
+}
+
+export interface RegisterNotificationDevicePayload {
+  deviceId: string
+  apiKey: string
+  packageFilter?: string[]
+}
+
+export interface UpdateNotificationDevicePayload {
+  status?: string
+  packageFilter?: string[]
+}
+
+export interface NotificationDeviceMutationResponse {
+  ok: boolean
+  device: NotificationDevice
+}
+
+export interface CapturedNotification {
+  id: number
+  deviceId: string
+  packageName: string
+  appName: string
+  title: string
+  body: string
+  amountDetected: string
+  receivedAt: string
+  createdAt: string
+}
+
+export interface CapturedNotificationsResponse {
+  ok: boolean
+  notifications: CapturedNotification[]
 }

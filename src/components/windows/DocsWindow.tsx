@@ -18,6 +18,7 @@ import {
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import { createDoc, deleteDoc, listDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
+import { useI18n } from '@/lib/i18n'
 
 const PAGE_SIZE = 6
 
@@ -51,6 +52,7 @@ function initialForm(): DocPayload {
 }
 
 export default function DocsWindow() {
+  const { t } = useI18n()
   const qc = useQueryClient()
   const me = useMemo(() => {
     const raw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
@@ -80,7 +82,7 @@ export default function DocsWindow() {
   const createMut = useMutation({
     mutationFn: createDoc,
     onSuccess: (doc) => {
-      toast.success('Dokumentasi dibuat', { description: `Artikel ${doc.title} berhasil ditambahkan.` })
+      toast.success(t('docs.created'), { description: t('docs.createdDesc', { title: doc.title }) })
       qc.invalidateQueries({ queryKey: ['docs'] })
       setShowEditor(false)
       setEditingDoc(null)
@@ -88,15 +90,15 @@ export default function DocsWindow() {
       setSelectedDoc(doc)
     },
     onError: (error: any) => {
-      const message = error.response?.data?.error ?? 'Gagal membuat dokumentasi'
-      toast.error('Gagal membuat dokumentasi', { description: message })
+      const message = error.response?.data?.error ?? t('docs.createFailed')
+      toast.error(t('docs.createFailed'), { description: message })
     },
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: DocPayload }) => updateDoc(id, payload),
     onSuccess: (doc) => {
-      toast.success('Dokumentasi diperbarui', { description: `Artikel ${doc.title} berhasil diperbarui.` })
+      toast.success(t('docs.updated'), { description: t('docs.updatedDesc', { title: doc.title }) })
       qc.invalidateQueries({ queryKey: ['docs'] })
       setShowEditor(false)
       setEditingDoc(null)
@@ -104,21 +106,21 @@ export default function DocsWindow() {
       setSelectedDoc(doc)
     },
     onError: (error: any) => {
-      const message = error.response?.data?.error ?? 'Gagal memperbarui dokumentasi'
-      toast.error('Gagal memperbarui dokumentasi', { description: message })
+      const message = error.response?.data?.error ?? t('docs.updateFailed')
+      toast.error(t('docs.updateFailed'), { description: message })
     },
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteDoc,
     onSuccess: () => {
-      toast.success('Dokumentasi dihapus')
+      toast.success(t('docs.deleted'))
       qc.invalidateQueries({ queryKey: ['docs'] })
       setSelectedDoc(null)
     },
     onError: (error: any) => {
-      const message = error.response?.data?.error ?? 'Gagal menghapus dokumentasi'
-      toast.error('Gagal menghapus dokumentasi', { description: message })
+      const message = error.response?.data?.error ?? t('docs.deleteFailed')
+      toast.error(t('docs.deleteFailed'), { description: message })
     },
   })
 
@@ -154,18 +156,18 @@ export default function DocsWindow() {
         <div className="panel-window__title">
           <BookOpen className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Docs & Tutorials</div>
-            <div className="panel-window__meta">Knowledge base tersimpan di database dan bisa dikelola seperti blog internal.</div>
+            <div className="panel-window__title-text">{t('docs.title')}</div>
+            <div className="panel-window__meta">{t('docs.subtitle')}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button onClick={() => docsQuery.refetch()} className="panel-icon-btn" aria-label="Refresh docs">
+          <button onClick={() => docsQuery.refetch()} className="panel-icon-btn" aria-label={t('docs.refresh')}>
             <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching ? 'animate-spin' : ''}`} />
           </button>
           {isAdmin && (
             <button onClick={openCreate} className="panel-btn panel-btn--primary-soft">
               <Plus className="h-3.5 w-3.5" />
-              Artikel Baru
+              {t('docs.newArticle')}
             </button>
           )}
         </div>
@@ -176,12 +178,12 @@ export default function DocsWindow() {
           {docsQuery.isLoading ? (
             <div className="panel-loading">
               <RefreshCw className="h-4 w-4 animate-spin" />
-              Memuat dokumentasi dari database...
+              {t('docs.loading')}
             </div>
           ) : docs.length === 0 ? (
             <div className="panel-empty">
               <FileText className="h-8 w-8" />
-              <span>Tidak ada artikel yang cocok dengan pencarian saat ini.</span>
+              <span>{t('docs.empty')}</span>
             </div>
           ) : (
             <div className="docs-layout">
@@ -201,13 +203,13 @@ export default function DocsWindow() {
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       className="panel-search__input"
-                      placeholder="Cari judul, slug, excerpt, atau isi dokumentasi..."
+                      placeholder={t('docs.searchPlaceholder')}
                     />
                     <button type="submit" className="panel-btn panel-btn--primary-soft">
-                      Cari
+                      {t('docs.search')}
                     </button>
                   </form>
-                  <div className="panel-pagination-summary">{total} artikel • halaman {page}/{totalPages}</div>
+                  <div className="panel-pagination-summary">{t('docs.paginationSummary', { total, page, totalPages })}</div>
                 </div>
                 {docs.map((doc) => {
                   const active = selectedDoc?.id === doc.id
@@ -221,7 +223,7 @@ export default function DocsWindow() {
                     >
                       <div className="docs-list__meta-row">
                         <span className={`panel-badge ${doc.status === 'published' ? 'panel-badge--success' : doc.status === 'draft' ? 'panel-badge--warning' : 'panel-badge--neutral'}`}>
-                          {doc.status}
+                          {t(`docs.status.${doc.status}`)}
                         </span>
                         <span className="docs-list__date">{formatDate(doc.updatedAt)}</span>
                       </div>
@@ -240,7 +242,7 @@ export default function DocsWindow() {
                     onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
-                    Sebelumnya
+                    {t('docs.previous')}
                   </button>
                   <button
                     id="docs-next-page"
@@ -249,7 +251,7 @@ export default function DocsWindow() {
                     disabled={offset + PAGE_SIZE >= total}
                     onClick={() => setOffset((value) => value + PAGE_SIZE)}
                   >
-                    Berikutnya
+                    {t('docs.next')}
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -264,22 +266,22 @@ export default function DocsWindow() {
                         <div className="docs-viewer__meta">
                           <span className="panel-badge panel-badge--info">/{selectedDoc.slug}</span>
                           <span className="docs-viewer__meta-item"><Calendar className="h-3.5 w-3.5" /> {formatDate(selectedDoc.updatedAt)}</span>
-                          <span className="docs-viewer__meta-item"><Eye className="h-3.5 w-3.5" /> status {selectedDoc.status}</span>
+                          <span className="docs-viewer__meta-item"><Eye className="h-3.5 w-3.5" /> {t('docs.status', { status: t(`docs.status.${selectedDoc.status}`) })}</span>
                         </div>
                       </div>
                       {isAdmin && (
                         <div className="docs-viewer__actions">
                           <button onClick={() => openEdit(selectedDoc)} className="panel-btn panel-btn--ghost">
                             <PenSquare className="h-3.5 w-3.5" />
-                            Edit
+                            {t('common.edit')}
                           </button>
                           <button
                             onClick={async () => {
                               const confirmed = await alertLib.confirm(
-                                'Hapus Artikel?',
-                                `Artikel <strong>${selectedDoc.title}</strong> akan dihapus permanen dari database.`,
-                                'Hapus Artikel',
-                                'Batal',
+                                t('docs.deleteArticle'),
+                                t('docs.deleteArticleMessage', { title: selectedDoc.title }),
+                                t('docs.deleteArticle'),
+                                t('common.cancel'),
                                 'warning',
                                 'docs',
                               )
@@ -288,7 +290,7 @@ export default function DocsWindow() {
                             className="panel-btn panel-btn--danger-soft"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
-                            Hapus
+                            {t('common.delete')}
                           </button>
                         </div>
                       )}
@@ -299,7 +301,7 @@ export default function DocsWindow() {
                 ) : (
                   <div className="panel-empty docs-viewer__empty">
                     <BookOpen className="h-8 w-8" />
-                    <span>Pilih artikel di sebelah kiri untuk membaca detailnya.</span>
+                    <span>{t('docs.selectArticle')}</span>
                   </div>
                 )}
               </article>
@@ -313,8 +315,8 @@ export default function DocsWindow() {
           <div className="panel-modal-card docs-editor-modal">
             <div className="docs-editor-modal__header">
               <div>
-                <div className="docs-editor-modal__title">{editingDoc ? 'Edit Artikel' : 'Artikel Baru'}</div>
-                <div className="panel-window__meta">Simpan tutorial, SOP, atau catatan troubleshooting langsung ke database.</div>
+                <div className="docs-editor-modal__title">{editingDoc ? t('docs.editArticle') : t('docs.newArticle')}</div>
+                <div className="panel-window__meta">{t('docs.editorSubtitle')}</div>
               </div>
               <button onClick={() => setShowEditor(false)} className="panel-icon-btn">
                 <X className="h-4 w-4" />
@@ -323,36 +325,36 @@ export default function DocsWindow() {
             <div className="docs-editor-modal__body">
               <div className="panel-grid-compact panel-grid-compact--2">
                 <div>
-                  <label className="panel-section-label">Judul</label>
+                  <label className="panel-section-label">{t('docs.fieldTitle')}</label>
                   <input value={form.title ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} className="panel-input" />
                 </div>
                 <div>
-                  <label className="panel-section-label">Slug</label>
+                  <label className="panel-section-label">{t('docs.fieldSlug')}</label>
                   <input value={form.slug ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))} className="panel-input panel-input--mono" />
                 </div>
               </div>
               <div>
-                <label className="panel-section-label">Excerpt</label>
+                <label className="panel-section-label">{t('docs.fieldExcerpt')}</label>
                 <textarea value={form.excerpt ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, excerpt: e.target.value }))} className="panel-textarea" rows={3} />
               </div>
               <div>
-                <label className="panel-section-label">Isi Artikel</label>
+                <label className="panel-section-label">{t('docs.fieldContent')}</label>
                 <textarea value={form.content} onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))} className="panel-textarea docs-editor-modal__content" rows={14} />
               </div>
               <div>
-                <label className="panel-section-label">Status</label>
+                <label className="panel-section-label">{t('docs.fieldStatus')}</label>
                 <select value={form.status ?? 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as DocPayload['status'] }))} className="panel-select">
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
+                  <option value="draft">{t('docs.status.draft')}</option>
+                  <option value="published">{t('docs.status.published')}</option>
+                  <option value="archived">{t('docs.status.archived')}</option>
                 </select>
               </div>
             </div>
             <div className="docs-editor-modal__footer">
-              <button onClick={() => setShowEditor(false)} className="panel-btn panel-btn--ghost">Batal</button>
+              <button onClick={() => setShowEditor(false)} className="panel-btn panel-btn--ghost">{t('common.cancel')}</button>
               <button onClick={submit} disabled={createMut.isPending || updateMut.isPending || !form.title || !form.content} className="panel-btn panel-btn--primary">
                 <Save className="h-3.5 w-3.5" />
-                {createMut.isPending || updateMut.isPending ? 'Menyimpan...' : 'Simpan Artikel'}
+                {createMut.isPending || updateMut.isPending ? t('docs.saving') : t('docs.saveArticle')}
               </button>
             </div>
           </div>
@@ -361,3 +363,7 @@ export default function DocsWindow() {
     </div>
   )
 }
+
+
+
+
