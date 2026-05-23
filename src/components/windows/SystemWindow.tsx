@@ -304,7 +304,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
                     key={entry.id}
                     type="button"
                     onClick={() => openProjectsAttention(entry)}
-                    className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition hover:-translate-y-[1px] hover:shadow-[0_14px_34px_rgba(15,23,42,0.12)]"
+                    className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition hover:-translate-y-[1px] hover:shadow-[var(--system-incident-hover-shadow)]"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`panel-badge ${entry.level === 'warning' ? 'panel-badge--warning' : entry.level === 'error' ? 'panel-badge--danger' : 'panel-badge--info'}`}>

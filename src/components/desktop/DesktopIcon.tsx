@@ -15,24 +15,24 @@ export function DesktopIcon({ app }: Props) {
     <div
       style={{ width: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '7px 5px', borderRadius: 8, cursor: 'pointer', transition: 'background .1s' }}
       onDoubleClick={handleDoubleClick}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.08)'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--desktop-icon-hover-bg)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <div style={{
         width: 46, height: 46, borderRadius: 10,
-        background: 'rgba(255,255,255,0.85)',
-        border: '1px solid rgba(0,0,0,0.1)',
+        background: 'var(--desktop-icon-surface)',
+        border: '1px solid var(--desktop-icon-border)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 22,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+        boxShadow: 'var(--desktop-icon-shadow)',
       }}>
         {app.icon}
       </div>
       <span style={{
         fontSize: 10, fontWeight: 500,
-        color: '#2a1f0e',
+        color: 'var(--desktop-icon-label-text)',
         textAlign: 'center', lineHeight: 1.3,
-        textShadow: '0 1px 2px rgba(255,255,255,0.5)',
+        textShadow: 'var(--desktop-icon-label-shadow)',
       }}>
         {app.label}
       </span>

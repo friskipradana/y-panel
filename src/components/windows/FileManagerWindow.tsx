@@ -58,31 +58,31 @@ let nextFileManagerTabId = 1
 const MODAL_CONFIGS: Record<string, { icon: React.ReactNode; confirmBtn: string }> = {
   delete: {
     icon: <Trash className="text-[var(--panel-danger-text)]" size={32} />,
-    confirmBtn: 'bg-red-500/90 shadow-[0_2px_12px_rgba(239,68,68,0.3)] hover:bg-red-400',
+    confirmBtn: 'bg-[var(--file-manager-confirm-danger-bg)] shadow-[var(--file-manager-confirm-danger-shadow)] hover:bg-[var(--file-manager-confirm-danger-hover)]',
   },
   rename: {
     icon: <Edit2 className="text-[var(--panel-primary-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   },
   compress: {
     icon: <Archive className="text-[var(--panel-warning-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   },
   extract: {
     icon: <PackageOpen className="text-[var(--panel-primary-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   },
   mkdir: {
     icon: <FolderPlus className="text-[var(--panel-success-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   },
   touch: {
     icon: <FilePlus className="text-[var(--panel-success-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   },
   chmod: {
     icon: <Key className="text-[var(--panel-warning-text)]" size={32} />,
-    confirmBtn: 'bg-sky-500/90 shadow-[0_2px_12px_rgba(14,165,233,0.3)] hover:bg-[var(--panel-primary-text)]',
+    confirmBtn: 'bg-[var(--file-manager-confirm-primary-bg)] shadow-[var(--file-manager-confirm-primary-shadow)] hover:bg-[var(--file-manager-confirm-primary-hover)]',
   }
 }
 
@@ -125,7 +125,7 @@ const FileRow = memo(({
       onDoubleClick={() => onDoubleClick(item)}
     >
       <div className="flex items-center justify-center">
-        <input type="checkbox" checked={isSelected} onChange={(e) => onToggleSelect(item.path, e.target.checked)} className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all" onClick={(e) => e.stopPropagation()} />
+        <input type="checkbox" checked={isSelected} onChange={(e) => onToggleSelect(item.path, e.target.checked)} className="cursor-pointer accent-[var(--focus-ring)] w-3.5 h-3.5 transition-all" onClick={(e) => e.stopPropagation()} />
       </div>
       <div className="flex items-center gap-3 overflow-hidden">
         {item.isDir ? <Folder size={17} className="text-[var(--panel-primary-text)] fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />}
@@ -135,7 +135,7 @@ const FileRow = memo(({
         {item.isDir ? '--' : formatSize(item.size)}
       </div>
       <div className="flex items-center">
-        <div className="text-[12px] text-[var(--tb-clock)] bg-[rgba(255,255,255,0.06)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
+        <div className="text-[12px] text-[var(--tb-clock)] bg-[var(--file-manager-mode-bg)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
           {item.mode}
         </div>
       </div>
@@ -602,7 +602,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <div className="w-full mb-6">
             <input
               autoFocus
-              className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+              className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
               placeholder={modal.type === 'rename' ? modal.item.name : t('fileManager.typeHere')}
               value={modalInput}
               onChange={(e) => setModalInput(e.target.value)}
@@ -613,7 +613,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
         {modal.type === 'extract' && (
           <div className="w-full mb-6 space-y-3">
-            <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-primary-bg)] px-3 py-2 text-[11.5px] text-[var(--panel-primary-text)] dark:text-sky-100/90">
+            <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-primary-bg)] px-3 py-2 text-[11.5px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)]">
               <div className="font-semibold text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)]">{t('fileManager.extractionDirection')}</div>
               <div className="mt-1 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || t('fileManager.destinationFolderFallback'))}</div>
             </div>
@@ -621,7 +621,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
               <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.destinationDirectory')}</label>
               <input
                 autoFocus
-                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+                className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
                 placeholder={t('fileManager.destinationDirectoryPlaceholder')}
                 value={modalPathInput}
                 onChange={(e) => setModalPathInput(e.target.value)}
@@ -630,7 +630,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             <div>
               <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.extractFolderName')}</label>
               <input
-                className="w-full bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
+                className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
                 placeholder={t('fileManager.extractFolderNamePlaceholder')}
                 value={modalInput}
                 onChange={(e) => setModalInput(e.target.value)}
@@ -648,18 +648,18 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 const titleMap = { u: t('fileManager.owner'), g: t('fileManager.group'), o: t('fileManager.public') }
                 const val = parseOctal(chmodMode.substring(1))[pos]
                 return (
-                  <div key={pos} className="flex-col gap-2 p-3 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-xl relative flex-1 text-left">
+                  <div key={pos} className="flex-col gap-2 p-3 bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl relative flex-1 text-left">
                     <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] rounded backdrop-blur border border-[var(--win-border)]">
                       {titleMap[pos]}
                     </label>
                     <label className="flex items-center gap-2 mt-3 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.read')}
+                      <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.read')}
                     </label>
                     <label className="flex items-center gap-2 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.write')}
+                      <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.write')}
                     </label>
                     <label className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-sky-500 w-3.5 h-3.5" /> {t('fileManager.execute')}
+                      <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.execute')}
                     </label>
                   </div>
                 )
@@ -672,13 +672,13 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 <input
                   value={chmodMode}
                   onChange={e => setChmodMode(e.target.value)}
-                  className="w-20 bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] border border-[var(--win-border)] rounded-lg py-2 px-3 text-[13px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] font-mono outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner"
+                  className="w-20 bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-lg py-2 px-3 text-[13px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] font-mono outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner"
                   onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
                 />
               </div>
               {modal.item.isDir && (
                 <label className="flex items-center gap-2 text-[11.5px] font-medium text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]/80 cursor-pointer hover:text-[var(--panel-warning-text)] transition">
-                  <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5 cursor-pointer" />
+                  <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-[var(--panel-warning-text)] w-3.5 h-3.5 cursor-pointer" />
                   {t('fileManager.applyRecursive')}
                 </label>
               )}
@@ -691,7 +691,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
           <button
             onClick={() => setModal(null)}
             disabled={modalLoading}
-            className="flex-1 rounded-full border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] dark:bg-[rgba(255,255,255,0.04)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--win-text)] transition hover:brightness-[0.95] dark:hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-slate-400/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 rounded-full border border-[var(--win-border)] bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--win-text)] transition hover:brightness-[0.95] dark:hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('common.cancel')}
           </button>
@@ -755,7 +755,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     >
 
       {/* ── Tabs Strip ── */}
-      <div className="flex bg-[#252526] h-[35px] shrink-0 overflow-hidden" style={{ background: 'var(--win-bg)' }}>
+      <div className="flex h-[35px] shrink-0 overflow-hidden bg-[var(--win-bg)]" style={{ background: 'var(--win-bg)' }}>
         <div
           className="flex flex-1 overflow-x-auto no-scrollbar items-end border-b border-[var(--win-border)] transition-colors"
           ref={tabsScrollRef}
@@ -777,7 +777,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
                 style={{
                   background: tBg,
                   color: tColor,
-                  borderTop: isActive ? '2px solid #0ea5e9' : '2px solid transparent'
+                  borderTop: isActive ? '2px solid var(--file-manager-tab-accent)' : '2px solid transparent'
                 }}
                 onClick={() => setActiveTabId(tab.id)}
               >
@@ -867,7 +867,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
         <div className="flex items-center justify-center">
           <input
             type="checkbox"
-            className="cursor-pointer accent-sky-500 w-3.5 h-3.5 transition-all"
+            className="cursor-pointer accent-[var(--focus-ring)] w-3.5 h-3.5 transition-all"
             checked={!!(activeTab.data?.contents?.length && selectedPaths.size === activeTab.data.contents.length)}
             onChange={(e) => {
               if (e.target.checked && activeTab.data?.contents) {
@@ -955,7 +955,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
 
               if (drags.length > 1) {
                 const el = document.createElement('div')
-                el.className = 'fixed left-[-9999px] top-[-9999px] bg-sky-500/90 text-[var(--win-text)] text-[12px] font-bold px-3 py-2 rounded shadow-lg backdrop-blur z-[9999]'
+                el.className = 'fixed left-[-9999px] top-[-9999px] bg-[var(--file-manager-drag-ghost-bg)] text-[var(--win-text)] text-[12px] font-bold px-3 py-2 rounded shadow-lg backdrop-blur z-[9999]'
                 el.innerText = `${drags.length} item`
                 document.body.appendChild(el)
                 e.dataTransfer.setDragImage(el, -10, -10)
@@ -1016,7 +1016,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] text-[var(--win-text)] px-5 py-3 rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center gap-3 z-[40]"
+            className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] text-[var(--win-text)] px-5 py-3 rounded-full shadow-[var(--file-manager-floating-shadow)] flex items-center gap-3 z-[40]"
           >
             <span className="text-[13px] font-semibold pr-3 border-r border-[var(--win-border)]">
               {t('fileManager.selectedCount', { count: selectedPaths.size })}
@@ -1024,7 +1024,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
             <button title={t('fileManager.move')} onClick={() => setClipboardBulk('cut')} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-warning-text)] transition" ><Scissors size={16} /></button>
             <button title={t('common.copy')} onClick={() => setClipboardBulk('copy')} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-primary-text)] transition"><Copy size={16} /></button>
             <button title={t('common.delete')} onClick={() => handleBulkDelete()} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--panel-danger-text)] transition"><Trash size={16} /></button>
-            <div className="w-[1px] h-4 bg-slate-600 mx-1" />
+            <div className="w-[1px] h-4 bg-[var(--file-manager-floating-divider)] mx-1" />
             <button title={t('common.cancel')} onClick={() => setSelectedPaths(new Set())} className="flex items-center justify-center p-1.5 hover:bg-[var(--panel-surface-hover)] rounded-lg text-[var(--text-secondary)] transition"><X size={16} /></button>
           </motion.div>
         )}

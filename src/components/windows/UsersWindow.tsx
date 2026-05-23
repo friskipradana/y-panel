@@ -425,7 +425,7 @@ function UserRow({
                 <PanelSelectMenu
                   value={selectedRole}
                   onChange={setSelectedRole}
-                  options={ROLE_SELECT_OPTIONS}
+                  options={ROLE_SELECT_OPTIONS(t)}
                   className="min-w-[150px]"
                   buttonClassName="h-8 rounded-full border-[var(--win-border)] bg-[var(--panel-surface)] pl-3 pr-10 text-[12px] font-medium"
                   dropdownClassName="min-w-[180px]"

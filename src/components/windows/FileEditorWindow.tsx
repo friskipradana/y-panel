@@ -269,7 +269,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
                 style={{
                   background: isActive ? 'var(--win-bg)' : 'var(--tb-hover)',
                   color: isActive ? 'var(--win-text)' : 'var(--tb-clock)',
-                  borderTop: isActive ? '2px solid #007acc' : '2px solid transparent'
+                  borderTop: isActive ? '2px solid var(--file-editor-tab-active-border)' : '2px solid transparent'
                 }}
                 onClick={(e) => handleTabClick(tab.id, e)}
               >
@@ -311,7 +311,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
               className={`px-3 py-2 flex items-center gap-1.5 text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
-                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-lg shadow-blue-500/20'
+                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-[var(--file-editor-save-shadow)]'
                 : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
                 }`}
             >

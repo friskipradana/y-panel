@@ -238,7 +238,7 @@ export function Window({ win, children }: Props) {
                 style={{
                   fontSize: 13,
                   fontWeight: 500,
-                  color: isFocused ? 'var(--win-text)' : '#94a3b8',
+                  color: isFocused ? 'var(--win-text)' : 'var(--window-title-muted)',
                   transition: 'color 200ms ease',
                 }}
               >
@@ -285,8 +285,8 @@ export function Window({ win, children }: Props) {
                 onClick={() => closeWindow(win.id)}
                 style={controlButtonStyle}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#ef4444'
-                  e.currentTarget.style.color = '#fff'
+                  e.currentTarget.style.background = 'var(--window-close-hover-bg)'
+                  e.currentTarget.style.color = 'var(--window-close-hover-text)'
                 }}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
               >

@@ -8,7 +8,7 @@ const iconMap: Record<AlertType, React.ReactNode> = {
   warning: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
   error: <XCircle className="text-[var(--panel-danger-text)]" size={32} />,
   info: <Info className="text-[var(--panel-primary-text)]" size={32} />,
-  question: <HelpCircle className="text-violet-400" size={32} />,
+  question: <HelpCircle className="text-[var(--global-alert-question-text)]" size={32} />,
   loading: <Loader2 className="text-[var(--panel-primary-text)] animate-spin" size={32} />,
   confirm: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
 }
@@ -42,8 +42,8 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
           zIndex: 999999,
           color: 'var(--win-text)',
           borderColor: 'var(--win-border)',
-          background: 'linear-gradient(135deg, color-mix(in srgb, var(--win-bg) 94%, transparent), color-mix(in srgb, var(--panel-surface) 88%, transparent))',
-          boxShadow: 'inset 0 1px 0 color-mix(in srgb, white 28%, transparent), var(--win-shadow-focus)',
+          background: 'var(--global-alert-card-bg)',
+          boxShadow: 'var(--global-alert-card-highlight), var(--win-shadow-focus)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -84,10 +84,10 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
             )}
             <button
               onMouseDown={(e) => { e.stopPropagation(); closeDialog(true) }}
-              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-[var(--win-text)] shadow-[0_2px_12px_rgba(14,165,233,0.3)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-[var(--win-text)] shadow-[var(--global-alert-confirm-shadow)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
               style={{
                 borderColor: 'color-mix(in srgb, var(--panel-primary-solid) 75%, var(--win-border))',
-                background: 'linear-gradient(135deg, var(--panel-primary-solid), var(--panel-primary-text))',
+                background: 'var(--global-alert-confirm-bg)',
               }}
             >
               {data.confirmText || t('common.close')}

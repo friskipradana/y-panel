@@ -379,7 +379,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       <div className="panel-window__body">
         <div className="panel-window__stack">
           {highlightedProject ? (
-            <section className="panel-muted-block rounded-[22px] border border-[var(--win-border)] bg-[linear-gradient(135deg,rgba(251,191,36,0.16),rgba(245,158,11,0.06))] px-4 py-4 shadow-[0_18px_36px_rgba(245,158,11,0.12)]">
+            <section className="panel-muted-block rounded-[22px] border border-[var(--win-border)] bg-[var(--projects-highlight-bg)] px-4 py-4 shadow-[var(--projects-highlight-shadow)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="panel-section-label">{t('projects.focusedTarget')}</div>
@@ -579,9 +579,9 @@ function ProjectCard({
       id={`project-card-${p.id}`}
       tabIndex={highlighted ? -1 : undefined}
       className={[
-        'rounded-[22px] border p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition outline-none',
+        'rounded-[22px] border p-5 shadow-[var(--projects-card-shadow)] transition outline-none',
         highlighted
-          ? 'border-amber-400/60 bg-[rgba(251,191,36,0.12)] ring-1 ring-amber-400/35 shadow-[0_22px_44px_rgba(245,158,11,0.18)] dark:bg-[rgba(251,191,36,0.08)]'
+          ? 'border-[var(--projects-card-highlight-border)] bg-[var(--projects-card-highlight-bg)] ring-1 ring-[var(--projects-card-highlight-ring)] shadow-[var(--projects-card-highlight-shadow)]'
           : 'border-[var(--win-border)] bg-[var(--win-bg)]/92 backdrop-blur-xl',
       ].join(' ')}>
       <div className="panel-table-row group p-4">

@@ -32,17 +32,17 @@ export function DebugPanel() {
             style={{
               width: 32,
               height: 32,
-              background: 'rgba(0,0,0,0.85)',
+              background: 'var(--debug-panel-bg)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(167, 139, 250, 0.3)',
+              border: '1px solid var(--debug-panel-button-border)',
               borderRadius: 6,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 14,
-              color: '#a78bfa',
+              color: 'var(--debug-panel-focus)',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              boxShadow: 'var(--debug-panel-button-shadow)',
             }}
           >
             {sortReversed ? '↓' : '↑'}
@@ -55,17 +55,17 @@ export function DebugPanel() {
           style={{
             width: 32,
             height: 32,
-            background: 'rgba(0,0,0,0.85)',
+            background: 'var(--debug-panel-bg)',
             backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(167, 139, 250, 0.3)',
+            border: '1px solid var(--debug-panel-button-border)',
             borderRadius: 6,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 14,
-            color: '#a78bfa',
+            color: 'var(--debug-panel-focus)',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            boxShadow: 'var(--debug-panel-button-shadow)',
           }}
         >
           {view === 'table' ? '🗺️' : '📋'}
@@ -78,30 +78,30 @@ export function DebugPanel() {
         bottom: 52, // ✅ 12px + 32px button + 8px gap
         right: 12,
         zIndex: 99999,
-        background: 'rgba(0,0,0,0.85)',
+        background: 'var(--debug-panel-bg)',
         backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        border: '1px solid var(--debug-panel-border)',
         borderRadius: 8,
         padding: '10px 14px',
         fontFamily: 'monospace',
         fontSize: 11,
-        color: '#e5e5e5',
+        color: 'var(--debug-panel-text)',
         minWidth: view === 'grid' ? minimapW + 28 : 320,
         maxHeight: 400,
         overflowY: 'auto',
       }}>
         {/* Header - HAPUS BUTTONS DARI SINI */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <span style={{ color: '#a78bfa', fontWeight: 700 }}>🧠 DEBUG PANEL</span>
-          <span style={{ color: '#6b7280', fontSize: 10 }}>
-            {t('debug.focused')}: <span style={{ color: '#a78bfa' }}>{focusedId || t('debug.none')}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid var(--debug-panel-border)' }}>
+          <span style={{ color: 'var(--debug-panel-focus)', fontWeight: 700 }}>🧠 DEBUG PANEL</span>
+          <span style={{ color: 'var(--debug-panel-muted)', fontSize: 10 }}>
+            {t('debug.focused')}: <span style={{ color: 'var(--debug-panel-focus)' }}>{focusedId || t('debug.none')}</span>
           </span>
         </div>
 
         {/* TABLE VIEW */}
         {view === 'table' && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 45px 45px 45px 45px 45px 70px', gap: 4, marginBottom: 4, color: '#6b7280', fontSize: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '80px 45px 45px 45px 45px 45px 70px', gap: 4, marginBottom: 4, color: 'var(--debug-panel-muted)', fontSize: 10 }}>
               <span>ID</span>
               <span>X</span>
               <span>Y</span>
@@ -112,7 +112,7 @@ export function DebugPanel() {
             </div>
 
             {windows.length === 0 && (
-              <div style={{ color: '#4b5563', textAlign: 'center', padding: '8px 0' }}>{t('debug.noWindowsOpen')}</div>
+              <div style={{ color: 'var(--debug-panel-empty)', textAlign: 'center', padding: '8px 0' }}>{t('debug.noWindowsOpen')}</div>
             )}
             {(sortReversed ? [...windows].reverse() : windows).map(w => (
               <div key={w.id} style={{
@@ -120,13 +120,13 @@ export function DebugPanel() {
                 gridTemplateColumns: '80px 45px 45px 45px 45px 45px 70px',
                 gap: 4,
                 padding: '3px 0',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-                background: w.id === focusedId ? 'rgba(167, 139, 250, 0.1)' : 'transparent',
-                color: '#e5e5e5',
+                borderBottom: '1px solid var(--debug-panel-row-border)',
+                background: w.id === focusedId ? 'var(--debug-panel-row-focus-bg)' : 'transparent',
+                color: 'var(--debug-panel-text)',
                 borderRadius: 4,
               }}>
                 <span style={{ 
-                  color: w.id === focusedId ? '#a78bfa' : '#60a5fa',
+                  color: w.id === focusedId ? 'var(--debug-panel-focus)' : 'var(--debug-panel-normal)',
                   overflow: 'hidden', 
                   textOverflow: 'ellipsis', 
                   whiteSpace: 'nowrap',
@@ -134,18 +134,18 @@ export function DebugPanel() {
                 }}>
                   {w.id === focusedId && '▸ '}{w.id}
                 </span>
-                <span style={{ color: '#fbbf24' }}>{Math.round(w.x)}</span>
-                <span style={{ color: '#fbbf24' }}>{Math.round(w.y)}</span>
+                <span style={{ color: 'var(--debug-panel-warning)' }}>{Math.round(w.x)}</span>
+                <span style={{ color: 'var(--debug-panel-warning)' }}>{Math.round(w.y)}</span>
                 <span>{Math.round(w.width)}</span>
                 <span>{Math.round(w.height)}</span>
-                <span style={{ color: w.id === focusedId ? '#a78bfa' : '#34d399' }}>{w.zIndex}</span>
-                <span style={{ color: w.isMinimized ? '#ef4444' : w.isMaximized ? '#a78bfa' : '#34d399' }}>
+                <span style={{ color: w.id === focusedId ? 'var(--debug-panel-focus)' : 'var(--debug-panel-success)' }}>{w.zIndex}</span>
+                <span style={{ color: w.isMinimized ? 'var(--debug-panel-danger)' : w.isMaximized ? 'var(--debug-panel-focus)' : 'var(--debug-panel-success)' }}>
                   {w.isMinimized ? t('debug.minimized') : w.isMaximized ? t('debug.maximized') : t('debug.normal')}
                 </span>
               </div>
             ))}
 
-            <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.1)', color: '#6b7280', fontSize: 10 }}>
+            <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--debug-panel-border)', color: 'var(--debug-panel-muted)', fontSize: 10 }}>
               {t('debug.viewport')}: {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '-'}
               {' '}| {t('debug.center')}: {typeof window !== 'undefined' ? `${Math.round(window.innerWidth / 2)}, ${Math.round(window.innerHeight / 2)}` : '-'}
             </div>
@@ -158,8 +158,8 @@ export function DebugPanel() {
             <div style={{
               width: minimapW,
               height: minimapH,
-              background: '#1a1a1a',
-              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'var(--debug-panel-minimap-bg)',
+              border: '1px solid var(--debug-panel-grid-border)',
               borderRadius: 4,
               position: 'relative',
               overflow: 'hidden',
@@ -167,7 +167,7 @@ export function DebugPanel() {
               <svg style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.15 }}>
                 <defs>
                   <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#666" strokeWidth="0.5"/>
+                    <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--debug-panel-minimap-grid)" strokeWidth="0.5"/>
                   </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" />
@@ -186,14 +186,14 @@ export function DebugPanel() {
                       top: w.y * scaleY,
                       width: w.width * scaleX,
                       height: w.height * scaleY,
-                      background: isFocused ? 'rgba(167, 139, 250, 0.3)' : 'rgba(96, 165, 250, 0.2)',
-                      border: `1px solid ${isFocused ? '#a78bfa' : '#60a5fa'}`,
+                      background: isFocused ? 'var(--debug-panel-minimap-focus-bg)' : 'var(--debug-panel-minimap-normal-bg)',
+                      border: `1px solid ${isFocused ? 'var(--debug-panel-focus)' : 'var(--debug-panel-normal)'}`,
                       borderRadius: 2,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 9,
-                      color: isFocused ? '#a78bfa' : '#60a5fa',
+                      color: isFocused ? 'var(--debug-panel-focus)' : 'var(--debug-panel-normal)',
                       fontWeight: 600,
                     }}
                   >
@@ -209,19 +209,19 @@ export function DebugPanel() {
                 width: 8,
                 height: 8,
                 transform: 'translate(-50%, -50%)',
-                border: '1px solid #ef4444',
+                border: '1px solid var(--debug-panel-danger)',
                 borderRadius: '50%',
                 pointerEvents: 'none',
               }} />
             </div>
 
-            <div style={{ marginTop: 8, fontSize: 9, color: '#6b7280', display: 'flex', gap: 12 }}>
+            <div style={{ marginTop: 8, fontSize: 9, color: 'var(--debug-panel-muted)', display: 'flex', gap: 12 }}>
               <span>🟣 {t('debug.focused')}</span>
               <span>🔵 {t('debug.normal')}</span>
               <span>🔴 {t('debug.center')}</span>
             </div>
 
-            <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.1)', color: '#6b7280', fontSize: 10 }}>
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--debug-panel-border)', color: 'var(--debug-panel-muted)', fontSize: 10 }}>
               viewport: {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '-'}
               {' '}| {t('debug.visible')}: {windows.filter(w => !w.isMinimized).length}/{windows.length}
             </div>

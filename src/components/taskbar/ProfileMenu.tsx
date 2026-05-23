@@ -29,7 +29,7 @@ interface ProfileMenuProps {
   loading?: boolean
 }
 
-const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-orange-400'
+const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[var(--surface-subtle)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[var(--surface-subtle-dark)] focus:border-[var(--profile-icon-cloud)]'
 
 export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const { t } = useI18n()
@@ -142,7 +142,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
           <div className="profile-menu-section">
             <button className="profile-menu-btn" onClick={toggleMode}>
-              {isDark ? <Sun size={14} color="#fbbf24" /> : <Moon size={14} color="#6366f1" />}
+              {isDark ? <Sun size={14} color="var(--profile-icon-sun)" /> : <Moon size={14} color="var(--profile-icon-moon)" />}
               <span>{isDark ? t('profile.switchLight') : t('profile.switchDark')}</span>
             </button>
           </div>
@@ -155,7 +155,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 setShowCloudflareModal(true)
               }}
             >
-              <Cloud size={14} color="#f97316" />
+              <Cloud size={14} color="var(--profile-icon-cloud)" />
               <span>{t('profile.cloudflareSettings')}</span>
               <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium ${cfStatusBadge.cls}`}>
                 {cfStatusBadge.icon}
@@ -247,7 +247,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 </p>
               </div>
               <button
-                className="rounded-lg px-3 py-2 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+                className="rounded-lg px-3 py-2 text-[var(--text-secondary)] transition hover:bg-[var(--profile-modal-close-hover)] hover:text-[var(--win-text)]"
                 onClick={() => setShowCloudflareModal(false)}
               >
                 ✕
@@ -258,7 +258,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">{t('profile.loadingCloudflare')}</div>
             ) : cf?.configured ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">
+                <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--win-border)] bg-[var(--profile-modal-card-bg)] px-4 py-3">
                   <div>
                     <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">{t('profile.connectionStatus')}</div>
                     <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">{t('profile.cloudflareConnected')}</div>
@@ -269,7 +269,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                   </span>
                 </div>
 
-                <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 dark:bg-[rgba(255,255,255,0.03)]">
+                <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[var(--profile-modal-card-bg)] p-4">
                   {[
                     { label: t('profile.accountId'), value: cf.accountId },
                     // { label: 'Zone ID', value: cf.zoneId },
@@ -287,7 +287,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                   <button
                     onClick={() => verifyMut.mutate()}
                     disabled={verifyMut.isPending}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[var(--panel-warning-bg)] px-4 py-2.5 text-[12px] font-semibold text-[var(--panel-warning-text)] transition hover:bg-orange-500/18 dark:text-[var(--panel-warning-text)] disabled:opacity-50"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[var(--panel-warning-bg)] px-4 py-2.5 text-[12px] font-semibold text-[var(--panel-warning-text)] transition hover:bg-[var(--panel-warning-bg)] dark:text-[var(--panel-warning-text)] disabled:opacity-50"
                   >
                     <ShieldCheck className="h-4 w-4" />
                     {verifyMut.isPending ? t('profile.verifying') : t('profile.verifyToken')}
@@ -316,7 +316,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                         <li>Zone → Zone → Read <span className="text-[var(--text-secondary)] font-normal">{t('profile.zoneReadHint')}</span></li>
                         <li>Zone → DNS → Edit</li>
                       </ul>
-                      <div className="mb-2 rounded-lg bg-[var(--panel-elevated-surface)] px-3 py-2 text-[12px] text-[var(--text-secondary)] dark:bg-black/10">
+                      <div className="mb-2 rounded-lg bg-[var(--profile-resource-scope-bg)] px-3 py-2 text-[12px] text-[var(--text-secondary)]">
                         {t('profile.resourceScope')}
                       </div>
                       <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-[var(--panel-primary-text)] hover:text-[var(--panel-primary-text)] dark:hover:text-[var(--panel-primary-text)] font-semibold underline underline-offset-2">
@@ -359,7 +359,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 <button
                   onClick={() => saveCFMut.mutate(cfForm)}
                   disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#f97316,#fb923c)] px-4 py-2.5 text-[13px] font-semibold text-[var(--win-text)] shadow-[0_12px_24px_rgba(249,115,22,0.22)] transition hover:brightness-105 disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--action-cloudflare-gradient)] px-4 py-2.5 text-[13px] font-semibold text-[var(--win-text)] shadow-[var(--action-cloudflare-shadow)] transition hover:brightness-105 disabled:opacity-50"
                 >
                   {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
                   {saveCFMut.isPending ? t('profile.saving') : t('profile.saveConnecting')}
