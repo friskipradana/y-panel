@@ -15,6 +15,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { toast } from 'sonner'
+import { useI18n } from '@/lib/i18n'
 import {
   FolderCode,
   Plus,
@@ -65,6 +66,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
   const openWindow = useWindowStore((state) => state.openWindow)
+  const { t } = useI18n()
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
@@ -144,43 +146,43 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   const createMut = useMutation({
     mutationFn: createProject,
     onSuccess: (p) => {
-      alertLib.fire('Project Dibuat', `Project <strong>${p.name}</strong> berhasil dibuat pada port <strong>${p.assignedPort}</strong>.`, 'success', 'projects')
+      alertLib.fire(t('projects.createdTitle'), t('projects.createdMessage', { name: p.name, port: p.assignedPort }), 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
       setShowCreate(false)
       setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' })
     },
     onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal membuat project'
-      toast.error('Gagal membuat project', { description: message })
-      alertLib.fire('Gagal Membuat Project', message, 'error', 'projects')
+      const message = e.response?.data?.error ?? t('projects.createFailedMessage')
+      toast.error(t('projects.createFailedMessage'), { description: message })
+      alertLib.fire(t('projects.createFailedTitle'), message, 'error', 'projects')
     },
   })
 
   const startMut = useMutation({
     mutationFn: startProject,
     onSuccess: () => {
-      alertLib.fire('Project Dijalankan', 'Project berhasil dijalankan.', 'success', 'projects')
+      alertLib.fire(t('projects.startedTitle'), t('projects.startedMessage'), 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Menjalankan Project', e.response?.data?.error ?? 'Gagal menjalankan project', 'error', 'projects'),
+    onError: (e: any) => alertLib.fire(t('projects.startFailedTitle'), e.response?.data?.error ?? t('projects.startFailedMessage'), 'error', 'projects'),
   })
 
   const stopMut = useMutation({
     mutationFn: stopProject,
     onSuccess: () => {
-      alertLib.fire('Project Dihentikan', 'Project berhasil dihentikan.', 'warning', 'projects')
+      alertLib.fire(t('projects.stoppedTitle'), t('projects.stoppedMessage'), 'warning', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Menghentikan Project', e.response?.data?.error ?? 'Gagal menghentikan project', 'error', 'projects'),
+    onError: (e: any) => alertLib.fire(t('projects.stopFailedTitle'), e.response?.data?.error ?? t('projects.stopFailedMessage'), 'error', 'projects'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteProject,
     onSuccess: () => {
-      alertLib.fire('Project Dihapus', 'Project berhasil dihapus dari sistem.', 'success', 'projects')
+      alertLib.fire(t('projects.deletedTitle'), t('projects.deletedMessage'), 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Menghapus Project', e.response?.data?.error ?? 'Gagal menghapus project', 'error', 'projects'),
+    onError: (e: any) => alertLib.fire(t('projects.deleteFailedTitle'), e.response?.data?.error ?? t('projects.deleteFailedMessage'), 'error', 'projects'),
   })
   const highlightedProject = useMemo(
     () => visibleProjects.find((project) => project.id === highlightedProjectId) ?? null,
@@ -200,7 +202,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
 
   const openHighlightedProjectFiles = async () => {
     if (!highlightedProject?.workingDir) {
-      toast.error('Working directory belum tersedia', { description: 'Project ini belum memiliki path kerja untuk dibuka di File Manager.' })
+      toast.error(t('projects.workingDirUnavailableTitle'), { description: t('projects.openFilesUnavailable') })
       return
     }
     openWindow('file-manager', { currentPath: highlightedProject.workingDir })
@@ -208,14 +210,14 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
 
   const copyHighlightedProjectPath = async () => {
     if (!highlightedProject?.workingDir) {
-      toast.error('Working directory belum tersedia', { description: 'Tidak ada path kerja yang bisa disalin.' })
+      toast.error(t('projects.workingDirUnavailableTitle'), { description: t('projects.copyPathUnavailable') })
       return
     }
     try {
       await navigator.clipboard.writeText(highlightedProject.workingDir)
-      toast.success('Path project disalin', { description: highlightedProject.workingDir })
+      toast.success(t('projects.pathCopiedTitle'), { description: highlightedProject.workingDir })
     } catch {
-      toast.error('Gagal menyalin path', { description: highlightedProject.workingDir })
+      toast.error(t('projects.pathCopyFailedTitle'), { description: highlightedProject.workingDir })
     }
   }
 
@@ -238,9 +240,9 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
     const command = commandParts.join(' && ')
     try {
       await navigator.clipboard.writeText(command)
-      toast.success('Inspect command disalin', { description: highlightedProject.name })
+      toast.success(t('projects.inspectCopiedTitle'), { description: highlightedProject.name })
     } catch {
-      toast.error('Gagal menyalin inspect command', { description: highlightedProject.name })
+      toast.error(t('projects.inspectCopyFailedTitle'), { description: highlightedProject.name })
     }
   }
 
@@ -250,12 +252,12 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
         <div className="panel-window__title">
           <FolderCode className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Projects</div>
-            <div className="panel-window__meta">{summaryTotal} project terindeks • {activeCount} aktif di halaman ini • {attentionCount} perlu perhatian</div>
+            <div className="panel-window__title-text">{t('projects.title')}</div>
+            <div className="panel-window__meta">{t('projects.meta', { total: summaryTotal, active: activeCount, attention: attentionCount })}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button type="button" onClick={() => { void refetch(); void refetchAttentionSummary() }} className="panel-icon-btn" aria-label="Refresh projects" disabled={showRefreshing}>
+          <button type="button" onClick={() => { void refetch(); void refetchAttentionSummary() }} className="panel-icon-btn" aria-label={t('projects.refresh')} disabled={showRefreshing}>
             <RefreshCw className={`h-3.5 w-3.5 ${showRefreshing ? 'animate-spin' : ''}`} />
           </button>
           <button
@@ -280,19 +282,19 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
               setAttentionFilter(value as AttentionFilter)
             }}
             options={[
-              { value: 'off', label: 'Semua Project', description: `${summaryTotal} project terindeks` },
-              { value: 'all', label: `Attention (${attentionCount})`, description: `${attentionCount} project drift atau degraded` },
-              { value: 'drift', label: `Drift (${driftCount})`, description: 'Runtime berbeda dari state panel' },
-              { value: 'degraded', label: `Degraded (${degradedCount})`, description: 'Project membutuhkan tindakan operator' },
+              { value: 'off', label: t('projects.filterAll'), description: t('projects.filterAllDescription', { total: summaryTotal }) },
+              { value: 'all', label: t('projects.filterAttention', { count: attentionCount }), description: t('projects.filterAttentionDescription', { count: attentionCount }) },
+              { value: 'drift', label: t('projects.filterDrift', { count: driftCount }), description: t('projects.filterDriftDescription') },
+              { value: 'degraded', label: t('projects.filterDegraded', { count: degradedCount }), description: t('projects.filterDegradedDescription') },
             ]}
             className="min-w-[190px]"
-            buttonClassName="h-[34px] py-0 text-xs"
+            buttonClassName="h-[34px] py-0 text-[12px]"
             dropdownClassName="left-auto right-0 min-w-[360px] max-w-[min(520px,calc(100vw-32px))]"
             itemClassName="projects-attention-filter__item"
           />
           <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
             <Plus className="h-3.5 w-3.5" />
-            Buat Project
+            {t('projects.createButton')}
           </button>
         </div>
       </div>
@@ -302,22 +304,22 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
           <div className="panel-modal-card" style={{ width: 'min(100%, 520px)' }}>
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
               <FolderCode className="panel-window__icon h-4 w-4" />
-              Project Baru
+              {t('projects.newProject')}
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="panel-section-label">Nama Project *</label>
+                <label className="panel-section-label">{t('projects.nameLabel')}</label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="my-awesome-app"
+                  placeholder={t('projects.appNamePlaceholder')}
                   className="panel-input"
                   autoFocus
                 />
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Nama akan dipakai untuk identitas project dan pencarian.</p>
+                <p className="mt-1 text-[12px] text-[var(--text-secondary)]">{t('projects.nameHelp')}</p>
               </div>
               <div>
-                <label className="panel-section-label">Tipe Runtime</label>
+                <label className="panel-section-label">{t('projects.runtimeType')}</label>
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                   {PROJECT_TYPES.map((t) => (
                     <button
@@ -325,7 +327,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, projectType: t }))}
                       className={[
-                        'panel-btn justify-center rounded-[12px] px-2 py-2 text-[11px] font-medium capitalize shadow-none',
+                        'panel-btn justify-center rounded-[12px] px-2 py-2 text-[12px] font-medium capitalize shadow-none',
                         form.projectType === t ? 'panel-btn--primary-soft' : 'panel-btn--ghost',
                       ].join(' ')}
                     >
@@ -335,39 +337,39 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                 </div>
               </div>
               <div>
-                <label className="panel-section-label">Repository URL</label>
+                <label className="panel-section-label">{t('projects.repoUrl')}</label>
                 <input
                   value={form.repoUrl}
                   onChange={(e) => setForm((f) => ({ ...f, repoUrl: e.target.value }))}
-                  placeholder="https://github.com/user/app.git"
+                  placeholder={t('projects.gitUrlPlaceholder')}
                   className="panel-input panel-input--mono"
                 />
               </div>
               <div>
-                <label className="panel-section-label">Working Directory</label>
+                <label className="panel-section-label">{t('projects.workingDir')}</label>
                 <input
                   value={form.workingDir}
                   onChange={(e) => setForm((f) => ({ ...f, workingDir: e.target.value }))}
-                  placeholder="/home/panel-user/apps/my-app"
+                  placeholder={t('projects.localPathPlaceholder')}
                   className="panel-input panel-input--mono"
                 />
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Kosongkan jika path akan ditentukan otomatis oleh backend.</p>
+                <p className="mt-1 text-[12px] text-[var(--text-secondary)]">{t('projects.workingDirHelp')}</p>
               </div>
               <div>
-                <label className="panel-section-label">Deskripsi</label>
+                <label className="panel-section-label">{t('projects.description')}</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
-                  placeholder="Catatan singkat tentang fungsi project ini..."
+                  placeholder={t('projects.descriptionPlaceholder')}
                   className="panel-textarea"
                 />
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setShowCreate(false)} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+              <button type="button" onClick={() => setShowCreate(false)} className="panel-btn panel-btn--ghost flex-1">{t('common.cancel')}</button>
               <button type="button" onClick={() => createMut.mutate(form)} disabled={createMut.isPending || !form.name.trim()} className="panel-btn panel-btn--primary flex-1">
-                {createMut.isPending ? 'Membuat...' : 'Buat Project'}
+                {createMut.isPending ? t('projects.creating') : t('projects.createButton')}
               </button>
             </div>
           </div>
@@ -377,31 +379,31 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       <div className="panel-window__body">
         <div className="panel-window__stack">
           {highlightedProject ? (
-            <section className="panel-muted-block rounded-[22px] border border-amber-400/35 bg-[linear-gradient(135deg,rgba(251,191,36,0.16),rgba(245,158,11,0.06))] px-4 py-4 shadow-[0_18px_36px_rgba(245,158,11,0.12)]">
+            <section className="panel-muted-block rounded-[22px] border border-[var(--win-border)] bg-[linear-gradient(135deg,rgba(251,191,36,0.16),rgba(245,158,11,0.06))] px-4 py-4 shadow-[0_18px_36px_rgba(245,158,11,0.12)]">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="panel-section-label">Focused remediation target</div>
+                  <div className="panel-section-label">{t('projects.focusedTarget')}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-[var(--win-text)]">{highlightedProject.name}</span>
                     <span className={`panel-badge ${STATUS_PILL[highlightedProject.status] ?? 'panel-badge--neutral'}`}>{highlightedProject.status}</span>
                     {highlightedProject.runtime?.drift ? <span className="panel-badge panel-badge--warning">drift</span> : null}
                   </div>
-                  <p className="mt-2 text-xs leading-6 text-[var(--text-secondary)]">
+                  <p className="mt-2 text-[12px] leading-6 text-[var(--text-secondary)]">
                     {highlightedProject.runtime?.driftReason
-                      ? `Drift reason: ${highlightedProject.runtime.driftReason.split('_').join(' ')}`
-                      : highlightedProject.description || 'Project ini dibuka dari incident flow dan siap untuk tindakan cepat.'}
+                      ? t('projects.driftReason', { reason: highlightedProject.runtime.driftReason.split('_').join(' ') })
+                      : highlightedProject.description || t('projects.incidentFallback')}
                   </p>
                   {incidentMessage ? (
-                    <div className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-3 py-2">
+                    <div className="mt-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-warning-bg)] px-3 py-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="panel-badge panel-badge--warning">opened from incident</span>
+                        <span className="panel-badge panel-badge--warning">{t('projects.openedFromIncident')}</span>
                         {incidentAt ? (
-                          <span className="text-[10px] text-[var(--text-secondary)]">{new Date(incidentAt).toLocaleString('id-ID')}</span>
+                          <span className="text-[12px] text-[var(--text-secondary)]">{new Date(incidentAt).toLocaleString('id-ID')}</span>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-[11px] font-semibold text-[var(--win-text)]">{incidentMessage}</p>
+                      <p className="mt-1 text-[12px] font-semibold text-[var(--win-text)]">{incidentMessage}</p>
                       {incidentMetadata && incidentMetadata !== '{}' ? (
-                        <code className="panel-mono mt-1 block max-h-16 overflow-y-auto break-all text-[10px] leading-5 text-[var(--text-secondary)]">{incidentMetadata}</code>
+                        <code className="panel-mono mt-1 block max-h-16 overflow-y-auto break-all text-[12px] leading-5 text-[var(--text-secondary)]">{incidentMetadata}</code>
                       ) : null}
                     </div>
                   ) : null}
@@ -409,7 +411,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={() => refetch()} className="panel-btn panel-btn--ghost" disabled={isFetching}>
                     <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-                    Refresh Reconcile
+                    {t('projects.refreshReconcile')}
                   </button>
                   <button
                     type="button"
@@ -418,7 +420,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     className="panel-btn panel-btn--ghost"
                   >
                     <FolderCode className="h-3.5 w-3.5" />
-                    Open Files
+                    {t('projects.openFiles')}
                   </button>
                   <button
                     type="button"
@@ -426,7 +428,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     className="panel-btn panel-btn--ghost"
                   >
                     <Terminal className="h-3.5 w-3.5" />
-                    Open Logs
+                    {t('projects.openLogs')}
                   </button>
                   <button
                     type="button"
@@ -434,7 +436,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     className="panel-btn panel-btn--ghost"
                   >
                     <Code className="h-3.5 w-3.5" />
-                    Copy Inspect Cmd
+                    {t('projects.copyInspectCmd')}
                   </button>
                   <button
                     type="button"
@@ -443,7 +445,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     className="panel-btn panel-btn--ghost"
                   >
                     <Code className="h-3.5 w-3.5" />
-                    Copy Path
+                    {t('projects.copyPath')}
                   </button>
                   {highlightedProject.running || highlightedProject.status === 'active' ? (
                     <button
@@ -453,7 +455,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                       className="panel-btn panel-btn--ghost"
                     >
                       <Square className="h-3.5 w-3.5" />
-                      {stopMut.isPending && stopMut.variables === highlightedProject.id ? 'Stopping...' : 'Stop Project'}
+                      {stopMut.isPending && stopMut.variables === highlightedProject.id ? t('projects.stopping') : t('projects.stopProject')}
                     </button>
                   ) : (
                     <button
@@ -463,7 +465,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                       className="panel-btn panel-btn--primary-soft"
                     >
                       <Play className="h-3.5 w-3.5" />
-                      {startMut.isPending && startMut.variables === highlightedProject.id ? 'Starting...' : 'Start Project'}
+                      {startMut.isPending && startMut.variables === highlightedProject.id ? t('projects.starting') : t('projects.startProject')}
                     </button>
                   )}
                 </div>
@@ -486,26 +488,26 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="panel-search__input"
-                  placeholder="Cari project, slug, deskripsi, path kerja, atau tipe..."
+                  placeholder={t('projects.searchPlaceholder')}
                 />
-                <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+                <button type="submit" className="panel-btn panel-btn--primary-soft">{t('common.search')}</button>
               </form>
-              <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
+              <div className="panel-pagination-summary">{t('common.pageSummary', { page: currentPage, totalPages })}</div>
             </div>
 
             {isLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat projects...</div>
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">{t('projects.loading')}</div>
             ) : visibleProjects.length === 0 ? (
               <div className="panel-empty">
                 <FolderCode className="h-8 w-8" />
                 <span>
-                  {attentionOnly
-                    ? attentionFilter === 'drift'
-                      ? 'Tidak ada project drift di halaman ini.'
-                      : attentionFilter === 'degraded'
-                        ? 'Tidak ada project degraded di halaman ini.'
-                        : 'Tidak ada project yang sedang drift atau degraded di halaman ini.'
-                    : 'Belum ada project yang cocok. Coba kata kunci lain atau buat project baru.'}
+                    {attentionOnly
+                      ? attentionFilter === 'drift'
+                        ? t('projects.emptyDrift')
+                        : attentionFilter === 'degraded'
+                          ? t('projects.emptyDegraded')
+                          : t('projects.emptyAttention')
+                      : t('projects.empty')}
                 </span>
               </div>
             ) : (
@@ -519,10 +521,10 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     onStop={() => stopMut.mutate(p.id)}
                     onDelete={async () => {
                       const confirmed = await alertLib.confirm(
-                        'Hapus Project?',
-                        `Project <strong>${p.name}</strong> akan dihapus dari sistem.`,
-                        'Hapus Project',
-                        'Batal',
+                        t('projects.deleteConfirmTitle'),
+                        t('projects.deleteConfirmMessage', { name: p.name }),
+                        t('projects.deleteConfirmAction'),
+                        t('common.cancel'),
                         'warning',
                         'projects',
                       )
@@ -538,10 +540,10 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
             <div className="panel-pagination">
               <button id="projects-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
                 <ChevronLeft className="h-3.5 w-3.5" />
-                Sebelumnya
+                {t('common.previous')}
               </button>
               <button id="projects-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
-                Berikutnya
+                {t('common.next')}
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -569,7 +571,8 @@ function ProjectCard({
   isStarting: boolean
   isStopping: boolean
 }) {
-  const runtimeLabel = p.runtime?.drift ? 'Drift detected' : p.runtime?.known ? (p.runtime.running ? 'Runtime active' : 'Runtime stopped') : 'Runtime unknown'
+  const { t } = useI18n()
+  const runtimeLabel = p.runtime?.drift ? t('projects.runtimeDrift') : p.runtime?.known ? (p.runtime.running ? t('projects.runtimeActive') : t('projects.runtimeStopped')) : t('projects.runtimeUnknown')
   const runtimeBadgeClass = p.runtime?.drift ? 'panel-badge--warning' : p.runtime?.running ? 'panel-badge--success' : 'panel-badge--neutral'
   return (
     <div
@@ -593,7 +596,7 @@ function ProjectCard({
                 <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>{p.status}</span>
                 <span className={`panel-badge ${runtimeBadgeClass}`}>{runtimeLabel}</span>
               </div>
-              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">
                 <span className="capitalize">{p.projectType}</span>
                 {p.assignedPort > 0 && <span className="panel-mono">:{p.assignedPort}</span>}
                 {p.workingDir && <span className="panel-mono max-w-[180px] truncate">{p.workingDir}</span>}
@@ -603,12 +606,12 @@ function ProjectCard({
 
           <div className="flex flex-shrink-0 items-center gap-1">
             {p.running || p.status === 'active' ? (
-              <button onClick={onStop} disabled={isStopping} className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs">
-                <Square className="h-3 w-3" /> Stop
+              <button onClick={onStop} disabled={isStopping} className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]">
+                <Square className="h-3 w-3" /> {t('projects.stopShort')}
               </button>
             ) : (
-              <button onClick={onStart} disabled={isStarting} className="panel-btn panel-btn--primary-soft px-2.5 py-1.5 text-xs">
-                <Play className="h-3 w-3" /> Start
+              <button onClick={onStart} disabled={isStarting} className="panel-btn panel-btn--primary-soft px-3 py-2 text-[12px]">
+                <Play className="h-3 w-3" /> {t('projects.startShort')}
               </button>
             )}
             <button onClick={onDelete} className="panel-icon-btn panel-icon-btn--danger opacity-0 group-hover:opacity-100">
@@ -619,10 +622,10 @@ function ProjectCard({
 
         {(p.description || p.runtime?.drift) && (
           <div className="mt-2.5 space-y-1 pl-[52px]">
-            {p.description && <p className="text-xs leading-relaxed text-[var(--text-secondary)]">{p.description}</p>}
+            {p.description && <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">{p.description}</p>}
             {p.runtime?.drift && (
-              <p className="text-[11px] font-medium text-[var(--warning)]">
-                Drift: {p.runtime?.driftReason ? p.runtime.driftReason.split('_').join(' ') : 'runtime mismatch detected'}
+              <p className="text-[12px] font-medium text-[var(--warning)]">
+                {t('projects.driftPrefix')}: {p.runtime?.driftReason ? p.runtime.driftReason.split('_').join(' ') : t('projects.runtimeMismatch')}
               </p>
             )}
           </div>
@@ -631,3 +634,7 @@ function ProjectCard({
     </div>
   )
 }
+
+
+
+

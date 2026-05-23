@@ -5,6 +5,7 @@ import { useWindowStore, selectFocusedId, selectGlobalContentZoom, selectGlobalF
 import { useAlertStore } from '@/store/alertStore'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
 import type { WindowState } from '@/types'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 
 type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 
@@ -19,6 +20,7 @@ const VIEWPORT_PADDING = 8
 const WINDOW_GRAB_VISIBILITY = 180
 
 export function Window({ win, children }: Props) {
+  const { t } = useI18n()
   const {
     closeWindow,
     minimizeWindow,
@@ -240,7 +242,7 @@ export function Window({ win, children }: Props) {
                   transition: 'color 200ms ease',
                 }}
               >
-                {win.title}
+                {t(windowTitleKey(win.kind))}
               </span>
               <ChevronDown size={12} color="currentColor" style={{ opacity: 0.6 }} />
             </div>
@@ -585,3 +587,6 @@ const RESIZE_HANDLES: Array<{
   { direction: 'se', cursor: 'nwse-resize', style: { bottom: -4, right: -4, width: 12, height: 12 } },
   { direction: 'sw', cursor: 'nesw-resize', style: { bottom: -4, left: -4, width: 12, height: 12 } },
 ]
+
+
+

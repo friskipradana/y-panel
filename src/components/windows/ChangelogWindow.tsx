@@ -3,6 +3,7 @@ import { BellRing, RefreshCcw, TriangleAlert, Zap } from 'lucide-react'
 import { getSystemChangelog } from '@/api/agent'
 import type { ChangelogEntry } from '@/types'
 import { formatDateID, formatDateTimeID } from '@/lib/datetime'
+import { useI18n } from '@/lib/i18n'
 
 
 function TimelineEntry({ item, isLast }: { item: ChangelogEntry; isLast: boolean }) {
@@ -20,7 +21,7 @@ function TimelineEntry({ item, isLast }: { item: ChangelogEntry; isLast: boolean
               <span className="panel-badge panel-badge--info">v{item.version}</span>
               <span className="panel-meta-line">{formatDateID(item.releasedAt)}</span>
             </div>
-            <span className="panel-muted-block panel-mono rounded-[10px] px-2 py-1 text-[10px]">{formatDateTimeID(item.createdAt)}</span>
+            <span className="panel-muted-block panel-mono rounded-[10px] px-3 py-2 text-[12px]">{formatDateTimeID(item.createdAt)}</span>
           </div>
 
           <h3 className="text-[15px] font-semibold leading-snug text-[var(--win-text)]">{item.title}</h3>
@@ -32,6 +33,7 @@ function TimelineEntry({ item, isLast }: { item: ChangelogEntry; isLast: boolean
 }
 
 export function ChangelogWindow() {
+  const { t } = useI18n()
   const query = useQuery({
     queryKey: ['system-changelog'],
     queryFn: getSystemChangelog,
@@ -39,14 +41,16 @@ export function ChangelogWindow() {
     retry: 1,
   })
 
+  const items = query.data?.items ?? []
+
   return (
     <div className="panel-window">
       <div className="panel-window__header">
         <div className="panel-window__title">
           <BellRing className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Changelog</div>
-            <div className="panel-window__meta">Timeline rilis dan perubahan sistem</div>
+            <div className="panel-window__title-text">{t('changelog.title')}</div>
+            <div className="panel-window__meta">{t('changelog.subtitle')}</div>
           </div>
         </div>
         <div className="panel-window__actions">
@@ -55,7 +59,7 @@ export function ChangelogWindow() {
             type="button"
             onClick={() => void query.refetch()}
             className="panel-icon-btn"
-            aria-label="Refresh changelog"
+            aria-label={t('changelog.refresh')}
           >
             <RefreshCcw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin' : ''}`} />
           </button>
@@ -67,36 +71,36 @@ export function ChangelogWindow() {
           <section className="panel-hero">
             <div className="panel-hero__eyebrow">
               <Zap className="h-3 w-3" />
-              Release notes
+              {t('changelog.releaseNotes')}
             </div>
-            <div className="panel-hero__title">Changelog & Release Timeline</div>
+            <div className="panel-hero__title">{t('changelog.heroTitle')}</div>
             <p className="panel-hero__description">
-              Semua update penting dari backend dan runtime ditampilkan dalam urutan waktu yang rapi agar perubahan versi lebih mudah ditelusuri.
+              {t('changelog.heroDescription')}
             </p>
           </section>
 
           {query.isLoading ? (
             <div className="panel-loading">
               <RefreshCcw className="h-4 w-4 animate-spin" />
-              Memuat changelog runtime...
+              {t('changelog.loading')}
             </div>
           ) : query.isError || !query.data ? (
             <div className="panel-error-state">
               <TriangleAlert className="h-5 w-5" />
               <div>
-                <p className="font-semibold">Gagal memuat changelog dari backend</p>
-                <p className="mt-1 text-[12px] leading-6 opacity-90">Pastikan agent berjalan normal dan MariaDB sudah dikonfigurasi bila ingin persistence aktif.</p>
+                <p className="font-semibold">{t('changelog.loadFailed')}</p>
+                <p className="mt-1 text-[12px] leading-6 opacity-90">{t('changelog.loadFailedHint')}</p>
               </div>
             </div>
-          ) : query.data.items.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="panel-empty">
               <TriangleAlert className="h-8 w-8" />
-              <span>Belum ada changelog tersimpan.</span>
+              <span>{t('changelog.empty')}</span>
             </div>
           ) : (
             <div className="panel-timeline">
-              {query.data.items.map((item, index) => (
-                <TimelineEntry key={`${item.version}-${item.id}`} item={item} isLast={index === query.data.items.length - 1} />
+              {items.map((item, index) => (
+                <TimelineEntry key={`${item.version}-${item.id}`} item={item} isLast={index === items.length - 1} />
               ))}
             </div>
           )}
@@ -105,3 +109,7 @@ export function ChangelogWindow() {
     </div>
   )
 }
+
+
+
+

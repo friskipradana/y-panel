@@ -334,9 +334,13 @@ func updatePanelAccessSettingsRaw(bindAddr string, allowedHosts []string, origin
 }
 
 const (
-	managedOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
+
+	// Legacy markers for backward compatibility with existing agent.env files
+	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
+	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
 )
 
 func panelEnvPath() string {
@@ -514,11 +518,11 @@ func readManagedOriginsBlock(data string) string {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if trimmed == managedOriginsBlockEnd && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}
@@ -554,11 +558,11 @@ func writeManagedOriginsBlock(data, rawValue string) string {
 	insertAt := len(lines)
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if trimmed == managedOriginsBlockEnd && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}

@@ -17,6 +17,7 @@ import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
 import { toast } from 'sonner'
+import { useI18n } from '@/lib/i18n'
 import {
   Users,
   UserPlus,
@@ -57,20 +58,21 @@ const ROLE_ICON: Record<string, ReactElement> = {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'user', label: 'User' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'superadmin', label: 'Superadmin' },
+  { value: 'user', labelKey: 'users.roleUser' },
+  { value: 'admin', labelKey: 'users.roleAdmin' },
+  { value: 'superadmin', labelKey: 'users.roleSuperadmin' },
 ]
 
-const ROLE_SELECT_OPTIONS = ROLE_OPTIONS.map((role) => ({
+const ROLE_SELECT_OPTIONS = (t: (key: string) => string) => ROLE_OPTIONS.map((role) => ({
   value: role.value,
-  label: role.label,
+  label: t(role.labelKey),
   description: role.value,
 }))
 
 const PAGE_SIZE = 8
 
 export default function UsersWindow({ win }: { win?: WindowState }) {
+  const { t } = useI18n()
   const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -97,46 +99,46 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
   const createMut = useMutation({
     mutationFn: createUser,
     onSuccess: (u) => {
-      alertLib.fire('User Dibuat', `User <strong>${u.username}</strong> berhasil dibuat.`, 'success', 'users')
+      alertLib.fire(t('users.createdTitle'), t('users.createdMessage', { username: u.username }), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
       setShowCreate(false)
       setForm({ username: '', email: '', password: '', role: 'user', displayName: '' })
     },
     onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal membuat user'
-      toast.error('Gagal membuat user', { description: message })
-      alertLib.fire('Gagal Membuat User', message, 'error', 'users')
+      const message = e.response?.data?.error ?? t('users.createFailed')
+      toast.error(t('users.createFailed'), { description: message })
+      alertLib.fire(t('users.createFailedTitle'), message, 'error', 'users')
     },
   })
 
   const suspendMut = useMutation({
     mutationFn: suspendUser,
     onSuccess: () => {
-      alertLib.fire('User Disuspend', 'Akses user berhasil dihentikan sementara.', 'warning', 'users')
+      alertLib.fire(t('users.suspendedTitle'), t('users.suspendedMessage'), 'warning', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Suspend User', e.response?.data?.error ?? 'Tidak dapat mensuspend user.', 'error', 'users'),
+    onError: (e: any) => alertLib.fire(t('users.suspendFailedTitle'), e.response?.data?.error ?? t('users.suspendFailedMessage'), 'error', 'users'),
   })
 
   const activateMut = useMutation({
     mutationFn: activateUser,
     onSuccess: () => {
-      alertLib.fire('User Diaktifkan', 'Akses user berhasil diaktifkan kembali.', 'success', 'users')
+      alertLib.fire(t('users.activatedTitle'), t('users.activatedMessage'), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Mengaktifkan User', e.response?.data?.error ?? 'Tidak dapat mengaktifkan user.', 'error', 'users'),
+    onError: (e: any) => alertLib.fire(t('users.activateFailedTitle'), e.response?.data?.error ?? t('users.activateFailedMessage'), 'error', 'users'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => {
-      alertLib.fire('User Dihapus', 'User berhasil dihapus dari sistem.', 'success', 'users')
+      alertLib.fire(t('users.deletedTitle'), t('users.deletedMessage'), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal menghapus user'
-      toast.error('Gagal menghapus user', { description: message })
-      alertLib.fire('Gagal Menghapus User', message, 'error', 'users')
+      const message = e.response?.data?.error ?? t('users.deleteFailed')
+      toast.error(t('users.deleteFailed'), { description: message })
+      alertLib.fire(t('users.deleteFailedTitle'), message, 'error', 'users')
     },
   })
 
@@ -152,17 +154,17 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
         <div className="panel-window__title">
           <Users className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">User Management</div>
-            <div className="panel-window__meta">{total} user terdaftar • {activeUsers} aktif di halaman ini</div>
+            <div className="panel-window__title-text">{t('users.title')}</div>
+            <div className="panel-window__meta">{t('users.meta', { total, active: activeUsers })}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button onClick={() => refetch()} className="panel-icon-btn" aria-label="Refresh users">
+          <button onClick={() => refetch()} className="panel-icon-btn" aria-label={t('users.refresh')}>
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
           <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
             <UserPlus className="h-3.5 w-3.5" />
-            Buat User
+            {t('users.createUser')}
           </button>
         </div>
       </div>
@@ -172,13 +174,13 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
           <div className="panel-modal-card">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
               <UserPlus className="panel-window__icon h-4 w-4" />
-              Buat User Baru
+              {t('users.createNewUser')}
             </h3>
             <div className="space-y-3">
               {[
-                { key: 'username', label: 'Username', type: 'text', placeholder: 'john_doe' },
-                { key: 'email', label: 'Email', type: 'email', placeholder: 'john@example.com' },
-                { key: 'displayName', label: 'Display Name', type: 'text', placeholder: 'John Doe' },
+                { key: 'username', label: t('users.username'), type: 'text', placeholder: 'john_doe' },
+                { key: 'email', label: t('users.email'), type: 'email', placeholder: 'john@example.com' },
+                { key: 'displayName', label: t('users.displayName'), type: 'text', placeholder: 'John Doe' },
               ].map(({ key, label, type, placeholder }) => (
                 <div key={key}>
                   <label className="panel-section-label">{label}</label>
@@ -192,11 +194,11 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                 </div>
               ))}
               <div>
-                <label className="panel-section-label">Password</label>
+                <label className="panel-section-label">{t('users.password')}</label>
                 <div className="relative">
                   <input
                     type={showPwd ? 'text' : 'password'}
-                    placeholder="Min. 8 karakter"
+                    placeholder={t('users.passwordPlaceholder')}
                     value={form.password}
                     onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                     className="panel-input pr-10"
@@ -211,15 +213,15 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                 </div>
               </div>
               <div>
-                <label className="panel-section-label">Role</label>
+                <label className="panel-section-label">{t('users.role')}</label>
                 <PanelSelectMenu
                   id="users-create-role-select"
                   value={form.role}
                   onChange={(nextValue) => setForm((current) => ({ ...current, role: nextValue }))}
-                  options={ROLE_SELECT_OPTIONS}
+                  options={ROLE_SELECT_OPTIONS(t)}
                   buttonClassName="h-[42px]"
                   searchable
-                  searchPlaceholder="Cari role..."
+                  searchPlaceholder={t('users.searchRole')}
                 />
 
               </div>
@@ -232,10 +234,10 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                 }}
                 className="panel-btn panel-btn--ghost flex-1"
               >
-                Batal
+                {t('common.cancel')}
               </button>
               <button onClick={() => createMut.mutate(form)} disabled={createMut.isPending} className="panel-btn panel-btn--primary flex-1">
-                {createMut.isPending ? 'Membuat...' : 'Buat User'}
+                {createMut.isPending ? t('users.creating') : t('users.createUser')}
               </button>
             </div>
           </div>
@@ -260,19 +262,19 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="panel-search__input"
-                  placeholder="Cari username, email, role, atau display name..."
+                  placeholder={t('users.searchPlaceholder')}
                 />
-                <button type="submit" className="panel-btn panel-btn--primary-soft">Cari</button>
+                <button type="submit" className="panel-btn panel-btn--primary-soft">{t('users.search')}</button>
               </form>
-              <div className="panel-pagination-summary">Halaman {currentPage}/{totalPages}</div>
+              <div className="panel-pagination-summary">{t('users.pageSummary', { current: currentPage, total: totalPages })}</div>
             </div>
 
             {isLoading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">Memuat users...</div>
+              <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">{t('users.loading')}</div>
             ) : users.length === 0 ? (
               <div className="panel-empty">
                 <Users className="h-8 w-8" />
-                <span>Tidak ada user yang cocok dengan pencarian saat ini.</span>
+                <span>{t('users.empty')}</span>
               </div>
             ) : (
               <>
@@ -282,10 +284,10 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                     user={u}
                     onSuspend={async () => {
                       const confirmed = await alertLib.confirm(
-                        'Suspend User?',
-                        `User <strong>${u.username}</strong> akan kehilangan akses login sampai diaktifkan kembali.`,
-                        'Suspend User',
-                        'Batal',
+                        t('users.suspendQuestion'),
+                        t('users.suspendMessage', { username: u.username }),
+                        t('users.suspendUser'),
+                        t('common.cancel'),
                         'warning',
                         'users',
                       )
@@ -293,10 +295,10 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                     }}
                     onActivate={async () => {
                       const confirmed = await alertLib.confirm(
-                        'Aktifkan User?',
-                        `Akses login untuk <strong>${u.username}</strong> akan dipulihkan kembali.`,
-                        'Aktifkan User',
-                        'Batal',
+                        t('users.activateQuestion'),
+                        t('users.activateMessage', { username: u.username }),
+                        t('users.activateUser'),
+                        t('common.cancel'),
                         'question',
                         'users',
                       )
@@ -304,10 +306,10 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                     }}
                     onDelete={async () => {
                       const confirmed = await alertLib.confirm(
-                        'Hapus User?',
-                        `User <strong>${u.username}</strong> akan dihapus beserta data terkaitnya. Tindakan ini tidak dapat dibatalkan.`,
-                        'Hapus Permanen',
-                        'Batal',
+                        t('users.deleteQuestion'),
+                        t('users.deleteMessage', { username: u.username }),
+                        t('users.deletePermanent'),
+                        t('common.cancel'),
                         'warning',
                         'users',
                       )
@@ -323,10 +325,10 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
             <div className="panel-pagination">
               <button id="users-prev-page" className="panel-btn panel-btn--ghost" disabled={offset <= 0} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>
                 <ChevronLeft className="h-3.5 w-3.5" />
-                Sebelumnya
+                {t('users.previous')}
               </button>
               <button id="users-next-page" className="panel-btn panel-btn--ghost" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset((value) => value + PAGE_SIZE)}>
-                Berikutnya
+                {t('users.next')}
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -352,6 +354,7 @@ function UserRow({
   onQuota: () => void
   showQuota: boolean
 }) {
+  const { t } = useI18n()
   const qc = useQueryClient()
   const { data: quota } = useQuery({
     queryKey: ['quota', user.id],
@@ -362,23 +365,23 @@ function UserRow({
   const updateQuotaMut = useMutation({
     mutationFn: (q: Partial<UserQuota>) => updateUserQuota(user.id, q),
     onSuccess: () => {
-      alertLib.fire('Quota Diperbarui', `Resource quota untuk <strong>${user.username}</strong> berhasil diperbarui.`, 'success', 'users')
+      alertLib.fire(t('users.quotaUpdatedTitle'), t('users.quotaUpdatedMessage', { username: user.username }), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['quota', user.id] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Memperbarui Quota', e.response?.data?.error ?? 'Quota tidak dapat diperbarui.', 'error', 'users'),
+    onError: (e: any) => alertLib.fire(t('users.quotaUpdateFailedTitle'), e.response?.data?.error ?? t('users.quotaUpdateFailedMessage'), 'error', 'users'),
   })
 
   const changeRoleMut = useMutation({
     mutationFn: (role: string) => updateUser(user.id, { role } as any),
     onSuccess: (updated) => {
-      alertLib.fire('Role Diubah', `Role <strong>${user.username}</strong> berhasil diubah menjadi <strong>${updated.role}</strong>.`, 'success', 'users')
+      alertLib.fire(t('users.roleChangedTitle'), t('users.roleChangedMessage', { username: user.username, role: updated.role }), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
       setEditingRole(false)
     },
     onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal mengubah role'
-      toast.error('Gagal mengubah role', { description: message })
-      alertLib.fire('Gagal Mengubah Role', message, 'error', 'users')
+      const message = e.response?.data?.error ?? t('users.roleChangeFailed')
+      toast.error(t('users.roleChangeFailed'), { description: message })
+      alertLib.fire(t('users.roleChangeFailedTitle'), message, 'error', 'users')
       setEditingRole(false)
     },
   })
@@ -393,10 +396,10 @@ function UserRow({
       return
     }
     const confirmed = await alertLib.confirm(
-      'Ubah Role User?',
-      `Role <strong>${user.username}</strong> akan diubah dari <strong>${user.role}</strong> menjadi <strong>${selectedRole}</strong>.`,
-      'Ya, Ubah Role',
-      'Batal',
+      t('users.changeRoleQuestion'),
+      t('users.changeRoleMessage', { username: user.username, currentRole: user.role, nextRole: selectedRole }),
+      t('users.confirmChangeRole'),
+      t('common.cancel'),
       'warning',
       'users',
     )
@@ -427,13 +430,13 @@ function UserRow({
                   buttonClassName="h-8 rounded-full border-[var(--win-border)] bg-[var(--panel-surface)] pl-3 pr-10 text-[12px] font-medium"
                   dropdownClassName="min-w-[180px]"
                   searchable
-                  searchPlaceholder="Cari role..."
+                  searchPlaceholder={t('users.searchRole')}
                 />
 
-                <button onClick={handleRoleSave} disabled={changeRoleMut.isPending} title="Simpan role" className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md">
+                <button onClick={handleRoleSave} disabled={changeRoleMut.isPending} title={t('users.saveRole')} className="panel-icon-btn panel-icon-btn--success h-6 w-6 rounded-md">
                   <Check className="h-3 w-3" />
                 </button>
-                <button onClick={() => { setEditingRole(false); setSelectedRole(user.role) }} title="Batal" className="panel-icon-btn h-6 w-6 rounded-md">
+                <button onClick={() => { setEditingRole(false); setSelectedRole(user.role) }} title={t('common.cancel')} className="panel-icon-btn h-6 w-6 rounded-md">
                   <X className="h-3 w-3" />
                 </button>
               </div>
@@ -441,7 +444,7 @@ function UserRow({
               <button
                 onClick={() => { setEditingRole(true); setSelectedRole(user.role) }}
                 className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'} cursor-pointer transition-opacity hover:opacity-75`}
-                title="Klik untuk ubah role"
+                title={t('users.clickChangeRole')}
               >
                 {ROLE_ICON[user.role]} {user.role}
                 <Pencil className="h-2.5 w-2.5 opacity-60" />
@@ -450,23 +453,23 @@ function UserRow({
 
             <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>{user.status}</span>
           </div>
-          <div className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{user.email}</div>
+          <div className="mt-0.5 truncate text-[12px] text-[var(--text-secondary)]">{user.email}</div>
         </div>
 
         <div className="flex items-center gap-1">
-          <button onClick={onQuota} title="Kelola Quota" className="panel-icon-btn panel-icon-btn--primary">
+          <button onClick={onQuota} title={t('users.manageQuota')} className="panel-icon-btn panel-icon-btn--primary">
             <Settings2 className="h-3.5 w-3.5" />
           </button>
           {user.status === 'active' ? (
-            <button onClick={onSuspend} title="Suspend" className="panel-icon-btn panel-icon-btn--warning">
+            <button onClick={onSuspend} title={t('users.suspend')} className="panel-icon-btn panel-icon-btn--warning">
               <ShieldOff className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <button onClick={onActivate} title="Aktifkan" className="panel-icon-btn panel-icon-btn--success">
+            <button onClick={onActivate} title={t('users.activate')} className="panel-icon-btn panel-icon-btn--success">
               <Shield className="h-3.5 w-3.5" />
             </button>
           )}
-          <button onClick={onDelete} title="Hapus" className="panel-icon-btn panel-icon-btn--danger">
+          <button onClick={onDelete} title={t('common.delete')} className="panel-icon-btn panel-icon-btn--danger">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -474,14 +477,14 @@ function UserRow({
 
       {showQuota && quota && (
         <div className="border-t border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3.5">
-          <p className="mb-3 text-xs font-medium text-[var(--text-secondary)]">Resource Quota</p>
+          <p className="mb-3 text-[12px] font-medium text-[var(--text-secondary)]">{t('users.resourceQuota')}</p>
           <div className="panel-grid-compact panel-grid-compact--3">
             {[
-              { key: 'maxProjects', label: 'Max Projects', val: quota.maxProjects },
-              { key: 'maxTunnels', label: 'Max Tunnels', val: quota.maxTunnels },
-              { key: 'diskQuotaMb', label: 'Disk (MB)', val: quota.diskQuotaMb },
-              { key: 'cpuLimitPct', label: 'CPU Limit %', val: quota.cpuLimitPct },
-              { key: 'memoryLimitMb', label: 'RAM (MB)', val: quota.memoryLimitMb },
+              { key: 'maxProjects', label: t('users.maxProjects'), val: quota.maxProjects },
+              { key: 'maxTunnels', label: t('users.maxTunnels'), val: quota.maxTunnels },
+              { key: 'diskQuotaMb', label: t('users.diskMb'), val: quota.diskQuotaMb },
+              { key: 'cpuLimitPct', label: t('users.cpuLimitPct'), val: quota.cpuLimitPct },
+              { key: 'memoryLimitMb', label: t('users.ramMb'), val: quota.memoryLimitMb },
             ].map(({ key, label, val }) => (
               <div key={key}>
                 <label className="panel-section-label mb-1">{label}</label>
@@ -495,10 +498,14 @@ function UserRow({
             ))}
           </div>
           <button onClick={() => updateQuotaMut.mutate(editQuota)} disabled={updateQuotaMut.isPending} className="panel-btn panel-btn--primary-soft mt-3 w-full">
-            Simpan Quota
+            {t('users.saveQuota')}
           </button>
         </div>
       )}
     </div>
   )
 }
+
+
+
+

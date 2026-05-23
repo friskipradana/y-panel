@@ -42,10 +42,12 @@ log "Go: $GO_VERSION"
 
 # ── 3. Run panel installer ────────────────────────────────────────────
 if [ -n "$ENV_CONTENT_FILE" ] && [ -f "$ENV_CONTENT_FILE" ]; then
+  # Strip \r (Windows CRLF compatibility)
+  sed -i 's/\r$//' "$ENV_CONTENT_FILE"
   while IFS='=' read -r key value || [ -n "$key" ]; do
     case "$key" in
       ''|'#'*) continue ;;
-      PANEL_BIND_ADDR|PANEL_DATABASE_DSN|PANEL_ENCRYPTION_KEY|PANEL_STATE_DIR|PANEL_FRONTEND_DIR|PANEL_ALLOWED_HOSTS|PANEL_ALLOWED_ORIGINS|PANEL_SESSION_TTL)
+      PANEL_BIND_ADDR|PANEL_DATABASE_DSN|PANEL_ENCRYPTION_KEY|PANEL_SESSION_SECRET|PANEL_STATE_DIR|PANEL_FRONTEND_DIR|PANEL_ALLOWED_HOSTS|PANEL_ALLOWED_ORIGINS|PANEL_SESSION_TTL|PANEL_ENV_FILE)
         export "${key}=${value}"
         ;;
     esac
@@ -54,17 +56,21 @@ if [ -n "$ENV_CONTENT_FILE" ] && [ -f "$ENV_CONTENT_FILE" ]; then
 fi
 
 log "Running panel installer at: $INSTALLER_PATH"
+# Strip CRLF from .run file (Windows→Linux compatibility)
+sed -i 's/\r$//' "$INSTALLER_PATH"
 chmod +x "$INSTALLER_PATH"
 
 if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' env \
   PANEL_BIND_ADDR="$PANEL_BIND_ADDR" \
   PANEL_DATABASE_DSN="$PANEL_DATABASE_DSN" \
   PANEL_ENCRYPTION_KEY="$PANEL_ENCRYPTION_KEY" \
+  PANEL_SESSION_SECRET="${PANEL_SESSION_SECRET:-}" \
   PANEL_STATE_DIR="$PANEL_STATE_DIR" \
   PANEL_FRONTEND_DIR="$PANEL_FRONTEND_DIR" \
   PANEL_ALLOWED_HOSTS="${PANEL_ALLOWED_HOSTS:-}" \
   PANEL_ALLOWED_ORIGINS="${PANEL_ALLOWED_ORIGINS:-}" \
   PANEL_SESSION_TTL="${PANEL_SESSION_TTL:-12h}" \
+  PANEL_ENV_FILE="${PANEL_ENV_FILE:-}" \
   GOPATH=/tmp/go-ypanel-cache \
   GOCACHE=/tmp/go-ypanel-build-cache \
   bash "$INSTALLER_PATH" >> "$LOG" 2>&1; then

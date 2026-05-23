@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal, Search } from 'lucide-react'
 import { getSystemLogs } from '@/api/agent'
+import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
 
 const SERVICE_OPTIONS = [
@@ -30,6 +31,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
   const [autoScroll, setAutoScroll] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
   const logContainerRef = useRef<HTMLDivElement>(null)
+  const { t } = useI18n()
 
   const query = useQuery({
     queryKey: ['system-logs', service, limit],
@@ -74,12 +76,12 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
         <div className="panel-window__title">
           <Terminal className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">System Logs</div>
-            <div className="panel-window__meta">journalctl realtime · auto-refresh 5 detik</div>
+            <div className="panel-window__title-text">{t('systemLogs.title')}</div>
+            <div className="panel-window__meta">{t('systemLogs.meta')}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="panel-icon-btn" aria-label="Refresh system logs">
+          <button id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="panel-icon-btn" aria-label={t('systemLogs.refreshAria')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -90,11 +92,11 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
           <section className="panel-hero">
             <div className="panel-hero__eyebrow">
               <ScrollText className="h-3 w-3" />
-              Host journal stream
+              {t('systemLogs.hostJournalStream')}
             </div>
-            <div className="panel-hero__title">Pantau log service host secara realtime</div>
+            <div className="panel-hero__title">{t('systemLogs.heroTitle')}</div>
             <p className="panel-hero__description">
-              Gunakan filter service dan jumlah baris untuk membaca keluaran journalctl tanpa kehilangan konsistensi visual light/dark mode.
+              {t('systemLogs.heroDescription')}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[180px] px-3 py-2 text-[12px] panel-input--mono">
@@ -116,12 +118,12 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="panel-search__input"
-                  placeholder="Filter teks log, contoh: project-123 atau drift"
+                  placeholder={t('systemLogs.searchPlaceholder')}
                 />
               </label>
 
-              <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} rounded-full px-3 py-2 text-[11px]`}>
-                ↓ {autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
+              <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} rounded-full px-3 py-2 text-[12px]`}>
+                ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
               </button>
             </div>
           </section>
@@ -130,16 +132,16 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
             <div className="flex items-center justify-between border-b border-[var(--win-border)] px-4 py-2">
               <div className="flex items-center gap-2">
                 <ScrollText size={11} className="text-[var(--text-secondary)]" />
-                <span className="panel-mono text-[11px] text-[var(--win-text)]">{service}</span>
+                <span className="panel-mono text-[12px] text-[var(--win-text)]">{service}</span>
                 {query.isFetching ? (
                   <>
                     <Activity size={10} className="animate-pulse text-[var(--panel-warning-text)]" />
-                    <span className="text-[10px] text-[var(--panel-warning-text)]">updating...</span>
+                    <span className="text-[12px] text-[var(--panel-warning-text)]">{t('systemLogs.updating')}</span>
                   </>
                 ) : null}
               </div>
 
-              <span className="panel-mono text-[10px] text-[var(--text-secondary)]">{lines.length}/{limit}</span>
+              <span className="panel-mono text-[12px] text-[var(--text-secondary)]">{lines.length}/{limit}</span>
             </div>
 
             <div ref={logContainerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -148,9 +150,9 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
                   <div className="panel-error-state max-w-sm">
                     <AlertTriangle size={14} />
                     <div>
-                      <p className="font-semibold">Gagal memuat system logs</p>
+                      <p className="font-semibold">{t('systemLogs.loadFailed')}</p>
                       <p className="mt-1 text-[12px] leading-relaxed opacity-90">
-                        {(query.error as Error)?.message || 'Periksa service target atau izin journalctl pada host.'}
+                        {(query.error as Error)?.message || t('systemLogs.loadFailedHint')}
                       </p>
                     </div>
                   </div>
@@ -158,21 +160,21 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
               ) : query.isLoading ? (
                 <div className="panel-loading min-h-[320px] border-none bg-transparent shadow-none">
                   <Activity size={13} className="animate-pulse" />
-                  Mengambil logs dari host...
+                  {t('systemLogs.loadingHostLogs')}
                 </div>
               ) : lines.length === 0 ? (
                 <div className="panel-empty min-h-[320px] border-none bg-transparent">
                   <ScrollText className="h-8 w-8" />
-                  <span>{search.trim() ? 'Tidak ada log yang cocok dengan filter teks saat ini.' : 'Belum ada log tersedia.'}</span>
+                  <span>{search.trim() ? t('systemLogs.noMatchingLogs') : t('systemLogs.noLogs')}</span>
                 </div>
               ) : (
                 <div className="py-2">
                   {lines.map((line, index) => (
-                    <div key={index} className="flex py-px hover:bg-white/3 dark:hover:bg-white/3">
-                      <span className="w-11 flex-shrink-0 self-start pr-3 pt-px text-right font-mono text-[10px] leading-[1.65] text-[var(--text-secondary)] select-none">
+                    <div key={index} className="flex py-px hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)]">
+                      <span className="w-11 flex-shrink-0 self-start pr-3 pt-px text-right font-mono text-[12px] leading-[1.65] text-[var(--text-secondary)] select-none">
                         {index + 1}
                       </span>
-                      <span className={`flex-1 break-all pr-4 font-mono text-[11px] leading-[1.65] whitespace-pre-wrap ${lineToneClass(line)}`}>
+                      <span className={`flex-1 break-all pr-4 font-mono text-[12px] leading-[1.65] whitespace-pre-wrap ${lineToneClass(line)}`}>
                         {line}
                       </span>
                     </div>
@@ -187,3 +189,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
     </div>
   )
 }
+
+
+
+

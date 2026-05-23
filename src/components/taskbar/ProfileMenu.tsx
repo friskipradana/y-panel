@@ -21,6 +21,7 @@ import {
 import { deleteCFConfig, getCFConfig, getMeV2, getProjectAttentionSummary, setCFConfig, verifyCFConfig } from '@/api/agent'
 import { toast } from 'sonner'
 import { useThemeStore, WALLPAPERS, type WallpaperKey } from '@/store/themeStore'
+import { useI18n } from '@/lib/i18n'
 
 interface ProfileMenuProps {
   username?: string
@@ -31,6 +32,7 @@ interface ProfileMenuProps {
 const inputClass = 'w-full rounded-[14px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.03)] px-3.5 py-2.5 text-[13px] text-[var(--win-text)] outline-none transition placeholder-[var(--text-secondary)] dark:bg-[rgba(255,255,255,0.04)] focus:border-orange-400'
 
 export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
+  const { t } = useI18n()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [showCloudflareModal, setShowCloudflareModal] = useState(false)
@@ -52,31 +54,31 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const saveCFMut = useMutation({
     mutationFn: setCFConfig,
     onSuccess: () => {
-      toast.success('Config disimpan. Memverifikasi token...')
+      toast.success(t('profile.configSaved'))
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
       setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
       // Langsung verifikasi otomatis
       verifyMut.mutate()
     },
-    onError: (e: any) => toast.error(e.response?.data?.error ?? 'Gagal menyimpan config'),
+    onError: (e: any) => toast.error(e.response?.data?.error ?? t('profile.configSaveFailed')),
   })
 
   const verifyMut = useMutation({
     mutationFn: verifyCFConfig,
     onSuccess: (res) => {
-      if (res.valid) toast.success('Token Cloudflare valid! ✓')
-      else toast.error('Token tidak valid: ' + (res.error ?? 'Unknown error'))
+      if (res.valid) toast.success(t('profile.tokenValid'))
+      else toast.error(t('profile.tokenInvalid', { error: res.error ?? 'Unknown error' }))
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
     },
-    onError: () => toast.error('Gagal memverifikasi token'),
+    onError: () => toast.error(t('profile.verifyFailed')),
   })
 
   const deleteCFMut = useMutation({
     mutationFn: deleteCFConfig,
     onSuccess: () => {
-      toast.success('Konfigurasi Cloudflare dihapus')
+      toast.success(t('profile.configDeleted'))
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
       setShowCloudflareModal(false)
@@ -112,12 +114,12 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     e.target.value = ''
   }
 
-  const displayName = me?.displayName || me?.username || username || 'Admin'
-  const displayRole = me?.role || 'Administrator'
+  const displayName = me?.displayName || me?.username || username || t('profile.defaultName')
+  const displayRole = me?.role || t('profile.defaultRole')
   const cfStatusBadge = {
-    active: { cls: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300', icon: <CheckCircle2 className="h-3 w-3" />, label: 'Verified' },
-    invalid: { cls: 'bg-red-500/12 text-red-600 dark:text-red-300', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
-    unconfigured: { cls: 'bg-amber-500/12 text-amber-600 dark:text-amber-300', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
+    active: { cls: 'bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] dark:text-[var(--panel-success-text)]', icon: <CheckCircle2 className="h-3 w-3" />, label: t('profile.verified') },
+    invalid: { cls: 'bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] dark:text-[var(--panel-danger-text)]', icon: <XCircle className="h-3 w-3" />, label: t('profile.invalid') },
+    unconfigured: { cls: 'bg-[var(--panel-warning-bg)] text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]', icon: <AlertTriangle className="h-3 w-3" />, label: t('profile.unverified') },
   }[(cf?.status ?? 'unconfigured') as 'active' | 'invalid' | 'unconfigured']
   const attentionCount = projectAttention?.attentionCount ?? 0
 
@@ -131,9 +133,9 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <div className="profile-role">{displayRole}</div>
             </div>
             {attentionCount > 0 && (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--panel-warning-bg)] px-2 py-0.5 text-[12px] font-semibold text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]">
                 <AlertTriangle className="h-3 w-3" />
-                {attentionCount} attention
+                {t('profile.attention', { count: attentionCount })}
               </span>
             )}
           </div>
@@ -141,7 +143,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
           <div className="profile-menu-section">
             <button className="profile-menu-btn" onClick={toggleMode}>
               {isDark ? <Sun size={14} color="#fbbf24" /> : <Moon size={14} color="#6366f1" />}
-              <span>{isDark ? 'Ganti ke Light Mode' : 'Ganti ke Dark Mode'}</span>
+              <span>{isDark ? t('profile.switchLight') : t('profile.switchDark')}</span>
             </button>
           </div>
 
@@ -154,8 +156,8 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               }}
             >
               <Cloud size={14} color="#f97316" />
-              <span>Cloudflare Settings</span>
-              <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${cfStatusBadge.cls}`}>
+              <span>{t('profile.cloudflareSettings')}</span>
+              <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium ${cfStatusBadge.cls}`}>
                 {cfStatusBadge.icon}
                 {cfStatusBadge.label}
               </span>
@@ -165,7 +167,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
           <div className="profile-menu-section">
             <div className="profile-section-label">
               <Palette size={11} />
-              Wallpaper
+              {t('profile.wallpaper')}
             </div>
 
             <div className="wallpaper-grid">
@@ -186,20 +188,20 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
               {wallpaper === 'custom' ? (
                 <button
-                  title="Ganti gambar"
+                  title={t('profile.changeImage')}
                   className="wallpaper-swatch active bg-[image:var(--custom-preview,none)] bg-cover bg-center"
                   onClick={() => fileRef.current?.click()}
                 >
-                  <span className="wallpaper-swatch-label">Custom</span>
+                  <span className="wallpaper-swatch-label">{t('profile.customWallpaper')}</span>
                 </button>
               ) : (
                 <button
-                  title="Upload gambar"
+                  title={t('profile.uploadImage')}
                   className="wallpaper-upload-btn"
                   onClick={() => fileRef.current?.click()}
                 >
                   <ImagePlus size={14} />
-                  <span>Upload</span>
+                  <span>{t('profile.upload')}</span>
                 </button>
               )}
             </div>
@@ -222,7 +224,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               }}
             >
               <LogOut size={14} />
-              <span>Logout</span>
+              <span>{t('profile.logout')}</span>
             </button>
           </div>
         </div>,
@@ -232,20 +234,20 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
   const cloudflareModal = showCloudflareModal
     ? createPortal(
-        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000000] flex items-center justify-center bg-[var(--panel-overlay)] p-4 backdrop-blur-sm">
           <div className="w-full max-w-[560px] rounded-[26px] border border-[var(--win-border)] bg-[var(--win-bg)] p-6 shadow-[var(--win-shadow)]">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 text-[15px] font-semibold text-[var(--win-text)]">
-                  <Cloud className="h-4 w-4 text-orange-500" />
-                  Cloudflare Settings
+                  <Cloud className="h-4 w-4 text-[var(--panel-warning-text)]" />
+                  {t('profile.cloudflareSettings')}
                 </div>
                 <p className="mt-1 text-[12px] leading-6 text-[var(--text-secondary)]">
-                  Atur tunnel dan token Cloudflare langsung dari profile menu.
+                  {t('profile.cloudflareSubtitle')}
                 </p>
               </div>
               <button
-                className="rounded-lg px-2 py-1 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+                className="rounded-lg px-3 py-2 text-[var(--text-secondary)] transition hover:bg-[rgba(15,23,42,0.05)] hover:text-[var(--win-text)] dark:hover:bg-[rgba(255,255,255,0.06)]"
                 onClick={() => setShowCloudflareModal(false)}
               >
                 ✕
@@ -253,15 +255,15 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
             </div>
 
             {cfLoading ? (
-              <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">Memuat konfigurasi Cloudflare...</div>
+              <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">{t('profile.loadingCloudflare')}</div>
             ) : cf?.configured ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] px-4 py-3 dark:bg-[rgba(255,255,255,0.03)]">
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">Connection status</div>
-                    <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">Cloudflare account connected</div>
+                    <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">{t('profile.connectionStatus')}</div>
+                    <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">{t('profile.cloudflareConnected')}</div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${cfStatusBadge.cls}`}>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-2 text-[12px] font-semibold ${cfStatusBadge.cls}`}>
                     {cfStatusBadge.icon}
                     {cfStatusBadge.label}
                   </span>
@@ -269,10 +271,10 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
                 <div className="space-y-2 rounded-[16px] border border-[var(--win-border)] bg-[rgba(15,23,42,0.02)] p-4 dark:bg-[rgba(255,255,255,0.03)]">
                   {[
-                    { label: 'Account ID', value: cf.accountId },
+                    { label: t('profile.accountId'), value: cf.accountId },
                     // { label: 'Zone ID', value: cf.zoneId },
                     // { label: 'Base Domain', value: cf.baseDomain },
-                    cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
+                    cf.verifiedAt ? { label: t('profile.verifiedAt'), value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
                   ].filter(Boolean).map((item) => (
                     <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
                       <span className="text-[var(--text-secondary)]">{item!.label}</span>
@@ -285,16 +287,16 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                   <button
                     onClick={() => verifyMut.mutate()}
                     disabled={verifyMut.isPending}
-                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-orange-500/12 px-4 py-2.5 text-[12px] font-semibold text-orange-600 transition hover:bg-orange-500/18 dark:text-orange-300 disabled:opacity-50"
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-[14px] bg-[var(--panel-warning-bg)] px-4 py-2.5 text-[12px] font-semibold text-[var(--panel-warning-text)] transition hover:bg-orange-500/18 dark:text-[var(--panel-warning-text)] disabled:opacity-50"
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    {verifyMut.isPending ? 'Memverifikasi...' : 'Verifikasi token'}
+                    {verifyMut.isPending ? t('profile.verifying') : t('profile.verifyToken')}
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm('Hapus konfigurasi Cloudflare? Tunnel yang ada tidak akan terpengaruh.')) deleteCFMut.mutate()
+                      if (confirm(t('profile.deleteCloudflareConfirm'))) deleteCFMut.mutate()
                     }}
-                    className="inline-flex items-center justify-center rounded-[14px] border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-red-600 transition hover:bg-red-500/16 dark:text-red-300"
+                    className="inline-flex items-center justify-center rounded-[14px] border border-[var(--win-border)] bg-[var(--panel-danger-bg)] px-3.5 py-2.5 text-[var(--panel-danger-text)] transition hover:bg-[var(--panel-danger-bg)]0/16 dark:text-[var(--panel-danger-text)]"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -303,34 +305,33 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
             ) : (
               <div className="space-y-3">
 
-                <div className="rounded-xl border border-sky-500/20 bg-sky-500/10 p-3.5 mb-2">
+                <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-primary-bg)] p-3.5 mb-2">
                   <div className="flex items-start gap-2.5">
-                    <Cloud className="h-4 w-4 text-sky-500 shrink-0 mt-0.5" />
+                    <Cloud className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" />
                     <div className="text-[12px] leading-relaxed text-[var(--win-text)]">
-                      Buat API Token (Custom Token) di Cloudflare dengan permission berikut:
-                      <ul className="list-disc pl-4 mt-1 mb-2 space-y-0.5 text-sky-600 dark:text-sky-400 font-medium">
+                      {t('profile.tokenGuide')}
+                      <ul className="list-disc pl-4 mt-1 mb-2 space-y-0.5 text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] font-medium">
                         <li>Account → Cloudflare Tunnel → Edit</li>
-                        <li>Zone → Zone → Edit <span className="text-[var(--text-secondary)] font-normal">(wajib untuk tambah domain/zone baru)</span></li>
-                        <li>Zone → Zone → Read <span className="text-[var(--text-secondary)] font-normal">(untuk status domain & nameserver)</span></li>
+                        <li>Zone → Zone → Edit <span className="text-[var(--text-secondary)] font-normal">{t('profile.zoneRequired')}</span></li>
+                        <li>Zone → Zone → Read <span className="text-[var(--text-secondary)] font-normal">{t('profile.zoneReadHint')}</span></li>
                         <li>Zone → DNS → Edit</li>
                       </ul>
-                      <div className="mb-2 rounded-lg bg-white/45 px-3 py-2 text-[11px] text-[var(--text-secondary)] dark:bg-black/10">
-                        Resource scope: pilih <strong>Account Resources → Include → akun kamu</strong>, lalu
-                        <strong> Zone Resources → Include → All zones</strong> agar domain baru bisa dibuat dan DNS bisa dikelola.
+                      <div className="mb-2 rounded-lg bg-[var(--panel-elevated-surface)] px-3 py-2 text-[12px] text-[var(--text-secondary)] dark:bg-black/10">
+                        {t('profile.resourceScope')}
                       </div>
-                      <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-sky-500 hover:text-sky-600 dark:hover:text-sky-400 font-semibold underline underline-offset-2">
-                        Buka halaman Cloudflare Tokens ↗
+                      <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer" className="text-[var(--panel-primary-text)] hover:text-[var(--panel-primary-text)] dark:hover:text-[var(--panel-primary-text)] font-semibold underline underline-offset-2">
+                        {t('profile.openTokens')}
                       </a>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">API Token *</label>
+                  <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">{t('profile.apiToken')}</label>
                   <div className="relative">
                     <input
                       type={showToken ? 'text' : 'password'}
-                      placeholder="Paste Cloudflare API Token di sini"
+                      placeholder={t('profile.apiTokenPlaceholder')}
                       value={cfForm.apiToken}
                       onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
                       className={`${inputClass} pr-10`}
@@ -342,7 +343,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 </div>
 
                 {[
-                  { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
+                  { key: 'accountId', label: t('profile.accountIdRequired'), placeholder: 'abc123...' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key}>
                     <label className="mb-1.5 block text-[12px] font-semibold text-[var(--text-secondary)]">{label}</label>
@@ -358,10 +359,10 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 <button
                   onClick={() => saveCFMut.mutate(cfForm)}
                   disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#f97316,#fb923c)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_12px_24px_rgba(249,115,22,0.22)] transition hover:brightness-105 disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#f97316,#fb923c)] px-4 py-2.5 text-[13px] font-semibold text-[var(--win-text)] shadow-[0_12px_24px_rgba(249,115,22,0.22)] transition hover:brightness-105 disabled:opacity-50"
                 >
                   {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-                  {saveCFMut.isPending ? 'Menyimpan...' : 'Simpan & hubungkan'}
+                  {saveCFMut.isPending ? t('profile.saving') : t('profile.saveConnecting')}
                 </button>
               </div>
             )}
@@ -381,9 +382,9 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
         disabled={loading}
       >
         <User size={13} />
-        <span>{username ?? 'Profile'}</span>
+        <span>{username ?? t('profile.defaultName')}</span>
         {attentionCount > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-warning-bg)] px-2 py-0.5 text-[12px] font-semibold text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]">
             <AlertTriangle className="h-3 w-3" />
             {attentionCount}
           </span>
@@ -395,3 +396,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     </>
   )
 }
+
+
+
+

@@ -3,6 +3,7 @@ import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import type { WindowKind, WindowState } from '@/types'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 
 const DOCK_ITEMS: { kind: WindowKind; icon: string; label: string }[] = [
   { kind: 'apps', icon: '🐋', label: 'Docker' },
@@ -33,6 +34,7 @@ const CONTEXT_MENU_ESTIMATED_HEIGHT = 108
 const menuButtonClass = 'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-medium transition'
 
 export function Dock() {
+  const { t } = useI18n()
   const { openWindow, focusWindow, closeWindow, toggleDockAutoHide, closeWindowsByKind } = useWindowStore()
   const autoHideDock = useWindowStore(selectAutoHideDock)
   const focusedId = useWindowStore(selectFocusedId)
@@ -183,35 +185,35 @@ export function Dock() {
   const dockLayerClass = 'z-[62000]'
   const revealHandleLayerClass = 'z-[61990]'
   const dockSurfaceClass = isDark
-    ? 'border-white/10 text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.26)]'
-    : 'border-white/55 text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
+    ? 'border-[var(--win-border)] text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.26)]'
+    : 'border-white/55 text-[var(--text-secondary)] shadow-[0_18px_40px_rgba(15,23,42,0.12)]'
   const itemIdleClass = isDark
-    ? 'border-white/10 bg-white/8 text-slate-100 shadow-[0_7px_14px_rgba(2,6,23,0.18)]'
-    : 'border-white/60 bg-white/72 text-slate-800 shadow-[0_7px_14px_rgba(15,23,42,0.06)]'
+    ? 'border-[var(--win-border)] bg-white/8 text-slate-100 shadow-[0_7px_14px_rgba(2,6,23,0.18)]'
+    : 'border-white/60 bg-white/72 text-[var(--text-secondary)] shadow-[0_7px_14px_rgba(15,23,42,0.06)]'
   const itemOpenClass = isDark
-    ? 'border-sky-400/28 bg-[linear-gradient(180deg,rgba(30,41,59,0.86),rgba(15,23,42,0.86))] text-white shadow-[0_12px_22px_rgba(14,165,233,0.16)]'
-    : 'border-sky-300/40 bg-[linear-gradient(180deg,rgba(224, 224, 224, 0.92),rgba(215, 216, 216, 0.82))] text-slate-900 shadow-[0_12px_22px_rgba(59,130,246,0.10)]'
+    ? 'border-[var(--focus-ring)]/28 bg-[linear-gradient(180deg,rgba(30,41,59,0.86),rgba(15,23,42,0.86))] text-[var(--win-text)] shadow-[0_12px_22px_rgba(14,165,233,0.16)]'
+    : 'border-sky-300/40 bg-[linear-gradient(180deg,rgba(224, 224, 224, 0.92),rgba(215, 216, 216, 0.82))] text-[var(--text-secondary)] shadow-[0_12px_22px_rgba(59,130,246,0.10)]'
   const tooltipClass = isDark
-    ? 'bg-slate-950 text-white shadow-[0_10px_20px_rgba(2,6,23,0.4)]'
-    : 'bg-slate-900 text-white shadow-[0_10px_20px_rgba(15,23,42,0.28)]'
+    ? 'bg-slate-950 text-[var(--win-text)] shadow-[0_10px_20px_rgba(2,6,23,0.4)]'
+    : 'bg-slate-900 text-[var(--win-text)] shadow-[0_10px_20px_rgba(15,23,42,0.28)]'
   const menuPanelClass = isDark
-    ? 'border-white/10 bg-slate-900/96 text-white shadow-[0_14px_28px_rgba(2,6,23,0.36)]'
-    : 'border-slate-200/90 bg-white/98 text-slate-900 shadow-[0_14px_28px_rgba(15,23,42,0.16)]'
+    ? 'border-[var(--win-border)] bg-slate-900/96 text-[var(--win-text)] shadow-[0_14px_28px_rgba(2,6,23,0.36)]'
+    : 'border-slate-200/90 bg-white/98 text-[var(--text-secondary)] shadow-[0_14px_28px_rgba(15,23,42,0.16)]'
   const menuButtonToneClass = isDark
-    ? 'text-slate-100 hover:bg-sky-500/14 hover:text-white'
-    : 'text-slate-700 hover:bg-sky-50 hover:text-slate-900'
+    ? 'text-slate-100 hover:bg-[var(--panel-primary-hover)]/14 hover:text-[var(--win-text)]'
+    : 'text-[var(--text-secondary)] hover:bg-[var(--panel-primary-bg)] hover:text-[var(--text-secondary)]'
   const menuDangerToneClass = isDark
-    ? 'text-red-200 hover:bg-red-500/14 hover:text-red-100'
-    : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+    ? 'text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]0/14 hover:text-[var(--panel-danger-text)]'
+    : 'text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]'
   const menuIconWrapClass = isDark
     ? 'bg-white/8 text-slate-100'
-    : 'bg-slate-100 text-slate-700'
+    : 'bg-slate-100 text-[var(--text-secondary)]'
   const menuIconActiveClass = isDark
-    ? 'bg-emerald-500/16 text-emerald-300'
-    : 'bg-emerald-100 text-emerald-700'
+    ? 'bg-emerald-500/16 text-[var(--panel-success-text)]'
+    : 'bg-emerald-100 text-[var(--panel-success-text)]'
   const menuDangerIconClass = isDark
-    ? 'bg-red-500/14 text-red-200'
-    : 'bg-red-100 text-red-600'
+    ? 'bg-red-500/14 text-[var(--panel-danger-text)]'
+    : 'bg-red-100 text-[var(--panel-danger-text)]'
   const isDockVisible = !isDockForcedHidden && (!forceAutoHideDock || revealed)
   const dockTransformClass = isDockForcedHidden
     ? 'translate-y-[calc(100%+24px)] opacity-0'
@@ -246,7 +248,7 @@ export function Dock() {
         {visibleDockItems.length > 0 && (
           <div
             id="desktop-dock"
-            className={`relative flex items-end gap-1.5 rounded-[16px] border px-2 py-1.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            className={`relative flex items-end gap-1.5 rounded-[16px] border px-3 py-2 backdrop-blur-[24px] ${dockSurfaceClass}`}
           >
             {visibleDockItems.map((item) => {
               const related = groupedWindows[item.kind]
@@ -299,8 +301,8 @@ export function Dock() {
                       onMouseLeave={() => schedulePreviewClose(item.kind)}
                       className={`absolute bottom-[60px] left-1/2 z-[62100] flex min-w-[250px] max-w-[340px] max-h-[calc(100vh-112px)] -translate-x-1/2 flex-col gap-2 overflow-hidden rounded-[20px] border p-2 backdrop-blur-xl ${isDark ? 'border-white/14 bg-slate-950/95 shadow-[0_30px_65px_rgba(2,6,23,0.56)]' : 'border-slate-300/60 bg-white/94 shadow-[0_28px_58px_rgba(15,23,42,0.20)]'}`}
                     >
-                      <div className={`px-1 pb-1 text-[10px] uppercase tracking-[0.18em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
-                        Open windows · {related.length}
+                      <div className={`px-1 pb-1 text-[12px] uppercase tracking-[0.18em] ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>
+                        {t('dock.openWindows', { count: related.length })}
                       </div>
                       <div className="flex max-h-[calc(100vh-154px)] flex-col gap-2 overflow-y-auto pr-1">
                         {related.slice().reverse().map((windowItem: WindowState) => {
@@ -318,30 +320,30 @@ export function Dock() {
                                 'group flex items-center gap-2.5 rounded-[16px] border px-3 py-2.5 transition',
                                 active
                                   ? isDark
-                                    ? 'border-sky-400/45 bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-[inset_0_0_0_1px_rgba(56,189,248,0.18)]'
-                                    : 'border-sky-300/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] text-slate-900 shadow-[inset_0_0_0_1px_rgba(125,211,252,0.28)]'
+                                    ? 'border-[var(--focus-ring)]/45 bg-gradient-to-r from-slate-800 to-slate-900 text-[var(--win-text)] shadow-[inset_0_0_0_1px_rgba(56,189,248,0.18)]'
+                                    : 'border-sky-300/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] text-[var(--text-secondary)] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.28)]'
                                   : isDark
-                                    ? 'border-white/8 bg-white/[0.03] text-white hover:border-white/12 hover:bg-white/[0.05]'
-                                    : 'border-slate-200/90 bg-slate-50/95 text-slate-800 hover:border-slate-300 hover:bg-white',
+                                    ? 'border-white/8 bg-white/[0.03] text-[var(--win-text)] hover:border-white/12 hover:bg-white/[0.05]'
+                                    : 'border-slate-200/90 bg-[var(--win-content-bg)]/95 text-[var(--text-secondary)] hover:border-slate-300 hover:bg-white',
                               ].join(' ')}
                             >
                               <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${isDark ? 'bg-white/6' : 'bg-slate-100'}`}>
                                 {item.icon}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className={`truncate text-[11px] font-semibold leading-[1.35] ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{windowItem.title}</div>
+                                <div className={`truncate text-[12px] font-semibold leading-[1.35] ${isDark ? 'text-slate-100' : 'text-[var(--text-secondary)]'}`}>{t(windowTitleKey(windowItem.kind))}</div>
                                 <div className="mt-1 flex flex-wrap items-center gap-2">
                                   <span className={[
-                                    'rounded-full px-2 py-0.5 text-[9px] font-medium',
+                                    'rounded-full px-2 py-0.5 text-[12px] font-medium',
                                     active
                                       ? isDark
-                                        ? 'bg-sky-500/15 text-sky-300'
-                                        : 'bg-sky-100 text-sky-700'
+                                        ? 'bg-sky-500/15 text-[var(--panel-primary-text)]'
+                                        : 'bg-sky-100 text-[var(--panel-primary-text)]'
                                       : isDark
-                                        ? 'bg-white/6 text-slate-300'
-                                        : 'bg-slate-200/80 text-slate-600',
+                                        ? 'bg-white/6 text-[var(--text-secondary)]'
+                                        : 'bg-slate-200/80 text-[var(--text-secondary)]',
                                   ].join(' ')}>
-                                    {windowItem.isMinimized ? 'Minimized' : active ? 'Active' : 'Open'}
+                                    {windowItem.isMinimized ? t('common.minimized') : active ? t('common.activeState') : t('common.open')}
                                   </span>
                                 </div>
                               </div>
@@ -351,8 +353,8 @@ export function Dock() {
                                   event.stopPropagation()
                                   closeWindow(windowItem.id)
                                 }}
-                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isDark ? 'border-white/10 bg-white/6 text-slate-300 hover:border-red-400/30 hover:bg-red-500/12 hover:text-red-200' : 'border-slate-200 bg-white text-slate-500 hover:border-red-300 hover:bg-red-50 hover:text-red-500'}`}
-                                title={`Close ${windowItem.title}`}
+                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isDark ? 'border-[var(--win-border)] bg-white/6 text-[var(--text-secondary)] hover:border-red-400/30 hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]' : 'border-slate-200 bg-white text-[var(--text-secondary)] hover:border-red-300 hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]'}`}
+                                title={t('dock.closeWindow', { title: t(windowTitleKey(windowItem.kind)) })}
                               >
                                 <X size={13} strokeWidth={2} />
                               </button>
@@ -365,8 +367,8 @@ export function Dock() {
                   )}
 
                   {!showPreview && isHovered && (
-                    <div className={`pointer-events-none absolute bottom-[49px] whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-medium ${tooltipClass}`}>
-                      {item.label}
+                    <div className={`pointer-events-none absolute bottom-[49px] whitespace-nowrap rounded-full px-3 py-2 text-[12px] font-medium ${tooltipClass}`}>
+                      {t(windowTitleKey(item.kind))}
                     </div>
                   )}
 
@@ -383,10 +385,10 @@ export function Dock() {
                   <div className="flex min-h-2 items-center gap-1">
                     <div className={[
                       'h-[3px] rounded-full transition-all duration-150',
-                      hasVisible ? 'w-3.5 bg-[linear-gradient(90deg,#38bdf8,#6366f1)]' : related.length > 0 ? (isDark ? 'w-2 bg-slate-200/70' : 'w-2 bg-slate-800/80') : (isDark ? 'w-1 bg-slate-500/60' : 'w-1 bg-slate-500/70'),
+                      hasVisible ? 'w-3.5 bg-[linear-gradient(90deg,#38bdf8,#6366f1)]' : related.length > 0 ? (isDark ? 'w-2 bg-slate-200/70' : 'w-2 bg-slate-800/80') : (isDark ? 'w-1 bg-[var(--win-content-bg)]0/60' : 'w-1 bg-[var(--win-content-bg)]0/70'),
                       isOpen ? 'opacity-100' : 'opacity-0',
                     ].join(' ')} />
-                    {related.length > 1 && <span className={`text-[8px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{related.length}</span>}
+                    {related.length > 1 && <span className={`text-[8px] font-bold ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>{related.length}</span>}
                   </div>
                 </div>
               )
@@ -414,7 +416,7 @@ export function Dock() {
               {autoHideDock ? <EyeOff size={14} /> : <PanelBottom size={14} />}
             </div>
             <div className="min-w-0 flex-1 truncate">
-              {autoHideDock ? 'Disable auto hide' : 'Enable auto hide'}
+              {autoHideDock ? t('dock.disableAutoHide') : t('dock.enableAutoHide')}
             </div>
           </button>
 
@@ -430,7 +432,7 @@ export function Dock() {
               <X size={14} />
             </div>
             <div className="min-w-0 flex-1 truncate">
-              Close all windows
+              {t('common.closeAll')}
             </div>
           </button>
         </div>
@@ -438,3 +440,7 @@ export function Dock() {
     </>
   )
 }
+
+
+
+

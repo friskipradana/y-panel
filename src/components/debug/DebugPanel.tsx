@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useWindowStore, selectFocusedId } from '@/store/windowStore'
+import { useI18n } from '@/lib/i18n'
 
 export function DebugPanel() {
   const { windows } = useWindowStore()
   const focusedId = useWindowStore(selectFocusedId)
+  const { t } = useI18n()
   const [view, setView] = useState<'table' | 'grid'>('table')
   const [sortReversed, setSortReversed] = useState(true)
 
@@ -92,7 +94,7 @@ export function DebugPanel() {
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <span style={{ color: '#a78bfa', fontWeight: 700 }}>🧠 DEBUG PANEL</span>
           <span style={{ color: '#6b7280', fontSize: 10 }}>
-            focused: <span style={{ color: '#a78bfa' }}>{focusedId || 'none'}</span>
+            {t('debug.focused')}: <span style={{ color: '#a78bfa' }}>{focusedId || t('debug.none')}</span>
           </span>
         </div>
 
@@ -106,11 +108,11 @@ export function DebugPanel() {
               <span>W</span>
               <span>H</span>
               <span>Z</span>
-              <span>STATUS</span>
+              <span>{t('debug.status')}</span>
             </div>
 
             {windows.length === 0 && (
-              <div style={{ color: '#4b5563', textAlign: 'center', padding: '8px 0' }}>no windows open</div>
+              <div style={{ color: '#4b5563', textAlign: 'center', padding: '8px 0' }}>{t('debug.noWindowsOpen')}</div>
             )}
             {(sortReversed ? [...windows].reverse() : windows).map(w => (
               <div key={w.id} style={{
@@ -138,14 +140,14 @@ export function DebugPanel() {
                 <span>{Math.round(w.height)}</span>
                 <span style={{ color: w.id === focusedId ? '#a78bfa' : '#34d399' }}>{w.zIndex}</span>
                 <span style={{ color: w.isMinimized ? '#ef4444' : w.isMaximized ? '#a78bfa' : '#34d399' }}>
-                  {w.isMinimized ? 'minimized' : w.isMaximized ? 'maximized' : 'normal'}
+                  {w.isMinimized ? t('debug.minimized') : w.isMaximized ? t('debug.maximized') : t('debug.normal')}
                 </span>
               </div>
             ))}
 
             <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.1)', color: '#6b7280', fontSize: 10 }}>
-              viewport: {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '-'}
-              {' '}| center: {typeof window !== 'undefined' ? `${Math.round(window.innerWidth / 2)}, ${Math.round(window.innerHeight / 2)}` : '-'}
+              {t('debug.viewport')}: {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '-'}
+              {' '}| {t('debug.center')}: {typeof window !== 'undefined' ? `${Math.round(window.innerWidth / 2)}, ${Math.round(window.innerHeight / 2)}` : '-'}
             </div>
           </>
         )}
@@ -214,14 +216,14 @@ export function DebugPanel() {
             </div>
 
             <div style={{ marginTop: 8, fontSize: 9, color: '#6b7280', display: 'flex', gap: 12 }}>
-              <span>🟣 focused</span>
-              <span>🔵 normal</span>
-              <span>🔴 center</span>
+              <span>🟣 {t('debug.focused')}</span>
+              <span>🔵 {t('debug.normal')}</span>
+              <span>🔴 {t('debug.center')}</span>
             </div>
 
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.1)', color: '#6b7280', fontSize: 10 }}>
               viewport: {typeof window !== 'undefined' ? `${window.innerWidth} x ${window.innerHeight}` : '-'}
-              {' '}| visible: {windows.filter(w => !w.isMinimized).length}/{windows.length}
+              {' '}| {t('debug.visible')}: {windows.filter(w => !w.isMinimized).length}/{windows.length}
             </div>
           </div>
         )}
@@ -229,3 +231,6 @@ export function DebugPanel() {
     </>
   )
 }
+
+
+

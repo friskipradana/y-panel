@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Error trap — print line number and failing command for diagnostics
+trap 'rc=$?; echo "[ypanel] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND}" >&2; exit $rc' ERR
+
 APP_NAME="ypanel"
 APP_USER="root"
 INSTALL_ROOT="/opt/ypanel"
@@ -21,7 +24,7 @@ DEFAULT_DB_USER="ypanel"
 DEFAULT_ALLOWED_HOSTS=""
 DEFAULT_ALLOWED_ORIGINS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="${YPANEL_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
 INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
 MANAGED_ORIGINS_BLOCK_BEGIN="# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
@@ -224,11 +227,14 @@ ypanel_config() {
   fi
 
   if [[ -f "$ENV_FILE" ]]; then
-    current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
-    current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
-    current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)"
-    PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-$(grep '^PANEL_DATABASE_DSN=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)}"
-    PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(grep '^PANEL_ENCRYPTION_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- || true)}"
+    # Strip \r from existing env file (Windows CRLF compatibility)
+    sed -i 's/\r$//' "$ENV_FILE"
+    current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
+    current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
+    current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
+    PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-$(grep '^PANEL_DATABASE_DSN=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
+    PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(grep '^PANEL_ENCRYPTION_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
+    PANEL_SESSION_SECRET="${PANEL_SESSION_SECRET:-$(grep '^PANEL_SESSION_SECRET=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
   fi
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
@@ -250,7 +256,7 @@ ypanel_config() {
   primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   primary_ip="${primary_ip//[$'\r\n']/}"
 
-  PANEL_SESSION_SECRET="$(random_string 48)"
+  PANEL_SESSION_SECRET="${PANEL_SESSION_SECRET:-$(random_string 48)}"
   PANEL_INSTALL_CHANNEL="stable"
   PANEL_PORTAINER_URL="$DEFAULT_PORTAINER_URL"
   PANEL_DB_ENABLED="true"
@@ -392,6 +398,8 @@ migrate_legacy_runtime() {
     log "migrasi konfigurasi legacy ui-panel ke ypanel"
     mkdir -p "$CONFIG_DIR"
     cp "$legacy_env_file" "$ENV_FILE"
+    # Strip \r (Windows CRLF compatibility)
+    sed -i 's/\r$//' "$ENV_FILE"
   fi
 
   if [[ -d "$legacy_state_dir" && ! -d "$STATE_DIR" ]]; then
@@ -543,6 +551,9 @@ install_cli() {
   cat > "$CLI_PATH" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+# Error trap — shows exact failing line and command for debugging
+trap 'echo "[ypanel] FATAL ERROR at line $BASH_LINENO: $(sed -n "${BASH_LINENO}p" "$0" 2>/dev/null || echo "?")" >&2' ERR
 
 ENV_FILE="/etc/ypanel/agent.env"
 SERVICE_NAME="ypanel.service"

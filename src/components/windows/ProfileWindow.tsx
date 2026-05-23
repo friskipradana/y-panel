@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCFConfig, setCFConfig, verifyCFConfig, deleteCFConfig } from '@/api/agent'
 import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
+import { useI18n } from '@/lib/i18n'
 import {
   Cloud,
   CheckCircle2,
@@ -19,13 +20,14 @@ import {
 } from 'lucide-react'
 
 const CF_STATUS_VARIANTS = {
-  active: { cls: 'panel-badge panel-badge--success', icon: <CheckCircle2 className="h-3 w-3" />, label: 'Verified' },
-  invalid: { cls: 'panel-badge panel-badge--danger', icon: <XCircle className="h-3 w-3" />, label: 'Invalid' },
-  unconfigured: { cls: 'panel-badge panel-badge--warning', icon: <AlertTriangle className="h-3 w-3" />, label: 'Unverified' },
+  active: { cls: 'panel-badge panel-badge--success', icon: <CheckCircle2 className="h-3 w-3" />, labelKey: 'profile.statusVerified' },
+  invalid: { cls: 'panel-badge panel-badge--danger', icon: <XCircle className="h-3 w-3" />, labelKey: 'profile.statusInvalid' },
+  unconfigured: { cls: 'panel-badge panel-badge--warning', icon: <AlertTriangle className="h-3 w-3" />, labelKey: 'profile.statusUnverified' },
 } as const
 
 export default function ProfileWindow() {
   const qc = useQueryClient()
+  const { t } = useI18n()
   const [cfForm, setCfForm] = useState({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
   const [showToken, setShowToken] = useState(false)
 
@@ -34,15 +36,15 @@ export default function ProfileWindow() {
   const saveCFMut = useMutation({
     mutationFn: setCFConfig,
     onSuccess: () => {
-      alertLib.fire('Cloudflare Disimpan', 'Konfigurasi Cloudflare berhasil disimpan untuk akun Anda.', 'success', 'profile')
+      alertLib.fire(t('profile.cloudflareSavedTitle'), t('profile.cloudflareSavedMessage'), 'success', 'profile')
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
       setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
     },
     onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal menyimpan config'
-      toast.error('Gagal menyimpan config', { description: message })
-      alertLib.fire('Gagal Menyimpan Cloudflare', message, 'error', 'profile')
+      const message = e.response?.data?.error ?? t('profile.saveConfigFailed')
+      toast.error(t('profile.saveConfigFailed'), { description: message })
+      alertLib.fire(t('profile.cloudflareSaveFailedTitle'), message, 'error', 'profile')
     },
   })
 
@@ -50,27 +52,27 @@ export default function ProfileWindow() {
     mutationFn: verifyCFConfig,
     onSuccess: (res) => {
       if (res.valid) {
-        alertLib.fire('Verifikasi Berhasil', 'Token Cloudflare valid dan siap digunakan.', 'success', 'profile')
+        alertLib.fire(t('profile.verifySuccessTitle'), t('profile.verifySuccessMessage'), 'success', 'profile')
       } else {
-        alertLib.fire('Token Tidak Valid', res.error ?? 'Unknown error', 'warning', 'profile')
+        alertLib.fire(t('profile.invalidTokenTitle'), res.error ?? t('profile.unknownError'), 'warning', 'profile')
       }
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
     },
     onError: () => {
-      toast.error('Gagal memverifikasi token')
-      alertLib.fire('Gagal Verifikasi', 'Gagal memverifikasi token Cloudflare.', 'error', 'profile')
+      toast.error(t('profile.verifyFailedToast'))
+      alertLib.fire(t('profile.verifyFailedTitle'), t('profile.verifyFailedMessage'), 'error', 'profile')
     },
   })
 
   const deleteCFMut = useMutation({
     mutationFn: deleteCFConfig,
     onSuccess: () => {
-      alertLib.fire('Cloudflare Dihapus', 'Konfigurasi Cloudflare berhasil dihapus.', 'success', 'profile')
+      alertLib.fire(t('profile.cloudflareDeletedTitle'), t('profile.cloudflareDeletedMessage'), 'success', 'profile')
       qc.invalidateQueries({ queryKey: ['cf-config'] })
       qc.invalidateQueries({ queryKey: ['me-v2'] })
     },
-    onError: (e: any) => alertLib.fire('Gagal Menghapus Cloudflare', e.response?.data?.error ?? 'Tidak dapat menghapus konfigurasi Cloudflare.', 'error', 'profile'),
+    onError: (e: any) => alertLib.fire(t('profile.cloudflareDeleteFailedTitle'), e.response?.data?.error ?? t('profile.cloudflareDeleteFailedMessage'), 'error', 'profile'),
   })
 
   const cfStatus = cf?.status
@@ -82,8 +84,8 @@ export default function ProfileWindow() {
         <div className="panel-window__title">
           <User className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Profile Settings & Integrations</div>
-            <div className="panel-window__meta">Pengaturan akun dan integrasi personal</div>
+            <div className="panel-window__title-text">{t('profile.windowTitle')}</div>
+            <div className="panel-window__meta">{t('profile.windowMeta')}</div>
           </div>
         </div>
       </div>
@@ -93,11 +95,11 @@ export default function ProfileWindow() {
           <section className="panel-card p-6">
             <div className="panel-badge panel-badge--info mb-3 w-fit uppercase tracking-[0.16em]">
               <ShieldCheck size={11} />
-              Personal profile controls
+              {t('profile.controlsBadge')}
             </div>
-            <div className="text-[22px] font-bold tracking-[-0.03em] text-[var(--win-text)]">Profile window difokuskan untuk pengaturan akun</div>
+            <div className="text-[22px] font-bold tracking-[-0.03em] text-[var(--win-text)]">{t('profile.heroTitle')}</div>
             <p className="mt-2 max-w-[640px] text-[12px] leading-6 text-[var(--text-secondary)]">
-              Identitas utama akun sekarang berada di profile header. Window ini dipakai untuk mengelola integrasi personal, credential pihak ketiga, dan konfigurasi yang melekat ke akun Anda.
+              {t('profile.heroDescription')}
             </p>
           </section>
 
@@ -108,34 +110,34 @@ export default function ProfileWindow() {
                   <Cloud className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-[15px] font-semibold text-[var(--win-text)]">Cloudflare tunnel integration</div>
-                  <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">
-                    Hubungkan akun Cloudflare Anda sendiri untuk membuat tunnel dan mengelola DNS secara personal.
+                  <div className="text-[15px] font-semibold text-[var(--win-text)]">{t('profile.cloudflareTitle')}</div>
+                  <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
+                    {t('profile.cloudflareDescription')}
                   </div>
                 </div>
               </div>
 
               {cfLoading ? (
-                <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">Memuat konfigurasi Cloudflare...</div>
+                <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">{t('profile.loadingCloudflare')}</div>
               ) : cf?.configured ? (
                 <div className="space-y-4">
                   <div className="panel-card flex items-center justify-between gap-3 px-4 py-3 shadow-none">
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">Connection status</div>
-                      <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">Cloudflare account connected</div>
+                      <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">{t('profile.connectionStatus')}</div>
+                      <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">{t('profile.accountConnected')}</div>
                     </div>
                     <span className={cfStatusBadge.cls}>
                       {cfStatusBadge.icon}
-                      {cfStatusBadge.label}
+                      {t(cfStatusBadge.labelKey)}
                     </span>
                   </div>
 
                   <div className="panel-muted-block space-y-2 rounded-[16px] p-4">
                     {[
-                      { label: 'Account ID', value: cf.accountId },
-                      // { label: 'Zone ID', value: cf.zoneId },
-                      // { label: 'Base Domain', value: cf.baseDomain },
-                      cf.verifiedAt ? { label: 'Verified At', value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
+                      { label: t('profile.accountId'), value: cf.accountId },
+                      // { label: t('profile.zoneId'), value: cf.zoneId },
+                      // { label: t('profile.baseDomain'), value: cf.baseDomain },
+                      cf.verifiedAt ? { label: t('profile.verifiedAt'), value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
                     ].filter(Boolean).map((item) => (
                       <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
                         <span className="text-[var(--text-secondary)]">{item!.label}</span>
@@ -151,15 +153,15 @@ export default function ProfileWindow() {
                       className="panel-btn panel-btn--primary-soft flex-1"
                     >
                       <ShieldCheck className="h-4 w-4" />
-                      {verifyMut.isPending ? 'Memverifikasi...' : 'Verifikasi token'}
+                      {verifyMut.isPending ? t('profile.verifying') : t('profile.verifyToken')}
                     </button>
                     <button
                       onClick={async () => {
                         const confirmed = await alertLib.confirm(
-                          'Hapus Konfigurasi Cloudflare?',
-                          'Konfigurasi Cloudflare untuk akun ini akan dihapus. Tunnel yang sudah ada tidak akan terpengaruh.',
-                          'Hapus Konfigurasi',
-                          'Batal',
+                          t('profile.deleteConfirmTitle'),
+                          t('profile.deleteConfirmMessage'),
+                          t('profile.deleteConfirmAction'),
+                          t('common.cancel'),
                           'warning',
                           'profile',
                         )
@@ -174,11 +176,11 @@ export default function ProfileWindow() {
               ) : (
                 <div className="space-y-3">
                   <div>
-                    <label className="panel-section-label">API Token *</label>
+                    <label className="panel-section-label">{t('profile.apiTokenRequired')}</label>
                     <div className="relative">
                       <input
                         type={showToken ? 'text' : 'password'}
-                        placeholder="Paste Cloudflare API Token di sini"
+                        placeholder={t('profile.apiTokenPlaceholder')}
                         value={cfForm.apiToken}
                         onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
                         className="panel-input panel-input--mono pr-10"
@@ -190,9 +192,9 @@ export default function ProfileWindow() {
                   </div>
 
                   {[
-                    { key: 'accountId', label: 'Account ID *', placeholder: 'abc123...' },
-                    { key: 'zoneId', label: 'Zone ID (opsional)', placeholder: 'Jika punya domain Cloudflare' },
-                    { key: 'baseDomain', label: 'Base Domain (opsional)', placeholder: 'example.com' },
+                    { key: 'accountId', label: t('profile.accountIdRequired'), placeholder: 'abc123...' },
+                    { key: 'zoneId', label: t('profile.zoneIdOptional'), placeholder: t('profile.zoneIdPlaceholder') },
+                    { key: 'baseDomain', label: t('profile.baseDomainOptional'), placeholder: 'example.com' },
                   ].map(({ key, label, placeholder }) => (
                     <div key={key}>
                       <label className="panel-section-label">{label}</label>
@@ -211,7 +213,7 @@ export default function ProfileWindow() {
                     className="panel-btn panel-btn--primary w-full"
                   >
                     {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-                    {saveCFMut.isPending ? 'Menyimpan...' : 'Simpan & hubungkan'}
+                    {saveCFMut.isPending ? t('profile.saving') : t('profile.saveAndConnect')}
                   </button>
                 </div>
               )}
@@ -224,12 +226,12 @@ export default function ProfileWindow() {
                     <LockKeyhole className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[14px] font-semibold text-[var(--win-text)]">Keamanan token</div>
-                    <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Credential integrasi disimpan secara aman untuk setiap akun.</div>
+                    <div className="text-[14px] font-semibold text-[var(--win-text)]">{t('profile.tokenSecurityTitle')}</div>
+                    <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{t('profile.tokenSecurityMeta')}</div>
                   </div>
                 </div>
                 <div className="panel-muted-block rounded-[16px] px-4 py-3 text-[12px] leading-6 text-[var(--text-secondary)]">
-                  Token Cloudflare dienkripsi dengan AES-256-GCM sebelum disimpan ke database. Token tidak pernah dikirim ke layanan selain Cloudflare API saat proses verifikasi dan provisioning.
+                  {t('profile.tokenSecurityDescription')}
                 </div>
               </div>
 
@@ -239,13 +241,13 @@ export default function ProfileWindow() {
                     <Globe2 className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-[14px] font-semibold text-[var(--win-text)]">Hubungan dengan window lain</div>
-                    <div className="mt-1 text-[11px] leading-5 text-[var(--text-secondary)]">Konfigurasi di sini dipakai langsung oleh modul tunnel.</div>
+                    <div className="text-[14px] font-semibold text-[var(--win-text)]">{t('profile.relatedWindowsTitle')}</div>
+                    <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{t('profile.relatedWindowsMeta')}</div>
                   </div>
                 </div>
                 <ul className="space-y-2 text-[12px] leading-6 text-[var(--text-secondary)]">
-                  <li className="panel-muted-block rounded-[14px] px-4 py-3">Tunnels akan membaca status verifikasi Cloudflare dari konfigurasi akun Anda.</li>
-                  <li className="panel-muted-block rounded-[14px] px-4 py-3">Jika token belum valid, tombol pembuatan tunnel akan tetap nonaktif sampai integrasi berhasil diverifikasi.</li>
+                  <li className="panel-muted-block rounded-[14px] px-4 py-3">{t('profile.relatedTunnelsReadStatus')}</li>
+                  <li className="panel-muted-block rounded-[14px] px-4 py-3">{t('profile.relatedTunnelDisabled')}</li>
                 </ul>
               </div>
             </div>
@@ -255,3 +257,7 @@ export default function ProfileWindow() {
     </div>
   )
 }
+
+
+
+

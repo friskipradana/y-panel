@@ -4,6 +4,7 @@ import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, Shield
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
+import { useI18n } from '@/lib/i18n'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
 const TRUNCATE_DAYS = [3, 7, 14, 30, 60]
@@ -40,6 +41,7 @@ function DetailRow({ label, value, tone = 'normal' }: { label: string; value: st
 }
 
 export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
+  const { t } = useI18n()
   const query = useQuery({
     queryKey: ['database-status'],
     queryFn: getDatabaseStatus,
@@ -62,10 +64,10 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
 
   const handleTruncate = async () => {
     const isConfirmed = await alertLib.confirm(
-      'Potong Data',
-      `Anda yakin ingin menghapus arsip <b>${truncateTarget}</b> yang umurnya lebih dari <b>${truncateDay} hari</b>?<br/><br/>Operasi ini bersifat permanen dan tidak dapat dibatalkan.`,
-      'Ya, Hapus',
-      'Batal',
+      t('database.truncateConfirmTitle'),
+      t('database.truncateConfirmMessage', { target: truncateTarget, days: truncateDay }),
+      t('database.truncateConfirmAction'),
+      t('common.cancel'),
       'warning',
       'database'
     )
@@ -73,19 +75,19 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
     if (!isConfirmed) return
 
     setTruncating(true)
-    alertLib.showLoading('Memotong Data...', 'Proses ini mungkin memakan waktu beberapa saat tergantung ukuran database Anda.', 'database')
+    alertLib.showLoading(t('database.truncatingTitle'), t('database.truncatingMessage'), 'database')
 
     try {
       const res = await truncateDatabaseData(truncateTarget, truncateDay)
       alertLib.close()
       setTimeout(() => {
-        alertLib.fire('Sukses', `Berhasil memotong ${res.affected} baris data kedaluwarsa.`, 'success', 'database')
+        alertLib.fire(t('database.truncateSuccessTitle'), t('database.truncateSuccessMessage', { affected: res.affected }), 'success', 'database')
       }, 300)
       void query.refetch()
     } catch (e: any) {
       alertLib.close()
       setTimeout(() => {
-        alertLib.fire('Gagal', `Gagal memotong data: ${e.response?.data?.error || e.message}`, 'error', 'database')
+        alertLib.fire(t('database.truncateFailedTitle'), t('database.truncateFailedMessage', { error: e.response?.data?.error || e.message }), 'error', 'database')
       }, 300)
     } finally {
       setTruncating(false)
@@ -116,15 +118,15 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <div className="panel-window__title">
             <Database className="panel-window__icon h-4 w-4" />
             <div>
-              <div className="panel-window__title-text">Database Runtime</div>
-              <div className="panel-window__meta">Status persistensi dan log MariaDB</div>
+              <div className="panel-window__title-text">{t('database.title')}</div>
+              <div className="panel-window__meta">{t('database.meta')}</div>
             </div>
           </div>
         </div>
         <div className="panel-window__body">
           <div className="panel-loading">
             <RefreshCcw size={16} className="animate-spin" />
-            Memuat status MariaDB runtime...
+            {t('database.loadingStatus')}
           </div>
         </div>
       </div>
@@ -138,8 +140,8 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <div className="panel-window__title">
             <Database className="panel-window__icon h-4 w-4" />
             <div>
-              <div className="panel-window__title-text">Database Runtime</div>
-              <div className="panel-window__meta">Status persistensi dan log MariaDB</div>
+              <div className="panel-window__title-text">{t('database.title')}</div>
+              <div className="panel-window__meta">{t('database.meta')}</div>
             </div>
           </div>
         </div>
@@ -147,8 +149,8 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <div className="panel-error-state">
             <TriangleAlert className="h-5 w-5" />
             <div>
-              <p className="font-semibold">Gagal memuat status database runtime</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">Pastikan MariaDB sudah tersedia dan env koneksi Phase 2 sudah benar.</p>
+              <p className="font-semibold">{t('database.statusLoadFailed')}</p>
+              <p className="mt-1 text-[12px] leading-6 opacity-90">{t('database.statusLoadFailedHint')}</p>
             </div>
           </div>
         </div>
@@ -162,12 +164,12 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
         <div className="panel-window__title">
           <Database className="panel-window__icon h-4 w-4" />
           <div>
-            <div className="panel-window__title-text">Database Runtime</div>
-            <div className="panel-window__meta">Status persistensi dan log MariaDB</div>
+            <div className="panel-window__title-text">{t('database.title')}</div>
+            <div className="panel-window__meta">{t('database.meta')}</div>
           </div>
         </div>
         <div className="panel-window__actions">
-          <button id="database-refresh" type="button" onClick={() => void query.refetch()} className="panel-icon-btn" aria-label="Refresh database status">
+          <button id="database-refresh" type="button" onClick={() => void query.refetch()} className="panel-icon-btn" aria-label={t('database.refreshStatus')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -178,11 +180,11 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <section className="panel-hero">
             <div className="panel-hero__eyebrow">
               <Database className="h-3 w-3" />
-              Phase 2 persistence
+              {t('database.heroEyebrow')}
             </div>
-            <div className="panel-hero__title">MariaDB runtime health</div>
+            <div className="panel-hero__title">{t('database.heroTitle')}</div>
             <p className="panel-hero__description">
-              Pantau koneksi database, jumlah data persistensi, runtime log terbaru, dan jejak audit perubahan host dari backend YPanel.
+              {t('database.heroDescription')}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <PanelSelectMenu
@@ -194,23 +196,23 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 buttonClassName="rounded-full px-3 py-2 text-[12px]"
                 dropdownClassName="min-w-[220px]"
                 searchable
-                searchPlaceholder="Cari target..."
+                searchPlaceholder={t('database.searchTargetPlaceholder')}
               />
 
               <PanelSelectMenu
                 id="database-truncate-day"
                 value={String(truncateDay)}
                 onChange={(value) => setTruncateDay(Number(value))}
-                options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: `> ${day} hari` }))}
+                options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: t('database.olderThanDays', { days: day }) }))}
                 className="max-w-[140px]"
                 buttonClassName="rounded-full px-3 py-2 text-[12px]"
                 dropdownClassName="min-w-[140px]"
                 searchable
-                searchPlaceholder="Cari hari..."
+                searchPlaceholder={t('database.searchDayPlaceholder')}
               />
 
               <button type="button" onClick={() => void handleTruncate()} disabled={truncating} className="panel-btn panel-btn--danger rounded-full px-4 py-2 text-[12px]">
-                {truncating ? 'Memotong...' : 'Potong'}
+                {truncating ? t('database.truncatingShort') : t('database.truncateButton')}
               </button>
             </div>
           </section>
@@ -218,8 +220,8 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <div className="panel-kpi-grid panel-kpi-grid--4">
             <MetricCard
               icon={<ShieldCheck size={16} />}
-              label="Connection"
-              value={status.connected ? 'Connected' : status.enabled ? 'Unavailable' : 'Disabled'}
+              label={t('database.connectionLabel')}
+              value={status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
               description={
                 status.connected ? (
                   <>
@@ -227,13 +229,13 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                     <span className="block opacity-70">{status.database}</span>
                   </>
                 ) : (
-                  status.lastError || 'Belum ada koneksi PostgreSQL aktif.'
+                  status.lastError || t('database.noActiveConnection')
                 )
               }
             />
-            <MetricCard icon={<HardDriveDownload size={16} />} label="Runtime logs" value={String(status.runtimeLogCount)} description="Jumlah log backend yang berhasil dipersist ke MariaDB." />
-            <MetricCard icon={<ActivitySquare size={16} />} label="Changelog rows" value={String(status.changelogCount)} description="Jumlah entri changelog yang tersedia dari database runtime." />
-            <MetricCard icon={<Database size={16} />} label="Settings audit" value={String(status.settingsAuditCount)} description="Jumlah audit perubahan hostname/timezone/nameserver yang tercatat." />
+            <MetricCard icon={<HardDriveDownload size={16} />} label={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount)} description={t('database.runtimeLogsDescription')} />
+            <MetricCard icon={<ActivitySquare size={16} />} label={t('database.changelogRowsLabel')} value={String(status.changelogCount)} description={t('database.changelogRowsDescription')} />
+            <MetricCard icon={<Database size={16} />} label={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount)} description={t('database.settingsAuditDescription')} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
@@ -243,26 +245,26 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                   <Database size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="panel-shell-card__title">Connection details</div>
-                  <p className="panel-shell-card__meta">Snapshot koneksi MariaDB yang dibaca dari runtime env installer.</p>
+                  <div className="panel-shell-card__title">{t('database.connectionDetailsTitle')}</div>
+                  <p className="panel-shell-card__meta">{t('database.connectionDetailsMeta')}</p>
                 </div>
               </div>
 
               <div className="grid gap-3 text-[12px]">
-                <DetailRow label="Enabled" value={status.enabled ? 'Yes' : 'No'} />
-                <DetailRow label="Host" value={status.host || '-'} />
-                <DetailRow label="Port" value={status.port || '-'} />
-                <DetailRow label="Database" value={status.database || '-'} />
-                <DetailRow label="User" value={status.user || '-'} />
-                <DetailRow label="Last error" value={status.lastError || 'No recent errors'} tone={status.lastError ? 'warning' : 'normal'} />
+                <DetailRow label={t('database.enabledLabel')} value={status.enabled ? t('common.yes') : t('common.no')} />
+                <DetailRow label={t('database.hostLabel')} value={status.host || '-'} />
+                <DetailRow label={t('database.portLabel')} value={status.port || '-'} />
+                <DetailRow label={t('database.databaseLabel')} value={status.database || '-'} />
+                <DetailRow label={t('database.userLabel')} value={status.user || '-'} />
+                <DetailRow label={t('database.lastErrorLabel')} value={status.lastError || t('database.noRecentErrors')} tone={status.lastError ? 'warning' : 'normal'} />
               </div>
             </section>
 
             <section className="panel-shell-card flex min-h-[340px] max-h-[461px] flex-col overflow-hidden p-0">
               <div className="border-b border-[var(--win-border)] px-4 py-3">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="panel-shell-card__title">Persisted runtime logs</div>
-                  <div className="panel-shell-card__meta !mt-0">Latest {filteredRuntimeLogs.length} / {runtimeLogs.length} rows</div>
+                  <div className="panel-shell-card__title">{t('database.persistedLogsTitle')}</div>
+                  <div className="panel-shell-card__meta !mt-0">{t('database.latestRows', { shown: filteredRuntimeLogs.length, total: runtimeLogs.length })}</div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -272,7 +274,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                       id="database-log-search"
                       value={logQuery}
                       onChange={(e) => setLogQuery(e.target.value)}
-                      placeholder="Filter logs by service, level, message..."
+                      placeholder={t('database.logSearchPlaceholder')}
                       className="panel-input h-9 pl-9 pr-3 text-[12px]"
                     />
                   </div>
@@ -286,7 +288,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                     buttonClassName="h-9 px-3 text-[12px] panel-input--mono"
                     dropdownClassName="min-w-[120px]"
                     searchable
-                    searchPlaceholder="Cari limit..."
+                    searchPlaceholder={t('database.limitSearchPlaceholder')}
                   />
 
                 </div>
@@ -296,12 +298,12 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 {runtimeLogs.length === 0 ? (
                   <div className="panel-empty min-h-[220px]">
                     <HardDriveDownload className="h-8 w-8" />
-                    <span>Belum ada runtime log di database. Setelah MariaDB aktif, request backend akan mulai disimpan di sini.</span>
+                    <span>{t('database.emptyRuntimeLogs')}</span>
                   </div>
                 ) : filteredRuntimeLogs.length === 0 ? (
                   <div className="panel-empty min-h-[220px]">
                     <Search className="h-8 w-8" />
-                    <span>Tidak ada log yang cocok dengan filter saat ini.</span>
+                    <span>{t('database.noMatchingLogs')}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -312,7 +314,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                           key={entry.id}
                           className={`panel-shell-card ${isError ? 'border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)]' : ''}`}
                         >
-                          <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
+                          <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
                             <span>{entry.service}</span>
                             <span>•</span>
                             <span>{entry.level}</span>
@@ -321,7 +323,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                           </div>
                           <div className={`mt-2 text-[13px] font-medium ${isError ? 'text-[var(--panel-danger-text)]' : 'text-[var(--win-text)]'}`}>{entry.message}</div>
                           {entry.metadata ? (
-                            <pre className="panel-muted-block panel-mono mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[14px] px-3 py-2 text-[11px] leading-5 text-[var(--text-secondary)]">
+                            <pre className="panel-muted-block panel-mono mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[14px] px-3 py-2 text-[12px] leading-5 text-[var(--text-secondary)]">
                               {entry.metadata}
                             </pre>
                           ) : null}
@@ -337,29 +339,29 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <section className="panel-shell-card p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="panel-shell-card__title">Recent settings audit</div>
-                <p className="panel-shell-card__meta">Riwayat perubahan hostname, timezone, dan nameserver yang dikirim dari window settings.</p>
+                <div className="panel-shell-card__title">{t('database.recentAuditTitle')}</div>
+                <p className="panel-shell-card__meta">{t('database.recentAuditMeta')}</p>
               </div>
-              <div className="panel-badge panel-badge--warning">{settingsAudit.length} rows</div>
+              <div className="panel-badge panel-badge--warning">{t('database.rowsCount', { count: settingsAudit.length })}</div>
             </div>
             <div className="mt-4 flex max-h-[360px] flex-col gap-3 overflow-auto pr-1">
               {settingsAudit.length === 0 ? (
                 <div className="panel-empty min-h-[140px]">
                   <ActivitySquare className="h-8 w-8" />
-                  <span>Belum ada audit perubahan settings yang tersimpan.</span>
+                  <span>{t('database.emptySettingsAudit')}</span>
                 </div>
               ) : (
                 settingsAudit.map((entry) => (
                   <div key={entry.id} className="panel-muted-block rounded-[14px] px-4 py-3.5">
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
+                    <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
                       <span>{entry.username || 'system'}</span>
                       <span>•</span>
                       <span>{new Date(entry.createdAt).toLocaleString()}</span>
                     </div>
                     <div className="mt-2 grid gap-2 text-[12px] text-[var(--win-text)] sm:grid-cols-3">
-                      <div><strong>Hostname:</strong> {entry.hostname || '-'}</div>
-                      <div><strong>Timezone:</strong> {entry.timezone || '-'}</div>
-                      <div><strong>Nameserver:</strong> {entry.nameservers.length > 0 ? entry.nameservers.join(', ') : '—'}</div>
+                      <div><strong>{t('database.hostnameLabel')}:</strong> {entry.hostname || '-'}</div>
+                      <div><strong>{t('database.timezoneLabel')}:</strong> {entry.timezone || '-'}</div>
+                      <div><strong>{t('database.nameserverLabel')}:</strong> {entry.nameservers.length > 0 ? entry.nameservers.join(', ') : '—'}</div>
                     </div>
                   </div>
                 ))
@@ -371,8 +373,8 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
             <div className="panel-error-state">
               <TriangleAlert size={15} />
               <div>
-                <p className="font-semibold">MariaDB belum siap</p>
-                <p className="mt-1 text-[12px] leading-6 opacity-90">Jalankan installer Linux terbaru agar MariaDB otomatis, lalu verifikasi nilai env PANEL_DB_* pada runtime service.</p>
+                <p className="font-semibold">{t('database.mariadbNotReady')}</p>
+                <p className="mt-1 text-[12px] leading-6 opacity-90">{t('database.mariadbNotReadyHint')}</p>
               </div>
             </div>
           ) : null}
@@ -381,3 +383,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
     </div>
   )
 }
+
+
+
+

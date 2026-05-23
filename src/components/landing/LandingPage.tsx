@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, CheckCircle, CheckCircle2, Copy, Download, GitFork, ShieldCheck, Sparkles, Terminal } from 'lucide-react'
+import { useI18n } from '@/lib/i18n'
 
 type LandingPageProps = {
   authenticated: boolean
@@ -11,9 +12,15 @@ const INSTALLER_URL = 'https://github.com/friskipradana/y-panel/releases/latest/
 const INSTALL_COMMAND = `wget -O ypanel-installer.run ${INSTALLER_URL}
 sudo bash ypanel-installer.run`
 
-const highlights = ['Docker workspace', 'Terminal & files', 'Cloudflare tunnel', 'Users & logs']
+const highlights = [
+  'landing.highlightDockerWorkspace',
+  'landing.highlightTerminalFiles',
+  'landing.highlightCloudflareTunnel',
+  'landing.highlightUsersLogs',
+]
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
+  const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
   const [installCopied, setInstallCopied] = useState(false)
   const [showCopyFallback, setShowCopyFallback] = useState(false)
@@ -41,7 +48,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
 
   return (
     <main className="landing-page-shell landing-page-shell--single">
-      <nav className="landing-nav landing-nav--single" aria-label="Landing navigation">
+      <nav className="landing-nav landing-nav--single" aria-label={t('landing.navigationAria')}>
         <button id="landing-brand-home" type="button" className="landing-brand" onClick={() => onNavigate('/')}>
           <img src="/favicon.svg" alt="YPanel" />
           <span>YPanel</span>
@@ -60,53 +67,50 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
         <div className="landing-hero-copy landing-hero-copy--single">
           <div className="landing-eyebrow">
             <Sparkles size={16} />
-            <span>Desktop-style Linux server control panel</span>
+            <span>{t('landing.eyebrow')}</span>
           </div>
-          <h1 id="landing-title">Control your server like a desktop.</h1>
-          <p>
-            YPanel menyatukan Docker, Projects, Terminal, Files, Cloudflare, Users,
-            Database, dan Logs dalam workspace visual yang ringan untuk homeserver dan VPS.
-          </p>
+          <h1 id="landing-title">{t('landing.title')}</h1>
+          <p>{t('landing.description')}</p>
 
           <div className="landing-cta-row">
             <button id="landing-primary-cta" type="button" className="landing-primary-cta" onClick={() => onNavigate(primaryPath)}>
-              {authenticated ? 'Buka Home Dashboard' : 'Login Agent'}
+              {authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}
               <ArrowRight size={18} />
             </button>
             <a id="landing-installer-cta" className="landing-secondary-cta space-between" href={INSTALLER_URL}>
-              <Download size={17} /> Download Installer
+              <Download size={17} /> {t('landing.downloadInstaller')}
             </a>
           </div>
 
-          <div className="landing-install-card" aria-label="Public install command">
+          <div className="landing-install-card" aria-label={t('landing.publicInstallCommand')}>
             <div className="landing-install-card__header">
-              <span><Terminal size={16} /> Public install</span>
+              <span><Terminal size={16} /> {t('landing.publicInstall')}</span>
               <button id="landing-copy-install-command" type="button" onClick={copyInstallCommand}>
                 {installCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                {installCopied ? 'Copied' : 'Copy'}
+                {installCopied ? t('landing.copied') : t('landing.copy')}
               </button>
             </div>
             <pre><code>{INSTALL_COMMAND}</code></pre>
           </div>
 
-          <div className="landing-trust-strip" aria-label="Project ownership">
-            <span><strong>Owner</strong> Y_Corp</span>
-            <span><strong>Contributors</strong> AknalRe · FriskiPradana</span>
+          <div className="landing-trust-strip" aria-label={t('landing.projectOwnership')}>
+            <span><strong>{t('landing.owner')}</strong> Y_Corp</span>
+            <span><strong>{t('landing.contributors')}</strong> AknalRe · FriskiPradana</span>
           </div>
         </div>
 
-        <div className="landing-hero-visual landing-hero-visual--single" aria-label="YPanel preview">
+        <div className="landing-hero-visual landing-hero-visual--single" aria-label={t('landing.previewAria')}>
           <div className="landing-preview-card landing-preview-card--single">
-            <img src={HERO_IMAGE} alt="Preview tampilan YPanel" />
+            <img src={HERO_IMAGE} alt={t('landing.previewAlt')} />
           </div>
-          <div className="landing-feature-rail" aria-label="Fitur utama">
+          <div className="landing-feature-rail" aria-label={t('landing.mainFeatures')}>
             {highlights.map((item) => (
-              <span key={item}><CheckCircle2 size={15} /> {item}</span>
+              <span key={item}><CheckCircle2 size={15} /> {t(item)}</span>
             ))}
           </div>
           <div className="landing-floating-card landing-floating-card-top">
             <ShieldCheck size={18} />
-            <span>Self-hosted runtime</span>
+            <span>{t('landing.selfHostedRuntime')}</span>
           </div>
         </div>
       </section>
@@ -114,8 +118,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
       <div className={`landing-copy-toast${installCopied ? ' landing-copy-toast--visible' : ''}`} role="status" aria-live="polite">
         <span><CheckCircle size={18} /></span>
         <div>
-          <strong>Install command copied</strong>
-          <small>Paste di terminal Linux lalu jalankan dengan sudo.</small>
+          <strong>{t('landing.installCommandCopied')}</strong>
+          <small>{t('landing.pasteTerminal')}</small>
         </div>
       </div>
 
@@ -125,13 +129,13 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <div className="landing-copy-fallback__header">
               <span><Terminal size={16} /></span>
               <div>
-                <strong id="landing-copy-fallback-title">Copy install command</strong>
-                <small>Clipboard otomatis diblokir karena halaman belum HTTPS.</small>
+                <strong id="landing-copy-fallback-title">{t('landing.copyInstallCommand')}</strong>
+                <small>{t('landing.clipboardBlocked')}</small>
               </div>
             </div>
             <textarea id="landing-copy-fallback-command" readOnly value={INSTALL_COMMAND} onFocus={(event) => event.currentTarget.select()} autoFocus />
             <div className="landing-copy-fallback__actions">
-              <button type="button" onClick={() => setShowCopyFallback(false)}>Tutup</button>
+              <button type="button" onClick={() => setShowCopyFallback(false)}>{t('common.close')}</button>
               <button type="button" onClick={() => {
                 const field = document.getElementById('landing-copy-fallback-command') as HTMLTextAreaElement | null
                 field?.select()
@@ -139,7 +143,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
                 setShowCopyFallback(false)
                 setInstallCopied(true)
               }}>
-                <CheckCircle size={15} /> Salin Manual
+                <CheckCircle size={15} /> {t('landing.manualCopy')}
               </button>
             </div>
           </div>
@@ -148,3 +152,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
     </main>
   )
 }
+
+
+
+

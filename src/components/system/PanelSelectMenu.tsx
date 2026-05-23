@@ -1,5 +1,6 @@
 import { Check, ChevronDown, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useI18n } from '@/lib/i18n'
 
 type SelectOption = {
   value: string
@@ -30,8 +31,8 @@ export function PanelSelectMenu({
   value,
   onChange,
   options,
-  placeholder = 'Pilih opsi...',
-  searchPlaceholder = 'Cari opsi...',
+  placeholder,
+  searchPlaceholder,
   className = '',
   buttonClassName = '',
   dropdownClassName = '',
@@ -39,8 +40,12 @@ export function PanelSelectMenu({
   disabled = false,
   searchable = false,
   clearable = false,
-  emptyText = 'Tidak ditemukan',
+  emptyText,
 }: PanelSelectMenuProps) {
+  const { t } = useI18n()
+  const effectivePlaceholder = placeholder ?? t('common.selectOption')
+  const effectiveSearchPlaceholder = searchPlaceholder ?? t('common.searchOptions')
+  const effectiveEmptyText = emptyText ?? t('common.notFound')
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -161,7 +166,7 @@ export function PanelSelectMenu({
           aria-expanded={open}
         >
           <span className={selectedOption ? 'docker-image-combobox__button-label' : 'docker-image-combobox__button-placeholder'}>
-            {selectedOption?.label ?? placeholder}
+            {selectedOption?.label ?? effectivePlaceholder}
           </span>
         </button>
 
@@ -175,7 +180,7 @@ export function PanelSelectMenu({
               setSearch('')
               setHighlightedIndex(-1)
             }}
-            title="Reset pilihan"
+            title={t('common.resetSelection')}
           >
             <X className="h-3 w-3" />
           </button>
@@ -186,7 +191,7 @@ export function PanelSelectMenu({
           disabled={disabled}
           className="docker-image-combobox__toggle"
           onClick={() => !disabled && setOpen((current) => !current)}
-          aria-label="Toggle dropdown"
+          aria-label={t('common.toggleDropdown')}
         >
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
@@ -201,14 +206,14 @@ export function PanelSelectMenu({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={searchPlaceholder}
+                placeholder={effectiveSearchPlaceholder}
                 className="panel-input docker-image-combobox__search-input"
               />
             </div>
           ) : null}
 
           {filteredOptions.length === 0 ? (
-            <div className="docker-image-combobox__empty">{emptyText}</div>
+            <div className="docker-image-combobox__empty">{effectiveEmptyText}</div>
           ) : (
             filteredOptions.map((option, index) => {
               const active = option.value === value
@@ -236,3 +241,7 @@ export function PanelSelectMenu({
     </div>
   )
 }
+
+
+
+

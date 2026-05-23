@@ -2,17 +2,24 @@ package config
 
 import (
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 )
 
 const (
-	managedOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
+
+	// Legacy markers for backward compatibility with existing agent.env files
+	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
+	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
 )
 
 // Config holds all runtime configuration for the panel agent.
@@ -53,7 +60,7 @@ func Load() (Config, error) {
 		BindAddr:                   getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
 		AllowedHosts:               parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
 		AllowedOrigins:             loadAllowedOrigins(),
-		SessionSecret:              getenv("PANEL_SESSION_SECRET", "dev-session-secret-change-me"),
+		SessionSecret:              os.Getenv("PANEL_SESSION_SECRET"),
 		SessionTTL:                 parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
 		DatabaseDSN:                os.Getenv("PANEL_DATABASE_DSN"),
 		DatabaseEnable:             parseBoolEnv("PANEL_DB_ENABLED", true),
@@ -72,9 +79,24 @@ func Load() (Config, error) {
 		return Config{}, errors.New("PANEL_DATABASE_DSN is required when PANEL_DB_ENABLED=true")
 	}
 
+	if cfg.SessionSecret == "" {
+		return Config{}, errors.New("PANEL_SESSION_SECRET is required — set it in your environment file or agent.env")
+	}
+
+	if len(cfg.SessionSecret) < 32 {
+		return Config{}, errors.New("PANEL_SESSION_SECRET must be at least 32 characters for security")
+	}
+
 	if cfg.EncryptionKey == "" {
-		// Warn but don't fail — Cloudflare token encryption will be unavailable
-		cfg.EncryptionKey = "0000000000000000000000000000000000000000000000000000000000000000"
+		log.Println("[config] CRITICAL: PANEL_ENCRYPTION_KEY is not set!")
+		log.Println("[config] Previously encrypted Cloudflare tokens will be UNRECOVERABLE.")
+		if key, err := crypto.GenerateKey(); err == nil {
+			log.Println("[config] Generated ephemeral encryption key — re-save CF config after startup.")
+			cfg.EncryptionKey = key
+		} else {
+			log.Println("[config] Failed to generate key, using zeroed fallback — CF decrypt will fail!")
+			cfg.EncryptionKey = "0000000000000000000000000000000000000000000000000000000000000000"
+		}
 	}
 
 	return cfg, nil
@@ -196,11 +218,11 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if trimmed == managedOriginsBlockEnd && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}

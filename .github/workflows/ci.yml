@@ -7,8 +7,34 @@ on:
     branches: [main, master]
 
 jobs:
-  validate:
-    name: Validate frontend and backend
+  backend:
+    name: Go — lint, test & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Test
+        run: go test -race -count=1 ./...
+
+      - name: Build binary
+        run: go build -o /dev/null ./cmd/panel-agent/
+
+  frontend:
+    name: Bun — lint, typecheck & build
     runs-on: ubuntu-latest
 
     steps:
@@ -20,17 +46,14 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build frontend
-        run: bun run build
+      - name: Lint
+        run: bun run lint
 
-      - name: Test backend
-        run: go test ./...
+      - name: Typecheck
+        run: bun run build:check
+
+      - name: Build
+        run: bun run build
