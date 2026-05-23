@@ -212,7 +212,7 @@ function AuditCard({ username, createdAt, hostname, timezone, nameservers }: { u
   const { t } = useI18n()
 
   return (
-    <div className="panel-shell-card px-4 py-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.03)]">
+    <div className="panel-shell-card px-4 py-3.5 shadow-[var(--settings-audit-card-shadow)]">
       <div className="mb-2.5 flex items-center gap-1.5 text-[12px] uppercase tracking-[0.10em] text-[var(--text-secondary)]">
         <span>{username || 'system'}</span>
         <span>•</span>
@@ -1083,7 +1083,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   return (
                     <div className="space-y-6">
                       {midtrans.length
-                        ? renderGatewayGroup('Midtrans', <Zap size={14} />, 'bg-orange-500/10 text-[var(--panel-warning-text)]', midtrans)
+                        ? renderGatewayGroup('Midtrans', <Zap size={14} />, 'bg-[var(--panel-warning-bg)] text-[var(--panel-warning-text)]', midtrans)
                         : null}
                       {xendit.length
                         ? renderGatewayGroup('Xendit', <Globe2 size={14} />, 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]', xendit)

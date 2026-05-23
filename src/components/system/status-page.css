@@ -24,8 +24,8 @@
 }
 
 .status-page-side {
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(2, 6, 23, 0.18);
+  border-left: 1px solid var(--status-page-divider);
+  background: var(--status-page-side-bg);
 }
 
 .status-page-badge {
@@ -33,11 +33,11 @@
   align-items: center;
   gap: 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--status-page-badge-border);
+  background: var(--status-page-badge-bg);
   padding: 8px 12px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--status-page-badge-text);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -46,8 +46,8 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #38bdf8, #8b5cf6, #f97316);
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.42);
+  background: var(--status-page-accent-gradient);
+  box-shadow: var(--status-page-accent-glow);
 }
 
 .status-page-eyebrow {
@@ -55,7 +55,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.22em;
-  color: rgba(125, 211, 252, 0.82);
+  color: var(--status-page-eyebrow-text);
 }
 
 .status-page-code {
@@ -64,7 +64,7 @@
   line-height: 0.94;
   letter-spacing: -0.08em;
   font-weight: 700;
-  background: linear-gradient(135deg, #f8fafc 0%, #7dd3fc 34%, #c4b5fd 68%, #fdba74 100%);
+  background: var(--status-page-code-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -75,7 +75,7 @@
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.02;
   letter-spacing: -0.05em;
-  color: white;
+  color: var(--status-page-title-text);
 }
 
 .status-page-description {
@@ -83,7 +83,7 @@
   max-width: 760px;
   font-size: 15px;
   line-height: 1.85;
-  color: rgba(255, 255, 255, 0.70);
+  color: var(--status-page-copy-text);
 }
 
 .status-page-details {
@@ -97,8 +97,8 @@
 .status-page-tip-card,
 .status-page-side-item {
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--status-page-divider);
+  background: var(--status-page-card-bg);
 }
 
 .status-page-detail-card {
@@ -111,7 +111,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--status-page-muted-text);
 }
 
 .status-page-detail-value {
@@ -119,7 +119,7 @@
   margin-top: 8px;
   font-size: 14px;
   line-height: 1.7;
-  color: #f8fafc;
+  color: var(--status-page-value-text);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   word-break: break-word;
 }
@@ -148,15 +148,15 @@
 }
 
 .status-page-action-primary {
-  color: white;
-  background: linear-gradient(135deg, #f97316, #fb7185 48%, #818cf8 100%);
-  box-shadow: 0 18px 34px rgba(249, 115, 22, 0.24);
+  color: var(--status-page-title-text);
+  background: var(--status-page-action-primary-bg);
+  box-shadow: var(--status-page-action-primary-shadow);
 }
 
 .status-page-action-secondary {
-  color: #dbeafe;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--status-page-action-secondary-text);
+  background: var(--status-page-badge-bg);
+  border: 1px solid var(--status-page-action-secondary-border);
 }
 
 .status-page-action:hover {
@@ -172,7 +172,7 @@
   margin-top: 10px;
   font-size: 14px;
   line-height: 1.8;
-  color: rgba(255, 255, 255, 0.70);
+  color: var(--status-page-copy-text);
 }
 
 .status-page-side-list {
@@ -189,7 +189,7 @@
 .status-page-side-item strong {
   display: block;
   font-size: 13px;
-  color: #f8fafc;
+  color: var(--status-page-value-text);
 }
 
 .status-page-side-item span {
@@ -197,7 +197,7 @@
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.66);
+  color: var(--status-page-subtle-text);
 }
 
 @media (max-width: 920px) {
@@ -207,7 +207,7 @@
 
   .status-page-side {
     border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--status-page-divider);
   }
 
   .status-page-main,
@@ -219,3 +219,4 @@
     grid-template-columns: 1fr;
   }
 }
+

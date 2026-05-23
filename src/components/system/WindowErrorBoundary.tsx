@@ -61,9 +61,9 @@ export class WindowErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
             onClick={this.handleRetry}
             className="rounded-lg px-4 py-2 text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              background: 'rgba(99,102,241,0.15)',
-              color: 'rgb(129,140,248)',
-              border: '1px solid rgba(99,102,241,0.25)',
+              background: 'var(--fallback-action-bg)',
+              color: 'var(--fallback-action-text)',
+              border: '1px solid var(--fallback-action-border)',
             }}
           >
             {t('errorBoundary.retry')}

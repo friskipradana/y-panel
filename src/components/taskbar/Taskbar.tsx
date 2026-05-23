@@ -356,7 +356,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             ref={menuRef}
             className={`absolute right-4 top-[50px] w-60 p-2 rounded-2xl backdrop-blur-2xl z-[999999] ${isDark
-              ? 'bg-slate-900/90 text-[var(--win-text)]'
+              ? 'bg-[var(--taskbar-menu-bg)] text-[var(--win-text)]'
               : 'bg-[var(--menu-bg)] text-[var(--text-secondary)]'
               }`}
             onContextMenu={(e) => e.preventDefault()}
@@ -367,7 +367,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             </div>
             <button
               className={`flex items-center justify-between w-full px-3 py-2 text-[12.5px] font-semibold rounded-lg transition-all group ${isDark
-                ? 'hover:bg-white/5'
+                ? 'hover:bg-[var(--taskbar-menu-hover-bg)]'
                 : 'hover:bg-[var(--panel-surface-hover)]'
                 }`}
               onClick={() => { setShowSystemStats(!showSystemStats); setShowMenu(false); }}
@@ -376,7 +376,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                 <Activity size={14} className="text-[var(--panel-primary-text)]" />
                 <span>{t('taskbar.systemStatsTray')}</span>
               </div>
-              <div className={`w-8 h-4 rounded-full transition-all duration-300 relative ${showSystemStats ? 'bg-sky-500' : 'bg-[var(--panel-neutral-bg)]'}`}>
+              <div className={`w-8 h-4 rounded-full transition-all duration-300 relative ${showSystemStats ? 'bg-[var(--taskbar-toggle-active-bg)]' : 'bg-[var(--panel-neutral-bg)]'}`}>
                 <div className={`absolute top-0.5 w-3 h-3 bg-[var(--win-content-bg)] rounded-full shadow-sm transition-all duration-300 ${showSystemStats ? 'left-4.5' : 'left-0.5'}`} />
               </div>
             </button>
@@ -395,7 +395,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                     className={`flex items-center justify-between w-full px-3 py-2 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
                       ? 'opacity-50 grayscale cursor-not-allowed'
                       : isDark
-                        ? 'hover:bg-white/5 text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                        ? 'hover:bg-[var(--taskbar-menu-hover-bg)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                         : 'hover:bg-[var(--panel-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                       }`}
                     onClick={() => toggleConfig(item.key)}

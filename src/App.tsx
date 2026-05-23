@@ -74,7 +74,7 @@ function PortainerPlaceholder() {
       <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
         {t('app.portainerTitle')}
       </p>
-      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'rgba(226,232,240,0.74)' }}>
+      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'var(--app-placeholder-copy)' }}>
         {t('app.portainerBody')}
       </p>
     </div>
@@ -84,12 +84,12 @@ function PortainerPlaceholder() {
 function TerminalPlaceholder() {
   const { t } = useI18n()
   return (
-    <div className="rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: '#1a1108', color: '#c8f59a' }}>
-      <span style={{ color: '#f76707' }}>panel@ui</span>
-      <span style={{ color: 'white' }}>:</span>
-      <span style={{ color: '#c8f59a' }}>~</span>$ {t('app.terminalHint')}
+    <div className="rounded-lg p-4 font-mono text-xs leading-relaxed" style={{ background: 'var(--app-terminal-bg)', color: 'var(--app-terminal-text)' }}>
+      <span style={{ color: 'var(--app-terminal-user)' }}>panel@ui</span>
+      <span style={{ color: 'var(--app-terminal-separator)' }}>:</span>
+      <span style={{ color: 'var(--app-terminal-text)' }}>~</span>$ {t('app.terminalHint')}
       <br />
-      <span style={{ color: '#888' }}>{t('app.terminalSubhint')}</span>
+      <span style={{ color: 'var(--app-terminal-muted)' }}>{t('app.terminalSubhint')}</span>
     </div>
   )
 }
@@ -113,10 +113,10 @@ function WindowFallback() {
   const { t } = useI18n()
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
-      <Loader2 size={32} className="animate-spin text-sky-500 opacity-80" />
+      <Loader2 size={32} className="animate-spin text-[var(--app-loading-spinner)] opacity-80" />
       <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-semibold text-slate-600">{t('common.loadingApp')}</span>
-        <span className="text-[11px] text-slate-400 uppercase tracking-widest font-medium">{t('common.loadingModule')}</span>
+        <span className="text-sm font-semibold text-[var(--app-loading-text)]">{t('common.loadingApp')}</span>
+        <span className="text-[11px] text-[var(--app-loading-meta)] uppercase tracking-widest font-medium">{t('common.loadingModule')}</span>
       </div>
     </div>
   )
@@ -175,9 +175,9 @@ function Desktop({ onLogout, authenticated }: { onLogout: () => void; authentica
       </div>
       <Dock />
       {authenticated && wallpaperLoading ? (
-        <div className="pointer-events-none absolute inset-0 z-[1200] flex items-center justify-center bg-[color:rgba(6,10,20,0.28)] backdrop-blur-md">
-          <div className="flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-5 py-3 text-sm font-medium text-white shadow-[0_24px_80px_rgba(15,23,42,0.35)]">
-            <Loader2 size={16} className="animate-spin text-cyan-300" />
+        <div className="pointer-events-none absolute inset-0 z-[1200] flex items-center justify-center bg-[var(--app-wallpaper-overlay-bg)] backdrop-blur-md">
+          <div className="flex items-center gap-3 rounded-full border border-[var(--app-wallpaper-loader-border)] bg-[var(--app-wallpaper-loader-bg)] px-5 py-3 text-sm font-medium text-[var(--app-wallpaper-loader-text)] shadow-[var(--app-wallpaper-loader-shadow)]">
+            <Loader2 size={16} className="animate-spin text-[var(--app-wallpaper-spinner)]" />
             <span>{t('app.preparingWallpaper')}</span>
           </div>
         </div>
@@ -480,8 +480,8 @@ function AppShell() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen grid place-items-center text-white login-shell">
-        <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
+      <div className="min-h-screen grid place-items-center text-[var(--app-overlay-text)] login-shell">
+        <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-[var(--app-glass-muted-text)]">
           {t('app.checkingSession')}
         </div>
       </div>
@@ -555,8 +555,8 @@ function AppShell() {
       </AnimatePresence>
 
       {showAuthenticatedLoginRedirect ? (
-        <div className="absolute inset-0 z-[20000] grid place-items-center bg-slate-950 text-white">
-          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-white/78">
+        <div className="absolute inset-0 z-[20000] grid place-items-center bg-[var(--app-redirect-bg)] text-[var(--app-overlay-text)]">
+          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-[var(--app-glass-muted-text)]">
             {t('app.redirectingDashboard')}
           </div>
         </div>

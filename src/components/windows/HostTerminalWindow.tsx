@@ -14,20 +14,35 @@ import {
 } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 
-// ─── Xterm theme ─────────────────────────────────────────────────────────────
-const XTERM_THEME = {
-  background:          '#0d1117',
-  foreground:          '#c9d1d9',
-  cursor:              '#f59e0b',
-  cursorAccent:        '#0d1117',
-  selectionBackground: 'rgba(96,165,250,0.22)',
-  selectionForeground: '#f8fbff',
-  black:    '#0f172a', red:    '#fb7185', green:   '#34d399', yellow: '#fbbf24',
-  blue:     '#60a5fa', magenta:'#a78bfa', cyan:    '#22d3ee', white:  '#cdd9e5',
-  brightBlack: '#475569', brightRed: '#fda4af', brightGreen: '#6ee7b7',
-  brightYellow: '#fcd34d', brightBlue: '#93c5fd', brightMagenta: '#c4b5fd',
-  brightCyan: '#67e8f9', brightWhite: '#ffffff',
+const cssVar = (name: string) => {
+  if (typeof window === 'undefined') return `var(${name})`
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || `var(${name})`
 }
+
+const createXtermTheme = () => ({
+  background: cssVar('--terminal-bg'),
+  foreground: cssVar('--terminal-fg'),
+  cursor: cssVar('--terminal-cursor'),
+  cursorAccent: cssVar('--terminal-cursor-accent'),
+  selectionBackground: cssVar('--terminal-selection-bg'),
+  selectionForeground: cssVar('--terminal-selection-fg'),
+  black: cssVar('--terminal-black'),
+  red: cssVar('--terminal-red'),
+  green: cssVar('--terminal-green'),
+  yellow: cssVar('--terminal-yellow'),
+  blue: cssVar('--terminal-blue'),
+  magenta: cssVar('--terminal-magenta'),
+  cyan: cssVar('--terminal-cyan'),
+  white: cssVar('--terminal-white'),
+  brightBlack: cssVar('--terminal-bright-black'),
+  brightRed: cssVar('--terminal-bright-red'),
+  brightGreen: cssVar('--terminal-bright-green'),
+  brightYellow: cssVar('--terminal-bright-yellow'),
+  brightBlue: cssVar('--terminal-bright-blue'),
+  brightMagenta: cssVar('--terminal-bright-magenta'),
+  brightCyan: cssVar('--terminal-bright-cyan'),
+  brightWhite: cssVar('--terminal-bright-white'),
+})
 
 const TERMINAL_FONT_OPTIONS = [
   'Outfit, system-ui, sans-serif',
@@ -77,7 +92,7 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
     const xterm = new Terminal({
       cursorBlink: true, fontFamily, fontSize,
       lineHeight: 1.22, convertEol: true, scrollback: 5000,
-      allowTransparency: true, theme: XTERM_THEME,
+      allowTransparency: true, theme: createXtermTheme(),
     })
     const fit = new FitAddon()
     fitRef.current = fit
@@ -419,7 +434,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
               onClick={(e) => handleTabClick(tab.id, e)}
             >
               <span className="ht-status-dot" style={{
-                background: tab.error ? '#f87171' : tab.connected ? '#4ade80' : '#6b7280',
+                background: tab.error ? 'var(--status-error)' : tab.connected ? 'var(--status-online)' : 'var(--status-offline)',
               }} />
               <span className="ht-tab-label">{tab.label}</span>
               {tabs.length > 1 && (
