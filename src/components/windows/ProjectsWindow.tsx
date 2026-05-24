@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   listProjects,
   createProject,
+  updateProject,
   deleteProject,
   startProject,
   stopProject,
+  uploadStaticProjectBuild,
   getProjectAttentionSummary,
   type Project,
 } from '@/api/agent'
@@ -31,6 +33,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Terminal,
+  Upload,
+  Pencil,
   // Sparkles,
 } from 'lucide-react'
 
@@ -61,6 +65,19 @@ interface ProjectsWindowProps {
 }
 
 type AttentionFilter = 'all' | 'drift' | 'degraded'
+type UploadPhase = 'uploading' | 'extracting' | 'done' | 'error'
+type StaticUploadState = {
+  projectName: string
+  fileName: string
+  percent: number
+  phase: UploadPhase
+}
+type UploadDraft = {
+  project: Project
+  file: File | null
+  rootDir: string
+  clean: boolean
+}
 
 export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   const pollingActive = useWindowPollingActive(win)
@@ -68,6 +85,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   const openWindow = useWindowStore((state) => state.openWindow)
   const { t } = useI18n()
   const [showCreate, setShowCreate] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
@@ -80,6 +98,9 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
   })
   const [attentionOnly, setAttentionOnly] = useState(false)
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>('all')
+  const uploadClearTimerRef = useRef<number | null>(null)
+  const [staticUpload, setStaticUpload] = useState<StaticUploadState | null>(null)
+  const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null)
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['projects', { search, offset }],
@@ -184,6 +205,51 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
     },
     onError: (e: any) => alertLib.fire(t('projects.deleteFailedTitle'), e.response?.data?.error ?? t('projects.deleteFailedMessage'), 'error', 'projects'),
   })
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: typeof form }) => updateProject(id, payload),
+    onSuccess: (p) => {
+      alertLib.fire('Project Diperbarui', `Project <strong>${p.name}</strong> berhasil diperbarui.`, 'success', 'projects')
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      setEditingProject(null)
+      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' })
+    },
+    onError: (e: any) => {
+      const message = e.response?.data?.error ?? 'Gagal memperbarui project'
+      toast.error('Gagal memperbarui project', { description: message })
+      alertLib.fire('Gagal Update Project', message, 'error', 'projects')
+    },
+  })
+
+  const uploadStaticMut = useMutation({
+    mutationFn: async ({ project, file, rootDir, clean }: { project: Project; file: File; rootDir: string; clean: boolean }) => {
+      if (uploadClearTimerRef.current) window.clearTimeout(uploadClearTimerRef.current)
+      setStaticUpload({ projectName: project.name, fileName: file.name, percent: 0, phase: 'uploading' })
+      return uploadStaticProjectBuild(project.id, file, clean, rootDir, (percent) => {
+        setStaticUpload((current) => current
+          ? { ...current, percent, phase: percent >= 100 ? 'extracting' : 'uploading' }
+          : current)
+      })
+    },
+    onSuccess: (_, variables) => {
+      setStaticUpload((current) => current ? { ...current, percent: 100, phase: 'done' } : current)
+      toast.success('Build static berhasil diupload', { description: variables.project.name })
+      alertLib.fire('Build Static Diupload', `File build untuk <strong>${variables.project.name}</strong> berhasil diextract ke working directory.`, 'success', 'projects')
+      setUploadDraft(null)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+    onError: (e: any) => {
+      setStaticUpload((current) => current ? { ...current, phase: 'error' } : current)
+      const message = e.response?.data?.error ?? 'Gagal upload build static'
+      toast.error('Gagal upload build static', { description: message })
+      alertLib.fire('Gagal Upload Build', message, 'error', 'projects')
+    },
+    onSettled: () => {
+      uploadClearTimerRef.current = window.setTimeout(() => {
+        setStaticUpload(null)
+      }, 900)
+    },
+  })
   const highlightedProject = useMemo(
     () => visibleProjects.find((project) => project.id === highlightedProjectId) ?? null,
     [highlightedProjectId, visibleProjects],
@@ -246,8 +312,142 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
     }
   }
 
+  const openTunnelForProject = (project: Project) => {
+    openWindow('tunnels', {
+      tab: 'tunnels',
+      action: 'createTunnel',
+      projectId: project.id,
+      projectName: project.name,
+      projectSlug: project.slug,
+      projectPort: project.assignedPort,
+      shortcutNonce: Date.now(),
+    })
+  }
+
+  const openStaticUpload = (project: Project) => {
+    setUploadDraft({ project, file: null, rootDir: '', clean: false })
+  }
+
+  const openEditProject = (project: Project) => {
+    setEditingProject(project)
+    setForm({
+      name: project.name,
+      description: project.description,
+      projectType: project.projectType,
+      repoUrl: project.repoUrl,
+      workingDir: project.workingDir,
+    })
+  }
+
+  const submitStaticUpload = () => {
+    if (!uploadDraft?.file) {
+      toast.error('File ZIP belum dipilih')
+      return
+    }
+    const file = uploadDraft.file
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      toast.error('Format file tidak didukung', { description: 'Upload build static harus berupa file .zip.' })
+      return
+    }
+    uploadStaticMut.mutate({
+      project: uploadDraft.project,
+      file,
+      rootDir: uploadDraft.rootDir.trim(),
+      clean: uploadDraft.clean,
+    })
+  }
+
   return (
-    <div className="panel-window">
+    <div className="panel-window relative overflow-hidden">
+      {staticUpload && (
+        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-[var(--win-bg)]/82 px-6 backdrop-blur-md">
+          <div className="w-full max-w-[420px] rounded-[18px] border border-[var(--win-border)] bg-[var(--card-bg)]/95 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.22)]">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+                {staticUpload.phase === 'done' ? <FolderCode className="h-5 w-5" /> : <Upload className={`h-5 w-5 ${staticUpload.phase === 'uploading' || staticUpload.phase === 'extracting' ? 'animate-pulse' : ''}`} />}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-[var(--win-text)]">
+                  {staticUpload.phase === 'uploading'
+                    ? 'Mengupload build static'
+                    : staticUpload.phase === 'extracting'
+                      ? 'Mengekstrak file build'
+                      : staticUpload.phase === 'done'
+                        ? 'Upload selesai'
+                        : 'Upload gagal'}
+                </div>
+                <div className="mt-0.5 truncate text-[11px] text-[var(--text-secondary)]">
+                  {staticUpload.projectName} • {staticUpload.fileName}
+                </div>
+              </div>
+              <div className="ml-auto panel-mono text-sm font-semibold text-[var(--win-text)]">{staticUpload.percent}%</div>
+            </div>
+            <div className="panel-progress">
+              <div className="panel-progress__bar transition-[width] duration-300" style={{ width: `${staticUpload.percent}%` }} />
+            </div>
+            <div className="mt-3 text-[11px] leading-5 text-[var(--text-secondary)]">
+              {staticUpload.phase === 'extracting'
+                ? 'Upload sudah diterima. Backend sedang membersihkan folder project dan mengekstrak ZIP.'
+                : staticUpload.phase === 'done'
+                  ? 'File sudah siap dipakai oleh static server.'
+                  : staticUpload.phase === 'error'
+                    ? 'Cek pesan error untuk detail kegagalan.'
+                    : 'Jangan tutup window sampai proses selesai.'}
+            </div>
+          </div>
+        </div>
+      )}
+      {uploadDraft && (
+        <div className="panel-modal-overlay">
+          <div className="panel-modal-card" style={{ width: 'min(100%, 520px)' }}>
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
+              <Upload className="panel-window__icon h-4 w-4" />
+              Upload Build Static
+            </h3>
+            <p className="mb-4 text-[12px] text-[var(--text-secondary)]">
+              {uploadDraft.project.name} • target {uploadDraft.project.workingDir || 'working directory project'}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="panel-section-label">File ZIP build</label>
+                <input
+                  type="file"
+                  accept=".zip,application/zip"
+                  className="panel-input"
+                  onChange={(event) => setUploadDraft((current) => current ? { ...current, file: event.target.files?.[0] ?? null } : current)}
+                />
+              </div>
+              <div>
+                <label className="panel-section-label">Folder root di dalam ZIP</label>
+                <input
+                  value={uploadDraft.rootDir}
+                  onChange={(event) => setUploadDraft((current) => current ? { ...current, rootDir: event.target.value } : current)}
+                  className="panel-input panel-input--mono"
+                  placeholder="dist, build, public, atau kosong untuk auto-detect"
+                />
+                <p className="mt-1 text-[12px] text-[var(--text-secondary)]">Kosongkan untuk auto-detect. Isi manual seperti `dist`, `build`, `out`, atau `public` jika perlu.</p>
+              </div>
+              <label className="cloudflare-checkbox !mt-0">
+                <input
+                  type="checkbox"
+                  checked={uploadDraft.clean}
+                  onChange={(event) => setUploadDraft((current) => current ? { ...current, clean: event.target.checked } : current)}
+                />
+                Bersihkan isi working directory sebelum extract
+              </label>
+              <p className="mt-[-10px] text-[11px] leading-5 text-[var(--text-secondary)]">
+                Jika folder root diisi, struktur ZIP tetap dipertahankan dan project akan diarahkan ke folder itu.
+              </p>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button type="button" onClick={() => setUploadDraft(null)} className="panel-btn panel-btn--ghost flex-1">Batal</button>
+              <button type="button" onClick={submitStaticUpload} disabled={uploadStaticMut.isPending || !uploadDraft.file} className="panel-btn panel-btn--primary flex-1">
+                {uploadStaticMut.isPending ? 'Mengupload...' : 'Upload & Extract'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="panel-window__header">
         <div className="panel-window__title">
           <FolderCode className="panel-window__icon h-4 w-4" />
@@ -292,19 +492,19 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
             dropdownClassName="left-auto right-0 min-w-[360px] max-w-[min(520px,calc(100vw-32px))]"
             itemClassName="projects-attention-filter__item"
           />
-          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
+          <button onClick={() => { setEditingProject(null); setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' }); setShowCreate(true) }} className="panel-btn panel-btn--primary-soft">
             <Plus className="h-3.5 w-3.5" />
             {t('projects.createButton')}
           </button>
         </div>
       </div>
 
-      {showCreate && (
+      {(showCreate || editingProject) && (
         <div className="panel-modal-overlay">
           <div className="panel-modal-card" style={{ width: 'min(100%, 520px)' }}>
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[var(--win-text)]">
               <FolderCode className="panel-window__icon h-4 w-4" />
-              {t('projects.newProject')}
+              {editingProject ? 'Edit Project' : t('projects.newProject')}
             </h3>
             <div className="space-y-3">
               <div>
@@ -367,9 +567,14 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setShowCreate(false)} className="panel-btn panel-btn--ghost flex-1">{t('common.cancel')}</button>
-              <button type="button" onClick={() => createMut.mutate(form)} disabled={createMut.isPending || !form.name.trim()} className="panel-btn panel-btn--primary flex-1">
-                {createMut.isPending ? t('projects.creating') : t('projects.createButton')}
+              <button type="button" onClick={() => { setShowCreate(false); setEditingProject(null) }} className="panel-btn panel-btn--ghost flex-1">{t('common.cancel')}</button>
+              <button
+                type="button"
+                onClick={() => editingProject ? updateMut.mutate({ id: editingProject.id, payload: form }) : createMut.mutate(form)}
+                disabled={createMut.isPending || updateMut.isPending || !form.name.trim()}
+                className="panel-btn panel-btn--primary flex-1"
+              >
+                {createMut.isPending || updateMut.isPending ? t('projects.creating') : editingProject ? 'Simpan Project' : t('projects.createButton')}
               </button>
             </div>
           </div>
@@ -519,6 +724,9 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     highlighted={highlightedProjectId === p.id}
                     onStart={() => startMut.mutate(p.id)}
                     onStop={() => stopMut.mutate(p.id)}
+                    onTunnel={() => openTunnelForProject(p)}
+                    onUpload={() => openStaticUpload(p)}
+                    onEdit={() => openEditProject(p)}
                     onDelete={async () => {
                       const confirmed = await alertLib.confirm(
                         t('projects.deleteConfirmTitle'),
@@ -532,6 +740,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     }}
                     isStarting={startMut.isPending && startMut.variables === p.id}
                     isStopping={stopMut.isPending && stopMut.variables === p.id}
+                    isUploading={uploadStaticMut.isPending && uploadStaticMut.variables?.project.id === p.id}
                   />
                 ))}
               </>
@@ -559,17 +768,25 @@ function ProjectCard({
   highlighted = false,
   onStart,
   onStop,
+  onTunnel,
+  onUpload,
+  onEdit,
   onDelete,
   isStarting,
   isStopping,
+  isUploading,
 }: {
   project: Project
   highlighted?: boolean
   onStart: () => void
   onStop: () => void
+  onTunnel: () => void
+  onUpload: () => void
+  onEdit: () => void
   onDelete: () => void
   isStarting: boolean
   isStopping: boolean
+  isUploading: boolean
 }) {
   const { t } = useI18n()
   const runtimeLabel = p.runtime?.drift ? t('projects.runtimeDrift') : p.runtime?.known ? (p.runtime.running ? t('projects.runtimeActive') : t('projects.runtimeStopped')) : t('projects.runtimeUnknown')
@@ -605,6 +822,17 @@ function ProjectCard({
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-1">
+            {p.projectType === 'static' && (
+              <button onClick={onUpload} disabled={isUploading} className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs">
+                {isUploading ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} Upload
+              </button>
+            )}
+            <button onClick={onTunnel} disabled={!p.assignedPort} className="panel-btn panel-btn--ghost px-2.5 py-1.5 text-xs">
+              <Globe className="h-3 w-3" /> Tunnel
+            </button>
+            <button onClick={onEdit} className="panel-icon-btn" title="Edit project">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
             {p.running || p.status === 'active' ? (
               <button onClick={onStop} disabled={isStopping} className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]">
                 <Square className="h-3 w-3" /> {t('projects.stopShort')}
