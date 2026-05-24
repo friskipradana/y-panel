@@ -94,7 +94,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 			driftCount := 0
 			attentionCount := 0
 			for _, project := range projectList {
-				snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+				snapshot := s.projectManager.SnapshotProject(project)
 				if strings.EqualFold(strings.TrimSpace(project.Status), "active") || snapshot.Running {
 					activeCount++
 				}

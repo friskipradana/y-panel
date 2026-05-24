@@ -68,6 +68,14 @@ export const createProject = (payload: {
   workingDir?: string
 }) => agentApi.post<Project>('/api/v1/projects', payload).then((r) => r.data)
 
+export const updateProject = (id: number, payload: {
+  name: string
+  description?: string
+  projectType: string
+  repoUrl?: string
+  workingDir?: string
+}) => agentApi.put<Project>(`/api/v1/projects/${id}`, payload).then((r) => r.data)
+
 export const getProject = (id: number) =>
   agentApi.get<Project>(`/api/v1/projects/${id}`).then((r) => r.data)
 
@@ -79,3 +87,19 @@ export const startProject = (id: number) =>
 
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)
+
+export const uploadStaticProjectBuild = (id: number, file: File, clean = true, rootDir = '', onProgress?: (percent: number) => void) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('clean', clean ? 'true' : 'false')
+  formData.append('rootDir', rootDir)
+  return agentApi
+    .post<{ ok: boolean; project: Project; workingDir: string }>(`/api/v1/projects/${id}/upload-static`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (event) => {
+        if (!event.total) return
+        onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      },
+    })
+    .then((r) => r.data)
+}

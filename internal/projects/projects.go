@@ -4,12 +4,14 @@ package projects
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
@@ -46,8 +48,9 @@ func AllocatePort(userID int64, projectIndex int) int {
 // ─── Process Manager ─────────────────────────────────────────────────────────
 
 type projectProcess struct {
-	cmd     *exec.Cmd
-	stopped bool
+	cmd          *exec.Cmd
+	assignedPort int
+	stopped      bool
 }
 
 // Manager tracks running project processes in memory.
@@ -99,7 +102,7 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 		return fmt.Errorf("start project %d: %w", project.ID, err)
 	}
 
-	m.procs[project.ID] = &projectProcess{cmd: cmd}
+	m.procs[project.ID] = &projectProcess{cmd: cmd, assignedPort: project.AssignedPort}
 	return nil
 }
 
@@ -126,13 +129,27 @@ func (m *Manager) IsRunning(projectID int64) bool {
 }
 
 func (m *Manager) Snapshot(projectID int64, desiredStatus string) RuntimeSnapshot {
+	return m.snapshot(projectID, desiredStatus, 0)
+}
+
+func (m *Manager) SnapshotProject(project database.Project) RuntimeSnapshot {
+	return m.snapshot(project.ID, project.Status, project.AssignedPort)
+}
+
+func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort int) RuntimeSnapshot {
 	m.mu.RLock()
 	proc, ok := m.procs[projectID]
 	m.mu.RUnlock()
 
-	running := ok && isAlive(proc.cmd)
+	port := assignedPort
+	if port <= 0 && ok {
+		port = proc.assignedPort
+	}
+	processRunning := ok && isAlive(proc.cmd)
+	portRunning := isLocalPortOpen(port)
+	running := processRunning || portRunning
 	snapshot := RuntimeSnapshot{
-		Known:   ok,
+		Known:   ok || portRunning,
 		Running: running,
 		Status:  "stopped",
 	}
@@ -154,7 +171,11 @@ func (m *Manager) Snapshot(projectID int64, desiredStatus string) RuntimeSnapsho
 	case "stopped":
 		if running {
 			snapshot.Drift = true
-			snapshot.DriftReason = "expected_stopped_but_running"
+			if portRunning && !processRunning {
+				snapshot.DriftReason = "expected_stopped_but_port_accepting"
+			} else {
+				snapshot.DriftReason = "expected_stopped_but_running"
+			}
 		}
 	}
 
@@ -164,7 +185,7 @@ func (m *Manager) Snapshot(projectID int64, desiredStatus string) RuntimeSnapsho
 func (m *Manager) SnapshotAll(projects []database.Project) map[int64]RuntimeSnapshot {
 	result := make(map[int64]RuntimeSnapshot, len(projects))
 	for _, project := range projects {
-		result[project.ID] = m.Snapshot(project.ID, project.Status)
+		result[project.ID] = m.SnapshotProject(project)
 	}
 	return result
 }
@@ -212,11 +233,15 @@ func buildCommand(user *database.User, p *database.Project) (*exec.Cmd, error) {
 		cmd = exec.Command("php", "-S", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort))
 
 	case "static":
-		// Serve with npx serve or python http.server
+		// Static projects are served with SPA fallback so direct links such as
+		// /dashboard/users still resolve to index.html when no file exists.
+		if !fileExists(filepath.Join(p.WorkingDir, "index.html")) {
+			return nil, fmt.Errorf("static project %d missing index.html in working directory %q", p.ID, p.WorkingDir)
+		}
 		if which("serve") {
-			cmd = exec.Command("serve", "-l", fmt.Sprintf("%d", p.AssignedPort), ".")
+			cmd = exec.Command("serve", "-s", "-l", fmt.Sprintf("%d", p.AssignedPort), ".")
 		} else {
-			cmd = exec.Command("python3", "-m", "http.server", fmt.Sprintf("%d", p.AssignedPort))
+			cmd = exec.Command("python3", "-c", staticSPAServerScript(), fmt.Sprintf("%d", p.AssignedPort))
 		}
 
 	case "proxy":
@@ -263,9 +288,47 @@ func which(bin string) bool {
 	return err == nil
 }
 
+func staticSPAServerScript() string {
+	return `
+import os
+import sys
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+class SPAHandler(SimpleHTTPRequestHandler):
+    def send_head(self):
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            return super().send_head()
+        if not os.path.exists(path):
+            index_path = os.path.join(os.getcwd(), "index.html")
+            if os.path.exists(index_path):
+                self.path = "/index.html"
+        return super().send_head()
+
+port = int(sys.argv[1])
+server = ThreadingHTTPServer(("0.0.0.0", port), SPAHandler)
+server.serve_forever()
+`
+}
+
 func isAlive(cmd *exec.Cmd) bool {
 	if cmd == nil || cmd.Process == nil {
 		return false
 	}
+	if cmd.ProcessState != nil {
+		return !cmd.ProcessState.Exited()
+	}
 	return cmd.Process.Signal(os.Signal(nil)) == nil
+}
+
+func isLocalPortOpen(port int) bool {
+	if port <= 0 {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }

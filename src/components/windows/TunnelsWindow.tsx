@@ -13,6 +13,7 @@ import {
   getCFConfig,
   getCFZones,
   getCloudflareDomain,
+  listProjects,
   listCloudflareDNSRecords,
   listCloudflareDomains,
   listCloudflareTunnelProfileRoutes,
@@ -23,6 +24,7 @@ import {
   type CloudflareDNSRecordPayload,
   type CloudflareDomain,
   type CloudflareTunnelProfile,
+  type Project,
   type Tunnel,
 } from '@/api/agent'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
@@ -61,7 +63,7 @@ const STATUS_CONFIG: Record<string, { variant: string; labelKey: string }> = {
 
 const DNS_TYPES = ['A', 'AAAA', 'CNAME', 'TXT', 'MX', 'SRV', 'NS', 'CAA']
 const emptyDnsForm = { type: 'A', name: '', content: '', ttl: 1, proxied: false, priority: '', comment: '' }
-const emptyTunnelForm = { name: '', subdomain: '', domain: '', zoneId: '', profileId: '', path: '', protocol: 'http', ip: 'localhost', port: '3000' }
+const emptyTunnelForm = { name: '', subdomain: '', domain: '', zoneId: '', profileId: '', path: '', protocol: 'http', ip: 'localhost', port: '3000', projectId: '' }
 const emptyDomainForm = { name: '' }
 const emptyProfileForm = { name: '', mode: 'managed' as 'managed' | 'custom', tunnelId: '' }
 
@@ -108,7 +110,23 @@ function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name: strin
     }
   }
 
-  return { name: t.name, subdomain, domain, zoneId, profileId: t.cfTunnelId || '', path, protocol, ip, port }
+  return { name: t.name, subdomain, domain, zoneId, profileId: t.cfTunnelId || '', path, protocol, ip, port, projectId: t.projectId ? String(t.projectId) : '' }
+}
+
+function slugifyRoutePart(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+}
+
+function tunnelPayload(form: TunnelForm): Parameters<typeof createTunnel>[0] {
+  return {
+    ...form,
+    projectId: form.projectId ? Number(form.projectId) : null,
+  }
 }
 
 export default function TunnelsWindow({ win }: { win?: WindowState }) {
@@ -142,22 +160,38 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   const { data: dnsRecords = [], isLoading: dnsLoading } = useQuery({ queryKey: ['cloudflare-dns', selectedDomainId], queryFn: () => listCloudflareDNSRecords(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
   const { data: profiles = [], isLoading: profilesLoading, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: pollingActive ? 8_000 : false })
   const { data: profileRoutes = [], isLoading: routesLoading } = useQuery({ queryKey: ['cloudflare-profile-routes', selectedProfileId], queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId), enabled: !cfNotConfigured && !!selectedProfileId, refetchInterval: pollingActive ? 8_000 : false })
+  const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured })
 
   const safeCfZones = Array.isArray(cfZones) ? cfZones : []
   const safeDomains = Array.isArray(domains) ? domains : []
   const safeDnsRecords = Array.isArray(dnsRecords) ? dnsRecords : []
   const safeProfiles = Array.isArray(profiles) ? profiles : []
   const safeProfileRoutes = Array.isArray(profileRoutes) ? profileRoutes : []
+  const safeProjects = Array.isArray(projectData?.items) ? projectData.items : []
 
   useEffect(() => {
     if (!win?.params) return
     if (win.params.tab === 'tunnels') setTab('tunnels')
     if (win.params.action === 'createTunnel') {
       setEditingTunnelId(null)
-      setTunnelForm(emptyTunnelForm)
+      const projectId = Number(win.params.projectId ?? 0) || 0
+      const projectName = typeof win.params.projectName === 'string' ? win.params.projectName : ''
+      const projectSlug = typeof win.params.projectSlug === 'string' ? win.params.projectSlug : slugifyRoutePart(projectName)
+      const projectPort = Number(win.params.projectPort ?? 0) || 0
+      const routeName = projectName ? `${projectName} tunnel` : ''
+      setTunnelForm({
+        ...emptyTunnelForm,
+        name: routeName,
+        subdomain: slugifyRoutePart(projectSlug || projectName),
+        profileId: selectedProfileId || '',
+        protocol: 'http',
+        ip: 'localhost',
+        port: projectPort > 0 ? String(projectPort) : emptyTunnelForm.port,
+        projectId: projectId > 0 ? String(projectId) : '',
+      })
       setShowTunnelModal(true)
     }
-  }, [win?.params?.action, win?.params?.shortcutNonce, win?.params?.tab])
+  }, [selectedProfileId, win?.params?.action, win?.params?.shortcutNonce, win?.params?.tab])
 
   useEffect(() => {
     if (!selectedDomainId && safeDomains.length) setSelectedDomainId(safeDomains[0].id)
@@ -176,6 +210,18 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   const zoneOptions = useMemo(() => safeCfZones.map((zone) => ({ value: zone.id, label: zone.name })), [safeCfZones])
   const protocolOptions = useMemo(() => [{ value: 'http', label: 'http://' }, { value: 'https', label: 'https://' }], [])
   const profileOptions = useMemo(() => safeProfiles.map((p) => ({ value: p.id, label: p.name || p.id })), [safeProfiles])
+  const tunnelProjects = useMemo(() => safeProjects.filter((project) => project.assignedPort > 0), [safeProjects])
+  const projectOptions = useMemo(
+    () => [
+      { value: '', label: 'Manual target' },
+      ...tunnelProjects.map((project) => ({
+        value: String(project.id),
+        label: `${project.name} :${project.assignedPort}`,
+        description: `${project.projectType}${project.running ? ' - running' : ''}`,
+      })),
+    ],
+    [tunnelProjects],
+  )
 
   const dnsPayload = (): CloudflareDNSRecordPayload => ({
     type: dnsForm.type,
@@ -324,7 +370,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   })
 
   const updateTunnelMut = useMutation({
-    mutationFn: (payload: TunnelForm) => updateTunnel(editingTunnelId!, payload),
+    mutationFn: (payload: TunnelForm) => updateTunnel(editingTunnelId!, tunnelPayload(payload)),
     onSuccess: () => {
       toast.success(t('tunnels.routeUpdated'))
       closeTunnelModal()
@@ -385,7 +431,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
     setShowTunnelModal(true)
   }
 
-  const handleSync = (route: Tunnel) => syncMut.mutate({ id: route.id, payload: buildTunnelFormFromTunnel(route, safeCfZones) })
+  const handleSync = (route: Tunnel) => syncMut.mutate({ id: route.id, payload: tunnelPayload(buildTunnelFormFromTunnel(route, safeCfZones)) })
 
   return (
     <div className="panel-window cloudflare-window">
@@ -569,8 +615,10 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
           cfZones={safeCfZones}
           protocolOptions={protocolOptions}
           profileOptions={profileOptions}
+          projectOptions={projectOptions}
+          projects={tunnelProjects}
           onClose={closeTunnelModal}
-          onSubmit={() => editingTunnelId ? updateTunnelMut.mutate(tunnelForm) : createTunnelMut.mutate(tunnelForm)}
+          onSubmit={() => editingTunnelId ? updateTunnelMut.mutate(tunnelForm) : createTunnelMut.mutate(tunnelPayload(tunnelForm))}
           pending={createTunnelMut.isPending || updateTunnelMut.isPending}
         />
       )}
@@ -961,8 +1009,25 @@ function ProfileModal({ form, setForm, onClose, onSubmit, pending }: { form: Pro
   )
 }
 
-function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, onClose, onSubmit, pending }: { form: TunnelForm; setForm: React.Dispatch<React.SetStateAction<TunnelForm>>; editing: boolean; zoneOptions: { value: string; label: string }[]; cfZones: { id: string; name: string }[]; protocolOptions: { value: string; label: string }[]; profileOptions: { value: string; label: string }[]; onClose: () => void; onSubmit: () => void; pending: boolean }) {
+function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, projectOptions, projects, onClose, onSubmit, pending }: { form: TunnelForm; setForm: React.Dispatch<React.SetStateAction<TunnelForm>>; editing: boolean; zoneOptions: { value: string; label: string }[]; cfZones: { id: string; name: string }[]; protocolOptions: { value: string; label: string }[]; profileOptions: { value: string; label: string }[]; projectOptions: { value: string; label: string; description?: string }[]; projects: Project[]; onClose: () => void; onSubmit: () => void; pending: boolean }) {
   const { t } = useI18n()
+  const selectProject = (projectId: string) => {
+    const project = projects.find((item) => String(item.id) === projectId)
+    setForm((current) => {
+      if (!project) return { ...current, projectId }
+      const routePart = slugifyRoutePart(project.slug || project.name)
+      return {
+        ...current,
+        projectId,
+        name: current.name || `${project.name} tunnel`,
+        subdomain: current.subdomain || routePart,
+        protocol: 'http',
+        ip: 'localhost',
+        port: String(project.assignedPort),
+      }
+    })
+  }
+
   return (
     <div className="panel-modal-overlay">
       <div className="panel-modal-card cloudflare-modal-card">
@@ -970,6 +1035,7 @@ function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOpt
         <p className="mb-4 text-[12px] text-[var(--text-secondary)]">{t('tunnels.routeModalSubtitle')}</p>
         <div className="space-y-4">
           {!editing && <div><label className="panel-section-label">{t('tunnels.tunnelProfileRequired')}</label><PanelSelectMenu id="route-profile-select" value={form.profileId} onChange={(v) => setForm((f) => ({ ...f, profileId: v }))} options={profileOptions} searchable /></div>}
+          <div><label className="panel-section-label">Project sumber</label><PanelSelectMenu id="route-project-select" value={form.projectId} onChange={selectProject} options={projectOptions} searchable /></div>
           <div><label className="panel-section-label">{t('tunnels.routeNameRequired')}</label><input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="panel-input" placeholder={t('tunnels.routeNamePlaceholder')} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="panel-section-label">{t('tunnels.subdomain')}</label><input value={form.subdomain} onChange={(e) => setForm((f) => ({ ...f, subdomain: e.target.value }))} className="panel-input" placeholder={t('tunnels.subdomainPlaceholder')} /></div>

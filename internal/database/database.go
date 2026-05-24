@@ -1015,6 +1015,25 @@ func (m *Manager) UpdateProjectStatus(id int64, status string) error {
 	return err
 }
 
+func (m *Manager) UpdateProject(id, userID int64, name, description, projectType, repoURL, workingDir string) (*Project, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var p Project
+	err := m.db.QueryRow(`
+		UPDATE projects
+		SET name = $3, description = $4, project_type = $5, repo_url = $6, working_dir = $7, updated_at = NOW()
+		WHERE id = $1 AND user_id = $2
+		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
+			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+	`, id, userID, name, description, projectType, repoURL, workingDir).Scan(
+		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
+		&p.RepoURL, &p.WorkingDir, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
+	)
+	return &p, err
+}
+
 func (m *Manager) DeleteProject(id, userID int64) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")

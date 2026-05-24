@@ -200,7 +200,7 @@ func (s *Server) reconcileProjectStatuses() {
 		return
 	}
 	for _, project := range projectList {
-		snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+		snapshot := s.projectManager.SnapshotProject(project)
 		nextStatus := deriveReconciledProjectStatus(project.Status, snapshot)
 		if nextStatus == strings.TrimSpace(project.Status) {
 			continue

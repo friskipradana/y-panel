@@ -6,10 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	osuserpkg "os/user"
+	"path/filepath"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -17,6 +22,7 @@ import (
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -1012,7 +1018,7 @@ type projectAttentionSummary struct {
 }
 
 func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime {
-	snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+	snapshot := s.projectManager.SnapshotProject(project)
 	if snapshot.Drift {
 		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
 			"projectId":     project.ID,
@@ -1075,7 +1081,7 @@ func (s *Server) handleProjectAttentionSummary(w http.ResponseWriter, r *http.Re
 
 	summary := projectAttentionSummary{Total: total}
 	for _, project := range projectList {
-		snapshot := s.projectManager.Snapshot(project.ID, project.Status)
+		snapshot := s.projectManager.SnapshotProject(project)
 		isDegraded := strings.EqualFold(strings.TrimSpace(project.Status), "degraded")
 		if isDegraded {
 			summary.DegradedCount++
@@ -1117,8 +1123,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	slug := slugify(req.Name)
 	existing, _ := s.database.ListProjects(u.ID)
 	assignedPort := allocateProjectPort(u.ID, len(existing))
+	workingDir, err := prepareProjectWorkingDir(u, slug, req.WorkingDir, req.ProjectType)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
+		return
+	}
 
-	p, err := s.database.CreateProject(u.ID, req.Name, slug, req.Description, req.ProjectType, req.RepoURL, req.WorkingDir, assignedPort)
+	p, err := s.database.CreateProject(u.ID, req.Name, slug, req.Description, req.ProjectType, req.RepoURL, workingDir, assignedPort)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1126,6 +1137,412 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[projects] created id=%d name=%q user=%q port=%d", p.ID, p.Name, u.Username, p.AssignedPort)
 	s.notifyUserAction(u.ID, "Project dibuat 🚀", fmt.Sprintf("Project '%s' berhasil dibuat pada port %d.", p.Name, p.AssignedPort), "success")
 	s.writeJSON(w, http.StatusCreated, p)
+}
+
+func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType string) (string, error) {
+	if u == nil {
+		return "", errors.New("user is required")
+	}
+	osUsername, err := panelosuser.EnsureUser(u.Username, u.DisplayName)
+	if err != nil {
+		return "", err
+	}
+
+	workingDir := strings.TrimSpace(requestedDir)
+	if workingDir == "" {
+		workingDir = filepath.Join(panelosuser.ResolveHomeDir(u.Username), "project", slug)
+	}
+	workingDir = filepath.Clean(workingDir)
+	if err := os.MkdirAll(workingDir, 0755); err != nil {
+		return "", err
+	}
+	if err := chownPathToUser(workingDir, osUsername); err != nil {
+		return "", err
+	}
+
+	if strings.EqualFold(strings.TrimSpace(projectType), "static") {
+		indexPath := filepath.Join(workingDir, "index.html")
+		if _, err := os.Stat(indexPath); errors.Is(err, os.ErrNotExist) {
+			content := fmt.Sprintf(`<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>%s</title>
+</head>
+<body>
+  <main>
+    <h1>%s</h1>
+    <p>Static project siap. Upload file build SPA ke folder ini.</p>
+  </main>
+</body>
+</html>
+`, slug, slug)
+			if err := os.WriteFile(indexPath, []byte(content), 0644); err != nil {
+				return "", err
+			}
+			if err := chownPathToUser(indexPath, osUsername); err != nil {
+				return "", err
+			}
+		} else if err != nil {
+			return "", err
+		}
+	}
+
+	return workingDir, nil
+}
+
+func chownPathToUser(path, osUsername string) error {
+	if runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
+		return nil
+	}
+	account, err := osuserpkg.Lookup(osUsername)
+	if err != nil {
+		return nil
+	}
+	uid, err := strconv.Atoi(account.Uid)
+	if err != nil {
+		return nil
+	}
+	gid, err := strconv.Atoi(account.Gid)
+	if err != nil {
+		return nil
+	}
+	return os.Chown(path, uid, gid)
+}
+
+func chownPathRecursiveToUser(path, osUsername string) error {
+	if runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
+		return nil
+	}
+	return filepath.Walk(path, func(current string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		return chownPathToUser(current, osUsername)
+	})
+}
+
+func clearDirectoryContents(dir string) error {
+	cleanDir := filepath.Clean(dir)
+	entries, err := os.ReadDir(cleanDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		target := filepath.Join(cleanDir, entry.Name())
+		if !pathWithinRoot(target, cleanDir) || filepath.Clean(target) == cleanDir {
+			return fmt.Errorf("refusing to remove unsafe path %q", target)
+		}
+		if err := os.RemoveAll(target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeStaticUploadRoot(projectDir string) error {
+	indexPath := filepath.Join(projectDir, "index.html")
+	if _, err := os.Stat(indexPath); err == nil {
+		return nil
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	entries, err := os.ReadDir(projectDir)
+	if err != nil {
+		return err
+	}
+	if len(entries) != 1 || !entries[0].IsDir() {
+		return nil
+	}
+
+	nestedDir := filepath.Join(projectDir, entries[0].Name())
+	if _, err := os.Stat(filepath.Join(nestedDir, "index.html")); err != nil {
+		return nil
+	}
+	nestedEntries, err := os.ReadDir(nestedDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range nestedEntries {
+		source := filepath.Join(nestedDir, entry.Name())
+		target := filepath.Join(projectDir, entry.Name())
+		if _, err := os.Stat(target); err == nil {
+			return fmt.Errorf("target already exists while flattening upload: %s", entry.Name())
+		}
+		if err := os.Rename(source, target); err != nil {
+			return err
+		}
+	}
+	return os.Remove(nestedDir)
+}
+
+func detectStaticUploadSource(tempDir, requestedRoot string) (string, error) {
+	cleanRoot := strings.TrimSpace(requestedRoot)
+	if cleanRoot != "" {
+		source, err := resolveRequestedStaticRoot(tempDir, cleanRoot)
+		if err != nil {
+			return "", err
+		}
+		return source, nil
+	}
+
+	if _, err := os.Stat(filepath.Join(tempDir, "index.html")); err == nil {
+		return tempDir, nil
+	}
+
+	candidates, err := findStaticRootCandidates(tempDir)
+	if err != nil {
+		return "", err
+	}
+	if len(candidates) > 0 {
+		return candidates[0], nil
+	}
+	return tempDir, nil
+}
+
+func resolveRequestedStaticRoot(tempDir, requestedRoot string) (string, error) {
+	if filepath.IsAbs(requestedRoot) {
+		return "", errors.New("folder root ZIP harus berupa path relatif")
+	}
+	source := filepath.Clean(filepath.Join(tempDir, filepath.Clean(requestedRoot)))
+	if !pathWithinRoot(source, tempDir) {
+		return "", errors.New("folder root ZIP tidak aman")
+	}
+	if info, err := os.Stat(source); err == nil {
+		if !info.IsDir() {
+			return "", fmt.Errorf("folder root ZIP bukan direktori: %s", requestedRoot)
+		}
+		if _, err := os.Stat(filepath.Join(source, "index.html")); err != nil {
+			return "", fmt.Errorf("folder root ZIP tidak berisi index.html: %s", requestedRoot)
+		}
+		return source, nil
+	}
+
+	var matches []string
+	err := filepath.Walk(tempDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !info.IsDir() || path == tempDir {
+			return nil
+		}
+		rel, err := filepath.Rel(tempDir, path)
+		if err != nil {
+			return err
+		}
+		if filepath.ToSlash(rel) == filepath.ToSlash(filepath.Clean(requestedRoot)) || strings.EqualFold(info.Name(), requestedRoot) {
+			if _, err := os.Stat(filepath.Join(path, "index.html")); err == nil {
+				matches = append(matches, path)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("folder root ZIP ambigu, ditemukan %d folder bernama %s", len(matches), requestedRoot)
+	}
+	return "", fmt.Errorf("folder root ZIP tidak ditemukan atau tidak berisi index.html: %s", requestedRoot)
+}
+
+func findStaticRootCandidates(tempDir string) ([]string, error) {
+	commonNames := map[string]int{"dist": 0, "build": 1, "out": 2, "public": 3}
+	type candidate struct {
+		path  string
+		score int
+		depth int
+	}
+	var candidates []candidate
+	err := filepath.Walk(tempDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !info.IsDir() {
+			return nil
+		}
+		if _, err := os.Stat(filepath.Join(path, "index.html")); err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(tempDir, path)
+		if err != nil {
+			return err
+		}
+		depth := 0
+		if rel != "." {
+			depth = len(strings.Split(filepath.ToSlash(rel), "/"))
+		}
+		score := 100 + depth
+		if rank, ok := commonNames[strings.ToLower(info.Name())]; ok {
+			score = rank + depth
+		}
+		candidates = append(candidates, candidate{path: path, score: score, depth: depth})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].score == candidates[j].score {
+			return candidates[i].depth < candidates[j].depth
+		}
+		return candidates[i].score < candidates[j].score
+	})
+	paths := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		paths = append(paths, candidate.path)
+	}
+	return paths, nil
+}
+
+func copyDirectoryContents(sourceDir, destDir string) error {
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		source := filepath.Join(sourceDir, entry.Name())
+		dest := filepath.Join(destDir, entry.Name())
+		if !pathWithinRoot(dest, destDir) {
+			return fmt.Errorf("refusing to copy unsafe path %q", dest)
+		}
+		if err := copyPathRecursive(source, dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+
+	project, err := s.database.GetProject(id, u.ID)
+	if err != nil || project == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
+		return
+	}
+	if !strings.EqualFold(strings.TrimSpace(project.ProjectType), "static") {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "upload build hanya tersedia untuk static project"})
+		return
+	}
+	projectDir := filepath.Clean(project.WorkingDir)
+	if projectDir == "" || projectDir == "." {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project belum memiliki working directory"})
+		return
+	}
+	if err := s.ensureFileManagerAccess(r, projectDir); err != nil {
+		s.writeError(w, http.StatusForbidden, err)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 512<<20)
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "file upload tidak valid atau terlalu besar"})
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "file ZIP harus dikirim"})
+		return
+	}
+	defer file.Close()
+	if header == nil || !strings.HasSuffix(strings.ToLower(header.Filename), ".zip") {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "hanya file .zip yang didukung"})
+		return
+	}
+
+	tempFile, err := os.CreateTemp("", "ypanel-static-upload-*.zip")
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	tempPath := tempFile.Name()
+	defer os.Remove(tempPath)
+	if _, err := io.Copy(tempFile, file); err != nil {
+		tempFile.Close()
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := tempFile.Close(); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	tempDir, err := os.MkdirTemp("", "ypanel-static-build-*")
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	if err := extractZip(tempPath, tempDir); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "gagal extract ZIP: " + err.Error()})
+		return
+	}
+	requestedRoot := strings.TrimSpace(r.FormValue("rootDir"))
+	sourceDir, err := detectStaticUploadSource(tempDir, requestedRoot)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if strings.EqualFold(r.FormValue("clean"), "true") {
+		if err := clearDirectoryContents(projectDir); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	serveDir := projectDir
+	if requestedRoot != "" {
+		if err := copyDirectoryContents(tempDir, projectDir); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		relSource, err := filepath.Rel(tempDir, sourceDir)
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		serveDir = filepath.Clean(filepath.Join(projectDir, relSource))
+		if !pathWithinRoot(serveDir, projectDir) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder root ZIP tidak aman"})
+			return
+		}
+		if _, err := os.Stat(filepath.Join(serveDir, "index.html")); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder target tidak berisi index.html"})
+			return
+		}
+		updated, err := s.database.UpdateProject(project.ID, project.UserID, project.Name, project.Description, project.ProjectType, project.RepoURL, serveDir)
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		project = updated
+	} else {
+		if err := copyDirectoryContents(sourceDir, projectDir); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	osUsername := panelosuser.MappedUsername(u.Username)
+	if err := chownPathRecursiveToUser(projectDir, osUsername); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "serveDir": serveDir, "file": header.Filename})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "project": project, "workingDir": serveDir})
 }
 
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
@@ -1136,6 +1553,47 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
+	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
+}
+
+func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+
+	existing, err := s.database.GetProject(id, u.ID)
+	if err != nil || existing == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
+		return
+	}
+
+	var req createProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name is required"})
+		return
+	}
+
+	projectType := strings.TrimSpace(req.ProjectType)
+	if projectType == "" {
+		projectType = existing.ProjectType
+	}
+	workingDir, err := prepareProjectWorkingDir(u, existing.Slug, req.WorkingDir, projectType)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
+		return
+	}
+
+	p, err := s.database.UpdateProject(id, u.ID, req.Name, req.Description, projectType, req.RepoURL, workingDir)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	log.Printf("[projects] updated id=%d name=%q user=%q", p.ID, p.Name, u.Username)
+	s.notifyUserAction(u.ID, "Project diperbarui", fmt.Sprintf("Project '%s' berhasil diperbarui.", p.Name), "success")
 	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
 }
 
@@ -1251,6 +1709,21 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Domain) == "" || strings.TrimSpace(req.IP) == "" || strings.TrimSpace(req.Port) == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "name, domain, ip, and port are required"})
 		return
+	}
+
+	if req.ProjectID != nil {
+		project, err := s.database.GetProject(*req.ProjectID, u.ID)
+		if err != nil || project == nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project target not found"})
+			return
+		}
+		if project.AssignedPort <= 0 {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project has no assigned port"})
+			return
+		}
+		req.Protocol = "http"
+		req.IP = "localhost"
+		req.Port = fmt.Sprint(project.AssignedPort)
 	}
 
 	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
@@ -1418,6 +1891,21 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.writeCloudflareDecryptError(w, "", err)
 		return
+	}
+
+	if req.ProjectID != nil {
+		project, err := s.database.GetProject(*req.ProjectID, u.ID)
+		if err != nil || project == nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project target not found"})
+			return
+		}
+		if project.AssignedPort <= 0 {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project has no assigned port"})
+			return
+		}
+		req.Protocol = "http"
+		req.IP = "localhost"
+		req.Port = fmt.Sprint(project.AssignedPort)
 	}
 
 	hostname := req.Domain
