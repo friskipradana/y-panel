@@ -585,6 +585,16 @@ __ARCHIVE__
   }
   ok 'Instalasi selesai'
 
+  step 'Menjalankan migrasi database'
+  $migrationCmd = "env PANEL_ENV_FILE='$remEnvTmp' /usr/local/bin/ypanel-agent migrate up"
+  $migrationOut = Invoke-Remote $migrationCmd -AllowFail
+  $migrationCombined = (@($migrationOut) + @($Script:LastErr) | Where-Object { $_ })
+  $migrationText = ($migrationCombined -join "`n").Trim()
+  if ($Script:LastExitStatus -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
+    throw "Migrasi database gagal.`n$($migrationCombined -join "`n")"
+  }
+  ok ($migrationText -split "`n" | Select-Object -Last 1)
+
   step 'Konfigurasi env & restart service'
   $svcLib = Join-Path $LibDir 'remote_svc_config.sh'
   if (-not (Test-Path $svcLib)) { throw "lib/remote_svc_config.sh tidak ditemukan." }
@@ -597,16 +607,6 @@ __ARCHIVE__
     PANEL_USER       = $PANEL_USER
   }
   Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
-
-  step 'Menjalankan migrasi database'
-  $migrationCmd = "env PANEL_ENV_FILE='$ENV_FILE' /usr/local/bin/ypanel-agent migrate up"
-  $migrationOut = Invoke-Remote $migrationCmd -AllowFail
-  $migrationCombined = (@($migrationOut) + @($Script:LastErr) | Where-Object { $_ })
-  $migrationText = ($migrationCombined -join "`n").Trim()
-  if ($Script:LastExitStatus -ne 0 -or [string]::IsNullOrWhiteSpace($migrationText)) {
-    throw "Migrasi database gagal.`n$($migrationCombined -join "`n")"
-  }
-  ok ($migrationText -split "`n" | Select-Object -Last 1)
 
   if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ypanel -n 50' }
   else { ok 'Service berjalan' }

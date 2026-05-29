@@ -60,6 +60,14 @@ const STATUS_PILL: Record<string, string> = {
 const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'docker', 'proxy', 'custom']
 const PAGE_SIZE = 8
 
+function isProjectRuntimeRunning(project: Project) {
+  return project.runtime?.known ? project.runtime.running : project.running
+}
+
+function shouldShowProjectStop(project: Project) {
+  return project.status === 'active' && isProjectRuntimeRunning(project)
+}
+
 interface ProjectsWindowProps {
   win?: WindowState
 }
@@ -652,7 +660,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                     <Code className="h-3.5 w-3.5" />
                     {t('projects.copyPath')}
                   </button>
-                  {highlightedProject.running || highlightedProject.status === 'active' ? (
+                  {shouldShowProjectStop(highlightedProject) ? (
                     <button
                       type="button"
                       onClick={() => stopMut.mutate(highlightedProject.id)}
@@ -833,7 +841,7 @@ function ProjectCard({
             <button onClick={onEdit} className="panel-icon-btn" title="Edit project">
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            {p.running || p.status === 'active' ? (
+            {shouldShowProjectStop(p) ? (
               <button onClick={onStop} disabled={isStopping} className="panel-btn panel-btn--ghost px-3 py-2 text-[12px]">
                 <Square className="h-3 w-3" /> {t('projects.stopShort')}
               </button>

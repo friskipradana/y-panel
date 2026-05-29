@@ -32,27 +32,27 @@ type wsConn struct {
 }
 
 type Server struct {
-	cfgMu               sync.RWMutex
-	cfg                 config.Config
-	auth                *auth.Manager
-	mux                 *http.ServeMux
-	frontendFS          http.Handler
-	authedFrontend      http.Handler
-	terminalManager     *terminal.Manager
-	terminalUpgrader    websocket.Upgrader
-	database            *database.Manager
-	projectManager      *projects.Manager
-	cfDaemon            *cloudflareapi.Daemon
-	notificationMu      sync.RWMutex
-	notificationWSConns map[int64][]*wsConn
+	cfgMu                        sync.RWMutex
+	cfg                          config.Config
+	auth                         *auth.Manager
+	mux                          *http.ServeMux
+	frontendFS                   http.Handler
+	authedFrontend               http.Handler
+	terminalManager              *terminal.Manager
+	terminalUpgrader             websocket.Upgrader
+	database                     *database.Manager
+	projectManager               *projects.Manager
+	cfDaemon                     *cloudflareapi.Daemon
+	notificationMu               sync.RWMutex
+	notificationWSConns          map[int64][]*wsConn
 	capturedNotificationsMu      sync.RWMutex
 	capturedNotificationsWSConns map[int64][]*wsConn
-	rateLimitMu         sync.Mutex
-	rateLimits          map[string]*rateLimitEntry
-	reconcileStop       chan struct{}
-	reconcileDone       chan struct{}
-	fileRootAccessMu    sync.Mutex
-	fileRootAccess      map[string]time.Time
+	rateLimitMu                  sync.Mutex
+	rateLimits                   map[string]*rateLimitEntry
+	reconcileStop                chan struct{}
+	reconcileDone                chan struct{}
+	fileRootAccessMu             sync.Mutex
+	fileRootAccess               map[string]time.Time
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -101,20 +101,20 @@ func New(cfg config.Config) *Server {
 	authMgr := auth.NewManager(db, cfg.SessionTTL)
 
 	s := &Server{
-		cfg:                 cfg,
-		auth:                authMgr,
-		mux:                 http.NewServeMux(),
-		frontendFS:          newFrontendHandler(cfg.FrontendDir),
-		terminalManager:     terminal.NewManager(),
-		database:            db,
-		projectManager:      projects.NewManager(cfg.StateDir),
-		cfDaemon:            cloudflareapi.NewDaemon(cfg.StateDir),
-		notificationWSConns: make(map[int64][]*wsConn),
+		cfg:                          cfg,
+		auth:                         authMgr,
+		mux:                          http.NewServeMux(),
+		frontendFS:                   newFrontendHandler(cfg.FrontendDir),
+		terminalManager:              terminal.NewManager(),
+		database:                     db,
+		projectManager:               projects.NewManager(cfg.StateDir),
+		cfDaemon:                     cloudflareapi.NewDaemon(cfg.StateDir),
+		notificationWSConns:          make(map[int64][]*wsConn),
 		capturedNotificationsWSConns: make(map[int64][]*wsConn),
-		rateLimits:          make(map[string]*rateLimitEntry),
-		reconcileStop:       make(chan struct{}),
-		reconcileDone:       make(chan struct{}),
-		fileRootAccess:      make(map[string]time.Time),
+		rateLimits:                   make(map[string]*rateLimitEntry),
+		reconcileStop:                make(chan struct{}),
+		reconcileDone:                make(chan struct{}),
+		fileRootAccess:               make(map[string]time.Time),
 	}
 	s.terminalUpgrader = websocket.Upgrader{
 		ReadBufferSize:  4096,
@@ -158,6 +158,41 @@ func (s *Server) RestoreTunnels() {
 	}
 }
 
+func (s *Server) RestoreProjects() {
+	if s.database == nil || s.projectManager == nil || !s.database.IsConnected() {
+		return
+	}
+	projectList, _, err := s.database.ListAllProjects(1000, 0)
+	if err != nil {
+		log.Printf("[projects] failed to list projects for restore: %v", err)
+		return
+	}
+	for _, project := range projectList {
+		status := strings.TrimSpace(strings.ToLower(project.Status))
+		switch status {
+		case "active":
+			user, err := s.database.GetUserByID(project.UserID)
+			if err != nil || user == nil {
+				log.Printf("[projects] skip restore project=%d: user lookup failed: %v", project.ID, err)
+				_ = s.database.UpdateProjectStatus(project.ID, "degraded")
+				continue
+			}
+			if err := s.projectManager.Start(user, &project); err != nil {
+				log.Printf("[projects] failed to restore active project=%d: %v", project.ID, err)
+				_ = s.database.UpdateProjectStatus(project.ID, "degraded")
+				continue
+			}
+			log.Printf("[projects] restored active project id=%d name=%q port=%d", project.ID, project.Name, project.AssignedPort)
+		case "stopped":
+			if s.projectManager.SnapshotProject(project).Running {
+				if err := s.projectManager.StopProject(project); err != nil {
+					log.Printf("[projects] failed to stop inactive project=%d during restore: %v", project.ID, err)
+				}
+			}
+		}
+	}
+}
+
 func deriveReconciledProjectStatus(desiredStatus string, snapshot projects.RuntimeSnapshot) string {
 	desired := strings.TrimSpace(strings.ToLower(desiredStatus))
 	switch desired {
@@ -167,9 +202,6 @@ func deriveReconciledProjectStatus(desiredStatus string, snapshot projects.Runti
 		}
 		return "degraded"
 	case "stopped":
-		if snapshot.Running {
-			return "active"
-		}
 		return "stopped"
 	case "error", "degraded":
 		if snapshot.Running {
@@ -201,6 +233,13 @@ func (s *Server) reconcileProjectStatuses() {
 	}
 	for _, project := range projectList {
 		snapshot := s.projectManager.SnapshotProject(project)
+		if strings.EqualFold(strings.TrimSpace(project.Status), "stopped") && snapshot.Running {
+			if err := s.projectManager.StopProject(project); err != nil {
+				log.Printf("[reconcile] failed to stop drifted project=%d: %v", project.ID, err)
+			} else {
+				snapshot = s.projectManager.SnapshotProject(project)
+			}
+		}
 		nextStatus := deriveReconciledProjectStatus(project.Status, snapshot)
 		if nextStatus == strings.TrimSpace(project.Status) {
 			continue

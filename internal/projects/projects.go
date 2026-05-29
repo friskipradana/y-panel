@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -120,6 +121,13 @@ func (m *Manager) Stop(projectID int64) error {
 	}
 	proc.stopped = true
 	return proc.cmd.Process.Kill()
+}
+
+func (m *Manager) StopProject(project database.Project) error {
+	if err := m.Stop(project.ID); err != nil {
+		return err
+	}
+	return terminateLocalPort(project.AssignedPort)
 }
 
 // IsRunning reports if a project is currently running.
@@ -331,4 +339,43 @@ func isLocalPortOpen(port int) bool {
 	}
 	_ = conn.Close()
 	return true
+}
+
+func terminateLocalPort(port int) error {
+	if port <= 0 || !isLocalPortOpen(port) {
+		return nil
+	}
+	if runtime.GOOS != "linux" {
+		return fmt.Errorf("port %d masih menerima koneksi setelah stop", port)
+	}
+
+	target := fmt.Sprintf("%d/tcp", port)
+	if which("fuser") {
+		_ = exec.Command("fuser", "-k", "-TERM", target).Run()
+		time.Sleep(700 * time.Millisecond)
+		if !isLocalPortOpen(port) {
+			return nil
+		}
+		_ = exec.Command("fuser", "-k", "-KILL", target).Run()
+		time.Sleep(300 * time.Millisecond)
+		if !isLocalPortOpen(port) {
+			return nil
+		}
+	}
+
+	if which("lsof") && which("xargs") {
+		portArg := fmt.Sprintf("%d", port)
+		_ = exec.Command("sh", "-c", "lsof -tiTCP:"+portArg+" -sTCP:LISTEN | xargs -r kill -TERM").Run()
+		time.Sleep(700 * time.Millisecond)
+		if !isLocalPortOpen(port) {
+			return nil
+		}
+		_ = exec.Command("sh", "-c", "lsof -tiTCP:"+portArg+" -sTCP:LISTEN | xargs -r kill -KILL").Run()
+		time.Sleep(300 * time.Millisecond)
+		if !isLocalPortOpen(port) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("port %d masih menerima koneksi setelah stop", port)
 }
