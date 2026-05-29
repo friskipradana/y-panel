@@ -1605,7 +1605,7 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	_ = s.projectManager.Stop(id)
+	_ = s.projectManager.StopProject(*p)
 	if err := s.database.DeleteProject(id, u.ID); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1643,7 +1643,7 @@ func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	if err := s.projectManager.Stop(id); err != nil {
+	if err := s.projectManager.StopProject(*existing); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}

@@ -48,6 +48,7 @@ func main() {
 		}
 	}()
 
+	srv.RestoreProjects()
 	srv.RestoreTunnels()
 
 	log.Printf("YPanel agent listening on %s", cfg.BindAddr)

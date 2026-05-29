@@ -253,7 +253,7 @@ func (m *Manager) ensureSchema() error {
 			name          VARCHAR(120) NOT NULL,
 			slug          VARCHAR(80)  NOT NULL,
 			description   TEXT,
-			status        VARCHAR(30)  NOT NULL DEFAULT 'draft' CHECK (status IN ('active','stopped','building','error','draft')),
+			status        VARCHAR(30)  NOT NULL DEFAULT 'draft' CHECK (status IN ('active','stopped','building','error','draft','degraded')),
 			project_type  VARCHAR(30)  NOT NULL DEFAULT 'custom' CHECK (project_type IN ('static','nodejs','python','php','docker','proxy','custom')),
 			repo_url      TEXT,
 			working_dir   TEXT,
