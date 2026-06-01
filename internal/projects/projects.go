@@ -241,15 +241,17 @@ func buildCommand(user *database.User, p *database.Project) (*exec.Cmd, error) {
 		cmd = exec.Command("php", "-S", fmt.Sprintf("0.0.0.0:%d", p.AssignedPort))
 
 	case "static":
-		// Static projects are served with SPA fallback so direct links such as
-		// /dashboard/users still resolve to index.html when no file exists.
 		if !fileExists(filepath.Join(p.WorkingDir, "index.html")) {
 			return nil, fmt.Errorf("static project %d missing index.html in working directory %q", p.ID, p.WorkingDir)
 		}
-		if which("serve") {
+		if p.SPAFallback && which("serve") {
 			cmd = exec.Command("serve", "-s", "-l", fmt.Sprintf("%d", p.AssignedPort), ".")
-		} else {
+		} else if which("serve") {
+			cmd = exec.Command("serve", "-l", fmt.Sprintf("%d", p.AssignedPort), ".")
+		} else if p.SPAFallback {
 			cmd = exec.Command("python3", "-c", staticSPAServerScript(), fmt.Sprintf("%d", p.AssignedPort))
+		} else {
+			cmd = exec.Command("python3", "-m", "http.server", fmt.Sprintf("%d", p.AssignedPort))
 		}
 
 	case "proxy":

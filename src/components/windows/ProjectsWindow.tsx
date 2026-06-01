@@ -103,6 +103,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
     projectType: 'nodejs',
     repoUrl: '',
     workingDir: '',
+    spaFallback: true,
   })
   const [attentionOnly, setAttentionOnly] = useState(false)
   const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>('all')
@@ -178,7 +179,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       alertLib.fire(t('projects.createdTitle'), t('projects.createdMessage', { name: p.name, port: p.assignedPort }), 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
       setShowCreate(false)
-      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' })
+      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true })
     },
     onError: (e: any) => {
       const message = e.response?.data?.error ?? t('projects.createFailedMessage')
@@ -220,7 +221,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       alertLib.fire('Project Diperbarui', `Project <strong>${p.name}</strong> berhasil diperbarui.`, 'success', 'projects')
       qc.invalidateQueries({ queryKey: ['projects'] })
       setEditingProject(null)
-      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' })
+      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true })
     },
     onError: (e: any) => {
       const message = e.response?.data?.error ?? 'Gagal memperbarui project'
@@ -344,6 +345,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
       projectType: project.projectType,
       repoUrl: project.repoUrl,
       workingDir: project.workingDir,
+      spaFallback: project.spaFallback ?? true,
     })
   }
 
@@ -500,7 +502,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
             dropdownClassName="left-auto right-0 min-w-[360px] max-w-[min(520px,calc(100vw-32px))]"
             itemClassName="projects-attention-filter__item"
           />
-          <button onClick={() => { setEditingProject(null); setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '' }); setShowCreate(true) }} className="panel-btn panel-btn--primary-soft">
+          <button onClick={() => { setEditingProject(null); setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true }); setShowCreate(true) }} className="panel-btn panel-btn--primary-soft">
             <Plus className="h-3.5 w-3.5" />
             {t('projects.createButton')}
           </button>
@@ -544,6 +546,20 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                   ))}
                 </div>
               </div>
+              <label className="panel-muted-block flex items-start gap-3 rounded-[14px] px-3 py-3 text-[12px] text-[var(--win-text)]">
+                <input
+                  type="checkbox"
+                  checked={form.spaFallback}
+                  onChange={(event) => setForm((f) => ({ ...f, spaFallback: event.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block font-semibold">SPA fallback ke index.html</span>
+                  <span className="mt-0.5 block leading-5 text-[var(--text-secondary)]">
+                    Aktifkan untuk React Router, Vue Router, atau frontend BrowserRouter agar refresh/direct URL tidak 404.
+                  </span>
+                </span>
+              </label>
               <div>
                 <label className="panel-section-label">{t('projects.repoUrl')}</label>
                 <input
@@ -599,6 +615,7 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-[var(--win-text)]">{highlightedProject.name}</span>
                     <span className={`panel-badge ${STATUS_PILL[highlightedProject.status] ?? 'panel-badge--neutral'}`}>{highlightedProject.status}</span>
+                    {highlightedProject.spaFallback ? <span className="panel-badge panel-badge--info">SPA</span> : null}
                     {highlightedProject.runtime?.drift ? <span className="panel-badge panel-badge--warning">drift</span> : null}
                   </div>
                   <p className="mt-2 text-[12px] leading-6 text-[var(--text-secondary)]">
@@ -819,6 +836,7 @@ function ProjectCard({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="truncate text-sm font-semibold text-[var(--win-text)]">{p.name}</span>
                 <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>{p.status}</span>
+                {p.spaFallback ? <span className="panel-badge panel-badge--info">SPA</span> : null}
                 <span className={`panel-badge ${runtimeBadgeClass}`}>{runtimeLabel}</span>
               </div>
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">

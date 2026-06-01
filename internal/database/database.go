@@ -257,6 +257,7 @@ func (m *Manager) ensureSchema() error {
 			project_type  VARCHAR(30)  NOT NULL DEFAULT 'custom' CHECK (project_type IN ('static','nodejs','python','php','docker','proxy','custom')),
 			repo_url      TEXT,
 			working_dir   TEXT,
+			spa_fallback  BOOLEAN     NOT NULL DEFAULT true,
 			exposed_port  INTEGER,
 			assigned_port INTEGER,
 			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -264,6 +265,7 @@ func (m *Manager) ensureSchema() error {
 			UNIQUE(user_id, slug)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS spa_fallback BOOLEAN NOT NULL DEFAULT true`,
 
 		`CREATE TABLE IF NOT EXISTS project_env_vars (
 			id              BIGSERIAL PRIMARY KEY,
@@ -913,6 +915,7 @@ type Project struct {
 	ProjectType  string    `json:"projectType"`
 	RepoURL      string    `json:"repoUrl"`
 	WorkingDir   string    `json:"workingDir"`
+	SPAFallback  bool      `json:"spaFallback"`
 	ExposedPort  int       `json:"exposedPort"`
 	AssignedPort int       `json:"assignedPort"`
 	CreatedAt    time.Time `json:"createdAt"`
@@ -956,6 +959,7 @@ func (m *Manager) ListProjectsFiltered(userID int64, includeAll bool, query stri
 	listQuery := fmt.Sprintf(`
 		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
 			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
 			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
 		FROM projects
 		WHERE %s
@@ -983,26 +987,28 @@ func (m *Manager) GetProject(id, userID int64) (*Project, error) {
 	row := m.db.QueryRow(`
 		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
 			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
 			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
 		FROM projects WHERE id = $1 AND user_id = $2
 	`, id, userID)
 	return scanProject(row)
 }
 
-func (m *Manager) CreateProject(userID int64, name, slug, description, projectType, repoURL, workingDir string, assignedPort int) (*Project, error) {
+func (m *Manager) CreateProject(userID int64, name, slug, description, projectType, repoURL, workingDir string, spaFallback bool, assignedPort int) (*Project, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var p Project
 	err := m.db.QueryRow(`
-		INSERT INTO projects (user_id, name, slug, description, project_type, repo_url, working_dir, assigned_port)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO projects (user_id, name, slug, description, project_type, repo_url, working_dir, spa_fallback, assigned_port)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
 			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
 			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, userID, name, slug, description, projectType, repoURL, workingDir, assignedPort).Scan(
+	`, userID, name, slug, description, projectType, repoURL, workingDir, spaFallback, assignedPort).Scan(
 		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
+		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
 	)
 	return &p, err
 }
@@ -1015,21 +1021,22 @@ func (m *Manager) UpdateProjectStatus(id int64, status string) error {
 	return err
 }
 
-func (m *Manager) UpdateProject(id, userID int64, name, description, projectType, repoURL, workingDir string) (*Project, error) {
+func (m *Manager) UpdateProject(id, userID int64, name, description, projectType, repoURL, workingDir string, spaFallback bool) (*Project, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var p Project
 	err := m.db.QueryRow(`
 		UPDATE projects
-		SET name = $3, description = $4, project_type = $5, repo_url = $6, working_dir = $7, updated_at = NOW()
+		SET name = $3, description = $4, project_type = $5, repo_url = $6, working_dir = $7, spa_fallback = $8, updated_at = NOW()
 		WHERE id = $1 AND user_id = $2
 		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
 			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
 			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, id, userID, name, description, projectType, repoURL, workingDir).Scan(
+	`, id, userID, name, description, projectType, repoURL, workingDir, spaFallback).Scan(
 		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
+		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
 	)
 	return &p, err
 }
@@ -1893,7 +1900,7 @@ func scanUserFromRows(rows *sql.Rows) (*User, error) {
 
 func scanProject(row rowScanner) (*Project, error) {
 	var p Project
-	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1904,7 +1911,7 @@ func scanProjects(rows *sql.Rows) ([]Project, error) {
 	result := make([]Project, 0)
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		result = append(result, p)

@@ -19,6 +19,7 @@ export interface Project {
   projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom'
   repoUrl: string
   workingDir: string
+  spaFallback: boolean
   exposedPort: number
   assignedPort: number
   running: boolean
@@ -66,6 +67,7 @@ export const createProject = (payload: {
   projectType: string
   repoUrl?: string
   workingDir?: string
+  spaFallback?: boolean
 }) => agentApi.post<Project>('/api/v1/projects', payload).then((r) => r.data)
 
 export const updateProject = (id: number, payload: {
@@ -74,6 +76,7 @@ export const updateProject = (id: number, payload: {
   projectType: string
   repoUrl?: string
   workingDir?: string
+  spaFallback?: boolean
 }) => agentApi.put<Project>(`/api/v1/projects/${id}`, payload).then((r) => r.data)
 
 export const getProject = (id: number) =>
