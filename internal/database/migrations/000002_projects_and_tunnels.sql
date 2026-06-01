@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS projects (
     project_type  VARCHAR(30)  NOT NULL DEFAULT 'custom' CHECK (project_type IN ('static','nodejs','python','php','docker','proxy','custom')),
     repo_url      TEXT,
     working_dir   TEXT,
+    spa_fallback  BOOLEAN      NOT NULL DEFAULT true,
     exposed_port  INTEGER,
     assigned_port INTEGER,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),

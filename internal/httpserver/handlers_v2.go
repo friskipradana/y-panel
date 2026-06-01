@@ -994,6 +994,7 @@ type createProjectRequest struct {
 	ProjectType string `json:"projectType"`
 	RepoURL     string `json:"repoUrl"`
 	WorkingDir  string `json:"workingDir"`
+	SPAFallback *bool  `json:"spaFallback"`
 }
 
 type projectRuntimeState struct {
@@ -1129,7 +1130,11 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := s.database.CreateProject(u.ID, req.Name, slug, req.Description, req.ProjectType, req.RepoURL, workingDir, assignedPort)
+	spaFallback := true
+	if req.SPAFallback != nil {
+		spaFallback = *req.SPAFallback
+	}
+	p, err := s.database.CreateProject(u.ID, req.Name, slug, req.Description, req.ProjectType, req.RepoURL, workingDir, spaFallback, assignedPort)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1523,7 +1528,7 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder target tidak berisi index.html"})
 			return
 		}
-		updated, err := s.database.UpdateProject(project.ID, project.UserID, project.Name, project.Description, project.ProjectType, project.RepoURL, serveDir)
+		updated, err := s.database.UpdateProject(project.ID, project.UserID, project.Name, project.Description, project.ProjectType, project.RepoURL, serveDir, project.SPAFallback)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, err)
 			return
@@ -1587,7 +1592,11 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := s.database.UpdateProject(id, u.ID, req.Name, req.Description, projectType, req.RepoURL, workingDir)
+	spaFallback := existing.SPAFallback
+	if req.SPAFallback != nil {
+		spaFallback = *req.SPAFallback
+	}
+	p, err := s.database.UpdateProject(id, u.ID, req.Name, req.Description, projectType, req.RepoURL, workingDir, spaFallback)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
