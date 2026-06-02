@@ -37,7 +37,7 @@ function formatDate(value: string) {
 }
 
 function excerptFromContent(content: string) {
-  const normalized = content.replace(/[#>*`_\-]/g, ' ').replace(/\s+/g, ' ').trim()
+  const normalized = content.replace(/[#>*`_-]/g, ' ').replace(/\s+/g, ' ').trim()
   return normalized.length > 220 ? `${normalized.slice(0, 220)}...` : normalized
 }
 
