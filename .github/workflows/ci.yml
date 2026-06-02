@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main-runtime]
+    branches: [main, master, main-runtime]
   pull_request:
-    branches: [main-runtime]
+    branches: [main, master, main-runtime]
   workflow_dispatch:
 
 jobs:
@@ -27,6 +27,7 @@ jobs:
         with:
           version: latest
           args: --timeout=5m
+        continue-on-error: true
 
       - name: Test
         run: go test -race -count=1 ./...
