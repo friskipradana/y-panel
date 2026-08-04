@@ -30,3 +30,4 @@ deploy/productions/
 *.gz
 dist-release/
 *.exe
+graphify-out/
