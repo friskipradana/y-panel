@@ -269,7 +269,14 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
       {/* ── Deploy Modal ── */}
       {showDeploy && (
         <div className="panel-modal-overlay docker-deploy-overlay">
-          <div className="panel-modal-card docker-deploy-modal-card">
+          <div className="panel-modal-card docker-deploy-modal-card" style={{ position: 'relative', overflow: 'hidden' }}>
+            {(deployImageMut.isPending || deployComposeMut.isPending) && (
+              <DockerProgressOverlay
+                title={editContainer ? t('docker.editRedeploy') : t('docker.deployContainer')}
+                subtitle={deployForm.name.trim() || (deployType === 'image' ? deployForm.image : 'docker-compose')}
+                type="deploy"
+              />
+            )}
             <h3 className="docker-deploy-modal__title">
               {editContainer ? <Pencil className="panel-window__icon h-4 w-4" /> : <Boxes className="panel-window__icon h-4 w-4" />}
               {editContainer ? t('docker.editRedeploy') : t('docker.deployContainer')}
@@ -1028,7 +1035,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                                 <span className="docker-inline-code">ID {container.Id.slice(0, 12)}</span>
                                 <span className="docker-inline-code">Network {networks}</span>
                                 <span className="docker-inline-code">IP {ipAddresses}</span>
-                                <span className="docker-inline-code">Port {primaryPublished}</span>
+                                <span className="docker-inline-code">Port {primaryPublished || t('docker.unavailable')}</span>
                                 <span className="docker-inline-dot" />
                                 <span>{container.Status}</span>
                                 {runtimeIssues.map((issue) => (
@@ -1184,7 +1191,14 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
                 {/* Pull Image Modal */}
                 {showPullImage && (
                   <div className="docker-modal-overlay" onClick={resetPullImageModal}>
-                    <div className="docker-modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="docker-modal" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                      {pullImageMut.isPending && (
+                        <DockerProgressOverlay
+                          title={t('docker.pullDockerImage')}
+                          subtitle={pullImageForm.image.trim()}
+                          type="pull"
+                        />
+                      )}
                       <div className="docker-modal__header">
                         <span className="docker-modal__title">{t('docker.pullDockerImage')}</span>
                         <button type="button" className="panel-icon-btn" onClick={resetPullImageModal}><X className="h-4 w-4" /></button>
@@ -1537,6 +1551,110 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
     </div>
   )
 }
+
+export function DockerProgressOverlay({
+  title,
+  subtitle,
+  type,
+}: {
+  title: string
+  subtitle: string
+  type: 'deploy' | 'pull'
+}) {
+  const [logs, setLogs] = useState<string[]>([])
+  const terminalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const lines: string[] = []
+    const addLog = (text: string, styleType?: 'system' | 'success' | 'info') => {
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false })
+      const formatted = `[${time}] ${text}`
+      if (styleType === 'system') {
+        lines.push(`SYSTEM::${formatted}`)
+      } else if (styleType === 'success') {
+        lines.push(`SUCCESS::${formatted}`)
+      } else {
+        lines.push(`INFO::${formatted}`)
+      }
+      setLogs([...lines])
+    }
+
+    addLog('Connecting to Docker daemon...', 'system')
+
+    let timer1: NodeJS.Timeout
+    let timer2: NodeJS.Timeout
+    let timer3: NodeJS.Timeout
+    let timer4: NodeJS.Timeout
+    let timer5: NodeJS.Timeout
+
+    if (type === 'pull') {
+      timer1 = setTimeout(() => addLog(`Requesting image '${subtitle}' from registry...`), 800)
+      timer2 = setTimeout(() => addLog('Resolving tag digest & manifest schema v2...'), 1800)
+      timer3 = setTimeout(() => addLog('Downloading image layers...', 'info'), 2800)
+      timer4 = setTimeout(() => addLog('Layer 1: Downloading [=================>] 100%', 'info'), 4000)
+      timer5 = setTimeout(() => addLog('Layer 2: Extracting filesystem layers...', 'info'), 5200)
+    } else {
+      timer1 = setTimeout(() => addLog('Preparing compose configuration directory...'), 800)
+      timer2 = setTimeout(() => addLog('Validating port bindings & resource limits...', 'info'), 1600)
+      timer3 = setTimeout(() => addLog('Executing: docker compose up -d...', 'system'), 2400)
+      timer4 = setTimeout(() => addLog('Creating network default_bridge - Created', 'success'), 3400)
+      timer5 = setTimeout(() => addLog(`Starting container '${subtitle}'...`, 'info'), 4400)
+    }
+
+    return () => {
+      clearTimeout(timer1)
+      clearTimeout(timer2)
+      clearTimeout(timer3)
+      clearTimeout(timer4)
+      clearTimeout(timer5)
+    }
+  }, [type, subtitle])
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight
+    }
+  }, [logs])
+
+  return (
+    <div className="docker-progress-overlay">
+      <div className="docker-progress-container">
+        <div className="docker-progress-spinner-wrap">
+          <div className="docker-progress-spinner" />
+          <Boxes className="docker-progress-icon h-7 w-7" />
+        </div>
+        <h3 className="docker-progress-title">{title}</h3>
+        <div className="docker-progress-subtitle">{subtitle}</div>
+
+        <div className="docker-progress-terminal" ref={terminalRef}>
+          {logs.map((line, idx) => {
+            let className = 'docker-progress-line'
+            let content = line
+            if (line.startsWith('SYSTEM::')) {
+              className += ' docker-progress-line--system'
+              content = line.replace('SYSTEM::', '')
+            } else if (line.startsWith('SUCCESS::')) {
+              className += ' docker-progress-line--success'
+              content = line.replace('SUCCESS::', '')
+            } else if (line.startsWith('INFO::')) {
+              className += ' docker-progress-line--info'
+              content = line.replace('INFO::', '')
+            }
+            return (
+              <div key={idx} className={className}>
+                {content}
+              </div>
+            )
+          })}
+          <div className="docker-progress-line docker-progress-line--blink">
+            {logs.length > 0 ? '' : 'Starting...'}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 
 

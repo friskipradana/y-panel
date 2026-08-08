@@ -17,6 +17,9 @@
   .\deploy\deploy-frontend.ps1 -HostName 100.70.209.107 -SshUser root -SshPassword "password"
 #>
 
+[CmdletBinding()]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
 param(
   [Parameter(Mandatory = $true)]
   [string]$HostName,
