@@ -184,7 +184,7 @@ export function ContainersTab({
                           <span className="docker-inline-code">ID {container.Id.slice(0, 12)}</span>
                           <span className="docker-inline-code">Network {networks}</span>
                           <span className="docker-inline-code">IP {ipAddresses}</span>
-                          <span className="docker-inline-code">Port {primaryPublished}</span>
+                          <span className="docker-inline-code">Port {primaryPublished || t('docker.unavailable')}</span>
                           <span className="docker-inline-dot" />
                           <span>{container.Status}</span>
                           {runtimeIssues.map((issue) => (

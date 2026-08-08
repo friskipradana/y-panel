@@ -25,11 +25,15 @@
     -EncryptionKey "aabbcc..."
 #>
 
+[CmdletBinding()]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPlainTextForPassword', '')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseApprovedVerbs', '')]
 param(
   [Parameter(Mandatory = $true)]
   [string]$HostName,
 
   [string]$SshUsername = 'renaldi',
+
   [string]$SshPassword = '',
   [string]$RemoteBaseDir = '~/ypanel-deploy',
   [string]$BindAddress = '0.0.0.0:8787',

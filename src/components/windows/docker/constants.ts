@@ -94,7 +94,7 @@ export function getContainerPorts(container: Container) {
   return {
     published,
     internal,
-    primaryPublished: published[0] ?? 'Tidak ada port forward',
-    primaryInternal: internal[0] ?? 'Tidak terdeteksi',
+    primaryPublished: published[0] ?? '',
+    primaryInternal: internal[0] ?? '',
   }
 }
