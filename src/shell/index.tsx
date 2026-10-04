@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AppRouter, LOGIN_PATH } from '@/router'
-import { DevOverlay } from '@/shell/DevOverlay'
-import { useGlobalShortcuts } from '@/shell/useGlobalShortcuts'
-import { useRevisionSync } from '@/shell/useRevisionSync'
+import { DevOverlay } from '@/components/debug/DevOverlay'
+import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
+import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
 

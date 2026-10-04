@@ -1,11 +1,14 @@
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LandingPage } from '@/components/landing/LandingPage'
-import { LoginScreen } from '@/components/windows/LoginScreen'
-import { Desktop } from '@/components/desktop/Desktop'
+import { LandingPage } from '@/pages/LandingPage'
+import { LoginPage } from '@/pages/LoginPage'
+import { DesktopPage } from '@/pages/DesktopPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
-import { LOGIN_PATH, HOME_PATH, LANDING_PATH } from './paths'
+
+export const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
+export const HOME_PATH = '/home'
+export const LANDING_PATH = '/'
 
 export function AppRouter() {
   const location = useLocation()
@@ -54,7 +57,7 @@ export function AppRouter() {
                 transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
                 className="absolute inset-0 z-[10000] overflow-hidden"
               >
-                <LoginScreen
+                <LoginPage
                   onBack={() => navigate(LANDING_PATH)}
                   onLoginSuccess={handleLogin}
                 />
@@ -75,7 +78,7 @@ export function AppRouter() {
                 transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
                 className="absolute inset-0 z-0"
               >
-                <Desktop onLogout={handleLogout} authenticated={authenticated} />
+                <DesktopPage onLogout={handleLogout} />
               </motion.div>
             )
           }
