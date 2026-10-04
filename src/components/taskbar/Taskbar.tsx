@@ -7,10 +7,10 @@ import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { ProfileMenu } from './ProfileMenu'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import type { WindowKind } from '@/types'
 import { formatDateTimeID } from '@/lib/datetime'
-import { useI18n, windowTitleKey, type Language } from '@/lib/i18n'
-import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -45,7 +45,7 @@ function getNotificationTone(type: PanelNotification['type']) {
 }
 
 export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
-  const { language, setLanguage, t } = useI18n()
+  const { t } = useI18n()
   const mode = useThemeStore((s) => s.mode)
   const isDark = mode === 'dark'
   const queryClient = useQueryClient()
@@ -67,13 +67,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const [notifications, setNotifications] = useState<PanelNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const latestNotifications = useMemo(() => notifications.slice(0, 8), [notifications])
-  const languageOptions = useMemo(
-    () => [
-      { value: 'id', label: 'ID', description: t('language.indonesian') },
-      { value: 'en', label: 'EN', description: t('language.english') },
-    ],
-    [t],
-  )
+
   const markReadMutation = useMutation({
     mutationFn: markNotificationRead,
     onSuccess: (_, id) => {
@@ -338,17 +332,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           )}
         </AnimatePresence>
 
-        <PanelSelectMenu
-          id="taskbar-language-select"
-          value={language}
-          onChange={(value) => setLanguage(value as Language)}
-          options={languageOptions}
-          placeholder={t('language.label')}
-          className="taskbar-language-select"
-          buttonClassName="taskbar-language-select__button"
-          dropdownClassName="taskbar-language-select__dropdown"
-          searchable={false}
-        />
+        <LanguageSwitcher />
 
         <span id="taskbar-clock" className={`taskbar-clock ${!isDark ? 'text-[var(--text-secondary)]' : ''}`}>{time}</span>
 
