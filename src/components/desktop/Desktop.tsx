@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef } from 'react'
+import React, { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
@@ -7,23 +7,24 @@ import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
+import { lazyNamed, lazyDefault } from '@/lib/lazy'
 import type { WindowKind, WindowState } from '@/types'
 import { useI18n } from '@/lib/i18n'
 
-// Lazy-loaded window components (code-split for faster initial load)
-const DockerWindow = lazy(() => import('@/components/windows/DockerWindow').then((m) => ({ default: m.DockerWindow })))
-const SystemWindow = lazy(() => import('@/components/windows/SystemWindow').then((m) => ({ default: m.SystemWindow })))
-const SettingsWindow = lazy(() => import('@/components/windows/SettingsWindow').then((m) => ({ default: m.SettingsWindow })))
-const DatabaseWindow = lazy(() => import('@/components/windows/DatabaseWindow').then((m) => ({ default: m.DatabaseWindow })))
-const ChangelogWindow = lazy(() => import('@/components/windows/ChangelogWindow').then((m) => ({ default: m.ChangelogWindow })))
-const SystemLogsWindow = lazy(() => import('@/components/windows/SystemLogsWindow').then((m) => ({ default: m.SystemLogsWindow })))
-const HostTerminalWindow = lazy(() => import('@/components/windows/HostTerminalWindow').then((m) => ({ default: m.HostTerminalWindow })))
-const DocsWindow = lazy(() => import('@/components/windows/DocsWindow'))
-const FileManagerWindow = lazy(() => import('@/components/windows/FileManagerWindow').then((m) => ({ default: m.FileManagerWindow })))
-const FileEditorWindow = lazy(() => import('@/components/windows/FileEditorWindow').then((m) => ({ default: m.FileEditorWindow })))
-const UsersWindow = lazy(() => import('@/components/windows/UsersWindow'))
-const ProjectsWindow = lazy(() => import('@/components/windows/ProjectsWindow'))
-const TunnelsWindow = lazy(() => import('@/components/windows/TunnelsWindow'))
+// Code-split window components with clean 1-line syntax & preloading support
+const DockerWindow = lazyNamed(() => import('@/components/windows/DockerWindow'), 'DockerWindow')
+const SystemWindow = lazyNamed(() => import('@/components/windows/SystemWindow'), 'SystemWindow')
+const SettingsWindow = lazyNamed(() => import('@/components/windows/SettingsWindow'), 'SettingsWindow')
+const DatabaseWindow = lazyNamed(() => import('@/components/windows/DatabaseWindow'), 'DatabaseWindow')
+const ChangelogWindow = lazyNamed(() => import('@/components/windows/ChangelogWindow'), 'ChangelogWindow')
+const SystemLogsWindow = lazyNamed(() => import('@/components/windows/SystemLogsWindow'), 'SystemLogsWindow')
+const HostTerminalWindow = lazyNamed(() => import('@/components/windows/HostTerminalWindow'), 'HostTerminalWindow')
+const DocsWindow = lazyDefault(() => import('@/components/windows/DocsWindow'))
+const FileManagerWindow = lazyNamed(() => import('@/components/windows/FileManagerWindow'), 'FileManagerWindow')
+const FileEditorWindow = lazyNamed(() => import('@/components/windows/FileEditorWindow'), 'FileEditorWindow')
+const UsersWindow = lazyDefault(() => import('@/components/windows/UsersWindow'))
+const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWindow'))
+const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
 
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 

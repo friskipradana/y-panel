@@ -4,17 +4,25 @@ import { LandingPage } from '@/components/landing/LandingPage'
 import { LoginScreen } from '@/components/windows/LoginScreen'
 import { Desktop } from '@/components/desktop/Desktop'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
+import { useAuthStore } from '@/store/authStore'
 import { LOGIN_PATH, HOME_PATH, LANDING_PATH } from './paths'
 
-interface AppRouterProps {
-  authenticated: boolean
-  onLoginSuccess: (userData?: { username: string; role?: string }) => void
-  onLogout: () => void
-}
-
-export function AppRouter({ authenticated, onLoginSuccess, onLogout }: AppRouterProps) {
+export function AppRouter() {
   const location = useLocation()
   const navigate = useNavigate()
+  const authenticated = useAuthStore((s) => s.authenticated)
+  const loginSuccess = useAuthStore((s) => s.loginSuccess)
+  const logout = useAuthStore((s) => s.logout)
+
+  const handleLogin = async (userData?: { username: string; role?: string }) => {
+    await loginSuccess(userData)
+    navigate(HOME_PATH, { replace: true })
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    navigate(LOGIN_PATH, { replace: true })
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -48,7 +56,7 @@ export function AppRouter({ authenticated, onLoginSuccess, onLogout }: AppRouter
               >
                 <LoginScreen
                   onBack={() => navigate(LANDING_PATH)}
-                  onLoginSuccess={onLoginSuccess}
+                  onLoginSuccess={handleLogin}
                 />
               </motion.div>
             )
@@ -67,7 +75,7 @@ export function AppRouter({ authenticated, onLoginSuccess, onLogout }: AppRouter
                 transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
                 className="absolute inset-0 z-0"
               >
-                <Desktop onLogout={onLogout} authenticated={authenticated} />
+                <Desktop onLogout={handleLogout} authenticated={authenticated} />
               </motion.div>
             )
           }
