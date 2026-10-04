@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@/assets/css/index.css'
+import '@/assets/scss/global.scss'
 import App from './App'
 import { registerServiceWorker } from './pwa'
 import { I18nProvider } from '@/lib/i18n'
