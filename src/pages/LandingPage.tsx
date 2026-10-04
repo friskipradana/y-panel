@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
-type LandingPageProps = {
+export type LandingPageProps = {
   authenticated: boolean
   onNavigate: (path: string) => void
 }
@@ -213,7 +213,6 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             })}
           </div>
         </div>
-
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-mono">

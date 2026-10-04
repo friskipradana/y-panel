@@ -8,7 +8,7 @@ import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 
-interface Props {
+export interface LoginPageProps {
   onLoginSuccess: (user?: { username: string; role?: string }) => void
   onBack?: () => void
 }
@@ -20,7 +20,7 @@ const pillStyle = {
   backdropFilter: 'blur(30px)',
 } as const
 
-export function LoginScreen({ onLoginSuccess, onBack }: Props) {
+export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   const [mode, setMode] = useState<ScreenMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -90,7 +90,6 @@ export function LoginScreen({ onLoginSuccess, onBack }: Props) {
     },
   })
 
-  // const activeError = (mode === 'setup' ? setupMutation.error : loginMutation.error) as Error | null
   const activePending = mode === 'setup' ? setupMutation.isPending : loginMutation.isPending
 
   const statusMessage = useMemo(() => {
@@ -280,28 +279,10 @@ export function LoginScreen({ onLoginSuccess, onBack }: Props) {
             </div>
           </form>
         )}
-
-        {/* <AnimatePresence mode="wait">
-          {activeError && (
-            <motion.div
-              key={`${mode}-error`}
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-danger-bg)] px-4 py-2 shadow-lg backdrop-blur-md"
-            >
-              <AlertCircle size={15} className="mt-0.5 shrink-0 text-[var(--panel-danger-text)]" />
-              <span className="text-sm font-medium text-[var(--panel-danger-text)]">
-                {activeError.message || (mode === 'setup' ? t('login.setupFailed') : t('login.loginFailedRetry'))}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence> */}
       </div>
     </main>
   )
 }
 
-
-
-
+// Backward compatibility export alias
+export { LoginPage as LoginScreen }
