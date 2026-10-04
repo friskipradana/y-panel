@@ -273,6 +273,8 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     try {
       runtimeLogger.info('auth', 'logout requested from taskbar')
       await logoutAgent()
+    } catch (e) {
+      runtimeLogger.warn('auth', 'logout api call failed, continuing local cleanup', { error: e })
     } finally {
       onLogout()
       setLoggingOut(false)

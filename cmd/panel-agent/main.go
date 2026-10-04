@@ -130,21 +130,36 @@ func readPasswordFromStdin() (string, error) {
 
 func loadRuntimeEnv() error {
 	envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE"))
-	if envPath == "" {
-		envPath = filepath.Join("/etc", "ypanel", "agent.env")
+	candidates := []string{}
+	if envPath != "" {
+		candidates = append(candidates, envPath)
+	} else {
+		candidates = append(candidates,
+			filepath.Join("/etc", "ypanel", "agent.env"),
+			filepath.Join("/etc", "ui-panel", "agent.env"),
+			".env",
+		)
 	}
-	data, err := os.ReadFile(envPath)
-	if err != nil && envPath == filepath.Join("/etc", "ypanel", "agent.env") {
-		legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-		if legacyData, legacyErr := os.ReadFile(legacyPath); legacyErr == nil {
-			envPath = legacyPath
-			data = legacyData
-			err = nil
+
+	var data []byte
+	var loadedPath string
+	var lastErr error
+
+	for _, p := range candidates {
+		if content, err := os.ReadFile(p); err == nil {
+			data = content
+			loadedPath = p
+			lastErr = nil
+			break
+		} else {
+			lastErr = err
 		}
 	}
-	if err != nil {
-		return err
+
+	if lastErr != nil {
+		return fmt.Errorf("tidak dapat memuat file env: %w", lastErr)
 	}
+
 	for _, line := range strings.Split(string(data), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
@@ -160,7 +175,7 @@ func loadRuntimeEnv() error {
 		}
 		_ = os.Setenv(key, strings.TrimSpace(value))
 	}
-	_ = os.Setenv("PANEL_ENV_FILE", envPath)
+	_ = os.Setenv("PANEL_ENV_FILE", loadedPath)
 	return nil
 }
 

@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 
 interface Props {
-  onLoginSuccess: () => void
+  onLoginSuccess: (user?: { username: string; role?: string }) => void
   onBack?: () => void
 }
 
@@ -55,7 +55,7 @@ export function LoginScreen({ onLoginSuccess, onBack }: Props) {
     onSuccess: (result) => {
       runtimeLogger.info('auth', 'login succeeded', result)
       setPassword('')
-      onLoginSuccess()
+      onLoginSuccess(result)
     },
     onError: (error: any) => {
       runtimeLogger.error('auth', 'login failed', error)
@@ -81,7 +81,7 @@ export function LoginScreen({ onLoginSuccess, onBack }: Props) {
       runtimeLogger.info('auth', 'first-run setup succeeded', result)
       setSetupPassword('')
       setSetupConfirmPassword('')
-      onLoginSuccess()
+      onLoginSuccess(result)
     },
     onError: (error) => {
       runtimeLogger.error('auth', 'first-run setup failed', error)
