@@ -56,6 +56,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	loadDotEnv(".env")
 	cfg := Config{
 		BindAddr:                   getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
 		AllowedHosts:               parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
@@ -291,3 +292,26 @@ func firstNonEmpty(values ...string) string {
 
 // Kept for backward compatibility with system package
 var _ = parseIntEnv
+
+func loadDotEnv(filename string) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		parts := strings.SplitN(trimmed, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.TrimSpace(parts[1])
+		val = strings.Trim(val, "\"'")
+		if os.Getenv(key) == "" {
+			_ = os.Setenv(key, val)
+		}
+	}
+}

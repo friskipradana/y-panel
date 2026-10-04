@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { GlobalAlert } from '@/components/alert/GlobalAlert'
@@ -235,16 +235,21 @@ function FrontendNotFoundPage({ authenticated }: { authenticated: boolean }) {
   )
 }
 
-// Singleton promise to ensure session check only happens once per page load
-let sessionCheckPromise: Promise<any> | null = null
-
 function AppShell() {
   const { t } = useI18n()
-  const [checkingSession, setCheckingSession] = useState(true)
   const [authenticated, setAuthenticated] = useState(false)
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
   const frontendRevisionRef = useRef<string | null>(null)
-  const sessionCheckStarted = useRef(false)
+
+  const { data: me, isLoading: checkingSession, error: sessionError } = useQuery({
+    queryKey: ['auth', 'session'],
+    queryFn: async () => {
+      runtimeLogger.info('auth', 'checking existing session')
+      return await getMe()
+    },
+    retry: false,
+    staleTime: Infinity,
+  })
 
   const isKnownPath = useMemo(() => {
     if (currentPath === '/' || currentPath === HOME_PATH || currentPath === LOGIN_PATH) {
@@ -264,10 +269,7 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
-    if (sessionCheckStarted.current) return
-    sessionCheckStarted.current = true
-
-    let cancelled = false
+    if (checkingSession) return
 
     const replaceRoute = (nextPath: string) => {
       if (window.location.pathname !== nextPath) {
@@ -288,56 +290,47 @@ function AppShell() {
       }
     }
 
-    if (!sessionCheckPromise) {
-      runtimeLogger.info('auth', 'checking existing session')
-      sessionCheckPromise = getMe()
+    if (me) {
+      runtimeLogger.info('auth', 'existing session restored', { username: me.username })
+      setAuthenticated(true)
+      void getMeV2()
+        .then((fullMe) => {
+          window.localStorage.setItem('me-v2-cache', JSON.stringify({
+            id: fullMe.id,
+            username: fullMe.username,
+            displayName: fullMe.displayName,
+            role: fullMe.role,
+          }))
+        })
+        .catch(() => {
+          window.localStorage.removeItem('me-v2-cache')
+        })
+      syncLoggedInRoute()
+    } else {
+      if (sessionError && (sessionError as any)?.response?.status !== 401) {
+        runtimeLogger.warn('auth', 'session check failed', { error: sessionError })
+      }
+      setAuthenticated(false)
+      window.localStorage.removeItem('me-v2-cache')
+      syncLoggedOutRoute()
     }
+  }, [me, checkingSession, sessionError])
 
-    sessionCheckPromise
-      .then((me) => {
-        if (cancelled) return
-        runtimeLogger.info('auth', 'existing session restored', { username: me.username })
-        setAuthenticated(true)
-        void getMeV2()
-          .then((fullMe) => {
-            window.localStorage.setItem('me-v2-cache', JSON.stringify({
-              id: fullMe.id,
-              username: fullMe.username,
-              displayName: fullMe.displayName,
-              role: fullMe.role,
-            }))
-          })
-          .catch(() => {
-            window.localStorage.removeItem('me-v2-cache')
-          })
-        syncLoggedInRoute()
-      })
-      .catch((error) => {
-        if (cancelled) return
-        if (error.response?.status !== 401) {
-          runtimeLogger.warn('auth', 'session check failed', { error })
-        }
-        setAuthenticated(false)
-        window.localStorage.removeItem('me-v2-cache')
-        syncLoggedOutRoute()
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingSession(false)
-      })
-
+  useEffect(() => {
     const handleSessionExpired = () => {
       runtimeLogger.warn('auth', 'session expired, resetting shell state')
       queryClient.clear()
       useWindowStore.getState().resetWindows()
       window.localStorage.removeItem('me-v2-cache')
       setAuthenticated(false)
-      replaceRoute(LOGIN_PATH)
+      if (window.location.pathname !== LOGIN_PATH) {
+        window.history.replaceState({}, '', LOGIN_PATH)
+        setCurrentPath(LOGIN_PATH)
+      }
     }
 
     window.addEventListener('panel:session-expired', handleSessionExpired)
-
     return () => {
-      cancelled = true
       window.removeEventListener('panel:session-expired', handleSessionExpired)
     }
   }, [])
