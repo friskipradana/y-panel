@@ -1,0 +1,109 @@
+/* ============================================================
+   Desktop & Base Viewport
+   ============================================================ */
+::selection {
+  background: rgba(249, 115, 22, 0.35);
+  color: white;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 99px;
+}
+
+/* ============================================================
+   Desktop wallpaper
+   Background is set dynamically via inline style from themeStore.
+   Keep this class for transition smoothness.
+   ============================================================ */
+.desktop-root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  transition: background 400ms ease;
+}
+
+
+/* ============================================================
+   Wallpaper Grid & Custom Upload
+   ============================================================ */
+/* Wallpaper grid */
+.wallpaper-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wallpaper-swatch {
+  height: 48px;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 120ms, box-shadow 120ms;
+  outline: none;
+  background: var(--swatch-bg, linear-gradient(135deg, #e2e8f0, #cbd5e1));
+  background-size: cover;
+  background-position: center;
+}
+
+.wallpaper-swatch:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.20);
+}
+
+.wallpaper-swatch.active {
+  box-shadow: 0 0 0 2px #f76707, 0 4px 12px rgba(247, 103, 7, 0.30);
+}
+
+.wallpaper-swatch-label {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Custom image upload button */
+.wallpaper-upload-btn {
+  height: 48px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--menu-border);
+  background: var(--tb-hover);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--tb-clock);
+  font-size: 12px;
+  font-family: Outfit, sans-serif;
+  font-weight: 500;
+  transition: background 120ms, border-color 120ms;
+  position: relative;
+  overflow: hidden;
+}
+
+.wallpaper-upload-btn:hover {
+  background: var(--profile-btn-hover);
+  border-color: #f76707;
+  color: #f76707;
+}
+
