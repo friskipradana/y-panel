@@ -497,7 +497,7 @@ function AppShell() {
   const showUnknown = !isKnownPath
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className={`relative w-full h-full ${showLanding ? 'overflow-y-auto' : 'overflow-hidden'}`}>
       {showLanding ? (
         <LandingPage authenticated={authenticated} onNavigate={navigateTo} />
       ) : null}
