@@ -1,7 +1,5 @@
-/* ============================================================
-   Shared UI Components & Modals
-   ============================================================ */
-/* ---------------- Tab toolbar ---------------- */
+// Shared UI Components & Modals
+
 .docker-tab-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -37,7 +35,7 @@
   min-width: 200px;
 }
 
-/* ---------------- Flat list rows ---------------- */
+
 .docker-flat-list {
   display: flex;
   flex-direction: column;
@@ -60,7 +58,7 @@
   border-bottom: none;
 }
 
-/* ---------------- Tunnel flat row ---------------- */
+
 .tunnel-flat-row {
   display: flex;
   align-items: center;
@@ -162,7 +160,7 @@
   font-size: 0.72rem;
   color: var(--text-secondary);
   white-space: pre-line;
-  /* gap: 4px; */
+  // gap: 4px;
   margin-left: 1px;
 }
 
@@ -178,7 +176,7 @@
   align-items: flex-start;
 }
 
-/* ---------------- Pagination ---------------- */
+
 .docker-pagination {
   display: flex;
   align-items: center;
@@ -192,7 +190,7 @@
   color: var(--text-secondary);
 }
 
-/* ---------------- Modal ---------------- */
+
 .docker-window-root {
   position: relative;
 }
@@ -327,7 +325,7 @@
   word-break: break-word;
 }
 
-/* ---------------- Docker deploy modal: keep shared panel modal style, only size/scroll large form ---------------- */
+
 .docker-deploy-modal-card {
   width: min(94vw, 980px);
   max-height: min(92vh, 860px);
@@ -425,7 +423,7 @@
   }
 }
 
-/* ---------------- Deploy image combobox ---------------- */
+
 .docker-image-combobox {
   position: relative;
 }
@@ -610,7 +608,7 @@
   color: var(--text-secondary);
 }
 
-/* ---------------- Network dropdown meta row (driver / subnet / gateway) ---------------- */
+
 .docker-net-dropdown-meta {
   display: flex;
   align-items: center;
@@ -641,7 +639,7 @@
   color: var(--text-secondary);
 }
 
-/* ---------------- Template picker (inside deploy compose) ---------------- */
+
 .docker-tpl-picker {
   display: flex;
   flex-direction: column;
@@ -685,7 +683,7 @@
   color: var(--text-secondary);
 }
 
-/* ---------------- Form helper styles ---------------- */
+
 .panel-hint {
   margin-top: 4px;
   font-size: 0.72rem;
@@ -704,7 +702,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  /* padding: 2px; */
+  // padding: 2px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--panel-surface-hover) 42%, transparent);
 }
@@ -773,15 +771,15 @@
   }
 }
 
-/* ---------------- Save as template checkbox ---------------- */
+
 .docker-save-tpl-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* padding: 8px 10px; */
-  /* border-radius: 12px; */
-  /* border: 1px solid var(--win-border); */
-  /* background: color-mix(in srgb, var(--panel-surface-hover) 70%, transparent); */
+  // padding: 8px 10px;
+  // border-radius: 12px;
+  // border: 1px solid var(--win-border);
+  // background: color-mix(in srgb, var(--panel-surface-hover) 70%, transparent);
   font-size: 0.82rem;
   color: var(--win-text);
   cursor: pointer;
@@ -1211,13 +1209,13 @@
   align-items: center;
   justify-content: center;
   min-height: 34px;
-  /* border-radius: 0;
-  border: none; */
-  /* background: tansparent; */
-  /* background: color-mix(in srgb, var(--panel-surface) 72%, transparent); */
+  // border-radius: 0;
+// border: none;
+  // background: tansparent;
+  // background: color-mix(in srgb, var(--panel-surface) 72%, transparent);
   padding: 0;
   font-size: 0.75rem;
-  /* color: var(--text-secondary); */
+  // color: var(--text-secondary);
   margin-right: 10px;
 }
 

@@ -1,7 +1,6 @@
-/* ============================================================
-   Public Landing Page & Showcase
-   ============================================================ */
-/* Landing Page */
+// Public Landing Page & Showcase
+
+// Landing Page
 .landing-page-shell {
   min-height: 100vh;
   width: 100%;
@@ -330,7 +329,7 @@
   }
 }
 
-/* One-screen Landing Refinement */
+// One-screen Landing Refinement
 .landing-page-shell--single {
   min-height: 100vh;
   height: 100vh;
@@ -480,7 +479,7 @@
   }
 }
 
-/* Landing preview image should stay fully visible */
+// Landing preview image should stay fully visible
 .landing-preview-card--single {
   display: grid;
   place-items: center;
@@ -508,7 +507,7 @@
   }
 }
 
-/* Modern installer copy toast */
+// Modern installer copy toast
 .landing-copy-toast {
   position: fixed;
   right: 24px;

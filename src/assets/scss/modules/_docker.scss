@@ -1,7 +1,4 @@
-/* ============================================================
-   Docker Deploy Wizard & Progress Console
-   ============================================================ */
-/* ---------------- Docker Deploy Loading Overlay ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */
+// Docker Deploy Wizard & Progress Console
 
 .docker-deploy-loading-overlay {
   position: absolute;
@@ -27,7 +24,7 @@
   width: 100%;
 }
 
-/* Spinner */
+// Spinner
 .docker-deploy-loading__spinner {
   color: var(--panel-primary, #3b82f6);
   width: 56px;
@@ -46,7 +43,7 @@
   }
 }
 
-/* Title */
+// Title
 .docker-deploy-loading__title {
   font-size: 0.9rem;
   font-weight: 700;
@@ -54,7 +51,7 @@
   letter-spacing: -0.01em;
 }
 
-/* Subtitle (container name) */
+// Subtitle (container name)
 .docker-deploy-loading__subtitle {
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -69,7 +66,7 @@
   color: var(--win-text);
 }
 
-/* Step list */
+// Step list
 .docker-deploy-loading__steps {
   display: flex;
   flex-direction: column;
@@ -120,7 +117,7 @@
   flex-shrink: 0;
 }
 
-/* Pulsing dot for active step */
+// Pulsing dot for active step
 .docker-deploy-step__pulse {
   display: block;
   width: 8px;
@@ -144,7 +141,7 @@
   }
 }
 
-/* Check SVG */
+// Check SVG
 .docker-deploy-step__check {
   width: 16px;
   height: 16px;
@@ -168,7 +165,7 @@
   text-align: left;
 }
 
-/* Note */
+// Note
 .docker-deploy-loading__note {
   font-size: 0.7rem;
   color: var(--text-secondary);
@@ -178,10 +175,7 @@
 }
 
 
-/* ============================================================
-   Docker Deploy Polish & Progress Overlay
-   ============================================================ */
-/* Docker deploy form alignment polish */
+// Docker deploy form alignment polish
 .docker-deploy-modal-card .grid.grid-cols-2.gap-6 {
   align-items: start;
 }
@@ -225,7 +219,7 @@
   }
 }
 
-/* Docker Progress Console & Overlay */
+// Docker Progress Console & Overlay
 .docker-progress-overlay {
   position: absolute;
   top: 0;
@@ -358,6 +352,5 @@
   from, to { opacity: 0; }
   50% { opacity: 1; }
 }
-
 
 
