@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const apiBase = env.VITE_API_BASE || '/api'
   const agentBase = env.VITE_AGENT_BASE || '/agent'
   const portainerBase = env.VITE_PORTAINER_BASE || '/portainer'
   const agentTarget = env.VITE_AGENT_PROXY_TARGET || 'http://localhost:8787'
@@ -43,6 +44,11 @@ export default defineConfig(({ mode }) => {
       port: 8770,
       strictPort: true,
       proxy: {
+        [apiBase]: {
+          target: agentTarget,
+          changeOrigin: true,
+          ws: true,
+        },
         [agentBase]: {
           target: agentTarget,
           changeOrigin: true,
