@@ -1,0 +1,525 @@
+/* ============================================================
+   Taskbar & System Tray
+   ============================================================ */
+/* ============================================================
+   Taskbar
+   ============================================================ */
+.taskbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 16px;
+  z-index: 60000;
+  background: var(--tb-bg);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--tb-border);
+  transition: background 250ms, border-color 250ms;
+  user-select: none;
+}
+
+.taskbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+}
+
+.taskbar-nav-btn {
+  font-size: 14px;
+  color: var(--tb-text);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: Outfit, sans-serif;
+  font-weight: 500;
+  transition: background 150ms, color 150ms;
+}
+
+.taskbar-nav-btn:hover {
+  background: var(--tb-hover);
+}
+
+.taskbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.taskbar-actions select,
+.taskbar-actions .goog-te-combo,
+.taskbar-language-select {
+  width: auto;
+  min-width: 64px;
+  max-width: 76px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--tb-border) 72%, transparent);
+  background-color: color-mix(in srgb, var(--tb-hover) 64%, transparent);
+  color: var(--tb-text);
+  padding: 0 24px 0 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
+  letter-spacing: 0;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.taskbar-actions select:hover,
+.taskbar-actions .goog-te-combo:hover,
+.taskbar-language-select:hover {
+  background-color: var(--tb-hover);
+  border-color: color-mix(in srgb, var(--tb-icon) 32%, var(--tb-border));
+}
+
+.taskbar-actions select:focus,
+.taskbar-actions .goog-te-combo:focus,
+.taskbar-language-select:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tb-icon) 18%, transparent);
+}
+
+.taskbar-actions select option,
+.taskbar-actions .goog-te-combo option,
+.taskbar-language-select option {
+  background: var(--panel-surface);
+  color: var(--win-text);
+  font-family: Outfit, sans-serif;
+  font-size: 12px;
+}
+
+.taskbar-clock {
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--tb-clock);
+  min-width: 156px;
+  text-align: right;
+  padding-right: 8px;
+}
+
+.taskbar-language-select {
+  /* width: 64px; */
+  /* min-width: 14px; */
+  /* max-width: 24px; */
+  z-index: 60020;
+}
+
+.taskbar-language-select .docker-image-combobox__input-wrap {
+  min-height: 28px;
+}
+
+.taskbar-language-select__button {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 26px 0 10px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--profile-btn-bg) !important;
+  color: var(--tb-clock) !important;
+  border-color: var(--tb-border) !important;
+}
+
+.taskbar-language-select__dropdown {
+  top: calc(100% + 10px) !important;
+  right: 0;
+  left: auto !important;
+  width: 116px;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--tb-border) 80%, transparent);
+  background: color-mix(in srgb, var(--menu-bg) 88%, transparent);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255,255,255,0.45);
+  backdrop-filter: blur(22px) saturate(1.25);
+  z-index: 999999 !important;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item {
+  min-height: 34px;
+  padding: 7px 9px;
+  gap: 7px;
+  border-radius: 12px;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item-name {
+  min-width: 22px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item-size {
+  margin-left: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item--selected {
+  background: color-mix(in srgb, var(--panel-primary-bg) 82%, transparent);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 35%, transparent);
+}
+
+.taskbar-language-select__dropdown .docker-image-combobox__item svg {
+  margin-left: 0 !important;
+  width: 13px;
+  height: 13px;
+  color: var(--panel-primary-text);
+}
+
+.taskbar-language-select .docker-image-combobox__toggle {
+  width: 22px;
+  height: 28px;
+  color: var(--tb-clock);
+}
+
+.taskbar-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--tb-icon);
+  transition: background 150ms;
+}
+
+.taskbar-icon-btn:hover {
+  background: var(--tb-hover);
+}
+
+.taskbar-icon-btn--notification {
+  position: relative;
+}
+
+.taskbar-notifications-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 4px;
+  background: var(--panel-primary-solid);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--tb-bg);
+}
+
+.taskbar-notifications {
+  position: absolute;
+  top: 50px;
+  right: 182px;
+  z-index: 60010;
+  width: 380px;
+  overflow: hidden;
+  border: 1px solid var(--menu-border);
+  border-radius: 24px;
+  background: var(--menu-bg);
+  box-shadow: var(--menu-shadow);
+  backdrop-filter: blur(24px);
+}
+
+.taskbar-notifications__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--menu-divider);
+  padding: 16px 18px 14px;
+}
+
+.taskbar-notifications__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.taskbar-notifications__title-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--panel-primary-bg);
+  color: var(--panel-primary-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.taskbar-notifications__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.taskbar-notifications__subtitle {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.taskbar-notifications__mark-all {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.taskbar-notifications__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px 0;
+}
+
+.taskbar-notifications__count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.taskbar-notifications__list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.taskbar-notifications__empty {
+  min-height: 180px;
+  border-style: solid;
+  border-radius: 18px;
+  gap: 12px;
+  padding: 28px 18px;
+}
+
+.taskbar-notification-card {
+  width: 100%;
+  margin-bottom: 10px;
+  border: 1px solid var(--win-border);
+  border-radius: 20px;
+  background: var(--panel-surface);
+  padding: 14px;
+  text-align: left;
+  color: var(--win-text);
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.taskbar-notification-card:last-child {
+  margin-bottom: 0;
+}
+
+.taskbar-notification-card:hover {
+  transform: translateY(-1px);
+  background: var(--panel-surface-hover);
+}
+
+.taskbar-notification-card--unread {
+  border-color: color-mix(in srgb, var(--panel-primary-text) 26%, var(--win-border));
+  background: color-mix(in srgb, var(--panel-primary-bg) 72%, var(--panel-surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.taskbar-notification-card--read {
+  opacity: 0.94;
+}
+
+.taskbar-notification-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.taskbar-notification-card__title-wrap {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskbar-notification-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.taskbar-notification-card__unread-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--panel-primary-text);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--panel-primary-text) 16%, transparent);
+}
+
+.taskbar-notification-card__body {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.taskbar-notification-card__footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   Profile Button (taskbar)
+   ============================================================ */
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--profile-btn-bg);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--win-text);
+  font-size: 13px;
+  font-family: Outfit, sans-serif;
+  font-weight: 500;
+  transition: background 150ms;
+}
+
+.profile-btn:hover {
+  background: var(--profile-btn-hover);
+}
+
+.profile-btn:disabled {
+  cursor: wait;
+}
+
+/* ============================================================
+   Profile dropdown (portal)
+   ============================================================ */
+.profile-menu {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  width: 268px;
+  border-radius: 14px;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  box-shadow: var(--menu-shadow);
+  backdrop-filter: blur(24px);
+  z-index: 200000;
+  overflow: hidden;
+}
+
+.profile-menu-section {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--menu-divider);
+}
+
+.profile-menu-section:last-child {
+  border-bottom: none;
+  padding-top: 8px;
+  padding-bottom: 10px;
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f76707, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--win-text);
+}
+
+.profile-role {
+  font-size: 12px;
+  color: var(--tb-clock);
+}
+
+.profile-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--tb-clock);
+  margin-bottom: 6px;
+  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-menu-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--win-text);
+  font-size: 13px;
+  font-family: Outfit, sans-serif;
+  text-align: left;
+  transition: background 120ms;
+}
+
+.profile-menu-btn:hover {
+  background: var(--tb-hover);
+}
+
+.profile-menu-btn-danger {
+  color: #ef4444;
+}
+
+.profile-menu-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.10) !important;
+}
+
