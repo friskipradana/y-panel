@@ -18,7 +18,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
 	s.mux.HandleFunc("POST /api/v1/setup/initialize", s.handleInitializeSetup)
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLoginV2)
-	s.mux.Handle("POST /api/v1/auth/logout", s.requireAuthV2(http.HandlerFunc(s.handleLogout)))
+	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
 	s.mux.Handle("GET /api/v1/me", s.requireAuthV2(http.HandlerFunc(s.handleMeV2)))
 	s.mux.Handle("POST /api/v1/settings/panel-primary/reset-password", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityPanelPrimaryReset, http.HandlerFunc(s.handleResetPrimaryPanelPassword))))
 

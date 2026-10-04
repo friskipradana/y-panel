@@ -363,7 +363,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(sessionCookieName)
-	if err == nil {
+	if err == nil && cookie.Value != "" {
 		s.auth.Logout(cookie.Value)
 	}
 
@@ -376,6 +376,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   false,
 		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
 	})
 
 	log.Printf("[auth] logout user=%q remote=%s", username, remoteAddr(r))

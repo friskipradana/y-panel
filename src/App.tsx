@@ -301,6 +301,7 @@ function AppShell() {
             displayName: fullMe.displayName,
             role: fullMe.role,
           }))
+          queryClient.setQueryData(['me-v2'], fullMe)
         })
         .catch(() => {
           window.localStorage.removeItem('me-v2-cache')
@@ -319,11 +320,13 @@ function AppShell() {
   useEffect(() => {
     const handleSessionExpired = () => {
       runtimeLogger.warn('auth', 'session expired, resetting shell state')
-      queryClient.clear()
       useWindowStore.getState().resetWindows()
       window.localStorage.removeItem('me-v2-cache')
+      queryClient.setQueryData(['auth', 'session'], null)
+      queryClient.setQueryData(['me-v2'], null)
+      queryClient.clear()
       setAuthenticated(false)
-      if (window.location.pathname !== LOGIN_PATH) {
+      if (window.location.pathname !== LOGIN_PATH && window.location.pathname !== '/') {
         window.history.replaceState({}, '', LOGIN_PATH)
         setCurrentPath(LOGIN_PATH)
       }
@@ -345,10 +348,7 @@ function AppShell() {
     let disposed = false
 
     const syncFrontendRevision = async () => {
-      // Don't check if tab is hidden to save resources
-      if (document.visibilityState !== 'visible') {
-        return
-      }
+      if (document.visibilityState !== 'visible') return
 
       try {
         const response = await getFrontendRevision()
@@ -367,11 +367,10 @@ function AppShell() {
           })
           frontendRevisionRef.current = nextRevision
 
-          // Clear cache before reload to ensure we get the latest assets
           if ('caches' in window) {
             try {
               const cacheNames = await caches.keys()
-              await Promise.all(cacheNames.map(name => caches.delete(name)))
+              await Promise.all(cacheNames.map((name) => caches.delete(name)))
             } catch (e) {
               runtimeLogger.warn('frontend', 'failed to clear caches', { error: e })
             }
@@ -379,8 +378,7 @@ function AppShell() {
 
           window.location.reload()
         }
-      }
-      catch (error) {
+      } catch (error) {
         runtimeLogger.warn('frontend', 'failed to check frontend revision', { error })
       }
     }
@@ -399,19 +397,41 @@ function AppShell() {
     }
   }, [authenticated])
 
+  const handleLoginSuccess = async (userData?: { username: string; role?: string }) => {
+    runtimeLogger.info('auth', 'login success propagated to app shell', { username: userData?.username })
+    const sessionUser = userData || { username: 'admin', role: 'admin' }
+    queryClient.setQueryData(['auth', 'session'], sessionUser)
+    setAuthenticated(true)
+    try {
+      const fullMe = await getMeV2()
+      window.localStorage.setItem('me-v2-cache', JSON.stringify({
+        id: fullMe.id,
+        username: fullMe.username,
+        displayName: fullMe.displayName,
+        role: fullMe.role,
+      }))
+      queryClient.setQueryData(['me-v2'], fullMe)
+      queryClient.setQueryData(['auth', 'session'], { username: fullMe.username, role: fullMe.role })
+    } catch {
+      window.localStorage.removeItem('me-v2-cache')
+    }
+    window.history.replaceState({}, '', HOME_PATH)
+    setCurrentPath(HOME_PATH)
+  }
+
   const handleLogout = () => {
     runtimeLogger.info('auth', 'manual logout requested from desktop')
-    queryClient.clear()
     useWindowStore.getState().resetWindows()
     window.localStorage.removeItem('me-v2-cache')
+    queryClient.setQueryData(['auth', 'session'], null)
+    queryClient.setQueryData(['me-v2'], null)
+    queryClient.clear()
     if ('caches' in window) {
       void caches.keys().then((cacheNames) => Promise.all(cacheNames.map((name) => caches.delete(name))))
     }
     setAuthenticated(false)
-    if (window.location.pathname !== LOGIN_PATH) {
-      window.history.replaceState({}, '', LOGIN_PATH)
-      setCurrentPath(LOGIN_PATH)
-    }
+    window.history.replaceState({}, '', LOGIN_PATH)
+    setCurrentPath(LOGIN_PATH)
   }
 
   // Global Keyboard Shortcuts
@@ -518,24 +538,7 @@ function AppShell() {
           >
             <LoginScreen
               onBack={() => navigateTo('/')}
-              onLoginSuccess={() => {
-                runtimeLogger.info('auth', 'login success propagated to app shell')
-                setAuthenticated(true)
-                void getMeV2()
-                  .then((fullMe) => {
-                    window.localStorage.setItem('me-v2-cache', JSON.stringify({
-                      id: fullMe.id,
-                      username: fullMe.username,
-                      displayName: fullMe.displayName,
-                      role: fullMe.role,
-                    }))
-                  })
-                  .catch(() => {
-                    window.localStorage.removeItem('me-v2-cache')
-                  })
-                window.history.replaceState({}, '', HOME_PATH)
-                setCurrentPath(HOME_PATH)
-              }}
+              onLoginSuccess={handleLoginSuccess}
             />
           </motion.div>
         ) : showDesktop ? (
@@ -572,11 +575,7 @@ function AppShell() {
             {currentPath === HOME_PATH && !authenticated ? (
               <LoginScreen
                 onBack={() => navigateTo('/')}
-                onLoginSuccess={() => {
-                  setAuthenticated(true)
-                  window.history.replaceState({}, '', HOME_PATH)
-                  setCurrentPath(HOME_PATH)
-                }}
+                onLoginSuccess={handleLoginSuccess}
               />
             ) : (
               <FrontendNotFoundPage authenticated={authenticated} />
