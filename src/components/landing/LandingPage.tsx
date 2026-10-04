@@ -84,14 +84,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               href="https://github.com/friskipradana/y-panel"
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/[0.04] transition flex items-center gap-1.5"
+              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/[0.04] transition flex items-center gap-1.5 cursor-pointer"
             >
               <span>GitHub</span>
               <ExternalLink size={11} className="opacity-60" />
             </a>
             <a
               href={INSTALLER_URL}
-              className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-md border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] transition flex items-center gap-1.5"
+              className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-md border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] transition flex items-center gap-1.5 cursor-pointer"
             >
               <Download size={12} />
               <span>Installer</span>
@@ -99,7 +99,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <button
               type="button"
               onClick={() => onNavigate(primaryPath)}
-              className="text-xs font-medium text-[#03060c] bg-white hover:bg-slate-200 px-3.5 py-1.5 rounded-md transition flex items-center gap-1.5 shadow-sm font-semibold"
+              className="text-xs font-medium text-[#03060c] bg-white hover:bg-slate-200 px-3.5 py-1.5 rounded-md transition flex items-center gap-1.5 shadow-sm font-semibold cursor-pointer"
             >
               <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={12} />
@@ -129,14 +129,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <button
               type="button"
               onClick={() => onNavigate(primaryPath)}
-              className="h-11 px-6 rounded-lg text-sm font-semibold text-[#03060c] bg-white hover:bg-slate-200 transition shadow-lg shadow-white/5 flex items-center gap-2"
+              className="h-11 px-6 rounded-lg text-sm font-semibold text-[#03060c] bg-white hover:bg-slate-200 transition shadow-lg shadow-white/5 flex items-center gap-2 cursor-pointer"
             >
               <span>{authenticated ? 'Open Dashboard' : 'Login Agent'}</span>
               <ArrowRight size={15} />
             </button>
             <a
               href={INSTALLER_URL}
-              className="h-11 px-5 rounded-lg text-sm font-medium text-slate-300 hover:text-white border border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.06] transition flex items-center gap-2"
+              className="h-11 px-5 rounded-lg text-sm font-medium text-slate-300 hover:text-white border border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.06] transition flex items-center gap-2 cursor-pointer"
             >
               <Download size={15} />
               <span>Download Installer</span>
@@ -154,7 +154,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <button
               type="button"
               onClick={copyCommand}
-              className="shrink-0 ml-3 flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-3 py-1.5 rounded transition"
+              className="shrink-0 ml-3 flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-3 py-1.5 rounded transition cursor-pointer"
             >
               {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>

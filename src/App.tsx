@@ -399,8 +399,6 @@ function AppShell() {
     }
   }, [authenticated])
 
-  const [loginEntryMode, setLoginEntryMode] = useState<'default' | 'logout'>('default')
-
   const handleLogout = () => {
     runtimeLogger.info('auth', 'manual logout requested from desktop')
     queryClient.clear()
@@ -409,7 +407,6 @@ function AppShell() {
     if ('caches' in window) {
       void caches.keys().then((cacheNames) => Promise.all(cacheNames.map((name) => caches.delete(name))))
     }
-    setLoginEntryMode('logout')
     setAuthenticated(false)
     if (window.location.pathname !== LOGIN_PATH) {
       window.history.replaceState({}, '', LOGIN_PATH)
@@ -497,78 +494,96 @@ function AppShell() {
   const showUnknown = !isKnownPath
 
   return (
-    <div className={`relative w-full h-full ${showLanding ? 'overflow-y-auto' : 'overflow-hidden'}`}>
-      {showLanding ? (
-        <LandingPage authenticated={authenticated} onNavigate={navigateTo} />
-      ) : null}
-
-      {showDesktop ? (
-        <motion.div
-          key="desktop-home"
-          initial={{ opacity: 0, scale: 1.015 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
-          className="absolute inset-0 z-0"
-        >
-          <Desktop onLogout={handleLogout} authenticated={authenticated} />
-        </motion.div>
-      ) : null}
-
-      <AnimatePresence>
-        {showLogin ? (
+    <div className="relative w-full h-full overflow-hidden">
+      <AnimatePresence mode="wait">
+        {showLanding ? (
+          <motion.div
+            key="landing-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+            className="w-full h-full overflow-y-auto"
+          >
+            <LandingPage authenticated={authenticated} onNavigate={navigateTo} />
+          </motion.div>
+        ) : showLogin ? (
           <motion.div
             key="login-overlay"
-            initial={loginEntryMode === 'logout' ? { opacity: 0, y: -window.innerHeight } : { opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -window.innerHeight, scale: 1.1 }}
-            transition={{ duration: loginEntryMode === 'logout' ? 0.72 : 0.7, ease: [0.4, 0, 0.2, 1] }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
             className="absolute inset-0 z-[10000] overflow-hidden"
           >
-            <LoginScreen onLoginSuccess={() => {
-              runtimeLogger.info('auth', 'login success propagated to app shell')
-              setLoginEntryMode('default')
-              setAuthenticated(true)
-              void getMeV2()
-                .then((fullMe) => {
-                  window.localStorage.setItem('me-v2-cache', JSON.stringify({
-                    id: fullMe.id,
-                    username: fullMe.username,
-                    displayName: fullMe.displayName,
-                    role: fullMe.role,
-                  }))
-                })
-                .catch(() => {
-                  window.localStorage.removeItem('me-v2-cache')
-                })
-              window.history.replaceState({}, '', HOME_PATH)
-              setCurrentPath(HOME_PATH)
-            }} />
+            <LoginScreen
+              onBack={() => navigateTo('/')}
+              onLoginSuccess={() => {
+                runtimeLogger.info('auth', 'login success propagated to app shell')
+                setAuthenticated(true)
+                void getMeV2()
+                  .then((fullMe) => {
+                    window.localStorage.setItem('me-v2-cache', JSON.stringify({
+                      id: fullMe.id,
+                      username: fullMe.username,
+                      displayName: fullMe.displayName,
+                      role: fullMe.role,
+                    }))
+                  })
+                  .catch(() => {
+                    window.localStorage.removeItem('me-v2-cache')
+                  })
+                window.history.replaceState({}, '', HOME_PATH)
+                setCurrentPath(HOME_PATH)
+              }}
+            />
+          </motion.div>
+        ) : showDesktop ? (
+          <motion.div
+            key="desktop-home"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+            className="absolute inset-0 z-0"
+          >
+            <Desktop onLogout={handleLogout} authenticated={authenticated} />
+          </motion.div>
+        ) : showAuthenticatedLoginRedirect ? (
+          <motion.div
+            key="redirecting-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[20000] grid place-items-center bg-[var(--app-redirect-bg)] text-[var(--app-overlay-text)]"
+          >
+            <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-[var(--app-glass-muted-text)]">
+              {t('app.redirectingDashboard')}
+            </div>
+          </motion.div>
+        ) : (showUnknown || (currentPath === HOME_PATH && !authenticated)) ? (
+          <motion.div
+            key="fallback-view"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[20000]"
+          >
+            {currentPath === HOME_PATH && !authenticated ? (
+              <LoginScreen
+                onBack={() => navigateTo('/')}
+                onLoginSuccess={() => {
+                  setAuthenticated(true)
+                  window.history.replaceState({}, '', HOME_PATH)
+                  setCurrentPath(HOME_PATH)
+                }}
+              />
+            ) : (
+              <FrontendNotFoundPage authenticated={authenticated} />
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
-
-      {showAuthenticatedLoginRedirect ? (
-        <div className="absolute inset-0 z-[20000] grid place-items-center bg-[var(--app-redirect-bg)] text-[var(--app-overlay-text)]">
-          <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-[var(--app-glass-muted-text)]">
-            {t('app.redirectingDashboard')}
-          </div>
-        </div>
-      ) : null}
-
-      {showUnknown || (currentPath === HOME_PATH && !authenticated) ? (
-        <div className="absolute inset-0 z-[20000]">
-          {currentPath === HOME_PATH && !authenticated ? (
-            <LoginScreen onLoginSuccess={() => {
-              setLoginEntryMode('default')
-              setAuthenticated(true)
-              window.history.replaceState({}, '', HOME_PATH)
-              setCurrentPath(HOME_PATH)
-            }} />
-          ) : (
-            <FrontendNotFoundPage authenticated={authenticated} />
-          )}
-        </div>
-      ) : null}
 
       {SHOW_DEBUG_OVERLAY && DebugPanel && DebugGrid && authenticated && currentPath === HOME_PATH ? (
         <Suspense fallback={null}>

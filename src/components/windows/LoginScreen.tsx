@@ -1,9 +1,7 @@
-// import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  // AlertCircle,
-  LoaderCircle, ArrowRight, User, Eye, EyeOff
+  LoaderCircle, ArrowRight, ArrowLeft, User, Eye, EyeOff
 } from 'lucide-react'
 import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
@@ -12,6 +10,7 @@ import { useI18n } from '@/lib/i18n'
 
 interface Props {
   onLoginSuccess: () => void
+  onBack?: () => void
 }
 
 type ScreenMode = 'login' | 'setup'
@@ -21,7 +20,7 @@ const pillStyle = {
   backdropFilter: 'blur(30px)',
 } as const
 
-export function LoginScreen({ onLoginSuccess }: Props) {
+export function LoginScreen({ onLoginSuccess, onBack }: Props) {
   const [mode, setMode] = useState<ScreenMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -101,7 +100,20 @@ export function LoginScreen({ onLoginSuccess }: Props) {
   }, [mode, setupStatusQuery.isLoading, t])
 
   return (
-    <main className="mac-login-page" id="panel-login-screen">
+    <main className="mac-login-page relative" id="panel-login-screen">
+      {onBack ? (
+        <button
+          id="login-back-button"
+          type="button"
+          onClick={onBack}
+          title="Back"
+          style={pillStyle}
+          className="absolute top-6 left-6 z-30 flex items-center justify-center w-9 h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer"
+        >
+          <ArrowLeft size={16} />
+        </button>
+      ) : null}
+
       <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 pb-20 z-10">
         <div
           className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border shadow-2xl login-avatar-shell"

@@ -1,6 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+button, [role="button"], a {
+  cursor: pointer;
+}
+
 :root {
   --sand: #cfc4a6;
   --sand-dark: #b5a882;
