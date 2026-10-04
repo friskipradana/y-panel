@@ -51,7 +51,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-screen overflow-hidden">
       <AppRouter />
       <DevOverlay authenticated={authenticated} />
     </div>
