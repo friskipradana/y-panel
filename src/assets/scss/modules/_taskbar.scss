@@ -46,147 +46,148 @@
 .taskbar-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   margin-left: auto;
 }
 
-.taskbar-actions select,
-.taskbar-actions .goog-te-combo,
-.taskbar-language-select {
-  width: auto;
-  min-width: 64px;
-  max-width: 76px;
-  height: 24px;
+// Language Switcher (Model A - Pill Dropdown)
+.taskbar-lang-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  z-index: 60020;
+}
+
+.taskbar-lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px 0 8px;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--tb-border) 72%, transparent);
-  background-color: color-mix(in srgb, var(--tb-hover) 64%, transparent);
+  border: 1px solid var(--tb-border);
+  background: var(--profile-btn-bg);
   color: var(--tb-text);
-  padding: 0 24px 0 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 22px;
-  letter-spacing: 0;
-  outline: none;
-  appearance: none;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  outline: none;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+
+  &:hover,
+  &--open {
+    background: var(--tb-hover);
+    border-color: color-mix(in srgb, var(--tb-icon) 30%, var(--tb-border));
+    color: var(--win-text);
+  }
+
+  &__icon {
+    color: var(--tb-icon);
+    opacity: 0.8;
+  }
+
+  &__code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: inherit;
+  }
+
+  &__chevron {
+    color: var(--tb-icon);
+    opacity: 0.65;
+    transition: transform 180ms ease;
+  }
 }
 
-.taskbar-actions select:hover,
-.taskbar-actions .goog-te-combo:hover,
-.taskbar-language-select:hover {
-  background-color: var(--tb-hover);
-  border-color: color-mix(in srgb, var(--tb-icon) 32%, var(--tb-border));
+.taskbar-lang-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 175px;
+  padding: 6px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tb-border) 80%, transparent);
+  background: color-mix(in srgb, var(--menu-bg) 90%, transparent);
+  backdrop-filter: blur(24px) saturate(1.25);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  z-index: 999999;
+
+  &__header {
+    padding: 6px 10px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary);
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
 }
 
-.taskbar-actions select:focus,
-.taskbar-actions .goog-te-combo:focus,
-.taskbar-language-select:focus {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tb-icon) 18%, transparent);
-}
+.taskbar-lang-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tb-text);
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+  transition: all 140ms ease;
 
-.taskbar-actions select option,
-.taskbar-actions .goog-te-combo option,
-.taskbar-language-select option {
-  background: var(--panel-surface);
-  color: var(--win-text);
-  font-family: Outfit, sans-serif;
-  font-size: 12px;
+  &:hover {
+    background: var(--tb-hover);
+    color: var(--win-text);
+  }
+
+  &--selected {
+    background: color-mix(in srgb, var(--panel-primary-bg) 80%, transparent);
+    border-color: color-mix(in srgb, var(--panel-primary-text) 30%, transparent);
+    color: var(--win-text);
+
+    .taskbar-lang-item__code {
+      color: var(--panel-primary-text);
+    }
+  }
+
+  &__code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    min-width: 20px;
+  }
+
+  &__name {
+    font-family: Outfit, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    flex: 1 1 auto;
+  }
+
+  &__check {
+    color: var(--panel-primary-text);
+    margin-left: auto;
+  }
 }
 
 .taskbar-clock {
   font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   color: var(--tb-clock);
   min-width: 156px;
   text-align: right;
-  padding-right: 8px;
-}
-
-.taskbar-language-select {
-  // width: 64px;
-  // min-width: 14px;
-  // max-width: 24px;
-  z-index: 60020;
-}
-
-.taskbar-language-select .docker-image-combobox__input-wrap {
-  min-height: 28px;
-}
-
-.taskbar-language-select__button {
-  min-height: 28px !important;
-  height: 28px !important;
-  padding: 0 26px 0 10px !important;
-  border-radius: 999px !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: var(--profile-btn-bg) !important;
-  color: var(--tb-clock) !important;
-  border-color: var(--tb-border) !important;
-}
-
-.taskbar-language-select__dropdown {
-  top: calc(100% + 10px) !important;
-  right: 0;
-  left: auto !important;
-  width: 116px;
-  gap: 5px;
-  padding: 7px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--tb-border) 80%, transparent);
-  background: color-mix(in srgb, var(--menu-bg) 88%, transparent);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22), inset 0 1px 0 rgba(255,255,255,0.45);
-  backdrop-filter: blur(22px) saturate(1.25);
-  z-index: 999999 !important;
-}
-
-.taskbar-language-select__dropdown .docker-image-combobox__item {
-  min-height: 34px;
-  padding: 7px 9px;
-  gap: 7px;
-  border-radius: 12px;
-}
-
-.taskbar-language-select__dropdown .docker-image-combobox__item-name {
-  min-width: 22px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.taskbar-language-select__dropdown .docker-image-combobox__item-size {
-  margin-left: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 10px;
-  font-weight: 650;
-  color: var(--text-secondary);
-}
-
-.taskbar-language-select__dropdown .docker-image-combobox__item--selected {
-  background: color-mix(in srgb, var(--panel-primary-bg) 82%, transparent);
-  border-color: color-mix(in srgb, var(--panel-primary-text) 35%, transparent);
-}
-
-.taskbar-language-select__dropdown .docker-image-combobox__item svg {
-  margin-left: 0 !important;
-  width: 13px;
-  height: 13px;
-  color: var(--panel-primary-text);
-}
-
-.taskbar-language-select .docker-image-combobox__toggle {
-  width: 22px;
-  height: 28px;
-  color: var(--tb-clock);
+  padding: 0 4px;
 }
 
 .taskbar-icon-btn {
