@@ -103,6 +103,21 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
   tunnels: (win) => <TunnelsWindow win={win} />,
 }
 
+import { DesktopIcon } from '@/components/desktop/DesktopIcon'
+
+const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
+  { id: 'apps', label: 'Docker', windowId: 'apps' },
+  { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },
+  { id: 'tunnels', label: 'Cloudflare', windowId: 'tunnels' },
+  { id: 'projects', label: 'Projects', windowId: 'projects' },
+  { id: 'database', label: 'Database', windowId: 'database' },
+  { id: 'file-manager', label: 'Files', windowId: 'file-manager' },
+  { id: 'system', label: 'System', windowId: 'system' },
+  { id: 'users', label: 'Users', windowId: 'users' },
+  { id: 'settings', label: 'Settings', windowId: 'settings' },
+  { id: 'docs', label: 'Docs', windowId: 'docs' },
+]
+
 interface DesktopProps {
   onLogout: () => void
   authenticated: boolean
@@ -118,6 +133,10 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const visibleWindows = useMemo(
     () => windows.filter((win) => canAccessWindow(win.kind, userRole)),
     [userRole, windows],
+  )
+  const desktopShortcuts = useMemo(
+    () => DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole)),
+    [userRole],
   )
 
   useEffect(() => {
@@ -138,23 +157,33 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       style={{ background: getBackground() }}
     >
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
-      <div className="absolute inset-0">
+
+      {/* Desktop App Shortcuts (Left Grid) */}
+      <div className="absolute top-14 left-4 z-[10] grid grid-flow-col grid-rows-6 gap-2 pointer-events-auto select-none">
+        {desktopShortcuts.map((app) => (
+          <DesktopIcon key={app.id} app={app} />
+        ))}
+      </div>
+
+      <div className="absolute inset-0 pointer-events-none">
         {visibleWindows.map((win) => {
           const renderContent = WINDOW_CONTENT[win.kind]
           return (
-            <Window key={win.id} win={win}>
-              <WindowErrorBoundary>
-                <Suspense fallback={<WindowFallback />}>
-                  {renderContent ? (
-                    renderContent(win, authenticated)
-                  ) : (
-                    <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
-                      {t('common.noContent')}
-                    </p>
-                  )}
-                </Suspense>
-              </WindowErrorBoundary>
-            </Window>
+            <div key={win.id} className="pointer-events-auto">
+              <Window win={win}>
+                <WindowErrorBoundary>
+                  <Suspense fallback={<WindowFallback />}>
+                    {renderContent ? (
+                      renderContent(win, authenticated)
+                    ) : (
+                      <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
+                        {t('common.noContent')}
+                      </p>
+                    )}
+                  </Suspense>
+                </WindowErrorBoundary>
+              </Window>
+            </div>
           )
         })}
       </div>

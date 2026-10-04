@@ -276,8 +276,8 @@ export interface PortainerAuth {
 export interface AppShortcut {
   id: string
   label: string
-  icon: string
-  color: string
+  icon?: string
+  color?: string
   url?: string
   windowId?: WindowKind
 }
