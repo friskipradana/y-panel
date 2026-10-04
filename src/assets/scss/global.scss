@@ -1,4 +1,5 @@
-/* --- YPanel - Global Design System & Stylesheet (SCSS) ----------- */
+// YPanel - Global Stylesheet
+
 @use "./base";
 @use "./variables";
-@use "./modules";
+@use "./modules/index";

@@ -1,6 +1,5 @@
-/* ============================================================
-   Desktop & Base Viewport
-   ============================================================ */
+// Desktop & Base Viewport
+
 ::selection {
   background: rgba(249, 115, 22, 0.35);
   color: white;
@@ -20,11 +19,9 @@
   border-radius: 99px;
 }
 
-/* ============================================================
-   Desktop wallpaper
-   Background is set dynamically via inline style from themeStore.
-   Keep this class for transition smoothness.
-   ============================================================ */
+// Desktop wallpaper
+// Background is set dynamically via inline style from themeStore.
+// Keep this class for transition smoothness.
 .desktop-root {
   width: 100vw;
   height: 100vh;
@@ -34,10 +31,7 @@
 }
 
 
-/* ============================================================
-   Wallpaper Grid & Custom Upload
-   ============================================================ */
-/* Wallpaper grid */
+// Wallpaper grid
 .wallpaper-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -80,7 +74,7 @@
   pointer-events: none;
 }
 
-/* Custom image upload button */
+// Custom image upload button
 .wallpaper-upload-btn {
   height: 48px;
   border-radius: 8px;

@@ -1,9 +1,5 @@
-/* ============================================================
-   Window Chrome & Frame System
-   ============================================================ */
-/* ============================================================
-   Shared panel window system
-   ============================================================ */
+// Window Chrome & Frame System
+
 .panel-window {
   display: flex;
   height: 100%;
@@ -95,7 +91,7 @@
   transition: background 160ms ease;
   display: flex;
   flex-direction: column;
-  /* gap: 6px; */
+  // gap: 6px;
   padding: 14px;
 }
 

@@ -1,7 +1,5 @@
-/* ============================================================
-   Cloudflare Workspace & Tunnel Manager
-   ============================================================ */
-/* ---------------- Cloudflare workspace polish ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ */
+// Cloudflare Workspace & Tunnel Manager
+
 .cloudflare-window {
   min-height: 0;
 }
@@ -77,10 +75,10 @@
 .cloudflare-domain-status-panel {
   display: grid;
   gap: 10px;
-  /* padding: 10px 12px; */
-  /* border: 1px solid color-mix(in srgb, var(--panel-info-text) 22%, var(--win-border)); */
-  /* border-radius: 12px; */
-  /* background: color-mix(in srgb, var(--panel-info-bg) 36%, transparent); */
+  // padding: 10px 12px;
+  // border: 1px solid color-mix(in srgb, var(--panel-info-text) 22%, var(--win-border));
+  // border-radius: 12px;
+  // background: color-mix(in srgb, var(--panel-info-bg) 36%, transparent);
 }
 
 .cloudflare-domain-status-panel__main {

@@ -1,3 +1,5 @@
+// Design Tokens & Variables
+
 :root {
   --sand: #cfc4a6;
   --sand-dark: #b5a882;
@@ -7,7 +9,7 @@
   --accent: #f76707;
   --accent-hover: #e05c00;
 
-  /* Taskbar */
+  // Taskbar
   --tb-bg: rgba(255, 255, 255, 0.82);
   --tb-border: rgba(226, 232, 240, 0.85);
   --tb-text: #1e293b;
@@ -16,7 +18,7 @@
   --tb-hover: rgba(15, 23, 42, 0.08);
   --tb-icon: #1e293b;
 
-  /* Window chrome */
+  // Window chrome
   --win-bg: rgba(255, 255, 255, 0.95);
   --win-border-focus: rgba(203, 213, 225, 0.95);
   --win-border: rgba(203, 213, 225, 0.6);
@@ -28,7 +30,7 @@
   --win-content-bg: #ffffff;
   --win-text: #1e293b;
 
-  /* Shared panel design system */
+  // Shared panel design system
   --panel-surface: rgba(15, 23, 42, 0.028);
   --panel-surface-strong: rgba(15, 23, 42, 0.048);
   --panel-surface-hover: rgba(15, 23, 42, 0.066);
@@ -62,12 +64,12 @@
   --panel-soft-shadow: 0 18px 46px rgba(15, 23, 42, 0.08);
   --panel-hover-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
 
-  /* Dock */
+  // Dock
   --dock-bg: rgba(255, 255, 255, 0.92);
   --dock-border: rgba(255, 255, 255, 0.78);
   --dock-shadow: 0 20px 40px rgba(15, 23, 42, 0.10);
 
-  /* Profile / menu */
+  // Profile / menu
   --profile-btn-bg: rgba(15, 23, 42, 0.06);
   --profile-btn-hover: rgba(15, 23, 42, 0.11);
   --menu-bg: rgba(255, 255, 255, 0.98);
@@ -79,7 +81,7 @@
   --panel-danger-solid: #b91c1c;
   --panel-danger-solid-hover: #991b1b;
 
-  /* Shared semantic colors */
+  // Shared semantic colors
   --color-white: #ffffff;
   --surface-subtle: rgba(15, 23, 42, 0.03);
   --surface-subtle-dark: rgba(255, 255, 255, 0.04);
@@ -262,7 +264,7 @@
   --fallback-action-text: rgb(129, 140, 248);
   --fallback-action-border: rgba(99, 102, 241, 0.25);
 
-  /* Host terminal */
+  // Host terminal
   --terminal-bg: #0d1117;
   --terminal-fg: #c9d1d9;
   --terminal-cursor: #f59e0b;
@@ -401,8 +403,8 @@
 
 * {
   box-sizing: border-box;
-  /* margin: 0;
-  padding: 4; */
+  // margin: 0;
+// padding: 4;
 }
 
 html,

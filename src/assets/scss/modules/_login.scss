@@ -1,6 +1,5 @@
-/* ============================================================
-   Login & First-Run Setup Screen
-   ============================================================ */
+// Login & First-Run Setup Screen
+
 .mac-login-page {
   min-height: 100vh;
   position: relative;
@@ -8,13 +7,13 @@
   color: white;
   background: transparent !important;
   backdrop-filter: blur(40px) brightness(0.85);
-  /* macOS-like blurred lockscreen */
+  // macOS-like blurred lockscreen
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Keep Chrome saved credentials/autofill aligned with YPanel themes. */
+// Keep Chrome saved credentials/autofill aligned with YPanel themes.
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -61,7 +60,7 @@ select:-webkit-autofill:focus {
 .login-grid {
   min-height: 100vh;
   display: grid;
-  /* Rule of Thirds: 2fr for the main hero vs 1fr (clamped) for the login card */
+  // Rule of Thirds: 2fr for the main hero vs 1fr (clamped) for the login card
   grid-template-columns: minmax(0, 2fr) minmax(380px, 1fr);
   gap: 28px;
   align-items: stretch;
@@ -136,7 +135,7 @@ select:-webkit-autofill:focus {
   margin-top: 10px;
   font-size: 14px;
   line-height: 1.7;
-  /* AAA WCAG Contrast */
+  // AAA WCAG Contrast
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -197,7 +196,7 @@ select:-webkit-autofill:focus {
   max-width: 720px;
   font-size: 16px;
   line-height: 1.9;
-  /* AAA WCAG Contrast */
+  // AAA WCAG Contrast
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -322,7 +321,7 @@ select:-webkit-autofill:focus {
 }
 
 .login-status-row span {
-  /* Increased from 0.48 to 0.75 for WCAG AA compliance on dark backgrounds */
+  // Increased from 0.48 to 0.75 for WCAG AA compliance on dark backgrounds
   color: rgba(255, 255, 255, 0.75);
   font-size: 13px;
 }
@@ -356,7 +355,7 @@ select:-webkit-autofill:focus {
 }
 
 .auth-input::placeholder {
-  /* Placeholders need minimum 4.5:1 ratio */
+  // Placeholders need minimum 4.5:1 ratio
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -418,13 +417,13 @@ select:-webkit-autofill:focus {
 }
 
 .host-terminal-shell--themed {
-  /* border-radius: 24px; */
+  // border-radius: 24px;
   padding: 12px;
-  /* background:
-    radial-gradient(circle at top left, rgba(249, 115, 22, 0.08), transparent 22%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 22%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62)); */
-  /* border: 1px solid rgba(255, 255, 255, 0.72); */
+  // background:
+// radial-gradient(circle at top left, rgba(249, 115, 22, 0.08), transparent 22%),
+// radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 22%),
+// linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.62));
+  // border: 1px solid rgba(255, 255, 255, 0.72);
   box-shadow: 0 20px 56px rgba(15, 23, 42, 0.08);
   flex: 1;
   min-height: 0;
@@ -932,10 +931,7 @@ select:-webkit-autofill:focus {
 }
 
 
-/* ============================================================
-   Login Theme Color Refinements
-   ============================================================ */
-/* Login theme colors only: keep existing login markup, spacing, and layout unchanged. */
+// Login theme colors only: keep existing login markup, spacing, and layout unchanged.
 .login-shell,
 .mac-login-page {
   --login-page-bg:
