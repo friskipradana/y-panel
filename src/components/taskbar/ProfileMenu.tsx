@@ -7,20 +7,17 @@ import {
   Cloud,
   Eye,
   EyeOff,
-  ImagePlus,
   LogOut,
-  Moon,
-  Palette,
   RefreshCw,
+  Settings,
   ShieldCheck,
-  Sun,
   Trash2,
   User,
   XCircle,
 } from 'lucide-react'
 import { deleteCFConfig, getCFConfig, getMeV2, getProjectAttentionSummary, setCFConfig, verifyCFConfig } from '@/api/agent'
 import { toast } from 'sonner'
-import { useThemeStore, WALLPAPERS, type WallpaperKey } from '@/store/themeStore'
+import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 
 interface ProfileMenuProps {
@@ -40,9 +37,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const [cfForm, setCfForm] = useState({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const { mode, wallpaper, toggleMode, setWallpaper, setCustomImage } = useThemeStore()
-  const isDark = mode === 'dark'
+  const openWindow = useWindowStore((s) => s.openWindow)
   const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
   const { data: cf, isLoading: cfLoading } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
   const { data: projectAttention } = useQuery({
@@ -102,18 +97,6 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     window.addEventListener('mousedown', handleDocMouseDown, true)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string
-      if (dataUrl) setCustomImage(dataUrl)
-    }
-    reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
   const displayName = me?.displayName || me?.username || username || t('profile.defaultName')
   const displayRole = me?.role || t('profile.defaultRole')
   const cfStatusBadge = {
@@ -141,13 +124,6 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
           </div>
 
           <div className="profile-menu-section">
-            <button className="profile-menu-btn" onClick={toggleMode}>
-              {isDark ? <Sun size={14} color="var(--profile-icon-sun)" /> : <Moon size={14} color="var(--profile-icon-moon)" />}
-              <span>{isDark ? t('profile.switchLight') : t('profile.switchDark')}</span>
-            </button>
-          </div>
-
-          <div className="profile-menu-section">
             <button
               className="profile-menu-btn"
               onClick={() => {
@@ -165,54 +141,16 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
           </div>
 
           <div className="profile-menu-section">
-            <div className="profile-section-label">
-              <Palette size={11} />
-              {t('profile.wallpaper')}
-            </div>
-
-            <div className="wallpaper-grid">
-              {(Object.entries(WALLPAPERS) as [Exclude<WallpaperKey, 'custom'>, typeof WALLPAPERS[Exclude<WallpaperKey, 'custom'>]][]).map(([key, val]) => {
-                const background = isDark ? (val.dark ?? val.light) : val.light
-                return (
-                  <button
-                    key={key}
-                    title={val.label}
-                    className={`wallpaper-swatch ${wallpaper === key ? 'active' : ''}`}
-                    onClick={() => setWallpaper(key)}
-                    style={{ ['--swatch-bg' as string]: background } as React.CSSProperties}
-                  >
-                    <span className="wallpaper-swatch-label">{val.label}</span>
-                  </button>
-                )
-              })}
-
-              {wallpaper === 'custom' ? (
-                <button
-                  title={t('profile.changeImage')}
-                  className="wallpaper-swatch active bg-[image:var(--custom-preview,none)] bg-cover bg-center"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <span className="wallpaper-swatch-label">{t('profile.customWallpaper')}</span>
-                </button>
-              ) : (
-                <button
-                  title={t('profile.uploadImage')}
-                  className="wallpaper-upload-btn"
-                  onClick={() => fileRef.current?.click()}
-                >
-                  <ImagePlus size={14} />
-                  <span>{t('profile.upload')}</span>
-                </button>
-              )}
-            </div>
-
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <button
+              className="profile-menu-btn"
+              onClick={() => {
+                setOpen(false)
+                openWindow('settings')
+              }}
+            >
+              <Settings size={14} className="opacity-75" />
+              <span>{t('settings.title') || 'Settings & Appearance'}</span>
+            </button>
           </div>
 
           <div className="profile-menu-section">
