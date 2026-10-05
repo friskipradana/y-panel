@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText,
   Lock,
@@ -54,9 +55,18 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
     onLogout()
   }
 
-  const dropdown = open
-    ? createPortal(
-        <div ref={menuRef} className="profile-menu w-[300px]">
+  const dropdown = (
+    <AnimatePresence>
+      {open && (
+        <div className="profile-menu-drawer">
+          <motion.div
+            ref={menuRef}
+            initial={{ opacity: 0, y: -40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="profile-menu w-[300px]"
+          >
           {/* ── Header: [R] Display Name | superadmin • Active (127.0.0.1) ── */}
           <div className="profile-menu-section flex items-center gap-3">
             <div className="profile-avatar h-9 w-9 rounded-xl flex items-center justify-center text-[15px] font-bold shrink-0">
@@ -165,10 +175,10 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <span className="flex-1 font-medium">{t('profile.logout')}</span>
             </button>
           </div>
-        </div>,
-        document.body,
-      )
-    : null
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>)
 
   return (
     <>
@@ -183,7 +193,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
         <span>{displayName}</span>
       </button>
 
-      {dropdown}
+      {createPortal(dropdown, document.body)}
     </>
   )
 }
