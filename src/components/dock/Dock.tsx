@@ -157,7 +157,7 @@ export function Dock() {
   const dockSurfaceClass = 'border-[var(--win-border)] text-[var(--dock-surface-text)] shadow-[var(--dock-surface-shadow)]'
   const itemIdleClass = 'border-[var(--win-border)] bg-[var(--dock-item-idle-bg)] text-[var(--dock-item-idle-text)] shadow-[var(--dock-item-idle-shadow)]'
   const itemOpenClass = 'border-[var(--dock-item-open-border)] bg-[var(--dock-item-open-bg)] text-[var(--win-text)] shadow-[var(--dock-item-open-shadow)]'
-  const tooltipClass = 'bg-[var(--dock-tooltip-bg)] text-[var(--win-text)] shadow-[var(--dock-tooltip-shadow)]'
+  const tooltipClass = 'bg-[var(--dock-tooltip-bg)] text-[var(--dock-tooltip-text)] shadow-[var(--dock-tooltip-shadow)]'
   const menuPanelClass = 'border-[var(--dock-menu-border)] bg-[var(--dock-menu-bg)] text-[var(--dock-surface-text)] shadow-[var(--dock-menu-shadow)]'
   const menuButtonToneClass = 'text-[var(--dock-surface-text)] hover:bg-[var(--panel-primary-bg)] hover:text-[var(--win-text)]'
   const menuDangerToneClass = 'text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]'
