@@ -247,7 +247,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { language, setLanguage, t } = useI18n()
   const [activeTab, setActiveTab] = useState<SettingsTabKey>('general')
 
-  const { mode, setMode, wallpaper, setWallpaper, customImageUrl, setCustomImage, desktopIconStyle, setDesktopIconStyle } = useThemeStore()
+  const { mode, setMode, wallpaper, setWallpaper, customImageUrl, setCustomImage, desktopIconStyle, setDesktopIconStyle, desktopIconSize, setDesktopIconSize } = useThemeStore()
   const autoHideDock = useWindowStore((s) => s.autoHideDock)
   const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide)
   const showSystemStats = useWindowStore((s) => s.showSystemStats)
@@ -1011,6 +1011,95 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         )}
                       </div>
                       <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconStyle.plainDesc')}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop Icon Size Card */}
+              <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                <SectionHeader
+                  icon={<Layout size={17} />}
+                  title={t('settings.iconSize.title')}
+                  subtitle={t('settings.iconSize.subtitle')}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-[620px]">
+                  {/* Small Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDesktopIconSize('small')}
+                    className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                      desktopIconSize === 'small'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                      <Layout size={18} />
+                    </div>
+                    <div className="w-full">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.iconSize.small')}</span>
+                        {desktopIconSize === 'small' && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
+                            <CheckCircle2 size={9} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconSize.smallDesc')}</div>
+                    </div>
+                  </button>
+
+                  {/* Medium Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDesktopIconSize('medium')}
+                    className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                      desktopIconSize === 'medium'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                      <Layout size={22} />
+                    </div>
+                    <div className="w-full">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.iconSize.medium')}</span>
+                        {desktopIconSize === 'medium' && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
+                            <CheckCircle2 size={9} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconSize.mediumDesc')}</div>
+                    </div>
+                  </button>
+
+                  {/* Large Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDesktopIconSize('large')}
+                    className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                      desktopIconSize === 'large'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                      <Layout size={26} />
+                    </div>
+                    <div className="w-full">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.iconSize.large')}</span>
+                        {desktopIconSize === 'large' && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
+                            <CheckCircle2 size={9} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconSize.largeDesc')}</div>
                     </div>
                   </button>
                 </div>
