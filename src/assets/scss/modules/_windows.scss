@@ -53,6 +53,11 @@
   min-height: 0;
   overflow: auto;
   padding: 16px;
+
+  &.p-0,
+  &--fluid {
+    padding: 0;
+  }
 }
 
 .panel-window__stack {
