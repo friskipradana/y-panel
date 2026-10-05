@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BadgeCheck,
@@ -10,15 +10,21 @@ import {
   Eye,
   EyeOff,
   Globe2,
+  ImagePlus,
+  Layout,
   LoaderCircle,
   LockKeyhole,
+  Moon,
+  Palette,
   Plus,
   RefreshCcw,
   Save,
   Server,
   ShieldCheck,
   Smartphone,
+  Sun,
   Trash2,
+  Upload,
   Wifi,
   Waypoints,
   Zap,
@@ -42,6 +48,8 @@ import {
   updatePanelPort,
 } from '@/api/agent'
 import { useCapturedNotificationsSocket } from '@/hooks/useCapturedNotificationsSocket'
+import { useThemeStore, WALLPAPERS, type WallpaperKey } from '@/store/themeStore'
+import { useWindowStore } from '@/store/windowStore'
 import type { CapturedNotification } from '@/types'
 import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
 import { alertLib } from '@/lib/alert'
@@ -81,7 +89,7 @@ const PRESET_DNS = [
   { label: 'OpenDNS', value: '208.67.222.222', tone: 'panel-badge--neutral' },
 ]
 
-type SettingsTabKey = 'general' | 'network' | 'security' | 'payment' | 'notifications' | 'audit'
+type SettingsTabKey = 'general' | 'appearance' | 'network' | 'security' | 'payment' | 'notifications' | 'audit'
 
 function FieldLabel({ label, hint }: { label: string; hint?: string }) {
   return (
@@ -232,6 +240,27 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const queryClient = useQueryClient()
   const { language, setLanguage, t } = useI18n()
   const [activeTab, setActiveTab] = useState<SettingsTabKey>('general')
+
+  const { mode, setMode, wallpaper, setWallpaper, customImageUrl, setCustomImage } = useThemeStore()
+  const autoHideDock = useWindowStore((s) => s.autoHideDock)
+  const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide)
+  const showSystemStats = useWindowStore((s) => s.showSystemStats)
+  const setShowSystemStats = useWindowStore((s) => s.setShowSystemStats)
+  const systemStatsConfig = useWindowStore((s) => s.systemStatsConfig)
+  const setSystemStatsConfig = useWindowStore((s) => s.setSystemStatsConfig)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleCustomWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string
+      if (dataUrl) void setCustomImage(dataUrl)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const query = useQuery({
     queryKey: ['editable-system-settings'],
@@ -623,6 +652,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
   const SETTINGS_TABS: { key: SettingsTabKey; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { key: 'general', label: t('settings.identity') || 'General & Host', icon: Server },
+    { key: 'appearance', label: 'Appearance & Wallpaper', icon: Palette },
     { key: 'network', label: t('settings.allowedOrigins') || 'Network & Ports', icon: Globe2 },
     { key: 'security', label: t('settings.primaryPasswordTitle') || 'Security & Passwords', icon: LockKeyhole },
     { key: 'payment', label: t('settings.paymentGateway') || 'Payment Gateway', icon: CreditCard },
@@ -789,7 +819,240 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           )}
 
-          {/* ── 2. Network & Ports ── */}
+          {/* ── 2. Appearance & Desktop ── */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-4">
+              {/* Theme Mode Card */}
+              <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                <SectionHeader
+                  icon={<Palette size={17} />}
+                  title="Theme & Color Scheme"
+                  subtitle="Pilih tema tampilan panel antara mode terang atau gelap"
+                />
+
+                <div className="grid grid-cols-2 gap-3.5 max-w-[480px]">
+                  {/* Light Mode Option */}
+                  <button
+                    type="button"
+                    onClick={() => setMode('light')}
+                    className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border transition-all cursor-pointer text-center ${
+                      mode === 'light'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                      <Sun size={24} strokeWidth={2} />
+                    </div>
+                    <div>
+                      <div className="text-[13px] font-semibold text-[var(--win-text)]">Light Mode</div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">Tampilan bersih & cerah</div>
+                    </div>
+                    {mode === 'light' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
+                        <CheckCircle2 size={11} /> Aktif
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Dark Mode Option */}
+                  <button
+                    type="button"
+                    onClick={() => setMode('dark')}
+                    className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border transition-all cursor-pointer text-center ${
+                      mode === 'dark'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400">
+                      <Moon size={24} strokeWidth={2} />
+                    </div>
+                    <div>
+                      <div className="text-[13px] font-semibold text-[var(--win-text)]">Dark Mode</div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">Kontras tinggi & ramah mata</div>
+                    </div>
+                    {mode === 'dark' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
+                        <CheckCircle2 size={11} /> Aktif
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Wallpaper Gallery Card */}
+              <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <SectionHeader
+                    icon={<ImagePlus size={17} />}
+                    title="Desktop Wallpaper"
+                    subtitle="Pilih wallpaper preset atau unggah gambar kustom untuk latar belakang desktop"
+                  />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleCustomWallpaperUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="panel-btn panel-btn--primary rounded-xl px-3.5 py-2 text-[12.5px] flex items-center gap-2"
+                  >
+                    <Upload size={14} />
+                    Upload Wallpaper
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {(Object.keys(WALLPAPERS) as Array<Exclude<WallpaperKey, 'custom'>>).map((key) => {
+                    const def = WALLPAPERS[key]
+                    const isActive = wallpaper === key
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setWallpaper(key)}
+                        className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
+                          isActive
+                            ? 'border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md'
+                            : 'border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50'
+                        }`}
+                      >
+                        <div
+                          className="h-20 w-full transition-transform duration-200 group-hover:scale-105"
+                          style={{
+                            background: mode === 'dark' ? (def.dark ?? def.light) : def.light,
+                          }}
+                        />
+                        <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
+                          <span className="text-[12px] font-semibold text-[var(--win-text)]">{def.label}</span>
+                          {isActive && (
+                            <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-solid)]" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+
+                  {/* Custom Wallpaper Swatch */}
+                  {customImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setWallpaper('custom')}
+                      className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
+                        wallpaper === 'custom'
+                          ? 'border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md'
+                          : 'border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50'
+                      }`}
+                    >
+                      <div
+                        className="h-20 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
+                        style={{ backgroundImage: `url("${customImageUrl}")` }}
+                      />
+                      <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
+                        <span className="text-[12px] font-semibold text-[var(--win-text)]">Custom Image</span>
+                        {wallpaper === 'custom' && (
+                          <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-solid)]" />
+                        )}
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop & Dock Controls Card */}
+              <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                <SectionHeader
+                  icon={<Layout size={17} />}
+                  title="Desktop & Dock Preferences"
+                  subtitle="Atur perilaku dock dan widget monitor performa pada taskbar"
+                />
+
+                <div className="space-y-3">
+                  {/* Auto-hide Dock Toggle */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                    <div>
+                      <div className="text-[13px] font-semibold text-[var(--win-text)]">Auto-Hide Dock</div>
+                      <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">Sembunyikan dock secara otomatis saat jendela didekatkan</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleDockAutoHide}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoHideDock ? 'bg-[var(--panel-primary-solid)]' : 'bg-gray-400/30'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoHideDock ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* System Stats Monitor Toggle */}
+                  <div className="flex flex-col gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">Taskbar Resource Monitor</div>
+                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">Tampilkan indikator realtime CPU, RAM, dan Temperatur di Taskbar</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowSystemStats(!showSystemStats)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          showSystemStats ? 'bg-[var(--panel-primary-solid)]' : 'bg-gray-400/30'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            showSystemStats ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {showSystemStats && (
+                      <div className="flex items-center gap-4 pt-2 border-t border-[var(--win-border)] text-[12px] text-[var(--win-text)]">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={systemStatsConfig.cpu}
+                            onChange={(e) => setSystemStatsConfig({ ...systemStatsConfig, cpu: e.target.checked })}
+                            className="rounded border-[var(--win-border)] text-[var(--panel-primary-solid)] focus:ring-0"
+                          />
+                          CPU Load
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={systemStatsConfig.ram}
+                            onChange={(e) => setSystemStatsConfig({ ...systemStatsConfig, ram: e.target.checked })}
+                            className="rounded border-[var(--win-border)] text-[var(--panel-primary-solid)] focus:ring-0"
+                          />
+                          RAM Usage
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={systemStatsConfig.temp}
+                            onChange={(e) => setSystemStatsConfig({ ...systemStatsConfig, temp: e.target.checked })}
+                            className="rounded border-[var(--win-border)] text-[var(--panel-primary-solid)] focus:ring-0"
+                          />
+                          Temperature
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 3. Network & Ports ── */}
           {activeTab === 'network' && (
             <div className="space-y-4">
               <div className="panel-shell-card p-5">

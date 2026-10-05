@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Bell, CheckCheck, Cpu, FileText, Monitor, RotateCcw, ScrollText, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
+import { Bell, CheckCheck, Cpu, FileText, Monitor, Moon, RotateCcw, ScrollText, Sun, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
@@ -35,7 +35,7 @@ function getNotificationTone(type: PanelNotification['type']) {
 
 export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const { t } = useI18n()
-  const mode = useThemeStore((s) => s.mode)
+  const { mode, toggleMode } = useThemeStore()
   const isDark = mode === 'dark'
   const queryClient = useQueryClient()
 
@@ -495,8 +495,13 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           <FileText size={14} />
         </button>
 
-        <button id="taskbar-reset-windows" title={t('taskbar.resetWindows')} className="taskbar-icon-btn" onClick={resetWindows}>
-          <RotateCcw size={12} />
+        <button
+          id="taskbar-theme-toggle"
+          title={isDark ? t('profile.switchLight') || 'Switch to Light Mode' : t('profile.switchDark') || 'Switch to Dark Mode'}
+          className="taskbar-icon-btn"
+          onClick={toggleMode}
+        >
+          {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-400" />}
         </button>
 
         <ProfileMenu
