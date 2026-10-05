@@ -42,7 +42,7 @@ export function Window({ win, children }: Props) {
   const animation = useMemo(() => {
     if (win.lastAction === 'restore') {
       return {
-        initial: { scale: 0.95, opacity: 0, y: 16 },
+        initial: { scale: 0.92, opacity: 0, y: 20 },
         animate: { scale: 1, opacity: 1, y: 0 },
         exit: { scale: 0.92, opacity: 0, y: 20 },
       }
@@ -50,16 +50,16 @@ export function Window({ win, children }: Props) {
 
     if (win.lastAction === 'minimize') {
       return {
-        initial: { scale: 0.98, opacity: 1, y: 0 },
+        initial: { scale: 1, opacity: 1, y: 0 },
         animate: { scale: 1, opacity: 1, y: 0 },
-        exit: { scale: 0.85, opacity: 0, y: 36 },
+        exit: { scale: 0.88, opacity: 0, y: 40 },
       }
     }
 
     return {
-      initial: { scale: 0.96, opacity: 0, y: 10 },
+      initial: { scale: 0.96, opacity: 0, y: 8 },
       animate: { scale: 1, opacity: 1, y: 0 },
-      exit: { scale: 0.92, opacity: 0, y: 20 },
+      exit: { scale: 0.96, opacity: 0, y: 8 },
     }
   }, [win.lastAction])
 
@@ -169,39 +169,39 @@ export function Window({ win, children }: Props) {
       : { left: win.x, top: win.y, width: win.width, height: win.height, zIndex: win.zIndex }
 
   return (
-    <AnimatePresence>
-      {!win.isMinimized && (
-        <motion.div
-          key={win.id}
-          initial={animation.initial}
-          animate={{
-            ...animation.animate,
-            filter: isFocused ? 'brightness(1)' : 'brightness(0.975)',
-          }}
-          exit={animation.exit}
-          transition={{
-            type: 'spring',
-            stiffness: 420,
-            damping: 32,
-            mass: 0.9,
-            filter: { duration: 0.18, ease: 'easeOut' },
-          }}
-          className="absolute flex flex-col overflow-hidden select-none"
-          style={{
-            ...style,
-            background: 'var(--win-bg)',
-            borderRadius: isExpanded ? 0 : 14,
-            border: isExpanded ? 'none' : `1px solid ${isFocused ? 'var(--win-border-focus)' : 'var(--win-border)'}`,
-            boxShadow: isExpanded
-              ? 'none'
-              : isFocused
-                ? 'var(--win-shadow-focus)'
-                : 'var(--win-shadow)',
-            transition: 'box-shadow 200ms ease, border-color 200ms ease, border-radius 200ms ease',
-            backdropFilter: 'blur(20px)',
-          }}
-          onMouseDown={() => focusWindow(win.id)}
-        >
+    <motion.div
+      key={win.id}
+      initial={animation.initial}
+      animate={{
+        scale: win.isMinimized ? 0.65 : 1,
+        opacity: win.isMinimized ? 0 : 1,
+        y: win.isMinimized ? 160 : 0,
+        filter: isFocused ? 'brightness(1)' : 'brightness(0.975)',
+        pointerEvents: win.isMinimized ? 'none' : 'auto',
+      }}
+      exit={animation.exit}
+      transition={{
+        type: 'spring',
+        stiffness: 380,
+        damping: 28,
+        mass: 0.85,
+      }}
+      className="absolute flex flex-col overflow-hidden select-none pointer-events-auto"
+      style={{
+        ...style,
+        background: 'var(--win-bg)',
+        borderRadius: isExpanded ? 0 : 14,
+        border: isExpanded ? 'none' : `1px solid ${isFocused ? 'var(--win-border-focus)' : 'var(--win-border)'}`,
+        boxShadow: isExpanded
+          ? 'none'
+          : isFocused
+            ? 'var(--win-shadow-focus)'
+            : 'var(--win-shadow)',
+        transition: 'box-shadow 200ms ease, border-color 200ms ease, border-radius 200ms ease',
+        backdropFilter: 'blur(20px)',
+      }}
+      onMouseDown={() => focusWindow(win.id)}
+    >
           {/* Window Titlebar */}
           <div
             className="flex items-center justify-between px-3 shrink-0 relative z-10 transition-colors duration-150 select-none border-b border-[var(--win-border)]"
@@ -349,9 +349,7 @@ export function Window({ win, children }: Props) {
               }}
             />
           ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </motion.div>
   )
 }
 

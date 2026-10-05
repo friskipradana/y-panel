@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
@@ -168,11 +169,11 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       </div>
 
       <div className="absolute inset-0 pointer-events-none">
-        {visibleWindows.map((win) => {
-          const renderContent = WINDOW_CONTENT[win.kind]
-          return (
-            <div key={win.id} className="pointer-events-auto">
-              <Window win={win}>
+        <AnimatePresence>
+          {visibleWindows.map((win) => {
+            const renderContent = WINDOW_CONTENT[win.kind]
+            return (
+              <Window key={win.id} win={win}>
                 <WindowErrorBoundary>
                   <Suspense fallback={<WindowFallback />}>
                     {renderContent ? (
@@ -185,9 +186,9 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
                   </Suspense>
                 </WindowErrorBoundary>
               </Window>
-            </div>
-          )
-        })}
+            )
+          })}
+        </AnimatePresence>
       </div>
       <Dock />
       {authenticated && wallpaperLoading ? (
