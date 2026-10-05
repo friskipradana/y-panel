@@ -621,35 +621,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     if (isConfirmed) resetPrimaryPasswordMutation.mutate(primaryPasswordPayload)
   }
 
-  if (query.isLoading) {
-    return (
-      <div className="panel-window flex flex-col h-full">
-        <div className="panel-window__body flex-1 flex items-center justify-center">
-          <div className="panel-loading">
-            <LoaderCircle size={16} className="animate-spin" />
-            {t('settings.loadingHostSettings')}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (query.isError || !query.data) {
-    return (
-      <div className="panel-window flex flex-col h-full">
-        <div className="panel-window__body flex-1 flex items-center justify-center">
-          <div className="panel-error-state">
-            <Database className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('settings.hostLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{t('settings.hostLoadFailedHint')}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const SETTINGS_TABS: { key: SettingsTabKey; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { key: 'general', label: t('settings.identity') || 'General & Host', icon: Server },
     { key: 'network', label: t('settings.allowedOrigins') || 'Network & Ports', icon: Globe2 },
@@ -691,6 +662,29 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
         {/* ── Right Content Area ── */}
         <div className="flex-1 min-w-0 overflow-y-auto p-4 md:p-5">
+          {query.isLoading && (
+            <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
+              <div className="panel-loading">
+                <LoaderCircle size={16} className="animate-spin" />
+                {t('settings.loadingHostSettings')}
+              </div>
+            </div>
+          )}
+
+          {!query.isLoading && (query.isError || !query.data) && (
+            <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
+              <div className="panel-error-state">
+                <Database className="h-5 w-5" />
+                <div>
+                  <p className="font-semibold">{t('settings.hostLoadFailed')}</p>
+                  <p className="mt-1 text-[12px] leading-6 opacity-90">{t('settings.hostLoadFailedHint')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!query.isLoading && query.data && (
+            <>
           {/* ── 1. General & Host ── */}
           {activeTab === 'general' && (
             <div className="space-y-3.5">
@@ -1516,6 +1510,8 @@ Body:
               )}
             </div>
           )}
+          </>
+        )}
         </div>
       </div>
     </div>
