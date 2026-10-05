@@ -149,7 +149,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               }}
             >
               <Settings size={14} className="opacity-75" />
-              <span>{t('settings.title') || 'Settings & Appearance'}</span>
+              <span>{t('window.settings') || 'Settings'}</span>
             </button>
           </div>
 

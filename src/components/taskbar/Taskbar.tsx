@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Bell, CheckCheck, Cpu, FileText, Monitor, Moon, RotateCcw, ScrollText, Sun, Thermometer, Zap, Activity, Settings, Database } from 'lucide-react'
+import { Bell, CheckCheck, Cpu, Monitor, Moon, RotateCcw, ScrollText, Sun, Thermometer, Zap, Activity, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
@@ -479,10 +479,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           <Monitor size={14} />
         </button>
 
-        <button id="taskbar-settings" title={t('window.settings')} className="taskbar-icon-btn" onClick={() => openWindow('settings')}>
-          <Settings size={14} />
-        </button>
-
         <button id="taskbar-database" title={t('window.database')} className="taskbar-icon-btn" onClick={() => openWindow('database')}>
           <Database size={14} />
         </button>
@@ -491,8 +487,8 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           <ScrollText size={14} />
         </button>
 
-        <button id="taskbar-runtime-log" title={t('window.changelog')} className="taskbar-icon-btn" onClick={() => openWindow('changelog')}>
-          <FileText size={14} />
+        <button id="taskbar-reset-windows" title={t('taskbar.resetWindows')} className="taskbar-icon-btn" onClick={resetWindows}>
+          <RotateCcw size={12} />
         </button>
 
         <button
