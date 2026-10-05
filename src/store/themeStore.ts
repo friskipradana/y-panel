@@ -168,6 +168,8 @@ interface ThemeStore {
   toggleMode: () => void
   /** Returns the CSS background value for the current wallpaper+mode */
   getBackground: () => string
+  /** Returns complete CSS properties object for desktop wallpaper rendering */
+  getBackgroundStyle: () => React.CSSProperties
 }
 
 const loadStored = (): StoredTheme => {
@@ -192,16 +194,37 @@ const applyTheme = (mode: ThemeMode) => {
 const formatImageBackground = (url: string, fit: WallpaperFit) => {
   switch (fit) {
     case 'contain':
-      return `url("${url}") center/contain no-repeat fixed #0b0f19`
+      return `url("${url}") center / contain no-repeat fixed #0b0f19`
     case 'stretch':
-      return `url("${url}") center/100% 100% no-repeat fixed`
+      return `url("${url}") center / 100% 100% no-repeat fixed`
     case 'center':
-      return `url("${url}") center/auto no-repeat fixed #0b0f19`
+      return `url("${url}") center / auto no-repeat fixed #0b0f19`
     case 'tile':
-      return `url("${url}") top left/auto repeat fixed`
+      return `url("${url}") top left / auto repeat fixed`
     case 'cover':
     default:
-      return `url("${url}") center/cover no-repeat fixed`
+      return `url("${url}") center / cover no-repeat fixed`
+  }
+}
+
+const getImageStyle = (url: string, fit: WallpaperFit): React.CSSProperties => {
+  const base: React.CSSProperties = {
+    backgroundImage: `url("${url}")`,
+    backgroundAttachment: 'fixed',
+    backgroundColor: '#0b0f19',
+  }
+  switch (fit) {
+    case 'contain':
+      return { ...base, backgroundPosition: 'center', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }
+    case 'stretch':
+      return { ...base, backgroundPosition: 'center', backgroundSize: '100% 100%', backgroundRepeat: 'no-repeat' }
+    case 'center':
+      return { ...base, backgroundPosition: 'center', backgroundSize: 'auto', backgroundRepeat: 'no-repeat' }
+    case 'tile':
+      return { ...base, backgroundPosition: 'top left', backgroundSize: 'auto', backgroundRepeat: 'repeat' }
+    case 'cover':
+    default:
+      return { ...base, backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }
   }
 }
 
@@ -222,6 +245,22 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     return bgVal
   }
 
+  const getBackgroundStyle = (): React.CSSProperties => {
+    const { mode, wallpaper, wallpaperFit, customImageUrl } = get()
+    if (wallpaper === 'custom' && customImageUrl) {
+      return getImageStyle(customImageUrl, wallpaperFit)
+    }
+    const def = WALLPAPERS[(wallpaper === 'custom' ? 'default' : wallpaper) as Exclude<WallpaperKey, 'custom'>] ?? WALLPAPERS.default
+    const bgVal = mode === 'dark' ? (def.dark ?? def.light) : def.light
+    if (def.type === 'image') {
+      return getImageStyle(bgVal, wallpaperFit)
+    }
+    return {
+      background: bgVal,
+      backgroundColor: mode === 'dark' ? '#0b0f19' : '#f8fafc',
+    }
+  }
+
   return {
     mode: stored.mode ?? 'light',
     wallpaper: stored.wallpaper ?? 'default',
@@ -234,6 +273,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     soundVolume: stored.soundVolume ?? 0.7,
     autoLockTimeout: stored.autoLockTimeout ?? 0,
     isLocked: false,
+    getBackground,
+    getBackgroundStyle,
 
     setMode: (mode) => {
       applyTheme(mode)
@@ -323,7 +364,5 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         return { mode }
       })
     },
-
-    getBackground,
   }
 })
