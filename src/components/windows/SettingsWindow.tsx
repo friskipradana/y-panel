@@ -174,20 +174,22 @@ function SectionHeader({
 }: {
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
+  subtitle?: string;
 }) {
   return (
-    <div className="mb-4 flex items-start gap-3">
-      <div className="panel-muted-block flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl text-[var(--win-text)]">
+    <div className="mb-3 flex items-start gap-2.5">
+      <div className="panel-muted-block flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--win-text)] mt-0.5">
         {icon}
       </div>
       <div>
-        <div className="text-[14px] font-bold text-[var(--win-text)]">
+        <div className="text-[13px] font-semibold text-[var(--win-text)]">
           {title}
         </div>
-        <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-          {subtitle}
-        </div>
+        {subtitle && (
+          <div className="mt-0.5 text-[11px] leading-normal text-[var(--text-secondary)]">
+            {subtitle}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1168,7 +1170,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       {/* ── Window Body: Desktop UI Sidebar + Content Area ── */}
       <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0">
         {/* ── Left Sidebar Navigation (Matching Applications Drawer Style) ── */}
-        <div className="w-[200px] xl:w-[220px] shrink-0 border-r border-[var(--win-border)] bg-[var(--panel-surface)] p-2.5 flex flex-col gap-1 overflow-y-auto select-none">
+        <div className="w-[180px] lg:w-[190px] shrink-0 border-r border-[var(--win-border)] bg-[var(--panel-surface)] p-2 flex flex-col gap-0.5 overflow-y-auto select-none">
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80">
             {t("settings.title")}
           </div>
@@ -1180,14 +1182,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-left text-[12px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
+                className={`flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-left text-[11.5px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
                   isActive
                     ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border-[var(--panel-primary-text)]/25 shadow-xs"
                     : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
                 }`}
               >
                 <Icon
-                  size={15}
+                  size={14}
                   className={isActive ? "text-[var(--panel-primary-text)]" : "text-[var(--text-secondary)] opacity-70"}
                 />
                 <span className="truncate">{tab.label}</span>
@@ -1197,7 +1199,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         </div>
 
         {/* ── Right Content Area ── */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-4 md:p-5">
+        <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4">
           {query.isLoading && (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
               <div className="panel-loading">
@@ -1370,40 +1372,40 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {/* ── 2. Appearance & Desktop ── */}
               {activeTab === "appearance" && (
-                <div className="space-y-4">
+                <div className="space-y-3.5">
                   {/* Theme Mode Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<Palette size={17} />}
+                      icon={<Palette size={16} />}
                       title={t("settings.appearance.themeTitle")}
                       subtitle={t("settings.appearance.themeSubtitle")}
                     />
 
-                    <div className="grid grid-cols-2 gap-3.5 max-w-[480px]">
+                    <div className="grid grid-cols-2 gap-3 max-w-[440px]">
                       {/* Light Mode Option */}
                       <button
                         type="button"
                         onClick={() => setMode("light")}
-                        className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border transition-all cursor-pointer text-center ${
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
                           mode === "light"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                          <Sun size={24} strokeWidth={2} />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                          <Sun size={18} strokeWidth={2} />
                         </div>
                         <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                             {t("settings.appearance.lightMode")}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5">
                             {t("settings.appearance.lightModeDesc")}
                           </div>
                         </div>
                         {mode === "light" && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
-                            <CheckCircle2 size={11} /> {t("settings.appearance.active")}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white">
+                            <CheckCircle2 size={10} /> {t("settings.appearance.active")}
                           </span>
                         )}
                       </button>
@@ -1412,26 +1414,26 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <button
                         type="button"
                         onClick={() => setMode("dark")}
-                        className={`flex flex-col items-center gap-2.5 p-4 rounded-2xl border transition-all cursor-pointer text-center ${
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
                           mode === "dark"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400">
-                          <Moon size={24} strokeWidth={2} />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                          <Moon size={18} strokeWidth={2} />
                         </div>
                         <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                             {t("settings.appearance.darkMode")}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5">
                             {t("settings.appearance.darkModeDesc")}
                           </div>
                         </div>
                         {mode === "dark" && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
-                            <CheckCircle2 size={11} /> {t("settings.appearance.active")}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white">
+                            <CheckCircle2 size={10} /> {t("settings.appearance.active")}
                           </span>
                         )}
                       </button>
@@ -1439,39 +1441,39 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   </div>
 
                   {/* Desktop Icon Style Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<Layout size={17} />}
+                      icon={<Layout size={16} />}
                       title={t("settings.iconStyle.title")}
                       subtitle={t("settings.iconStyle.subtitle")}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[520px]">
                       {/* Framed Option */}
                       <button
                         type="button"
                         onClick={() => setDesktopIconStyle("framed")}
-                        className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
                           desktopIconStyle === "framed"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-md shadow-black/20">
-                          <Layout size={22} className="text-sky-400" />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-md shadow-black/20">
+                          <Layout size={18} className="text-sky-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1.5">
-                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                               {t("settings.iconStyle.framed")}
                             </div>
                             {desktopIconStyle === "framed" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
+                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
                             {t("settings.iconStyle.framedDesc")}
                           </div>
                         </div>
@@ -1481,27 +1483,27 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <button
                         type="button"
                         onClick={() => setDesktopIconStyle("plain")}
-                        className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
                           desktopIconStyle === "plain"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]">
-                          <Layout size={26} className="text-emerald-400" />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]">
+                          <Layout size={20} className="text-emerald-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1.5">
-                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                               {t("settings.iconStyle.plain")}
                             </div>
                             {desktopIconStyle === "plain" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
+                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
                             {t("settings.iconStyle.plainDesc")}
                           </div>
                         </div>
@@ -1510,39 +1512,39 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   </div>
 
                   {/* Desktop Icon Size Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<Layout size={17} />}
+                      icon={<Layout size={16} />}
                       title={t("settings.iconSize.title")}
                       subtitle={t("settings.iconSize.subtitle")}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-[620px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[560px]">
                       {/* Small Option */}
                       <button
                         type="button"
                         onClick={() => setDesktopIconSize("small")}
-                        className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
                           desktopIconSize === "small"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={18} />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={16} />
                         </div>
                         <div className="w-full">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
                               {t("settings.iconSize.small")}
                             </span>
                             {desktopIconSize === "small" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
-                                <CheckCircle2 size={9} />
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
                             {t("settings.iconSize.smallDesc")}
                           </div>
                         </div>
@@ -1552,27 +1554,27 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <button
                         type="button"
                         onClick={() => setDesktopIconSize("medium")}
-                        className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
                           desktopIconSize === "medium"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={22} />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={18} />
                         </div>
                         <div className="w-full">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
                               {t("settings.iconSize.medium")}
                             </span>
                             {desktopIconSize === "medium" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
-                                <CheckCircle2 size={9} />
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
                             {t("settings.iconSize.mediumDesc")}
                           </div>
                         </div>
@@ -1582,27 +1584,27 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <button
                         type="button"
                         onClick={() => setDesktopIconSize("large")}
-                        className={`flex flex-col items-center gap-2.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-center ${
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
                           desktopIconSize === "large"
                             ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
                             : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
                         }`}
                       >
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={26} />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={20} />
                         </div>
                         <div className="w-full">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <span className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
                               {t("settings.iconSize.large")}
                             </span>
                             {desktopIconSize === "large" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9.5px] font-bold text-white">
-                                <CheckCircle2 size={9} />
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
                             {t("settings.iconSize.largeDesc")}
                           </div>
                         </div>
@@ -1661,24 +1663,24 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                               key={key}
                               type="button"
                               onClick={() => setWallpaper(key)}
-                              className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
+                              className={`group relative flex flex-col overflow-hidden rounded-xl border transition-all cursor-pointer text-left ${
                                 isActive
                                   ? "border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md"
                                   : "border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50"
                               }`}
                             >
                               <div
-                                className="h-24 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
+                                className="h-18 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
                                 style={{
                                   backgroundImage: `url("${def.previewUrl || def.light}")`,
                                 }}
                               />
-                              <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
-                                <span className="text-[11.5px] font-semibold text-[var(--win-text)] truncate">
+                              <div className="p-2 flex items-center justify-between bg-[var(--panel-surface)]">
+                                <span className="text-[11px] font-semibold text-[var(--win-text)] truncate">
                                   {def.label}
                                 </span>
                                 {isActive && (
-                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
+                                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
                                 )}
                               </div>
                             </button>
@@ -1927,19 +1929,19 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {activeTab === "screensaver" && (
                 <div className="space-y-4">
                   {/* Master Lock Screen Enable/Disable Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<Lock size={17} />}
+                      icon={<Lock size={16} />}
                       title={t("settings.screensaver.masterTitle")}
                       subtitle={t("settings.screensaver.masterSubtitle")}
                     />
 
-                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                       <div>
-                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                           {t("settings.screensaver.enableToggle")}
                         </div>
-                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                           {lockScreenEnabled
                             ? t("settings.screensaver.enableActive")
                             : t("settings.screensaver.enableInactive")}
@@ -1948,15 +1950,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <button
                         type="button"
                         onClick={() => setLockScreenEnabled(!lockScreenEnabled)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                           lockScreenEnabled
                             ? "bg-[var(--panel-primary-solid)]"
                             : "bg-gray-400/30"
                         }`}
                       >
                         <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            lockScreenEnabled ? "translate-x-5" : "translate-x-0"
+                          className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            lockScreenEnabled ? "translate-x-4.5" : "translate-x-0"
                           }`}
                         />
                       </button>
@@ -1964,20 +1966,20 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   </div>
 
                   {/* Wake Authentication Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<LockKeyhole size={17} />}
+                      icon={<LockKeyhole size={16} />}
                       title={t("settings.screensaver.authTitle")}
                       subtitle={t("settings.screensaver.authSubtitle")}
                     />
 
-                    <div className="max-w-[620px] space-y-2.5">
-                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                    <div className="max-w-[560px] space-y-2">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                         <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                             {t("settings.screensaver.requirePassword")}
                           </div>
-                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                             {requirePasswordOnWake
                               ? t("settings.screensaver.requirePasswordActive")
                               : t("settings.screensaver.requirePasswordInactive")}
@@ -1986,26 +1988,26 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         <button
                           type="button"
                           onClick={() => setRequirePasswordOnWake(!requirePasswordOnWake)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                             requirePasswordOnWake
                               ? "bg-[var(--panel-primary-solid)]"
                               : "bg-gray-400/30"
                           }`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              requirePasswordOnWake ? "translate-x-5" : "translate-x-0"
+                            className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              requirePasswordOnWake ? "translate-x-4.5" : "translate-x-0"
                             }`}
                           />
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                         <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
                             {t("settings.screensaver.wakeOnMouseMove")}
                           </div>
-                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                             {wakeOnMouseMove
                               ? t("settings.screensaver.wakeOnMouseMoveActive")
                               : t("settings.screensaver.wakeOnMouseMoveInactive")}
@@ -2014,15 +2016,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         <button
                           type="button"
                           onClick={() => setWakeOnMouseMove(!wakeOnMouseMove)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          className={`relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                             wakeOnMouseMove
                               ? "bg-[var(--panel-primary-solid)]"
                               : "bg-gray-400/30"
                           }`}
                         >
                           <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              wakeOnMouseMove ? "translate-x-5" : "translate-x-0"
+                            className={`pointer-events-none inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              wakeOnMouseMove ? "translate-x-4.5" : "translate-x-0"
                             }`}
                           />
                         </button>
@@ -2031,14 +2033,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   </div>
 
                   {/* Screensaver Visual Model Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
                     <SectionHeader
-                      icon={<Sparkles size={17} />}
+                      icon={<Sparkles size={16} />}
                       title={t("settings.screensaver.styleTitle")}
                       subtitle={t("settings.screensaver.styleSubtitle")}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[620px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-[560px]">
                       {[
                         {
                           id: "clock" as const,

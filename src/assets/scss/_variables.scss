@@ -80,6 +80,9 @@
   --focus-ring-offset: #ffffff;
   --panel-danger-solid: #b91c1c;
   --panel-danger-solid-hover: #991b1b;
+  --scrollbar-thumb: rgba(15, 23, 42, 0.22);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.42);
+  --scrollbar-track: transparent;
 
   // Shared semantic colors
   --color-white: #ffffff;
@@ -357,6 +360,9 @@
   --focus-ring-offset: #0f172a;
   --panel-danger-solid: #dc2626;
   --panel-danger-solid-hover: #b91c1c;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.22);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.42);
+  --scrollbar-track: transparent;
   --surface-subtle: rgba(255, 255, 255, 0.04);
   --surface-subtle-dark: rgba(255, 255, 255, 0.04);
   --status-online: #4ade80;

@@ -15,9 +15,20 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.18);
+  background: var(--scrollbar-thumb);
   border-radius: 99px;
+  transition: background 150ms ease;
 }
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
 
 // Desktop wallpaper
 // Background is set dynamically via inline style from themeStore.
