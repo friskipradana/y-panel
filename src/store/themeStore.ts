@@ -3,57 +3,140 @@ import { create } from 'zustand'
 import { getWallpaper, updateWallpaper } from '@/api/agent'
 
 export type ThemeMode = 'light' | 'dark'
-export type WallpaperKey = 'default' | 'ocean' | 'sunset' | 'forest' | 'midnight' | 'aurora' | 'custom'
+export type WallpaperKey =
+  | 'default'
+  | 'ocean'
+  | 'sunset'
+  | 'forest'
+  | 'midnight'
+  | 'aurora'
+  | 'server-datacenter'
+  | 'tokyo-night'
+  | 'dark-mountains'
+  | 'deep-nebula'
+  | 'nordic-forest'
+  | 'desert-dusk'
+  | 'minimal-architecture'
+  | 'abstract-wave'
+  | 'custom'
+
 export type DesktopIconStyle = 'framed' | 'plain'
 export type DesktopIconSize = 'small' | 'medium' | 'large'
 
 export interface WallpaperDef {
   label: string
-  /** CSS gradient string for light mode */
+  type: 'gradient' | 'image'
+  /** CSS gradient string or image url for light mode */
   light: string
-  /** CSS gradient string for dark mode - if missing, uses universal dark overlay */
+  /** CSS gradient string or image url for dark mode - if missing, uses universal dark overlay */
   dark?: string
+  previewUrl?: string
 }
 
 export const WALLPAPERS: Record<Exclude<WallpaperKey, 'custom'>, WallpaperDef> = {
   default: {
-    label: 'Default',
+    label: 'Default Slate',
+    type: 'gradient',
     light: 'var(--wallpaper-default-light)',
     dark: 'var(--wallpaper-default-dark)',
   },
   ocean: {
-    label: 'Ocean',
+    label: 'Ocean Blue',
+    type: 'gradient',
     light: 'var(--wallpaper-ocean-light)',
     dark: 'var(--wallpaper-ocean-dark)',
   },
   sunset: {
-    label: 'Sunset',
+    label: 'Sunset Glow',
+    type: 'gradient',
     light: 'var(--wallpaper-sunset-light)',
     dark: 'var(--wallpaper-sunset-dark)',
   },
   forest: {
-    label: 'Forest',
+    label: 'Forest Green',
+    type: 'gradient',
     light: 'var(--wallpaper-forest-light)',
     dark: 'var(--wallpaper-forest-dark)',
   },
   midnight: {
-    label: 'Midnight',
+    label: 'Midnight Deep',
+    type: 'gradient',
     light: 'var(--wallpaper-midnight-light)',
     dark: 'var(--wallpaper-midnight-dark)',
   },
   aurora: {
-    label: 'Aurora',
+    label: 'Aurora Lights',
+    type: 'gradient',
     light: 'var(--wallpaper-aurora-light)',
     dark: 'var(--wallpaper-aurora-dark)',
+  },
+  'server-datacenter': {
+    label: 'Datacenter Core',
+    type: 'image',
+    light: '/wallpapers/server-datacenter.jpg',
+    dark: '/wallpapers/server-datacenter.jpg',
+    previewUrl: '/wallpapers/server-datacenter.jpg',
+  },
+  'tokyo-night': {
+    label: 'Tokyo Cyber Night',
+    type: 'image',
+    light: '/wallpapers/tokyo-night.jpg',
+    dark: '/wallpapers/tokyo-night.jpg',
+    previewUrl: '/wallpapers/tokyo-night.jpg',
+  },
+  'dark-mountains': {
+    label: 'Dark Mountains',
+    type: 'image',
+    light: '/wallpapers/dark-mountains.jpg',
+    dark: '/wallpapers/dark-mountains.jpg',
+    previewUrl: '/wallpapers/dark-mountains.jpg',
+  },
+  'deep-nebula': {
+    label: 'Deep Nebula Space',
+    type: 'image',
+    light: '/wallpapers/deep-nebula.jpg',
+    dark: '/wallpapers/deep-nebula.jpg',
+    previewUrl: '/wallpapers/deep-nebula.jpg',
+  },
+  'nordic-forest': {
+    label: 'Nordic Forest Mist',
+    type: 'image',
+    light: '/wallpapers/nordic-forest.jpg',
+    dark: '/wallpapers/nordic-forest.jpg',
+    previewUrl: '/wallpapers/nordic-forest.jpg',
+  },
+  'desert-dusk': {
+    label: 'Desert Sunset Dunes',
+    type: 'image',
+    light: '/wallpapers/desert-dusk.jpg',
+    dark: '/wallpapers/desert-dusk.jpg',
+    previewUrl: '/wallpapers/desert-dusk.jpg',
+  },
+  'minimal-architecture': {
+    label: 'Minimalist Architecture',
+    type: 'image',
+    light: '/wallpapers/minimal-architecture.jpg',
+    dark: '/wallpapers/minimal-architecture.jpg',
+    previewUrl: '/wallpapers/minimal-architecture.jpg',
+  },
+  'abstract-wave': {
+    label: 'Abstract Wave Mesh',
+    type: 'image',
+    light: '/wallpapers/abstract-wave.jpg',
+    dark: '/wallpapers/abstract-wave.jpg',
+    previewUrl: '/wallpapers/abstract-wave.jpg',
   },
 }
 
 interface StoredTheme {
   mode?: ThemeMode
   wallpaper?: WallpaperKey
-  customImageUrl?: string
+  customImageUrl?: string | null
   desktopIconStyle?: DesktopIconStyle
   desktopIconSize?: DesktopIconSize
+  soundEnabled?: boolean
+  soundVolume?: number
+  autoLockTimeout?: number
 }
 
 interface ThemeStore {
@@ -64,10 +147,18 @@ interface ThemeStore {
   desktopIconStyle: DesktopIconStyle
   desktopIconSize: DesktopIconSize
   wallpaperLoading: boolean
+  soundEnabled: boolean
+  soundVolume: number
+  autoLockTimeout: number // in minutes: 0 = never, 5, 15, 30, 60
+  isLocked: boolean
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
+  setSoundEnabled: (enabled: boolean) => void
+  setSoundVolume: (volume: number) => void
+  setAutoLockTimeout: (timeout: number) => void
+  setIsLocked: (locked: boolean) => void
   setCustomImage: (dataUrl: string) => Promise<void>
   syncCustomImage: () => Promise<void>
   toggleMode: () => void
@@ -101,10 +192,14 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
   const getBackground = () => {
     const { mode, wallpaper, customImageUrl } = get()
     if (wallpaper === 'custom' && customImageUrl) {
-      return `url("${customImageUrl}") center/cover no-repeat`
+      return `url("${customImageUrl}") center/cover no-repeat fixed`
     }
     const def = WALLPAPERS[(wallpaper === 'custom' ? 'default' : wallpaper) as Exclude<WallpaperKey, 'custom'>] ?? WALLPAPERS.default
-    return mode === 'dark' ? (def.dark ?? def.light) : def.light
+    const bgVal = mode === 'dark' ? (def.dark ?? def.light) : def.light
+    if (def.type === 'image') {
+      return `url("${bgVal}") center/cover no-repeat fixed`
+    }
+    return bgVal
   }
 
   return {
@@ -114,6 +209,10 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     desktopIconSize: stored.desktopIconSize ?? 'small',
     wallpaperLoading: false,
+    soundEnabled: stored.soundEnabled ?? true,
+    soundVolume: stored.soundVolume ?? 0.7,
+    autoLockTimeout: stored.autoLockTimeout ?? 0,
+    isLocked: false,
 
     setMode: (mode) => {
       applyTheme(mode)
@@ -136,10 +235,28 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       set({ desktopIconSize })
     },
 
+    setSoundEnabled: (soundEnabled) => {
+      persist({ soundEnabled })
+      set({ soundEnabled })
+    },
+
+    setSoundVolume: (soundVolume) => {
+      persist({ soundVolume })
+      set({ soundVolume })
+    },
+
+    setAutoLockTimeout: (autoLockTimeout) => {
+      persist({ autoLockTimeout })
+      set({ autoLockTimeout })
+    },
+
+    setIsLocked: (isLocked) => {
+      set({ isLocked })
+    },
+
     setCustomImage: async (dataUrl) => {
       set({ wallpaper: 'custom', customImageUrl: dataUrl, wallpaperLoading: true })
       persist({ wallpaper: 'custom' }) 
-      // Do not store the heavy dataURL in localstorage
       try {
         await updateWallpaper(dataUrl)
       } catch (err) {
@@ -155,9 +272,6 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         const res = await getWallpaper()
         if (res && res.data) {
            set({ customImageUrl: res.data })
-           
-           // Jika ini adalah device baru (belum ada preferensi di localStorage),
-           // gunakan custom wallpaper secara otomatis karena ada data di server.
            try {
              const stored = JSON.parse(localStorage.getItem('ui-panel-theme') ?? '{}')
              if (!stored.wallpaper) {

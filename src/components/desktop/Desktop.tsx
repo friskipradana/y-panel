@@ -28,6 +28,8 @@ const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWi
 const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
 const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
 
+import { LockScreen } from '@/components/desktop/LockScreen'
+
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
@@ -129,7 +131,7 @@ interface DesktopProps {
 export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const { t } = useI18n()
   const { windows } = useWindowStore()
-  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading } = useThemeStore()
+  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading, isLocked, setIsLocked, autoLockTimeout } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
@@ -152,6 +154,28 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       rootRef.current.style.background = getBackground()
     }
   }, [mode, wallpaper, customImageUrl])
+
+  // Auto-lock idle timer
+  useEffect(() => {
+    if (!authenticated || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
+
+    let timer: number
+    const resetTimer = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        setIsLocked(true)
+      }, autoLockTimeout * 60 * 1000)
+    }
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart']
+    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }))
+    resetTimer()
+
+    return () => {
+      window.clearTimeout(timer)
+      events.forEach((ev) => window.removeEventListener(ev, resetTimer))
+    }
+  }, [authenticated, autoLockTimeout, isLocked, setIsLocked])
 
   return (
     <div
@@ -199,6 +223,11 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
           </div>
         </div>
       ) : null}
+
+      {/* Lock Screen Overlay */}
+      <AnimatePresence>
+        {isLocked && <LockScreen onLogout={onLogout} />}
+      </AnimatePresence>
     </div>
   )
 }

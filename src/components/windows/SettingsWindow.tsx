@@ -27,9 +27,12 @@ import {
   Sun,
   Trash2,
   Upload,
+  Volume2,
+  VolumeX,
   Wifi,
   Waypoints,
   Zap,
+  Lock,
 } from "lucide-react";
 import {
   copyTextToClipboard,
@@ -59,6 +62,7 @@ import {
   WALLPAPERS,
   type WallpaperKey,
 } from "@/store/themeStore";
+import { soundManager } from "@/lib/sound";
 import { useWindowStore } from "@/store/windowStore";
 import type { CapturedNotification } from "@/types";
 import { PanelSelectMenu } from "@/components/system/PanelSelectMenu";
@@ -376,6 +380,13 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setDesktopIconStyle,
     desktopIconSize,
     setDesktopIconSize,
+    soundEnabled,
+    setSoundEnabled,
+    soundVolume,
+    setSoundVolume,
+    autoLockTimeout,
+    setAutoLockTimeout,
+    setIsLocked,
   } = useThemeStore();
   const autoHideDock = useWindowStore((s) => s.autoHideDock);
   const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide);
@@ -1588,7 +1599,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <SectionHeader
                         icon={<ImagePlus size={17} />}
                         title="Desktop Wallpaper"
-                        subtitle="Pilih wallpaper preset atau unggah gambar kustom untuk latar belakang desktop"
+                        subtitle="Pilih wallpaper preset gambar HD, gradient minimalis, atau unggah gambar kustom"
                       />
                       <input
                         type="file"
@@ -1607,73 +1618,262 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {(
-                        Object.keys(WALLPAPERS) as Array<
-                          Exclude<WallpaperKey, "custom">
-                        >
-                      ).map((key) => {
-                        const def = WALLPAPERS[key];
-                        const isActive = wallpaper === key;
-                        return (
+                    {/* HD Image Wallpapers (Unsplash Pack) */}
+                    <div>
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
+                        HD Image Wallpapers
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {(
+                          [
+                            "server-datacenter",
+                            "tokyo-night",
+                            "dark-mountains",
+                            "deep-nebula",
+                            "nordic-forest",
+                            "desert-dusk",
+                            "minimal-architecture",
+                            "abstract-wave",
+                          ] as Array<Exclude<WallpaperKey, "custom">>
+                        ).map((key) => {
+                          const def = WALLPAPERS[key];
+                          if (!def) return null;
+                          const isActive = wallpaper === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setWallpaper(key)}
+                              className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md"
+                                  : "border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50"
+                              }`}
+                            >
+                              <div
+                                className="h-24 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
+                                style={{
+                                  backgroundImage: `url("${def.previewUrl || def.light}")`,
+                                }}
+                              />
+                              <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
+                                <span className="text-[11.5px] font-semibold text-[var(--win-text)] truncate">
+                                  {def.label}
+                                </span>
+                                {isActive && (
+                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Gradient Presets */}
+                    <div>
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
+                        Gradient Minimalist
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        {(
+                          [
+                            "default",
+                            "ocean",
+                            "sunset",
+                            "forest",
+                            "midnight",
+                            "aurora",
+                          ] as Array<Exclude<WallpaperKey, "custom">>
+                        ).map((key) => {
+                          const def = WALLPAPERS[key];
+                          if (!def) return null;
+                          const isActive = wallpaper === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setWallpaper(key)}
+                              className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md"
+                                  : "border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50"
+                              }`}
+                            >
+                              <div
+                                className="h-16 w-full transition-transform duration-200 group-hover:scale-105"
+                                style={{
+                                  background:
+                                    mode === "dark"
+                                      ? (def.dark ?? def.light)
+                                      : def.light,
+                                }}
+                              />
+                              <div className="p-2 flex items-center justify-between bg-[var(--panel-surface)]">
+                                <span className="text-[11px] font-semibold text-[var(--win-text)] truncate">
+                                  {def.label}
+                                </span>
+                                {isActive && (
+                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+
+                        {/* Custom Wallpaper Swatch */}
+                        {customImageUrl && (
                           <button
-                            key={key}
                             type="button"
-                            onClick={() => setWallpaper(key)}
+                            onClick={() => setWallpaper("custom")}
                             className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
-                              isActive
+                              wallpaper === "custom"
                                 ? "border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md"
                                 : "border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50"
                             }`}
                           >
                             <div
-                              className="h-20 w-full transition-transform duration-200 group-hover:scale-105"
+                              className="h-16 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
                               style={{
-                                background:
-                                  mode === "dark"
-                                    ? (def.dark ?? def.light)
-                                    : def.light,
+                                backgroundImage: `url("${customImageUrl}")`,
                               }}
                             />
-                            <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
-                              <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                                {def.label}
+                            <div className="p-2 flex items-center justify-between bg-[var(--panel-surface)]">
+                              <span className="text-[11px] font-semibold text-[var(--win-text)] truncate">
+                                Custom
                               </span>
-                              {isActive && (
-                                <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-solid)]" />
+                              {wallpaper === "custom" && (
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
                               )}
                             </div>
                           </button>
-                        );
-                      })}
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                      {/* Custom Wallpaper Swatch */}
-                      {customImageUrl && (
+                  {/* Sound & Audio Effects Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Volume2 size={17} />}
+                      title="Sound Effects & Audio"
+                      subtitle="Atur efek suara interaksi tombol, notifikasi sistem, dan audio umpan balik"
+                    />
+
+                    <div className="space-y-3 max-w-[560px]">
+                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                              Enable System Sounds
+                            </div>
+                            <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                              Mainkan audio chime saat notifikasi masuk atau kunci layar
+                            </div>
+                          </div>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setWallpaper("custom")}
-                          className={`group relative flex flex-col overflow-hidden rounded-2xl border transition-all cursor-pointer text-left ${
-                            wallpaper === "custom"
-                              ? "border-[var(--panel-primary-solid)] ring-2 ring-[var(--panel-primary-solid)]/40 shadow-md"
-                              : "border-[var(--win-border)] hover:border-[var(--panel-primary-solid)]/50"
+                          onClick={() => setSoundEnabled(!soundEnabled)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            soundEnabled
+                              ? "bg-[var(--panel-primary-solid)]"
+                              : "bg-gray-400/30"
                           }`}
                         >
-                          <div
-                            className="h-20 w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
-                            style={{
-                              backgroundImage: `url("${customImageUrl}")`,
-                            }}
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              soundEnabled ? "translate-x-5" : "translate-x-0"
+                            }`}
                           />
-                          <div className="p-2.5 flex items-center justify-between bg-[var(--panel-surface)]">
-                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                              Custom Image
-                            </span>
-                            {wallpaper === "custom" && (
-                              <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-solid)]" />
-                            )}
-                          </div>
                         </button>
+                      </div>
+
+                      {soundEnabled && (
+                        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                              Sound Volume
+                            </span>
+                            <span className="panel-mono text-[12px] font-bold text-[var(--panel-primary-text)]">
+                              {Math.round(soundVolume * 100)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={soundVolume}
+                              onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                              className="w-full h-1.5 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-[var(--panel-primary-solid)]"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => soundManager.playNotification()}
+                              className="panel-btn panel-btn--ghost text-[11.5px] whitespace-nowrap shrink-0 px-2.5 py-1"
+                            >
+                              Test Sound
+                            </button>
+                          </div>
+                        </div>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Lock Screen & Security Timeout Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Lock size={17} />}
+                      title="Lock Screen & Auto-Lock"
+                      subtitle="Konfigurasi batas waktu kunci otomatis saat desktop tidak aktif"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px]">
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            Auto-Lock Idle Timeout
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            Kunci desktop jika tidak ada aktivitas mouse / keyboard
+                          </div>
+                        </div>
+                        <select
+                          value={autoLockTimeout}
+                          onChange={(e) => setAutoLockTimeout(parseInt(e.target.value, 10))}
+                          className="panel-input text-[12.5px] py-1.5 px-3 rounded-lg w-full bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]"
+                        >
+                          <option value={0}>Never (Nonaktif)</option>
+                          <option value={5}>5 Menit</option>
+                          <option value={15}>15 Menit</option>
+                          <option value={30}>30 Menit</option>
+                          <option value={60}>1 Jam</option>
+                        </select>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            Kunci Desktop Sekarang
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            Amankan sesi panel Anda saat meninggalkan meja kerja
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsLocked(true)}
+                          className="panel-btn panel-btn--primary text-[12px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Lock size={14} />
+                          <span>Kunci Layar</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 

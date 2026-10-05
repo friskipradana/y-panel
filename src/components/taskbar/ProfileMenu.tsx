@@ -14,6 +14,8 @@ import { getMeV2 } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 
+import { useThemeStore } from '@/store/themeStore'
+
 interface ProfileMenuProps {
   username?: string
   onLogout: () => void
@@ -26,6 +28,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const openWindow = useWindowStore((s) => s.openWindow)
+  const setIsLocked = useThemeStore((s) => s.setIsLocked)
   const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
 
   const handleDocMouseDown = (e: MouseEvent) => {
@@ -52,7 +55,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
   const handleLockScreen = () => {
     setOpen(false)
-    onLogout()
+    setIsLocked(true)
   }
 
   const dropdown = (

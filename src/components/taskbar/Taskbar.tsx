@@ -11,6 +11,7 @@ import { LanguageSwitcher } from './LanguageSwitcher'
 import { ApplicationsMenu } from './ApplicationsMenu'
 import { formatDateTimeID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
+import { soundManager } from '@/lib/sound'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -148,6 +149,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
 
       if (payload.type === 'created' && payload.notification) {
         const incomingNotification = payload.notification
+        soundManager.playNotification()
         setNotifications((current) => {
           const deduped = current.filter((item) => item.id !== incomingNotification.id)
           return [incomingNotification, ...deduped].slice(0, 30)
