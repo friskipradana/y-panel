@@ -56,6 +56,93 @@ class SoundManager {
     }
   }
 
+  public playWindowOpen() {
+    const { soundEnabled, soundVolume } = useThemeStore.getState()
+    if (!soundEnabled) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const vol = Math.max(0, Math.min(1, soundVolume))
+
+      // Crisp futuristic rising tone (440Hz -> 660Hz)
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(440, now)
+      osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.09)
+
+      gain.gain.setValueAtTime(0.18 * vol, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.start(now)
+      osc.stop(now + 0.14)
+    } catch {}
+  }
+
+  public playWindowClose() {
+    const { soundEnabled, soundVolume } = useThemeStore.getState()
+    if (!soundEnabled) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const vol = Math.max(0, Math.min(1, soundVolume))
+
+      // Soft descending click/dismiss (660Hz -> 330Hz)
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(659.25, now)
+      osc.frequency.exponentialRampToValueAtTime(329.63, now + 0.08)
+
+      gain.gain.setValueAtTime(0.15 * vol, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.start(now)
+      osc.stop(now + 0.12)
+    } catch {}
+  }
+
+  public playWindowMinimize() {
+    const { soundEnabled, soundVolume } = useThemeStore.getState()
+    if (!soundEnabled) return
+    const ctx = this.getContext()
+    if (!ctx) return
+
+    try {
+      const now = ctx.currentTime
+      const vol = Math.max(0, Math.min(1, soundVolume))
+
+      // Gentle swoop (523Hz -> 261Hz)
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(523.25, now)
+      osc.frequency.exponentialRampToValueAtTime(261.63, now + 0.1)
+
+      gain.gain.setValueAtTime(0.12 * vol, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13)
+
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+
+      osc.start(now)
+      osc.stop(now + 0.13)
+    } catch {}
+  }
+
   public playSuccess() {
     const { soundEnabled, soundVolume } = useThemeStore.getState()
     if (!soundEnabled) return
@@ -70,10 +157,10 @@ class SoundManager {
       const gain = ctx.createGain()
 
       osc.type = 'sine'
-      osc.frequency.setValueAtTime(523.25, now) // C5
-      osc.frequency.setValueAtTime(659.25, now + 0.08) // E5
-      osc.frequency.setValueAtTime(783.99, now + 0.16) // G5
-      osc.frequency.setValueAtTime(1046.50, now + 0.24) // C6
+      osc.frequency.setValueAtTime(523.25, now)
+      osc.frequency.setValueAtTime(659.25, now + 0.08)
+      osc.frequency.setValueAtTime(783.99, now + 0.16)
+      osc.frequency.setValueAtTime(1046.50, now + 0.24)
 
       gain.gain.setValueAtTime(0.2 * vol, now)
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45)

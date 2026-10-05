@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
+import { soundManager } from "@/lib/sound";
 
 const DEFAULTS: Record<
   WindowKind,
@@ -149,6 +150,7 @@ export const useWindowStore = create<WindowStore>()(
 
       openWindow: (kind, params) => {
         let openedId = '';
+        soundManager.playWindowOpen();
         set((state) => {
           const def = DEFAULTS[kind];
           const existing = def.singleton
@@ -206,7 +208,8 @@ export const useWindowStore = create<WindowStore>()(
           }
         }),
 
-      closeWindow: (id) =>
+      closeWindow: (id) => {
+        soundManager.playWindowClose();
         set((state) => {
           const index = state.windows.findIndex((w) => w.id === id);
           if (index !== -1) {
@@ -215,7 +218,8 @@ export const useWindowStore = create<WindowStore>()(
             const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
             state.focusedId = lastVisible?.id ?? null;
           }
-        }),
+        });
+      },
 
       focusWindow: (id) =>
         set((state) => {
@@ -229,7 +233,7 @@ export const useWindowStore = create<WindowStore>()(
           state.focusedId = id;
         }),
 
-      minimizeWindow: (id) =>
+      minimizeWindow: (id) => {
         set((state) => {
           const win = state.windows.find((w) => w.id === id);
           if (!win) return;
@@ -237,6 +241,7 @@ export const useWindowStore = create<WindowStore>()(
           win.lastAction = win.isMinimized ? 'minimize' : 'restore';
 
           if (win.isMinimized) {
+            soundManager.playWindowMinimize();
             const lastVisible = [...state.windows]
               .reverse()
               .find((w) => !w.isMinimized && w.id !== id);
@@ -244,9 +249,11 @@ export const useWindowStore = create<WindowStore>()(
             return;
           }
 
+          soundManager.playWindowOpen();
           bringToFront(state.windows, id);
           state.focusedId = id;
-        }),
+        });
+      },
 
       maximizeWindow: (id) =>
         set((state) => {
