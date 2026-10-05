@@ -194,7 +194,7 @@ export function Dock() {
             layout
             id="desktop-dock"
             className={`relative flex items-end gap-2.5 rounded-2xl border px-3.5 py-2 backdrop-blur-[24px] ${dockSurfaceClass}`}
-            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <AnimatePresence mode="popLayout">
               {visibleDockItems.map((item) => {
@@ -209,10 +209,10 @@ export function Dock() {
                   <motion.div
                     key={item.kind}
                     layout
-                    initial={{ opacity: 0, scale: 0.5, y: 12 }}
+                    initial={{ opacity: 0, scale: 0.7, y: 6 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.5, y: 12 }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                    exit={{ opacity: 0, scale: 0.7, y: 6 }}
+                    transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
                     className="relative flex cursor-pointer flex-col items-center select-none"
                     onContextMenu={(event) => {
                       event.preventDefault()
