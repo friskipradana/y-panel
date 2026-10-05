@@ -143,6 +143,8 @@ const PRESET_DNS = [
 type SettingsTabKey =
   | "general"
   | "appearance"
+  | "screensaver"
+  | "sound"
   | "cloudflare"
   | "network"
   | "security"
@@ -387,6 +389,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setDesktopIconSize,
     lockScreenStyle,
     setLockScreenStyle,
+    lockScreenEnabled,
+    setLockScreenEnabled,
+    requirePasswordOnWake,
+    setRequirePasswordOnWake,
     soundEnabled,
     setSoundEnabled,
     soundVolume,
@@ -1124,7 +1130,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       label: t("settings.identity") || "General & Host",
       icon: Server,
     },
-    { key: "appearance", label: "Appearance & Wallpaper", icon: Palette },
+    { key: "appearance", label: "Appearance & Themes", icon: Palette },
+    { key: "screensaver", label: "Screensaver & Lock", icon: Lock },
+    { key: "sound", label: "Sound & Audio", icon: Volume2 },
     { key: "cloudflare", label: "Cloudflare Integration", icon: Cloud },
     {
       key: "network",
@@ -1795,203 +1803,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     )}
                   </div>
 
-                  {/* Sound & Audio Effects Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-                    <SectionHeader
-                      icon={<Volume2 size={17} />}
-                      title="Sound Effects & Audio"
-                      subtitle="Atur efek suara interaksi tombol, notifikasi sistem, dan audio umpan balik"
-                    />
-
-                    <div className="space-y-3 max-w-[560px]">
-                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
-                            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-                          </div>
-                          <div>
-                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                              Enable System Sounds
-                            </div>
-                            <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                              Mainkan audio chime saat notifikasi masuk atau kunci layar
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSoundEnabled(!soundEnabled)}
-                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            soundEnabled
-                              ? "bg-[var(--panel-primary-solid)]"
-                              : "bg-gray-400/30"
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              soundEnabled ? "translate-x-5" : "translate-x-0"
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      {soundEnabled && (
-                        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                              Sound Volume
-                            </span>
-                            <span className="panel-mono text-[12px] font-bold text-[var(--panel-primary-text)]">
-                              {Math.round(soundVolume * 100)}%
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.05"
-                              value={soundVolume}
-                              onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
-                              className="w-full h-1.5 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-[var(--panel-primary-solid)]"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => soundManager.playNotification()}
-                              className="panel-btn panel-btn--ghost text-[11.5px] whitespace-nowrap shrink-0 px-2.5 py-1"
-                            >
-                              Test Sound
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Lock Screen & Security Timeout Card */}
-                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-                    <SectionHeader
-                      icon={<Lock size={17} />}
-                      title="Lock Screen & Security"
-                      subtitle="Atur model tampilan lock screen, animasi screensaver, dan batas waktu kunci otomatis"
-                    />
-
-                    {/* Lock Screen Model Selector */}
-                    <div className="space-y-2.5 max-w-[560px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-bold text-[var(--win-text)]">
-                          Model Tampilan Lock Screen
-                        </span>
-                        <span className="text-[11px] text-[var(--text-secondary)]">
-                          Pilih gaya visual saat sesi terkunci
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {[
-                          {
-                            id: "clock" as const,
-                            label: "Digital Clock",
-                            desc: "Jam digital besar, kalender, ucapan waktu, & kartu login elegan",
-                            icon: <Clock size={16} className="text-sky-400" />,
-                          },
-                          {
-                            id: "matrix" as const,
-                            label: "Terminal Matrix Rain",
-                            desc: "Aliran glyph ASCII matrix hijau cyberpunk interaktif",
-                            icon: <Terminal size={16} className="text-emerald-400" />,
-                          },
-                          {
-                            id: "starfield" as const,
-                            label: "Starfield 3D Hyperspace",
-                            desc: "Simulasi kedalaman partikel luar angkasa kecepatan cahaya",
-                            icon: <Sparkles size={16} className="text-indigo-400" />,
-                          },
-                          {
-                            id: "none" as const,
-                            label: "Minimal Blank",
-                            desc: "Layar gelap pekat minimalis dengan konsumsi daya rendah",
-                            icon: <Monitor size={16} className="text-slate-400" />,
-                          },
-                        ].map((item) => {
-                          const isSelected = lockScreenStyle === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => setLockScreenStyle(item.id)}
-                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
-                                isSelected
-                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-sm"
-                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                              }`}
-                            >
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/10 dark:bg-white/10 mt-0.5">
-                                {item.icon}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className={`text-[12px] font-bold ${isSelected ? "text-[var(--panel-primary-text)]" : "text-[var(--win-text)]"}`}>
-                                    {item.label}
-                                  </span>
-                                  {isSelected && (
-                                    <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
-                                  )}
-                                </div>
-                                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-4">
-                                  {item.desc}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px] pt-1">
-                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
-                        <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Auto-Lock Idle Timeout
-                          </div>
-                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Kunci desktop jika tidak ada aktivitas mouse / keyboard
-                          </div>
-                        </div>
-                        <select
-                          value={autoLockTimeout}
-                          onChange={(e) => setAutoLockTimeout(parseInt(e.target.value, 10))}
-                          className="panel-input text-[12.5px] py-1.5 px-3 rounded-lg w-full bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]"
-                        >
-                          <option value={0}>Never (Nonaktif)</option>
-                          <option value={5}>5 Menit</option>
-                          <option value={15}>15 Menit</option>
-                          <option value={30}>30 Menit</option>
-                          <option value={60}>1 Jam</option>
-                        </select>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
-                        <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Kunci Desktop Sekarang
-                          </div>
-                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Amankan sesi panel Anda saat meninggalkan meja kerja
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsLocked(true)}
-                          className="panel-btn panel-btn--primary text-[12px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          <Lock size={14} />
-                          <span>Kunci Layar</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Desktop & Dock Controls Card */}
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
@@ -2109,6 +1920,346 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ── 3. Screensaver & Lock Screen ── */}
+              {activeTab === "screensaver" && (
+                <div className="space-y-4">
+                  {/* Master Lock Screen Enable/Disable Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Lock size={17} />}
+                      title="Lock Screen & Screensaver"
+                      subtitle="Aktifkan atau nonaktifkan penguncian layar dan fitur screensaver visual"
+                    />
+
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                      <div>
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          Enable Lock Screen & Screensaver
+                        </div>
+                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                          {lockScreenEnabled
+                            ? "Fitur penguncian layar dan screensaver aktif"
+                            : "Fitur dinonaktifkan — desktop tidak akan pernah terkunci secara otomatis"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLockScreenEnabled(!lockScreenEnabled)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          lockScreenEnabled
+                            ? "bg-[var(--panel-primary-solid)]"
+                            : "bg-gray-400/30"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            lockScreenEnabled ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Wake Authentication Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<LockKeyhole size={17} />}
+                      title="Wake Authentication & Password"
+                      subtitle="Atur apakah diperlukan password saat membangunkan layar"
+                    />
+
+                    <div className="space-y-3 max-w-[620px]">
+                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            Require Password on Wake
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            {requirePasswordOnWake
+                              ? "Wajib memasukkan password akun untuk membuka sesi panel"
+                              : "Mode Screensaver — klik di mana saja atau tekan sembarang tombol untuk langsung membuka desktop"}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setRequirePasswordOnWake(!requirePasswordOnWake)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            requirePasswordOnWake
+                              ? "bg-[var(--panel-primary-solid)]"
+                              : "bg-gray-400/30"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              requirePasswordOnWake ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border text-[12px] leading-relaxed ${
+                        requirePasswordOnWake
+                          ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      }`}>
+                        {requirePasswordOnWake ? (
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck size={16} className="shrink-0 text-sky-400" />
+                            <span><strong>Mode Aman:</strong> Sesi panel dilindungi password saat layar terkunci atau waktu idle tercapai.</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Sparkles size={16} className="shrink-0 text-emerald-400" />
+                            <span><strong>Mode Screensaver Santai:</strong> Layar menampilkan animasi screensaver tanpa proteksi password/PIN. Cukup klik mouse atau tekan sembarang tombol untuk kembali ke desktop.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Screensaver Visual Model Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Sparkles size={17} />}
+                      title="Screensaver Animation Style"
+                      subtitle="Pilih gaya visual animasi saat screensaver atau lock screen aktif"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[620px]">
+                      {[
+                        {
+                          id: "clock" as const,
+                          label: "Digital Clock",
+                          desc: "Jam digital besar, kalender, ucapan waktu, & kartu login elegan",
+                          icon: <Clock size={16} className="text-sky-400" />,
+                        },
+                        {
+                          id: "matrix" as const,
+                          label: "Terminal Matrix Rain",
+                          desc: "Aliran glyph ASCII matrix hijau cyberpunk interaktif",
+                          icon: <Terminal size={16} className="text-emerald-400" />,
+                        },
+                        {
+                          id: "starfield" as const,
+                          label: "Starfield 3D Hyperspace",
+                          desc: "Simulasi kedalaman partikel luar angkasa kecepatan cahaya",
+                          icon: <Sparkles size={16} className="text-indigo-400" />,
+                        },
+                        {
+                          id: "none" as const,
+                          label: "Minimal Blank",
+                          desc: "Layar gelap pekat minimalis dengan konsumsi daya rendah",
+                          icon: <Monitor size={16} className="text-slate-400" />,
+                        },
+                      ].map((item) => {
+                        const isSelected = lockScreenStyle === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setLockScreenStyle(item.id)}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                              isSelected
+                                ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-sm ring-1 ring-[var(--panel-primary-solid)]/30"
+                                : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                            }`}
+                          >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/10 dark:bg-white/10 mt-0.5">
+                              {item.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className={`text-[12px] font-bold ${isSelected ? "text-[var(--panel-primary-text)]" : "text-[var(--win-text)]"}`}>
+                                  {item.label}
+                                </span>
+                                {isSelected && (
+                                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-4">
+                                {item.desc}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Auto-Lock Timeout & Manual Trigger Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Clock size={17} />}
+                      title="Timeout & Quick Lock"
+                      subtitle="Atur durasi ketidakaktifan otomatis dan picu penguncian manual"
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[620px]">
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            Auto-Lock Idle Timeout
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            Kunci desktop jika tidak ada aktivitas mouse / keyboard
+                          </div>
+                        </div>
+                        <select
+                          value={autoLockTimeout}
+                          onChange={(e) => setAutoLockTimeout(parseInt(e.target.value, 10))}
+                          className="panel-input text-[12.5px] py-1.5 px-3 rounded-lg w-full bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]"
+                        >
+                          <option value={0}>Never (Nonaktif)</option>
+                          <option value={5}>5 Menit</option>
+                          <option value={15}>15 Menit</option>
+                          <option value={30}>30 Menit</option>
+                          <option value={60}>1 Jam</option>
+                        </select>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            Kunci Desktop Sekarang
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            Aktifkan layar kunci atau screensaver langsung
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsLocked(true)}
+                          className="panel-btn panel-btn--primary text-[12px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Lock size={14} />
+                          <span>Kunci Layar Sekarang</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 4. Sound & Audio ── */}
+              {activeTab === "sound" && (
+                <div className="space-y-4">
+                  {/* Sound Master Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Volume2 size={17} />}
+                      title="Sound Effects & Audio"
+                      subtitle="Atur efek suara interaksi tombol, notifikasi sistem, dan audio umpan balik"
+                    />
+
+                    <div className="space-y-3.5 max-w-[620px]">
+                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
+                            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                              Enable System Sounds
+                            </div>
+                            <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                              Mainkan audio chime saat notifikasi masuk, buka jendela, atau kunci layar
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSoundEnabled(!soundEnabled)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            soundEnabled
+                              ? "bg-[var(--panel-primary-solid)]"
+                              : "bg-gray-400/30"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              soundEnabled ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {soundEnabled && (
+                        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                              Master Volume
+                            </span>
+                            <span className="panel-mono text-[12px] font-bold text-[var(--panel-primary-text)]">
+                              {Math.round(soundVolume * 100)}%
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.05"
+                              value={soundVolume}
+                              onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                              className="w-full h-1.5 bg-slate-700/30 rounded-lg appearance-none cursor-pointer accent-[var(--panel-primary-solid)]"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sound Trigger Testing Card */}
+                  {soundEnabled && (
+                    <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                      <SectionHeader
+                        icon={<Sparkles size={17} />}
+                        title="Audio Preview & Diagnostics"
+                        subtitle="Uji audio synthesizer dan chime sistem secara instan"
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[620px]">
+                        <button
+                          type="button"
+                          onClick={() => soundManager.playNotification()}
+                          className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] text-left flex flex-col gap-1 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
+                            <Volume2 size={14} className="text-sky-400" />
+                            <span>Notification</span>
+                          </div>
+                          <span className="text-[11px] text-[var(--text-secondary)]">Nada notifikasi sistem</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => soundManager.playLock()}
+                          className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] text-left flex flex-col gap-1 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
+                            <Lock size={14} className="text-amber-400" />
+                            <span>Lock Chime</span>
+                          </div>
+                          <span className="text-[11px] text-[var(--text-secondary)]">Suara saat layar terkunci</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => soundManager.playUnlock()}
+                          className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] text-left flex flex-col gap-1 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
+                            <ShieldCheck size={14} className="text-emerald-400" />
+                            <span>Unlock Chime</span>
+                          </div>
+                          <span className="text-[11px] text-[var(--text-secondary)]">Suara saat desktop terbuka</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -142,6 +142,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     isLocked,
     setIsLocked,
     autoLockTimeout,
+    lockScreenEnabled,
   } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
@@ -162,7 +163,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
 
   // Auto-lock idle timer
   useEffect(() => {
-    if (!authenticated || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
+    if (!authenticated || !lockScreenEnabled || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
 
     let timer: number
     const resetTimer = () => {
