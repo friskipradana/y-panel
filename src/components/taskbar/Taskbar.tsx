@@ -309,8 +309,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           )}
         </AnimatePresence>
 
-        <LanguageSwitcher />
-
         <span id="taskbar-clock" className={`taskbar-clock ${!isDark ? 'text-[var(--text-secondary)]' : ''}`}>{time}</span>
 
         {showMenu && (
@@ -499,6 +497,8 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
         >
           {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-indigo-400" />}
         </button>
+
+        <LanguageSwitcher />
 
         <ProfileMenu
           username={currentUser?.displayName || currentUser?.username}

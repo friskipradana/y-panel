@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Languages, ChevronDown, Check } from 'lucide-react'
+import { Languages, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useI18n, type Language } from '@/lib/i18n'
 
@@ -36,22 +36,18 @@ export function LanguageSwitcher() {
     }
   }, [isOpen])
 
-  const currentLang = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0]
-
   return (
     <div className="taskbar-lang-wrapper" ref={containerRef}>
       <button
         type="button"
         id="taskbar-language-button"
-        className={`taskbar-lang-btn ${isOpen ? 'taskbar-lang-btn--open' : ''}`}
+        className={`taskbar-icon-btn ${isOpen ? 'taskbar-icon-btn--active' : ''}`}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         title={t('language.label')}
       >
-        <Languages size={13} className="taskbar-lang-btn__icon" />
-        <span className="taskbar-lang-btn__code">{currentLang.label}</span>
-        <ChevronDown size={12} className={`taskbar-lang-btn__chevron ${isOpen ? 'rotate-180' : ''}`} />
+        <Languages size={14} />
       </button>
 
       <AnimatePresence>

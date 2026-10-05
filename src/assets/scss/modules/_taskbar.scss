@@ -50,7 +50,7 @@
   margin-left: auto;
 }
 
-// Language Switcher (Model A - Pill Dropdown)
+// Language Switcher (Taskbar Tray Icon)
 .taskbar-lang-wrapper {
   position: relative;
   display: inline-flex;
@@ -59,52 +59,11 @@
   z-index: 60020;
 }
 
-.taskbar-lang-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--tb-border);
-  background: var(--profile-btn-bg);
-  color: var(--tb-text);
-  cursor: pointer;
-  outline: none;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-
-  &:hover,
-  &--open {
-    background: var(--tb-hover);
-    border-color: color-mix(in srgb, var(--tb-icon) 30%, var(--tb-border));
-    color: var(--win-text);
-  }
-
-  &__icon {
-    color: var(--tb-icon);
-    opacity: 0.8;
-  }
-
-  &__code {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: inherit;
-  }
-
-  &__chevron {
-    color: var(--tb-icon);
-    opacity: 0.65;
-    transition: transform 180ms ease;
-  }
-}
-
 .taskbar-lang-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 175px;
+  width: 195px;
   padding: 6px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--tb-border) 80%, transparent);
@@ -173,6 +132,7 @@
     font-size: 12px;
     font-weight: 500;
     flex: 1 1 auto;
+    white-space: nowrap;
   }
 
   &__check {
@@ -204,7 +164,8 @@
   transition: background 150ms;
 }
 
-.taskbar-icon-btn:hover {
+.taskbar-icon-btn:hover,
+.taskbar-icon-btn--active {
   background: var(--tb-hover);
 }
 
