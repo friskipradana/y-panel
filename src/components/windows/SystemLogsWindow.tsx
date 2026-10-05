@@ -1,6 +1,6 @@
 import { useMemo, useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, RefreshCcw, ScrollText, Terminal, Search } from 'lucide-react'
+import { Activity, AlertTriangle, RefreshCcw, ScrollText, Search } from 'lucide-react'
 import { getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'

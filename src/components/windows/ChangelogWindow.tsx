@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { BellRing, RefreshCcw, TriangleAlert, Zap } from 'lucide-react'
+import { RefreshCcw, TriangleAlert, Zap } from 'lucide-react'
 import { getSystemChangelog } from '@/api/agent'
 import type { ChangelogEntry } from '@/types'
 import { formatDateID, formatDateTimeID } from '@/lib/datetime'
