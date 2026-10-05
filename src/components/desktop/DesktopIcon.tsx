@@ -11,8 +11,10 @@ export function DesktopIcon({ app }: Props) {
   const { openWindow } = useWindowStore()
   const desktopIconStyle = useThemeStore((s) => s.desktopIconStyle)
   const desktopIconSize = useThemeStore((s) => s.desktopIconSize)
+  const mode = useThemeStore((s) => s.mode)
 
   const isPlain = desktopIconStyle === 'plain'
+  const isDark = mode === 'dark'
 
   const handleClick = () => {
     if (app.url) {
@@ -26,7 +28,7 @@ export function DesktopIcon({ app }: Props) {
     small: {
       btnWidth: 'w-[66px]',
       boxSize: 'h-10 w-10 rounded-xl',
-      iconSize: isPlain ? 26 : 22,
+      iconSize: isPlain ? 28 : 22,
       textSize: 'text-[10.5px]',
       maxTextWidth: 'max-w-[62px]',
     },
@@ -47,7 +49,7 @@ export function DesktopIcon({ app }: Props) {
   }[desktopIconSize] || {
     btnWidth: 'w-[66px]',
     boxSize: 'h-10 w-10 rounded-xl',
-    iconSize: isPlain ? 26 : 22,
+    iconSize: isPlain ? 28 : 22,
     textSize: 'text-[10.5px]',
     maxTextWidth: 'max-w-[62px]',
   }
@@ -56,18 +58,26 @@ export function DesktopIcon({ app }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1.5 rounded-xl p-1.5 active:scale-95 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20 select-none cursor-pointer`}
+      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none cursor-pointer transition-colors duration-150`}
     >
       <div
-        className={`flex ${sizeConfig.boxSize} items-center justify-center ${
+        className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${
           isPlain
-            ? 'filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-            : 'bg-black/20 backdrop-blur-md border border-white/10 shadow-lg shadow-black/20 group-hover:border-white/20 group-hover:shadow-xl'
+            ? 'group-hover:scale-105'
+            : isDark
+              ? 'bg-black/25 backdrop-blur-md border border-white/10 shadow-md shadow-black/20 group-hover:border-white/25 group-hover:shadow-lg'
+              : 'bg-white/50 backdrop-blur-md border border-black/10 shadow-sm shadow-black/5 group-hover:border-black/20 group-hover:shadow-md'
         }`}
       >
         <AppIcon kind={app.windowId || app.id} size={sizeConfig.iconSize} />
       </div>
-      <span className={`${sizeConfig.maxTextWidth} truncate text-center ${sizeConfig.textSize} font-medium tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`}>
+      <span
+        className={`${sizeConfig.maxTextWidth} truncate text-center ${sizeConfig.textSize} font-medium tracking-wide ${
+          isDark
+            ? 'text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+            : 'text-slate-800 font-semibold'
+        }`}
+      >
         {app.label}
       </span>
     </button>
