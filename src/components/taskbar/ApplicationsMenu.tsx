@@ -190,7 +190,7 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
       {/* ── Applications Drawer Popover (Emerges smoothly beneath taskbar) ── */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed left-4 top-[44px] z-[59990] w-[500px] h-[400px] pointer-events-none">
+          <div className="fixed left-4 top-[44px] z-[59990] w-[500px] h-[400px] rounded-b-2xl overflow-hidden pointer-events-none">
             <motion.div
               initial={{ opacity: 0, y: -40 }}
               animate={{ opacity: 1, y: 0 }}
