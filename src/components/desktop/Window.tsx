@@ -173,18 +173,16 @@ export function Window({ win, children }: Props) {
       key={win.id}
       initial={animation.initial}
       animate={{
-        scale: win.isMinimized ? 0.65 : 1,
+        scale: win.isMinimized ? 0.88 : 1,
         opacity: win.isMinimized ? 0 : 1,
-        y: win.isMinimized ? 160 : 0,
+        y: win.isMinimized ? 40 : 0,
         filter: isFocused ? 'brightness(1)' : 'brightness(0.975)',
         pointerEvents: win.isMinimized ? 'none' : 'auto',
       }}
       exit={animation.exit}
       transition={{
-        type: 'spring',
-        stiffness: 380,
-        damping: 28,
-        mass: 0.85,
+        duration: 0.15,
+        ease: [0.16, 1, 0.3, 1],
       }}
       className="absolute flex flex-col overflow-hidden select-none pointer-events-auto"
       style={{
