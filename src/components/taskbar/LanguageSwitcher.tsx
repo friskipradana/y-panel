@@ -52,40 +52,42 @@ export function LanguageSwitcher() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="taskbar-lang-dropdown"
-            role="listbox"
-          >
-            <div className="taskbar-lang-dropdown__header">
-              {t('language.label')}
-            </div>
-            <div className="taskbar-lang-dropdown__list">
-              {LANGUAGES.map((item) => {
-                const isSelected = item.code === language
-                return (
-                  <button
-                    key={item.code}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`taskbar-lang-item ${isSelected ? 'taskbar-lang-item--selected' : ''}`}
-                    onClick={() => {
-                      setLanguage(item.code)
-                      setIsOpen(false)
-                    }}
-                  >
-                    <span className="taskbar-lang-item__code">{item.label}</span>
-                    <span className="taskbar-lang-item__name">{item.name}</span>
-                    {isSelected && <Check size={13} className="taskbar-lang-item__check" />}
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
+          <div className="taskbar-lang-drawer">
+            <motion.div
+              initial={{ opacity: 0, y: -40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="taskbar-lang-dropdown"
+              role="listbox"
+            >
+              <div className="taskbar-lang-dropdown__header">
+                {t('language.label')}
+              </div>
+              <div className="taskbar-lang-dropdown__list">
+                {LANGUAGES.map((item) => {
+                  const isSelected = item.code === language
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`taskbar-lang-item ${isSelected ? 'taskbar-lang-item--selected' : ''}`}
+                      onClick={() => {
+                        setLanguage(item.code)
+                        setIsOpen(false)
+                      }}
+                    >
+                      <span className="taskbar-lang-item__code">{item.label}</span>
+                      <span className="taskbar-lang-item__name">{item.name}</span>
+                      {isSelected && <Check size={13} className="taskbar-lang-item__check" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
