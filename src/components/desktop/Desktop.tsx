@@ -25,6 +25,7 @@ const FileEditorWindow = lazyNamed(() => import('@/components/windows/FileEditor
 const UsersWindow = lazyDefault(() => import('@/components/windows/UsersWindow'))
 const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWindow'))
 const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
+const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
 
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 
@@ -101,6 +102,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
   users: (win) => <UsersWindow win={win} />,
   projects: (win) => <ProjectsWindow win={win} />,
   tunnels: (win) => <TunnelsWindow win={win} />,
+  profile: () => <ProfileWindow />,
 }
 
 import { DesktopIcon } from '@/components/desktop/DesktopIcon'

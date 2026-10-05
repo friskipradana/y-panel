@@ -1,255 +1,138 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getCFConfig, setCFConfig, verifyCFConfig, deleteCFConfig } from '@/api/agent'
-import { alertLib } from '@/lib/alert'
-import { toast } from 'sonner'
-import { useI18n } from '@/lib/i18n'
+import { useQuery } from '@tanstack/react-query'
 import {
-  Cloud,
+  Calendar,
   CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  Trash2,
+  Clock,
+  KeyRound,
+  Mail,
+  Server,
+  Shield,
   ShieldCheck,
   User,
-  LockKeyhole,
-  Globe2,
+  Users,
 } from 'lucide-react'
-
-const CF_STATUS_VARIANTS = {
-  active: { cls: 'panel-badge panel-badge--success', icon: <CheckCircle2 className="h-3 w-3" />, labelKey: 'profile.statusVerified' },
-  invalid: { cls: 'panel-badge panel-badge--danger', icon: <XCircle className="h-3 w-3" />, labelKey: 'profile.statusInvalid' },
-  unconfigured: { cls: 'panel-badge panel-badge--warning', icon: <AlertTriangle className="h-3 w-3" />, labelKey: 'profile.statusUnverified' },
-} as const
+import { getMeV2 } from '@/api/agent'
+import { useWindowStore } from '@/store/windowStore'
 
 export default function ProfileWindow() {
-  const qc = useQueryClient()
-  const { t } = useI18n()
-  const [cfForm, setCfForm] = useState({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
-  const [showToken, setShowToken] = useState(false)
-
-  const { data: cf, isLoading: cfLoading } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
-
-  const saveCFMut = useMutation({
-    mutationFn: setCFConfig,
-    onSuccess: () => {
-      alertLib.fire(t('profile.cloudflareSavedTitle'), t('profile.cloudflareSavedMessage'), 'success', 'profile')
-      qc.invalidateQueries({ queryKey: ['cf-config'] })
-      qc.invalidateQueries({ queryKey: ['me-v2'] })
-      setCfForm({ apiToken: '', accountId: '', zoneId: '', baseDomain: '' })
-    },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? t('profile.saveConfigFailed')
-      toast.error(t('profile.saveConfigFailed'), { description: message })
-      alertLib.fire(t('profile.cloudflareSaveFailedTitle'), message, 'error', 'profile')
-    },
+  const openWindow = useWindowStore((s) => s.openWindow)
+  const { data: me } = useQuery({
+    queryKey: ['me-v2'],
+    queryFn: getMeV2,
+    retry: 1,
   })
 
-  const verifyMut = useMutation({
-    mutationFn: verifyCFConfig,
-    onSuccess: (res) => {
-      if (res.valid) {
-        alertLib.fire(t('profile.verifySuccessTitle'), t('profile.verifySuccessMessage'), 'success', 'profile')
-      } else {
-        alertLib.fire(t('profile.invalidTokenTitle'), res.error ?? t('profile.unknownError'), 'warning', 'profile')
-      }
-      qc.invalidateQueries({ queryKey: ['cf-config'] })
-      qc.invalidateQueries({ queryKey: ['me-v2'] })
-    },
-    onError: () => {
-      toast.error(t('profile.verifyFailedToast'))
-      alertLib.fire(t('profile.verifyFailedTitle'), t('profile.verifyFailedMessage'), 'error', 'profile')
-    },
-  })
-
-  const deleteCFMut = useMutation({
-    mutationFn: deleteCFConfig,
-    onSuccess: () => {
-      alertLib.fire(t('profile.cloudflareDeletedTitle'), t('profile.cloudflareDeletedMessage'), 'success', 'profile')
-      qc.invalidateQueries({ queryKey: ['cf-config'] })
-      qc.invalidateQueries({ queryKey: ['me-v2'] })
-    },
-    onError: (e: any) => alertLib.fire(t('profile.cloudflareDeleteFailedTitle'), e.response?.data?.error ?? t('profile.cloudflareDeleteFailedMessage'), 'error', 'profile'),
-  })
-
-  const cfStatus = cf?.status
-  const cfStatusBadge = CF_STATUS_VARIANTS[cfStatus as keyof typeof CF_STATUS_VARIANTS] ?? CF_STATUS_VARIANTS.unconfigured
+  const displayName = me?.displayName || me?.username || 'Admin'
+  const displayRole = me?.role || 'superadmin'
+  const clientHost = typeof window !== 'undefined' ? (window.location.hostname || '127.0.0.1') : '127.0.0.1'
 
   return (
-    <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <User className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('profile.windowTitle')}</div>
-            <div className="panel-window__meta">{t('profile.windowMeta')}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel-window__body">
-        <div className="mx-auto flex w-full max-w-[980px] flex-col gap-4">
-          <section className="panel-card p-6">
-            <div className="panel-badge panel-badge--info mb-3 w-fit uppercase tracking-[0.16em]">
-              <ShieldCheck size={11} />
-              {t('profile.controlsBadge')}
+    <div className="panel-window flex flex-col h-full overflow-hidden">
+      <div className="panel-window__body flex-1 overflow-y-auto p-5">
+        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
+          {/* ── User Overview Hero Card ── */}
+          <div className="panel-shell-card p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
+            <div className="profile-avatar h-20 w-20 text-3xl font-bold rounded-2xl shadow-md">
+              {displayName.charAt(0).toUpperCase()}
             </div>
-            <div className="text-[22px] font-bold tracking-[-0.03em] text-[var(--win-text)]">{t('profile.heroTitle')}</div>
-            <p className="mt-2 max-w-[640px] text-[12px] leading-6 text-[var(--text-secondary)]">
-              {t('profile.heroDescription')}
-            </p>
-          </section>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                <h2 className="text-xl font-bold text-[var(--win-text)]">{displayName}</h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-bg)] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--panel-primary-text)]">
+                  <Shield size={12} />
+                  {displayRole}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-success-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--panel-success-text)]">
+                  <CheckCircle2 size={12} />
+                  Active
+                </span>
+              </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="panel-card p-5">
-              <div className="mb-4 flex items-start gap-3">
-                <div className="panel-avatar">
-                  <Cloud className="h-5 w-5" />
+              <div className="mt-2 flex flex-col sm:flex-row flex-wrap items-center gap-3 text-[12.5px] text-[var(--text-secondary)]">
+                {me?.username && (
+                  <span className="flex items-center gap-1 font-mono">
+                    <User size={13} className="opacity-70" />
+                    @{me.username}
+                  </span>
+                )}
+                {me?.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail size={13} className="opacity-70" />
+                    {me.email}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center justify-center sm:justify-start gap-2 text-[12px] text-[var(--text-secondary)] font-mono">
+                <Server size={13} className="text-[var(--panel-primary-text)]" />
+                <span>Active Session Host:</span>
+                <span className="font-bold text-[var(--win-text)]">{clientHost}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Account Details Card ── */}
+          <div className="panel-shell-card p-5 space-y-3.5">
+            <div className="text-[13px] font-bold text-[var(--win-text)] flex items-center gap-2">
+              <ShieldCheck size={16} className="text-[var(--panel-primary-text)]" />
+              Account Metadata & Security
+            </div>
+
+            <div className="space-y-2.5 text-[12.5px]">
+              <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                <span className="text-[var(--text-secondary)] flex items-center gap-2">
+                  <Calendar size={14} className="opacity-70" />
+                  Member Since
+                </span>
+                <span className="font-medium text-[var(--win-text)]">
+                  {me?.createdAt ? new Date(me.createdAt).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '—'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                <span className="text-[var(--text-secondary)] flex items-center gap-2">
+                  <Clock size={14} className="opacity-70" />
+                  Last Login Session
+                </span>
+                <span className="font-medium text-[var(--win-text)]">
+                  {me?.lastLoginAt ? new Date(me.lastLoginAt).toLocaleString('id-ID') : 'Current Session'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Shortcuts / Quick Management ── */}
+          <div className="panel-shell-card p-5 space-y-3">
+            <div className="text-[13px] font-bold text-[var(--win-text)]">Quick Actions</div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => openWindow('settings')}
+                className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]">
+                  <KeyRound size={16} />
                 </div>
                 <div>
-                  <div className="text-[15px] font-semibold text-[var(--win-text)]">{t('profile.cloudflareTitle')}</div>
-                  <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
-                    {t('profile.cloudflareDescription')}
-                  </div>
+                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)]">Security & Passwords</div>
+                  <div className="text-[11px] text-[var(--text-secondary)]">Kelola password root & database</div>
                 </div>
-              </div>
+              </button>
 
-              {cfLoading ? (
-                <div className="py-10 text-center text-[13px] text-[var(--text-secondary)]">{t('profile.loadingCloudflare')}</div>
-              ) : cf?.configured ? (
-                <div className="space-y-4">
-                  <div className="panel-card flex items-center justify-between gap-3 px-4 py-3 shadow-none">
-                    <div>
-                      <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text-secondary)]">{t('profile.connectionStatus')}</div>
-                      <div className="mt-1 text-[14px] font-semibold text-[var(--win-text)]">{t('profile.accountConnected')}</div>
-                    </div>
-                    <span className={cfStatusBadge.cls}>
-                      {cfStatusBadge.icon}
-                      {t(cfStatusBadge.labelKey)}
-                    </span>
-                  </div>
-
-                  <div className="panel-muted-block space-y-2 rounded-[16px] p-4">
-                    {[
-                      { label: t('profile.accountId'), value: cf.accountId },
-                      // { label: t('profile.zoneId'), value: cf.zoneId },
-                      // { label: t('profile.baseDomain'), value: cf.baseDomain },
-                      cf.verifiedAt ? { label: t('profile.verifiedAt'), value: new Date(cf.verifiedAt).toLocaleString('id-ID') } : null,
-                    ].filter(Boolean).map((item) => (
-                      <div key={item!.label} className="flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                        <span className="text-[var(--text-secondary)]">{item!.label}</span>
-                        <span className="panel-mono text-[var(--win-text)]">{item!.value || '—'}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => verifyMut.mutate()}
-                      disabled={verifyMut.isPending}
-                      className="panel-btn panel-btn--primary-soft flex-1"
-                    >
-                      <ShieldCheck className="h-4 w-4" />
-                      {verifyMut.isPending ? t('profile.verifying') : t('profile.verifyToken')}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const confirmed = await alertLib.confirm(
-                          t('profile.deleteConfirmTitle'),
-                          t('profile.deleteConfirmMessage'),
-                          t('profile.deleteConfirmAction'),
-                          t('common.cancel'),
-                          'warning',
-                          'profile',
-                        )
-                        if (confirmed) deleteCFMut.mutate()
-                      }}
-                      className="panel-icon-btn panel-icon-btn--danger h-[42px] w-[42px] rounded-[14px] border border-[var(--win-border)]"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+              <button
+                type="button"
+                onClick={() => openWindow('users')}
+                className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <Users size={16} />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <label className="panel-section-label">{t('profile.apiTokenRequired')}</label>
-                    <div className="relative">
-                      <input
-                        type={showToken ? 'text' : 'password'}
-                        placeholder={t('profile.apiTokenPlaceholder')}
-                        value={cfForm.apiToken}
-                        onChange={(e) => setCfForm((f) => ({ ...f, apiToken: e.target.value }))}
-                        className="panel-input panel-input--mono pr-10"
-                      />
-                      <button type="button" onClick={() => setShowToken((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] transition hover:text-[var(--win-text)]">
-                        {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {[
-                    { key: 'accountId', label: t('profile.accountIdRequired'), placeholder: 'abc123...' },
-                    { key: 'zoneId', label: t('profile.zoneIdOptional'), placeholder: t('profile.zoneIdPlaceholder') },
-                    { key: 'baseDomain', label: t('profile.baseDomainOptional'), placeholder: 'example.com' },
-                  ].map(({ key, label, placeholder }) => (
-                    <div key={key}>
-                      <label className="panel-section-label">{label}</label>
-                      <input
-                        value={(cfForm as any)[key]}
-                        onChange={(e) => setCfForm((f) => ({ ...f, [key]: e.target.value }))}
-                        placeholder={placeholder}
-                        className="panel-input panel-input--mono"
-                      />
-                    </div>
-                  ))}
-
-                  <button
-                    onClick={() => saveCFMut.mutate(cfForm)}
-                    disabled={saveCFMut.isPending || !cfForm.apiToken || !cfForm.accountId}
-                    className="panel-btn panel-btn--primary w-full"
-                  >
-                    {saveCFMut.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
-                    {saveCFMut.isPending ? t('profile.saving') : t('profile.saveAndConnect')}
-                  </button>
+                <div>
+                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-emerald-500">Manage Users</div>
+                  <div className="text-[11px] text-[var(--text-secondary)]">Kelola pengguna & hak akses</div>
                 </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div className="panel-card p-5">
-                <div className="mb-3 flex items-start gap-3">
-                  <div className="panel-avatar">
-                    <LockKeyhole className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="text-[14px] font-semibold text-[var(--win-text)]">{t('profile.tokenSecurityTitle')}</div>
-                    <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{t('profile.tokenSecurityMeta')}</div>
-                  </div>
-                </div>
-                <div className="panel-muted-block rounded-[16px] px-4 py-3 text-[12px] leading-6 text-[var(--text-secondary)]">
-                  {t('profile.tokenSecurityDescription')}
-                </div>
-              </div>
-
-              <div className="panel-card p-5">
-                <div className="mb-3 flex items-start gap-3">
-                  <div className="panel-avatar">
-                    <Globe2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="text-[14px] font-semibold text-[var(--win-text)]">{t('profile.relatedWindowsTitle')}</div>
-                    <div className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{t('profile.relatedWindowsMeta')}</div>
-                  </div>
-                </div>
-                <ul className="space-y-2 text-[12px] leading-6 text-[var(--text-secondary)]">
-                  <li className="panel-muted-block rounded-[14px] px-4 py-3">{t('profile.relatedTunnelsReadStatus')}</li>
-                  <li className="panel-muted-block rounded-[14px] px-4 py-3">{t('profile.relatedTunnelDisabled')}</li>
-                </ul>
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -257,7 +140,3 @@ export default function ProfileWindow() {
     </div>
   )
 }
-
-
-
-
