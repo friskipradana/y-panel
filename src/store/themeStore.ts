@@ -23,6 +23,7 @@ export type WallpaperKey =
 export type WallpaperFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile'
 export type DesktopIconStyle = 'framed' | 'plain'
 export type DesktopIconSize = 'small' | 'medium' | 'large'
+export type LockScreenStyle = 'clock' | 'matrix' | 'starfield' | 'none' | 'modern'
 
 export interface WallpaperDef {
   label: string
@@ -136,6 +137,7 @@ interface StoredTheme {
   customImageUrl?: string | null
   desktopIconStyle?: DesktopIconStyle
   desktopIconSize?: DesktopIconSize
+  lockScreenStyle?: LockScreenStyle
   soundEnabled?: boolean
   soundVolume?: number
   autoLockTimeout?: number
@@ -149,6 +151,7 @@ interface ThemeStore {
   customImageUrl: string | null
   desktopIconStyle: DesktopIconStyle
   desktopIconSize: DesktopIconSize
+  lockScreenStyle: LockScreenStyle
   wallpaperLoading: boolean
   soundEnabled: boolean
   soundVolume: number
@@ -159,6 +162,7 @@ interface ThemeStore {
   setWallpaperFit: (fit: WallpaperFit) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
+  setLockScreenStyle: (style: LockScreenStyle) => void
   setSoundEnabled: (enabled: boolean) => void
   setSoundVolume: (volume: number) => void
   setAutoLockTimeout: (timeout: number) => void
@@ -194,23 +198,22 @@ const applyTheme = (mode: ThemeMode) => {
 const formatImageBackground = (url: string, fit: WallpaperFit) => {
   switch (fit) {
     case 'contain':
-      return `url("${url}") center / contain no-repeat fixed #0b0f19`
+      return `url("${url}") center / contain no-repeat #0b0f19`
     case 'stretch':
-      return `url("${url}") center / 100% 100% no-repeat fixed`
+      return `url("${url}") center / 100% 100% no-repeat #0b0f19`
     case 'center':
-      return `url("${url}") center / auto no-repeat fixed #0b0f19`
+      return `url("${url}") center / auto no-repeat #0b0f19`
     case 'tile':
-      return `url("${url}") top left / auto repeat fixed`
+      return `url("${url}") top left / auto repeat`
     case 'cover':
     default:
-      return `url("${url}") center / cover no-repeat fixed`
+      return `url("${url}") center / cover no-repeat`
   }
 }
 
 const getImageStyle = (url: string, fit: WallpaperFit): React.CSSProperties => {
   const base: React.CSSProperties = {
     backgroundImage: `url("${url}")`,
-    backgroundAttachment: 'fixed',
     backgroundColor: '#0b0f19',
   }
   switch (fit) {
@@ -268,6 +271,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     customImageUrl: stored.customImageUrl ?? null,
     desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     desktopIconSize: stored.desktopIconSize ?? 'small',
+    lockScreenStyle: stored.lockScreenStyle ?? 'clock',
     wallpaperLoading: false,
     soundEnabled: stored.soundEnabled ?? true,
     soundVolume: stored.soundVolume ?? 0.7,
@@ -300,6 +304,11 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setDesktopIconSize: (desktopIconSize) => {
       persist({ desktopIconSize })
       set({ desktopIconSize })
+    },
+
+    setLockScreenStyle: (lockScreenStyle) => {
+      persist({ lockScreenStyle })
+      set({ lockScreenStyle })
     },
 
     setSoundEnabled: (soundEnabled) => {

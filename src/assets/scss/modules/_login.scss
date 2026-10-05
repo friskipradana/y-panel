@@ -5,8 +5,7 @@
   position: relative;
   overflow: hidden;
   color: white;
-  background: transparent !important;
-  backdrop-filter: blur(40px) brightness(0.85);
+  transition: background 300ms ease;
   // macOS-like blurred lockscreen
   display: flex;
   align-items: center;
@@ -950,7 +949,7 @@ select:-webkit-autofill:focus {
   --login-submit-hover: rgba(37, 99, 235, 0.24);
   --login-submit-text: #1d4ed8;
   --login-avatar-bg: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(124, 58, 237, 0.18));
-  background: var(--login-page-bg) !important;
+  // background handled by theme store
 }
 
 [data-theme="dark"] .login-shell,
