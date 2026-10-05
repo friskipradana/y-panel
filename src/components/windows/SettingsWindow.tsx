@@ -374,6 +374,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setMode,
     wallpaper,
     setWallpaper,
+    wallpaperFit,
+    setWallpaperFit,
     customImageUrl,
     setCustomImage,
     desktopIconStyle,
@@ -1750,6 +1752,42 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         )}
                       </div>
                     </div>
+
+                    {/* Wallpaper Fit Mode Selector */}
+                    {(wallpaper === "custom" || (WALLPAPERS[wallpaper as Exclude<WallpaperKey, "custom">]?.type === "image")) && (
+                      <div className="pt-3 border-t border-[var(--win-border)] flex flex-col gap-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[12px] font-bold text-[var(--win-text)]">
+                            Wallpaper Display Mode
+                          </span>
+                          <span className="text-[11px] text-[var(--text-secondary)]">
+                            Atur posisi & penskalaan gambar wallpaper
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[560px]">
+                          {[
+                            { key: "cover" as const, label: "Fill (Penuhi)" },
+                            { key: "contain" as const, label: "Fit (Sesuaikan)" },
+                            { key: "stretch" as const, label: "Stretch (Tarik)" },
+                            { key: "center" as const, label: "Center (Tengah)" },
+                            { key: "tile" as const, label: "Tile (Ubin)" },
+                          ].map((item) => (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => setWallpaperFit(item.key)}
+                              className={`py-1.5 px-2.5 rounded-xl border text-[11.5px] font-medium transition-all cursor-pointer text-center ${
+                                wallpaperFit === item.key
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-bold shadow-sm"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Sound & Audio Effects Card */}

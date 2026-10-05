@@ -20,6 +20,7 @@ export type WallpaperKey =
   | 'abstract-wave'
   | 'custom'
 
+export type WallpaperFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile'
 export type DesktopIconStyle = 'framed' | 'plain'
 export type DesktopIconSize = 'small' | 'medium' | 'large'
 
@@ -131,6 +132,7 @@ export const WALLPAPERS: Record<Exclude<WallpaperKey, 'custom'>, WallpaperDef> =
 interface StoredTheme {
   mode?: ThemeMode
   wallpaper?: WallpaperKey
+  wallpaperFit?: WallpaperFit
   customImageUrl?: string | null
   desktopIconStyle?: DesktopIconStyle
   desktopIconSize?: DesktopIconSize
@@ -142,6 +144,7 @@ interface StoredTheme {
 interface ThemeStore {
   mode: ThemeMode
   wallpaper: WallpaperKey
+  wallpaperFit: WallpaperFit
   /** Data URL or blob URL for custom wallpaper image */
   customImageUrl: string | null
   desktopIconStyle: DesktopIconStyle
@@ -153,6 +156,7 @@ interface ThemeStore {
   isLocked: boolean
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
+  setWallpaperFit: (fit: WallpaperFit) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
   setSoundEnabled: (enabled: boolean) => void
@@ -185,19 +189,35 @@ const applyTheme = (mode: ThemeMode) => {
   document.documentElement.setAttribute('data-theme', mode)
 }
 
+const formatImageBackground = (url: string, fit: WallpaperFit) => {
+  switch (fit) {
+    case 'contain':
+      return `url("${url}") center/contain no-repeat fixed #0b0f19`
+    case 'stretch':
+      return `url("${url}") center/100% 100% no-repeat fixed`
+    case 'center':
+      return `url("${url}") center/auto no-repeat fixed #0b0f19`
+    case 'tile':
+      return `url("${url}") top left/auto repeat fixed`
+    case 'cover':
+    default:
+      return `url("${url}") center/cover no-repeat fixed`
+  }
+}
+
 export const useThemeStore = create<ThemeStore>((set, get) => {
   const stored = loadStored()
   applyTheme(stored.mode ?? 'light')
 
   const getBackground = () => {
-    const { mode, wallpaper, customImageUrl } = get()
+    const { mode, wallpaper, wallpaperFit, customImageUrl } = get()
     if (wallpaper === 'custom' && customImageUrl) {
-      return `url("${customImageUrl}") center/cover no-repeat fixed`
+      return formatImageBackground(customImageUrl, wallpaperFit)
     }
     const def = WALLPAPERS[(wallpaper === 'custom' ? 'default' : wallpaper) as Exclude<WallpaperKey, 'custom'>] ?? WALLPAPERS.default
     const bgVal = mode === 'dark' ? (def.dark ?? def.light) : def.light
     if (def.type === 'image') {
-      return `url("${bgVal}") center/cover no-repeat fixed`
+      return formatImageBackground(bgVal, wallpaperFit)
     }
     return bgVal
   }
@@ -205,6 +225,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
   return {
     mode: stored.mode ?? 'light',
     wallpaper: stored.wallpaper ?? 'default',
+    wallpaperFit: stored.wallpaperFit ?? 'cover',
     customImageUrl: stored.customImageUrl ?? null,
     desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     desktopIconSize: stored.desktopIconSize ?? 'small',
@@ -223,6 +244,11 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setWallpaper: (wallpaper) => {
       persist({ wallpaper })
       set({ wallpaper })
+    },
+
+    setWallpaperFit: (wallpaperFit) => {
+      persist({ wallpaperFit })
+      set({ wallpaperFit })
     },
 
     setDesktopIconStyle: (desktopIconStyle) => {
