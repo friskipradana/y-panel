@@ -63,7 +63,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 999999;
+  z-index: 59990;
   overflow: hidden;
   pointer-events: none;
 }
@@ -396,16 +396,13 @@
   position: fixed;
   top: 44px;
   right: 16px;
-  z-index: 200000;
+  z-index: 59990;
   overflow: hidden;
   pointer-events: none;
 }
 
 .profile-menu {
   pointer-events: auto;
-  position: fixed;
-  top: 44px;
-  right: 16px;
   width: 268px;
   border-radius: 0 0 16px 16px;
   background: var(--menu-bg);
@@ -413,7 +410,6 @@
   border-top: none;
   box-shadow: var(--menu-shadow);
   backdrop-filter: blur(24px);
-  z-index: 200000;
   overflow: hidden;
 }
 
@@ -494,4 +490,4 @@
 .profile-menu-btn-danger:hover {
   background: rgba(239, 68, 68, 0.10) !important;
 }
-
+
