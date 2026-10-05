@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -189,97 +190,116 @@ export function Dock() {
         }}
       >
         {visibleDockItems.length > 0 && (
-          <div
+          <motion.div
+            layout
             id="desktop-dock"
             className={`relative flex items-end gap-2.5 rounded-2xl border px-3.5 py-2 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
           >
-            {visibleDockItems.map((item) => {
-              const related = groupedWindows[item.kind]
-              const isOpen = openKinds.includes(item.kind)
-              const isHovered = hovered === item.kind
-              const isFocused = related.some((w) => w.id === focusedId && !w.isMinimized)
-              const allMinimized = related.length > 0 && related.every((w) => w.isMinimized)
-              const hasVisible = related.some((w) => !w.isMinimized)
+            <AnimatePresence mode="popLayout">
+              {visibleDockItems.map((item) => {
+                const related = groupedWindows[item.kind]
+                const isOpen = openKinds.includes(item.kind)
+                const isHovered = hovered === item.kind
+                const isFocused = related.some((w) => w.id === focusedId && !w.isMinimized)
+                const allMinimized = related.length > 0 && related.every((w) => w.isMinimized)
+                const hasVisible = related.some((w) => !w.isMinimized)
 
-              return (
-                <div
-                  key={item.kind}
-                  className="relative flex cursor-pointer flex-col items-center select-none"
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
-                    const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
-                    setMenu({ x: nextX, y: nextY, kind: item.kind })
-                  }}
-                  onMouseEnter={() => setHovered(item.kind)}
-                  onMouseLeave={() => setHovered((current) => (current === item.kind ? null : current))}
-                  onClick={() => {
-                    const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
-                    const minimized = [...related].reverse().find((windowItem) => windowItem.isMinimized)
-                    const isCurrentlyActive = visible && visible.id === focusedId
+                return (
+                  <motion.div
+                    key={item.kind}
+                    layout
+                    initial={{ opacity: 0, scale: 0.5, y: 12 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.5, y: 12 }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+                    className="relative flex cursor-pointer flex-col items-center select-none"
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
+                      const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
+                      setMenu({ x: nextX, y: nextY, kind: item.kind })
+                    }}
+                    onMouseEnter={() => setHovered(item.kind)}
+                    onMouseLeave={() => setHovered((current) => (current === item.kind ? null : current))}
+                    onClick={() => {
+                      const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
+                      const minimized = [...related].reverse().find((windowItem) => windowItem.isMinimized)
+                      const isCurrentlyActive = visible && visible.id === focusedId
 
-                    if (isCurrentlyActive) {
-                      // Click on already-focused window minimizes it
-                      minimizeWindow(visible.id)
-                      return
-                    }
-                    if (visible) {
-                      focusWindow(visible.id)
-                      return
-                    }
-                    if (minimized) {
-                      focusWindow(minimized.id)
-                      return
-                    }
-                    openWindow(item.kind)
-                  }}
-                >
-                  {/* Clean desktop floating tooltip */}
-                  {isHovered && (
-                    <div className={`pointer-events-none absolute bottom-full mb-2.5 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border border-white/10 ${tooltipClass}`}>
-                      {t(windowTitleKey(item.kind))}
-                    </div>
-                  )}
-
-                  {/* Icon Tile */}
-                  <div
-                    className={[
-                      'flex h-[38px] w-[38px] items-center justify-center rounded-xl transition-transform duration-150',
-                      desktopIconStyle === 'plain'
-                        ? 'hover:bg-white/10 active:scale-95'
-                        : isFocused
-                          ? 'border border-[var(--panel-primary-solid)] bg-black/30 backdrop-blur-md shadow-md shadow-black/25'
-                          : isOpen
-                            ? itemOpenClass
-                            : itemIdleClass,
-                      isHovered ? 'scale-105 -translate-y-0.5' : 'scale-100',
-                    ].join(' ')}
+                      if (isCurrentlyActive) {
+                        // Click on already-focused window minimizes it
+                        minimizeWindow(visible.id)
+                        return
+                      }
+                      if (visible) {
+                        focusWindow(visible.id)
+                        return
+                      }
+                      if (minimized) {
+                        focusWindow(minimized.id)
+                        return
+                      }
+                      openWindow(item.kind)
+                    }}
                   >
-                    <AppIcon kind={item.kind} size={22} />
-                  </div>
+                    {/* Clean desktop floating tooltip */}
+                    <AnimatePresence>
+                      {isHovered && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.92 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.92 }}
+                          transition={{ duration: 0.12 }}
+                          className={`pointer-events-none absolute bottom-full mb-2.5 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border border-white/10 ${tooltipClass}`}
+                        >
+                          {t(windowTitleKey(item.kind))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
-                  {/* Status Indicator Dot */}
-                  <div className="flex min-h-[6px] items-center justify-center gap-1 mt-1">
-                    {isFocused ? (
-                      <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] shadow-[0_0_8px_rgba(56,189,248,0.6)] transition-all duration-150" />
-                    ) : hasVisible ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-primary-solid)] opacity-90 transition-all duration-150" />
-                    ) : allMinimized ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)] transition-all duration-150" />
-                    ) : isOpen ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-[var(--dock-indicator-visible-bg)] opacity-70 transition-all duration-150" />
-                    ) : null}
-                    {related.length > 1 && (
-                      <span className="text-[9px] font-bold text-[var(--text-secondary)] font-mono leading-none">
-                        {related.length}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                    {/* Icon Tile with tactile Desktop spring feedback */}
+                    <motion.div
+                      whileHover={{ scale: 1.1, y: -2 }}
+                      whileTap={{ scale: 0.92 }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 24 }}
+                      className={[
+                        'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer',
+                        desktopIconStyle === 'plain'
+                          ? 'hover:bg-white/10'
+                          : isFocused
+                            ? 'border border-[var(--panel-primary-solid)] bg-black/30 backdrop-blur-md shadow-md shadow-black/25'
+                            : isOpen
+                              ? itemOpenClass
+                              : itemIdleClass,
+                      ].join(' ')}
+                    >
+                      <AppIcon kind={item.kind} size={22} />
+                    </motion.div>
+
+                    {/* Status Indicator Dot */}
+                    <div className="flex min-h-[6px] items-center justify-center gap-1 mt-1">
+                      {isFocused ? (
+                        <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] shadow-[0_0_8px_rgba(56,189,248,0.6)] transition-all duration-150" />
+                      ) : hasVisible ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-primary-solid)] opacity-90 transition-all duration-150" />
+                      ) : allMinimized ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)] transition-all duration-150" />
+                      ) : isOpen ? (
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--dock-indicator-visible-bg)] opacity-70 transition-all duration-150" />
+                      ) : null}
+                      {related.length > 1 && (
+                        <span className="text-[9px] font-bold text-[var(--text-secondary)] font-mono leading-none">
+                          {related.length}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </motion.div>
         )}
       </div>
 
