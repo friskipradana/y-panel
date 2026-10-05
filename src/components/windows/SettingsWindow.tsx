@@ -1152,10 +1152,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-left text-[12px] font-medium transition-all duration-150 cursor-pointer ${
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-left text-[12px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
                   isActive
-                    ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border border-[var(--panel-primary-text)]/25 shadow-xs"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
+                    ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border-[var(--panel-primary-text)]/25 shadow-xs"
+                    : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
                 }`}
               >
                 <Icon
