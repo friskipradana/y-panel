@@ -33,6 +33,9 @@ import {
   Waypoints,
   Zap,
   Lock,
+  Terminal,
+  Sparkles,
+  Monitor,
 } from "lucide-react";
 import {
   copyTextToClipboard,
@@ -382,6 +385,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setDesktopIconStyle,
     desktopIconSize,
     setDesktopIconSize,
+    lockScreenStyle,
+    setLockScreenStyle,
     soundEnabled,
     setSoundEnabled,
     soundVolume,
@@ -1867,11 +1872,83 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Lock size={17} />}
-                      title="Lock Screen & Auto-Lock"
-                      subtitle="Konfigurasi batas waktu kunci otomatis saat desktop tidak aktif"
+                      title="Lock Screen & Security"
+                      subtitle="Atur model tampilan lock screen, animasi screensaver, dan batas waktu kunci otomatis"
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px]">
+                    {/* Lock Screen Model Selector */}
+                    <div className="space-y-2.5 max-w-[560px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-bold text-[var(--win-text)]">
+                          Model Tampilan Lock Screen
+                        </span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">
+                          Pilih gaya visual saat sesi terkunci
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {[
+                          {
+                            id: "clock" as const,
+                            label: "Digital Clock",
+                            desc: "Jam digital besar, kalender, ucapan waktu, & kartu login elegan",
+                            icon: <Clock size={16} className="text-sky-400" />,
+                          },
+                          {
+                            id: "matrix" as const,
+                            label: "Terminal Matrix Rain",
+                            desc: "Aliran glyph ASCII matrix hijau cyberpunk interaktif",
+                            icon: <Terminal size={16} className="text-emerald-400" />,
+                          },
+                          {
+                            id: "starfield" as const,
+                            label: "Starfield 3D Hyperspace",
+                            desc: "Simulasi kedalaman partikel luar angkasa kecepatan cahaya",
+                            icon: <Sparkles size={16} className="text-indigo-400" />,
+                          },
+                          {
+                            id: "none" as const,
+                            label: "Minimal Blank",
+                            desc: "Layar gelap pekat minimalis dengan konsumsi daya rendah",
+                            icon: <Monitor size={16} className="text-slate-400" />,
+                          },
+                        ].map((item) => {
+                          const isSelected = lockScreenStyle === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setLockScreenStyle(item.id)}
+                              className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                                isSelected
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-sm"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/10 dark:bg-white/10 mt-0.5">
+                                {item.icon}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className={`text-[12px] font-bold ${isSelected ? "text-[var(--panel-primary-text)]" : "text-[var(--win-text)]"}`}>
+                                    {item.label}
+                                  </span>
+                                  {isSelected && (
+                                    <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-4">
+                                  {item.desc}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px] pt-1">
                       <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">

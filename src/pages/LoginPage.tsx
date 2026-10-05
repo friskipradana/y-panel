@@ -27,8 +27,24 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { t } = useI18n()
-  const themeMode = useThemeStore((s) => s.mode)
-  const toggleMode = useThemeStore((s) => s.toggleMode)
+  const {
+    mode: themeMode,
+    toggleMode,
+    getBackgroundStyle,
+    wallpaper,
+    wallpaperFit,
+    customImageUrl,
+    syncCustomImage,
+  } = useThemeStore()
+
+  useEffect(() => {
+    void syncCustomImage()
+  }, [syncCustomImage])
+
+  const backgroundStyle = useMemo(
+    () => getBackgroundStyle(),
+    [getBackgroundStyle, themeMode, wallpaper, wallpaperFit, customImageUrl],
+  )
 
   const [setupUsername, setSetupUsername] = useState('')
   const [setupEmail, setSetupEmail] = useState('')
@@ -102,7 +118,11 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   }, [mode, setupStatusQuery.isLoading, t])
 
   return (
-    <main className="mac-login-page relative" id="panel-login-screen">
+    <main className="mac-login-page relative w-full h-full min-h-screen overflow-hidden" id="panel-login-screen">
+      {/* Dynamic wallpaper background layer */}
+      <div className="absolute inset-0 z-0" style={backgroundStyle} />
+      {/* Ambient background contrast overlay */}
+      <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px] z-[1] pointer-events-none" />
       {onBack ? (
         <button
           id="login-back-button"
@@ -132,18 +152,18 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
 
       <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 pb-20 z-10">
         <div
-          className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border shadow-2xl login-avatar-shell"
-          style={{
-            background: 'var(--login-avatar-bg)',
-            backdropFilter: 'blur(20px)',
-          }}
+          className="mb-4 flex h-24 w-24 items-center justify-center rounded-full border-2 border-white/30 shadow-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-indigo-700 text-white backdrop-blur-md"
         >
-          <User size={40} className="opacity-80 login-primary-icon" />
+          <User size={42} className="opacity-95 text-white" />
         </div>
 
-        <div className="mb-3 text-center login-copy">
-          <p className="text-sm font-medium">{mode === 'setup' ? t('login.firstRunSetup') : t('login.welcomeBack')}</p>
-          <p className="mt-1 text-[12px] login-copy-muted">{statusMessage}</p>
+        <div className="mb-3 text-center px-4">
+          <p className="text-base font-bold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">
+            {mode === 'setup' ? t('login.firstRunSetup') : t('login.welcomeBack')}
+          </p>
+          <p className="mt-1 text-[12.5px] font-medium text-slate-200 drop-shadow-[0_1px_6px_rgba(0,0,0,0.75)]">
+            {statusMessage}
+          </p>
         </div>
 
         {setupStatusQuery.isLoading ? (
