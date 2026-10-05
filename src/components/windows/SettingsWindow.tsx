@@ -393,6 +393,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setLockScreenEnabled,
     requirePasswordOnWake,
     setRequirePasswordOnWake,
+    wakeOnMouseMove,
+    setWakeOnMouseMove,
     soundEnabled,
     setSoundEnabled,
     soundVolume,
@@ -1127,36 +1129,36 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   }[] = [
     {
       key: "general",
-      label: t("settings.identity") || "General & Host",
+      label: t("settings.tabs.general"),
       icon: Server,
     },
-    { key: "appearance", label: "Appearance & Themes", icon: Palette },
-    { key: "screensaver", label: "Screensaver & Lock", icon: Lock },
-    { key: "sound", label: "Sound & Audio", icon: Volume2 },
-    { key: "cloudflare", label: "Cloudflare Integration", icon: Cloud },
+    { key: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
+    { key: "screensaver", label: t("settings.tabs.screensaver"), icon: Lock },
+    { key: "sound", label: t("settings.tabs.sound"), icon: Volume2 },
+    { key: "cloudflare", label: t("settings.tabs.cloudflare"), icon: Cloud },
     {
       key: "network",
-      label: t("settings.allowedOrigins") || "Network & Ports",
+      label: t("settings.tabs.network"),
       icon: Globe2,
     },
     {
       key: "security",
-      label: t("settings.primaryPasswordTitle") || "Security & Passwords",
+      label: t("settings.tabs.security"),
       icon: LockKeyhole,
     },
     {
       key: "payment",
-      label: t("settings.paymentGateway") || "Payment Gateway",
+      label: t("settings.tabs.payment"),
       icon: CreditCard,
     },
     {
       key: "notifications",
-      label: t("settings.listener.title") || "Push & Listener",
+      label: t("settings.tabs.notifications"),
       icon: Smartphone,
     },
     {
       key: "audit",
-      label: t("settings.auditTrail") || "Audit Trail",
+      label: t("settings.tabs.audit"),
       icon: Clock,
     },
   ];
@@ -1373,8 +1375,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Palette size={17} />}
-                      title="Theme & Color Scheme"
-                      subtitle="Pilih tema tampilan panel antara mode terang atau gelap"
+                      title={t("settings.appearance.themeTitle")}
+                      subtitle={t("settings.appearance.themeSubtitle")}
                     />
 
                     <div className="grid grid-cols-2 gap-3.5 max-w-[480px]">
@@ -1393,15 +1395,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         </div>
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Light Mode
+                            {t("settings.appearance.lightMode")}
                           </div>
                           <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                            Tampilan bersih & cerah
+                            {t("settings.appearance.lightModeDesc")}
                           </div>
                         </div>
                         {mode === "light" && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
-                            <CheckCircle2 size={11} /> Aktif
+                            <CheckCircle2 size={11} /> {t("settings.appearance.active")}
                           </span>
                         )}
                       </button>
@@ -1421,15 +1423,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         </div>
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Dark Mode
+                            {t("settings.appearance.darkMode")}
                           </div>
                           <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                            Kontras tinggi & ramah mata
+                            {t("settings.appearance.darkModeDesc")}
                           </div>
                         </div>
                         {mode === "dark" && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2.5 py-0.5 text-[10.5px] font-bold text-white">
-                            <CheckCircle2 size={11} /> Aktif
+                            <CheckCircle2 size={11} /> {t("settings.appearance.active")}
                           </span>
                         )}
                       </button>
@@ -1465,7 +1467,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             </div>
                             {desktopIconStyle === "framed" && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={10} /> Aktif
+                                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
                               </span>
                             )}
                           </div>
@@ -1495,7 +1497,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             </div>
                             {desktopIconStyle === "plain" && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={10} /> Aktif
+                                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
                               </span>
                             )}
                           </div>
@@ -1613,8 +1615,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <SectionHeader
                         icon={<ImagePlus size={17} />}
-                        title="Desktop Wallpaper"
-                        subtitle="Pilih wallpaper preset gambar HD, gradient minimalis, atau unggah gambar kustom"
+                        title={t("settings.appearance.wallpaperTitle")}
+                        subtitle={t("settings.appearance.wallpaperSubtitle")}
                       />
                       <input
                         type="file"
@@ -1629,14 +1631,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         className="panel-btn panel-btn--primary rounded-xl px-3.5 py-2 text-[12.5px] flex items-center gap-2"
                       >
                         <Upload size={14} />
-                        Upload Wallpaper
+                        {t("settings.appearance.uploadWallpaper")}
                       </button>
                     </div>
 
                     {/* HD Image Wallpapers (Unsplash Pack) */}
                     <div>
                       <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
-                        HD Image Wallpapers
+                        {t("settings.appearance.hdWallpapers")}
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {(
@@ -1688,7 +1690,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     {/* Gradient Presets */}
                     <div>
                       <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
-                        Gradient Minimalist
+                        {t("settings.appearance.gradientWallpapers")}
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                         {(
@@ -1720,7 +1722,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                                 style={{
                                   background:
                                     mode === "dark"
-                                      ? (def.dark ?? def.light)
+                                       ? (def.dark ?? def.light)
                                       : def.light,
                                 }}
                               />
@@ -1755,7 +1757,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             />
                             <div className="p-2 flex items-center justify-between bg-[var(--panel-surface)]">
                               <span className="text-[11px] font-semibold text-[var(--win-text)] truncate">
-                                Custom
+                                {t("settings.appearance.customWallpaper")}
                               </span>
                               {wallpaper === "custom" && (
                                 <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--panel-primary-solid)]" />
@@ -1771,19 +1773,19 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <div className="pt-3 border-t border-[var(--win-border)] flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[12px] font-bold text-[var(--win-text)]">
-                            Wallpaper Display Mode
+                            {t("settings.appearance.displayMode")}
                           </span>
                           <span className="text-[11px] text-[var(--text-secondary)]">
-                            Atur posisi & penskalaan gambar wallpaper
+                            {t("settings.appearance.displayModeSubtitle")}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-[560px]">
                           {[
-                            { key: "cover" as const, label: "Fill (Penuhi)" },
-                            { key: "contain" as const, label: "Fit (Sesuaikan)" },
-                            { key: "stretch" as const, label: "Stretch (Tarik)" },
-                            { key: "center" as const, label: "Center (Tengah)" },
-                            { key: "tile" as const, label: "Tile (Ubin)" },
+                            { key: "cover" as const, label: t("settings.appearance.fitCover") },
+                            { key: "contain" as const, label: t("settings.appearance.fitContain") },
+                            { key: "stretch" as const, label: t("settings.appearance.fitStretch") },
+                            { key: "center" as const, label: t("settings.appearance.fitCenter") },
+                            { key: "tile" as const, label: t("settings.appearance.fitTile") },
                           ].map((item) => (
                             <button
                               key={item.key}
@@ -1807,8 +1809,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Layout size={17} />}
-                      title="Desktop & Dock Preferences"
-                      subtitle="Atur perilaku dock dan widget monitor performa pada taskbar"
+                      title={t("settings.appearance.dockTitle")}
+                      subtitle={t("settings.appearance.dockSubtitle")}
                     />
 
                     <div className="space-y-3">
@@ -1816,11 +1818,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Auto-Hide Dock
+                            {t("settings.appearance.autoHideDock")}
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Sembunyikan dock secara otomatis saat jendela
-                            didekatkan
+                            {t("settings.appearance.autoHideDockDesc")}
                           </div>
                         </div>
                         <button
@@ -1845,11 +1846,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                              Taskbar Resource Monitor
+                              {t("settings.appearance.taskbarMonitor")}
                             </div>
                             <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                              Tampilkan indikator realtime CPU, RAM, dan
-                              Temperatur di Taskbar
+                              {t("settings.appearance.taskbarMonitorDesc")}
                             </div>
                           </div>
                           <button
@@ -1930,19 +1930,19 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Lock size={17} />}
-                      title="Layar Kunci & Screensaver"
-                      subtitle="Atur perilaku penguncian sesi dan screensaver desktop"
+                      title={t("settings.screensaver.masterTitle")}
+                      subtitle={t("settings.screensaver.masterSubtitle")}
                     />
 
                     <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                       <div>
                         <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                          Aktifkan Layar Kunci & Screensaver
+                          {t("settings.screensaver.enableToggle")}
                         </div>
                         <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                           {lockScreenEnabled
-                            ? "Fitur layar kunci dan screensaver aktif"
-                            : "Fitur dinonaktifkan"}
+                            ? t("settings.screensaver.enableActive")
+                            : t("settings.screensaver.enableInactive")}
                         </div>
                       </div>
                       <button
@@ -1967,20 +1967,20 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<LockKeyhole size={17} />}
-                      title="Autentikasi & Keamanan"
-                      subtitle="Tentukan metode saat membangunkan layar"
+                      title={t("settings.screensaver.authTitle")}
+                      subtitle={t("settings.screensaver.authSubtitle")}
                     />
 
-                    <div className="max-w-[620px]">
+                    <div className="max-w-[620px] space-y-2.5">
                       <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Minta Password saat Bangun
+                            {t("settings.screensaver.requirePassword")}
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                             {requirePasswordOnWake
-                              ? "Perlu password akun untuk membuka sesi panel"
-                              : "Langsung masuk tanpa perlu memasukkan password"}
+                              ? t("settings.screensaver.requirePasswordActive")
+                              : t("settings.screensaver.requirePasswordInactive")}
                           </div>
                         </div>
                         <button
@@ -1999,6 +1999,34 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           />
                         </button>
                       </div>
+
+                      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                        <div>
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                            {t("settings.screensaver.wakeOnMouseMove")}
+                          </div>
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                            {wakeOnMouseMove
+                              ? t("settings.screensaver.wakeOnMouseMoveActive")
+                              : t("settings.screensaver.wakeOnMouseMoveInactive")}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWakeOnMouseMove(!wakeOnMouseMove)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            wakeOnMouseMove
+                              ? "bg-[var(--panel-primary-solid)]"
+                              : "bg-gray-400/30"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              wakeOnMouseMove ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -2006,34 +2034,34 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Sparkles size={17} />}
-                      title="Gaya Animasi Screensaver"
-                      subtitle="Pilih tampilan visual saat layar aktif"
+                      title={t("settings.screensaver.styleTitle")}
+                      subtitle={t("settings.screensaver.styleSubtitle")}
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[620px]">
                       {[
                         {
                           id: "clock" as const,
-                          label: "Jam Digital",
-                          desc: "Tampilan jam dan kalender",
+                          label: t("settings.screensaver.styleClock"),
+                          desc: t("settings.screensaver.styleClockDesc"),
                           icon: <Clock size={16} className="text-sky-400" />,
                         },
                         {
                           id: "matrix" as const,
-                          label: "Terminal Matrix",
-                          desc: "Animasi karakter matrix hijau",
+                          label: t("settings.screensaver.styleMatrix"),
+                          desc: t("settings.screensaver.styleMatrixDesc"),
                           icon: <Terminal size={16} className="text-emerald-400" />,
                         },
                         {
                           id: "starfield" as const,
-                          label: "Starfield 3D",
-                          desc: "Animasi partikel luar angkasa",
+                          label: t("settings.screensaver.styleStarfield"),
+                          desc: t("settings.screensaver.styleStarfieldDesc"),
                           icon: <Sparkles size={16} className="text-indigo-400" />,
                         },
                         {
                           id: "none" as const,
-                          label: "Layar Gelap",
-                          desc: "Layar hitam minimalis",
+                          label: t("settings.screensaver.styleNone"),
+                          desc: t("settings.screensaver.styleNoneDesc"),
                           icon: <Monitor size={16} className="text-slate-400" />,
                         },
                       ].map((item) => {
@@ -2075,18 +2103,18 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Clock size={17} />}
-                      title="Batas Waktu & Kunci Cepat"
-                      subtitle="Atur durasi tidak aktif sebelum layar terkunci otomatis"
+                      title={t("settings.screensaver.timeoutTitle")}
+                      subtitle={t("settings.screensaver.timeoutSubtitle")}
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[620px]">
                       <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Waktu Tidak Aktif (Idle)
+                            {t("settings.screensaver.idleTimeout")}
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Kunci jika tidak ada aktivitas mouse / keyboard
+                            {t("settings.screensaver.idleTimeoutDesc")}
                           </div>
                         </div>
                         <select
@@ -2094,21 +2122,21 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           onChange={(e) => setAutoLockTimeout(parseInt(e.target.value, 10))}
                           className="panel-input text-[12.5px] py-1.5 px-3 rounded-lg w-full bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]"
                         >
-                          <option value={0}>Tidak Pernah</option>
-                          <option value={5}>5 Menit</option>
-                          <option value={15}>15 Menit</option>
-                          <option value={30}>30 Menit</option>
-                          <option value={60}>1 Jam</option>
+                          <option value={0}>{t("settings.screensaver.timeoutNever")}</option>
+                          <option value={5}>{t("settings.screensaver.timeout5Min")}</option>
+                          <option value={15}>{t("settings.screensaver.timeout15Min")}</option>
+                          <option value={30}>{t("settings.screensaver.timeout30Min")}</option>
+                          <option value={60}>{t("settings.screensaver.timeout1Hour")}</option>
                         </select>
                       </div>
 
                       <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Kunci Layar Sekarang
+                            {t("settings.screensaver.lockNow")}
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Aktifkan layar kunci atau screensaver seketika
+                            {t("settings.screensaver.lockNowDesc")}
                           </div>
                         </div>
                         <button
@@ -2117,7 +2145,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           className="panel-btn panel-btn--primary text-[12px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <Lock size={14} />
-                          <span>Kunci Layar</span>
+                          <span>{t("settings.screensaver.lockNowBtn")}</span>
                         </button>
                       </div>
                     </div>
@@ -2132,8 +2160,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Volume2 size={17} />}
-                      title="Sound Effects & Audio"
-                      subtitle="Atur efek suara interaksi tombol, notifikasi sistem, dan audio umpan balik"
+                      title={t("settings.sound.masterTitle")}
+                      subtitle={t("settings.sound.masterSubtitle")}
                     />
 
                     <div className="space-y-3.5 max-w-[620px]">
@@ -2144,10 +2172,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           </div>
                           <div>
                             <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                              Enable System Sounds
+                              {t("settings.sound.enableToggle")}
                             </div>
                             <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                              Mainkan audio chime saat notifikasi masuk, buka jendela, atau kunci layar
+                              {t("settings.sound.enableDesc")}
                             </div>
                           </div>
                         </div>
@@ -2172,7 +2200,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                              Master Volume
+                              {t("settings.sound.masterVolume")}
                             </span>
                             <span className="panel-mono text-[12px] font-bold text-[var(--panel-primary-text)]">
                               {Math.round(soundVolume * 100)}%
@@ -2199,8 +2227,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                       <SectionHeader
                         icon={<Sparkles size={17} />}
-                        title="Audio Preview & Diagnostics"
-                        subtitle="Uji audio synthesizer dan chime sistem secara instan"
+                        title={t("settings.sound.previewTitle")}
+                        subtitle={t("settings.sound.previewSubtitle")}
                       />
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[620px]">
@@ -2211,9 +2239,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         >
                           <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
                             <Volume2 size={14} className="text-sky-400" />
-                            <span>Notification</span>
+                            <span>{t("settings.sound.notification")}</span>
                           </div>
-                          <span className="text-[11px] text-[var(--text-secondary)]">Nada notifikasi sistem</span>
+                          <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.sound.notificationDesc")}</span>
                         </button>
 
                         <button
@@ -2223,9 +2251,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         >
                           <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
                             <Lock size={14} className="text-amber-400" />
-                            <span>Lock Chime</span>
+                            <span>{t("settings.sound.lockChime")}</span>
                           </div>
-                          <span className="text-[11px] text-[var(--text-secondary)]">Suara saat layar terkunci</span>
+                          <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.sound.lockChimeDesc")}</span>
                         </button>
 
                         <button
@@ -2235,9 +2263,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         >
                           <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
                             <ShieldCheck size={14} className="text-emerald-400" />
-                            <span>Unlock Chime</span>
+                            <span>{t("settings.sound.unlockChime")}</span>
                           </div>
-                          <span className="text-[11px] text-[var(--text-secondary)]">Suara saat desktop terbuka</span>
+                          <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.sound.unlockChimeDesc")}</span>
                         </button>
                       </div>
                     </div>

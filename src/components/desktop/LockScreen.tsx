@@ -5,16 +5,19 @@ import { loginAgent } from '@/api/agent'
 import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 import { soundManager } from '@/lib/sound'
+import { useI18n } from '@/lib/i18n'
 
 interface LockScreenProps {
   onLogout: () => void
 }
 
 export function LockScreen({ onLogout }: LockScreenProps) {
+  const { t, language } = useI18n()
   const user = useAuthStore((s) => s.user)
   const setIsLocked = useThemeStore((s) => s.setIsLocked)
   const lockScreenStyle = useThemeStore((s) => s.lockScreenStyle)
   const requirePasswordOnWake = useThemeStore((s) => s.requirePasswordOnWake)
+  const wakeOnMouseMove = useThemeStore((s) => s.wakeOnMouseMove)
   const { getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl } = useThemeStore()
   const backgroundStyle = useMemo(
     () => getBackgroundStyle(),
@@ -44,23 +47,23 @@ export function LockScreen({ onLogout }: LockScreenProps) {
         month: 'long',
         year: 'numeric',
       }
-      setCurrentDate(now.toLocaleDateString('id-ID', options))
+      setCurrentDate(now.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', options))
 
       if (hours >= 4 && hours < 11) {
-        setGreeting('Selamat Pagi')
+        setGreeting(t('lockscreen.greetingMorning'))
       } else if (hours >= 11 && hours < 15) {
-        setGreeting('Selamat Siang')
+        setGreeting(t('lockscreen.greetingAfternoon'))
       } else if (hours >= 15 && hours < 18) {
-        setGreeting('Selamat Sore')
+        setGreeting(t('lockscreen.greetingEvening'))
       } else {
-        setGreeting('Selamat Malam')
+        setGreeting(t('lockscreen.greetingNight'))
       }
     }
 
     updateClock()
     const interval = setInterval(updateClock, 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [language, t])
 
   // Canvas animations for Matrix Rain and Starfield 3D
   useEffect(() => {
@@ -198,15 +201,19 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       dismissScreensaver()
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
+    if (wakeOnMouseMove) {
+      window.addEventListener('mousemove', handleMouseMove)
+    }
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('pointerdown', handlePointerDown)
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
+      if (wakeOnMouseMove) {
+        window.removeEventListener('mousemove', handleMouseMove)
+      }
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('pointerdown', handlePointerDown)
     }
-  }, [requirePasswordOnWake, setIsLocked])
+  }, [requirePasswordOnWake, wakeOnMouseMove, setIsLocked])
 
   const username = user?.username || 'admin'
   const displayName = user?.displayName || username
@@ -222,7 +229,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       soundManager.playUnlock()
       setIsLocked(false)
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Password tidak valid')
+      setError(err?.response?.data?.message || t('lockscreen.invalidPassword'))
     } finally {
       setLoading(false)
     }
@@ -269,7 +276,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
           {requirePasswordOnWake && (
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-300 bg-white/10 border border-white/15 px-3 py-1 rounded-full backdrop-blur-md shadow-sm">
               <Lock size={12} className="text-amber-400" />
-              <span>Desktop Locked</span>
+              <span>{t('lockscreen.lockedBadge')}</span>
             </div>
           )}
 
@@ -328,7 +335,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan password untuk membuka..."
+                placeholder={t('lockscreen.passwordPlaceholder')}
                 autoFocus
                 className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
               />
@@ -371,7 +378,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
             className="flex items-center gap-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 transition-all cursor-pointer shadow-sm backdrop-blur-md"
           >
             <LogOut size={14} />
-            <span>Ganti Akun / Keluar</span>
+            <span>{t('lockscreen.changeAccountLogout')}</span>
           </button>
         ) : (
           <motion.div
@@ -380,7 +387,11 @@ export function LockScreen({ onLogout }: LockScreenProps) {
             transition={{ delay: 0.3 }}
             className="flex items-center gap-2 text-[12px] font-medium text-slate-300/80 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/10 shadow-sm"
           >
-            <span>Gerakkan mouse, klik, atau ketik sembarang tombol untuk masuk</span>
+            <span>
+              {wakeOnMouseMove
+                ? t('lockscreen.wakeHint')
+                : t('lockscreen.wakeHintNoMouse')}
+            </span>
           </motion.div>
         )}
       </div>
