@@ -138,6 +138,8 @@ interface StoredTheme {
   desktopIconStyle?: DesktopIconStyle
   desktopIconSize?: DesktopIconSize
   lockScreenStyle?: LockScreenStyle
+  lockScreenEnabled?: boolean
+  requirePasswordOnWake?: boolean
   soundEnabled?: boolean
   soundVolume?: number
   autoLockTimeout?: number
@@ -152,6 +154,8 @@ interface ThemeStore {
   desktopIconStyle: DesktopIconStyle
   desktopIconSize: DesktopIconSize
   lockScreenStyle: LockScreenStyle
+  lockScreenEnabled: boolean
+  requirePasswordOnWake: boolean
   wallpaperLoading: boolean
   soundEnabled: boolean
   soundVolume: number
@@ -163,6 +167,8 @@ interface ThemeStore {
   setDesktopIconStyle: (style: DesktopIconStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
   setLockScreenStyle: (style: LockScreenStyle) => void
+  setLockScreenEnabled: (enabled: boolean) => void
+  setRequirePasswordOnWake: (require: boolean) => void
   setSoundEnabled: (enabled: boolean) => void
   setSoundVolume: (volume: number) => void
   setAutoLockTimeout: (timeout: number) => void
@@ -272,6 +278,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     desktopIconSize: stored.desktopIconSize ?? 'small',
     lockScreenStyle: stored.lockScreenStyle ?? 'clock',
+    lockScreenEnabled: stored.lockScreenEnabled ?? true,
+    requirePasswordOnWake: stored.requirePasswordOnWake ?? true,
     wallpaperLoading: false,
     soundEnabled: stored.soundEnabled ?? true,
     soundVolume: stored.soundVolume ?? 0.7,
@@ -309,6 +317,16 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setLockScreenStyle: (lockScreenStyle) => {
       persist({ lockScreenStyle })
       set({ lockScreenStyle })
+    },
+
+    setLockScreenEnabled: (lockScreenEnabled) => {
+      persist({ lockScreenEnabled })
+      set({ lockScreenEnabled })
+    },
+
+    setRequirePasswordOnWake: (requirePasswordOnWake) => {
+      persist({ requirePasswordOnWake })
+      set({ requirePasswordOnWake })
     },
 
     setSoundEnabled: (soundEnabled) => {

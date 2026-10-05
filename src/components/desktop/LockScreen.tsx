@@ -14,6 +14,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
   const user = useAuthStore((s) => s.user)
   const setIsLocked = useThemeStore((s) => s.setIsLocked)
   const lockScreenStyle = useThemeStore((s) => s.lockScreenStyle)
+  const requirePasswordOnWake = useThemeStore((s) => s.requirePasswordOnWake)
   const { getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl } = useThemeStore()
   const backgroundStyle = useMemo(
     () => getBackgroundStyle(),
@@ -150,6 +151,63 @@ export function LockScreen({ onLogout }: LockScreenProps) {
     }
   }, [lockScreenStyle])
 
+  // When requirePasswordOnWake is false, moving mouse, typing, or clicking wakes and dismisses the lock screen instantly
+  useEffect(() => {
+    if (requirePasswordOnWake) return
+
+    let lastX = -1
+    let lastY = -1
+    const threshold = 20 // 20px movement threshold to avoid accidental sensor noise
+    const startTime = Date.now()
+
+    const dismissScreensaver = () => {
+      soundManager.playUnlock()
+      setIsLocked(false)
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // 300ms grace period after lock screen mounts to prevent immediate dismissal on existing mouse movement
+      if (Date.now() - startTime < 300) {
+        lastX = e.clientX
+        lastY = e.clientY
+        return
+      }
+
+      if (lastX === -1 || lastY === -1) {
+        lastX = e.clientX
+        lastY = e.clientY
+        return
+      }
+
+      const dx = Math.abs(e.clientX - lastX)
+      const dy = Math.abs(e.clientY - lastY)
+      if (dx > threshold || dy > threshold) {
+        dismissScreensaver()
+      }
+    }
+
+    const handleKeyDown = () => {
+      dismissScreensaver()
+    }
+
+    const handlePointerDown = (e: PointerEvent | MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement
+      // Ignore clicks on buttons (like logout) so they can fire their own handlers
+      if (target?.closest?.('button')) return
+
+      dismissScreensaver()
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('pointerdown', handlePointerDown)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [requirePasswordOnWake, setIsLocked])
+
   const username = user?.username || 'admin'
   const displayName = user?.displayName || username
 
@@ -176,7 +234,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-[999999] flex flex-col items-center justify-between p-6 select-none overflow-hidden text-white"
+      className="fixed inset-0 z-[999999] flex flex-col items-center justify-between p-6 select-none overflow-hidden text-white cursor-default"
     >
       {/* Dynamic wallpaper layer */}
       <div className="absolute inset-0 z-0" style={backgroundStyle} />
@@ -197,33 +255,36 @@ export function LockScreen({ onLogout }: LockScreenProps) {
         <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-[2]" />
       )}
 
-      {/* Top Section: Live Clock & Date Display */}
+      {/* Top Section / Center Clock in Screensaver Mode */}
       {lockScreenStyle !== 'none' && (
         <motion.div
           initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="relative z-10 flex flex-col items-center gap-1 pt-8 text-center"
+          className={`relative z-10 flex flex-col items-center gap-1 text-center ${
+            requirePasswordOnWake ? 'pt-8' : 'my-auto'
+          }`}
         >
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-300 bg-white/10 border border-white/15 px-3 py-1 rounded-full backdrop-blur-md shadow-sm">
-            {lockScreenStyle === 'matrix' ? (
-              <Terminal size={12} className="text-emerald-400" />
-            ) : lockScreenStyle === 'starfield' ? (
-              <Sparkles size={12} className="text-sky-400" />
-            ) : (
+          {/* Only show badge in password-protected locked mode */}
+          {requirePasswordOnWake && (
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-300 bg-white/10 border border-white/15 px-3 py-1 rounded-full backdrop-blur-md shadow-sm">
               <Lock size={12} className="text-amber-400" />
-            )}
-            <span>Desktop Locked</span>
-          </div>
+              <span>Desktop Locked</span>
+            </div>
+          )}
 
           <div
-            className="text-6xl sm:text-7xl font-extralight tracking-tight text-white mt-4 font-mono drop-shadow-md"
+            className={`font-extralight tracking-tight text-white font-mono drop-shadow-lg ${
+              requirePasswordOnWake ? 'text-6xl sm:text-7xl mt-4' : 'text-7xl sm:text-8xl md:text-9xl'
+            }`}
             style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
           >
             {currentTime || '00:00:00'}
           </div>
 
-          <div className="text-sm font-medium text-slate-300 mt-1 drop-shadow">
+          <div className={`font-medium text-slate-200 drop-shadow ${
+            requirePasswordOnWake ? 'text-sm mt-1' : 'text-base sm:text-lg mt-2'
+          }`}>
             {currentDate}
           </div>
 
@@ -236,79 +297,92 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       {/* Spacer for 'none' style */}
       {lockScreenStyle === 'none' && <div className="pt-12" />}
 
-      {/* Center Section: User Card & Unlock Form */}
-      <motion.div
-        initial={{ scale: 0.94, y: 15 }}
-        animate={{ scale: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.05 }}
-        className="relative z-10 w-full max-w-[350px] flex flex-col items-center gap-5 p-6 rounded-3xl bg-slate-900/80 border border-white/15 backdrop-blur-2xl shadow-2xl shadow-black/60"
-      >
-        <div className="relative">
-          <div className="h-20 w-20 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-indigo-700 flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-sky-500/25">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center shadow">
-            <span className="h-2 w-2 rounded-full bg-white" />
-          </div>
-        </div>
-
-        <div className="text-center">
-          <div className="text-lg font-bold text-white">{displayName}</div>
-          <div className="text-xs text-slate-400 font-mono mt-0.5 capitalize flex items-center justify-center gap-1">
-            <ShieldCheck size={13} className="text-sky-400" />
-            <span>{user?.role || 'Administrator'}</span>
-          </div>
-        </div>
-
-        <form onSubmit={handleUnlock} className="w-full space-y-3">
-          <div className="relative">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Masukkan password untuk membuka..."
-              autoFocus
-              className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
-            />
-            <button
-              type="submit"
-              disabled={loading || !password.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 flex items-center justify-center text-white transition-all cursor-pointer shadow-md"
-            >
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <ArrowRight size={16} />
-              )}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-xs text-rose-400 font-medium px-1"
-              >
-                <AlertCircle size={13} />
-                <span>{error}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </form>
-      </motion.div>
-
-      {/* Bottom Section: Switch Account / Logout */}
-      <div className="relative z-10 pb-6">
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex items-center gap-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 transition-all cursor-pointer shadow-sm backdrop-blur-md"
+      {/* Center Section: User Card & Unlock Form (ONLY in Password Protected Mode) */}
+      {requirePasswordOnWake && (
+        <motion.div
+          initial={{ scale: 0.94, y: 15 }}
+          animate={{ scale: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+          className="relative z-10 w-full max-w-[350px] flex flex-col items-center gap-5 p-6 rounded-3xl bg-slate-900/80 border border-white/15 backdrop-blur-2xl shadow-2xl shadow-black/60"
         >
-          <LogOut size={14} />
-          <span>Ganti Akun / Keluar</span>
-        </button>
+          <div className="relative">
+            <div className="h-20 w-20 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-indigo-700 flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-sky-500/25">
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center shadow">
+              <span className="h-2 w-2 rounded-full bg-white" />
+            </div>
+          </div>
+
+          <div className="text-center">
+            <div className="text-lg font-bold text-white">{displayName}</div>
+            <div className="text-xs text-slate-400 font-mono mt-0.5 capitalize flex items-center justify-center gap-1">
+              <ShieldCheck size={13} className="text-sky-400" />
+              <span>{user?.role || 'Administrator'}</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleUnlock} className="w-full space-y-3">
+            <div className="relative">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Masukkan password untuk membuka..."
+                autoFocus
+                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
+              />
+              <button
+                type="submit"
+                disabled={loading || !password.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 flex items-center justify-center text-white transition-all cursor-pointer shadow-md"
+              >
+                {loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <ArrowRight size={16} />
+                )}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-xs text-rose-400 font-medium px-1"
+                >
+                  <AlertCircle size={13} />
+                  <span>{error}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </form>
+        </motion.div>
+      )}
+
+      {/* Bottom Section */}
+      <div className="relative z-10 pb-6">
+        {requirePasswordOnWake ? (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 transition-all cursor-pointer shadow-sm backdrop-blur-md"
+          >
+            <LogOut size={14} />
+            <span>Ganti Akun / Keluar</span>
+          </button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="flex items-center gap-2 text-[12px] font-medium text-slate-300/80 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/10 shadow-sm"
+          >
+            <span>Gerakkan mouse, klik, atau ketik sembarang tombol untuk masuk</span>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   )
