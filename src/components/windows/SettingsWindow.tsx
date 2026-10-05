@@ -247,7 +247,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { language, setLanguage, t } = useI18n()
   const [activeTab, setActiveTab] = useState<SettingsTabKey>('general')
 
-  const { mode, setMode, wallpaper, setWallpaper, customImageUrl, setCustomImage } = useThemeStore()
+  const { mode, setMode, wallpaper, setWallpaper, customImageUrl, setCustomImage, desktopIconStyle, setDesktopIconStyle } = useThemeStore()
   const autoHideDock = useWindowStore((s) => s.autoHideDock)
   const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide)
   const showSystemStats = useWindowStore((s) => s.showSystemStats)
@@ -949,6 +949,69 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         <CheckCircle2 size={11} /> Aktif
                       </span>
                     )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop Icon Style Card */}
+              <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                <SectionHeader
+                  icon={<Layout size={17} />}
+                  title={t('settings.iconStyle.title')}
+                  subtitle={t('settings.iconStyle.subtitle')}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[560px]">
+                  {/* Framed Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDesktopIconStyle('framed')}
+                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
+                      desktopIconStyle === 'framed'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 shadow-md shadow-black/20">
+                      <Layout size={22} className="text-sky-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.iconStyle.framed')}</div>
+                        {desktopIconStyle === 'framed' && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
+                            <CheckCircle2 size={10} /> Aktif
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconStyle.framedDesc')}</div>
+                    </div>
+                  </button>
+
+                  {/* Plain / Borderless Option */}
+                  <button
+                    type="button"
+                    onClick={() => setDesktopIconStyle('plain')}
+                    className={`flex items-center gap-3.5 p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
+                      desktopIconStyle === 'plain'
+                        ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]'
+                    }`}
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]">
+                      <Layout size={26} className="text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.iconStyle.plain')}</div>
+                        {desktopIconStyle === 'plain' && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white shrink-0">
+                            <CheckCircle2 size={10} /> Aktif
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t('settings.iconStyle.plainDesc')}</div>
+                    </div>
                   </button>
                 </div>
               </div>

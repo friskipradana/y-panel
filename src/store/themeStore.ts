@@ -4,6 +4,7 @@ import { getWallpaper, updateWallpaper } from '@/api/agent'
 
 export type ThemeMode = 'light' | 'dark'
 export type WallpaperKey = 'default' | 'ocean' | 'sunset' | 'forest' | 'midnight' | 'aurora' | 'custom'
+export type DesktopIconStyle = 'framed' | 'plain'
 
 export interface WallpaperDef {
   label: string
@@ -50,6 +51,7 @@ interface StoredTheme {
   mode?: ThemeMode
   wallpaper?: WallpaperKey
   customImageUrl?: string
+  desktopIconStyle?: DesktopIconStyle
 }
 
 interface ThemeStore {
@@ -57,9 +59,11 @@ interface ThemeStore {
   wallpaper: WallpaperKey
   /** Data URL or blob URL for custom wallpaper image */
   customImageUrl: string | null
+  desktopIconStyle: DesktopIconStyle
   wallpaperLoading: boolean
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
+  setDesktopIconStyle: (style: DesktopIconStyle) => void
   setCustomImage: (dataUrl: string) => Promise<void>
   syncCustomImage: () => Promise<void>
   toggleMode: () => void
@@ -103,6 +107,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     mode: stored.mode ?? 'light',
     wallpaper: stored.wallpaper ?? 'default',
     customImageUrl: stored.customImageUrl ?? null,
+    desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     wallpaperLoading: false,
 
     setMode: (mode) => {
@@ -114,6 +119,11 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setWallpaper: (wallpaper) => {
       persist({ wallpaper })
       set({ wallpaper })
+    },
+
+    setDesktopIconStyle: (desktopIconStyle) => {
+      persist({ desktopIconStyle })
+      set({ desktopIconStyle })
     },
 
     setCustomImage: async (dataUrl) => {
