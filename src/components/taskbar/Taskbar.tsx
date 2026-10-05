@@ -8,9 +8,9 @@ import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { ProfileMenu } from './ProfileMenu'
 import { LanguageSwitcher } from './LanguageSwitcher'
-import type { WindowKind } from '@/types'
+import { ApplicationsMenu } from './ApplicationsMenu'
 import { formatDateTimeID } from '@/lib/datetime'
-import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -18,18 +18,7 @@ interface TaskbarProps {
 }
 
 
-const QUICK_LAUNCH: { label: string; kind: WindowKind; params?: Record<string, any>; accent?: boolean }[] = [
-  { label: 'Dockers', kind: 'apps' },
-  { label: 'Projects', kind: 'projects' },
-  { label: 'Cloudflare', kind: 'tunnels' },
-  // { label: 'Buat Tunnel', kind: 'tunnels', params: { tab: 'tunnels', action: 'createTunnel' }, accent: true },
-  { label: 'Users', kind: 'users' },
-  { label: 'Terminal', kind: 'host-terminal' },
-  { label: 'Files', kind: 'file-manager' },
-  { label: 'Docs', kind: 'docs' },
-]
 
-const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users'])
 
 function getNotificationTone(type: PanelNotification['type']) {
   switch (type) {
@@ -276,24 +265,12 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   }
 
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
-  const quickLaunchItems = isAdmin
-    ? QUICK_LAUNCH
-    : QUICK_LAUNCH.filter((item) => !NON_ADMIN_HIDDEN_KINDS.has(item.kind))
 
   return (
     <div className={`taskbar ${!isDark ? 'taskbar--light' : ''}`}>
-      <nav className="taskbar-nav">
-        {quickLaunchItems.map((item) => (
-          <button
-            key={item.kind}
-            id={`taskbar-open-${item.kind}`}
-            className={`taskbar-nav-btn ${item.accent ? 'taskbar-nav-btn--accent' : ''}`}
-            onClick={() => openWindow(item.kind, item.params ? { ...item.params, shortcutNonce: Date.now() } : undefined)}
-          >
-            {t(windowTitleKey(item.kind))}
-          </button>
-        ))}
-      </nav>
+      <div className="taskbar-left flex items-center">
+        <ApplicationsMenu isAdmin={isAdmin} />
+      </div>
 
       <div className="taskbar-actions" onContextMenu={handleContextMenu}>
         <AnimatePresence>
