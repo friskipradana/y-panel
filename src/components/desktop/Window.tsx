@@ -204,11 +204,11 @@ export function Window({ win, children }: Props) {
         >
           {/* Window Titlebar */}
           <div
-            className="flex items-center justify-between px-3 shrink-0 relative transition-colors duration-150 select-none"
+            className="flex items-center justify-between px-3 shrink-0 relative z-10 transition-colors duration-150 select-none border-b border-[var(--win-border)]"
             style={{
               height: 38,
               background: isFocused ? 'var(--win-bar-focus)' : 'var(--win-bar)',
-              borderBottom: isExpanded ? 'none' : '1px solid var(--win-bar-border)',
+              borderBottom: '1px solid var(--win-border)',
               cursor: isExpanded ? 'default' : 'move',
             }}
             onMouseDown={handleBarMouseDown}
