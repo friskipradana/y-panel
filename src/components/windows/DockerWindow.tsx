@@ -226,16 +226,24 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
 
   return (
     <div className="panel-window docker-window-root">
-      {/* ── Header ── */}
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Boxes className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('docker.workspaceTitle')}</div>
-            <div className="panel-window__meta">{t('docker.workspaceSubtitle')}</div>
-          </div>
+      {/* ── Compact Toolbar & Tabs ── */}
+      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-1">
+          {(['containers', 'images', 'networks', 'templates'] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                activeTab === tab
+                  ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-[var(--tb-hover)]'
+              }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {t(`docker.tab.${tab}`)}
+            </button>
+          ))}
         </div>
-        <div className="panel-window__actions">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
@@ -246,24 +254,11 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={openDeployModal} className="panel-btn panel-btn--primary-soft">
+          <button onClick={openDeployModal} className="panel-btn panel-btn--primary-soft text-xs py-1 px-2.5">
             <Plus className="h-3.5 w-3.5" />
             {t('docker.deploy')}
           </button>
         </div>
-      </div>
-
-      {/* ── Tabs ── */}
-      <div className="docker-tabs">
-        {(['containers', 'images', 'networks', 'templates'] as const).map((tab) => (
-          <button
-            key={tab}
-            className={`docker-tab ${activeTab === tab ? 'docker-tab--active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {t(`docker.tab.${tab}`)}
-          </button>
-        ))}
       </div>
 
       {/* ── Deploy Modal ── */}

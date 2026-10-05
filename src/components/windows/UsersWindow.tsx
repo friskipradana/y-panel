@@ -150,19 +150,19 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
 
   return (
     <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Users className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('users.title')}</div>
-            <div className="panel-window__meta">{t('users.meta', { total, active: activeUsers })}</div>
-          </div>
+      {/* ── Compact Toolbar ── */}
+      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--win-text)]">{total} {t('users.title')}</span>
+          <span>•</span>
+          <span className="text-[var(--panel-success-text)] font-medium">{activeUsers} active</span>
         </div>
-        <div className="panel-window__actions">
+
+        <div className="flex items-center gap-2">
           <button onClick={() => refetch()} className="panel-icon-btn" aria-label={t('users.refresh')}>
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft">
+          <button onClick={() => setShowCreate(true)} className="panel-btn panel-btn--primary-soft text-xs py-1 px-2.5">
             <UserPlus className="h-3.5 w-3.5" />
             {t('users.createUser')}
           </button>
