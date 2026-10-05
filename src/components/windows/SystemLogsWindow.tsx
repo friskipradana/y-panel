@@ -72,61 +72,45 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
 
   return (
     <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Terminal className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('systemLogs.title')}</div>
-            <div className="panel-window__meta">{t('systemLogs.meta')}</div>
-          </div>
+      {/* ── Compact Toolbar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--win-border)] px-3 py-1.5 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-2 flex-1 max-w-[540px]">
+          <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[160px] h-[30px] py-0 text-xs panel-input--mono">
+            {SERVICE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+
+          <select id="system-logs-limit" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="panel-select max-w-[90px] h-[30px] py-0 text-xs panel-input--mono">
+            {LIMIT_OPTIONS.map((value) => (
+              <option key={value} value={value}>{value} lines</option>
+            ))}
+          </select>
+
+          <label className="panel-search flex-1 max-w-[240px] h-[30px]">
+            <Search className="h-3.5 w-3.5" />
+            <input
+              id="system-logs-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="panel-search__input text-xs"
+              placeholder={t('systemLogs.searchPlaceholder')}
+            />
+          </label>
         </div>
-        <div className="panel-window__actions">
+
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} text-xs py-1 px-2.5`}>
+            ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
+          </button>
           <button id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="panel-icon-btn" aria-label={t('systemLogs.refreshAria')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      <div className="panel-window__body">
-        <div className="panel-window__stack h-full">
-          <section className="panel-hero">
-            <div className="panel-hero__eyebrow">
-              <ScrollText className="h-3 w-3" />
-              {t('systemLogs.hostJournalStream')}
-            </div>
-            <div className="panel-hero__title">{t('systemLogs.heroTitle')}</div>
-            <p className="panel-hero__description">
-              {t('systemLogs.heroDescription')}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[180px] px-3 py-2 text-[12px] panel-input--mono">
-                {SERVICE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-
-              <select id="system-logs-limit" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="panel-select max-w-[120px] px-3 py-2 text-[12px] panel-input--mono">
-                {LIMIT_OPTIONS.map((value) => (
-                  <option key={value} value={value}>{value}</option>
-                ))}
-              </select>
-
-              <label className="panel-search max-w-[320px] flex-1">
-                <Search className="h-4 w-4" />
-                <input
-                  id="system-logs-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="panel-search__input"
-                  placeholder={t('systemLogs.searchPlaceholder')}
-                />
-              </label>
-
-              <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} rounded-full px-3 py-2 text-[12px]`}>
-                ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
-              </button>
-            </div>
-          </section>
+      <div className="panel-window__body p-0 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="panel-window__stack h-full p-3 flex flex-col flex-1 min-h-0">
 
           <div className="panel-log-surface flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-[var(--win-border)] px-4 py-2">

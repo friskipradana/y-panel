@@ -15,7 +15,10 @@
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--win-border);
-  padding: 14px 20px;
+  padding: 6px 14px;
+  min-height: 40px;
+  background: var(--win-bar);
+  flex-shrink: 0;
 }
 
 .panel-window__title {
@@ -30,7 +33,7 @@
 }
 
 .panel-window__title-text {
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--win-text);

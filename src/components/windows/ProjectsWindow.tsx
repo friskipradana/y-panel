@@ -458,27 +458,21 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
           </div>
         </div>
       )}
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <FolderCode className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('projects.title')}</div>
-            <div className="panel-window__meta">{t('projects.meta', { total: summaryTotal, active: activeCount, attention: attentionCount })}</div>
-          </div>
+      {/* ── Compact Toolbar ── */}
+      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--win-text)]">{summaryTotal} {t('projects.title')}</span>
+          <span>•</span>
+          <span className="text-[var(--panel-success-text)] font-medium">{activeCount} active</span>
+          {attentionCount > 0 && (
+            <>
+              <span>•</span>
+              <span className="text-amber-400 font-medium">{attentionCount} attention</span>
+            </>
+          )}
         </div>
-        <div className="panel-window__actions">
-          <button type="button" onClick={() => { void refetch(); void refetchAttentionSummary() }} className="panel-icon-btn" aria-label={t('projects.refresh')} disabled={showRefreshing}>
-            <RefreshCw className={`h-3.5 w-3.5 ${showRefreshing ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => { void refetch(); void refetchAttentionSummary() }}
-            className="panel-btn panel-btn--ghost"
-            disabled={showRefreshing}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${showRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+
+        <div className="flex items-center gap-2">
           <PanelSelectMenu
             id="projects-attention-filter"
             value={attentionOnly ? attentionFilter : 'off'}
@@ -497,12 +491,15 @@ export default function ProjectsWindow({ win }: ProjectsWindowProps) {
               { value: 'drift', label: t('projects.filterDrift', { count: driftCount }), description: t('projects.filterDriftDescription') },
               { value: 'degraded', label: t('projects.filterDegraded', { count: degradedCount }), description: t('projects.filterDegradedDescription') },
             ]}
-            className="min-w-[190px]"
-            buttonClassName="h-[34px] py-0 text-[12px]"
-            dropdownClassName="left-auto right-0 min-w-[360px] max-w-[min(520px,calc(100vw-32px))]"
+            className="min-w-[170px]"
+            buttonClassName="h-[30px] py-0 text-xs"
+            dropdownClassName="left-auto right-0 min-w-[340px] max-w-[min(520px,calc(100vw-32px))]"
             itemClassName="projects-attention-filter__item"
           />
-          <button onClick={() => { setEditingProject(null); setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true }); setShowCreate(true) }} className="panel-btn panel-btn--primary-soft">
+          <button type="button" onClick={() => { void refetch(); void refetchAttentionSummary() }} className="panel-icon-btn" aria-label={t('projects.refresh')} disabled={showRefreshing}>
+            <RefreshCw className={`h-3.5 w-3.5 ${showRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button onClick={() => { setEditingProject(null); setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true }); setShowCreate(true) }} className="panel-btn panel-btn--primary-soft text-xs py-1 px-2.5">
             <Plus className="h-3.5 w-3.5" />
             {t('projects.createButton')}
           </button>

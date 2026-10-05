@@ -45,15 +45,15 @@ export function ChangelogWindow() {
 
   return (
     <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <BellRing className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('changelog.title')}</div>
-            <div className="panel-window__meta">{t('changelog.subtitle')}</div>
-          </div>
+      {/* ── Compact Toolbar ── */}
+      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--win-text)]">{t('changelog.title')}</span>
+          <span>•</span>
+          <span className="text-[var(--panel-primary-text)] font-medium">v2.0.0</span>
         </div>
-        <div className="panel-window__actions">
+
+        <div className="flex items-center gap-2">
           <button
             id="changelog-refresh"
             type="button"

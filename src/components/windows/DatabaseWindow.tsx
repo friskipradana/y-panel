@@ -160,15 +160,17 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
 
   return (
     <div className="panel-window">
-      <div className="panel-window__header">
-        <div className="panel-window__title">
-          <Database className="panel-window__icon h-4 w-4" />
-          <div>
-            <div className="panel-window__title-text">{t('database.title')}</div>
-            <div className="panel-window__meta">{t('database.meta')}</div>
-          </div>
+      {/* ── Compact Toolbar ── */}
+      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--win-text)]">{status.database || 'Database'}</span>
+          <span>•</span>
+          <span className="text-[var(--panel-success-text)] font-medium">{status.host}:{status.port}</span>
+          <span>•</span>
+          <span>user: {status.user}</span>
         </div>
-        <div className="panel-window__actions">
+
+        <div className="flex items-center gap-2">
           <button id="database-refresh" type="button" onClick={() => void query.refetch()} className="panel-icon-btn" aria-label={t('database.refreshStatus')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
           </button>
