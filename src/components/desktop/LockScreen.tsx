@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Lock, LogOut, Loader2, AlertCircle, ShieldCheck, Sparkles, Terminal } from 'lucide-react'
+import { ArrowRight, Lock, LogOut, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
 import { loginAgent } from '@/api/agent'
 import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
