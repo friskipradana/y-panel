@@ -131,7 +131,18 @@ interface DesktopProps {
 export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const { t } = useI18n()
   const { windows } = useWindowStore()
-  const { getBackground, mode, wallpaper, syncCustomImage, customImageUrl, wallpaperLoading, isLocked, setIsLocked, autoLockTimeout } = useThemeStore()
+  const {
+    getBackgroundStyle,
+    mode,
+    wallpaper,
+    wallpaperFit,
+    syncCustomImage,
+    customImageUrl,
+    wallpaperLoading,
+    isLocked,
+    setIsLocked,
+    autoLockTimeout,
+  } = useThemeStore()
   const rootRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
@@ -148,12 +159,6 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     if (!authenticated) return
     void syncCustomImage()
   }, [authenticated, syncCustomImage])
-
-  useEffect(() => {
-    if (rootRef.current) {
-      rootRef.current.style.background = getBackground()
-    }
-  }, [mode, wallpaper, customImageUrl])
 
   // Auto-lock idle timer
   useEffect(() => {
@@ -177,11 +182,13 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     }
   }, [authenticated, autoLockTimeout, isLocked, setIsLocked])
 
+  const backgroundStyle = useMemo(() => getBackgroundStyle(), [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl])
+
   return (
     <div
       ref={rootRef}
       className="desktop-root"
-      style={{ background: getBackground() }}
+      style={backgroundStyle}
     >
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
 
