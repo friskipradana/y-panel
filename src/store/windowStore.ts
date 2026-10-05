@@ -8,23 +8,23 @@ const DEFAULTS: Record<
   WindowKind,
   { title: string; icon: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "Docker", icon: "🐋", width: 1200, height: 900, singleton: true },
-  terminal: { title: "Terminal", icon: "💻", width: 518, height: 320, singleton: true },
-  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 1035, height: 640, singleton: true },
-  system: { title: "System Info", icon: "⚙️", width: 1100, height: 680, singleton: true },
-  "system-logs": { title: "System Logs", icon: "📜", width: 1003, height: 620, singleton: true },
-  docs: { title: "Docs", icon: "📚", width: 857, height: 530, singleton: true },
-  changelog: { title: "Changelog", icon: "🔔", width: 809, height: 500, singleton: true },
-  portainer: { title: "Portainer", icon: "🐋", width: 680, height: 420, singleton: true },
-  settings: { title: "Settings", icon: "🔧", width: 1035, height: 640, singleton: true },
-  database: { title: "Database", icon: "🗄️", width: 1100, height: 680, singleton: true },
-  "file-manager": { title: "File Manager", icon: "📁", width: 971, height: 600, singleton: true },
-  "file-editor": { title: "Code Editor", icon: "📝", width: 1133, height: 700, singleton: true },
-  trash: { title: "Trash", icon: "🗑️", width: 485, height: 300, singleton: true },
-  users: { title: "User Management", icon: "👥", width: 860, height: 740, singleton: true },
-  projects: { title: "Projects", icon: "🗂️", width: 900, height: 740, singleton: true },
-  tunnels: { title: "Cloudflare", icon: "🌐", width: 1235, height: 740, singleton: true },
-  profile: { title: "Profile & Integrasi", icon: "👤", width: 520, height: 640, singleton: true },
+  apps: { title: "Docker", icon: "🐋", width: 960, height: 600, singleton: true },
+  terminal: { title: "Terminal", icon: "💻", width: 580, height: 360, singleton: true },
+  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 840, height: 520, singleton: true },
+  system: { title: "System Info", icon: "⚙️", width: 900, height: 560, singleton: true },
+  "system-logs": { title: "System Logs", icon: "📜", width: 860, height: 540, singleton: true },
+  docs: { title: "Docs", icon: "📚", width: 840, height: 530, singleton: true },
+  changelog: { title: "Changelog", icon: "🔔", width: 780, height: 490, singleton: true },
+  portainer: { title: "Portainer", icon: "🐋", width: 720, height: 460, singleton: true },
+  settings: { title: "Settings", icon: "🔧", width: 900, height: 570, singleton: true },
+  database: { title: "Database", icon: "🗄️", width: 960, height: 600, singleton: true },
+  "file-manager": { title: "File Manager", icon: "📁", width: 900, height: 560, singleton: true },
+  "file-editor": { title: "Code Editor", icon: "📝", width: 960, height: 600, singleton: true },
+  trash: { title: "Trash", icon: "🗑️", width: 520, height: 340, singleton: true },
+  users: { title: "User Management", icon: "👥", width: 860, height: 560, singleton: true },
+  projects: { title: "Projects", icon: "🗂️", width: 880, height: 560, singleton: true },
+  tunnels: { title: "Cloudflare", icon: "🌐", width: 960, height: 600, singleton: true },
+  profile: { title: "Profile & Integrasi", icon: "👤", width: 500, height: 560, singleton: true },
 };
 
 // Z-index tiers
@@ -169,12 +169,23 @@ export const useWindowStore = create<WindowStore>()(
             return;
           }
 
-          const pad = 16;
-          const width = Math.min(def.width, window.innerWidth - pad * 2);
-          const height = Math.min(def.height, window.innerHeight - 72);
-          const offset = state.windows.filter((w) => w.kind === kind).length * 26;
-          const x = Math.max(pad, (window.innerWidth - width) / 2 + offset);
-          const y = Math.max(54, (window.innerHeight - height) / 2 + Math.min(offset, 64));
+          // Calculate maximum usable desktop area with breathing room
+          const maxW = Math.max(340, Math.floor(window.innerWidth * 0.82));
+          const maxH = Math.max(240, Math.floor((window.innerHeight - 64) * 0.82));
+
+          let width = def.width;
+          let height = def.height;
+
+          // Scale down proportionally if larger than maximum viewport bounds
+          if (width > maxW || height > maxH) {
+            const scale = Math.min(maxW / width, maxH / height);
+            width = Math.max(320, Math.round(width * scale));
+            height = Math.max(220, Math.round(height * scale));
+          }
+
+          const offset = state.windows.filter((w) => w.kind === kind).length * 24;
+          const x = Math.max(16, Math.round((window.innerWidth - width) / 2 + offset));
+          const y = Math.max(48, Math.round((window.innerHeight - 56 - height) / 2 + Math.min(offset, 48)));
           const id = createWindowId(kind);
           openedId = id;
 

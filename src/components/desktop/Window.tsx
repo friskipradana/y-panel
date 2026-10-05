@@ -115,8 +115,8 @@ export function Window({ win, children }: Props) {
     const startX = event.clientX
     const startY = event.clientY
     const initial = { x: win.x, y: win.y, width: win.width, height: win.height }
-    const minWidth = win.kind === 'host-terminal' ? 640 : win.kind === 'system' ? 360 : 320
-    const minHeight = win.kind === 'host-terminal' ? 420 : win.kind === 'system' ? 420 : 260
+    const minWidth = win.kind === 'host-terminal' ? 480 : win.kind === 'system' ? 360 : 300
+    const minHeight = win.kind === 'host-terminal' ? 320 : win.kind === 'system' ? 360 : 220
     const minLeft = VIEWPORT_PADDING - (initial.width - WINDOW_GRAB_VISIBILITY)
     const maxRight = window.innerWidth - VIEWPORT_PADDING
     const maxBottom = window.innerHeight - BOTTOM_SAFE_OFFSET
