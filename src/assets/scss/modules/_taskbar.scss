@@ -64,6 +64,8 @@
   top: calc(100% + 8px);
   right: 0;
   z-index: 59990;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -397,6 +399,8 @@
   top: 44px;
   right: 16px;
   z-index: 59990;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
   pointer-events: none;
 }
 
