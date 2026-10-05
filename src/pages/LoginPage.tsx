@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  LoaderCircle, ArrowRight, ArrowLeft, User, Eye, EyeOff
+  LoaderCircle, ArrowRight, ArrowLeft, User, Eye, EyeOff, Sun, Moon
 } from 'lucide-react'
 import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
+import { useThemeStore } from '@/store/themeStore'
 
 export interface LoginPageProps {
   onLoginSuccess: (user?: { username: string; role?: string }) => void
@@ -26,6 +27,8 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { t } = useI18n()
+  const themeMode = useThemeStore((s) => s.mode)
+  const toggleMode = useThemeStore((s) => s.toggleMode)
 
   const [setupUsername, setSetupUsername] = useState('')
   const [setupEmail, setSetupEmail] = useState('')
@@ -112,6 +115,20 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
           <ArrowLeft size={16} />
         </button>
       ) : null}
+
+      {/* Floating Theme Toggle (Top Right) */}
+      <div className="absolute top-6 right-6 z-30 flex items-center gap-2">
+        <button
+          id="login-theme-toggle"
+          type="button"
+          onClick={toggleMode}
+          title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          style={pillStyle}
+          className="flex items-center justify-center w-9 h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer transition-all duration-150"
+        >
+          {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+      </div>
 
       <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 pb-20 z-10">
         <div

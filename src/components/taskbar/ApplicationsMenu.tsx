@@ -165,7 +165,7 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
 
   return (
     <div className="relative inline-flex items-center select-none" ref={menuRef}>
-      {/* ── XFCE Trigger Button (Fluent Apps Icon + Text + Chevron) ── */}
+      {/* ── Applications Trigger Button (Fluent Apps Icon + Text + Chevron) ── */}
       <button
         type="button"
         id="taskbar-applications-btn"
@@ -187,22 +187,22 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
         />
       </button>
 
-      {/* ── XFCE App Drawer Popover (Masked at top-44, emerges strictly from behind taskbar) ── */}
+      {/* ── Applications Drawer Popover (Emerges smoothly beneath taskbar) ── */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed left-4 top-[44px] z-[59990] w-[480px] h-[390px] overflow-hidden pointer-events-none">
+          <div className="fixed left-4 top-[44px] z-[59990] w-[500px] h-[400px] overflow-hidden pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, y: -60 }}
+              initial={{ opacity: 0, y: -40 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -60 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="pointer-events-auto flex w-full h-full flex-col rounded-t-none rounded-b-2xl border-x border-b border-white/15 bg-neutral-900/95 backdrop-blur-2xl shadow-2xl text-neutral-100 overflow-hidden"
+              exit={{ opacity: 0, y: -40 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="pointer-events-auto flex w-full h-full flex-col rounded-t-none rounded-b-2xl border-x border-b border-[var(--menu-border)] bg-[var(--menu-bg)] backdrop-blur-2xl shadow-[var(--menu-shadow)] text-[var(--win-text)] overflow-hidden"
             >
               {/* ── Main Content: Sidebar Categories + App List ── */}
               <div className="flex flex-1 min-h-0">
                 {/* Category Column */}
-                <div className="w-[160px] border-r border-white/10 p-2.5 flex flex-col gap-1 bg-black/20 overflow-y-auto">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                <div className="w-[170px] border-r border-[var(--win-border)] p-2.5 flex flex-col gap-1 bg-[var(--panel-surface)] overflow-y-auto">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80">
                     {isEn ? 'Categories' : 'Kategori'}
                   </div>
                   {CATEGORIES.map((cat) => {
@@ -216,14 +216,14 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
                         key={cat.key}
                         type="button"
                         onClick={() => setActiveCategory(cat.key)}
-                        className={`flex items-center justify-between w-full px-2.5 py-2 rounded-xl text-left text-xs font-medium transition-all duration-150 cursor-pointer ${
+                        className={`flex items-center justify-between w-full px-2.5 py-2 rounded-xl text-left text-[12px] font-medium transition-all duration-150 cursor-pointer ${
                           isActive
-                            ? 'bg-sky-500/20 text-sky-300 font-semibold border border-sky-500/30'
-                            : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                            ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border border-[var(--panel-primary-text)]/25 shadow-xs'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]'
                         }`}
                       >
                         <span className="truncate">{isEn ? cat.labelEn : cat.labelId}</span>
-                        <span className="text-[10px] opacity-60 ml-1 font-mono">{count}</span>
+                        <span className="text-[10.5px] opacity-70 ml-1 font-mono">{count}</span>
                       </button>
                     )
                   })}
@@ -240,20 +240,20 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
                         key={item.kind}
                         type="button"
                         onClick={() => handleLaunch(item.kind)}
-                        className="group flex items-center gap-3 w-full p-2 rounded-xl text-left transition-all duration-150 hover:bg-white/10 active:scale-[0.99] cursor-pointer"
+                        className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
                       >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/40 border border-white/10 shadow-sm transition-transform duration-150 group-hover:scale-105">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
                           <AppIcon kind={item.kind} size={22} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-white group-hover:text-sky-300 transition-colors">
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
                             {title}
                           </div>
-                          <div className="text-[10.5px] text-neutral-400 truncate leading-snug">
+                          <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
                             {desc}
                           </div>
                         </div>
-                        <ChevronRight size={13} className="text-neutral-600 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+                        <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
                       </button>
                     )
                   })}
@@ -261,8 +261,8 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
               </div>
 
               {/* ── Bottom Bar: Total Apps Counter ── */}
-              <div className="flex items-center justify-end px-3.5 py-2 border-t border-white/10 bg-black/30 text-[11px] text-neutral-400">
-                <span className="text-[10.5px] text-neutral-400 font-medium">
+              <div className="flex items-center justify-end px-4 py-2 border-t border-[var(--win-border)] bg-[var(--panel-surface)] text-[11px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-[var(--text-secondary)] font-medium">
                   {accessibleItems.length} {isEn ? 'apps installed' : 'aplikasi'}
                 </span>
               </div>
