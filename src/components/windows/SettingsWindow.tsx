@@ -1930,19 +1930,19 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Lock size={17} />}
-                      title="Lock Screen & Screensaver"
-                      subtitle="Aktifkan atau nonaktifkan penguncian layar dan fitur screensaver visual"
+                      title="Layar Kunci & Screensaver"
+                      subtitle="Atur perilaku penguncian sesi dan screensaver desktop"
                     />
 
                     <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                       <div>
                         <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                          Enable Lock Screen & Screensaver
+                          Aktifkan Layar Kunci & Screensaver
                         </div>
                         <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                           {lockScreenEnabled
-                            ? "Fitur penguncian layar dan screensaver aktif"
-                            : "Fitur dinonaktifkan — desktop tidak akan pernah terkunci secara otomatis"}
+                            ? "Fitur layar kunci dan screensaver aktif"
+                            : "Fitur dinonaktifkan"}
                         </div>
                       </div>
                       <button
@@ -1967,20 +1967,20 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<LockKeyhole size={17} />}
-                      title="Wake Authentication & Password"
-                      subtitle="Atur apakah diperlukan password saat membangunkan layar"
+                      title="Autentikasi & Keamanan"
+                      subtitle="Tentukan metode saat membangunkan layar"
                     />
 
-                    <div className="space-y-3 max-w-[620px]">
+                    <div className="max-w-[620px]">
                       <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Require Password on Wake
+                            Minta Password saat Bangun
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                             {requirePasswordOnWake
-                              ? "Wajib memasukkan password akun untuk membuka sesi panel"
-                              : "Mode Screensaver — klik di mana saja atau tekan sembarang tombol untuk langsung membuka desktop"}
+                              ? "Perlu password akun untuk membuka sesi panel"
+                              : "Langsung masuk tanpa perlu memasukkan password"}
                           </div>
                         </div>
                         <button
@@ -1999,24 +1999,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           />
                         </button>
                       </div>
-
-                      <div className={`p-3 rounded-xl border text-[12px] leading-relaxed ${
-                        requirePasswordOnWake
-                          ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
-                          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      }`}>
-                        {requirePasswordOnWake ? (
-                          <div className="flex items-center gap-2">
-                            <ShieldCheck size={16} className="shrink-0 text-sky-400" />
-                            <span><strong>Mode Aman:</strong> Sesi panel dilindungi password saat layar terkunci atau waktu idle tercapai.</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Sparkles size={16} className="shrink-0 text-emerald-400" />
-                            <span><strong>Mode Screensaver Santai:</strong> Layar menampilkan animasi screensaver tanpa proteksi password/PIN. Cukup klik mouse atau tekan sembarang tombol untuk kembali ke desktop.</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
 
@@ -2024,34 +2006,34 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Sparkles size={17} />}
-                      title="Screensaver Animation Style"
-                      subtitle="Pilih gaya visual animasi saat screensaver atau lock screen aktif"
+                      title="Gaya Animasi Screensaver"
+                      subtitle="Pilih tampilan visual saat layar aktif"
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-[620px]">
                       {[
                         {
                           id: "clock" as const,
-                          label: "Digital Clock",
-                          desc: "Jam digital besar, kalender, ucapan waktu, & kartu login elegan",
+                          label: "Jam Digital",
+                          desc: "Tampilan jam dan kalender",
                           icon: <Clock size={16} className="text-sky-400" />,
                         },
                         {
                           id: "matrix" as const,
-                          label: "Terminal Matrix Rain",
-                          desc: "Aliran glyph ASCII matrix hijau cyberpunk interaktif",
+                          label: "Terminal Matrix",
+                          desc: "Animasi karakter matrix hijau",
                           icon: <Terminal size={16} className="text-emerald-400" />,
                         },
                         {
                           id: "starfield" as const,
-                          label: "Starfield 3D Hyperspace",
-                          desc: "Simulasi kedalaman partikel luar angkasa kecepatan cahaya",
+                          label: "Starfield 3D",
+                          desc: "Animasi partikel luar angkasa",
                           icon: <Sparkles size={16} className="text-indigo-400" />,
                         },
                         {
                           id: "none" as const,
-                          label: "Minimal Blank",
-                          desc: "Layar gelap pekat minimalis dengan konsumsi daya rendah",
+                          label: "Layar Gelap",
+                          desc: "Layar hitam minimalis",
                           icon: <Monitor size={16} className="text-slate-400" />,
                         },
                       ].map((item) => {
@@ -2093,18 +2075,18 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
                       icon={<Clock size={17} />}
-                      title="Timeout & Quick Lock"
-                      subtitle="Atur durasi ketidakaktifan otomatis dan picu penguncian manual"
+                      title="Batas Waktu & Kunci Cepat"
+                      subtitle="Atur durasi tidak aktif sebelum layar terkunci otomatis"
                     />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-[620px]">
                       <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Auto-Lock Idle Timeout
+                            Waktu Tidak Aktif (Idle)
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Kunci desktop jika tidak ada aktivitas mouse / keyboard
+                            Kunci jika tidak ada aktivitas mouse / keyboard
                           </div>
                         </div>
                         <select
@@ -2112,7 +2094,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           onChange={(e) => setAutoLockTimeout(parseInt(e.target.value, 10))}
                           className="panel-input text-[12.5px] py-1.5 px-3 rounded-lg w-full bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]"
                         >
-                          <option value={0}>Never (Nonaktif)</option>
+                          <option value={0}>Tidak Pernah</option>
                           <option value={5}>5 Menit</option>
                           <option value={15}>15 Menit</option>
                           <option value={30}>30 Menit</option>
@@ -2123,10 +2105,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-3">
                         <div>
                           <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            Kunci Desktop Sekarang
+                            Kunci Layar Sekarang
                           </div>
                           <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            Aktifkan layar kunci atau screensaver langsung
+                            Aktifkan layar kunci atau screensaver seketika
                           </div>
                         </div>
                         <button
@@ -2135,7 +2117,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           className="panel-btn panel-btn--primary text-[12px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <Lock size={14} />
-                          <span>Kunci Layar Sekarang</span>
+                          <span>Kunci Layar</span>
                         </button>
                       </div>
                     </div>
