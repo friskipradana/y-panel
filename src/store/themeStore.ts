@@ -140,6 +140,7 @@ interface StoredTheme {
   lockScreenStyle?: LockScreenStyle
   lockScreenEnabled?: boolean
   requirePasswordOnWake?: boolean
+  wakeOnMouseMove?: boolean
   soundEnabled?: boolean
   soundVolume?: number
   autoLockTimeout?: number
@@ -156,6 +157,7 @@ interface ThemeStore {
   lockScreenStyle: LockScreenStyle
   lockScreenEnabled: boolean
   requirePasswordOnWake: boolean
+  wakeOnMouseMove: boolean
   wallpaperLoading: boolean
   soundEnabled: boolean
   soundVolume: number
@@ -169,6 +171,7 @@ interface ThemeStore {
   setLockScreenStyle: (style: LockScreenStyle) => void
   setLockScreenEnabled: (enabled: boolean) => void
   setRequirePasswordOnWake: (require: boolean) => void
+  setWakeOnMouseMove: (enabled: boolean) => void
   setSoundEnabled: (enabled: boolean) => void
   setSoundVolume: (volume: number) => void
   setAutoLockTimeout: (timeout: number) => void
@@ -280,6 +283,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     lockScreenStyle: stored.lockScreenStyle ?? 'clock',
     lockScreenEnabled: stored.lockScreenEnabled ?? true,
     requirePasswordOnWake: stored.requirePasswordOnWake ?? true,
+    wakeOnMouseMove: stored.wakeOnMouseMove ?? true,
     wallpaperLoading: false,
     soundEnabled: stored.soundEnabled ?? true,
     soundVolume: stored.soundVolume ?? 0.7,
@@ -327,6 +331,11 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setRequirePasswordOnWake: (requirePasswordOnWake) => {
       persist({ requirePasswordOnWake })
       set({ requirePasswordOnWake })
+    },
+
+    setWakeOnMouseMove: (wakeOnMouseMove) => {
+      persist({ wakeOnMouseMove })
+      set({ wakeOnMouseMove })
     },
 
     setSoundEnabled: (soundEnabled) => {
