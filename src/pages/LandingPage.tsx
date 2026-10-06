@@ -1,43 +1,43 @@
 import { useEffect, useState } from 'react'
 import {
+  Activity,
   ArrowRight,
+  Box,
   Check,
   Copy,
+  Database,
   Download,
   ExternalLink,
-  Terminal,
-  Box,
+  FileText,
   FolderKanban,
   Globe,
   HardDrive,
+  Settings,
+  Terminal,
   Users,
-  Database,
-  Activity,
-  FileText,
-  Radio,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 
 export type LandingPageProps = {
   authenticated: boolean
   onNavigate: (path: string) => void
 }
 
-const HERO_IMAGE = '/ChatGPT Image Apr 27, 2026, 11_04_38 AM.png'
 const INSTALLER_URL = 'https://github.com/friskipradana/y-panel/releases/latest/download/ypanel-installer.run'
 const INSTALL_COMMAND = `wget -O ypanel-installer.run ${INSTALLER_URL} && sudo bash ypanel-installer.run`
 
-const FEATURE_ICONS = [
-  { id: 'docker', label: 'Docker', icon: Box },
-  { id: 'projects', label: 'Projects', icon: FolderKanban },
-  { id: 'cloudflare', label: 'Cloudflare', icon: Globe },
-  { id: 'terminal', label: 'Terminal', icon: Terminal },
-  { id: 'files', label: 'Files', icon: HardDrive },
-  { id: 'users', label: 'Users', icon: Users },
-  { id: 'database', label: 'Database', icon: Database },
-  { id: 'tunnels', label: 'Tunnels', icon: Radio },
-  { id: 'ops', label: 'Server Ops', icon: Activity },
-  { id: 'logs', label: 'Logs', icon: FileText },
+const FEATURE_MODULES = [
+  { id: 'docker', icon: Box, label: 'Docker' },
+  { id: 'projects', icon: FolderKanban, label: 'Projects' },
+  { id: 'cloudflare', icon: Globe, label: 'Cloudflare' },
+  { id: 'terminal', icon: Terminal, label: 'Terminal' },
+  { id: 'files', icon: HardDrive, label: 'Files' },
+  { id: 'users', icon: Users, label: 'Users' },
+  { id: 'database', icon: Database, label: 'Database' },
+  { id: 'system', icon: Activity, label: 'System' },
+  { id: 'logs', icon: FileText, label: 'Logs' },
+  { id: 'settings', icon: Settings, label: 'Settings' },
 ]
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
@@ -162,33 +162,10 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </div>
         </div>
 
-        {/* High-Fidelity Desktop Showcase Presentation */}
-        <div className="rounded-2xl border border-white/[0.1] bg-[#070b14]/90 p-2 sm:p-3 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
-          {/* Top Info Bar */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06] text-xs font-mono text-slate-400 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-300 font-semibold">YPanel Desktop OS Workspace</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                Go Daemon 8787
-              </span>
-              <span className="text-slate-500 hidden sm:inline">Linux-Powered</span>
-            </div>
-          </div>
+        {/* High-Fidelity Live Desktop Showcase */}
+        <DesktopShowcase />
 
-          {/* Full High-Res Preview Image */}
-          <div className="relative rounded-xl overflow-hidden border border-white/[0.06] bg-[#020408]">
-            <img
-              src={HERO_IMAGE}
-              alt="YPanel Desktop Workspace Preview"
-              className="w-full h-auto object-cover block"
-            />
-          </div>
-        </div>
-
-        {/* Feature Icons Grid (10 Core Modules matching the image) */}
+        {/* Feature Icons Grid (10 Core Modules matching real panel apps) */}
         <div className="mt-14">
           <div className="text-center mb-6">
             <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
@@ -197,12 +174,12 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {FEATURE_ICONS.map((item) => {
+            {FEATURE_MODULES.map((item) => {
               const Icon = item.icon
               return (
                 <div
                   key={item.id}
-                  className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-white/[0.06] bg-[#070b14]/50 hover:bg-[#070b14] hover:border-cyan-500/30 transition text-center group"
+                  className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-white/[0.06] bg-[#070b14]/50 hover:bg-[#070b14] hover:border-cyan-500/30 transition text-center group cursor-default"
                 >
                   <Icon size={20} className="text-slate-400 group-hover:text-cyan-400 transition mb-2" />
                   <span className="text-xs font-medium text-slate-300 group-hover:text-white transition">
