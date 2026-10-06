@@ -117,9 +117,6 @@ export function Window({ win, children }: Props) {
     const initial = { x: win.x, y: win.y, width: win.width, height: win.height }
     const minWidth = win.kind === 'host-terminal' ? 480 : win.kind === 'system' ? 360 : 300
     const minHeight = win.kind === 'host-terminal' ? 320 : win.kind === 'system' ? 360 : 220
-    const minLeft = VIEWPORT_PADDING - (initial.width - WINDOW_GRAB_VISIBILITY)
-    const maxRight = window.innerWidth - VIEWPORT_PADDING
-    const maxBottom = window.innerHeight - BOTTOM_SAFE_OFFSET
 
     const onMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX
@@ -131,13 +128,13 @@ export function Window({ win, children }: Props) {
       let nextHeight = initial.height
 
       if (direction.includes('e')) {
-        nextWidth = Math.max(minWidth, Math.min(maxRight - initial.x, initial.width + deltaX))
+        nextWidth = Math.max(minWidth, initial.width + deltaX)
       }
       if (direction.includes('s')) {
-        nextHeight = Math.max(minHeight, Math.min(maxBottom - initial.y, initial.height + deltaY))
+        nextHeight = Math.max(minHeight, initial.height + deltaY)
       }
       if (direction.includes('w')) {
-        const candidateX = Math.min(initial.x + initial.width - minWidth, Math.max(minLeft, initial.x + deltaX))
+        const candidateX = Math.min(initial.x + initial.width - minWidth, initial.x + deltaX)
         nextX = candidateX
         nextWidth = Math.max(minWidth, initial.width + (initial.x - candidateX))
       }
