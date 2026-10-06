@@ -34,7 +34,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-family: Outfit, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   transition: background 150ms, color 150ms;
 }
@@ -137,7 +137,7 @@
   }
 
   &__name {
-    font-family: Outfit, sans-serif;
+    font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 500;
     flex: 1 1 auto;
@@ -380,7 +380,7 @@
   cursor: pointer;
   color: var(--win-text);
   font-size: 13px;
-  font-family: Outfit, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   transition: background 150ms;
 }
@@ -477,7 +477,7 @@
   cursor: pointer;
   color: var(--win-text);
   font-size: 13px;
-  font-family: Outfit, sans-serif;
+  font-family: var(--font-sans);
   text-align: left;
   transition: background 120ms;
 }

@@ -23,7 +23,11 @@ export type WallpaperKey =
 export type WallpaperFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile'
 export type DesktopIconStyle = 'framed' | 'plain'
 export type DesktopIconSize = 'small' | 'medium' | 'large'
+export type DesktopIconFontSize = 'small' | 'medium' | 'large'
+export type DesktopIconFontWeight = 'normal' | 'medium' | 'bold'
 export type LockScreenStyle = 'clock' | 'matrix' | 'starfield' | 'none' | 'modern'
+export type FontFamilyKey = 'outfit' | 'inter' | 'plus-jakarta-sans' | 'geist' | 'roboto'
+export type FontSizeKey = 'small' | 'medium' | 'large'
 
 export interface WallpaperDef {
   label: string
@@ -137,6 +141,9 @@ interface StoredTheme {
   customImageUrl?: string | null
   desktopIconStyle?: DesktopIconStyle
   desktopIconSize?: DesktopIconSize
+  desktopIconFontSize?: DesktopIconFontSize
+  desktopIconFontWeight?: DesktopIconFontWeight
+  desktopIconShadow?: boolean
   lockScreenStyle?: LockScreenStyle
   lockScreenEnabled?: boolean
   requirePasswordOnWake?: boolean
@@ -144,6 +151,8 @@ interface StoredTheme {
   soundEnabled?: boolean
   soundVolume?: number
   autoLockTimeout?: number
+  fontFamily?: FontFamilyKey
+  fontSize?: FontSizeKey
 }
 
 interface ThemeStore {
@@ -154,6 +163,9 @@ interface ThemeStore {
   customImageUrl: string | null
   desktopIconStyle: DesktopIconStyle
   desktopIconSize: DesktopIconSize
+  desktopIconFontSize: DesktopIconFontSize
+  desktopIconFontWeight: DesktopIconFontWeight
+  desktopIconShadow: boolean
   lockScreenStyle: LockScreenStyle
   lockScreenEnabled: boolean
   requirePasswordOnWake: boolean
@@ -163,11 +175,16 @@ interface ThemeStore {
   soundVolume: number
   autoLockTimeout: number // in minutes: 0 = never, 5, 15, 30, 60
   isLocked: boolean
+  fontFamily: FontFamilyKey
+  fontSize: FontSizeKey
   setMode: (mode: ThemeMode) => void
   setWallpaper: (key: WallpaperKey) => void
   setWallpaperFit: (fit: WallpaperFit) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
   setDesktopIconSize: (size: DesktopIconSize) => void
+  setDesktopIconFontSize: (size: DesktopIconFontSize) => void
+  setDesktopIconFontWeight: (weight: DesktopIconFontWeight) => void
+  setDesktopIconShadow: (shadow: boolean) => void
   setLockScreenStyle: (style: LockScreenStyle) => void
   setLockScreenEnabled: (enabled: boolean) => void
   setRequirePasswordOnWake: (require: boolean) => void
@@ -176,6 +193,8 @@ interface ThemeStore {
   setSoundVolume: (volume: number) => void
   setAutoLockTimeout: (timeout: number) => void
   setIsLocked: (locked: boolean) => void
+  setFontFamily: (font: FontFamilyKey) => void
+  setFontSize: (size: FontSizeKey) => void
   setCustomImage: (dataUrl: string) => Promise<void>
   syncCustomImage: () => Promise<void>
   toggleMode: () => void
@@ -202,6 +221,14 @@ const persist = (data: Partial<StoredTheme>) => {
 
 const applyTheme = (mode: ThemeMode) => {
   document.documentElement.setAttribute('data-theme', mode)
+}
+
+const applyFontFamily = (font: FontFamilyKey) => {
+  document.documentElement.setAttribute('data-font', font)
+}
+
+const applyFontSize = (size: FontSizeKey) => {
+  document.documentElement.setAttribute('data-font-size', size)
 }
 
 const formatImageBackground = (url: string, fit: WallpaperFit) => {
@@ -243,6 +270,8 @@ const getImageStyle = (url: string, fit: WallpaperFit): React.CSSProperties => {
 export const useThemeStore = create<ThemeStore>((set, get) => {
   const stored = loadStored()
   applyTheme(stored.mode ?? 'light')
+  applyFontFamily(stored.fontFamily ?? 'outfit')
+  applyFontSize(stored.fontSize ?? 'medium')
 
   const getBackground = () => {
     const { mode, wallpaper, wallpaperFit, customImageUrl } = get()
@@ -280,6 +309,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     customImageUrl: stored.customImageUrl ?? null,
     desktopIconStyle: stored.desktopIconStyle ?? 'framed',
     desktopIconSize: stored.desktopIconSize ?? 'small',
+    desktopIconFontSize: stored.desktopIconFontSize ?? 'medium',
+    desktopIconFontWeight: stored.desktopIconFontWeight ?? 'medium',
+    desktopIconShadow: stored.desktopIconShadow ?? true,
     lockScreenStyle: stored.lockScreenStyle ?? 'clock',
     lockScreenEnabled: stored.lockScreenEnabled ?? true,
     requirePasswordOnWake: stored.requirePasswordOnWake ?? true,
@@ -289,8 +321,37 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     soundVolume: stored.soundVolume ?? 0.7,
     autoLockTimeout: stored.autoLockTimeout ?? 0,
     isLocked: false,
+    fontFamily: stored.fontFamily ?? 'outfit',
+    fontSize: stored.fontSize ?? 'medium',
     getBackground,
     getBackgroundStyle,
+
+    setFontFamily: (fontFamily) => {
+      applyFontFamily(fontFamily)
+      persist({ fontFamily })
+      set({ fontFamily })
+    },
+
+    setFontSize: (fontSize) => {
+      applyFontSize(fontSize)
+      persist({ fontSize })
+      set({ fontSize })
+    },
+
+    setDesktopIconFontSize: (desktopIconFontSize) => {
+      persist({ desktopIconFontSize })
+      set({ desktopIconFontSize })
+    },
+
+    setDesktopIconFontWeight: (desktopIconFontWeight) => {
+      persist({ desktopIconFontWeight })
+      set({ desktopIconFontWeight })
+    },
+
+    setDesktopIconShadow: (desktopIconShadow) => {
+      persist({ desktopIconShadow })
+      set({ desktopIconShadow })
+    },
 
     setMode: (mode) => {
       applyTheme(mode)

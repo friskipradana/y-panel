@@ -415,6 +415,44 @@
 // padding: 4;
 }
 
+// Global Font Declarations & Tokens
+:root {
+  --font-sans: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+[data-font="outfit"] {
+  --font-sans: 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="inter"] {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="plus-jakarta-sans"] {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="geist"] {
+  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font="roboto"] {
+  --font-sans: 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font-size="small"] {
+  font-size: 14.5px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 17.5px;
+}
+
 html,
 body,
 #root {
@@ -424,9 +462,9 @@ body,
 }
 
 body {
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: var(--font-sans);
   background: #020617;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
