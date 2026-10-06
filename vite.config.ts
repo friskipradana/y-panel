@@ -48,16 +48,40 @@ export default defineConfig(({ mode }) => {
           target: agentTarget,
           changeOrigin: true,
           ws: true,
+          configure: (proxy) => {
+            proxy.on('error', (err, _req, res) => {
+              if (res && 'writeHead' in res && !res.headersSent) {
+                res.writeHead(502, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'Agent unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
+              }
+            })
+          },
         },
         [agentBase]: {
           target: agentTarget,
           changeOrigin: true,
           rewrite: (requestPath) => requestPath.replace(new RegExp(`^${agentBase}`), ''),
+          configure: (proxy) => {
+            proxy.on('error', (err, _req, res) => {
+              if (res && 'writeHead' in res && !res.headersSent) {
+                res.writeHead(502, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'Agent unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
+              }
+            })
+          },
         },
         [portainerBase]: {
           target: portainerTarget,
           changeOrigin: true,
           rewrite: (requestPath) => requestPath.replace(new RegExp(`^${portainerBase}`), ''),
+          configure: (proxy) => {
+            proxy.on('error', (err, _req, res) => {
+              if (res && 'writeHead' in res && !res.headersSent) {
+                res.writeHead(502, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'Portainer unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
+              }
+            })
+          },
         },
       },
     },

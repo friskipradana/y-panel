@@ -5,7 +5,7 @@
   "description": "YPanel is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"AGENT,UI\" -c \"cyan.bold,magenta.bold\" \"go run ./cmd/panel-agent\" \"vite\"",
+    "dev": "concurrently -n \"AGENT,UI\" -c \"cyan.bold,magenta.bold\" \"go run ./cmd/panel-agent\" \"wait-on tcp:8787 && vite\"",
     "dev:ui": "vite",
     "dev:agent": "go run ./cmd/panel-agent",
     "db:migrate": "go run ./cmd/panel-agent migrate up",
@@ -55,6 +55,7 @@
     "sass-embedded": "^1.105.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",
-    "vite": "^8.0.1"
+    "vite": "^8.0.1",
+    "wait-on": "^9.5.1"
   }
 }
