@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  Activity,
   Box,
   Cpu,
   Database,
@@ -119,10 +118,10 @@ export function DesktopShowcase() {
           </div>
         </div>
 
-        {/* Desktop Workspace Stage */}
-        <div className="relative h-[460px] sm:h-[480px] p-3 sm:p-5 overflow-hidden">
+        {/* Desktop Workspace Stage (Vertically Balanced) */}
+        <div className="relative h-[470px] sm:h-[490px] p-3 sm:p-5 overflow-hidden">
           {/* Left Desktop Shortcuts Column */}
-          <div className="absolute top-4 left-3 sm:left-4 z-10 flex flex-col gap-1.5">
+          <div className="absolute top-6 left-3 sm:left-4 z-10 flex flex-col gap-1.5">
             {[
               { id: 'docker', icon: Box, label: 'Docker', win: 'docker' as WindowId, isOpen: true },
               { id: 'cloudflare', icon: Globe, label: 'Cloudflare', win: 'cloudflare' as WindowId, isOpen: true },
@@ -162,7 +161,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('docker')}
             style={{ zIndex: getZIndex('docker') }}
-            className={`absolute top-4 left-20 sm:left-24 w-[76%] sm:w-[50%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`absolute top-6 sm:top-8 left-20 sm:left-24 w-[76%] sm:w-[50%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'docker'
                 ? 'border-cyan-500/50 bg-[#080d1a]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -231,11 +230,11 @@ export function DesktopShowcase() {
             </div>
           </div>
 
-          {/* ── Window 2: Cloudflare & DNS (Top-Right Layer) ── */}
+          {/* ── Window 2: Cloudflare & DNS (Mid-Right Layer) ── */}
           <div
             onClick={() => bringToFront('cloudflare')}
             style={{ zIndex: getZIndex('cloudflare') }}
-            className={`absolute top-4 sm:top-5 right-3 sm:right-6 w-[74%] sm:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`absolute top-28 sm:top-32 right-3 sm:right-6 w-[68%] sm:w-[42%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'cloudflare'
                 ? 'border-sky-500/50 bg-[#070b16]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -286,11 +285,11 @@ export function DesktopShowcase() {
             </div>
           </div>
 
-          {/* ── Window 3: Host Terminal (Front Center Layer) ── */}
+          {/* ── Window 3: Host Terminal (Front Center-Bottom Layer) ── */}
           <div
             onClick={() => bringToFront('terminal')}
             style={{ zIndex: getZIndex('terminal') }}
-            className={`absolute top-32 sm:top-36 left-24 sm:left-36 w-[78%] sm:w-[54%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
+            className={`absolute bottom-6 sm:bottom-8 left-26 sm:left-36 w-[78%] sm:w-[54%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'terminal'
                 ? 'border-emerald-500/50 bg-[#03060c]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
