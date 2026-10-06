@@ -194,7 +194,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
 
       {/* Desktop App Shortcuts (Left Grid) */}
-      <div className="absolute top-14 left-4 z-[10] grid grid-flow-col grid-rows-6 gap-2 pointer-events-auto select-none">
+      <div className="absolute top-14 bottom-6 left-4 z-[10] flex flex-col flex-wrap content-start gap-2 pointer-events-auto select-none">
         {desktopShortcuts.map((app) => (
           <DesktopIcon key={app.id} app={app} />
         ))}
