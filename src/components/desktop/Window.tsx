@@ -31,7 +31,7 @@ export function Window({ win, children }: Props) {
     moveWindow,
     resizeWindow,
   } = useWindowStore()
-  const dragRef = useRef<{ ox: number; oy: number } | null>(null)
+  const windowRef = useRef<HTMLDivElement>(null)
 
   const focusedId = useWindowStore(selectFocusedId)
   const isFocused = win.id === focusedId
@@ -67,42 +67,54 @@ export function Window({ win, children }: Props) {
     e.stopPropagation()
     focusWindow(win.id)
     if (win.isMaximized || win.isFullscreen) return
-    dragRef.current = { ox: e.clientX - win.x, oy: e.clientY - win.y }
+
+    const startClientX = e.clientX
+    const startClientY = e.clientY
+    const startWinX = win.x
+    const startWinY = win.y
+    let curX = startWinX
+    let curY = startWinY
+    let rafId: number | null = null
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'move'
 
     const onMove = (ev: MouseEvent) => {
-      if (!dragRef.current) return
-      const nextX = ev.clientX - dragRef.current.ox
-      const nextY = ev.clientY - dragRef.current.oy
+      const deltaX = ev.clientX - startClientX
+      const deltaY = ev.clientY - startClientY
+      const nextX = startWinX + deltaX
+      const nextY = startWinY + deltaY
       const minX = VIEWPORT_PADDING - (win.width - WINDOW_GRAB_VISIBILITY)
       const maxX = window.innerWidth - WINDOW_GRAB_VISIBILITY - VIEWPORT_PADDING
       const minY = TOP_SAFE_OFFSET
       const maxY = window.innerHeight - BOTTOM_SAFE_OFFSET
-      moveWindow(
-        win.id,
-        Math.min(Math.max(nextX, minX), maxX),
-        Math.min(Math.max(nextY, minY), maxY),
-      )
+      curX = Math.min(Math.max(nextX, minX), maxX)
+      curY = Math.min(Math.max(nextY, minY), maxY)
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null
+          if (windowRef.current) {
+            windowRef.current.style.left = `${curX}px`
+            windowRef.current.style.top = `${curY}px`
+          }
+        })
+      }
     }
 
     const onUp = () => {
-      dragRef.current = null
-      const currentWindow = useWindowStore.getState().windows.find((w) => w.id === win.id)
-      if (currentWindow) {
-        const minX = VIEWPORT_PADDING - (currentWindow.width - WINDOW_GRAB_VISIBILITY)
-        const maxX = window.innerWidth - WINDOW_GRAB_VISIBILITY - VIEWPORT_PADDING
-        const minY = TOP_SAFE_OFFSET
-        const maxY = window.innerHeight - BOTTOM_SAFE_OFFSET
-        const clampedX = Math.min(Math.max(currentWindow.x, minX), maxX)
-        const clampedY = Math.min(Math.max(currentWindow.y, minY), maxY)
-        if (clampedX !== currentWindow.x || clampedY !== currentWindow.y) {
-          moveWindow(win.id, clampedX, clampedY)
-        }
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
       }
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      moveWindow(win.id, curX, curY)
     }
 
-    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mousemove', onMove, { passive: true })
     window.addEventListener('mouseup', onUp)
   }
 
@@ -117,6 +129,14 @@ export function Window({ win, children }: Props) {
     const initial = { x: win.x, y: win.y, width: win.width, height: win.height }
     const minWidth = win.kind === 'host-terminal' ? 480 : win.kind === 'system' ? 360 : 300
     const minHeight = win.kind === 'host-terminal' ? 320 : win.kind === 'system' ? 360 : 220
+
+    let curX = initial.x
+    let curY = initial.y
+    let curWidth = initial.width
+    let curHeight = initial.height
+    let rafId: number | null = null
+
+    document.body.style.userSelect = 'none'
 
     const onMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX
@@ -144,16 +164,37 @@ export function Window({ win, children }: Props) {
         nextHeight = Math.max(minHeight, initial.height + (initial.y - candidateY))
       }
 
-      moveWindow(win.id, nextX, nextY)
-      resizeWindow(win.id, nextWidth, nextHeight)
+      curX = nextX
+      curY = nextY
+      curWidth = nextWidth
+      curHeight = nextHeight
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null
+          if (windowRef.current) {
+            windowRef.current.style.left = `${curX}px`
+            windowRef.current.style.top = `${curY}px`
+            windowRef.current.style.width = `${curWidth}px`
+            windowRef.current.style.height = `${curHeight}px`
+          }
+        })
+      }
     }
 
     const onUp = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+      }
+      document.body.style.userSelect = ''
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      moveWindow(win.id, curX, curY)
+      resizeWindow(win.id, curWidth, curHeight)
     }
 
-    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mousemove', onMove, { passive: true })
     window.addEventListener('mouseup', onUp)
   }
 
@@ -167,6 +208,7 @@ export function Window({ win, children }: Props) {
 
   return (
     <motion.div
+      ref={windowRef}
       key={win.id}
       initial={animation.initial}
       animate={{
