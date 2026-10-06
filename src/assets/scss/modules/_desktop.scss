@@ -99,7 +99,7 @@
   gap: 2px;
   color: var(--tb-clock);
   font-size: 12px;
-  font-family: Outfit, sans-serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   transition: background 120ms, border-color 120ms;
   position: relative;

@@ -36,6 +36,7 @@ import {
   Terminal,
   Sparkles,
   Monitor,
+  Type,
 } from "lucide-react";
 import {
   copyTextToClipboard,
@@ -143,6 +144,8 @@ const PRESET_DNS = [
 type SettingsTabKey =
   | "general"
   | "appearance"
+  | "wallpaper"
+  | "desktop"
   | "screensaver"
   | "sound"
   | "cloudflare"
@@ -404,6 +407,16 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     autoLockTimeout,
     setAutoLockTimeout,
     setIsLocked,
+    fontFamily,
+    setFontFamily,
+    fontSize,
+    setFontSize,
+    desktopIconFontSize,
+    setDesktopIconFontSize,
+    desktopIconFontWeight,
+    setDesktopIconFontWeight,
+    desktopIconShadow,
+    setDesktopIconShadow,
   } = useThemeStore();
   const autoHideDock = useWindowStore((s) => s.autoHideDock);
   const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide);
@@ -1135,6 +1148,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       icon: Server,
     },
     { key: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
+    { key: "wallpaper", label: t("settings.tabs.wallpaper"), icon: ImagePlus },
+    { key: "desktop", label: t("settings.tabs.desktop"), icon: Monitor },
     { key: "screensaver", label: t("settings.tabs.screensaver"), icon: Lock },
     { key: "sound", label: t("settings.tabs.sound"), icon: Volume2 },
     { key: "cloudflare", label: t("settings.tabs.cloudflare"), icon: Cloud },
@@ -1370,7 +1385,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 </div>
               )}
 
-              {/* ── 2. Appearance & Desktop ── */}
+              {/* ── 2. Appearance & Themes (Theme Mode & Font Settings) ── */}
               {activeTab === "appearance" && (
                 <div className="space-y-3.5">
                   {/* Theme Mode Card */}
@@ -1440,177 +1455,179 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     </div>
                   </div>
 
-                  {/* Desktop Icon Style Card */}
-                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
+                  {/* UI Fonts & Typography Card */}
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-4">
                     <SectionHeader
-                      icon={<Layout size={16} />}
-                      title={t("settings.iconStyle.title")}
-                      subtitle={t("settings.iconStyle.subtitle")}
+                      icon={<Type size={16} />}
+                      title={t("settings.fonts.title")}
+                      subtitle={t("settings.fonts.subtitle")}
                     />
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[520px]">
-                      {/* Framed Option */}
-                      <button
-                        type="button"
-                        onClick={() => setDesktopIconStyle("framed")}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
-                          desktopIconStyle === "framed"
-                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
-                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                        }`}
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-md shadow-black/20">
-                          <Layout size={18} className="text-sky-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1.5">
-                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                              {t("settings.iconStyle.framed")}
-                            </div>
-                            {desktopIconStyle === "framed" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
-                            {t("settings.iconStyle.framedDesc")}
-                          </div>
-                        </div>
-                      </button>
+                    {/* Font Family Selection */}
+                    <div>
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
+                        {t("settings.fonts.family")}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            key: "outfit" as const,
+                            name: "Outfit",
+                            desc: t("settings.fonts.outfitDesc"),
+                            fontCss: "'Outfit', system-ui, sans-serif",
+                          },
+                          {
+                            key: "inter" as const,
+                            name: "Inter",
+                            desc: t("settings.fonts.interDesc"),
+                            fontCss: "'Inter', system-ui, sans-serif",
+                          },
+                          {
+                            key: "plus-jakarta-sans" as const,
+                            name: "Plus Jakarta Sans",
+                            desc: t("settings.fonts.plusJakartaSansDesc"),
+                            fontCss: "'Plus Jakarta Sans', system-ui, sans-serif",
+                          },
+                          {
+                            key: "geist" as const,
+                            name: "Geist",
+                            desc: t("settings.fonts.geistDesc"),
+                            fontCss: "'Geist', system-ui, sans-serif",
+                          },
+                          {
+                            key: "roboto" as const,
+                            name: "Roboto",
+                            desc: t("settings.fonts.robotoDesc"),
+                            fontCss: "'Roboto', system-ui, sans-serif",
+                          },
+                        ].map((item) => {
+                          const isActive = fontFamily === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => setFontFamily(item.key)}
+                              className={`flex flex-col p-3 rounded-xl border transition-all cursor-pointer text-left ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span
+                                  className="text-[13px] font-bold text-[var(--win-text)]"
+                                  style={{ fontFamily: item.fontCss }}
+                                >
+                                  {item.name}
+                                </span>
+                                {isActive && (
+                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white shrink-0">
+                                    <CheckCircle2 size={8} /> {t("settings.appearance.active")}
+                                  </span>
+                                )}
+                              </div>
+                              <p
+                                className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2 leading-relaxed"
+                                style={{ fontFamily: item.fontCss }}
+                              >
+                                {item.desc}
+                              </p>
+                              <div
+                                className="mt-2 text-[12px] font-medium text-[var(--win-text)] border-t border-[var(--win-border)]/60 pt-1.5 opacity-90 truncate"
+                                style={{ fontFamily: item.fontCss }}
+                              >
+                                Aa Bb Gg 123
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                      {/* Plain / Borderless Option */}
-                      <button
-                        type="button"
-                        onClick={() => setDesktopIconStyle("plain")}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
-                          desktopIconStyle === "plain"
-                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
-                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                        }`}
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]">
-                          <Layout size={20} className="text-emerald-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1.5">
-                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                              {t("settings.iconStyle.plain")}
-                            </div>
-                            {desktopIconStyle === "plain" && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
-                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
+                    {/* Font Scaling & Size Selection */}
+                    <div className="pt-2 border-t border-[var(--win-border)]">
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
+                        {t("settings.fonts.size")}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[560px]">
+                        {[
+                          {
+                            key: "small" as const,
+                            label: t("settings.fonts.sizeSmall"),
+                            desc: t("settings.fonts.sizeSmallDesc"),
+                            scaleLabel: "14.5px (90%)",
+                          },
+                          {
+                            key: "medium" as const,
+                            label: t("settings.fonts.sizeMedium"),
+                            desc: t("settings.fonts.sizeMediumDesc"),
+                            scaleLabel: "16px (100%)",
+                          },
+                          {
+                            key: "large" as const,
+                            label: t("settings.fonts.sizeLarge"),
+                            desc: t("settings.fonts.sizeLargeDesc"),
+                            scaleLabel: "17.5px (110%)",
+                          },
+                        ].map((item) => {
+                          const isActive = fontSize === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => setFontSize(item.key)}
+                              className={`flex flex-col p-2.5 rounded-xl border transition-all cursor-pointer text-left ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[12px] font-bold text-[var(--win-text)]">
+                                  {item.label}
+                                </span>
+                                {isActive && (
+                                  <CheckCircle2 size={10} className="text-[var(--panel-primary-solid)] shrink-0" />
+                                )}
+                              </div>
+                              <span className="text-[10px] text-[var(--panel-primary-text)] font-mono mt-0.5">
+                                {item.scaleLabel}
                               </span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
-                            {t("settings.iconStyle.plainDesc")}
-                          </div>
+                              <p className="text-[10.5px] text-[var(--text-secondary)] mt-1 leading-snug">
+                                {item.desc}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Real-time Typography Preview */}
+                    <div className="pt-2 border-t border-[var(--win-border)]">
+                      <div className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
+                        {t("settings.fonts.preview")}
+                      </div>
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[14px] font-bold text-[var(--win-text)]">
+                            {t("settings.fonts.previewSample")}
+                          </span>
+                          <span className="panel-badge panel-badge--success shrink-0 text-[10px]">
+                            {fontFamily.toUpperCase()} • {fontSize.toUpperCase()}
+                          </span>
                         </div>
-                      </button>
+                        <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
+                          Docker containers, Cloudflare Tunnels, SQLite databases, and server resource metrics rendered with high clarity.
+                        </p>
+                      </div>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  {/* Desktop Icon Size Card */}
-                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
-                    <SectionHeader
-                      icon={<Layout size={16} />}
-                      title={t("settings.iconSize.title")}
-                      subtitle={t("settings.iconSize.subtitle")}
-                    />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[560px]">
-                      {/* Small Option */}
-                      <button
-                        type="button"
-                        onClick={() => setDesktopIconSize("small")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
-                          desktopIconSize === "small"
-                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
-                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                        }`}
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={16} />
-                        </div>
-                        <div className="w-full">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                              {t("settings.iconSize.small")}
-                            </span>
-                            {desktopIconSize === "small" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
-                                <CheckCircle2 size={8} />
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
-                            {t("settings.iconSize.smallDesc")}
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* Medium Option */}
-                      <button
-                        type="button"
-                        onClick={() => setDesktopIconSize("medium")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
-                          desktopIconSize === "medium"
-                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
-                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                        }`}
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={18} />
-                        </div>
-                        <div className="w-full">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                              {t("settings.iconSize.medium")}
-                            </span>
-                            {desktopIconSize === "medium" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
-                                <CheckCircle2 size={8} />
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
-                            {t("settings.iconSize.mediumDesc")}
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* Large Option */}
-                      <button
-                        type="button"
-                        onClick={() => setDesktopIconSize("large")}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
-                          desktopIconSize === "large"
-                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
-                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
-                        }`}
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
-                          <Layout size={20} />
-                        </div>
-                        <div className="w-full">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                              {t("settings.iconSize.large")}
-                            </span>
-                            {desktopIconSize === "large" && (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
-                                <CheckCircle2 size={8} />
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
-                            {t("settings.iconSize.largeDesc")}
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
+              {/* ── 3. Wallpapers & Background ── */}
+              {activeTab === "wallpaper" && (
+                <div className="space-y-3.5">
 
                   {/* Wallpaper Gallery Card */}
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
@@ -1805,6 +1822,324 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── 4. Desktop & Taskbar ── */}
+              {activeTab === "desktop" && (
+                <div className="space-y-3.5">
+                  {/* Desktop Icon Style Card */}
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
+                    <SectionHeader
+                      icon={<Layout size={16} />}
+                      title={t("settings.iconStyle.title")}
+                      subtitle={t("settings.iconStyle.subtitle")}
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[520px]">
+                      {/* Framed Option */}
+                      <button
+                        type="button"
+                        onClick={() => setDesktopIconStyle("framed")}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
+                          desktopIconStyle === "framed"
+                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                        }`}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-black/20 backdrop-blur-md border border-white/10 shadow-md shadow-black/20">
+                          <Layout size={18} className="text-sky-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                              {t("settings.iconStyle.framed")}
+                            </div>
+                            {desktopIconStyle === "framed" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
+                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                            {t("settings.iconStyle.framedDesc")}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Plain / Borderless Option */}
+                      <button
+                        type="button"
+                        onClick={() => setDesktopIconStyle("plain")}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left ${
+                          desktopIconStyle === "plain"
+                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                        }`}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)]">
+                          <Layout size={20} className="text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                              {t("settings.iconStyle.plain")}
+                            </div>
+                            {desktopIconStyle === "plain" && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[9.5px] font-bold text-white shrink-0">
+                                <CheckCircle2 size={9} /> {t("settings.appearance.active")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                            {t("settings.iconStyle.plainDesc")}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Desktop Icon Size Card */}
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-3">
+                    <SectionHeader
+                      icon={<Layout size={16} />}
+                      title={t("settings.iconSize.title")}
+                      subtitle={t("settings.iconSize.subtitle")}
+                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-[560px]">
+                      {/* Small Option */}
+                      <button
+                        type="button"
+                        onClick={() => setDesktopIconSize("small")}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
+                          desktopIconSize === "small"
+                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                        }`}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={16} />
+                        </div>
+                        <div className="w-full">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
+                              {t("settings.iconSize.small")}
+                            </span>
+                            {desktopIconSize === "small" && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                            {t("settings.iconSize.smallDesc")}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Medium Option */}
+                      <button
+                        type="button"
+                        onClick={() => setDesktopIconSize("medium")}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
+                          desktopIconSize === "medium"
+                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                        }`}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={18} />
+                        </div>
+                        <div className="w-full">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
+                              {t("settings.iconSize.medium")}
+                            </span>
+                            {desktopIconSize === "medium" && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                            {t("settings.iconSize.mediumDesc")}
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Large Option */}
+                      <button
+                        type="button"
+                        onClick={() => setDesktopIconSize("large")}
+                        className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer text-center ${
+                          desktopIconSize === "large"
+                            ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                            : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                        }`}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/20 backdrop-blur-md border border-white/10 shadow-sm text-sky-400">
+                          <Layout size={20} />
+                        </div>
+                        <div className="w-full">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[12px] font-semibold text-[var(--win-text)]">
+                              {t("settings.iconSize.large")}
+                            </span>
+                            {desktopIconSize === "large" && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                                <CheckCircle2 size={8} />
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">
+                            {t("settings.iconSize.largeDesc")}
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Desktop Icon Label Typography Card */}
+                  <div className="panel-shell-card p-3.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Type size={16} />}
+                      title={t("settings.desktop.fontTitle")}
+                      subtitle={t("settings.desktop.fontSubtitle")}
+                    />
+
+                    {/* Label Size Selection */}
+                    <div>
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
+                        {t("settings.desktop.labelSize")}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[560px]">
+                        {[
+                          { key: "small" as const, label: t("settings.desktop.labelSizeSmall"), px: "10px" },
+                          { key: "medium" as const, label: t("settings.desktop.labelSizeMedium"), px: "11px" },
+                          { key: "large" as const, label: t("settings.desktop.labelSizeLarge"), px: "12.5px" },
+                        ].map((item) => {
+                          const isActive = desktopIconFontSize === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => setDesktopIconFontSize(item.key)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              <span className="text-[12px] font-bold text-[var(--win-text)]">
+                                {item.label}
+                              </span>
+                              {isActive && (
+                                <CheckCircle2 size={12} className="text-[var(--panel-primary-solid)] shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Label Font Weight */}
+                    <div className="pt-2 border-t border-[var(--win-border)]">
+                      <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
+                        {t("settings.desktop.labelWeight")}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[560px]">
+                        {[
+                          { key: "normal" as const, label: t("settings.desktop.weightNormal"), fontClass: "font-normal" },
+                          { key: "medium" as const, label: t("settings.desktop.weightMedium"), fontClass: "font-medium" },
+                          { key: "bold" as const, label: t("settings.desktop.weightBold"), fontClass: "font-bold" },
+                        ].map((item) => {
+                          const isActive = desktopIconFontWeight === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              onClick={() => setDesktopIconFontWeight(item.key)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                isActive
+                                  ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] shadow-md ring-2 ring-[var(--panel-primary-solid)]/30"
+                                  : "border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)]"
+                              }`}
+                            >
+                              <span className={`text-[12px] text-[var(--win-text)] ${item.fontClass}`}>
+                                {item.label}
+                              </span>
+                              {isActive && (
+                                <CheckCircle2 size={12} className="text-[var(--panel-primary-solid)] shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Drop Shadow Toggle & Mini Preview */}
+                    <div className="pt-2 border-t border-[var(--win-border)] flex flex-col gap-3">
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                        <div>
+                          <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                            {t("settings.desktop.labelShadow")}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                            {t("settings.desktop.labelShadowDesc")}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDesktopIconShadow(!desktopIconShadow)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            desktopIconShadow
+                              ? "bg-[var(--panel-primary-solid)]"
+                              : "bg-gray-400/30"
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                              desktopIconShadow ? "translate-x-5" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Icon Label Live Preview */}
+                      <div className="p-3 rounded-xl border border-[var(--win-border)] bg-slate-900/60 backdrop-blur-sm flex items-center justify-between gap-3 text-white">
+                        <span className="text-[11px] text-white/70 font-mono">
+                          Live Shortcut Preview:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400">
+                            <Monitor size={14} />
+                          </div>
+                          <span
+                            className={`${
+                              desktopIconFontSize === "small"
+                                ? "text-[10px]"
+                                : desktopIconFontSize === "large"
+                                  ? "text-[12.5px]"
+                                  : "text-[11px]"
+                            } ${
+                              desktopIconFontWeight === "normal"
+                                ? "font-normal"
+                                : desktopIconFontWeight === "bold"
+                                  ? "font-bold"
+                                  : "font-medium"
+                            } ${
+                              desktopIconShadow
+                                ? "drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-white"
+                                : "text-white/90"
+                            }`}
+                          >
+                            Projects
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Desktop & Dock Controls Card */}

@@ -11,6 +11,9 @@ export function DesktopIcon({ app }: Props) {
   const { openWindow } = useWindowStore()
   const desktopIconStyle = useThemeStore((s) => s.desktopIconStyle)
   const desktopIconSize = useThemeStore((s) => s.desktopIconSize)
+  const desktopIconFontSize = useThemeStore((s) => s.desktopIconFontSize)
+  const desktopIconFontWeight = useThemeStore((s) => s.desktopIconFontWeight)
+  const desktopIconShadow = useThemeStore((s) => s.desktopIconShadow)
   const mode = useThemeStore((s) => s.mode)
 
   const isPlain = desktopIconStyle === 'plain'
@@ -29,30 +32,44 @@ export function DesktopIcon({ app }: Props) {
       btnWidth: 'w-[66px]',
       boxSize: 'h-10 w-10 rounded-xl',
       iconSize: isPlain ? 28 : 22,
-      textSize: 'text-[10.5px]',
       maxTextWidth: 'max-w-[62px]',
     },
     medium: {
       btnWidth: 'w-[76px]',
       boxSize: 'h-12 w-12 rounded-2xl',
       iconSize: isPlain ? 34 : 28,
-      textSize: 'text-[11px]',
       maxTextWidth: 'max-w-[72px]',
     },
     large: {
       btnWidth: 'w-[88px]',
       boxSize: 'h-14 w-14 rounded-2xl',
       iconSize: isPlain ? 42 : 34,
-      textSize: 'text-[12px]',
       maxTextWidth: 'max-w-[82px]',
     },
   }[desktopIconSize] || {
     btnWidth: 'w-[66px]',
     boxSize: 'h-10 w-10 rounded-xl',
     iconSize: isPlain ? 28 : 22,
-    textSize: 'text-[10.5px]',
     maxTextWidth: 'max-w-[62px]',
   }
+
+  const textSizeClass = {
+    small: 'text-[10px]',
+    medium: 'text-[11px]',
+    large: 'text-[12.5px]',
+  }[desktopIconFontSize] || 'text-[11px]'
+
+  const fontWeightClass = {
+    normal: 'font-normal',
+    medium: 'font-medium',
+    bold: 'font-bold',
+  }[desktopIconFontWeight] || 'font-medium'
+
+  const shadowClass = desktopIconShadow
+    ? isDark
+      ? 'drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+      : 'drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]'
+    : ''
 
   return (
     <button
@@ -72,10 +89,10 @@ export function DesktopIcon({ app }: Props) {
         <AppIcon kind={app.windowId || app.id} size={sizeConfig.iconSize} />
       </div>
       <span
-        className={`${sizeConfig.maxTextWidth} truncate text-center ${sizeConfig.textSize} font-medium tracking-wide ${
+        className={`${sizeConfig.maxTextWidth} truncate text-center ${textSizeClass} ${fontWeightClass} ${shadowClass} tracking-wide ${
           isDark
-            ? 'text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
-            : 'text-slate-800 font-semibold'
+            ? 'text-white/95'
+            : 'text-slate-800'
         }`}
       >
         {app.label}
