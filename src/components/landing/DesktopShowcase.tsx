@@ -5,6 +5,7 @@ import {
   Cpu,
   Database,
   Folder,
+  FolderKanban,
   Globe,
   HardDrive,
   Minus,
@@ -18,20 +19,32 @@ import {
 type WindowId = 'docker' | 'cloudflare' | 'terminal'
 
 export function DesktopShowcase() {
-  const [activeWindow, setActiveWindow] = useState<WindowId>('docker')
+  const [activeWindow, setActiveWindow] = useState<WindowId>('terminal')
 
   const bringToFront = (win: WindowId) => {
     setActiveWindow(win)
   }
 
+  // Z-index calculation for natural 3-layer stacking
+  const getZIndex = (id: WindowId) => {
+    if (activeWindow === id) return 30
+    if (activeWindow === 'terminal') {
+      return id === 'docker' ? 10 : 20
+    }
+    if (activeWindow === 'docker') {
+      return id === 'cloudflare' ? 20 : 10
+    }
+    return id === 'docker' ? 20 : 10
+  }
+
   return (
     <div className="w-full max-w-5xl mx-auto select-none text-left font-sans">
       {/* Outer Desktop Canvas */}
-      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[#03060f] shadow-2xl shadow-cyan-950/30">
+      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[#03060f] shadow-2xl shadow-black/80">
         {/* Ambient Desktop Wallpaper Backdrop */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(14,165,233,0.12),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(14,165,233,0.1),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(56,189,248,0.06),transparent_50%)] pointer-events-none" />
         <div
-          className="absolute inset-0 opacity-[0.035] pointer-events-none"
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
             backgroundImage: `radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)`,
             backgroundSize: '20px 20px',
@@ -107,41 +120,52 @@ export function DesktopShowcase() {
         </div>
 
         {/* Desktop Workspace Stage */}
-        <div className="relative h-[450px] sm:h-[470px] p-3 sm:p-5 overflow-hidden">
+        <div className="relative h-[460px] sm:h-[480px] p-3 sm:p-5 overflow-hidden">
           {/* Left Desktop Shortcuts Column */}
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-1.5">
+          <div className="absolute top-4 left-3 sm:left-4 z-10 flex flex-col gap-1.5">
             {[
-              { id: 'docker', icon: Box, label: 'Docker', win: 'docker' as WindowId },
-              { id: 'cloudflare', icon: Globe, label: 'Cloudflare', win: 'cloudflare' as WindowId },
-              { id: 'terminal', icon: Terminal, label: 'Terminal', win: 'terminal' as WindowId },
-              { id: 'database', icon: Database, label: 'Database', win: 'docker' as WindowId },
-              { id: 'files', icon: Folder, label: 'Files', win: 'terminal' as WindowId },
-              { id: 'system', icon: Activity, label: 'System', win: 'docker' as WindowId },
+              { id: 'docker', icon: Box, label: 'Docker', win: 'docker' as WindowId, isOpen: true },
+              { id: 'cloudflare', icon: Globe, label: 'Cloudflare', win: 'cloudflare' as WindowId, isOpen: true },
+              { id: 'terminal', icon: Terminal, label: 'Terminal', win: 'terminal' as WindowId, isOpen: true },
+              { id: 'projects', icon: FolderKanban, label: 'Projects', win: 'docker' as WindowId, isOpen: false },
+              { id: 'database', icon: Database, label: 'Database', win: 'docker' as WindowId, isOpen: false },
+              { id: 'files', icon: Folder, label: 'Files', win: 'terminal' as WindowId, isOpen: false },
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => bringToFront(item.win)}
-                className="group flex flex-col items-center gap-1 w-14 py-1.5 px-1 rounded-xl hover:bg-white/[0.06] transition cursor-pointer"
+                className="group flex flex-col items-center gap-1 w-12 py-1.5 px-1 rounded-xl hover:bg-white/[0.06] transition cursor-pointer relative"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.03] border border-white/[0.06] text-slate-300 group-hover:text-cyan-400 group-hover:border-cyan-500/30 group-hover:scale-105 transition shadow-xs">
-                  <item.icon size={17} />
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-lg border transition shadow-xs ${
+                    item.isOpen
+                      ? activeWindow === item.id
+                        ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
+                        : 'bg-white/[0.06] border-white/[0.12] text-slate-200'
+                      : 'bg-white/[0.02] border-white/[0.05] text-slate-500 group-hover:text-slate-300'
+                  }`}
+                >
+                  <item.icon size={15} />
                 </div>
-                <span className="text-[9.5px] font-medium text-slate-400 group-hover:text-slate-200 truncate max-w-[54px] text-center">
-                  {item.label}
-                </span>
+                <div className="flex items-center gap-1">
+                  {item.isOpen && <span className="w-1 h-1 rounded-full bg-cyan-400" />}
+                  <span className="text-[9px] font-medium text-slate-400 group-hover:text-slate-200 truncate max-w-[48px] text-center">
+                    {item.label}
+                  </span>
+                </div>
               </button>
             ))}
           </div>
 
-          {/* ── Window 1: Docker Workspace (Top-Center Left) ── */}
+          {/* ── Window 1: Docker Workspace (Top-Left Layer) ── */}
           <div
             onClick={() => bringToFront('docker')}
-            style={{ zIndex: activeWindow === 'docker' ? 30 : 10 }}
-            className={`absolute top-4 left-24 sm:left-28 w-[72%] sm:w-[50%] rounded-xl border transition-all duration-200 shadow-2xl backdrop-blur-xl cursor-pointer ${
+            style={{ zIndex: getZIndex('docker') }}
+            className={`absolute top-4 left-20 sm:left-24 w-[76%] sm:w-[50%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'docker'
-                ? 'border-cyan-500/40 bg-[#080d1a]/98 shadow-cyan-950/50 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.16]'
+                ? 'border-cyan-500/50 bg-[#080d1a]/98 scale-[1.01]'
+                : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -149,7 +173,7 @@ export function DesktopShowcase() {
               <div className="flex items-center gap-2">
                 <Box size={13} className="text-cyan-400" />
                 <span className="text-[11.5px] font-semibold text-slate-200">Docker Workspace</span>
-                <span className="text-[9.5px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20">
+                <span className="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20">
                   3 Running
                 </span>
               </div>
@@ -197,7 +221,7 @@ export function DesktopShowcase() {
                         <span className="text-[9px] font-mono text-slate-500 truncate block">{c.img}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 font-mono text-[9px] text-slate-400">
+                    <div className="flex items-center gap-2.5 shrink-0 font-mono text-[9px] text-slate-400">
                       <span className="bg-white/[0.04] px-1 py-0.2 rounded text-slate-300 hidden sm:inline">{c.port}</span>
                       <span className="text-emerald-400">{c.up}</span>
                     </div>
@@ -207,14 +231,14 @@ export function DesktopShowcase() {
             </div>
           </div>
 
-          {/* ── Window 2: Cloudflare & DNS (Top-Right) ── */}
+          {/* ── Window 2: Cloudflare & DNS (Top-Right Layer) ── */}
           <div
             onClick={() => bringToFront('cloudflare')}
-            style={{ zIndex: activeWindow === 'cloudflare' ? 30 : 15 }}
-            className={`absolute top-6 sm:top-8 right-4 sm:right-6 w-[70%] sm:w-[45%] rounded-xl border transition-all duration-200 shadow-2xl backdrop-blur-xl cursor-pointer ${
+            style={{ zIndex: getZIndex('cloudflare') }}
+            className={`absolute top-4 sm:top-5 right-3 sm:right-6 w-[74%] sm:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'cloudflare'
-                ? 'border-sky-500/40 bg-[#070b16]/98 shadow-sky-950/50 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.16]'
+                ? 'border-sky-500/50 bg-[#070b16]/98 scale-[1.01]'
+                : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -262,14 +286,14 @@ export function DesktopShowcase() {
             </div>
           </div>
 
-          {/* ── Window 3: Host Terminal (Bottom Center) ── */}
+          {/* ── Window 3: Host Terminal (Front Center Layer) ── */}
           <div
             onClick={() => bringToFront('terminal')}
-            style={{ zIndex: activeWindow === 'terminal' ? 30 : 20 }}
-            className={`absolute bottom-3 left-32 sm:left-48 w-[72%] sm:w-[52%] rounded-xl border transition-all duration-200 shadow-2xl backdrop-blur-xl cursor-pointer ${
+            style={{ zIndex: getZIndex('terminal') }}
+            className={`absolute top-32 sm:top-36 left-24 sm:left-36 w-[78%] sm:w-[54%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'terminal'
-                ? 'border-emerald-500/40 bg-[#03060c]/98 shadow-emerald-950/50 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.16]'
+                ? 'border-emerald-500/50 bg-[#03060c]/98 scale-[1.01]'
+                : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -286,7 +310,7 @@ export function DesktopShowcase() {
             </div>
 
             {/* Terminal Body */}
-            <div className="p-2 font-mono text-[9.5px] leading-relaxed text-slate-300 bg-black/60 rounded-b-xl space-y-0.5">
+            <div className="p-2.5 font-mono text-[9.5px] leading-relaxed text-slate-300 bg-black/70 rounded-b-xl space-y-0.5">
               <div className="text-slate-400 flex items-center gap-1">
                 <span className="text-emerald-400">root@ypanel-node</span>
                 <span className="text-slate-500">:</span>
