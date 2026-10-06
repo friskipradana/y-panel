@@ -248,81 +248,104 @@ function DnsEditor({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      {/* Active Nameservers List */}
       {nameservers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] py-3 px-3.5 text-center text-[11.5px] text-[var(--text-secondary)]">
-          <span>{t("settings.noNameservers")}</span>
+        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
+          <span className="flex items-center gap-2">
+            <Globe2 size={14} className="opacity-50" />
+            {t("settings.noNameservers")}
+          </span>
+          <span className="text-[10.5px] font-mono opacity-70">system-default</span>
         </div>
-      ) : null}
-
-      {nameservers.map((nameserver, index) => (
-        <div
-          key={`${nameserver}-${index}`}
-          className="flex items-center gap-1.5"
-        >
-          <div className="panel-muted-block flex h-10 flex-1 items-center gap-2.5 rounded-[10px] px-3.5">
-            <CheckCircle2
-              size={13}
-              className="text-[var(--panel-success-text)]"
-            />
-            <code className="panel-mono flex-1 break-all text-[12px] text-[var(--win-text)]">
-              {nameserver}
-            </code>
-          </div>
-          <button
-            type="button"
-            onClick={() => removeEntry(index)}
-            className="panel-icon-btn h-[38px] w-[38px] rounded-[10px] border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)] text-[var(--panel-danger-text)] hover:bg-[color:var(--panel-danger-bg)]"
-            aria-label={t("settings.removeNameserverAria", { nameserver })}
-          >
-            <Trash2 size={13} />
-          </button>
+      ) : (
+        <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+          {nameservers.map((nameserver, index) => (
+            <div
+              key={`${nameserver}-${index}`}
+              className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-solid)]/40 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <CheckCircle2
+                  size={13}
+                  className="text-[var(--panel-success-text)] shrink-0"
+                />
+                <code className="panel-mono text-[12.5px] font-medium text-[var(--win-text)] truncate">
+                  {nameserver}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeEntry(index)}
+                className="panel-icon-btn h-7 w-7 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
+                aria-label={t("settings.removeNameserverAria", { nameserver })}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      <div className="mt-1 flex gap-1.5">
-        <input
-          value={newEntry}
-          onChange={(event) => setNewEntry(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addEntry();
-            }
-          }}
-          placeholder={t("settings.addDnsPlaceholder")}
-          className="panel-input panel-input--mono h-10 flex-1 px-3.5 text-[12px]"
-        />
+      {/* Add Custom DNS Input Group */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <input
+            value={newEntry}
+            onChange={(event) => setNewEntry(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addEntry();
+              }
+            }}
+            placeholder={t("settings.addDnsPlaceholder")}
+            className="panel-input panel-mono h-[38px] w-full px-3.5 text-[12.5px]"
+          />
+        </div>
         <button
           type="button"
           onClick={addEntry}
-          className="panel-btn panel-btn--primary h-10 w-10 rounded-[10px] p-0"
+          disabled={!newEntry.trim()}
+          className="panel-btn panel-btn--primary h-[38px] px-3.5 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-50"
           aria-label={t("settings.addNameserverAria")}
         >
-          <Plus size={15} />
+          <Plus size={14} />
+          <span>{t("common.add") || "Add"}</span>
         </button>
       </div>
 
-      <div className="mt-0.5 flex flex-wrap gap-1.5">
-        {PRESET_DNS.map((preset) => {
-          const active = nameservers.includes(preset.value);
-          return (
-            <button
-              key={preset.value}
-              type="button"
-              onClick={() => addPreset(preset.value)}
-              disabled={active}
-              className={[
-                "panel-badge transition",
-                active ? preset.tone : "panel-badge--neutral",
-              ].join(" ")}
-            >
-              <span className="panel-status-dot" />
-              {preset.label}{" "}
-              <code className="panel-mono text-[12px]">({preset.value})</code>
-            </button>
-          );
-        })}
+      {/* Quick DNS Presets */}
+      <div>
+        <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5 opacity-80">
+          Quick Presets
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {PRESET_DNS.map((preset) => {
+            const active = nameservers.includes(preset.value);
+            return (
+              <button
+                key={preset.value}
+                type="button"
+                onClick={() => addPreset(preset.value)}
+                disabled={active}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${
+                  active
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 opacity-60 cursor-default"
+                    : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40"
+                }`}
+              >
+                {active ? (
+                  <CheckCircle2 size={11} className="text-emerald-400" />
+                ) : (
+                  <Plus size={11} className="opacity-60" />
+                )}
+                <span>{preset.label}</span>
+                <span className="font-mono text-[10px] opacity-70">({preset.value})</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -1267,68 +1290,84 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {activeTab === "general" && (
                 <div className="space-y-3.5">
                   {/* Compact Host System Info Banner */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px]">
-                    <div className="flex items-center gap-2 text-[var(--win-text)] font-semibold">
-                      <Server
-                        size={14}
-                        className="text-[var(--panel-primary-text)]"
-                      />
-                      <span>{query.data.osName}</span>
-                      <span className="text-[var(--text-secondary)] font-normal">
-                        ({query.data.kernel})
-                      </span>
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] border border-[var(--panel-primary-text)]/20 shadow-xs">
+                        <Server size={17} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[13.5px] font-bold text-[var(--win-text)] capitalize">
+                            {query.data.osName}
+                          </span>
+                          <span className="inline-flex items-center rounded-md bg-[var(--panel-surface-hover)] border border-[var(--win-border)] px-2 py-0.5 text-[11px] font-mono text-[var(--text-secondary)]">
+                            {query.data.kernel}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                          Host runtime daemon environment
+                        </div>
+                      </div>
                     </div>
+
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--panel-surface-hover)] px-2.5 py-0.5 text-[11px] text-[var(--win-text)] font-mono">
+                      <div className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-3 py-1.5 text-[11.5px] text-[var(--win-text)] font-mono">
                         <ShieldCheck
-                          size={12}
+                          size={13}
                           className="text-[var(--panel-success-text)]"
                         />
-                        DNS: {query.data.dnsMode}
-                      </span>
+                        <span>
+                          DNS: <strong className="font-semibold text-[var(--win-text)]">{query.data.dnsMode}</strong>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Main Host Configuration Card */}
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-                    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                      <div>
-                        <SectionHeader
-                          icon={<Server size={17} />}
-                          title={t("settings.identity")}
-                          subtitle={t("settings.identitySubtitle")}
-                        />
-                        <div className="flex flex-col gap-3.5 mt-2">
-                          <div>
-                            <FieldLabel
-                              label={t("settings.hostname")}
-                              hint="hostnamectl"
-                            />
-                            <input
-                              id="settings-hostname"
-                              value={hostname}
-                              onChange={(event) =>
-                                setHostname(event.target.value)
-                              }
-                              className="panel-input h-[42px] px-3.5 text-[13px]"
-                              placeholder={t("settings.hostnamePlaceholder")}
-                            />
-                          </div>
-                          <div>
-                            <FieldLabel
-                              label={t("settings.timezone")}
-                              hint="timedatectl"
-                            />
-                            <TimezoneSelect
-                              value={timezone}
-                              onChange={setTimezone}
-                            />
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      {/* Left: Identity */}
+                      <div className="flex flex-col justify-between">
+                        <div>
+                          <SectionHeader
+                            icon={<Server size={16} />}
+                            title={t("settings.identity")}
+                            subtitle={t("settings.identitySubtitle")}
+                          />
+                          <div className="flex flex-col gap-3.5 mt-2">
+                            <div>
+                              <FieldLabel
+                                label={t("settings.hostname")}
+                                hint="hostnamectl"
+                              />
+                              <input
+                                id="settings-hostname"
+                                value={hostname}
+                                onChange={(event) =>
+                                  setHostname(event.target.value)
+                                }
+                                className="panel-input h-[40px] px-3.5 text-[13px] font-medium"
+                                placeholder={t("settings.hostnamePlaceholder")}
+                              />
+                            </div>
+                            <div>
+                              <FieldLabel
+                                label={t("settings.timezone")}
+                                hint="timedatectl"
+                              />
+                              <TimezoneSelect
+                                value={timezone}
+                                onChange={setTimezone}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
 
+                      {/* Right: DNS Nameservers */}
                       <div>
                         <SectionHeader
-                          icon={<Globe2 size={17} />}
+                          icon={<Globe2 size={16} />}
                           title={t("settings.dnsNameservers")}
                           subtitle={t("settings.activeMode", {
                             mode: query.data.dnsMode,
@@ -1344,16 +1383,17 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </div>
                     </div>
 
+                    {/* Action Bar */}
                     <div className="border-t border-[var(--win-border)] pt-4 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="panel-muted-block flex h-10 w-10 items-center justify-center rounded-[12px] text-[var(--win-text)]">
-                          <BadgeCheck size={18} />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]">
+                          <BadgeCheck size={17} />
                         </div>
                         <div>
-                          <div className="text-[14px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
                             {t("settings.saveHostChanges")}
                           </div>
-                          <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                             {t("settings.saveHostChangesHint")}
                           </div>
                         </div>
@@ -1364,7 +1404,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         type="button"
                         onClick={handleUpdateIdentity}
                         disabled={mutation.isPending}
-                        className="panel-btn panel-btn--primary rounded-xl px-[22px] py-2.5 text-[13px]"
+                        className="panel-btn panel-btn--primary rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
                       >
                         {mutation.isPending ? (
                           <LoaderCircle size={14} className="animate-spin" />
@@ -1379,28 +1419,34 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   </div>
 
                   {/* Language Preferences Card */}
-                  <div className="panel-shell-card p-5">
-                    <div className="grid grid-cols-1 items-center gap-4 md:grid-cols-[1fr_260px]">
-                      <SectionHeader
-                        icon={<Globe2 size={17} />}
-                        title={t("settings.language.title")}
-                        subtitle={t("settings.language.subtitle")}
-                      />
-                      <div className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                        {t("language.label")}
-                        <PanelSelectMenu
-                          id="settings-language-select"
-                          value={language}
-                          onChange={(value) => setLanguage(value as Language)}
-                          options={[
-                            { value: "id", label: t("language.indonesian") },
-                            { value: "en", label: t("language.english") },
-                          ]}
-                          className="w-full"
-                          buttonClassName="panel-input min-h-[44px] justify-between rounded-[14px] px-3.5 py-2 text-[14px] font-semibold"
-                          dropdownClassName="left-auto right-0 z-[700] min-w-[190px]"
-                        />
+                  <div className="panel-shell-card p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)] mt-0.5">
+                        <Globe2 size={16} />
                       </div>
+                      <div>
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          {t("settings.language.title")}
+                        </div>
+                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 max-w-[480px]">
+                          {t("settings.language.subtitle")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-full sm:w-[220px] shrink-0">
+                      <PanelSelectMenu
+                        id="settings-language-select"
+                        value={language}
+                        onChange={(value) => setLanguage(value as Language)}
+                        options={[
+                          { value: "id", label: t("language.indonesian") },
+                          { value: "en", label: t("language.english") },
+                        ]}
+                        className="w-full"
+                        buttonClassName="panel-input min-h-[40px] justify-between rounded-xl px-3.5 py-2 text-[13px] font-semibold"
+                        dropdownClassName="left-auto right-0 z-[700] min-w-[190px]"
+                      />
                     </div>
                   </div>
                 </div>
@@ -3479,245 +3525,485 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {/* ── 5. Push Notifications & Listener ── */}
               {activeTab === "notifications" && (
-                <div className="panel-shell-card overflow-hidden p-0">
-                  <div className="relative border-b border-[var(--border-subtle)] bg-[var(--panel-accent-gradient)] p-5">
-                    <div className="absolute right-5 top-5 hidden rounded-full bg-[var(--panel-elevated-surface)] p-3 shadow-[var(--panel-soft-shadow)] backdrop-blur md:block">
-                      <Smartphone
-                        size={24}
-                        className="text-[var(--panel-primary-text)]"
-                      />
-                    </div>
-                    <div className="flex flex-wrap items-start justify-between gap-3 pr-0 md:pr-16">
-                      <SectionHeader
-                        icon={<Smartphone size={17} />}
-                        title={t("settings.listener.title")}
-                        subtitle={t("settings.listener.subtitle")}
-                      />
-                      <div
-                        className={`panel-badge ${capturedWS.connected ? "panel-badge--success" : "panel-badge--warning"} mt-1 flex items-center gap-1.5`}
-                      >
-                        <span
-                          className={`panel-status-dot ${capturedWS.connected ? "bg-[var(--panel-success-text)]" : "bg-[var(--panel-warning-text)]"}`}
-                        />
-                        {capturedWS.connected
-                          ? t("settings.listener.realtimeConnected")
-                          : t("settings.listener.realtimeReconnecting")}
+                <div className="space-y-3.5">
+                  {/* Service Status Banner */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] border border-[var(--panel-primary-text)]/20 shadow-xs">
+                        <Smartphone size={17} />
+                      </div>
+                      <div>
+                        <div className="text-[13.5px] font-bold text-[var(--win-text)]">
+                          {t("settings.listener.title")}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 max-w-[540px]">
+                          {t("settings.listener.subtitle")}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-1 gap-2.5 lg:grid-cols-3">
-                      <div className="panel-muted-block rounded-[14px] px-3.5 py-3">
-                        <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                          {t("settings.listener.stepRegisterDevice")}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`inline-flex items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-3 py-1.5 text-[11.5px] font-medium ${
+                          capturedWS.connected
+                            ? "text-[var(--panel-success-text)]"
+                            : "text-amber-500"
+                        }`}
+                      >
+                        <span
+                          className={`h-2 w-2 rounded-full ${
+                            capturedWS.connected
+                              ? "bg-[var(--panel-success-text)] animate-pulse"
+                              : "bg-amber-500"
+                          }`}
+                        />
+                        <span>
+                          {capturedWS.connected
+                            ? t("settings.listener.realtimeConnected")
+                            : t("settings.listener.realtimeReconnecting")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Integration Endpoints Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-3.5">
+                    <SectionHeader
+                      icon={<Wifi size={16} />}
+                      title="Integration Endpoints"
+                      subtitle="REST API & WebSocket URLs for listener client applications"
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Step 1: Register */}
+                      <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                              {t("settings.listener.stepRegisterDevice")}
+                            </span>
+                            <span className="panel-badge panel-badge--success text-[9.5px] font-mono font-bold">
+                              POST
+                            </span>
+                          </div>
+                          <code className="panel-mono mt-2 block break-all text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] p-2 rounded-lg border border-[var(--win-border)]">
+                            {listenerRegisterUrl}
+                          </code>
                         </div>
-                        <code className="panel-mono mt-1 block break-all text-[12px] text-[var(--win-text)]">
-                          POST {listenerRegisterUrl}
-                        </code>
                         <button
                           type="button"
-                          className="panel-btn panel-btn--ghost mt-2 rounded-lg px-3 py-2 text-[12px]"
+                          className="panel-btn panel-btn--ghost w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
                           onClick={() =>
                             void copyTextToClipboard(listenerRegisterUrl)
                           }
                         >
-                          <Copy size={11} /> {t("settings.listener.copyUrl")}
+                          <Copy size={12} /> {t("settings.listener.copyUrl")}
                         </button>
                       </div>
-                      <div className="panel-muted-block rounded-[14px] px-3.5 py-3">
-                        <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                          {t("settings.listener.stepSendNotification")}
+
+                      {/* Step 2: Send Webhook */}
+                      <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                              {t("settings.listener.stepSendNotification")}
+                            </span>
+                            <span className="panel-badge panel-badge--success text-[9.5px] font-mono font-bold">
+                              POST
+                            </span>
+                          </div>
+                          <code className="panel-mono mt-2 block break-all text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] p-2 rounded-lg border border-[var(--win-border)]">
+                            {listenerWebhookUrl}
+                          </code>
                         </div>
-                        <code className="panel-mono mt-1 block break-all text-[12px] text-[var(--win-text)]">
-                          POST {listenerWebhookUrl}
-                        </code>
                         <button
                           type="button"
-                          className="panel-btn panel-btn--ghost mt-2 rounded-lg px-3 py-2 text-[12px]"
+                          className="panel-btn panel-btn--ghost w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
                           onClick={() =>
                             void copyTextToClipboard(listenerWebhookUrl)
                           }
                         >
-                          <Copy size={11} /> {t("settings.listener.copyUrl")}
+                          <Copy size={12} /> {t("settings.listener.copyUrl")}
                         </button>
                       </div>
-                      <div className="panel-muted-block rounded-[14px] px-3.5 py-3">
-                        <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-                          {t("settings.listener.stepRealtimeAdmin")}
+
+                      {/* Step 3: Realtime Admin Stream */}
+                      <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                              {t("settings.listener.stepRealtimeAdmin")}
+                            </span>
+                            <span className="panel-badge panel-badge--info text-[9.5px] font-mono font-bold">
+                              WS
+                            </span>
+                          </div>
+                          <code className="panel-mono mt-2 block break-all text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] p-2 rounded-lg border border-[var(--win-border)]">
+                            {listenerSocketUrl}
+                          </code>
                         </div>
-                        <code className="panel-mono mt-1 block break-all text-[12px] text-[var(--win-text)]">
-                          GET {listenerSocketUrl}
-                        </code>
                         <button
                           type="button"
-                          className="panel-btn panel-btn--ghost mt-2 rounded-lg px-3 py-2 text-[12px]"
+                          className="panel-btn panel-btn--ghost w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
                           onClick={() =>
                             void copyTextToClipboard(listenerSocketUrl)
                           }
                         >
-                          <Copy size={11} /> {t("settings.listener.copyWs")}
+                          <Copy size={12} /> {t("settings.listener.copyWs")}
                         </button>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="mt-4 rounded-[18px] border border-[var(--panel-elevated-border)] bg-[var(--panel-elevated-surface)] p-4 shadow-[var(--panel-soft-shadow)] backdrop-blur">
-                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="text-[13px] font-bold text-[var(--win-text)]">
-                            {t("settings.listener.manageTitle")}
-                          </div>
-                          <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
-                            {t("settings.listener.manageSubtitle")}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn--ghost rounded-xl px-3 py-2 text-[12px]"
-                          onClick={() =>
-                            setListenerApiKey(
-                              `ypnl_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`,
-                            )
-                          }
-                        >
-                          <RefreshCcw size={12} />{" "}
-                          {t("settings.listener.generateKey")}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr_160px]">
-                        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                          {t("settings.listener.deviceId")}
-                          <input
-                            id="notification-device-id"
-                            value={listenerDeviceId}
-                            onChange={(event) =>
-                              setListenerDeviceId(event.target.value)
-                            }
-                            placeholder={t(
-                              "settings.listener.deviceIdPlaceholder",
-                            )}
-                            className="panel-input text-[14px]"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                          {t("settings.listener.newApiKey")}
-                          <input
-                            id="notification-device-api-key"
-                            type="password"
-                            value={listenerApiKey}
-                            onChange={(event) =>
-                              setListenerApiKey(event.target.value)
-                            }
-                            placeholder={t(
-                              "settings.listener.newApiKeyPlaceholder",
-                            )}
-                            className="panel-input text-[14px]"
-                          />
-                        </label>
-                        <div className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)]">
-                          {t("settings.listener.status")}
-                          <PanelSelectMenu
-                            id="notification-device-status"
-                            value={listenerStatus}
-                            onChange={setListenerStatus}
-                            options={[
-                              { value: "active", label: "active" },
-                              { value: "inactive", label: "inactive" },
-                              { value: "blocked", label: "blocked" },
-                            ]}
-                            className="w-full"
-                            buttonClassName="panel-input min-h-[44px] justify-between rounded-[14px] px-3.5 py-2 text-[14px] font-semibold"
-                            dropdownClassName="left-auto right-0 z-[700] min-w-[180px]"
-                          />
-                        </div>
-                        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[var(--text-secondary)] xl:col-span-3">
-                          {t("settings.listener.packageFilter")}{" "}
-                          <span className="font-normal opacity-70">
-                            {t("settings.listener.packageHint")}
-                          </span>
-                          <input
-                            id="notification-device-package-filter"
-                            value={listenerPackageFilter}
-                            onChange={(event) =>
-                              setListenerPackageFilter(event.target.value)
-                            }
-                            placeholder={t(
-                              "settings.listener.packageFilterPlaceholder",
-                            )}
-                            className="panel-input text-[14px]"
-                          />
-                        </label>
-                      </div>
-
-                      <p
-                        id="notification-device-api-key-help"
-                        className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]"
+                  {/* Manage Listener API Key Form Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <SectionHeader
+                        icon={<ShieldCheck size={16} />}
+                        title={t("settings.listener.manageTitle")}
+                        subtitle={t("settings.listener.manageSubtitle")}
+                      />
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--ghost rounded-xl px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
+                        onClick={() =>
+                          setListenerApiKey(
+                            `ypnl_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`,
+                          )
+                        }
                       >
-                        {t("settings.listener.apiKeyHelp")}
-                      </p>
+                        <RefreshCcw size={12} />{" "}
+                        {t("settings.listener.generateKey")}
+                      </button>
+                    </div>
 
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          id="notification-save-api-key"
-                          type="button"
-                          onClick={handleSaveListenerDevice}
-                          disabled={registerDeviceMutation.isPending}
-                          className="panel-btn panel-btn--primary rounded-xl px-4 py-2.5 text-[12px]"
-                        >
-                          {registerDeviceMutation.isPending ? (
-                            <LoaderCircle size={13} className="animate-spin" />
-                          ) : (
-                            <Save size={13} />
-                          )}
-                          {t("settings.listener.saveApiKey")}
-                        </button>
-                        <button
-                          id="notification-update-device-meta"
-                          type="button"
-                          onClick={handleUpdateListenerMetadata}
-                          disabled={updateDeviceMutation.isPending}
-                          className="panel-btn panel-btn--ghost rounded-xl"
-                        >
-                          {updateDeviceMutation.isPending ? (
-                            <LoaderCircle size={13} className="animate-spin" />
-                          ) : (
-                            <BadgeCheck size={13} />
-                          )}
-                          {t("settings.listener.updateMeta")}
-                        </button>
-                        <button
-                          type="button"
-                          className="panel-btn panel-btn--ghost rounded-xl"
-                          onClick={() =>
-                            void copyTextToClipboard(listenerApiKey)
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div>
+                        <FieldLabel label={t("settings.listener.deviceId")} />
+                        <input
+                          id="notification-device-id"
+                          value={listenerDeviceId}
+                          onChange={(event) =>
+                            setListenerDeviceId(event.target.value)
                           }
-                          disabled={!listenerApiKey}
-                        >
-                          <Copy size={13} /> {t("settings.listener.copyNewKey")}
-                        </button>
+                          placeholder={t(
+                            "settings.listener.deviceIdPlaceholder",
+                          )}
+                          className="panel-input h-[38px] px-3 text-[12.5px] font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <FieldLabel label={t("settings.listener.newApiKey")} />
+                        <input
+                          id="notification-device-api-key"
+                          type="password"
+                          value={listenerApiKey}
+                          onChange={(event) =>
+                            setListenerApiKey(event.target.value)
+                          }
+                          placeholder={t(
+                            "settings.listener.newApiKeyPlaceholder",
+                          )}
+                          className="panel-input panel-mono h-[38px] px-3 text-[12.5px]"
+                        />
+                      </div>
+
+                      <div>
+                        <FieldLabel label={t("settings.listener.status")} />
+                        <PanelSelectMenu
+                          id="notification-device-status"
+                          value={listenerStatus}
+                          onChange={setListenerStatus}
+                          options={[
+                            { value: "active", label: "active" },
+                            { value: "inactive", label: "inactive" },
+                            { value: "blocked", label: "blocked" },
+                          ]}
+                          className="w-full"
+                          buttonClassName="panel-input min-h-[38px] justify-between rounded-xl px-3 py-1.5 text-[12.5px] font-medium"
+                          dropdownClassName="left-auto right-0 z-[700] min-w-[180px]"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <FieldLabel
+                          label={t("settings.listener.packageFilter")}
+                          hint={t("settings.listener.packageHint")}
+                        />
+                        <input
+                          id="notification-device-package-filter"
+                          value={listenerPackageFilter}
+                          onChange={(event) =>
+                            setListenerPackageFilter(event.target.value)
+                          }
+                          placeholder={t(
+                            "settings.listener.packageFilterPlaceholder",
+                          )}
+                          className="panel-input h-[38px] px-3 text-[12.5px]"
+                        />
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                      <div className="rounded-[16px] border border-[var(--panel-elevated-border)] bg-[var(--panel-elevated-surface)] p-3.5 backdrop-blur">
-                        <div className="mb-2 text-[12px] font-bold text-[var(--win-text)]">
+                    <p
+                      id="notification-device-api-key-help"
+                      className="text-[11.5px] leading-relaxed text-[var(--text-secondary)] opacity-80"
+                    >
+                      {t("settings.listener.apiKeyHelp")}
+                    </p>
+
+                    <div className="border-t border-[var(--win-border)] pt-3.5 flex flex-wrap items-center gap-2">
+                      <button
+                        id="notification-save-api-key"
+                        type="button"
+                        onClick={handleSaveListenerDevice}
+                        disabled={registerDeviceMutation.isPending}
+                        className="panel-btn panel-btn--primary rounded-xl px-4 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
+                      >
+                        {registerDeviceMutation.isPending ? (
+                          <LoaderCircle size={13} className="animate-spin" />
+                        ) : (
+                          <Save size={13} />
+                        )}
+                        {t("settings.listener.saveApiKey")}
+                      </button>
+                      <button
+                        id="notification-update-device-meta"
+                        type="button"
+                        onClick={handleUpdateListenerMetadata}
+                        disabled={updateDeviceMutation.isPending}
+                        className="panel-btn panel-btn--ghost rounded-xl px-3.5 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
+                      >
+                        {updateDeviceMutation.isPending ? (
+                          <LoaderCircle size={13} className="animate-spin" />
+                        ) : (
+                          <BadgeCheck size={13} />
+                        )}
+                        {t("settings.listener.updateMeta")}
+                      </button>
+                      <button
+                        type="button"
+                        className="panel-btn panel-btn--ghost rounded-xl px-3.5 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
+                        onClick={() =>
+                          void copyTextToClipboard(listenerApiKey)
+                        }
+                        disabled={!listenerApiKey}
+                      >
+                        <Copy size={13} /> {t("settings.listener.copyNewKey")}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Registered Devices & Live Notifications 2-Column Grid */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-stretch">
+                    {/* Registered Devices */}
+                    <div className="panel-shell-card p-4.5 flex flex-col justify-between">
+                      <div>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <SectionHeader
+                            icon={<Smartphone size={16} />}
+                            title={t("settings.listener.registeredDevices")}
+                          />
+                          <span className="panel-badge panel-badge--info text-[10.5px]">
+                            {t("settings.listener.deviceCount", {
+                              count: notificationDevices.length,
+                            })}
+                          </span>
+                        </div>
+
+                        {notificationDevicesQuery.isLoading ? (
+                          <div className="panel-loading min-h-[100px]">
+                            <LoaderCircle size={16} className="animate-spin" />
+                          </div>
+                        ) : !notificationDevices.length ? (
+                          <div className="panel-empty min-h-[140px] text-[12px] flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
+                            <Smartphone size={24} className="opacity-40 mb-1" />
+                            <span>{t("settings.listener.noDevices")}</span>
+                          </div>
+                        ) : (
+                          <div className="flex max-h-[280px] flex-col gap-2 overflow-y-auto pr-1">
+                            {notificationDevices.map((device) => (
+                              <div
+                                key={device.id}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3.5 py-2.5 transition hover:border-[var(--panel-primary-solid)]/40"
+                              >
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <div className="rounded-lg bg-[var(--panel-primary-bg)] p-1.5 text-[var(--panel-primary-text)] shrink-0">
+                                    <Smartphone size={15} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="truncate text-[12.5px] font-semibold text-[var(--win-text)]">
+                                      {device.deviceId}
+                                    </div>
+                                    <div className="truncate text-[11px] text-[var(--text-secondary)]">
+                                      {(device.packageFilter ?? []).length
+                                        ? (device.packageFilter ?? []).join(", ")
+                                        : t("settings.listener.allPackages")}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex flex-shrink-0 items-center gap-1.5">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10.5px] font-medium ${
+                                      device.status === "active"
+                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                        : device.status === "inactive"
+                                          ? "bg-gray-500/10 text-gray-400 border border-gray-500/20"
+                                          : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 rounded-full ${
+                                        device.status === "active"
+                                          ? "bg-emerald-400"
+                                          : device.status === "inactive"
+                                            ? "bg-gray-400"
+                                            : "bg-rose-400"
+                                      }`}
+                                    />
+                                    {device.status}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="panel-btn panel-btn--ghost rounded-lg px-2.5 py-1 text-[11px] font-medium"
+                                    onClick={() =>
+                                      handleUseDeviceForEdit(
+                                        device.deviceId,
+                                        device.packageFilter ?? [],
+                                        device.status,
+                                      )
+                                    }
+                                  >
+                                    {t("common.edit")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="panel-icon-btn h-7 w-7 rounded-lg text-rose-400 hover:bg-rose-500/10"
+                                    onClick={() =>
+                                      void handleDeleteListenerDevice(
+                                        device.deviceId,
+                                      )
+                                    }
+                                    disabled={deleteDeviceMutation.isPending}
+                                    aria-label={t("common.delete")}
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Latest Notifications Feed */}
+                    <div className="panel-shell-card p-4.5 flex flex-col justify-between">
+                      <div>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <SectionHeader
+                            icon={<BadgeCheck size={16} />}
+                            title={t("settings.listener.latestNotifications")}
+                          />
+                          <button
+                            id="notifications-refresh"
+                            type="button"
+                            onClick={() =>
+                              void capturedNotificationsQuery.refetch()
+                            }
+                            className="panel-btn panel-btn--ghost rounded-lg px-2.5 py-1 text-[11.5px] font-semibold flex items-center gap-1.5"
+                          >
+                            <RefreshCcw
+                              size={11}
+                              className={
+                                capturedNotificationsQuery.isFetching
+                                  ? "animate-spin"
+                                  : ""
+                              }
+                            />
+                            {t("common.refresh")}
+                          </button>
+                        </div>
+
+                        {capturedNotificationsQuery.isLoading ? (
+                          <div className="panel-loading min-h-[100px]">
+                            <LoaderCircle size={16} className="animate-spin" />
+                          </div>
+                        ) : !capturedNotifications.length ? (
+                          <div className="panel-empty min-h-[140px] text-[12px] flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
+                            <BadgeCheck size={24} className="opacity-40 mb-1" />
+                            <span>{t("settings.listener.noNotifications")}</span>
+                          </div>
+                        ) : (
+                          <div className="flex max-h-[280px] flex-col gap-2 overflow-y-auto pr-1">
+                            {capturedNotifications.slice(0, 10).map((notif) => (
+                              <div
+                                key={notif.id}
+                                className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12px]"
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className="font-bold text-[var(--win-text)]">
+                                    {notif.appName || notif.packageName}
+                                  </span>
+                                  <span className="panel-mono text-[10.5px] text-[var(--text-secondary)]">
+                                    {new Date(
+                                      notif.receivedAt || notif.createdAt,
+                                    ).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                                <div className="text-[12px] text-[var(--win-text)] font-medium">
+                                  {notif.title}
+                                </div>
+                                <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">
+                                  {notif.body}
+                                </div>
+                                {notif.amountDetected ? (
+                                  <div className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-bold text-emerald-400">
+                                    <BadgeCheck size={11} />
+                                    Rp{" "}
+                                    {Number(notif.amountDetected).toLocaleString(
+                                      "id-ID",
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schema Reference Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-3">
+                    <SectionHeader
+                      icon={<Copy size={16} />}
+                      title="Payload & Schema Reference"
+                      subtitle="JSON payload specifications for listener registration and incoming webhook callbacks"
+                    />
+
+                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                      <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
+                        <div className="mb-1.5 text-[11.5px] font-bold text-[var(--win-text)]">
                           {t("settings.listener.registerBodyTitle")}
                         </div>
-                        <pre className="panel-mono overflow-x-auto rounded-[12px] bg-[var(--panel-code-bg)] p-3 text-[12px] leading-5 text-[var(--panel-code-text)]">{`{
+                        <pre className="panel-mono overflow-x-auto rounded-lg bg-[var(--panel-code-bg)] p-2.5 text-[11.5px] leading-relaxed text-[var(--panel-code-text)] border border-[var(--win-border)]">{`{
   "deviceId": "wimboro-device-001",
-  "apiKey": "buat-api-key-random-di-app",
+  "apiKey": "custom-api-key",
   "packageFilter": ["com.whatsapp", "id.dana", "com.gojek.gopay"]
 }`}</pre>
-                        <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
+                        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                           {t("settings.listener.registerBodyHelpStart")}{" "}
                           <b>apiKey</b>{" "}
                           {t("settings.listener.registerBodyHelpEnd")}
                         </p>
                       </div>
-                      <div className="rounded-[16px] border border-[var(--panel-elevated-border)] bg-[var(--panel-elevated-surface)] p-3.5 backdrop-blur">
-                        <div className="mb-2 text-[12px] font-bold text-[var(--win-text)]">
+
+                      <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
+                        <div className="mb-1.5 text-[11.5px] font-bold text-[var(--win-text)]">
                           {t("settings.listener.webhookBodyTitle")}
                         </div>
-                        <pre className="panel-mono overflow-x-auto rounded-[12px] bg-[var(--panel-code-bg)] p-3 text-[12px] leading-5 text-[var(--panel-code-text)]">{`Header:
+                        <pre className="panel-mono overflow-x-auto rounded-lg bg-[var(--panel-code-bg)] p-2.5 text-[11.5px] leading-relaxed text-[var(--panel-code-text)] border border-[var(--win-border)]">{`Header:
 X-API-Key: <apiKey device>
 
 Body:
@@ -3728,7 +4014,7 @@ Body:
   "text": "${t("settings.listener.exampleText")}",
   "amountDetected": "25000"
 }`}</pre>
-                        <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
+                        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                           {t("settings.listener.webhookBodyHelpStart")}{" "}
                           <b>X-API-Key</b>{" "}
                           {t("settings.listener.webhookBodyHelpEnd")}{" "}
@@ -3738,174 +4024,13 @@ Body:
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 items-stretch gap-4 p-5 xl:grid-cols-2">
-                    {/* Devices */}
-                    <div className="flex h-full min-h-[190px] flex-col">
-                      <div className="mb-2.5 flex min-h-[44px] items-center justify-between gap-3">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
-                          {t("settings.listener.registeredDevices")}
-                        </span>
-                        <span className="panel-badge panel-badge--info">
-                          {t("settings.listener.deviceCount", {
-                            count: notificationDevices.length,
-                          })}
-                        </span>
-                      </div>
-                      {notificationDevicesQuery.isLoading ? (
-                        <div className="panel-loading min-h-[80px]">
-                          <LoaderCircle size={16} className="animate-spin" />
-                        </div>
-                      ) : !notificationDevices.length ? (
-                        <div className="panel-empty flex-1 min-h-[150px] text-[12px]">
-                          <Smartphone size={26} />
-                          <span>{t("settings.listener.noDevices")}</span>
-                        </div>
-                      ) : (
-                        <div className="flex max-h-[340px] min-h-[150px] flex-1 flex-col gap-2 overflow-y-auto pr-1">
-                          {notificationDevices.map((device) => (
-                            <div
-                              key={device.id}
-                              className="panel-muted-block flex items-center justify-between gap-3 rounded-[14px] px-4 py-3 transition hover:-translate-y-[1px] hover:shadow-[var(--panel-hover-shadow)]"
-                            >
-                              <div className="flex min-w-0 items-center gap-3">
-                                <div className="rounded-xl bg-[var(--panel-primary-soft)] p-2 text-[var(--panel-primary-text)]">
-                                  <Smartphone size={16} />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="truncate text-[12px] font-semibold text-[var(--win-text)]">
-                                    {device.deviceId}
-                                  </div>
-                                  <div className="truncate text-[12px] text-[var(--text-secondary)]">
-                                    {(device.packageFilter ?? []).length
-                                      ? (device.packageFilter ?? []).join(", ")
-                                      : t("settings.listener.allPackages")}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex flex-shrink-0 items-center gap-1.5">
-                                <span
-                                  className={`panel-status-dot ${
-                                    device.status === "active"
-                                      ? "bg-[var(--panel-success-text)]"
-                                      : device.status === "inactive"
-                                        ? "bg-[var(--text-secondary)]"
-                                        : "bg-[var(--panel-danger-text)]"
-                                  }`}
-                                />
-                                <span className="text-[12px] text-[var(--text-secondary)]">
-                                  {device.status}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="panel-btn panel-btn--ghost ml-1 rounded-lg px-3 py-2 text-[12px]"
-                                  onClick={() =>
-                                    handleUseDeviceForEdit(
-                                      device.deviceId,
-                                      device.packageFilter ?? [],
-                                      device.status,
-                                    )
-                                  }
-                                >
-                                  {t("common.edit")}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="panel-btn panel-btn--ghost rounded-lg px-3 py-2 text-[12px] text-[var(--panel-danger-text)]"
-                                  onClick={() =>
-                                    void handleDeleteListenerDevice(
-                                      device.deviceId,
-                                    )
-                                  }
-                                  disabled={deleteDeviceMutation.isPending}
-                                >
-                                  {t("common.delete")}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex h-full min-h-[190px] flex-col">
-                      <div className="mb-2.5 flex min-h-[44px] items-center justify-between gap-3">
-                        <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
-                          {t("settings.listener.latestNotifications")}
-                        </span>
-                        <button
-                          id="notifications-refresh"
-                          type="button"
-                          onClick={() =>
-                            void capturedNotificationsQuery.refetch()
-                          }
-                          className="panel-btn panel-btn--ghost rounded-[8px] px-3 py-2 text-[12px]"
-                        >
-                          <RefreshCcw
-                            size={11}
-                            className={
-                              capturedNotificationsQuery.isFetching
-                                ? "animate-spin"
-                                : ""
-                            }
-                          />
-                          {t("common.refresh")}
-                        </button>
-                      </div>
-
-                      {capturedNotificationsQuery.isLoading ? (
-                        <div className="panel-loading min-h-[80px]">
-                          <LoaderCircle size={16} className="animate-spin" />
-                        </div>
-                      ) : !capturedNotifications.length ? (
-                        <div className="panel-empty flex-1 min-h-[150px] text-[12px]">
-                          <BadgeCheck size={26} />
-                          <span>{t("settings.listener.noNotifications")}</span>
-                        </div>
-                      ) : (
-                        <div className="flex max-h-[340px] min-h-[150px] flex-1 flex-col gap-2 overflow-y-auto pr-1">
-                          {capturedNotifications.slice(0, 10).map((notif) => (
-                            <div
-                              key={notif.id}
-                              className="panel-muted-block rounded-[12px] px-3.5 py-3"
-                            >
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[12px] font-semibold text-[var(--win-text)]">
-                                  {notif.appName || notif.packageName}
-                                </span>
-                                <span className="panel-mono text-[12px] text-[var(--text-secondary)]">
-                                  {new Date(
-                                    notif.receivedAt || notif.createdAt,
-                                  ).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="text-[12px] text-[var(--win-text)] font-medium">
-                                {notif.title}
-                              </div>
-                              <div className="text-[12px] text-[var(--text-secondary)] mt-0.5 line-clamp-2">
-                                {notif.body}
-                              </div>
-                              {notif.amountDetected ? (
-                                <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[var(--panel-success-text)]/10 px-2.5 py-0.5 text-[12px] font-semibold text-[var(--panel-success-text)]">
-                                  <BadgeCheck size={10} />
-                                  Rp{" "}
-                                  {Number(notif.amountDetected).toLocaleString(
-                                    "id-ID",
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 panel-muted-block rounded-[14px] px-4 py-3 text-[12px] leading-5 text-[var(--text-secondary)]">
-                    <strong className="text-[var(--win-text)]">
+                  {/* Android Permission Guide Note */}
+                  <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+                    <strong className="text-[var(--win-text)] font-semibold">
                       {t("settings.listener.howItWorksTitle")}
                     </strong>{" "}
                     {t("settings.listener.howItWorksStart")}{" "}
-                    <code className="panel-mono text-[12px] text-[var(--win-text)]">
+                    <code className="panel-mono text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] px-1.5 py-0.5 rounded border border-[var(--win-border)]">
                       NotificationListener
                     </code>{" "}
                     {t("settings.listener.howItWorksEnd")}
