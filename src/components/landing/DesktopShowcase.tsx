@@ -161,7 +161,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('docker')}
             style={{ zIndex: getZIndex('docker') }}
-            className={`absolute top-6 sm:top-8 left-20 sm:left-24 w-[76%] sm:w-[50%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`absolute top-6 sm:top-7 left-20 sm:left-24 w-[72%] sm:w-[46%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'docker'
                 ? 'border-cyan-500/50 bg-[#080d1a]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -234,7 +234,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('cloudflare')}
             style={{ zIndex: getZIndex('cloudflare') }}
-            className={`absolute top-28 sm:top-32 right-3 sm:right-6 w-[68%] sm:w-[42%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`absolute top-36 sm:top-40 right-3 sm:right-6 w-[60%] sm:w-[36%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'cloudflare'
                 ? 'border-sky-500/50 bg-[#070b16]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -289,7 +289,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('terminal')}
             style={{ zIndex: getZIndex('terminal') }}
-            className={`absolute bottom-6 sm:bottom-8 left-26 sm:left-36 w-[78%] sm:w-[54%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
+            className={`absolute bottom-12 sm:bottom-16 left-24 sm:left-32 w-[70%] sm:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'terminal'
                 ? 'border-emerald-500/50 bg-[#03060c]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
