@@ -417,6 +417,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     setDesktopIconFontWeight,
     desktopIconShadow,
     setDesktopIconShadow,
+    resetToDefaults,
   } = useThemeStore();
   const autoHideDock = useWindowStore((s) => s.autoHideDock);
   const toggleDockAutoHide = useWindowStore((s) => s.toggleDockAutoHide);
@@ -1137,6 +1138,26 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       resetPrimaryPasswordMutation.mutate(primaryPasswordPayload);
   };
 
+  const handleResetAllUIDefaults = async () => {
+    const isConfirmed = await alertLib.confirm(
+      t("settings.appearance.resetConfirmTitle"),
+      t("settings.appearance.resetConfirmMessage"),
+      t("settings.appearance.resetConfirmAction"),
+      t("common.cancel"),
+      "warning",
+      "settings",
+    );
+    if (isConfirmed) {
+      resetToDefaults();
+      alertLib.fire(
+        t("settings.appearance.resetSuccessTitle"),
+        t("settings.appearance.resetSuccessMessage"),
+        "success",
+        "settings",
+      );
+    }
+  };
+
   const SETTINGS_TABS: {
     key: SettingsTabKey;
     label: string;
@@ -1602,24 +1623,26 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </div>
                     </div>
 
-                    {/* Real-time Typography Preview */}
-                    <div className="pt-2 border-t border-[var(--win-border)]">
-                      <div className="text-[11.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-                        {t("settings.fonts.preview")}
-                      </div>
-                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[14px] font-bold text-[var(--win-text)]">
-                            {t("settings.fonts.previewSample")}
-                          </span>
-                          <span className="panel-badge panel-badge--success shrink-0 text-[10px]">
-                            {fontFamily.toUpperCase()} • {fontSize.toUpperCase()}
-                          </span>
+
+                    {/* Reset All UI & Appearance to Default Card */}
+                    <div className="pt-2 border-t border-[var(--win-border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[12.5px] font-bold text-[var(--win-text)]">
+                          {t("settings.appearance.resetTitle")}
                         </div>
-                        <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-                          Docker containers, Cloudflare Tunnels, SQLite databases, and server resource metrics rendered with high clarity.
-                        </p>
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 max-w-[520px] leading-relaxed">
+                          {t("settings.appearance.resetSubtitle")}
+                        </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={handleResetAllUIDefaults}
+                        className="panel-btn rounded-xl px-3.5 py-2 text-[12px] font-semibold flex items-center gap-1.5 shrink-0 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 cursor-pointer transition-colors"
+                      >
+                        <RefreshCcw size={13} />
+                        {t("settings.appearance.resetBtn")}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2105,39 +2128,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             }`}
                           />
                         </button>
-                      </div>
-
-                      {/* Icon Label Live Preview */}
-                      <div className="p-3 rounded-xl border border-[var(--win-border)] bg-slate-900/60 backdrop-blur-sm flex items-center justify-between gap-3 text-white">
-                        <span className="text-[11px] text-white/70 font-mono">
-                          Live Shortcut Preview:
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400">
-                            <Monitor size={14} />
-                          </div>
-                          <span
-                            className={`${
-                              desktopIconFontSize === "small"
-                                ? "text-[10px]"
-                                : desktopIconFontSize === "large"
-                                  ? "text-[12.5px]"
-                                  : "text-[11px]"
-                            } ${
-                              desktopIconFontWeight === "normal"
-                                ? "font-normal"
-                                : desktopIconFontWeight === "bold"
-                                  ? "font-bold"
-                                  : "font-medium"
-                            } ${
-                              desktopIconShadow
-                                ? "drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-white"
-                                : "text-white/90"
-                            }`}
-                          >
-                            Projects
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
