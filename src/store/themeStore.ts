@@ -198,6 +198,7 @@ interface ThemeStore {
   setCustomImage: (dataUrl: string) => Promise<void>
   syncCustomImage: () => Promise<void>
   toggleMode: () => void
+  resetToDefaults: () => void
   /** Returns the CSS background value for the current wallpaper+mode */
   getBackground: () => string
   /** Returns complete CSS properties object for desktop wallpaper rendering */
@@ -459,6 +460,40 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         applyTheme(mode)
         persist({ mode })
         return { mode }
+      })
+    },
+
+    resetToDefaults: () => {
+      const defaults: StoredTheme = {
+        mode: 'light',
+        wallpaper: 'default',
+        wallpaperFit: 'cover',
+        customImageUrl: null,
+        desktopIconStyle: 'framed',
+        desktopIconSize: 'small',
+        desktopIconFontSize: 'medium',
+        desktopIconFontWeight: 'medium',
+        desktopIconShadow: true,
+        lockScreenStyle: 'clock',
+        lockScreenEnabled: true,
+        requirePasswordOnWake: true,
+        wakeOnMouseMove: true,
+        soundEnabled: true,
+        soundVolume: 0.7,
+        autoLockTimeout: 0,
+        fontFamily: 'outfit',
+        fontSize: 'medium',
+      }
+      applyTheme('light')
+      applyFontFamily('outfit')
+      applyFontSize('medium')
+      try {
+        localStorage.setItem('ui-panel-theme', JSON.stringify(defaults))
+      } catch {}
+      set({
+        ...defaults,
+        isLocked: false,
+        wallpaperLoading: false,
       })
     },
   }
