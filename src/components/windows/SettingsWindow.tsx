@@ -13,30 +13,30 @@ import {
   EyeOff,
   Globe2,
   ImagePlus,
+  Key,
   Layout,
   LoaderCircle,
+  Lock,
   LockKeyhole,
+  Monitor,
   Moon,
   Palette,
   Plus,
   RefreshCcw,
   Save,
   Server,
-  ShieldCheck,
   Smartphone,
+  Sparkles,
   Sun,
+  Terminal,
   Trash2,
+  Type,
   Upload,
   Volume2,
   VolumeX,
-  Wifi,
   Waypoints,
+  Wifi,
   Zap,
-  Lock,
-  Terminal,
-  Sparkles,
-  Monitor,
-  Type,
 } from "lucide-react";
 import {
   copyTextToClipboard,
@@ -251,19 +251,19 @@ function DnsEditor({
     <div className="flex flex-col gap-3">
       {/* Active Nameservers List */}
       {nameservers.length === 0 ? (
-        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
-          <span className="flex items-center gap-2">
-            <Globe2 size={14} className="opacity-50" />
-            {t("settings.noNameservers")}
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
+          <Globe2 size={15} className="opacity-50 shrink-0" />
+          <span className="flex-1">{t("settings.noNameservers")}</span>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)] opacity-75 shrink-0">
+            system-default
           </span>
-          <span className="text-[10.5px] font-mono opacity-70">system-default</span>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
           {nameservers.map((nameserver, index) => (
             <div
               key={`${nameserver}-${index}`}
-              className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-solid)]/40 transition-colors"
+              className="flex items-center justify-between px-3.5 py-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-solid)]/40 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2
@@ -307,7 +307,7 @@ function DnsEditor({
           type="button"
           onClick={addEntry}
           disabled={!newEntry.trim()}
-          className="panel-btn panel-btn--primary h-[38px] px-3.5 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+          className="panel-btn panel-btn--primary h-[38px] px-3.5 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
           aria-label={t("settings.addNameserverAria")}
         >
           <Plus size={14} />
@@ -320,7 +320,7 @@ function DnsEditor({
         <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5 opacity-80">
           Quick Presets
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {PRESET_DNS.map((preset) => {
             const active = nameservers.includes(preset.value);
             return (
@@ -329,19 +329,21 @@ function DnsEditor({
                 type="button"
                 onClick={() => addPreset(preset.value)}
                 disabled={active}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${
+                className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
                   active
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 opacity-60 cursor-default"
-                    : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40"
+                    : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40 cursor-pointer"
                 }`}
               >
-                {active ? (
-                  <CheckCircle2 size={11} className="text-emerald-400" />
-                ) : (
-                  <Plus size={11} className="opacity-60" />
-                )}
-                <span>{preset.label}</span>
-                <span className="font-mono text-[10px] opacity-70">({preset.value})</span>
+                <div className="flex items-center gap-1.5 truncate">
+                  {active ? (
+                    <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
+                  ) : (
+                    <Plus size={11} className="opacity-60 shrink-0" />
+                  )}
+                  <span className="truncate">{preset.label}</span>
+                </div>
+                <span className="font-mono text-[9.5px] opacity-70 shrink-0">({preset.value})</span>
               </button>
             );
           })}
@@ -1312,9 +1314,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
                     <div className="flex items-center gap-2">
                       <div className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-3 py-1.5 text-[11.5px] text-[var(--win-text)] font-mono">
-                        <ShieldCheck
+                        <Globe2
                           size={13}
-                          className="text-[var(--panel-success-text)]"
+                          className="text-[var(--panel-primary-text)]"
                         />
                         <span>
                           DNS: <strong className="font-semibold text-[var(--win-text)]">{query.data.dnsMode}</strong>
@@ -1323,79 +1325,67 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     </div>
                   </div>
 
-                  {/* Main Host Configuration Card */}
+                  {/* Host Identity Card */}
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                      {/* Left: Identity */}
-                      <div className="flex flex-col justify-between">
-                        <div>
-                          <SectionHeader
-                            icon={<Server size={16} />}
-                            title={t("settings.identity")}
-                            subtitle={t("settings.identitySubtitle")}
-                          />
-                          <div className="flex flex-col gap-3.5 mt-2">
-                            <div>
-                              <FieldLabel
-                                label={t("settings.hostname")}
-                                hint="hostnamectl"
-                              />
-                              <input
-                                id="settings-hostname"
-                                value={hostname}
-                                onChange={(event) =>
-                                  setHostname(event.target.value)
-                                }
-                                className="panel-input h-[40px] px-3.5 text-[13px] font-medium"
-                                placeholder={t("settings.hostnamePlaceholder")}
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel
-                                label={t("settings.timezone")}
-                                hint="timedatectl"
-                              />
-                              <TimezoneSelect
-                                value={timezone}
-                                onChange={setTimezone}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                    <SectionHeader
+                      icon={<Server size={16} />}
+                      title={t("settings.identity")}
+                      subtitle={t("settings.identitySubtitle")}
+                    />
 
-                      {/* Right: DNS Nameservers */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <SectionHeader
-                          icon={<Globe2 size={16} />}
-                          title={t("settings.dnsNameservers")}
-                          subtitle={t("settings.activeMode", {
-                            mode: query.data.dnsMode,
-                            path: query.data.managedConfigPath,
-                          })}
+                        <FieldLabel
+                          label={t("settings.hostname")}
+                          hint="hostnamectl"
                         />
-                        <div className="mt-2">
-                          <DnsEditor
-                            nameservers={nameservers}
-                            onChange={setNameservers}
-                          />
-                        </div>
+                        <input
+                          id="settings-hostname"
+                          value={hostname}
+                          onChange={(event) =>
+                            setHostname(event.target.value)
+                          }
+                          className="panel-input h-[38px] px-3 text-[12.5px] font-medium"
+                          placeholder={t("settings.hostnamePlaceholder")}
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel
+                          label={t("settings.timezone")}
+                          hint="timedatectl"
+                        />
+                        <TimezoneSelect
+                          value={timezone}
+                          onChange={setTimezone}
+                        />
                       </div>
                     </div>
+                  </div>
+
+                  {/* DNS Configuration Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    <SectionHeader
+                      icon={<Globe2 size={16} />}
+                      title={t("settings.dnsNameservers")}
+                      subtitle={t("settings.activeMode", {
+                        mode: query.data.dnsMode,
+                        path: query.data.managedConfigPath,
+                      })}
+                    />
+
+                    <DnsEditor
+                      nameservers={nameservers}
+                      onChange={setNameservers}
+                    />
 
                     {/* Action Bar */}
                     <div className="border-t border-[var(--win-border)] pt-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]">
-                          <BadgeCheck size={17} />
+                      <div>
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          {t("settings.saveHostChanges")}
                         </div>
-                        <div>
-                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
-                            {t("settings.saveHostChanges")}
-                          </div>
-                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-                            {t("settings.saveHostChangesHint")}
-                          </div>
+                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
+                          {t("settings.saveHostChangesHint")}
                         </div>
                       </div>
 
@@ -1444,7 +1434,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           { value: "en", label: t("language.english") },
                         ]}
                         className="w-full"
-                        buttonClassName="panel-input min-h-[40px] justify-between rounded-xl px-3.5 py-2 text-[13px] font-semibold"
+                        buttonClassName="panel-input min-h-[38px] justify-between rounded-xl px-3.5 py-1.5 text-[12.5px] font-semibold"
                         dropdownClassName="left-auto right-0 z-[700] min-w-[190px]"
                       />
                     </div>
@@ -2635,7 +2625,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                           className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] text-left flex flex-col gap-1 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
-                            <ShieldCheck size={14} className="text-emerald-400" />
+                            <Sparkles size={14} className="text-emerald-400" />
                             <span>{t("settings.sound.unlockChime")}</span>
                           </div>
                           <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.sound.unlockChimeDesc")}</span>
@@ -2755,7 +2745,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                                 className="animate-spin"
                               />
                             ) : (
-                              <ShieldCheck size={14} />
+                              <BadgeCheck size={14} />
                             )}
                             {verifyCFMut.isPending
                               ? "Memverifikasi..."
@@ -3017,7 +3007,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
                   <div className="panel-shell-card p-5">
                     <SectionHeader
-                      icon={<ShieldCheck size={17} />}
+                      icon={<Waypoints size={17} />}
                       title={t("settings.allowedOrigins")}
                       subtitle={t("settings.allowedOriginsSubtitle")}
                     />
@@ -3077,113 +3067,120 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {/* ── 3. Security & Passwords ── */}
               {activeTab === "security" && (
-                <div className="space-y-4">
-                  <div className="panel-shell-card p-5">
+                <div className="space-y-3.5">
+                  {/* Primary Account Password Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
-                      icon={<LockKeyhole size={17} />}
+                      icon={<LockKeyhole size={16} />}
                       title={t("settings.primaryPasswordTitle")}
                       subtitle={t("settings.primaryPasswordSubtitle")}
                     />
 
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-                      <div className="space-y-3.5">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <div>
-                            <FieldLabel
-                              label={t("settings.newPassword")}
-                              hint={t("settings.minEightChars")}
-                            />
-                            <input
-                              id="settings-primary-password"
-                              type="password"
-                              value={primaryPassword}
-                              onChange={(event) =>
-                                setPrimaryPassword(event.target.value)
-                              }
-                              className="panel-input h-[42px] px-3.5 text-[13px]"
-                              placeholder={t("settings.enterNewPassword")}
-                            />
-                          </div>
-                          <div>
-                            <FieldLabel
-                              label={t("settings.confirmPassword")}
-                              hint={t("settings.mustMatch")}
-                            />
-                            <input
-                              id="settings-primary-password-confirm"
-                              type="password"
-                              value={primaryPasswordConfirm}
-                              onChange={(event) =>
-                                setPrimaryPasswordConfirm(event.target.value)
-                              }
-                              className="panel-input h-[42px] px-3.5 text-[13px]"
-                              placeholder={t("settings.repeatNewPassword")}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end">
-                          <button
-                            id="settings-primary-password-save"
-                            type="button"
-                            onClick={handleResetPrimaryPassword}
-                            disabled={
-                              resetPrimaryPasswordMutation.isPending ||
-                              !primaryPassword.trim() ||
-                              !primaryPasswordConfirm.trim()
-                            }
-                            className="panel-btn panel-btn--primary rounded-xl px-[18px] py-2.5 text-[13px]"
-                          >
-                            {resetPrimaryPasswordMutation.isPending ? (
-                              <LoaderCircle
-                                size={14}
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <LockKeyhole size={14} />
-                            )}
-                            {resetPrimaryPasswordMutation.isPending
-                              ? t("settings.changingPassword")
-                              : t("settings.changePrimaryPassword")}
-                          </button>
-                        </div>
+                    {/* Password Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <FieldLabel
+                          label={t("settings.newPassword")}
+                          hint={t("settings.minEightChars")}
+                        />
+                        <input
+                          id="settings-primary-password"
+                          type="password"
+                          value={primaryPassword}
+                          onChange={(event) =>
+                            setPrimaryPassword(event.target.value)
+                          }
+                          className="panel-input h-[40px] px-3.5 text-[13px]"
+                          placeholder={t("settings.enterNewPassword")}
+                        />
                       </div>
-
-                      <div className="panel-muted-block rounded-[16px] px-4 py-4 text-[12px] leading-6 text-[var(--text-secondary)]">
-                        <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--win-text)]">
-                          {t("settings.runtimeSecurityNote")}
-                        </div>
-                        <p>
-                          {t("settings.primaryPasswordSecurityNoteStart")}{" "}
-                          <strong className="text-[var(--win-text)]">
-                            {t("settings.panelLoginPassword")}
-                          </strong>{" "}
-                          {t("settings.primaryPasswordSecurityNoteEnd")}
-                          {t("settings.linuxUserPasswordNote")}{" "}
-                          <code className="panel-mono text-[12px] text-[var(--win-text)]">
-                            ui-panel
-                          </code>{" "}
-                          {t("settings.notChanged")}.
-                        </p>
+                      <div>
+                        <FieldLabel
+                          label={t("settings.confirmPassword")}
+                          hint={t("settings.mustMatch")}
+                        />
+                        <input
+                          id="settings-primary-password-confirm"
+                          type="password"
+                          value={primaryPasswordConfirm}
+                          onChange={(event) =>
+                            setPrimaryPasswordConfirm(event.target.value)
+                          }
+                          className="panel-input h-[40px] px-3.5 text-[13px]"
+                          placeholder={t("settings.repeatNewPassword")}
+                        />
                       </div>
+                    </div>
+
+                    {/* Security Notice Alert */}
+                    <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex items-start gap-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+                      <LockKeyhole
+                        size={16}
+                        className="text-[var(--panel-primary-text)] shrink-0 mt-0.5"
+                      />
+                      <div>
+                        {t("settings.primaryPasswordSecurityNoteStart")}{" "}
+                        <strong className="text-[var(--win-text)] font-semibold">
+                          {t("settings.panelLoginPassword")}
+                        </strong>{" "}
+                        {t("settings.primaryPasswordSecurityNoteEnd")}
+                        {t("settings.linuxUserPasswordNote")}{" "}
+                        <code className="panel-mono text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] px-1.5 py-0.5 rounded border border-[var(--win-border)]">
+                          ui-panel
+                        </code>{" "}
+                        {t("settings.notChanged")}.
+                      </div>
+                    </div>
+
+                    {/* Action Row */}
+                    <div className="border-t border-[var(--win-border)] pt-3.5 flex justify-end">
+                      <button
+                        id="settings-primary-password-save"
+                        type="button"
+                        onClick={handleResetPrimaryPassword}
+                        disabled={
+                          resetPrimaryPasswordMutation.isPending ||
+                          !primaryPassword.trim() ||
+                          !primaryPasswordConfirm.trim()
+                        }
+                        className="panel-btn panel-btn--primary rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+                      >
+                        {resetPrimaryPasswordMutation.isPending ? (
+                          <LoaderCircle
+                            size={14}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <LockKeyhole size={14} />
+                        )}
+                        {resetPrimaryPasswordMutation.isPending
+                          ? t("settings.changingPassword")
+                          : t("settings.changePrimaryPassword")}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="panel-shell-card p-5">
+                  {/* Database & Storage Card */}
+                  <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <SectionHeader
-                      icon={<Database size={17} />}
+                      icon={<Database size={16} />}
                       title={t("settings.databaseTitle")}
                       subtitle={t("settings.databaseSubtitle")}
                     />
 
-                    <div className="mb-4 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                      <div className="panel-muted-block px-4 py-3.5">
-                        <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+                    {/* Status & Rows 2-Column Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                           {t("settings.connection")}
                         </div>
-                        <div className="mb-1 flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <span
-                            className={`inline-block h-2 w-2 rounded-full ${databaseQuery.data?.status.connected ? "bg-[var(--panel-success-text)]" : "bg-[var(--panel-danger-text)]"}`}
+                            className={`inline-block h-2 w-2 rounded-full ${
+                              databaseQuery.data?.status.connected
+                                ? "bg-[var(--panel-success-text)]"
+                                : "bg-[var(--panel-danger-text)]"
+                            }`}
                           />
                           <span className="text-[13px] font-semibold text-[var(--win-text)]">
                             {databaseQuery.data?.status.connected
@@ -3193,18 +3190,18 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                                 : t("settings.disabled")}
                           </span>
                         </div>
-                        <div className="break-all text-[12px] leading-5 text-[var(--text-secondary)]">
+                        <div className="break-all text-[11.5px] font-mono text-[var(--text-secondary)] mt-0.5">
                           {databaseQuery.data?.status.connected
                             ? `${databaseQuery.data.status.user}@${databaseQuery.data.status.host}:${databaseQuery.data.status.port}`
                             : databaseQuery.data?.status.lastError || "—"}
                         </div>
                       </div>
 
-                      <div className="panel-muted-block px-4 py-3.5">
-                        <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+                      <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-1.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                           {t("settings.rows")}
                         </div>
-                        <div className="mb-1 text-[13px] font-semibold text-[var(--win-text)]">
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
                           {databaseQuery.data
                             ? t("settings.databaseRowsSummary", {
                                 logs: databaseQuery.data.status.runtimeLogCount,
@@ -3213,7 +3210,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                               })
                             : "—"}
                         </div>
-                        <div className="text-[12px] text-[var(--text-secondary)]">
+                        <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                           {t("settings.auditRows", {
                             count:
                               databaseQuery.data?.status.settingsAuditCount ??
@@ -3223,28 +3220,27 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </div>
                     </div>
 
-                    <div className="panel-muted-block rounded-[14px] px-4 py-3.5">
-                      <div
-                        className={`flex flex-wrap items-center justify-between gap-3 ${dbResetResult ? "mb-3" : ""}`}
-                      >
+                    {/* Reset DB Password Action Bar */}
+                    <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <div className="mb-0.5 text-[13px] font-semibold text-[var(--win-text)]">
+                          <div className="text-[13px] font-semibold text-[var(--win-text)]">
                             {t("settings.resetDatabasePassword")}
                           </div>
-                          <div className="text-[12px] text-[var(--text-secondary)]">
+                          <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                             {t("settings.resetDatabasePasswordHint")}
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <button
                             id="settings-db-refresh"
                             type="button"
                             onClick={() => void databaseQuery.refetch()}
-                            className="panel-btn panel-btn--ghost rounded-[10px] px-3.5 py-2 text-[12px]"
+                            className="panel-btn panel-btn--ghost rounded-xl px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
                           >
                             <RefreshCcw
-                              size={13}
+                              size={12}
                               className={
                                 databaseQuery.isFetching ? "animate-spin" : ""
                               }
@@ -3260,7 +3256,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                               resetDatabaseMutation.isPending ||
                               !databaseQuery.data?.status.enabled
                             }
-                            className="panel-btn panel-btn--primary rounded-[10px] px-3.5 py-2 text-[12px]"
+                            className="panel-btn panel-btn--primary rounded-xl px-3.5 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
                           >
                             {resetDatabaseMutation.isPending ? (
                               <LoaderCircle
@@ -3278,48 +3274,46 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       </div>
 
                       {dbResetResult ? (
-                        <div className="panel-shell-card border-[color:var(--panel-success-border)] bg-[color:var(--panel-success-bg)] px-3.5 py-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2.5">
-                            <div>
-                              <div className="mb-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--panel-success-text)]">
-                                {t("settings.database.newPasswordLabel")}
-                              </div>
-                              <code className="panel-mono break-all text-[13px] font-semibold text-[var(--panel-success-text)]">
-                                {dbResetResult.password}
-                              </code>
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 flex flex-wrap items-center justify-between gap-2.5">
+                          <div>
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                              {t("settings.database.newPasswordLabel")}
                             </div>
-                            <button
-                              id="settings-db-copy-password"
-                              type="button"
-                              onClick={async () => {
-                                try {
-                                  await copyTextToClipboard(
-                                    dbResetResult.password,
-                                  );
-                                  alertLib.fire(
-                                    t("settings.database.passwordCopiedTitle"),
-                                    t(
-                                      "settings.database.passwordCopiedMessage",
-                                    ),
-                                    "success",
-                                    "settings",
-                                  );
-                                } catch (error: any) {
-                                  alertLib.fire(
-                                    t("settings.database.copyFailedTitle"),
-                                    error?.message ||
-                                      t("settings.database.copyFailedMessage"),
-                                    "error",
-                                    "settings",
-                                  );
-                                }
-                              }}
-                              className="panel-btn panel-btn--ghost rounded-[10px] px-3.5 py-[7px] text-[12px]"
-                            >
-                              <Copy size={13} />
-                              {t("common.copy")}
-                            </button>
+                            <code className="panel-mono break-all text-[13px] font-semibold text-emerald-300 mt-0.5 block">
+                              {dbResetResult.password}
+                            </code>
                           </div>
+                          <button
+                            id="settings-db-copy-password"
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await copyTextToClipboard(
+                                  dbResetResult.password,
+                                );
+                                alertLib.fire(
+                                  t("settings.database.passwordCopiedTitle"),
+                                  t(
+                                    "settings.database.passwordCopiedMessage",
+                                  ),
+                                  "success",
+                                  "settings",
+                                );
+                              } catch (error: any) {
+                                alertLib.fire(
+                                  t("settings.database.copyFailedTitle"),
+                                  error?.message ||
+                                    t("settings.database.copyFailedMessage"),
+                                  "error",
+                                  "settings",
+                                );
+                              }
+                            }}
+                            className="panel-btn panel-btn--ghost rounded-lg px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 text-emerald-300 hover:bg-emerald-500/20"
+                          >
+                            <Copy size={12} />
+                            {t("common.copy")}
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -3329,12 +3323,33 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {/* ── 4. Payment Gateway ── */}
               {activeTab === "payment" && (
-                <div className="panel-shell-card p-5">
-                  <SectionHeader
-                    icon={<CreditCard size={17} />}
-                    title={t("settings.paymentGateway")}
-                    subtitle={t("settings.paymentGatewaySubtitle")}
-                  />
+                <div className="space-y-3.5">
+                  {/* Service Status Banner */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] border border-[var(--panel-primary-text)]/20 shadow-xs">
+                        <CreditCard size={17} />
+                      </div>
+                      <div>
+                        <div className="text-[13.5px] font-bold text-[var(--win-text)]">
+                          {t("settings.paymentGateway")}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 max-w-[540px]">
+                          {t("settings.paymentGatewaySubtitle")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-3 py-1.5 text-[11.5px] font-medium text-[var(--win-text)]">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>
+                          {paymentSettingsList.length}{" "}
+                          {t("settings.parameters") || "Parameters"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
                   {paymentQuery.isLoading ? (
                     <div className="panel-loading min-h-[80px]">
@@ -3346,7 +3361,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       <span>{t("settings.noPaymentGatewayConfig")}</span>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3.5">
                       {(() => {
                         const settings = paymentSettingsList;
                         const midtrans = settings.filter((s) =>
@@ -3355,84 +3370,156 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         const xendit = settings.filter((s) =>
                           s.key.startsWith("xendit_"),
                         );
+                        const others = settings.filter(
+                          (s) =>
+                            !s.key.startsWith("midtrans_") &&
+                            !s.key.startsWith("xendit_"),
+                        );
 
                         const renderGatewayGroup = (
                           title: string,
+                          subtitle: string,
                           icon: React.ReactNode,
                           colorClass: string,
                           items: typeof settings,
                         ) => (
-                          <div>
-                            <div className="mb-3 flex items-center gap-2">
-                              <span
-                                className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${colorClass}`}
-                              >
-                                {icon}
-                              </span>
-                              <span className="text-[13px] font-bold text-[var(--win-text)]">
-                                {title}
-                              </span>
+                          <div className="p-4 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs">
+                            <div className="flex items-center justify-between gap-2 pb-3 mb-3.5 border-b border-[var(--win-border)]">
+                              <div className="flex items-center gap-2.5">
+                                <span
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-lg ${colorClass}`}
+                                >
+                                  {icon}
+                                </span>
+                                <div>
+                                  <div className="text-[13px] font-bold text-[var(--win-text)]">
+                                    {title}
+                                  </div>
+                                  <div className="text-[10.5px] text-[var(--text-secondary)]">
+                                    {subtitle}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                               {items.map((setting) => {
                                 const isMasked =
                                   setting.isSecret && !showSecrets[setting.key];
                                 const isChanged =
                                   paymentSettings[setting.key] !==
                                   originalPaymentSettings[setting.key];
+                                const isEnv =
+                                  setting.key.endsWith("_environment");
+
                                 return (
-                                  <div key={setting.key}>
-                                    <div className="mb-1.5 flex items-center justify-between gap-3">
-                                      <span className="text-[12px] font-semibold text-[var(--win-text)]">
+                                  <div
+                                    key={setting.key}
+                                    className={
+                                      isEnv
+                                        ? "col-span-1"
+                                        : "col-span-1 md:col-span-2"
+                                    }
+                                  >
+                                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                                      <label
+                                        htmlFor={`payment-${setting.key}`}
+                                        className="text-[12px] font-semibold text-[var(--win-text)] flex items-center gap-1.5"
+                                      >
                                         {setting.label}
-                                      </span>
-                                      <span className="panel-mono text-[12px] text-[var(--text-secondary)]">
+                                      </label>
+                                      <span className="font-mono text-[10.5px] text-[var(--text-secondary)] bg-[var(--panel-surface-hover)] px-2 py-0.5 rounded-md border border-[var(--win-border)]">
                                         {setting.key}
                                       </span>
                                     </div>
+
                                     <div className="relative">
-                                      <input
-                                        id={`payment-${setting.key}`}
-                                        type={isMasked ? "password" : "text"}
-                                        value={
-                                          paymentSettings[setting.key] || ""
-                                        }
-                                        onChange={(e) =>
-                                          setPaymentSettings((prev) => ({
-                                            ...prev,
-                                            [setting.key]: e.target.value,
-                                          }))
-                                        }
-                                        className={`panel-input panel-input--mono h-[42px] px-3.5 pr-10 text-[12px] ${isChanged ? "ring-2 ring-[var(--panel-accent)]" : ""}`}
-                                        placeholder={setting.description}
-                                      />
-                                      {setting.isSecret ? (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            setShowSecrets((prev) => ({
+                                      {isEnv ? (
+                                        <select
+                                          id={`payment-${setting.key}`}
+                                          value={
+                                            paymentSettings[setting.key] ||
+                                            "sandbox"
+                                          }
+                                          onChange={(e) =>
+                                            setPaymentSettings((prev) => ({
                                               ...prev,
-                                              [setting.key]: !prev[setting.key],
+                                              [setting.key]: e.target.value,
                                             }))
                                           }
-                                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--win-text)] transition-colors"
-                                          aria-label={
-                                            isMasked
-                                              ? t("settings.showKey")
-                                              : t("settings.hideKey")
-                                          }
+                                          className={`panel-input h-[38px] px-3 text-[12px] font-medium ${
+                                            isChanged
+                                              ? "ring-2 ring-[var(--panel-accent)]"
+                                              : ""
+                                          }`}
                                         >
-                                          {isMasked ? (
-                                            <Eye size={14} />
-                                          ) : (
-                                            <EyeOff size={14} />
-                                          )}
-                                        </button>
-                                      ) : null}
+                                          <option value="sandbox">
+                                            sandbox
+                                          </option>
+                                          <option value="production">
+                                            production
+                                          </option>
+                                        </select>
+                                      ) : (
+                                        <>
+                                          <input
+                                            id={`payment-${setting.key}`}
+                                            type={
+                                              isMasked ? "password" : "text"
+                                            }
+                                            value={
+                                              paymentSettings[setting.key] || ""
+                                            }
+                                            onChange={(e) =>
+                                              setPaymentSettings((prev) => ({
+                                                ...prev,
+                                                [setting.key]: e.target.value,
+                                              }))
+                                            }
+                                            className={`panel-input panel-input--mono h-[38px] px-3.5 pr-10 text-[12px] ${
+                                              isChanged
+                                                ? "ring-2 ring-[var(--panel-accent)]"
+                                                : ""
+                                            }`}
+                                            placeholder={
+                                              setting.isSecret
+                                                ? "••••••••••••••••••••••••"
+                                                : setting.label
+                                            }
+                                          />
+                                          {setting.isSecret ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setShowSecrets((prev) => ({
+                                                  ...prev,
+                                                  [setting.key]:
+                                                    !prev[setting.key],
+                                                }))
+                                              }
+                                              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[var(--text-secondary)] hover:text-[var(--win-text)] rounded-md transition-colors"
+                                              aria-label={
+                                                isMasked
+                                                  ? t("settings.showKey")
+                                                  : t("settings.hideKey")
+                                              }
+                                            >
+                                              {isMasked ? (
+                                                <Eye size={14} />
+                                              ) : (
+                                                <EyeOff size={14} />
+                                              )}
+                                            </button>
+                                          ) : null}
+                                        </>
+                                      )}
                                     </div>
-                                    <div className="mt-1 text-[12px] text-[var(--text-secondary)]">
-                                      {setting.description}
-                                    </div>
+
+                                    {setting.description && !isEnv && (
+                                      <div className="mt-1 text-[11px] text-[var(--text-secondary)] opacity-80">
+                                        {setting.description}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -3441,10 +3528,11 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                         );
 
                         return (
-                          <div className="space-y-6">
+                          <div className="space-y-3.5">
                             {midtrans.length
                               ? renderGatewayGroup(
                                   "Midtrans",
+                                  "Snap & Core Payment API",
                                   <Zap size={14} />,
                                   "bg-[var(--panel-warning-bg)] text-[var(--panel-warning-text)]",
                                   midtrans,
@@ -3453,45 +3541,56 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             {xendit.length
                               ? renderGatewayGroup(
                                   "Xendit",
+                                  "Invoice & XenPlatform API",
                                   <Globe2 size={14} />,
                                   "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]",
                                   xendit,
+                                )
+                              : null}
+                            {others.length
+                              ? renderGatewayGroup(
+                                  "Other Gateways",
+                                  "Additional Gateway Configurations",
+                                  <CreditCard size={14} />,
+                                  "bg-[var(--panel-accent-bg)] text-[var(--panel-accent-text)]",
+                                  others,
                                 )
                               : null}
                           </div>
                         );
                       })()}
 
-                      <div className="border-t border-[var(--win-border)] pt-4 flex flex-wrap items-center justify-between gap-3">
+                      {/* Action Bar */}
+                      <div className="p-3.5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="panel-muted-block flex h-10 w-10 items-center justify-center rounded-[12px] text-[var(--win-text)]">
-                            <CreditCard size={18} />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--panel-surface-hover)] text-[var(--win-text)] border border-[var(--win-border)]">
+                            <CreditCard size={16} />
                           </div>
                           <div>
-                            <div className="text-[14px] font-semibold text-[var(--win-text)]">
+                            <div className="text-[13px] font-semibold text-[var(--win-text)]">
                               {t("settings.saveGatewayConfig")}
                             </div>
-                            <div className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                            <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                               {t("settings.saveGatewayConfigHint")}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <button
                             id="payment-test-gateway"
                             type="button"
                             onClick={() => testGatewayMutation.mutate()}
                             disabled={testGatewayMutation.isPending}
-                            className="panel-btn panel-btn--ghost rounded-xl px-[18px] py-2.5 text-[13px]"
+                            className="panel-btn panel-btn--ghost rounded-xl px-3.5 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
                           >
                             {testGatewayMutation.isPending ? (
                               <LoaderCircle
-                                size={14}
+                                size={13}
                                 className="animate-spin"
                               />
                             ) : (
-                              <Wifi size={14} />
+                              <Wifi size={13} />
                             )}
                             {testGatewayMutation.isPending
                               ? t("settings.testing")
@@ -3502,15 +3601,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                             type="button"
                             onClick={handleSavePaymentSettings}
                             disabled={paymentMutation.isPending}
-                            className="panel-btn panel-btn--primary rounded-xl px-[22px] py-2.5 text-[13px]"
+                            className="panel-btn panel-btn--primary rounded-xl px-4 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
                           >
                             {paymentMutation.isPending ? (
                               <LoaderCircle
-                                size={14}
+                                size={13}
                                 className="animate-spin"
                               />
                             ) : (
-                              <Save size={14} />
+                              <Save size={13} />
                             )}
                             {paymentMutation.isPending
                               ? t("settings.saving")
@@ -3659,7 +3758,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <SectionHeader
-                        icon={<ShieldCheck size={16} />}
+                        icon={<Key size={16} />}
                         title={t("settings.listener.manageTitle")}
                         subtitle={t("settings.listener.manageSubtitle")}
                       />
