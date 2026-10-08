@@ -24,12 +24,12 @@ const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType> = {
   'cpu-graph': CpuGraphWidget,
 }
 
-const WIDGET_META: Record<PlacedWidget['type'], { title: string; icon: string }> = {
-  'clock-uptime': { title: 'Clock & Uptime', icon: '🕒' },
-  'system-vital': { title: 'System Vitals', icon: '⚡' },
-  'network-traffic': { title: 'Network Traffic', icon: '🌐' },
-  'quick-note': { title: 'Sysadmin Memo', icon: '📝' },
-  'cpu-graph': { title: 'CPU History', icon: '📈' },
+const WIDGET_META: Record<PlacedWidget['type'], { title: string }> = {
+  'clock-uptime': { title: 'Clock & Uptime' },
+  'system-vital': { title: 'System Vitals' },
+  'network-traffic': { title: 'Network Traffic' },
+  'quick-note': { title: 'Sysadmin Memo' },
+  'cpu-graph': { title: 'CPU History' },
 }
 
 export function WidgetContainer({
@@ -41,7 +41,7 @@ export function WidgetContainer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const Component = WIDGET_COMPONENTS[widget.type]
-  const meta = WIDGET_META[widget.type] || { title: widget.type, icon: '🧩' }
+  const meta = WIDGET_META[widget.type] || { title: widget.type }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (widget.isLocked) return
@@ -149,7 +149,6 @@ export function WidgetContainer({
           {!widget.isLocked && (
             <GripVertical size={11} className="opacity-40 group-hover:opacity-80 transition-opacity -ml-0.5" />
           )}
-          <span className="text-xs leading-none">{meta.icon}</span>
           <span className="font-semibold text-xs tracking-tight">{meta.title}</span>
         </div>
 
