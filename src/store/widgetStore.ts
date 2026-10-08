@@ -153,6 +153,7 @@ interface WidgetState {
   updateWidgetPosition: (id: string, x: number, y: number) => void
   toggleWidgetLock: (id: string) => void
   resetToDefault: () => void
+  resetLayout: () => void
   tidyUpWidgets: () => void
   hasWidget: (type: WidgetType) => boolean
 }
@@ -205,6 +206,39 @@ export const useWidgetStore = create<WidgetState>()(
 
       resetToDefault: () => {
         set({ placedWidgets: getDefaultPositions() })
+      },
+
+      resetLayout: () => {
+        const current = get().placedWidgets
+        if (current.length === 0) return
+
+        const isBrowser = typeof window !== 'undefined'
+        const screenWidth = isBrowser ? window.innerWidth : 1280
+        const screenHeight = isBrowser ? window.innerHeight : 800
+        const topMargin = 64
+        const bottomMargin = 90
+        const maxBottom = screenHeight - bottomMargin
+
+        const rearranged: PlacedWidget[] = []
+        let col = 0
+        let currentY = topMargin
+
+        current.forEach((w) => {
+          const h = WIDGET_HEIGHTS[w.type] || 190
+          if (currentY + h > maxBottom && currentY > topMargin) {
+            col++
+            currentY = topMargin
+          }
+          const colX = Math.max(20, screenWidth - 308 - col * 296)
+          rearranged.push({
+            ...w,
+            x: colX,
+            y: currentY,
+          })
+          currentY += h + WIDGET_GAP
+        })
+
+        set({ placedWidgets: rearranged })
       },
 
       tidyUpWidgets: () => {

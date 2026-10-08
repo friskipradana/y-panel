@@ -4,9 +4,11 @@ import { WIDGET_CATALOG, useWidgetStore } from '@/store/widgetStore'
 import type { WidgetType } from '@/types'
 
 export function WidgetsWindow() {
-  const { placedWidgets, addWidget, resetToDefault } = useWidgetStore()
+  const { placedWidgets, addWidget, resetLayout } = useWidgetStore()
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
+
+  const hasWidgets = placedWidgets.length > 0
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, type: WidgetType) => {
     e.dataTransfer.setData('application/ypanel-widget', type)
@@ -44,10 +46,16 @@ export function WidgetsWindow() {
 
         <button
           type="button"
-          onClick={resetToDefault}
-          className="flex items-center gap-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-3 py-1.5 text-xs font-medium text-[var(--win-text)] transition hover:bg-[var(--panel-surface-hover)]"
+          onClick={resetLayout}
+          disabled={!hasWidgets}
+          title={hasWidgets ? 'Rapikan kembali posisi widget ke susunan kolom default' : 'Belum ada widget aktif di desktop'}
+          className={`flex items-center gap-1.5 rounded-lg border border-[var(--win-border)] px-3 py-1.5 text-xs font-medium transition ${
+            hasWidgets
+              ? 'bg-[var(--panel-surface-strong)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] cursor-pointer'
+              : 'opacity-40 text-[var(--text-secondary)] bg-[var(--panel-surface)] cursor-not-allowed'
+          }`}
         >
-          <RotateCcw size={12} className="text-[var(--text-secondary)]" />
+          <RotateCcw size={12} className={hasWidgets ? 'text-[var(--text-secondary)]' : 'opacity-40'} />
           Reset Tata Letak
         </button>
       </div>
