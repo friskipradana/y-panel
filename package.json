@@ -1,7 +1,7 @@
 {
   "name": "ypanel",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.2.0",
   "description": "YPanel is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {
@@ -17,7 +17,10 @@
     "build:fast": "vite build",
     "build:check": "tsc -b --pretty false",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags"
   },
   "dependencies": {
     "@fluentui/react-icons": "^2.0.343",
