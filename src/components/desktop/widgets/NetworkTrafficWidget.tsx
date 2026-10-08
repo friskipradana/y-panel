@@ -7,7 +7,7 @@ import { getSystemSummary } from '@/api/system'
 const TAB_STORAGE_KEY = 'ypanel-widget-network-active-tab'
 const MAX_POINTS = 20
 const SVG_WIDTH = 250
-const SVG_HEIGHT = 58
+const SVG_HEIGHT = 54
 
 function formatSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return '0 B/s'
@@ -119,7 +119,7 @@ export function NetworkTrafficWidget() {
   }, [rxHistory, txHistory])
 
   return (
-    <div className="h-full flex flex-col justify-between p-3.5 select-none">
+    <div className="h-full flex flex-col justify-between p-3 select-none">
       {/* Header with Sleek Segmented Capsule Control */}
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-amber-500 font-semibold shrink-0">
@@ -237,7 +237,7 @@ export function NetworkTrafficWidget() {
           >
             <svg
               viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-              className="w-full h-[58px] overflow-visible block"
+              className="w-full h-[54px] overflow-visible block"
               preserveAspectRatio="none"
             >
               <defs>
@@ -295,7 +295,7 @@ export function NetworkTrafficWidget() {
           </div>
 
           {/* Footer Legend */}
-          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--text-secondary)] px-0.5">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--text-secondary)] px-0.5 pt-0.5">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
                 <span className="h-1.5 w-2.5 rounded-full bg-cyan-500" />

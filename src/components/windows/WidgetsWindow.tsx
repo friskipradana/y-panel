@@ -90,12 +90,6 @@ export function WidgetsWindow() {
                       </span>
                     </div>
                   </div>
-
-                  {isPlaced && (
-                    <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
-                      <Check size={10} /> Aktif
-                    </span>
-                  )}
                 </div>
 
                 <p className="mt-3 text-xs leading-relaxed text-[var(--text-secondary)]">

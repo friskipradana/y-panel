@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
-import { snapWidgetPosition, useWidgetStore } from '@/store/widgetStore'
+import { snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS } from '@/store/widgetStore'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
 import { NetworkTrafficWidget } from './NetworkTrafficWidget'
@@ -66,8 +66,9 @@ export function WidgetContainer({
       const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
       const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
       const minSafeX = screenW < 640 ? 12 : 200
+      const thisH = WIDGET_HEIGHTS[widget.type] || 195
       const clampedX = Math.max(minSafeX, Math.min(screenW - 292, newX))
-      const clampedY = Math.max(48, Math.min(screenH - 120, newY))
+      const clampedY = Math.max(48, Math.min(screenH - thisH - 24, newY))
 
       latestX = clampedX
       latestY = clampedY
@@ -111,7 +112,7 @@ export function WidgetContainer({
         left: widget.x,
         top: widget.y,
         width: 280,
-        height: 195,
+        minHeight: WIDGET_HEIGHTS[widget.type] || 165,
         backgroundColor: 'var(--widget-bg)',
         borderColor: 'var(--widget-border)',
         color: 'var(--win-text)',
@@ -122,7 +123,7 @@ export function WidgetContainer({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
-      className={`group pointer-events-auto rounded-xl border backdrop-blur-md select-none flex flex-col justify-between overflow-hidden ${
+      className={`group pointer-events-auto rounded-xl border backdrop-blur-md select-none flex flex-col justify-between ${
         widget.isLocked
           ? 'cursor-default'
           : isDragging
@@ -171,7 +172,7 @@ export function WidgetContainer({
       </div>
 
       {/* Widget Body */}
-      <div className="flex-1 flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 flex flex-col justify-between">
         <Component />
       </div>
     </motion.div>
