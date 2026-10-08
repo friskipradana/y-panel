@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
+import { snapWidgetPosition, useWidgetStore } from '@/store/widgetStore'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
 import { NetworkTrafficWidget } from './NetworkTrafficWidget'
@@ -82,7 +83,16 @@ export function WidgetContainer({
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
-      onUpdatePosition(widget.id, latestX, latestY)
+
+      const allWidgets = useWidgetStore.getState().placedWidgets
+      const snapped = snapWidgetPosition(widget.id, widget.type, latestX, latestY, allWidgets)
+
+      if (containerRef.current) {
+        containerRef.current.style.left = `${snapped.x}px`
+        containerRef.current.style.top = `${snapped.y}px`
+      }
+
+      onUpdatePosition(widget.id, snapped.x, snapped.y)
     }
 
     window.addEventListener('pointermove', onPointerMove)
@@ -101,6 +111,7 @@ export function WidgetContainer({
         left: widget.x,
         top: widget.y,
         width: 280,
+        height: 195,
         backgroundColor: 'var(--widget-bg)',
         borderColor: 'var(--widget-border)',
         color: 'var(--win-text)',
@@ -111,7 +122,7 @@ export function WidgetContainer({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
-      className={`group pointer-events-auto rounded-xl border backdrop-blur-md select-none ${
+      className={`group pointer-events-auto rounded-xl border backdrop-blur-md select-none flex flex-col justify-between overflow-hidden ${
         widget.isLocked
           ? 'cursor-default'
           : isDragging
@@ -121,7 +132,7 @@ export function WidgetContainer({
     >
       {/* Widget Control Header (revealed on hover) */}
       <div
-        className="flex items-center justify-between border-b px-2.5 py-1 text-[11px] opacity-60 transition-opacity group-hover:opacity-100"
+        className="flex items-center justify-between border-b px-2.5 py-1 text-[11px] opacity-60 transition-opacity group-hover:opacity-100 shrink-0"
         style={{ borderColor: 'var(--widget-border)', color: 'var(--text-secondary)' }}
       >
         <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider">
@@ -160,7 +171,9 @@ export function WidgetContainer({
       </div>
 
       {/* Widget Body */}
-      <Component />
+      <div className="flex-1 flex flex-col justify-between overflow-hidden">
+        <Component />
+      </div>
     </motion.div>
   )
 }
