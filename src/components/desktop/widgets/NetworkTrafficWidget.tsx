@@ -119,17 +119,16 @@ export function NetworkTrafficWidget() {
   }, [rxHistory, txHistory])
 
   return (
-    <div className="h-full flex flex-col justify-between p-3 select-none">
-      {/* Header with Sleek Segmented Capsule Control */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-amber-500 font-semibold shrink-0">
-          <Globe size={12} className="text-amber-500" />
-          Network
+    <div className="flex-1 flex flex-col justify-between p-3 select-none gap-2">
+      {/* Sleek Segmented Capsule Control */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-secondary)]">
+          Bandwidth Monitor
         </span>
 
         {/* Modern Floating Sliding Pill Tab */}
         <div
-          className="relative inline-flex items-center rounded-full p-[2.5px] border"
+          className="relative inline-flex items-center rounded-full p-[2px] border"
           style={{
             backgroundColor: 'var(--panel-surface-strong)',
             borderColor: 'var(--win-border)',

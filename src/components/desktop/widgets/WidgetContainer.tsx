@@ -24,6 +24,14 @@ const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType> = {
   'cpu-graph': CpuGraphWidget,
 }
 
+const WIDGET_META: Record<PlacedWidget['type'], { title: string; icon: string }> = {
+  'clock-uptime': { title: 'Clock & Uptime', icon: '🕒' },
+  'system-vital': { title: 'System Vitals', icon: '⚡' },
+  'network-traffic': { title: 'Network Traffic', icon: '🌐' },
+  'quick-note': { title: 'Sysadmin Memo', icon: '📝' },
+  'cpu-graph': { title: 'CPU History', icon: '📈' },
+}
+
 export function WidgetContainer({
   widget,
   onUpdatePosition,
@@ -33,6 +41,7 @@ export function WidgetContainer({
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const Component = WIDGET_COMPONENTS[widget.type]
+  const meta = WIDGET_META[widget.type] || { title: widget.type, icon: '🧩' }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (widget.isLocked) return
@@ -131,19 +140,20 @@ export function WidgetContainer({
           : 'cursor-grab hover:border-cyan-500/35'
       }`}
     >
-      {/* Widget Control Header (revealed on hover) */}
+      {/* Unified Widget Header */}
       <div
-        className="flex items-center justify-between border-b px-2.5 py-1 text-[11px] opacity-60 transition-opacity group-hover:opacity-100 shrink-0"
-        style={{ borderColor: 'var(--widget-border)', color: 'var(--text-secondary)' }}
+        className="flex items-center justify-between border-b px-3 py-1.5 text-[11px] shrink-0"
+        style={{ borderColor: 'var(--widget-border)', color: 'var(--win-text)' }}
       >
-        <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider">
+        <div className="flex items-center gap-1.5 font-medium">
           {!widget.isLocked && (
-            <GripVertical size={11} />
+            <GripVertical size={11} className="opacity-40 group-hover:opacity-80 transition-opacity -ml-0.5" />
           )}
-          <span>{widget.type.replace('-', ' ')}</span>
+          <span className="text-xs leading-none">{meta.icon}</span>
+          <span className="font-semibold text-xs tracking-tight">{meta.title}</span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 text-[var(--text-secondary)]">
           <button
             type="button"
             onClick={(e) => {
@@ -151,10 +161,9 @@ export function WidgetContainer({
               onToggleLock(widget.id)
             }}
             title={widget.isLocked ? 'Buka kunci posisi' : 'Kunci posisi widget'}
-            className="rounded p-1 transition-colors hover:bg-slate-500/15"
-            style={{ color: 'var(--text-secondary)' }}
+            className="rounded p-1 transition-colors hover:bg-slate-500/15 cursor-pointer"
           >
-            {widget.isLocked ? <Lock size={11} className="text-amber-500" /> : <Unlock size={11} />}
+            {widget.isLocked ? <Lock size={12} className="text-amber-500" /> : <Unlock size={12} className="opacity-60 hover:opacity-100" />}
           </button>
           <button
             type="button"
@@ -163,16 +172,15 @@ export function WidgetContainer({
               onRemove(widget.id)
             }}
             title="Hapus widget dari desktop"
-            className="rounded p-1 transition-colors hover:bg-red-500/15 hover:text-red-500"
-            style={{ color: 'var(--text-secondary)' }}
+            className="rounded p-1 transition-colors hover:bg-red-500/15 hover:text-red-500 cursor-pointer opacity-60 hover:opacity-100"
           >
-            <X size={11} />
+            <X size={12} />
           </button>
         </div>
       </div>
 
       {/* Widget Body */}
-      <div className="flex-1 flex flex-col justify-between">
+      <div className="flex-1 flex flex-col min-h-0">
         <Component />
       </div>
     </motion.div>

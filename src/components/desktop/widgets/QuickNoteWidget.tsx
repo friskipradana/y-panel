@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { StickyNote, Check } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 const STORAGE_KEY = 'ypanel-widget-quicknote-text'
 
@@ -20,25 +20,21 @@ export function QuickNoteWidget() {
   }, [text])
 
   return (
-    <div className="h-full flex flex-col justify-between p-3.5">
-      <div className="flex items-center justify-between text-[11px] font-medium text-[var(--text-secondary)] select-none">
-        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-amber-500 font-semibold">
-          <StickyNote size={12} className="text-amber-500" />
-          Sysadmin Memo
-        </span>
-        {saved && (
-          <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-mono font-semibold">
-            <Check size={11} /> Tersimpan
-          </span>
-        )}
-      </div>
-
+    <div className="flex-1 flex flex-col p-2.5 gap-1.5 h-full min-h-0">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Ketik memo atau perintah di sini..."
-        className="w-full flex-1 resize-none rounded-lg bg-[var(--panel-field-bg)] border border-[var(--win-border)] p-2 font-mono text-[11px] leading-relaxed text-[var(--win-text)] placeholder-[var(--text-secondary)]/60 focus:border-amber-500/60 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors mt-1.5"
+        className="w-full flex-1 min-h-[95px] resize-none rounded-lg bg-[var(--panel-field-bg)] border border-[var(--win-border)] p-2 font-mono text-[11px] leading-relaxed text-[var(--win-text)] placeholder-[var(--text-secondary)]/50 focus:border-amber-500/60 focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-colors custom-widget-scrollbar"
       />
+      <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] px-0.5 font-mono select-none">
+        <span className="opacity-75">Auto-saved</span>
+        {saved && (
+          <span className="flex items-center gap-1 text-emerald-500 font-semibold transition-opacity">
+            <Check size={10} /> Tersimpan
+          </span>
+        )}
+      </div>
     </div>
   )
 }

@@ -59,11 +59,11 @@ export const WIDGET_GAP = 15
 export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 295px
 
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
-  'clock-uptime': 165,
-  'system-vital': 205,
-  'quick-note': 190,
-  'network-traffic': 235,
-  'cpu-graph': 195,
+  'clock-uptime': 148,
+  'system-vital': 168,
+  'quick-note': 172,
+  'network-traffic': 215,
+  'cpu-graph': 170,
 }
 
 function getDefaultPositions(): PlacedWidget[] {
