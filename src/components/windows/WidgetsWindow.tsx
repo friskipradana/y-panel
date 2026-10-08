@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Check, RotateCcw, Move, Sparkles } from 'lucide-react'
+import { Plus, Check, RotateCcw, Move } from 'lucide-react'
 import { WIDGET_CATALOG, useWidgetStore } from '@/store/widgetStore'
 import type { WidgetType } from '@/types'
 
@@ -50,14 +50,6 @@ export function WidgetsWindow() {
           <RotateCcw size={12} className="text-slate-400" />
           Reset Tata Letak
         </button>
-      </div>
-
-      {/* Drag & Drop Hint */}
-      <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/20 px-4 py-2.5 text-xs text-cyan-300">
-        <Sparkles size={14} className="shrink-0 text-cyan-400" />
-        <span>
-          <strong>Tips:</strong> Anda dapat menggeser posisi widget di desktop secara bebas kapan saja, atau menguncinya agar tidak bergeser.
-        </span>
       </div>
 
       {/* Catalog Grid */}
