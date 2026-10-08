@@ -6,6 +6,7 @@ import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
 import { NetworkTrafficWidget } from './NetworkTrafficWidget'
 import { QuickNoteWidget } from './QuickNoteWidget'
+import { CpuGraphWidget } from './CpuGraphWidget'
 
 interface WidgetContainerProps {
   widget: PlacedWidget
@@ -19,6 +20,7 @@ const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType> = {
   'system-vital': SystemVitalWidget,
   'network-traffic': NetworkTrafficWidget,
   'quick-note': QuickNoteWidget,
+  'cpu-graph': CpuGraphWidget,
 }
 
 export function WidgetContainer({
@@ -62,7 +64,8 @@ export function WidgetContainer({
 
       const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
       const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
-      const clampedX = Math.max(12, Math.min(screenW - 292, newX))
+      const minSafeX = screenW < 640 ? 12 : 200
+      const clampedX = Math.max(minSafeX, Math.min(screenW - 292, newX))
       const clampedY = Math.max(48, Math.min(screenH - 120, newY))
 
       latestX = clampedX

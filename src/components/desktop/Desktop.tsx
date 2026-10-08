@@ -199,10 +199,13 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
 
   const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
     const rawType = e.dataTransfer.getData('application/ypanel-widget') || e.dataTransfer.getData('text/plain')
-    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note'].includes(rawType)) {
+    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph'].includes(rawType)) {
       e.preventDefault()
-      const dropX = Math.max(16, e.clientX - 140)
-      const dropY = Math.max(56, e.clientY - 30)
+      const minSafeX = typeof window !== 'undefined' && window.innerWidth >= 640 ? 200 : 16
+      const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
+      const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
+      const dropX = Math.max(minSafeX, Math.min(screenW - 292, e.clientX - 140))
+      const dropY = Math.max(56, Math.min(screenH - 120, e.clientY - 30))
       useWidgetStore.getState().addWidget(rawType as any, { x: dropX, y: dropY })
     }
   }

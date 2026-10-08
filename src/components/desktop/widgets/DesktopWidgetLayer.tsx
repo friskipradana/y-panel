@@ -6,7 +6,7 @@ export function DesktopWidgetLayer() {
   const { placedWidgets, updateWidgetPosition, removeWidget, toggleWidgetLock } = useWidgetStore()
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-[8]">
+    <div className="absolute inset-0 pointer-events-none z-[12]">
       <AnimatePresence>
         {placedWidgets.map((widget) => (
           <WidgetContainer
