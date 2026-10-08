@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Activity, Flame, TrendingUp } from 'lucide-react'
+import { Flame, TrendingUp } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getSystemSummary } from '@/api/system'
 
@@ -65,21 +65,9 @@ export function CpuGraphWidget() {
   }, [history])
 
   return (
-    <div className="h-full flex flex-col justify-between p-3.5 select-none">
-      {/* Header */}
-      <div className="flex items-center justify-between text-[11px] font-medium text-[var(--text-secondary)]">
-        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-cyan-500 font-semibold">
-          <Activity size={12} className="text-cyan-500" />
-          CPU Load History
-        </span>
-        <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-mono font-semibold">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          LIVE
-        </span>
-      </div>
-
+    <div className="flex-1 flex flex-col justify-between p-3 select-none gap-2">
       {/* Main Stats Row */}
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between pt-0.5">
         <div className="flex items-baseline gap-1.5">
           <span className="font-mono text-2xl font-bold tracking-tight text-[var(--win-text)]">
             {currentCpu.toFixed(1)}%
