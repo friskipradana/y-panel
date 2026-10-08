@@ -9,6 +9,7 @@ import {
   Settings,
   User,
   Users,
+  HelpCircle,
 } from 'lucide-react'
 import { getMeV2 } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
@@ -70,9 +71,9 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="profile-menu w-[300px]"
           >
-          {/* ── Header: [R] Display Name | superadmin • Active (127.0.0.1) ── */}
-          <div className="profile-menu-section flex items-start gap-3">
-            <div className="profile-avatar h-9 w-9 rounded-xl flex items-center justify-center text-[15px] font-bold shrink-0 mt-0.5">
+          {/* ── Header: [R] Display Name | superadmin • Active [?] ── */}
+          <div className="profile-menu-section flex items-center gap-3">
+            <div className="profile-avatar h-9 w-9 rounded-xl flex items-center justify-center text-[15px] font-bold shrink-0">
               {displayName.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
@@ -81,9 +82,12 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
                 <span className="font-semibold capitalize text-[var(--panel-primary-text)]">{displayRole}</span>
                 <span>•</span>
                 <span className="text-emerald-500 font-semibold">Active</span>
-              </div>
-              <div className="opacity-75 font-mono text-[11px] text-[var(--text-secondary)] truncate mt-0.5" title={clientHost}>
-                ({clientHost})
+                <span
+                  className="inline-flex items-center justify-center text-[var(--text-secondary)] opacity-55 hover:opacity-100 cursor-help transition-opacity ml-0.5"
+                  title={`Host: ${clientHost}`}
+                >
+                  <HelpCircle size={11} />
+                </span>
               </div>
             </div>
           </div>
