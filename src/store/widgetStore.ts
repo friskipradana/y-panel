@@ -55,15 +55,14 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
 ]
 
 export const WIDGET_WIDTH = 280
-export const WIDGET_STANDARD_HEIGHT = 195
-export const WIDGET_GAP = 20
-export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 300px
+export const WIDGET_GAP = 15
+export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 295px
 
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
-  'clock-uptime': 195,
-  'system-vital': 195,
-  'quick-note': 195,
-  'network-traffic': 195,
+  'clock-uptime': 165,
+  'system-vital': 205,
+  'quick-note': 190,
+  'network-traffic': 235,
   'cpu-graph': 195,
 }
 
@@ -84,7 +83,7 @@ function getDefaultPositions(): PlacedWidget[] {
       id: 'default-vital',
       type: 'system-vital',
       x: defaultX,
-      y: 64 + WIDGET_STANDARD_HEIGHT + WIDGET_GAP, // 279
+      y: 64 + WIDGET_HEIGHTS['clock-uptime'] + WIDGET_GAP, // 64 + 165 + 15 = 244
       isLocked: false,
     },
   ]
@@ -113,7 +112,8 @@ export function autoSpaceWidgets(widgets: PlacedWidget[]): PlacedWidget[] {
 
     col.widgets.forEach((w) => {
       result.push({ ...w, x: col.colX, y: Math.round(currentY) })
-      currentY += WIDGET_STANDARD_HEIGHT + WIDGET_GAP
+      const h = WIDGET_HEIGHTS[w.type] || 195
+      currentY += h + WIDGET_GAP
     })
   })
 
@@ -154,23 +154,23 @@ export function snapWidgetPosition(
     snappedY = 64
   }
 
-  // 3. Snap Y to 20px gap relative to other widgets in the same column (X within 60px)
+  // 3. Snap Y to 15px gap relative to other widgets in the same column (X within 60px)
   const sameColWidgets = allWidgets.filter(
     (w) => w.id !== draggedId && Math.abs(w.x - snappedX) < 60
   )
 
   for (const other of sameColWidgets) {
-    const otherH = WIDGET_HEIGHTS[other.type] || 190
-    const thisH = WIDGET_HEIGHTS[draggedType] || 190
+    const otherH = WIDGET_HEIGHTS[other.type] || 195
+    const thisH = WIDGET_HEIGHTS[draggedType] || 195
 
-    // Gap 20px below 'other'
+    // Gap 15px below 'other'
     const targetBelowY = other.y + otherH + WIDGET_GAP
     if (Math.abs(rawY - targetBelowY) < SNAP_DISTANCE) {
       snappedY = targetBelowY
       break
     }
 
-    // Gap 20px above 'other'
+    // Gap 15px above 'other'
     const targetAboveY = other.y - thisH - WIDGET_GAP
     if (Math.abs(rawY - targetAboveY) < SNAP_DISTANCE && targetAboveY >= 50) {
       snappedY = targetAboveY
@@ -181,7 +181,7 @@ export function snapWidgetPosition(
   return { x: Math.round(snappedX), y: Math.round(snappedY) }
 }
 
-function findSmartSpawnPosition(existing: PlacedWidget[], newType: WidgetType): { x: number; y: number } {
+function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType): { x: number; y: number } {
   const isBrowser = typeof window !== 'undefined'
   const screenWidth = isBrowser ? window.innerWidth : 1280
   const screenHeight = isBrowser ? window.innerHeight : 800
@@ -189,8 +189,9 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType: WidgetType): 
   const topMargin = 64
   const bottomMargin = 90
   const maxBottom = screenHeight - bottomMargin
+  const thisHeight = newType ? (WIDGET_HEIGHTS[newType] || 195) : 195
 
-  // Check columns from right to left with exact 20px column spacing
+  // Check columns from right to left with exact 15px column spacing
   for (let col = 0; col < 4; col++) {
     const colX = Math.max(200, screenWidth - WIDGET_WIDTH - 24 - col * COLUMN_WIDTH)
 
@@ -204,9 +205,10 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType: WidgetType): 
 
     // Check after the lowest widget in column
     const lastWidget = colWidgets[colWidgets.length - 1]
-    const nextY = lastWidget.y + WIDGET_STANDARD_HEIGHT + WIDGET_GAP
+    const lastWidgetH = WIDGET_HEIGHTS[lastWidget.type] || 195
+    const nextY = lastWidget.y + lastWidgetH + WIDGET_GAP
 
-    if (nextY + WIDGET_STANDARD_HEIGHT <= maxBottom) {
+    if (nextY + thisHeight <= maxBottom) {
       return { x: colX, y: nextY }
     }
   }
@@ -299,7 +301,8 @@ export const useWidgetStore = create<WidgetState>()(
         let currentY = topMargin
 
         current.forEach((w) => {
-          if (currentY + WIDGET_STANDARD_HEIGHT > maxBottom && currentY > topMargin) {
+          const h = WIDGET_HEIGHTS[w.type] || 195
+          if (currentY + h > maxBottom && currentY > topMargin) {
             col++
             currentY = topMargin
           }
@@ -309,7 +312,7 @@ export const useWidgetStore = create<WidgetState>()(
             x: colX,
             y: currentY,
           })
-          currentY += WIDGET_STANDARD_HEIGHT + WIDGET_GAP
+          currentY += h + WIDGET_GAP
         })
 
         set({ placedWidgets: rearranged })
