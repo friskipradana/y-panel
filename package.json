@@ -1,7 +1,7 @@
 {
   "name": "ypanel",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "YPanel is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {
