@@ -21,6 +21,7 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'file-manager', label: 'Files' },
   { kind: 'file-editor', label: 'Code Editor' },
   { kind: 'docs', label: 'Docs' },
+  { kind: 'widgets', label: 'Widgets' },
   { kind: 'changelog', label: 'Changelog' },
 ]
 
@@ -75,6 +76,7 @@ export function Dock() {
       projects: [],
       tunnels: [],
       profile: [],
+      widgets: [],
     })
   }, [windows])
 

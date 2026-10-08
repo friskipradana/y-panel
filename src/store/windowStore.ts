@@ -25,6 +25,7 @@ const DEFAULTS: Record<
   projects: { title: "Projects", icon: "🗂️", width: 880, height: 560, singleton: true },
   tunnels: { title: "Cloudflare", icon: "🌐", width: 960, height: 600, singleton: true },
   profile: { title: "Profile & Integrasi", icon: "👤", width: 500, height: 560, singleton: true },
+  widgets: { title: "Widgets", icon: "🧩", width: 720, height: 480, singleton: true },
 };
 
 // Z-index tiers

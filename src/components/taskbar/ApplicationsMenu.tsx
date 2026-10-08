@@ -45,6 +45,12 @@ const MENU_ITEMS: AppMenuItem[] = [
     adminOnly: true,
   },
   {
+    kind: 'widgets',
+    descId: 'Galeri modul widget desktop untuk memantau waktu, sistem, dan host',
+    descEn: 'Desktop widget gallery for real-time time, system, and host monitors',
+    category: 'system',
+  },
+  {
     kind: 'database',
     descId: 'Kelola database PostgreSQL, MySQL, dan backup',
     descEn: 'Manage PostgreSQL/MySQL databases and backups',
