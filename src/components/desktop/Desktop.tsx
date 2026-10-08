@@ -28,7 +28,7 @@ const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWi
 const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
 const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
-import { DesktopWidgetLayer } from '@/components/desktop/widgets/DesktopWidgetLayer'
+import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
 import { useWidgetStore } from '@/store/widgetStore'
 
 import { LockScreen } from '@/components/desktop/LockScreen'
