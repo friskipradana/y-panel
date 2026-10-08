@@ -40,7 +40,6 @@ export function WidgetContainer({
       return
     }
 
-    // Only left click
     if (e.button !== 0) return
 
     e.preventDefault()
@@ -99,24 +98,32 @@ export function WidgetContainer({
         left: widget.x,
         top: widget.y,
         width: 280,
+        backgroundColor: 'var(--widget-bg)',
+        borderColor: 'var(--widget-border)',
+        color: 'var(--win-text)',
+        boxShadow: isDragging ? 'var(--widget-shadow-hover)' : 'var(--widget-shadow)',
+        transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
       }}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
-      className={`group pointer-events-auto rounded-xl border bg-slate-950/85 backdrop-blur-md shadow-xl transition-shadow select-none ${
+      className={`group pointer-events-auto rounded-xl border backdrop-blur-md select-none ${
         widget.isLocked
-          ? 'cursor-default border-slate-800/80'
+          ? 'cursor-default'
           : isDragging
-          ? 'cursor-grabbing border-cyan-500/80 shadow-2xl shadow-cyan-500/10 ring-1 ring-cyan-500/30'
-          : 'cursor-grab border-slate-800/80 hover:border-slate-700/90'
+          ? 'cursor-grabbing ring-1 ring-cyan-500/40'
+          : 'cursor-grab hover:border-cyan-500/35'
       }`}
     >
       {/* Widget Control Header (revealed on hover) */}
-      <div className="flex items-center justify-between border-b border-slate-850 px-2.5 py-1 text-slate-400 opacity-60 transition-opacity group-hover:opacity-100">
-        <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-slate-400">
+      <div
+        className="flex items-center justify-between border-b px-2.5 py-1 text-[11px] opacity-60 transition-opacity group-hover:opacity-100"
+        style={{ borderColor: 'var(--widget-border)', color: 'var(--text-secondary)' }}
+      >
+        <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider">
           {!widget.isLocked && (
-            <GripVertical size={11} className="text-slate-400" />
+            <GripVertical size={11} />
           )}
           <span>{widget.type.replace('-', ' ')}</span>
         </div>
@@ -129,9 +136,10 @@ export function WidgetContainer({
               onToggleLock(widget.id)
             }}
             title={widget.isLocked ? 'Buka kunci posisi' : 'Kunci posisi widget'}
-            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            className="rounded p-1 transition-colors hover:bg-slate-500/15"
+            style={{ color: 'var(--text-secondary)' }}
           >
-            {widget.isLocked ? <Lock size={11} className="text-amber-400" /> : <Unlock size={11} />}
+            {widget.isLocked ? <Lock size={11} className="text-amber-500" /> : <Unlock size={11} />}
           </button>
           <button
             type="button"
@@ -140,7 +148,8 @@ export function WidgetContainer({
               onRemove(widget.id)
             }}
             title="Hapus widget dari desktop"
-            className="rounded p-1 text-slate-400 hover:bg-red-950/60 hover:text-red-400"
+            className="rounded p-1 transition-colors hover:bg-red-500/15 hover:text-red-500"
+            style={{ color: 'var(--text-secondary)' }}
           >
             <X size={11} />
           </button>

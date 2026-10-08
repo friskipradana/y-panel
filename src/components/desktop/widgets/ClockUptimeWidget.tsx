@@ -9,7 +9,7 @@ function formatUptime(seconds: number): string {
   const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   if (days > 0) return `${days}d ${hours}h ${minutes}m`
-  if (hours > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}j ${minutes}m`
   return `${minutes}m`
 }
 
@@ -43,31 +43,40 @@ export function ClockUptimeWidget() {
 
   return (
     <div className="flex flex-col gap-2 p-3.5 select-none">
-      <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
-        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-cyan-400 font-semibold">
-          <Clock size={12} className="text-cyan-400" />
+      <div className="flex items-center justify-between text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-cyan-500 font-semibold">
+          <Clock size={12} className="text-cyan-500" />
           Server Time
         </span>
-        <span className="font-mono text-[10px] text-slate-400 truncate max-w-[120px]">
+        <span className="font-mono text-[10px] truncate max-w-[120px]" style={{ color: 'var(--text-secondary)' }}>
           {summary?.hostname || 'localhost'}
         </span>
       </div>
 
       <div className="flex flex-col">
-        <div className="font-mono text-2xl font-bold tracking-tight text-white drop-shadow-sm">
+        <div
+          className="font-mono text-2xl font-bold tracking-tight"
+          style={{ color: 'var(--win-text)' }}
+        >
           {timeString}
         </div>
-        <div className="text-[11px] font-medium text-slate-300">
+        <div className="text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
           {dateString}
         </div>
       </div>
 
-      <div className="mt-1 flex items-center justify-between rounded-lg bg-slate-900/60 border border-slate-800/80 px-2.5 py-1.5 text-[11px]">
-        <div className="flex items-center gap-1.5 text-slate-400">
-          <Server size={12} className="text-emerald-400" />
+      <div
+        className="mt-1 flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-[11px]"
+        style={{
+          backgroundColor: 'var(--panel-surface-strong)',
+          borderColor: 'var(--win-border)',
+        }}
+      >
+        <div className="flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+          <Server size={12} className="text-emerald-500" />
           <span>Uptime:</span>
         </div>
-        <span className="font-mono font-semibold text-emerald-400">
+        <span className="font-mono font-semibold text-emerald-500">
           {summary?.uptimeSeconds ? formatUptime(summary.uptimeSeconds) : 'Active'}
         </span>
       </div>
