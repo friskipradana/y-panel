@@ -27,6 +27,9 @@ const UsersWindow = lazyDefault(() => import('@/components/windows/UsersWindow')
 const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWindow'))
 const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
 const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
+const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
+import { DesktopWidgetLayer } from '@/components/desktop/widgets/DesktopWidgetLayer'
+import { useWidgetStore } from '@/store/widgetStore'
 
 import { LockScreen } from '@/components/desktop/LockScreen'
 
@@ -106,6 +109,7 @@ const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticate
   projects: (win) => <ProjectsWindow win={win} />,
   tunnels: (win) => <TunnelsWindow win={win} />,
   profile: () => <ProfileWindow />,
+  widgets: () => <WidgetsWindow />,
 }
 
 import { DesktopIcon } from '@/components/desktop/DesktopIcon'
@@ -113,6 +117,7 @@ import { DesktopIcon } from '@/components/desktop/DesktopIcon'
 const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
   { id: 'apps', label: 'Docker', windowId: 'apps' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },
+  { id: 'widgets', label: 'Widgets', windowId: 'widgets' },
   { id: 'tunnels', label: 'Cloudflare', windowId: 'tunnels' },
   { id: 'projects', label: 'Projects', windowId: 'projects' },
   { id: 'database', label: 'Database', windowId: 'database' },
@@ -185,11 +190,30 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
 
   const backgroundStyle = useMemo(() => getBackgroundStyle(), [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl])
 
+  const handleDesktopDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.dataTransfer.types.includes('application/ypanel-widget') || e.dataTransfer.types.includes('text/plain')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    }
+  }
+
+  const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const rawType = e.dataTransfer.getData('application/ypanel-widget') || e.dataTransfer.getData('text/plain')
+    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note'].includes(rawType)) {
+      e.preventDefault()
+      const dropX = Math.max(16, e.clientX - 140)
+      const dropY = Math.max(56, e.clientY - 30)
+      useWidgetStore.getState().addWidget(rawType as any, { x: dropX, y: dropY })
+    }
+  }
+
   return (
     <div
       ref={rootRef}
       className="desktop-root"
       style={backgroundStyle}
+      onDragOver={handleDesktopDragOver}
+      onDrop={handleDesktopDrop}
     >
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
 
@@ -199,6 +223,9 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
           <DesktopIcon key={app.id} app={app} />
         ))}
       </div>
+
+      {/* Desktop Widgets (Above wallpaper, behind active windows) */}
+      <DesktopWidgetLayer />
 
       <div className="absolute inset-0 pointer-events-none">
         <AnimatePresence>

@@ -17,8 +17,21 @@ export type WindowKind =
   | 'projects'
   | 'tunnels'
   | 'profile'
+  | 'widgets'
 
 export type WindowId = WindowKind
+
+// ── Desktop Widgets ──────────────────────────────────────────────
+export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note'
+
+export interface PlacedWidget {
+  id: string
+  type: WidgetType
+  x: number
+  y: number
+  isLocked?: boolean
+}
+
 
 export interface WindowState {
   id: string
