@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, ArrowDown, ArrowUp, Globe, ShieldCheck, Terminal } from 'lucide-react'
+import { Activity, ArrowDown, ArrowUp, ShieldCheck, Terminal } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getSystemSummary } from '@/api/system'
 
