@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useWindowStore } from '@/store/windowStore'
 import { useAuthStore } from '@/store/authStore'
+import { useCommandStore } from '@/store/commandStore'
 import { canAccessWindow } from '@/components/desktop/Desktop'
 import type { WindowKind } from '@/types'
 
@@ -9,6 +10,13 @@ export function useGlobalShortcuts(authenticated: boolean) {
     if (!authenticated) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Toggle Command Palette (Ctrl+K or Cmd+K)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        useCommandStore.getState().toggleCommandPalette()
+        return
+      }
+
       const isTyping =
         ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) ||
         (e.target as HTMLElement).isContentEditable

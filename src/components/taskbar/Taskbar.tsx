@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Bell, CheckCheck, Cpu, Monitor, Moon, RotateCcw, ScrollText, Sun, Thermometer, Zap, Activity, Database } from 'lucide-react'
+import { Bell, CheckCheck, Cpu, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Thermometer, Zap, Activity, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
+import { useCommandStore } from '@/store/commandStore'
 import { ProfileMenu } from './ProfileMenu'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ApplicationsMenu } from './ApplicationsMenu'
@@ -39,6 +40,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const { mode, toggleMode } = useThemeStore()
   const isDark = mode === 'dark'
   const queryClient = useQueryClient()
+  const { toggleCommandPalette } = useCommandStore()
 
   const { openWindow, resetWindows, showSystemStats, systemStatsConfig, setShowSystemStats, setSystemStatsConfig } = useWindowStore()
   const [time, setTime] = useState('')
@@ -457,6 +459,19 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             </div>
           </motion.div>
         )}
+
+        <button
+          id="taskbar-search-button"
+          title="Command Palette & Pencarian Cepat (Ctrl+K)"
+          className="taskbar-icon-btn text-[var(--panel-primary-text)] hover:text-cyan-400"
+          onClick={() => {
+            toggleCommandPalette()
+            setShowNotifications(false)
+            setShowMenu(false)
+          }}
+        >
+          <Search size={14} />
+        </button>
 
         <button
           id="taskbar-notifications-button"

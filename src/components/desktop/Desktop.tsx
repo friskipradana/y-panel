@@ -32,6 +32,7 @@ import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
 import { useWidgetStore } from '@/store/widgetStore'
 
 import { LockScreen } from '@/components/desktop/LockScreen'
+import { CommandPalette } from '@/components/common/CommandPalette'
 
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 
@@ -266,6 +267,9 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       <AnimatePresence>
         {isLocked && <LockScreen onLogout={onLogout} />}
       </AnimatePresence>
+
+      {/* Global Command Palette (Ctrl+K) */}
+      <CommandPalette />
     </div>
   )
 }
