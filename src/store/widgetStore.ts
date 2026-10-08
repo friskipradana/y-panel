@@ -31,7 +31,7 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
   {
     type: 'network-traffic',
     title: 'Network & Host',
-    subtitle: 'Alamat IP host, interface jaringan, dan latency status',
+    subtitle: 'Grafik bandwidth real-time, live transfer rate, dan interface jaringan',
     icon: '🌐',
     badge: 'Network',
     category: 'network',
@@ -44,6 +44,14 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     badge: 'Utility',
     category: 'utility',
   },
+  {
+    type: 'cpu-graph',
+    title: 'CPU Live History',
+    subtitle: 'Grafik real-time pemakaian prosesor dengan riwayat tren beban kerja',
+    icon: '📈',
+    badge: 'Graph',
+    category: 'system',
+  },
 ]
 
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
@@ -51,6 +59,7 @@ export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
   'system-vital': 210,
   'quick-note': 200,
   'network-traffic': 225,
+  'cpu-graph': 195,
 }
 
 export const WIDGET_GAP = 20
@@ -122,7 +131,7 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType: WidgetType): 
 
   // Check columns from right to left
   for (let col = 0; col < 4; col++) {
-    const colX = Math.max(20, screenWidth - 308 - col * 296)
+    const colX = Math.max(200, screenWidth - 308 - col * 296)
 
     const colWidgets = existing
       .filter((w) => Math.abs(w.x - colX) < 140)
@@ -143,7 +152,7 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType: WidgetType): 
   }
 
   // Fallback: spawn in first column
-  return { x: Math.max(20, screenWidth - 308), y: topMargin }
+  return { x: Math.max(200, screenWidth - 308), y: topMargin }
 }
 
 interface WidgetState {
@@ -229,7 +238,7 @@ export const useWidgetStore = create<WidgetState>()(
             col++
             currentY = topMargin
           }
-          const colX = Math.max(20, screenWidth - 308 - col * 296)
+          const colX = Math.max(200, screenWidth - 308 - col * 296)
           rearranged.push({
             ...w,
             x: colX,

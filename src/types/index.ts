@@ -22,7 +22,7 @@ export type WindowKind =
 export type WindowId = WindowKind
 
 // ── Desktop Widgets ──────────────────────────────────────────────
-export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note'
+export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note' | 'cpu-graph'
 
 export interface PlacedWidget {
   id: string
@@ -66,6 +66,10 @@ export interface SystemSummary {
   storage: {
     total: number
     used: number
+  }
+  networkIO?: {
+    bytesRecv: number
+    bytesSent: number
   }
   stateDir: string
   dockerInstalled: boolean

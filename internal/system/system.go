@@ -20,6 +20,11 @@ type UsageStat struct {
 	Used  uint64 `json:"used"`
 }
 
+type NetworkIO struct {
+	BytesRecv uint64 `json:"bytesRecv"`
+	BytesSent uint64 `json:"bytesSent"`
+}
+
 type Summary struct {
 	Hostname           string    `json:"hostname"`
 	OSName             string    `json:"osName"`
@@ -29,6 +34,7 @@ type Summary struct {
 	CPUTemp            float64   `json:"cpuTemp"`
 	Memory             UsageStat `json:"memory"`
 	Storage            UsageStat `json:"storage"`
+	NetworkIO          NetworkIO `json:"networkIO"`
 	DockerInstalled    bool      `json:"dockerInstalled"`
 	DockerReachable    bool      `json:"dockerReachable"`
 	DockerStatus       string    `json:"dockerStatus"`
@@ -59,6 +65,7 @@ func Inspect(portainerURL, stateDir string) Summary {
 		CPUTemp:            readCPUTemp(),
 		Memory:             readMemoryUsage(),
 		Storage:            readStorageUsage(stateDir),
+		NetworkIO:          readNetworkIO(),
 		DockerInstalled:    dockerInstalled,
 		DockerReachable:    dockerReachable,
 		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
@@ -294,6 +301,42 @@ func readIPAddresses() []string {
 		}
 	}
 	return result
+}
+
+func readNetworkIO() NetworkIO {
+	data, err := os.ReadFile("/proc/net/dev")
+	if err != nil {
+		return NetworkIO{}
+	}
+	var totalRx, totalTx uint64
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		if lineNum <= 2 {
+			continue
+		}
+		line := scanner.Text()
+		colonIdx := strings.Index(line, ":")
+		if colonIdx == -1 {
+			continue
+		}
+		ifaceName := strings.TrimSpace(line[:colonIdx])
+		if ifaceName == "lo" {
+			continue
+		}
+		fields := strings.Fields(line[colonIdx+1:])
+		if len(fields) >= 9 {
+			rx, _ := strconv.ParseUint(fields[0], 10, 64)
+			tx, _ := strconv.ParseUint(fields[8], 10, 64)
+			totalRx += rx
+			totalTx += tx
+		}
+	}
+	return NetworkIO{
+		BytesRecv: totalRx,
+		BytesSent: totalTx,
+	}
 }
 
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
