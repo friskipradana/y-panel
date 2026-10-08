@@ -27,7 +27,7 @@ export function SystemVitalWidget() {
   const diskPercent = diskTotal > 0 ? Math.min(100, Math.round((diskUsed / diskTotal) * 100)) : 0
 
   return (
-    <div className="flex flex-col gap-2.5 p-3.5 select-none">
+    <div className="h-full flex flex-col justify-between p-3.5 select-none">
       <div className="flex items-center justify-between text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
         <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-indigo-500 font-semibold">
           <Cpu size={12} className="text-indigo-500" />

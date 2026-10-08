@@ -65,7 +65,7 @@ export function CpuGraphWidget() {
   }, [history])
 
   return (
-    <div className="flex flex-col gap-2 p-3.5 select-none">
+    <div className="h-full flex flex-col justify-between p-3.5 select-none">
       {/* Header */}
       <div className="flex items-center justify-between text-[11px] font-medium text-[var(--text-secondary)]">
         <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-cyan-500 font-semibold">

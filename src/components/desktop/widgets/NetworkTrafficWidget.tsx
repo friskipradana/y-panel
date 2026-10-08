@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import { Activity, ArrowDown, ArrowUp, Globe, ShieldCheck, Terminal } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { getSystemSummary } from '@/api/system'
@@ -118,17 +119,17 @@ export function NetworkTrafficWidget() {
   }, [rxHistory, txHistory])
 
   return (
-    <div className="flex flex-col gap-2 p-3.5 select-none">
-      {/* Header with Segmented Tabs */}
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-amber-500 font-semibold">
+    <div className="h-full flex flex-col justify-between p-3.5 select-none">
+      {/* Header with Sleek Segmented Capsule Control */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-amber-500 font-semibold shrink-0">
           <Globe size={12} className="text-amber-500" />
           Network
         </span>
 
-        {/* Mini Segmented Switcher */}
+        {/* Modern Floating Sliding Pill Tab */}
         <div
-          className="flex items-center rounded-lg border p-0.5 text-[10px]"
+          className="relative inline-flex items-center rounded-full p-[2.5px] border"
           style={{
             backgroundColor: 'var(--panel-surface-strong)',
             borderColor: 'var(--win-border)',
@@ -137,26 +138,41 @@ export function NetworkTrafficWidget() {
           <button
             type="button"
             onClick={() => handleTabChange('speed')}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 transition-all ${
+            className={`relative z-10 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
               activeTab === 'speed'
-                ? 'bg-cyan-500/15 text-cyan-500 font-semibold shadow-xs'
+                ? 'text-cyan-500 font-semibold'
                 : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
             }`}
           >
-            <Activity size={10} />
+            <Activity size={10} className={activeTab === 'speed' ? 'text-cyan-500' : 'opacity-60'} />
             Speed
+            {activeTab === 'speed' && (
+              <motion.div
+                layoutId="networkWidgetTabIndicator"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                className="absolute inset-0 -z-10 rounded-full border border-cyan-500/35 bg-cyan-500/15 shadow-xs"
+              />
+            )}
           </button>
+
           <button
             type="button"
             onClick={() => handleTabChange('interfaces')}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 transition-all ${
+            className={`relative z-10 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
               activeTab === 'interfaces'
-                ? 'bg-cyan-500/15 text-cyan-500 font-semibold shadow-xs'
+                ? 'text-cyan-500 font-semibold'
                 : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
             }`}
           >
-            <Terminal size={10} />
+            <Terminal size={10} className={activeTab === 'interfaces' ? 'text-cyan-500' : 'opacity-60'} />
             Host / IP
+            {activeTab === 'interfaces' && (
+              <motion.div
+                layoutId="networkWidgetTabIndicator"
+                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                className="absolute inset-0 -z-10 rounded-full border border-cyan-500/35 bg-cyan-500/15 shadow-xs"
+              />
+            )}
           </button>
         </div>
       </div>

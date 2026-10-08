@@ -112,16 +112,20 @@ export function WidgetsWindow() {
 
                 <button
                   type="button"
-                  onClick={() => handleAddClick(item.type)}
+                  onClick={() => !isPlaced && handleAddClick(item.type)}
+                  disabled={isPlaced}
+                  title={isPlaced ? 'Widget sudah aktif di layar desktop' : 'Pasang widget ini ke desktop'}
                   className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                    wasJustAdded
+                    isPlaced
+                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 opacity-70 cursor-default'
+                      : wasJustAdded
                       ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                      : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30'
+                      : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 cursor-pointer'
                   }`}
                 >
-                  {wasJustAdded ? (
+                  {isPlaced || wasJustAdded ? (
                     <>
-                      <Check size={12} /> Terpasang!
+                      <Check size={12} /> Terpasang
                     </>
                   ) : (
                     <>
