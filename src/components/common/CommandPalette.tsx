@@ -23,6 +23,7 @@ import {
   Activity,
   Sparkles,
   CornerDownLeft,
+  X,
 } from 'lucide-react'
 import { useCommandStore } from '@/store/commandStore'
 import { useWindowStore } from '@/store/windowStore'
@@ -85,7 +86,7 @@ export function CommandPalette() {
 
   // Uniform monochrome icon wrapper matching YPanel desktop icon aesthetics
   const renderIconBox = (IconComp: React.ComponentType<{ size?: number; className?: string }>) => (
-    <div className="h-8 w-8 rounded-xl bg-black/25 dark:bg-white/[0.06] border border-white/10 dark:border-white/10 flex items-center justify-center shrink-0 text-slate-300 dark:text-slate-200 group-data-[selected=true]:border-cyan-500/40 group-data-[selected=true]:bg-cyan-500/10 group-data-[selected=true]:text-cyan-400 transition-colors">
+    <div className="h-8 w-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/10 flex items-center justify-center shrink-0 text-[var(--win-text)] group-data-[selected=true]:border-cyan-500/40 group-data-[selected=true]:bg-cyan-500/10 group-data-[selected=true]:text-cyan-500 dark:group-data-[selected=true]:text-cyan-400 transition-colors">
       <IconComp size={16} />
     </div>
   )
@@ -134,17 +135,19 @@ export function CommandPalette() {
                   placeholder="Ketik nama aplikasi, widget, atau perintah sistem..."
                   className="w-full bg-transparent text-[14px] text-[var(--win-text)] placeholder-[var(--text-secondary)]/60 focus:outline-none"
                 />
-                <kbd
+                <button
+                  type="button"
                   onClick={closeCommandPalette}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-mono border cursor-pointer hover:bg-slate-500/15 transition-colors shrink-0"
+                  className="h-6 w-6 rounded-md border flex items-center justify-center cursor-pointer text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
                   style={{
                     backgroundColor: 'var(--panel-surface-strong)',
                     borderColor: 'var(--win-border)',
-                    color: 'var(--text-secondary)',
                   }}
+                  title="Tutup (ESC)"
+                  aria-label="Tutup"
                 >
-                  ESC
-                </kbd>
+                  <X size={13} />
+                </button>
               </div>
 
               {/* Scrollable Command List */}
@@ -159,20 +162,20 @@ export function CommandPalette() {
                 {/* Group 1: Aplikasi & Window */}
                 <Command.Group
                   heading="Aplikasi & Alat Server"
-                  className="px-2.5 pt-2 pb-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-85"
+                  className="px-1 pt-1 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
                 >
                   {canAccessWindow('host-terminal', userRole) && (
                     <Command.Item
                       onSelect={() => handleSelectWindow('host-terminal')}
-                      className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {renderIconBox(Terminal)}
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                             Host Terminal
                           </span>
-                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                             Terminal interaktif Linux PTY dengan akses shell host
                           </span>
                         </div>
@@ -188,15 +191,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('apps')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Layers)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Docker Containers
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Manajemen container, image, log, dan status runtime
                         </span>
                       </div>
@@ -211,15 +214,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('file-manager')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(FolderOpen)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           File Manager
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Eksplorasi folder, upload, edit, dan permission file server
                         </span>
                       </div>
@@ -235,15 +238,15 @@ export function CommandPalette() {
                   {canAccessWindow('database', userRole) && (
                     <Command.Item
                       onSelect={() => handleSelectWindow('database')}
-                      className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {renderIconBox(Database)}
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                             Database Manager
                           </span>
-                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                             Monitoring koneksi database PostgreSQL, MySQL, dan backup
                           </span>
                         </div>
@@ -260,15 +263,15 @@ export function CommandPalette() {
                   {canAccessWindow('system-logs', userRole) && (
                     <Command.Item
                       onSelect={() => handleSelectWindow('system-logs')}
-                      className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {renderIconBox(ScrollText)}
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                             System Logs
                           </span>
-                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                             Streaming log live dari journald dan service server
                           </span>
                         </div>
@@ -284,15 +287,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('tunnels')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Radio)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Cloudflare Tunnels
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Publikasi port lokal ke domain publik aman tanpa buka router
                         </span>
                       </div>
@@ -307,15 +310,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('projects')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Layers)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Projects
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Katalog aplikasi web dan direktori proyek server
                         </span>
                       </div>
@@ -330,15 +333,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('settings')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Settings)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pengaturan Sistem
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Wallpaper, preferensi desktop, screensaver, dan agent
                         </span>
                       </div>
@@ -354,15 +357,15 @@ export function CommandPalette() {
                   {canAccessWindow('users', userRole) && (
                     <Command.Item
                       onSelect={() => handleSelectWindow('users')}
-                      className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {renderIconBox(Users)}
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                             Manajemen Pengguna
                           </span>
-                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                             Tambah user panel, atur role, dan hak akses
                           </span>
                         </div>
@@ -378,15 +381,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={() => handleSelectWindow('docs')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(BookOpen)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Dokumentasi Panel
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Panduan lengkap penggunaan fitur dan API YPanel
                         </span>
                       </div>
@@ -403,19 +406,19 @@ export function CommandPalette() {
                 {/* Group 2: Modul Widget Desktop */}
                 <Command.Group
                   heading="Modul Widget Desktop"
-                  className="px-2.5 pt-3 pb-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-85"
+                  className="px-1 pt-3 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
                 >
                   <Command.Item
                     onSelect={() => handleSelectWindow('widgets')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Sparkles)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Galeri Widget Desktop
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Katalog lengkap modul floating info untuk desktop
                         </span>
                       </div>
@@ -431,15 +434,15 @@ export function CommandPalette() {
                   <Command.Item
                     onSelect={() => handleAddWidget('clock-uptime')}
                     disabled={hasWidget('clock-uptime')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Clock)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pasang Clock & Uptime
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Jam digital presisi, tanggal lokal, dan durasi aktif server
                         </span>
                       </div>
@@ -455,15 +458,15 @@ export function CommandPalette() {
                   <Command.Item
                     onSelect={() => handleAddWidget('system-vital')}
                     disabled={hasWidget('system-vital')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Cpu)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pasang System Vitals
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Bar meter realtime CPU, RAM memori, dan storage disk
                         </span>
                       </div>
@@ -479,15 +482,15 @@ export function CommandPalette() {
                   <Command.Item
                     onSelect={() => handleAddWidget('network-traffic')}
                     disabled={hasWidget('network-traffic')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Globe)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pasang Network Traffic
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Grafik transfer rate RX/TX dan interface IP host
                         </span>
                       </div>
@@ -503,15 +506,15 @@ export function CommandPalette() {
                   <Command.Item
                     onSelect={() => handleAddWidget('quick-note')}
                     disabled={hasWidget('quick-note')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(StickyNote)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pasang Sysadmin Memo
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Sticky note catatan cepat perintah atau info server
                         </span>
                       </div>
@@ -527,15 +530,15 @@ export function CommandPalette() {
                   <Command.Item
                     onSelect={() => handleAddWidget('cpu-graph')}
                     disabled={hasWidget('cpu-graph')}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Activity)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Pasang CPU History
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Grafik tren sparkline beban prosesor 60 detik
                         </span>
                       </div>
@@ -550,15 +553,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={handleResetWidgets}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(RotateCcw)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Reset Tata Letak Widget
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Rapikan widget desktop ke susunan rak susun jarak selaras 15px
                         </span>
                       </div>
@@ -575,19 +578,19 @@ export function CommandPalette() {
                 {/* Group 3: Sistem & Tampilan */}
                 <Command.Group
                   heading="Sistem & Tampilan"
-                  className="px-2.5 pt-3 pb-1 text-[11px] font-medium text-[var(--text-secondary)] opacity-85"
+                  className="px-1 pt-3 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
                 >
                   <Command.Item
                     onSelect={handleToggleTheme}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(mode === 'dark' ? Sun : Moon)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Ganti Tema ke {mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Alihkan skema visual tampilan kontrol panel
                         </span>
                       </div>
@@ -605,15 +608,15 @@ export function CommandPalette() {
                       resetWindows()
                       closeCommandPalette()
                     }}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(RotateCcw)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Reset Semua Jendela
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Tutup semua window dan bersihkan workspace desktop
                         </span>
                       </div>
@@ -628,15 +631,15 @@ export function CommandPalette() {
 
                   <Command.Item
                     onSelect={handleLockScreen}
-                    className="group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {renderIconBox(Lock)}
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-[13px] text-[var(--win-text)] truncate">
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Kunci Layar (Lock Screen)
                         </span>
-                        <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
                           Kunci sesi workstation untuk keamanan
                         </span>
                       </div>
