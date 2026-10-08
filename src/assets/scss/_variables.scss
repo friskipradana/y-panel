@@ -30,6 +30,12 @@
   --win-content-bg: #ffffff;
   --win-text: #1e293b;
 
+  // Desktop Widgets
+  --widget-bg: rgba(255, 255, 255, 0.90);
+  --widget-border: rgba(203, 213, 225, 0.70);
+  --widget-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --widget-shadow-hover: 0 8px 24px -4px rgba(15, 23, 42, 0.10), 0 3px 8px -1px rgba(15, 23, 42, 0.06);
+
   // Shared panel design system
   --panel-surface: rgba(15, 23, 42, 0.028);
   --panel-surface-strong: rgba(15, 23, 42, 0.048);
@@ -312,6 +318,12 @@
   --win-bar-border: rgba(255, 255, 255, 0.15);
   --win-content-bg: #0f172a;
   --win-text: #f1f5f9;
+
+  // Desktop Widgets
+  --widget-bg: rgba(15, 23, 42, 0.85);
+  --widget-border: rgba(255, 255, 255, 0.10);
+  --widget-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.30), 0 2px 6px -1px rgba(0, 0, 0, 0.20);
+  --widget-shadow-hover: 0 8px 28px -4px rgba(0, 0, 0, 0.45), 0 3px 8px -1px rgba(0, 0, 0, 0.28);
 
   --panel-surface: rgba(255, 255, 255, 0.032);
   --panel-surface-strong: rgba(255, 255, 255, 0.048);
