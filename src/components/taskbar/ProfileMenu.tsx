@@ -71,17 +71,19 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
             className="profile-menu w-[300px]"
           >
           {/* ── Header: [R] Display Name | superadmin • Active (127.0.0.1) ── */}
-          <div className="profile-menu-section flex items-center gap-3">
-            <div className="profile-avatar h-9 w-9 rounded-xl flex items-center justify-center text-[15px] font-bold shrink-0">
+          <div className="profile-menu-section flex items-start gap-3">
+            <div className="profile-avatar h-9 w-9 rounded-xl flex items-center justify-center text-[15px] font-bold shrink-0 mt-0.5">
               {displayName.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <div className="profile-name truncate text-[14px] font-bold text-[var(--win-text)]">{displayName}</div>
-              <div className="profile-role flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)] mt-0.5 whitespace-nowrap">
+              <div className="profile-role flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                 <span className="font-semibold capitalize text-[var(--panel-primary-text)]">{displayRole}</span>
                 <span>•</span>
                 <span className="text-emerald-500 font-semibold">Active</span>
-                <span className="opacity-75 font-mono text-[11px]">({clientHost})</span>
+              </div>
+              <div className="opacity-75 font-mono text-[11px] text-[var(--text-secondary)] truncate mt-0.5" title={clientHost}>
+                ({clientHost})
               </div>
             </div>
           </div>
