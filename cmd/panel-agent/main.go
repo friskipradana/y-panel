@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -9,14 +10,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/database/migrations"
 	"github.com/friskipradana/panel-desktop-ui/internal/httpserver"
+	"github.com/friskipradana/panel-desktop-ui/internal/mcp"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -31,6 +35,11 @@ func main() {
 		case "migrate":
 			if err := runMigrate(os.Args[2:]); err != nil {
 				log.Fatalf("migrate: %v", err)
+			}
+			return
+		case "mcp":
+			if err := runMCP(); err != nil {
+				log.Fatalf("mcp: %v", err)
 			}
 			return
 		}
@@ -188,6 +197,55 @@ func loadRuntimeConfig() (config.Config, error) {
 		return config.Config{}, fmt.Errorf("load config: %w", err)
 	}
 	return cfg, nil
+}
+
+func runMCP() error {
+	_ = loadRuntimeEnv()
+
+	panelURL := os.Getenv("PANEL_MCP_URL")
+	if panelURL == "" {
+		bindAddr := os.Getenv("PANEL_BIND_ADDR")
+		if bindAddr == "" {
+			bindAddr = "0.0.0.0:8787"
+		}
+		host := bindAddr
+		if strings.HasPrefix(host, "0.0.0.0:") {
+			host = "localhost:" + strings.TrimPrefix(host, "0.0.0.0:")
+		}
+		panelURL = "http://" + host
+	}
+
+	mcpCfg := mcp.Config{
+		PanelURL:     panelURL,
+		SessionToken: os.Getenv("PANEL_MCP_TOKEN"),
+		PortainerURL: os.Getenv("PANEL_PORTAINER_URL"),
+		StateDir:     os.Getenv("PANEL_STATE_DIR"),
+	}
+
+	// Parse optional CLI arguments: --token <tok> or --token=<tok>, --url <url> or --url=<url>
+	for i := 2; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if arg == "--token" && i+1 < len(os.Args) {
+			mcpCfg.SessionToken = os.Args[i+1]
+			i++
+		} else if strings.HasPrefix(arg, "--token=") {
+			mcpCfg.SessionToken = strings.TrimPrefix(arg, "--token=")
+		} else if arg == "--url" && i+1 < len(os.Args) {
+			mcpCfg.PanelURL = os.Args[i+1]
+			i++
+		} else if strings.HasPrefix(arg, "--url=") {
+			mcpCfg.PanelURL = strings.TrimPrefix(arg, "--url=")
+		}
+	}
+
+	if mcpCfg.StateDir == "" {
+		mcpCfg.StateDir = "/var/lib/ypanel"
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	return mcp.Run(ctx, mcpCfg)
 }
 
 func openMigrationDB() (*sql.DB, error) {

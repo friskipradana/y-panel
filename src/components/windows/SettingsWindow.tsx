@@ -81,6 +81,7 @@ import type {
   RegisterNotificationDevicePayload,
   UpdateNotificationDevicePayload,
 } from "@/types";
+import { ApiTokensTab } from "@/components/windows/settings/ApiTokensTab";
 
 const TIMEZONES = [
   "UTC",
@@ -153,7 +154,8 @@ type SettingsTabKey =
   | "security"
   | "payment"
   | "notifications"
-  | "audit";
+  | "audit"
+  | "api_tokens";
 
 function FieldLabel({ label, hint }: { label: string; hint?: string }) {
   return (
@@ -1223,6 +1225,11 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       key: "audit",
       label: t("settings.tabs.audit"),
       icon: Clock,
+    },
+    {
+      key: "api_tokens",
+      label: t("settings.tabs.apiTokens"),
+      icon: Key,
     },
   ];
 
@@ -4172,6 +4179,11 @@ Body:
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* ── 7. API & MCP Tokens ── */}
+              {activeTab === "api_tokens" && (
+                <ApiTokensTab />
               )}
             </>
           )}

@@ -21,6 +21,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
 	s.mux.Handle("GET /api/v1/me", s.requireAuthV2(http.HandlerFunc(s.handleMeV2)))
 	s.mux.Handle("POST /api/v1/settings/panel-primary/reset-password", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityPanelPrimaryReset, http.HandlerFunc(s.handleResetPrimaryPanelPassword))))
+	s.mux.Handle("POST /api/v1/settings/database/reset-password", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleResetDatabasePassword)))
+
+	// ── API Tokens (MCP access) ───────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/me/api-tokens", s.requireAuthV2(http.HandlerFunc(s.handleListAPITokens)))
+	s.mux.Handle("POST /api/v1/me/api-tokens", s.requireAuthV2(http.HandlerFunc(s.handleCreateAPIToken)))
+	s.mux.Handle("DELETE /api/v1/me/api-tokens/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteAPIToken)))
+
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
