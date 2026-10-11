@@ -2,6 +2,14 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.0.1] - 2026-10-11
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.0.1** mencakup 1 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat: add automated release script, API tokens settings tab, and release installer CI workflow** (`888aea1` by AknalRe)
+
 ## [0.7.0] - 2026-04-05
 ### Added
 - Dedicated **Database** desktop window for monitoring MariaDB connectivity, persisted runtime logs, changelog rows, and settings audit metrics.
