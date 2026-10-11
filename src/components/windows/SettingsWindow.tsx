@@ -1212,6 +1212,11 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       icon: LockKeyhole,
     },
     {
+      key: "api_tokens",
+      label: t("settings.tabs.apiTokens"),
+      icon: Key,
+    },
+    {
       key: "payment",
       label: t("settings.tabs.payment"),
       icon: CreditCard,
@@ -1225,11 +1230,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       key: "audit",
       label: t("settings.tabs.audit"),
       icon: Clock,
-    },
-    {
-      key: "api_tokens",
-      label: t("settings.tabs.apiTokens"),
-      icon: Key,
     },
   ];
 
@@ -3325,6 +3325,31 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                       ) : null}
                     </div>
                   </div>
+
+                  {/* API & MCP Tokens Shortcut Card */}
+                  <div className="panel-shell-card p-4 flex items-center justify-between gap-4 border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)]/20">
+                    <div className="flex items-center gap-3">
+                      <div className="panel-muted-block h-8 w-8 rounded-lg flex items-center justify-center shrink-0">
+                        <Key size={16} className="text-[var(--panel-primary-text)]" />
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-semibold text-[var(--win-text)]">
+                          API Key & Token MCP Server
+                        </div>
+                        <div className="text-[11.5px] text-[var(--text-secondary)]">
+                          Kelola token akses pribadi untuk Claude Desktop, Cursor, dan programmatic REST API.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("api_tokens")}
+                      className="panel-btn panel-btn--primary rounded-xl px-3.5 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <span>Buka Token MCP</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -3763,6 +3788,21 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
                   {/* Manage Listener API Key Form Card */}
                   <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+                    {/* Notice for MCP / REST API tokens */}
+                    <div className="p-3 rounded-xl border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)]/30 flex items-center justify-between gap-3 text-[12px]">
+                      <div className="flex items-center gap-2 text-[var(--win-text)]">
+                        <Key size={14} className="text-[var(--panel-primary-text)] shrink-0" />
+                        <span>Mencari Token untuk AI MCP (Claude / Cursor) atau REST API server?</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("api_tokens")}
+                        className="panel-btn panel-btn--primary px-3 py-1 rounded-lg text-[11px] font-semibold shrink-0 cursor-pointer"
+                      >
+                        Buka API & MCP Tokens →
+                      </button>
+                    </div>
+
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <SectionHeader
                         icon={<Key size={16} />}
