@@ -64,6 +64,10 @@ func New(cfg Config) *Manager {
 	manager.db = db
 	manager.setConnected(true)
 
+	if err := manager.ensureSchema(); err != nil {
+		manager.setError(fmt.Sprintf("ensure schema failed: %v", err))
+	}
+
 	if err := manager.seedDefaultChangelog(); err != nil {
 		manager.setError(fmt.Sprintf("changelog seed failed: %v", err))
 	}
@@ -471,6 +475,20 @@ func (m *Manager) ensureSchema() error {
 		WHERE templates.id = ranked_templates.id
 		  AND ranked_templates.duplicate_rank > 1`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS uq_docker_compose_templates_owner_name ON docker_compose_templates (owner_user_id, LOWER(name))`,
+
+		// ── API Tokens ─────────────────────────────────────────────────────
+		`CREATE TABLE IF NOT EXISTS api_tokens (
+			id           BIGSERIAL    PRIMARY KEY,
+			user_id      BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			name         VARCHAR(120) NOT NULL,
+			token_hash   VARCHAR(128) NOT NULL UNIQUE,
+			token_prefix VARCHAR(12)  NOT NULL,
+			last_used_at TIMESTAMPTZ,
+			expires_at   TIMESTAMPTZ,
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_api_tokens_user_id    ON api_tokens(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_api_tokens_token_hash ON api_tokens(token_hash)`,
 	}
 
 	for _, stmt := range stmts {
@@ -792,7 +810,113 @@ func (m *Manager) CleanExpiredSessions() {
 	go m.db.Exec("DELETE FROM user_sessions WHERE expires_at <= NOW()")
 }
 
+// ─── API Tokens ───────────────────────────────────────────────────────────────
+
+// APIToken is the stored representation of an MCP/API access token.
+// The raw token value is only returned once at creation time.
+type APIToken struct {
+	ID          int64      `json:"id"`
+	UserID      int64      `json:"userId"`
+	Name        string     `json:"name"`
+	TokenPrefix string     `json:"tokenPrefix"`
+	LastUsedAt  *time.Time `json:"lastUsedAt"`
+	ExpiresAt   *time.Time `json:"expiresAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+// CreateAPIToken stores a hashed token and returns the full token metadata.
+// tokenHash is SHA-256 hex of the raw token; tokenPrefix is the first 8 chars of the raw token.
+func (m *Manager) CreateAPIToken(userID int64, name, tokenHash, tokenPrefix string, expiresAt *time.Time) (*APIToken, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var t APIToken
+	err := m.db.QueryRow(`
+		INSERT INTO api_tokens (user_id, name, token_hash, token_prefix, expires_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, user_id, name, token_prefix, last_used_at, expires_at, created_at
+	`, userID, name, tokenHash, tokenPrefix, expiresAt).Scan(
+		&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetAPITokenUser looks up the user associated with a raw token hash.
+// Returns nil if the token does not exist, is expired, or the user is suspended.
+func (m *Manager) GetAPITokenUser(tokenHash string) (*User, *APIToken, bool) {
+	if !m.IsConnected() || m.db == nil {
+		return nil, nil, false
+	}
+	var t APIToken
+	row := m.db.QueryRow(`
+		SELECT t.id, t.user_id, t.name, t.token_prefix, t.last_used_at, t.expires_at, t.created_at,
+		       u.id, u.username, u.email, u.role, u.status,
+		       COALESCE(u.display_name,''), COALESCE(u.avatar_url,''),
+		       u.created_at, u.updated_at, u.last_login_at
+		FROM api_tokens t
+		JOIN users u ON u.id = t.user_id
+		WHERE t.token_hash = $1
+		  AND (t.expires_at IS NULL OR t.expires_at > NOW())
+		  AND u.status = 'active'
+	`, tokenHash)
+	var u User
+	if err := row.Scan(
+		&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt,
+		&u.ID, &u.Username, &u.Email, &u.Role, &u.Status,
+		&u.DisplayName, &u.AvatarURL, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt,
+	); err != nil {
+		return nil, nil, false
+	}
+	go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+	return &u, &t, true
+}
+
+// ListAPITokens returns all API tokens for a user (without token_hash for security).
+func (m *Manager) ListAPITokens(userID int64) ([]APIToken, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`
+		SELECT id, user_id, name, token_prefix, last_used_at, expires_at, created_at
+		FROM api_tokens
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	tokens := make([]APIToken, 0)
+	for rows.Next() {
+		var t APIToken
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.TokenPrefix, &t.LastUsedAt, &t.ExpiresAt, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, rows.Err()
+}
+
+// DeleteAPIToken removes an API token by ID, ensuring ownership.
+func (m *Manager) DeleteAPIToken(id, userID int64) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	res, err := m.db.Exec("DELETE FROM api_tokens WHERE id = $1 AND user_id = $2", id, userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("token not found")
+	}
+	return nil
+}
+
 // ─── Quotas ───────────────────────────────────────────────────────────────────
+
 
 type UserQuota struct {
 	UserID        int64 `json:"userId"`

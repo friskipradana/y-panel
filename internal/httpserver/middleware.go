@@ -14,11 +14,6 @@ import (
 
 // ─── Middleware ──────────────────────────────────────────────────────────────
 
-// requireAuth is a legacy alias for requireAuthV2.
-func (s *Server) requireAuth(next http.Handler) http.Handler {
-	return s.requireAuthV2(next)
-}
-
 // currentUser returns the username from the session cookie, if authenticated.
 func (s *Server) currentUser(r *http.Request) (string, bool) {
 	u := s.currentUserRecord(r)
@@ -39,11 +34,6 @@ func (s *Server) currentUserRecord(r *http.Request) *database.User {
 		return nil
 	}
 	return u
-}
-
-// requireHTMLAuth is a legacy alias for requireHTMLAuthV2.
-func (s *Server) requireHTMLAuth(next http.Handler) http.Handler {
-	return s.requireHTMLAuthV2(next)
 }
 
 // requireHTMLAuthV2 protects HTML page routes by redirecting unauthenticated

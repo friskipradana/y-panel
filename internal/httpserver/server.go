@@ -1,7 +1,6 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -85,11 +84,6 @@ func (s *Server) allowedHosts() []string {
 	s.cfgMu.RLock()
 	defer s.cfgMu.RUnlock()
 	return s.cfg.AllowedHosts
-}
-
-type legacyLoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 func New(cfg config.Config) *Server {
@@ -315,50 +309,6 @@ func (s *Server) frontendRevision() string {
 	}
 
 	return fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
-}
-
-func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	var req legacyLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("[auth] login decode failed remote=%s err=%v", remoteAddr(r), err)
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON body"})
-		return
-	}
-
-	username := strings.TrimSpace(req.Username)
-	token, user, err := s.auth.Login(username, req.Password, remoteAddr(r), r.UserAgent())
-	if err != nil {
-		log.Printf("[auth] login failed user=%q remote=%s", username, remoteAddr(r))
-		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    token,
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
-	})
-
-	log.Printf("[auth] login success user=%q remote=%s", username, remoteAddr(r))
-	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"ok":       true,
-		"username": user.Username,
-		"role":     user.Role,
-	})
-}
-
-func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
-	username, _ := s.currentUser(r)
-	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"username": username,
-		"role":     "admin",
-	})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

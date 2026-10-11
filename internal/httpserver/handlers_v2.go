@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,9 +101,25 @@ func (s *Server) notifyCurrentUserAction(r *http.Request, title, body, notifType
 
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 
-// requireAuthV2 validates the session cookie and injects the User into context.
+// requireAuthV2 validates the session cookie OR a Bearer API token and injects the User into context.
 func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Try Bearer API token first (used by MCP and programmatic clients)
+		if authHeader := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(authHeader, "Bearer ") {
+			rawToken := strings.TrimPrefix(authHeader, "Bearer ")
+			if strings.HasPrefix(rawToken, "ypat_") {
+				tokenHash := hashAPIToken(rawToken)
+				u, _, ok := s.database.GetAPITokenUser(tokenHash)
+				if !ok || u == nil {
+					s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
+					return
+				}
+				ctx := context.WithValue(r.Context(), ctxUser, u)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+		// Fall back to session cookie
 		cookie, err := r.Cookie(sessionCookieName)
 		if err != nil {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
@@ -119,6 +134,7 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
 
 // requireRole checks that the current user has at least the given role.
 func (s *Server) requireRole(role string, next http.Handler) http.Handler {
@@ -1246,43 +1262,6 @@ func clearDirectoryContents(dir string) error {
 	return nil
 }
 
-func normalizeStaticUploadRoot(projectDir string) error {
-	indexPath := filepath.Join(projectDir, "index.html")
-	if _, err := os.Stat(indexPath); err == nil {
-		return nil
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	entries, err := os.ReadDir(projectDir)
-	if err != nil {
-		return err
-	}
-	if len(entries) != 1 || !entries[0].IsDir() {
-		return nil
-	}
-
-	nestedDir := filepath.Join(projectDir, entries[0].Name())
-	if _, err := os.Stat(filepath.Join(nestedDir, "index.html")); err != nil {
-		return nil
-	}
-	nestedEntries, err := os.ReadDir(nestedDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range nestedEntries {
-		source := filepath.Join(nestedDir, entry.Name())
-		target := filepath.Join(projectDir, entry.Name())
-		if _, err := os.Stat(target); err == nil {
-			return fmt.Errorf("target already exists while flattening upload: %s", entry.Name())
-		}
-		if err := os.Rename(source, target); err != nil {
-			return err
-		}
-	}
-	return os.Remove(nestedDir)
-}
-
 func detectStaticUploadSource(tempDir, requestedRoot string) (string, error) {
 	cleanRoot := strings.TrimSpace(requestedRoot)
 	if cleanRoot != "" {
@@ -2269,14 +2248,4 @@ func allocateProjectPort(userID int64, projectIndex int) int {
 	const base, block, maxUID = 10000, 100, 900
 	basePt := base + int((userID-1)%int64(maxUID))*block
 	return basePt + (projectIndex % block)
-}
-
-func generateRandomSubdomain() string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	buf := make([]byte, 8)
-	_, _ = rand.Read(buf)
-	for i := range buf {
-		buf[i] = chars[int(buf[i])%len(chars)]
-	}
-	return string(buf)
 }
