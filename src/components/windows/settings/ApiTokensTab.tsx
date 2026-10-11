@@ -25,6 +25,7 @@ import { getMeV2 } from "@/api/auth";
 import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { formatDateTimeID } from "@/lib/datetime";
+import { PanelSelectMenu } from "@/components/system/PanelSelectMenu";
 
 const EXPIRY_OPTIONS: { label: string; value: CreateAPITokenPayload["expiresIn"] }[] = [
   { label: "30 Hari (Direkomendasikan)", value: "30d" },
@@ -33,6 +34,11 @@ const EXPIRY_OPTIONS: { label: string; value: CreateAPITokenPayload["expiresIn"]
   { label: "1 Tahun", value: "1y" },
   { label: "Tanpa Kedaluwarsa (Permanen)", value: null },
 ];
+
+const EXPIRY_SELECT_OPTIONS = EXPIRY_OPTIONS.map((opt) => ({
+  value: opt.value ?? "never",
+  label: opt.label,
+}));
 
 export function ApiTokensTab() {
   const queryClient = useQueryClient();
@@ -292,20 +298,15 @@ export function ApiTokensTab() {
             <label className="block text-[11.5px] font-medium text-[var(--win-text)] mb-1.5">
               Masa Berlaku
             </label>
-            <select
+            <PanelSelectMenu
+              id="api-token-expiry"
               value={expiresIn || "never"}
-              onChange={(e) => {
-                const val = e.target.value;
+              onChange={(val) => {
                 setExpiresIn(val === "never" ? null : (val as CreateAPITokenPayload["expiresIn"]));
               }}
-              className="panel-input h-[38px] px-3 text-[12px] w-full bg-[var(--panel-surface)] text-[var(--win-text)] cursor-pointer"
-            >
-              {EXPIRY_OPTIONS.map((opt) => (
-                <option key={opt.value ?? "never"} value={opt.value ?? "never"}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              options={EXPIRY_SELECT_OPTIONS}
+              buttonClassName="!h-[38px] text-[12.5px]"
+            />
           </div>
 
           <button
