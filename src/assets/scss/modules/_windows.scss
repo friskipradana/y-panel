@@ -247,6 +247,7 @@
   transform: translateY(-1px);
 }
 
+select,
 .panel-select {
   background: var(--panel-surface);
   color: var(--win-text);
@@ -254,9 +255,11 @@
   color-scheme: light dark;
 }
 
+select option,
+select optgroup,
 .panel-select option,
 .panel-select optgroup {
-  background: var(--panel-surface);
+  background-color: var(--win-content-bg, #0f172a);
   color: var(--win-text);
 }
 

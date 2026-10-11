@@ -50,3 +50,4 @@ jobs:
         with:
           files: dist-release/ypanel-installer.run
           fail_on_unmatched_files: true
+          generate_release_notes: true

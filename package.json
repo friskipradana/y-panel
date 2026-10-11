@@ -18,9 +18,11 @@
     "build:check": "tsc -b --pretty false",
     "lint": "eslint .",
     "preview": "vite preview",
-    "release:patch": "npm version patch && git push --follow-tags",
-    "release:minor": "npm version minor && git push --follow-tags",
-    "release:major": "npm version major && git push --follow-tags"
+    "release": "bun run ./scripts/release.ts",
+    "release:patch": "bun run ./scripts/release.ts patch",
+    "release:minor": "bun run ./scripts/release.ts minor",
+    "release:major": "bun run ./scripts/release.ts major",
+    "release:dry-run": "bun run ./scripts/release.ts patch --dry-run"
   },
   "dependencies": {
     "@fluentui/react-icons": "^2.0.343",
