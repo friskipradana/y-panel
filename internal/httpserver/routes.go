@@ -30,7 +30,11 @@ func (s *Server) routes() {
 
 	// ── Model Context Protocol (MCP) Streamable HTTP & SSE ────────────────────
 	s.mux.HandleFunc("/mcp", s.handleMCP)
+	s.mux.HandleFunc("/mcp/", s.handleMCP)
+	s.mux.HandleFunc("/sse", s.handleMCP)
+	s.mux.HandleFunc("/sse/", s.handleMCP)
 	s.mux.HandleFunc("/api/v1/mcp", s.handleMCP)
+	s.mux.HandleFunc("/api/v1/mcp/", s.handleMCP)
 
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────

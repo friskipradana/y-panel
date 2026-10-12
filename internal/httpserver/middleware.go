@@ -41,7 +41,7 @@ func (s *Server) currentUserRecord(r *http.Request) *database.User {
 func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if strings.HasPrefix(path, "/api/") || path == "/healthz" {
+		if strings.HasPrefix(path, "/api/") || path == "/healthz" || path == "/mcp" || strings.HasPrefix(path, "/mcp/") || path == "/sse" || strings.HasPrefix(path, "/sse/") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -51,8 +51,11 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 
+		// Public pages: Landing (/), Login (/login), and Public MCP Tutorial (/docs/mcp, /mcp/guide)
+		isPublicPage := path == "/" || path == "/login" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide"
+
 		_, authed := s.currentUser(r)
-		if !authed && path != "/" && path != "/login" {
+		if !authed && !isPublicPage {
 			if acceptsHTML(r) {
 				http.Redirect(w, r, "/login", http.StatusFound)
 				return

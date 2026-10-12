@@ -15,6 +15,7 @@ import {
   Settings,
   Terminal,
   Users,
+  Bot,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
@@ -89,6 +90,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               <span>GitHub</span>
               <ExternalLink size={11} className="opacity-60" />
             </a>
+            <button
+              type="button"
+              onClick={() => onNavigate('/docs/mcp')}
+              className="text-xs text-amber-300 hover:text-amber-200 px-3 py-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Bot size={13} />
+              <span>MCP & AI Agent</span>
+            </button>
             <a
               href={INSTALLER_URL}
               className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-md border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] transition flex items-center gap-1.5 cursor-pointer"
