@@ -252,9 +252,12 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 22. **`user_activate`**: Mengaktifkan kembali akun pengguna (`{"id": "2"}`).
 
 ### Kategori 7: Cloudflare Tunnels & Domains
-23. **`cloudflare_list_domains`**: Menampilkan daftar domain/zone Cloudflare yang terhubung.
+23. **`cloudflare_list_domains`**: Menampilkan daftar domain/zone Cloudflare yang terhubung ke YPanel.
 24. **`cloudflare_list_dns`**: Menampilkan DNS record pada zone tertentu (`{"zone_id": "<zone_id>"}`).
 25. **`cloudflare_list_tunnel_profiles`**: Menampilkan profil tunnel Cloudflared yang aktif untuk public ingress.
+26. **`cloudflare_verify_token`**: Memeriksa validitas token API Cloudflare dan menganalisis cakupan izin (`Zone:Read`, `DNS:Edit`, `Cloudflare Tunnel:Edit`).
+27. **`cloudflare_create_dns`**: Membuat DNS record (CNAME, A, AAAA, TXT) di Cloudflare untuk domain yang dikelola.
+28. **`cloudflare_ensure_dns_cname`**: Otomatis membuat atau memperbarui DNS CNAME Cloudflare untuk mengarahkan hostname ingress (misal `antrian.aknalre.my.id`) ke Cloudflare Tunnel secara instan.
 
 ---
 
