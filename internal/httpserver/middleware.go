@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -127,6 +128,19 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 
 func (s *Server) withHostGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// MCP endpoints (/mcp, /sse) and public guide docs (/docs/mcp) are machine/public integrations
+		if path == "/mcp" || strings.HasPrefix(path, "/mcp/") || path == "/sse" || strings.HasPrefix(path, "/sse/") || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Authenticated API token requests (ypat_...) bypass host guard because Bearer tokens cannot be forged via ambient browser credentials (DNS rebinding)
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ypat_") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if !s.isHostAllowed(r.Host) {
 			if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 				http.Error(w, "host not allowed", http.StatusForbidden)
@@ -141,12 +155,22 @@ func (s *Server) withHostGuard(next http.Handler) http.Handler {
 
 func (s *Server) isHostAllowed(hostport string) bool {
 	host := normalizeHost(hostport)
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" {
 		return true
 	}
 	if host == "" {
 		return false
 	}
+	// Allow loopback, private LAN (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), and Tailscale CGNAT IP (100.64.0.0/10)
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
+			return true
+		}
+		if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
+			return true
+		}
+	}
+
 	hosts := s.allowedHosts()
 	origins := s.allowedOrigins()
 	if len(hosts) == 0 && len(origins) == 0 {
@@ -178,15 +202,31 @@ func (s *Server) isOriginAllowed(origin string) bool {
 	if origin == "" {
 		return true
 	}
+	normalizedOrigin, ok := normalizeOrigin(origin)
+	if !ok {
+		return false
+	}
+	// Always allow loopback, private LAN, and Tailscale origins
+	if parsed, err := url.Parse(normalizedOrigin); err == nil {
+		h := normalizeHost(parsed.Host)
+		if h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0" {
+			return true
+		}
+		if ip := net.ParseIP(h); ip != nil {
+			if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
+				return true
+			}
+			if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
+				return true
+			}
+		}
+	}
+
 	origins := s.allowedOrigins()
 	if len(origins) == 0 {
 		return true
 	}
 
-	normalizedOrigin, ok := normalizeOrigin(origin)
-	if !ok {
-		return false
-	}
 	for _, candidate := range origins {
 		normalizedCandidate, candidateOK := normalizeOrigin(candidate)
 		if !candidateOK {
