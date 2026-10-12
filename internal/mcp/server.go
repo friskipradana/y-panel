@@ -245,10 +245,11 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 
 		// Normalize tool name by stripping MCP client prefixes (e.g. mcp__YPANEL__, ypanel__)
 		cleanName := strings.TrimSpace(params.Name)
-		cleanName = strings.TrimPrefix(cleanName, "mcp__YPANEL__")
-		cleanName = strings.TrimPrefix(cleanName, "mcp__ypanel__")
-		cleanName = strings.TrimPrefix(cleanName, "ypanel__")
+		if idx := strings.LastIndex(cleanName, "__"); idx != -1 {
+			cleanName = cleanName[idx+2:]
+		}
 		cleanName = strings.TrimPrefix(cleanName, "ypanel_")
+		cleanName = strings.TrimPrefix(cleanName, "ypanel__")
 
 		s.mu.Lock()
 		handler, ok := s.handlers[cleanName]

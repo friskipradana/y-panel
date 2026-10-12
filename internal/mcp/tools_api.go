@@ -77,6 +77,22 @@ func (c *apiClient) post(ctx context.Context, path string, body any) ([]byte, in
 	return c.do(ctx, http.MethodPost, path, body)
 }
 
+func (c *apiClient) put(ctx context.Context, path string, body any) ([]byte, int, error) {
+	return c.do(ctx, http.MethodPut, path, body)
+}
+
+func (c *apiClient) delete(ctx context.Context, path string) ([]byte, int, error) {
+	return c.do(ctx, http.MethodDelete, path, nil)
+}
+
+func jsonResponseText(v any) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
 func apiResult(data []byte, statusCode int, err error) (string, error) {
 	if err != nil {
 		return "", err
@@ -324,12 +340,33 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 	})
 
 	s.Register(Tool{
-		Name:        "cloudflare_ensure_dns_cname",
-		Description: "Automatically create or update a Cloudflare DNS CNAME pointing an ingress hostname (e.g. antrian.aknalre.my.id) to a Cloudflare tunnel.",
+		Name:        "cloudflare_delete_dns",
+		Description: "Delete a DNS record from a Cloudflare zone.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
-				"hostname":  {Type: "string", Description: "The public ingress hostname to point (e.g. antrian.aknalre.my.id)."},
+				"zone_id":   {Type: "string", Description: "Cloudflare Zone ID."},
+				"record_id": {Type: "string", Description: "DNS Record ID to delete."},
+			},
+			Required: []string{"zone_id", "record_id"},
+		},
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		zoneID := stringArg(args, "zone_id", "")
+		recordID := stringArg(args, "record_id", "")
+		if zoneID == "" || recordID == "" {
+			return "", fmt.Errorf("zone_id and record_id are required")
+		}
+		data, code, err := client.delete(ctx, fmt.Sprintf("/api/v1/cloudflare/domains/%s/dns/%s", zoneID, recordID))
+		return apiResult(data, code, err)
+	})
+
+	s.Register(Tool{
+		Name:        "cloudflare_ensure_dns_cname",
+		Description: "Automatically create or update a Cloudflare DNS CNAME pointing an ingress hostname (e.g. test.aknalre.my.id) to a Cloudflare tunnel. Overwrites conflicting A/AAAA records automatically.",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"hostname":  {Type: "string", Description: "The public ingress hostname to point (e.g. test.aknalre.my.id)."},
 				"tunnel_id": {Type: "string", Description: "Optional: Cloudflare tunnel ID. If omitted, automatically uses the active tunnel in YPanel."},
 			},
 			Required: []string{"hostname"},
@@ -354,7 +391,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			return "", fmt.Errorf("no active Cloudflare domains found in YPanel")
 		}
 
-		// Find best matching zone for hostname (e.g. aknalre.my.id matches antrian.aknalre.my.id)
+		// Find best matching zone for hostname (e.g. aknalre.my.id matches test.aknalre.my.id)
 		var targetZoneID string
 		for _, z := range zones {
 			if strings.EqualFold(hostname, z.Name) || strings.HasSuffix(strings.ToLower(hostname), "."+strings.ToLower(z.Name)) {
@@ -371,10 +408,20 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			profData, pCode, pErr := client.get(ctx, "/api/v1/cloudflare/tunnel-profiles")
 			if pErr == nil && pCode < 400 {
 				var profiles []struct {
+					ID       string `json:"id"`
 					TunnelID string `json:"tunnelId"`
 				}
-				if json.Unmarshal(profData, &profiles) == nil && len(profiles) > 0 {
-					tunnelID = profiles[0].TunnelID
+				if json.Unmarshal(profData, &profiles) == nil {
+					for _, p := range profiles {
+						candidate := p.ID
+						if candidate == "" {
+							candidate = p.TunnelID
+						}
+						if candidate != "" && candidate != "pending" {
+							tunnelID = candidate
+							break
+						}
+					}
 				}
 			}
 		}
@@ -382,7 +429,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			return "", fmt.Errorf("no tunnel_id provided and no active tunnel profile found")
 		}
 
-		// 3. Create or update CNAME
+		// 3. Check for existing DNS records for this hostname (A, AAAA, or CNAME)
 		cnameContent := fmt.Sprintf("%s.cfargotunnel.com", tunnelID)
 		payload := map[string]any{
 			"type":    "CNAME",
@@ -391,7 +438,123 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			"proxied": true,
 			"ttl":     1,
 		}
+
+		existingData, eCode, eErr := client.get(ctx, "/api/v1/cloudflare/domains/"+targetZoneID+"/dns")
+		if eErr == nil && eCode < 400 {
+			var resp struct {
+				Items []struct {
+					ID      string `json:"id"`
+					Type    string `json:"type"`
+					Name    string `json:"name"`
+					Content string `json:"content"`
+				} `json:"items"`
+			}
+			if json.Unmarshal(existingData, &resp) == nil {
+				for _, it := range resp.Items {
+					if strings.EqualFold(it.Name, hostname) {
+						if it.Type == "CNAME" && it.Content == cnameContent {
+							return jsonResponseText(map[string]any{
+								"ok":      true,
+								"status":  "already_configured",
+								"message": fmt.Sprintf("Hostname %s is already pointing to tunnel %s", hostname, tunnelID),
+							})
+						}
+						// Update existing record (convert A/AAAA/old CNAME to new CNAME)
+						data, putCode, putErr := client.put(ctx, fmt.Sprintf("/api/v1/cloudflare/domains/%s/dns/%s", targetZoneID, it.ID), payload)
+						return apiResult(data, putCode, putErr)
+					}
+				}
+			}
+		}
+
+		// 4. Create new CNAME record if none existed
 		data, cCode, cErr := client.post(ctx, "/api/v1/cloudflare/domains/"+targetZoneID+"/dns", payload)
 		return apiResult(data, cCode, cErr)
+	})
+
+	s.Register(Tool{
+		Name:        "cloudflare_create_tunnel_route",
+		Description: "Create a Cloudflare Tunnel ingress route and automatically configure DNS CNAME in Cloudflare. Connects a subdomain to an internal port (e.g. test.aknalre.my.id -> http://localhost:8891).",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"name":        {Type: "string", Description: "Human-readable label for this route (e.g. 'Hello Static Page')."},
+				"hostname":    {Type: "string", Description: "Full hostname (e.g. 'test.aknalre.my.id')."},
+				"target_port": {Type: "string", Description: "Internal port number (e.g. '8891' or '8080')."},
+				"target_ip":   {Type: "string", Description: "Optional target host (defaults to 'localhost').", Default: "localhost"},
+				"protocol":    {Type: "string", Description: "Optional protocol (defaults to 'http').", Default: "http"},
+				"tunnel_id":   {Type: "string", Description: "Optional Cloudflare tunnel profile ID. Defaults to active profile."},
+			},
+			Required: []string{"hostname", "target_port"},
+		},
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		hostname := strings.TrimSpace(stringArg(args, "hostname", ""))
+		targetPort := strings.TrimSpace(stringArg(args, "target_port", ""))
+		if hostname == "" || targetPort == "" {
+			return "", fmt.Errorf("hostname and target_port are required")
+		}
+		name := strings.TrimSpace(stringArg(args, "name", hostname))
+		targetIP := strings.TrimSpace(stringArg(args, "target_ip", "localhost"))
+		protocol := strings.TrimSpace(stringArg(args, "protocol", "http"))
+		tunnelID := strings.TrimSpace(stringArg(args, "tunnel_id", ""))
+
+		// Parse domain and subdomain
+		parts := strings.Split(hostname, ".")
+		if len(parts) < 2 {
+			return "", fmt.Errorf("invalid hostname format: %s", hostname)
+		}
+
+		// Find best matching root domain from zones
+		zonesData, code, err := client.get(ctx, "/api/v1/cloudflare/domains")
+		if err != nil || code >= 400 {
+			return "", fmt.Errorf("failed to fetch Cloudflare zones: %s", string(zonesData))
+		}
+		var zones []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		_ = json.Unmarshal(zonesData, &zones)
+
+		var targetZoneID string
+		var rootDomain string
+		var subdomain string
+
+		for _, z := range zones {
+			if strings.EqualFold(hostname, z.Name) {
+				targetZoneID = z.ID
+				rootDomain = z.Name
+				subdomain = "@"
+				break
+			} else if strings.HasSuffix(strings.ToLower(hostname), "."+strings.ToLower(z.Name)) {
+				targetZoneID = z.ID
+				rootDomain = z.Name
+				subdomain = strings.TrimSuffix(strings.ToLower(hostname), "."+strings.ToLower(z.Name))
+				break
+			}
+		}
+
+		if rootDomain == "" {
+			if len(parts) >= 3 {
+				subdomain = parts[0]
+				rootDomain = strings.Join(parts[1:], ".")
+			} else {
+				subdomain = "@"
+				rootDomain = hostname
+			}
+		}
+
+		payload := map[string]any{
+			"name":      name,
+			"domain":    rootDomain,
+			"subdomain": subdomain,
+			"protocol":  protocol,
+			"ip":        targetIP,
+			"port":      targetPort,
+			"zoneId":    targetZoneID,
+			"profileId": tunnelID,
+		}
+
+		data, pCode, pErr := client.post(ctx, "/api/v1/tunnels", payload)
+		return apiResult(data, pCode, pErr)
 	})
 }
