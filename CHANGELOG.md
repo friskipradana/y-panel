@@ -2,6 +2,14 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.1.1] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.1.1** mencakup 1 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat(mcp): add public endpoints and user guide** (`ed91a42` by AknalRe)
+
 ## [3.1.0] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
