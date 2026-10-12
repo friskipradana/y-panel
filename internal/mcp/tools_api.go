@@ -44,6 +44,10 @@ func (c *apiClient) do(ctx context.Context, method, path string, body any) ([]by
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	// Explicitly set Host to 127.0.0.1 when talking to local panel API to avoid host guard rejection
+	if strings.Contains(c.baseURL, "127.0.0.1") || strings.Contains(c.baseURL, "localhost") {
+		req.Host = "127.0.0.1"
+	}
 	// Use Authorization Bearer if token is a ypat_ API token, otherwise use cookie (legacy session token)
 	if strings.HasPrefix(c.token, "ypat_") {
 		req.Header.Set("Authorization", "Bearer "+c.token)

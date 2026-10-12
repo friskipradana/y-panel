@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -59,16 +60,15 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ── 3. Build MCP Server Runtime Instance ─────────────────────────────────
-	internalURL := "http://127.0.0.1"
+	port := "8787"
 	if s.cfg.BindAddr != "" {
-		if strings.HasPrefix(s.cfg.BindAddr, ":") {
-			internalURL += s.cfg.BindAddr
-		} else {
-			internalURL = "http://" + s.cfg.BindAddr
+		if _, p, err := net.SplitHostPort(s.cfg.BindAddr); err == nil && p != "" {
+			port = p
+		} else if idx := strings.LastIndex(s.cfg.BindAddr, ":"); idx != -1 {
+			port = s.cfg.BindAddr[idx+1:]
 		}
-	} else {
-		internalURL += ":8787"
 	}
+	internalURL := fmt.Sprintf("http://127.0.0.1:%s", port)
 
 	mcpCfg := mcp.Config{
 		PanelURL:     internalURL,
