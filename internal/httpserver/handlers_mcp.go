@@ -26,37 +26,45 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── 1. Token Extraction (Query param ?key=... or ?token=... or Bearer) ───
-	rawToken := ""
+	// ── 1. Token Extraction & Authentication ─────────────────────────────────
+	// Check Authorization header and query params (?key=, ?token=).
+	// If multiple candidates are provided (e.g. stale Bearer in .env but active key in query),
+	// validate candidates and use the first active valid token.
+	candidates := make([]string, 0, 3)
 	if authHeader := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(authHeader, "Bearer ") {
-		rawToken = strings.TrimPrefix(authHeader, "Bearer ")
-	} else if qKey := strings.TrimSpace(r.URL.Query().Get("key")); qKey != "" {
-		rawToken = qKey
-	} else if qToken := strings.TrimSpace(r.URL.Query().Get("token")); qToken != "" {
-		rawToken = qToken
+		candidates = append(candidates, strings.TrimPrefix(authHeader, "Bearer "))
+	}
+	if qKey := strings.TrimSpace(r.URL.Query().Get("key")); qKey != "" {
+		candidates = append(candidates, qKey)
+	}
+	if qToken := strings.TrimSpace(r.URL.Query().Get("token")); qToken != "" {
+		candidates = append(candidates, qToken)
 	}
 
-	// ── 2. Authenticate User & Determine RBAC Role ────────────────────────────
+	rawToken := ""
 	userRole := "anonymous"
 	username := ""
-	if rawToken != "" {
-		if !strings.HasPrefix(rawToken, "ypat_") {
-			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{
-				"error": "invalid API token format: must start with ypat_",
-			})
-			return
-		}
 
-		tokenHash := hashAPIToken(rawToken)
-		u, _, ok := s.database.GetAPITokenUser(tokenHash)
-		if !ok || u == nil {
-			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{
-				"error": "invalid or expired API token",
-			})
-			return
+	for _, token := range candidates {
+		token = strings.TrimSpace(token)
+		if !strings.HasPrefix(token, "ypat_") {
+			continue
 		}
-		userRole = u.Role
-		username = u.Username
+		tokenHash := hashAPIToken(token)
+		u, _, ok := s.database.GetAPITokenUser(tokenHash)
+		if ok && u != nil {
+			rawToken = token
+			userRole = u.Role
+			username = u.Username
+			break
+		}
+	}
+
+	if len(candidates) > 0 && rawToken == "" {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{
+			"error": "invalid or expired API token",
+		})
+		return
 	}
 
 	// ── 3. Build MCP Server Runtime Instance ─────────────────────────────────
