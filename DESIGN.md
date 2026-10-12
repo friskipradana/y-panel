@@ -1,96 +1,183 @@
-# YPanel — Design System & Visual Architecture (`DESIGN.md`)
+# YPanel Design System (`DESIGN.md`)
 
-Dokumen ini mendefinisikan standar desain visual, theming, tipografi, arsitektur SCSS modular, serta prinsip estetika antarmuka untuk **YPanel** (Desktop-style Linux Server Control Panel).
+Sumber kebenaran visual untuk **YPanel**, panel server Linux bergaya desktop (React 19 + Go agent).
+Dokumen ini mencerminkan kode yang berjalan. Jika kode berubah, perbarui dokumen ini.
 
----
+Dokumen terkait:
 
-## 1. Filosofi Desain
-
-1. **Native Desktop OS di Web Browser**:
-   - YPanel didesain menyerupai workstation modern native (window chrome presisi, subtle backdrop blur, draggable header, window controls responsif, minimasi ke taskbar).
-2. **Developer-First Infrastructure Aesthetics**:
-   - Terinspirasi dari standar desain infrastruktur modern (Linear, Cloudflare Dashboard, Vercel, Supabase).
-   - Tampilan tajam, minim ornamen berlebihan (*no visual clutter / no AI slop*), mengutamakan *information density* yang nyaman dibaca oleh sysadmin dan DevOps.
-3. **Clean Geometric UI (No macOS Traffic Lights)**:
-   - Gunakan kontrol jendela minimalis khas workstation Linux (Close, Minimize, Maximize dengan icon tajam).
-   - Menghindari bulatan warna merah/kuning/hijau khas macOS.
+- [.agents/rules/design-system.md](.agents/rules/design-system.md): aturan wajib saat menulis UI
+- [.agents/rules/component-list.md](.agents/rules/component-list.md): inventaris komponen & class
+- [.agents/skills/anti-slop/SKILL.md](.agents/skills/anti-slop/SKILL.md): larangan slop & checklist review
 
 ---
 
-## 2. Tipografi & Font Stack
+## 1. Alur Aplikasi
 
-| Peruntukan | Font Family | Karakter & Penggunaan |
-| :--- | :--- | :--- |
-| **Primary / UI** | `Outfit, sans-serif` | Heading, titlebar, label tombol, menu navigasi, modal dialog. Modern, rounded, dan tajam. |
-| **Monospace / Code** | `'JetBrains Mono', monospace` | Host Terminal, log viewer, status badge, port mapping, cron table, IP addresses, dan command snippets. |
-
-```scss
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+```text
+/            LandingPage      publik, scrollable
+/docs/mcp    McpGuidePage     publik, scrollable
+/login       LoginPage        redirect ke /home jika sudah login (path dari VITE_LOGIN_PATH)
+/home        DesktopPage      wajib login, satu-satunya tempat "desktop"
+*            FrontendNotFoundPage
 ```
 
+Lapisan runtime ([src/shell/index.tsx](src/shell/index.tsx), [src/router/index.tsx](src/router/index.tsx)):
+
+```text
+main.tsx -> App -> AppShell (cek sesi, shortcut global, revision sync)
+                     -> AppRouter (AnimatePresence, transisi 200-250ms)
+                          -> Desktop
+                               Taskbar (atas, 44px)
+                               DesktopIcon[] + DesktopWidgetLayer
+                               Window[]  (floating, drag, resize, minimize/maximize/fullscreen)
+                               Dock (bawah, auto-hide)
+                               LockScreen, CommandPalette, GlobalAlert
+```
+
+Alur data:
+
+- Remote state: TanStack Query lewat `src/api/*` (axios client, cookie sesi HttpOnly `ypanel_session`).
+- UI state: Zustand (`windowStore`, `themeStore`, `authStore`, `widgetStore`, `commandStore`, `alertStore`, `editorStore`).
+- Window baru: `openWindow(kind)` di `windowStore`. Konten dipetakan lewat `WINDOW_CONTENT` di [Desktop.tsx](src/components/desktop/Desktop.tsx). Semua window singleton.
+- Polling hanya jalan saat window fokus (`useWindowPollingActive`).
+- Bahasa: `id` dan `en` ([src/lib/i18n.tsx](src/lib/i18n.tsx)). Semua teks UI lewat `t('key')`.
+
 ---
 
-## 3. Color Tokens & Theming System
+## 2. Filosofi Visual
 
-YPanel menggunakan CSS custom properties yang terdaftar di `src/assets/scss/_variables.scss`:
+1. **Desktop OS di browser.** Window chrome presisi, taskbar, dock, widget. Rasanya workstation Linux, bukan macOS.
+2. **Alat operator, bukan brosur.** Kerapatan informasi yang nyaman dibaca sysadmin. Terinspirasi Cloudflare Zero Trust, Grafana, Linear, Supabase.
+3. **Data nyata dulu.** Angka, nama container, port, log. Dekorasi hanya jika membawa informasi.
+4. **Satu sistem token.** Warna, bayangan, dan radius datang dari CSS variable, bukan nilai lepas.
 
-### A. Dark Theme Tokens (Default)
-| Token | Nilai / Deskripsi | Fungsi |
+---
+
+## 3. Tema & Token
+
+Tema ditentukan `data-theme="light|dark"` pada `<html>` (diatur [themeStore.ts](src/store/themeStore.ts), **default `light`**). Token hidup di [src/assets/scss/_variables.scss](src/assets/scss/_variables.scss): blok `:root` untuk light, `[data-theme="dark"]` menimpa untuk dark. Setiap token baru **wajib** didefinisikan di kedua blok.
+
+### Token inti
+
+| Peran | Token | Light | Dark |
+| :--- | :--- | :--- | :--- |
+| Latar window | `--win-bg` | `rgba(255,255,255,.95)` | `rgba(15,23,42,.96)` |
+| Isi window | `--win-content-bg` | `#ffffff` | slate gelap |
+| Border | `--win-border` | `rgba(203,213,225,.88)` | putih transparan rendah |
+| Teks utama | `--win-text` | `#1e293b` | `#f8fafc` |
+| Teks sekunder | `--text-secondary` | `#4b5563` | slate-400 |
+| Surface | `--panel-surface`, `-strong`, `-hover` | tint gelap 3-7% | tint terang |
+| Field | `--panel-field-bg`, `--panel-field-focus` | | |
+| Primary | `--panel-primary-solid` / `-text` / `-bg` / `-hover` | `#2563eb` / `#1d4ed8` | `#3b82f6` / `#93c5fd` |
+| Danger | `--panel-danger-solid` / `-text` / `-bg` | `#b91c1c` | |
+| Success / Warning / Info / Neutral | `--panel-{name}-bg`, `--panel-{name}-text` | | |
+| Fokus | `--focus-ring`, `--focus-ring-offset` | `#1d4ed8` | |
+| Status titik | `--status-online`, `--status-offline`, `--status-error` | | |
+| Kode / log | `--panel-code-bg`, `--panel-code-text` | `#0f172a` / `#dbeafe` | |
+| Aksen brand | `--accent` | `#f76707` | |
+
+Token per komponen (`--dock-*`, `--tb-*`, `--widget-*`, `--menu-*`, `--status-page-*`) hanya dipakai oleh komponen pemiliknya.
+
+### Wallpaper
+
+14 preset di `WALLPAPERS` (gradient CSS variable `--wallpaper-*-{light,dark}` atau gambar `/wallpapers/*.jpg`) plus `custom`. Overlay `--app-wallpaper-overlay-bg` menjaga keterbacaan.
+
+### Catatan konsistensi
+
+- Aksen UI fungsional adalah **biru** (`--panel-primary-*`). Oranye `--accent` hanya untuk brand/seleksi (`::selection`) dan Cloudflare.
+- Warna ikon aplikasi didefinisikan satu tempat: `ICON_MAP` di [AppIcon.tsx](src/components/common/AppIcon.tsx).
+
+---
+
+## 4. Tipografi
+
+| Peran | Variable | Default |
 | :--- | :--- | :--- |
-| `--win-bg` | `#0f172a` (Deep Slate-900) | Latar belakang jendela & container utama |
-| `--win-surface` | `#1e293b` (Slate-800) | Surface card, section, panel header |
-| `--win-border` | `rgba(255, 255, 255, 0.08)` - `0.12` | Border halus transparan pada frame & divider |
-| `--win-text` | `#f8fafc` (High-contrast slate-50) | Teks utama, judul, data penting |
-| `--win-text-muted` | `#94a3b8` (Slate-400) | Teks sekunder, label, helper text |
-| `--panel-primary` | `#38bdf8` (Cyan-400) / `#6366f1` (Indigo-500) | Aksen utama tombol, link aktif, highlight |
-| `--panel-success` | `#22c55e` (Green-500) | Status container running, tunnel active, port open |
-| `--panel-danger` | `#ef4444` (Red-500) | Status container stopped, error alert, delete action |
-| `--panel-warning` | `#f59e0b` (Amber-500) | Warning notice, resource high threshold |
+| UI | `--font-sans` | `Outfit` (pilihan user: Inter, Plus Jakarta Sans, Geist, Roboto via `data-font`) |
+| Mono | `--font-mono` | `JetBrains Mono` |
+| Skala dasar | `data-font-size` | small 14.5px, medium 16px, large 17.5px |
 
-### B. Glassmorphism & Elevation
-- **Window Chrome**: `backdrop-filter: blur(20px); background: rgba(15, 23, 42, 0.85);`
-- **Top Taskbar**: `backdrop-filter: blur(20px); height: 44px; z-index: 60000;`
-- **Modal Backdrop**: `backdrop-filter: blur(12px); background: rgba(0, 0, 0, 0.6);`
+Pakai mono untuk: terminal, log, IP, port, path, hash, nama container, cron, perintah. Judul window `0.8125rem / 600 / tracking -0.01em`. Konten window `13px / 1.5`.
 
 ---
 
-## 4. Arsitektur SCSS & CSS Modular
+## 5. Bentuk, Jarak, Elevasi
 
-Struktur stylesheet dikelola di bawah `src/assets/`:
+| Elemen | Nilai |
+| :--- | :--- |
+| Taskbar | tinggi 44px, `z-index: 60000`, `blur(20px)`, border bawah |
+| Window header | min-height 40px, padding `6px 14px`, tombol kontrol 28x28, radius 6 |
+| Window body | padding `12px 14px`, stack gap 12 |
+| Tombol `.panel-btn` | radius 7, min 28px, font `0.75rem/600` |
+| Field `.panel-input` | radius 14, min-height 44, padding `10px 14px` |
+| Card / table container | radius 14, border 1px `--win-border`, surface `--panel-surface` |
+| KPI card | radius 18, padding 14 |
+| Modal card | radius 24, padding 24, lebar maks 460, `--panel-card-shadow` |
+| Badge | pill, min 28px, `0.75rem/600` |
+| Status dot | 7px, halo 4px `color-mix` 18% |
+| Motion | 120-160ms ease untuk hover; 200-250ms `[0.25,1,0.5,1]` untuk transisi halaman |
+
+Z-index window: normal 100, maximized 500, fokus 50000, fullscreen 120000. Taskbar 60000 berada di atas window biasa, di bawah fullscreen.
+
+---
+
+## 6. Window Chrome
+
+- Header kiri: `AppIcon` 16px + judul (`windowTitleKey`). Kanan: Minimize (`Minus`), Maximize/Restore (`Square`/`Copy`), Fullscreen (`Maximize`), Close (`X`), semua ikon garis `strokeWidth 1.75`.
+- Hover close memakai `--window-close-hover-bg` (merah), tombol lain `--tb-hover`.
+- Double-click header = maximize. Resize 8 arah. Alert modal in-window lewat `InnerAlert`.
+- **Tidak ada traffic light macOS** di mana pun.
+
+---
+
+## 7. Struktur Stylesheet
 
 ```text
 src/assets/
-├── css/
-│   └── tailwind.css             # Entrypoint khusus @import "tailwindcss";
-└── scss/
-    ├── global.scss              # Root stylesheet (@use "./base", "./variables", "./modules")
-    ├── _base.scss               # Font imports & CSS element resets
-    ├── _variables.scss          # Design tokens & color variables (:root, [data-theme])
-    └── modules/                 # Modul-modul terisolasi per fitur
-        ├── _index.scss          # Barrel @forward untuk seluruh modul
-        ├── _desktop.scss        # Wallpaper container, transition, selection style
-        ├── _taskbar.scss        # Taskbar header, clock tray, profile popover
-        ├── _windows.scss        # Base window chrome, titlebar, split panes
-        ├── _components.scss     # Shared UI: modals, form inputs, combobox, badges
-        ├── _terminal.scss       # Multi-pane terminal, tabs, status dot, presets
-        ├── _docker.scss         # Docker deploy wizard, progress overlay & console
-        ├── _cloudflare.scss     # Cloudflare workspace, tunnel table, metrics
-        ├── _login.scss          # Layar login & first-run wizard steps
-        └── _landing.scss        # Public landing page, interactive hero previews
+  css/tailwind.css        entry Tailwind v4 + utilitas kecil (scrollbar widget)
+  scss/
+    global.scss           @use base, variables, modules
+    _base.scss            import font, reset
+    _variables.scss       semua token (:root, [data-theme="dark"], data-font*)
+    modules/              _desktop _taskbar _windows _components _terminal
+                          _docker _cloudflare _login _landing _index
 ```
+
+Pembagian peran:
+
+- **Tailwind**: layout cepat, spacing, flex/grid di TSX.
+- **SCSS modul**: komponen bernama (`.panel-*`, `.docker-*`, `.ht-*`, `.taskbar-*`, `.login-*`, `.landing-*`). Dipakai ulang lintas window.
+- **Inline style**: hanya nilai dinamis (posisi, ukuran window, z-index).
+
+Penamaan: BEM ringan `.block`, `.block__elem`, `.block--mod`. Prefix mengikuti modul pemilik.
 
 ---
 
-## 5. Kaidah Penulisan Komentar & Kode (Anti-Slop)
+## 8. Ikonografi
 
-1. **Modern Single-Line Comments**:
-   Gunakan komentar satu baris yang bersih dan to the point:
-   ```scss
-   // Multi-Pane Terminal & Presets
-   .ht-root { ... }
-   ```
-2. **Dilarang Menambahkan ASCII Box Banners**:
-   Hindari komentar blok panjang dengan deretan garis tebal (`===` atau `---` panjang) yang memadati layar dan mengganggu navigasi kode.
-3. **Separation of Concerns**:
-   - Utilitas Tailwind murni di `tailwind.css`.
-   - Modul antarmuka server diatur dalam file partial `modules/_*.scss`.
+- Ikon aplikasi: `@fluentui/react-icons` varian `24Filled` lewat `AppIcon`.
+- Ikon aksi/kontrol: `lucide-react`, garis, `strokeWidth 1.75`.
+- Dilarang emoji sebagai ikon UI. (Field `icon` emoji di `DEFAULTS` windowStore adalah sisa lama, jangan dirender.)
+
+---
+
+## 9. Aksesibilitas
+
+- Fokus terlihat: `:focus-visible` memakai `--focus-ring` dengan offset. Jangan `outline: none` tanpa pengganti.
+- Teks sekunder tidak boleh di bawah kontras 4.5:1 pada surface-nya, di kedua tema.
+- Target klik minimal 28px untuk kontrol padat, 44px untuk field.
+- Hormati `prefers-reduced-motion` untuk animasi dekoratif baru.
+
+---
+
+## 10. Hutang Visual yang Diketahui
+
+Bagian ini jujur soal kode yang belum selaras dengan aturan. Perbaiki bertahap, jangan jadikan contoh.
+
+| Lokasi | Masalah | Aturan dilanggar |
+| :--- | :--- | :--- |
+| `.landing-floating-card-top/-bottom` di [_landing.scss](src/assets/scss/modules/_landing.scss) | Kartu melayang di atas screenshot hero | Anti-slop 2.1 |
+| `.landing-trust-strip` | Strip "trust" teks marketing | Anti-slop 2.3 |
+| `--panel-accent-gradient`, `--status-page-*-gradient`, `--action-cloudflare-gradient` | Gradient dekoratif multi-warna | Anti-slop 2.4 |
+| Nilai hex langsung di `ICON_MAP`, `.login-*`, `.landing-*` | Warna di luar token | Rules 3.1 |
+| `.panel-btn:hover` dan `.panel-input:focus-visible` memakai `translateY(-1px)` | Layout shift kecil pada baris padat | Rules 5.3 |

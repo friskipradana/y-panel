@@ -1,11 +1,57 @@
-# Design System & Aesthetics Guidelines
+# Design System Rules
 
-## Filosofi Visual YPanel
-1. **Desktop OS di Browser**: Antarmuka harus terasa seperti desktop workstation native yang elegan, responsif, dan fungsional.
-2. **Developer-First Infrastructure Aesthetics**: Terinspirasi dari standar desain modern seperti Vercel, Linear, Cloudflare Dashboard, dan Supabase.
-3. **No AI Slop**: Jangan menggunakan gambar generik/placeholder yang tidak informatif. Lebih baik gunakan komponen interaktif hidup (live mockup, interactive terminal, real metric meters).
-4. **Color Tokens**:
-   - Backgrounds: Deep Slate / Navy (`#060913`, `#0c1222`, `#141d33`)
-   - Accent & Gradients: Cyan (`#38bdf8`), Indigo (`#6366f1`), Purple (`#8b5cf6`)
-   - Borders: Subtle translucent borders (`rgba(255, 255, 255, 0.08)` hingga `0.15`)
-   - Text: Crisp High-Contrast White (`#f8fafc`) dan Muted Slate (`#94a3b8`)
+Aturan wajib saat menulis atau mengubah UI YPanel. Penjelasan lengkap ada di [DESIGN.md](../../DESIGN.md). Inventaris komponen ada di [component-list.md](component-list.md).
+
+## 1. Sebelum Menulis UI
+
+1. Cari komponen/class yang sudah ada di [component-list.md](component-list.md). Pakai ulang sebelum membuat baru.
+2. Window baru wajib: tambah `WindowKind` di `src/types`, `DEFAULTS` di `windowStore`, entri di `WINDOW_CONTENT` ([Desktop.tsx](../../src/components/desktop/Desktop.tsx)), `ICON_MAP` di `AppIcon`, key i18n `id` dan `en`.
+3. Komponen window hidup di `src/components/windows/`. Halaman penuh di `src/pages/`. Tidak ada barrel `index.ts` kosong.
+
+## 2. Struktur & Styling
+
+1. Layout ad-hoc: Tailwind. Komponen yang dipakai ulang: class `.panel-*` di SCSS modul. Nilai dinamis saja yang boleh inline style.
+2. Class SCSS baru masuk modul pemilik (`_docker`, `_terminal`, `_cloudflare`, dst.) dengan prefix yang sama dan penamaan BEM (`.block__elem--mod`). Modul baru wajib di-`@forward` di `modules/_index.scss`.
+3. Komentar SCSS/TS: satu baris `// Judul Bagian`. Tanpa banner `===`/`---`, tanpa mojibake.
+
+## 3. Warna & Token
+
+1. Tidak ada hex/rgba lepas di komponen. Pakai variable dari `_variables.scss`. Butuh warna baru: buat token di **`:root` dan `[data-theme="dark"]`** sekaligus.
+2. Status memakai set semantik: `success`, `warning`, `danger`, `info`, `neutral`, `primary`. Jangan pakai warna mentah untuk status.
+3. Aksi utama = `--panel-primary-*` (biru). Hanya satu tombol primary solid per area.
+4. Tes dua tema (light default, dark) dan dua ukuran font (`small`, `large`) sebelum selesai.
+
+## 4. Tipografi
+
+1. Teks UI memakai `var(--font-sans)`, jangan hardcode `Outfit`.
+2. Data teknis memakai `var(--font-mono)` atau `.panel-mono` / `.panel-input--mono`: IP, port, path, hash, nama container, log, perintah.
+3. Jangan menambah ukuran font baru di luar skala yang ada (`0.75rem`, `0.8125rem`, `0.875rem`, `13px` konten).
+
+## 5. Komponen & Interaksi
+
+1. Window controls: ikon garis lucide `strokeWidth 1.75`. Tanpa bulatan warna.
+2. Setiap kontrol interaktif punya state: hover, `:focus-visible`, disabled, dan loading bila async.
+3. Hover tidak boleh menggeser layout. Pakai perubahan warna/background. Hindari `translate` pada baris tabel dan field.
+4. Setiap daftar/tabel punya empty state (`.panel-empty`), loading state (`.panel-loading`), dan error state (`.panel-error-state`).
+5. Aksi destruktif lewat `GlobalAlert`/`InnerAlert` dengan nama objek yang jelas. Tombol memakai `.panel-btn--danger`.
+6. Teks UI selalu lewat `t()`. Tidak ada string Indonesia/Inggris langsung di JSX.
+7. Ikon aplikasi lewat `<AppIcon kind=... />`. Tidak ada emoji sebagai ikon.
+
+## 6. Layout & Scroll
+
+1. Halaman publik (landing, docs, MCP guide) harus scrollable (`overflow-y-auto`). Jangan `overflow-hidden` di root konten.
+2. `overflow-hidden` di root hanya untuk desktop shell, terminal, dan log viewer yang mengelola scroll sendiri.
+3. Dialog dan popover harus muat di window terkecil (lebar 500px) tanpa terpotong.
+
+## 7. Performa & State
+
+1. Polling hanya saat window fokus (`useWindowPollingActive`).
+2. Tahan double-mount React 19 StrictMode: cleanup untuk socket, interval, listener.
+3. Remote data lewat TanStack Query, state UI lewat Zustand. Tidak ada `fetch` langsung di komponen.
+
+## 8. Selesai Berarti
+
+- `bun run build` exit 0 tanpa warning, `bun run lint` bersih.
+- Light + dark dicek, tidak ada teks tak terbaca.
+- Tidak ada pelanggaran di [anti-slop](../skills/anti-slop/SKILL.md).
+- Perilaku lama tetap utuh (fidelity 100%) kecuali memang diminta berubah.
