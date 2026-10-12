@@ -16,6 +16,7 @@ import {
   Bot,
   Globe,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import {
   listAPITokens,
@@ -74,6 +75,11 @@ export function ApiTokensTab() {
       setTokenName("");
       setExpiresIn("30d");
       queryClient.invalidateQueries({ queryKey: ["apiTokens"] });
+      // Smooth scroll up so newly created token banner is immediately visible
+      const container = document.getElementById("api-tokens-container");
+      if (container) {
+        container.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       alertLib.fire("Token Berhasil Dibuat", "Salin token Anda sekarang. Token ini tidak akan ditampilkan lagi.", "success", "settings");
     },
     onError: (err: any) => {
@@ -103,8 +109,8 @@ export function ApiTokensTab() {
 
   const handleDelete = async (token: APIToken) => {
     const confirmed = await alertLib.confirm(
-      "Cabut Token Akses?",
-      `Apakah Anda yakin ingin menghapus token <strong>"${token.name}"</strong> (${token.tokenPrefix}...)? AI agent atau aplikasi yang menggunakannya akan langsung kehilangan akses.`,
+      "Cabut (Revoke) Token Akses?",
+      `Apakah Anda yakin ingin mencabut token <strong>"${token.name}"</strong> (${token.tokenPrefix}...)? AI agent atau integrasi yang menggunakannya akan langsung kehilangan akses.`,
       "Cabut Token",
       "Batal",
       "warning",
@@ -112,6 +118,27 @@ export function ApiTokensTab() {
     );
     if (confirmed) {
       deleteMutation.mutate(token.id);
+    }
+  };
+
+  const handleRegenerate = async (token: APIToken) => {
+    const confirmed = await alertLib.confirm(
+      "Buat Ulang (Regenerate) Token?",
+      `Token <strong>"${token.name}"</strong> (${token.tokenPrefix}...) yang lama akan dicabut dan digantikan dengan token baru. Nilai token baru akan langsung ditampilkan di layar untuk disalin.`,
+      "Regenerate Token",
+      "Batal",
+      "warning",
+      "settings"
+    );
+    if (confirmed) {
+      deleteMutation.mutate(token.id, {
+        onSuccess: () => {
+          createMutation.mutate({
+            name: token.name,
+            expiresIn: "30d",
+          });
+        },
+      });
     }
   };
 
@@ -175,7 +202,7 @@ export function ApiTokensTab() {
   );
 
   return (
-    <div className="space-y-4">
+    <div id="api-tokens-container" className="space-y-4">
       {/* ── Header & Account Permission Scope Banner ── */}
       <div className="panel-shell-card p-4.5 flex flex-col gap-3.5">
         <div className="flex items-start justify-between gap-3">
@@ -267,8 +294,16 @@ export function ApiTokensTab() {
             </button>
           </div>
 
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Demi keamanan, nilai token ini <strong>hanya ditampilkan satu kali</strong>. Harap salin dan simpan di tempat yang aman.
+          <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
+            Demi keamanan, nilai token ini <strong>hanya ditampilkan satu kali</strong> (disimpan via SHA-256 hash). Harap salin sekarang. Jika nanti lupa atau butuh kunci baru, Anda dapat melakukan <strong>Regenerate</strong> atau <strong>Revoke</strong> pada daftar{" "}
+            <button
+              type="button"
+              onClick={() => document.getElementById("active-tokens-section")?.scrollIntoView({ behavior: "smooth" })}
+              className="text-emerald-400 underline font-semibold hover:text-emerald-300 cursor-pointer inline p-0 bg-transparent border-0"
+            >
+              Token Aktif di bawah ↓
+            </button>
+            .
           </p>
 
           <div className="flex items-center gap-2">
@@ -409,7 +444,7 @@ export function ApiTokensTab() {
       </div>
 
       {/* ── Active Tokens List ── */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-3.5">
+      <div id="active-tokens-section" className="panel-shell-card p-4.5 flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h4 className="text-[13px] font-semibold text-[var(--win-text)]">
@@ -428,6 +463,10 @@ export function ApiTokensTab() {
             Muat Ulang
           </button>
         </div>
+
+        <p className="text-[11.5px] text-[var(--text-secondary)] -mt-1.5 leading-relaxed">
+          Token disimpan aman menggunakan SHA-256 hash. Jika lupa menyalin nilai token, gunakan tombol <strong>Regenerate</strong> untuk membuat token pengganti baru, atau <strong>Revoke</strong> untuk memutus akses selamanya.
+        </p>
 
         {isTokensLoading ? (
           <div className="py-8 flex items-center justify-center gap-2 text-[var(--text-secondary)] text-[12px]">
@@ -487,12 +526,24 @@ export function ApiTokensTab() {
                 <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                   <button
                     type="button"
+                    onClick={() => handleRegenerate(token)}
+                    disabled={deleteMutation.isPending || createMutation.isPending}
+                    className="panel-btn !h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title="Buat ulang token dan dapatkan kunci baru"
+                  >
+                    <RefreshCw size={12} className={createMutation.isPending ? "animate-spin" : ""} />
+                    <span>Regenerate</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handleDelete(token)}
                     disabled={deleteMutation.isPending}
-                    className="panel-icon-btn h-8 w-8 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
-                    title="Cabut Token"
+                    className="panel-btn !h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title="Cabut dan nonaktifkan token ini selamanya"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
+                    <span>Revoke</span>
                   </button>
                 </div>
               </div>
