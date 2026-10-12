@@ -2,6 +2,15 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.1.2] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.1.2** mencakup 2 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat: add server middleware, MCP tools API, and MCP HTTP handlers** (`989505f` by AknalRe)
+- **feat: add ApiTokensTab settings component and HTTP server middleware** (`16d9c1e` by AknalRe)
+
 ## [3.1.1] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
