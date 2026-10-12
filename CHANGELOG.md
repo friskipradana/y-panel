@@ -2,6 +2,14 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.1.3] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.1.3** mencakup 1 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat: add HTTP middleware, MCP integration, Cloudflare API support, and API tokens settings UI** (`82ec39e` by AknalRe)
+
 ## [3.1.2] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
