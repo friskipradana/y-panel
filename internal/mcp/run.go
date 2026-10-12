@@ -117,6 +117,7 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 		registerCloudflareTools(srv, client)
 		if isAdmin {
 			registerUserTools(srv, client)
+			registerWorkflowTools(srv, client, cfg)
 		}
 	}
 

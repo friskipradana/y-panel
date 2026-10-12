@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -90,10 +91,12 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 			ProtocolVersion: MCPProtocolVersion,
 			ServerInfo: ServerInfo{
 				Name:    "ypanel",
-				Version: "1.0.0",
+				Version: "3.1.4",
 			},
 			Capabilities: ServerCapability{
-				Tools: &ToolsCapability{},
+				Tools:     &ToolsCapability{},
+				Resources: &ResourcesCapability{},
+				Prompts:   &PromptsCapability{},
 			},
 		}
 		return &Response{JSONRPC: "2.0", ID: req.ID, Result: result}
@@ -103,6 +106,126 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 
 	case "ping":
 		return &Response{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{}}
+
+	case "resources/list":
+		resources := []Resource{
+			{
+				URI:         "system://status",
+				Name:        "Host System Status & Hardware Resources",
+				Description: "Realtime CPU, memory, uptime, disk usage, and Linux OS environment metrics.",
+				MimeType:    "application/json",
+			},
+			{
+				URI:         "docker://containers",
+				Name:        "Docker Containers Snapshot",
+				Description: "Live list of all Docker containers, health status, and listening ports.",
+				MimeType:    "application/json",
+			},
+		}
+		return &Response{JSONRPC: "2.0", ID: req.ID, Result: ListResourcesResult{Resources: resources}}
+
+	case "resources/read":
+		var params ReadResourceParams
+		if req.Params != nil {
+			if b, err := json.Marshal(req.Params); err == nil {
+				_ = json.Unmarshal(b, &params)
+			}
+		}
+
+		s.mu.Lock()
+		sysHandler, hasSys := s.handlers["system_status"]
+		dockerHandler, hasDocker := s.handlers["docker_list_containers"]
+		s.mu.Unlock()
+
+		var text string
+		switch params.URI {
+		case "system://status":
+			if hasSys {
+				text, _ = sysHandler(ctx, nil)
+			}
+		case "docker://containers":
+			if hasDocker {
+				text, _ = dockerHandler(ctx, nil)
+			}
+		default:
+			return &Response{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &Error{Code: ErrCodeInvalidParams, Message: fmt.Sprintf("resource not found: %s", params.URI)},
+			}
+		}
+
+		return &Response{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: ReadResourceResult{
+				Contents: []ResourceContent{
+					{
+						URI:      params.URI,
+						MimeType: "application/json",
+						Text:     text,
+					},
+				},
+			},
+		}
+
+	case "prompts/list":
+		prompts := []Prompt{
+			{
+				Name:        "diagnose-server",
+				Description: "Thorough health check of VPS server: CPU, RAM, disk storage, and Docker containers.",
+			},
+			{
+				Name:        "deploy-static-page",
+				Description: "Guided automated deployment of an HTML page with public Cloudflare Tunnel ingress.",
+				Arguments: []PromptArgument{
+					{Name: "hostname", Description: "The public domain or subdomain (e.g. test.domain.com)", Required: true},
+					{Name: "title", Description: "Page headline or title to display", Required: true},
+				},
+			},
+		}
+		return &Response{JSONRPC: "2.0", ID: req.ID, Result: ListPromptsResult{Prompts: prompts}}
+
+	case "prompts/get":
+		var params GetPromptParams
+		if req.Params != nil {
+			if b, err := json.Marshal(req.Params); err == nil {
+				_ = json.Unmarshal(b, &params)
+			}
+		}
+
+		var desc string
+		var msg string
+		switch params.Name {
+		case "diagnose-server":
+			desc = "Perform full health check of the server"
+			msg = "Please run system_status, docker_list_containers, and check if any container or resource is abnormal."
+		case "deploy-static-page":
+			desc = "Deploy static HTML webpage"
+			hostname := params.Arguments["hostname"]
+			title := params.Arguments["title"]
+			msg = fmt.Sprintf("Please use quick_deploy_static to deploy a clean HTML page for %s with title '%s'.", hostname, title)
+		default:
+			return &Response{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &Error{Code: ErrCodeInvalidParams, Message: fmt.Sprintf("prompt not found: %s", params.Name)},
+			}
+		}
+
+		return &Response{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: GetPromptResult{
+				Description: desc,
+				Messages: []PromptMessage{
+					{
+						Role:    "user",
+						Content: ContentItem{Type: "text", Text: msg},
+					},
+				},
+			},
+		}
 
 	case "tools/list":
 		s.mu.Lock()
@@ -120,8 +243,15 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 			}
 		}
 
+		// Normalize tool name by stripping MCP client prefixes (e.g. mcp__YPANEL__, ypanel__)
+		cleanName := strings.TrimSpace(params.Name)
+		cleanName = strings.TrimPrefix(cleanName, "mcp__YPANEL__")
+		cleanName = strings.TrimPrefix(cleanName, "mcp__ypanel__")
+		cleanName = strings.TrimPrefix(cleanName, "ypanel__")
+		cleanName = strings.TrimPrefix(cleanName, "ypanel_")
+
 		s.mu.Lock()
-		handler, ok := s.handlers[params.Name]
+		handler, ok := s.handlers[cleanName]
 		s.mu.Unlock()
 
 		if !ok {

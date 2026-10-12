@@ -259,6 +259,14 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 27. **`cloudflare_create_dns`**: Membuat DNS record (CNAME, A, AAAA, TXT) di Cloudflare untuk domain yang dikelola.
 28. **`cloudflare_ensure_dns_cname`**: Otomatis membuat atau memperbarui DNS CNAME Cloudflare untuk mengarahkan hostname ingress (misal `antrian.aknalre.my.id`) ke Cloudflare Tunnel secara instan.
 
+### Kategori 8: High-Level Workflow & PM2 Apps *(Admin Only)*
+29. **`quick_deploy_static`**: **1-Click Deployment Halaman Statis**. Membuat file HTML, menjalankan web server (PM2/Python), dan otomatis menghubungkan Cloudflare Ingress serta membuat CNAME DNS dalam satu kali panggil!
+30. **`pm2_list`**: Menampilkan semua aplikasi dan proses Node.js / PM2 di server (status, memory, CPU, port, uptime).
+31. **`pm2_restart`**: Merestart proses PM2 berdasarkan nama atau ID (`{"name": "antrian-app"}`).
+32. **`pm2_logs`**: Mengambil baris log terbaru aplikasi PM2 (`{"name": "antrian-app", "lines": 50}`).
+33. **`service_manage`**: Mengontrol status service sistem (`cloudflared`, `docker`, `nginx`, `ypanel`).
+34. **`network_ports_list`**: Memeriksa port TCP yang sedang listening dan otomatis menemukan port bebas untuk aplikasi baru.
+
 ---
 
 ## 7. Contoh Prompt Real-World untuk AI
