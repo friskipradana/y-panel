@@ -586,17 +586,28 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, cfg.ZoneID)
+	perm := client.VerifyTokenPermissions()
 	status := "active"
-	if verifyErr := client.VerifyToken(); verifyErr != nil {
+	if !perm.Valid {
 		status = "invalid"
 		_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
-		s.notifyUserAction(u.ID, "Verifikasi Cloudflare gagal ⚠️", verifyErr.Error(), "warning")
-		s.writeJSON(w, http.StatusOK, jsonResponse{"valid": false, "error": verifyErr.Error()})
+		s.notifyUserAction(u.ID, "Verifikasi Cloudflare gagal ⚠️", perm.Summary, "warning")
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"valid":   false,
+			"status":  status,
+			"error":   perm.Summary,
+			"details": perm,
+		})
 		return
 	}
 	_ = s.database.UpsertCFConfig(u.ID, cfg.APITokenEncrypted, cfg.AccountID, cfg.ZoneID, cfg.BaseDomain, status)
-	s.notifyUserAction(u.ID, "Cloudflare aktif ✅", "Token Cloudflare berhasil diverifikasi dan siap digunakan.", "success")
-	s.writeJSON(w, http.StatusOK, jsonResponse{"valid": true, "status": status})
+	s.notifyUserAction(u.ID, "Cloudflare aktif ✅", perm.Summary, "success")
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"valid":   true,
+		"status":  status,
+		"message": perm.Summary,
+		"details": perm,
+	})
 }
 
 func (s *Server) handleGetCFZones(w http.ResponseWriter, r *http.Request) {

@@ -195,6 +195,12 @@ func (s *Server) isHostAllowed(hostport string) bool {
 			return true
 		}
 	}
+
+	// Dynamically check if the host matches any configured Cloudflare tunnel, project domain, or base domain
+	if s.isKnownWorkloadHost(host) {
+		return true
+	}
+
 	return false
 }
 
@@ -220,6 +226,9 @@ func (s *Server) isOriginAllowed(origin string) bool {
 				return true
 			}
 		}
+		if s.isKnownWorkloadHost(h) {
+			return true
+		}
 	}
 
 	origins := s.allowedOrigins()
@@ -234,6 +243,43 @@ func (s *Server) isOriginAllowed(origin string) bool {
 		}
 		if normalizedOrigin == normalizedCandidate {
 			return true
+		}
+	}
+	return false
+}
+
+// isKnownWorkloadHost dynamically checks if a host matches any active Cloudflare tunnel ingress or project domain.
+func (s *Server) isKnownWorkloadHost(host string) bool {
+	if host == "" || s.database == nil {
+		return false
+	}
+	// Check base domain & its subdomains
+	if s.cfg.BaseDomain != "" {
+		bd := strings.ToLower(s.cfg.BaseDomain)
+		hl := strings.ToLower(host)
+		if hl == bd || strings.HasSuffix(hl, "."+bd) {
+			return true
+		}
+	}
+	// Check configured Cloudflare tunnels (ingress hostnames like antrian.aknalre.my.id)
+	tunnels, _, err := s.database.ListTunnelsFiltered(0, "", 500, 0)
+	if err == nil {
+		for _, t := range tunnels {
+			if strings.EqualFold(host, normalizeHost(t.CFHostname)) {
+				return true
+			}
+		}
+	}
+	// Check configured projects
+	if s.cfg.BaseDomain != "" {
+		projects, _, err := s.database.ListProjectsFiltered(0, true, "", 500, 0)
+		if err == nil {
+			for _, p := range projects {
+				projectHost := strings.ToLower(p.Slug + "." + s.cfg.BaseDomain)
+				if strings.EqualFold(host, projectHost) {
+					return true
+				}
+			}
 		}
 	}
 	return false

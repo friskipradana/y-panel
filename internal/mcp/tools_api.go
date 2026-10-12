@@ -82,7 +82,19 @@ func apiResult(data []byte, statusCode int, err error) (string, error) {
 		return "", err
 	}
 	if statusCode >= 400 {
-		return "", fmt.Errorf("API error %d: %s", statusCode, strings.TrimSpace(string(data)))
+		errMsg := strings.TrimSpace(string(data))
+		var errObj struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(data, &errObj) == nil {
+			if errObj.Error != "" {
+				errMsg = errObj.Error
+			} else if errObj.Message != "" {
+				errMsg = errObj.Message
+			}
+		}
+		return "", fmt.Errorf("API error %d: %s", statusCode, errMsg)
 	}
 	var pretty bytes.Buffer
 	if json.Indent(&pretty, data, "", "  ") == nil {
@@ -266,5 +278,120 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
 		data, code, err := client.get(ctx, "/api/v1/cloudflare/tunnel-profiles")
 		return apiResult(data, code, err)
+	})
+
+	s.Register(Tool{
+		Name:        "cloudflare_verify_token",
+		Description: "Verify Cloudflare API token status and check required permissions (Zone:Read, DNS:Edit, Cloudflare Tunnel:Edit).",
+		InputSchema: InputSchema{Type: "object"},
+	}, func(ctx context.Context, _ map[string]any) (string, error) {
+		data, code, err := client.post(ctx, "/api/v1/me/cloudflare/verify", nil)
+		return apiResult(data, code, err)
+	})
+
+	s.Register(Tool{
+		Name:        "cloudflare_create_dns",
+		Description: "Create a DNS record (CNAME, A, AAAA, TXT) in Cloudflare for a domain/zone managed by YPanel.",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"zone_id": {Type: "string", Description: "Cloudflare Zone ID."},
+				"type":    {Type: "string", Description: "Record type: CNAME, A, AAAA, TXT."},
+				"name":    {Type: "string", Description: "Hostname / record name (e.g. app.domain.com)."},
+				"content": {Type: "string", Description: "Record content (e.g. <tunnel-id>.cfargotunnel.com or IP)."},
+				"proxied": {Type: "boolean", Description: "Enable Cloudflare proxy (orange cloud). Defaults to true."},
+			},
+			Required: []string{"zone_id", "type", "name", "content"},
+		},
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		zoneID := stringArg(args, "zone_id", "")
+		if zoneID == "" {
+			return "", fmt.Errorf("zone_id is required")
+		}
+		proxied := true
+		if p, ok := args["proxied"].(bool); ok {
+			proxied = p
+		}
+		payload := map[string]any{
+			"type":    stringArg(args, "type", "CNAME"),
+			"name":    stringArg(args, "name", ""),
+			"content": stringArg(args, "content", ""),
+			"proxied": proxied,
+			"ttl":     1,
+		}
+		data, code, err := client.post(ctx, "/api/v1/cloudflare/domains/"+zoneID+"/dns", payload)
+		return apiResult(data, code, err)
+	})
+
+	s.Register(Tool{
+		Name:        "cloudflare_ensure_dns_cname",
+		Description: "Automatically create or update a Cloudflare DNS CNAME pointing an ingress hostname (e.g. antrian.aknalre.my.id) to a Cloudflare tunnel.",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"hostname":  {Type: "string", Description: "The public ingress hostname to point (e.g. antrian.aknalre.my.id)."},
+				"tunnel_id": {Type: "string", Description: "Optional: Cloudflare tunnel ID. If omitted, automatically uses the active tunnel in YPanel."},
+			},
+			Required: []string{"hostname"},
+		},
+	}, func(ctx context.Context, args map[string]any) (string, error) {
+		hostname := strings.TrimSpace(stringArg(args, "hostname", ""))
+		if hostname == "" {
+			return "", fmt.Errorf("hostname is required")
+		}
+		tunnelID := strings.TrimSpace(stringArg(args, "tunnel_id", ""))
+
+		// 1. Get zones to match root domain
+		zonesData, code, err := client.get(ctx, "/api/v1/cloudflare/domains")
+		if err != nil || code >= 400 {
+			return "", fmt.Errorf("failed to fetch Cloudflare zones: %s", string(zonesData))
+		}
+		var zones []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(zonesData, &zones); err != nil || len(zones) == 0 {
+			return "", fmt.Errorf("no active Cloudflare domains found in YPanel")
+		}
+
+		// Find best matching zone for hostname (e.g. aknalre.my.id matches antrian.aknalre.my.id)
+		var targetZoneID string
+		for _, z := range zones {
+			if strings.EqualFold(hostname, z.Name) || strings.HasSuffix(strings.ToLower(hostname), "."+strings.ToLower(z.Name)) {
+				targetZoneID = z.ID
+				break
+			}
+		}
+		if targetZoneID == "" {
+			return "", fmt.Errorf("could not find a matching Cloudflare zone for hostname %q in connected domains", hostname)
+		}
+
+		// 2. If tunnelID not provided, fetch from tunnel-profiles
+		if tunnelID == "" {
+			profData, pCode, pErr := client.get(ctx, "/api/v1/cloudflare/tunnel-profiles")
+			if pErr == nil && pCode < 400 {
+				var profiles []struct {
+					TunnelID string `json:"tunnelId"`
+				}
+				if json.Unmarshal(profData, &profiles) == nil && len(profiles) > 0 {
+					tunnelID = profiles[0].TunnelID
+				}
+			}
+		}
+		if tunnelID == "" {
+			return "", fmt.Errorf("no tunnel_id provided and no active tunnel profile found")
+		}
+
+		// 3. Create or update CNAME
+		cnameContent := fmt.Sprintf("%s.cfargotunnel.com", tunnelID)
+		payload := map[string]any{
+			"type":    "CNAME",
+			"name":    hostname,
+			"content": cnameContent,
+			"proxied": true,
+			"ttl":     1,
+		}
+		data, cCode, cErr := client.post(ctx, "/api/v1/cloudflare/domains/"+targetZoneID+"/dns", payload)
+		return apiResult(data, cCode, cErr)
 	})
 }

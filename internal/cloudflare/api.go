@@ -47,6 +47,73 @@ func (c *Client) VerifyToken() error {
 	return nil
 }
 
+// TokenPermissions holds detailed capability test results for a Cloudflare API token.
+type TokenPermissions struct {
+	Valid          bool     `json:"valid"`
+	Status         string   `json:"status"`
+	CanReadZones   bool     `json:"canReadZones"`
+	CanManageDNS   bool     `json:"canManageDNS"`
+	CanEditTunnels bool     `json:"canEditTunnels"`
+	AccountID      string   `json:"accountId,omitempty"`
+	MissingScopes  []string `json:"missingScopes,omitempty"`
+	Summary        string   `json:"summary"`
+}
+
+// VerifyTokenPermissions checks token validity and inspects required scopes (Zones, DNS, Tunnels).
+func (c *Client) VerifyTokenPermissions() TokenPermissions {
+	perm := TokenPermissions{
+		AccountID: c.accountID,
+	}
+
+	// 1. Basic token status check
+	if err := c.VerifyToken(); err != nil {
+		perm.Valid = false
+		perm.Status = "invalid"
+		perm.Summary = fmt.Sprintf("Token tidak valid: %v", err)
+		perm.MissingScopes = append(perm.MissingScopes, "Invalid Token")
+		return perm
+	}
+	perm.Valid = true
+	perm.Status = "active"
+
+	// 2. Test Zone:Read
+	zones, err := c.ListZones()
+	if err == nil {
+		perm.CanReadZones = true
+		// 3. Test DNS on first zone if available
+		if len(zones) > 0 {
+			_, dnsErr := c.ListDNSRecords(zones[0].ID)
+			if dnsErr == nil {
+				perm.CanManageDNS = true
+			} else {
+				perm.MissingScopes = append(perm.MissingScopes, "Zone:DNS:Edit")
+			}
+		} else {
+			perm.CanManageDNS = true
+		}
+	} else {
+		perm.MissingScopes = append(perm.MissingScopes, "Zone:Zone:Read")
+	}
+
+	// 4. Test Cloudflare Tunnel access
+	if c.accountID != "" {
+		_, tunnelErr := c.ListTunnels()
+		if tunnelErr == nil {
+			perm.CanEditTunnels = true
+		} else {
+			perm.MissingScopes = append(perm.MissingScopes, "Account:Cloudflare Tunnel:Edit")
+		}
+	}
+
+	if len(perm.MissingScopes) == 0 {
+		perm.Summary = "Token Cloudflare aktif dengan hak akses lengkap (Zone:Read, DNS:Edit, Cloudflare Tunnel:Edit)."
+	} else {
+		perm.Summary = fmt.Sprintf("Token aktif, namun kekurangan izin: %s. Buat token baru di Cloudflare Dashboard dengan template 'Cloudflare Tunnel' & 'Edit zone DNS'.", strings.Join(perm.MissingScopes, ", "))
+	}
+
+	return perm
+}
+
 // ZoneInfo represents a Cloudflare Zone (Domain).
 type ZoneInfo struct {
 	ID          string   `json:"id"`
