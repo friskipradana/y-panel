@@ -74,22 +74,49 @@ MCP server YPanel **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan t
 
 ---
 
-## 4. Dua Skenario Penggunaan: Lokal vs Remote Server
+## 4. Metode Koneksi: Streamable HTTP vs Stdio / SSH
 
-### Skenario A: AI Client dan YPanel di Server yang Sama
-Gunakan skenario ini jika Anda menjalankan Cursor / VS Code langsung di server (misalnya melalui Remote SSH extension atau desktop server):
+YPanel mendukung dua arsitektur transport MCP:
 
-- Perintah langsung:
-  ```bash
-  /opt/ypanel/panel-agent mcp --token ypat_0123456789abcdef0123456789abcdef01234567
+### 🌟 Metode 1: Streamable HTTP & SSE (Direkomendasikan ala Hermes Agent / IDCloudHost)
+Metode ini **paling praktis** karena Anda tidak memerlukan setup SSH key atau menjalankan binary lokal. Cukup gunakan URL endpoint langsung dari AI agent Anda:
+
+- **Format URL Endpoint:**
+  ```text
+  http://IP_SERVER:8787/mcp?key=ypat_TOKEN_ANDA
+  # atau jika menggunakan domain publik:
+  https://panel.domainanda.com/mcp?key=ypat_TOKEN_ANDA
   ```
+
+#### A. Integrasi Hermes Agent (CLI)
+Hermes Agent mendukung MCP secara native. Cukup jalankan satu baris perintah di terminal Anda:
+```bash
+hermes mcp add YPANEL --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
+```
+
+Setelah terhubung, Anda dapat langsung menginstruksikan Hermes:
+> *"Hermes, cek penggunaan CPU dan RAM server YPanel saya saat ini."*  
+> *"Daftar container Docker dan restart container nginx jika memory melebihi batas."*
+
+#### B. Integrasi OpenClaw (CLI)
+```bash
+openclaw mcp add YPANEL --transport streamable-http --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
+```
 
 ---
 
-### Skenario B: AI Client di Laptop Pribadi (Windows / Mac), YPanel di VPS Remote (SSH Bridge)
-Ini adalah **skenario paling umum**: Claude Desktop atau Cursor terpasang di komputer kerja Anda, sedangkan YPanel berjalan di VPS cloud (Ubuntu/Debian).
+### Metode 2: Stdio Subprocess & SSH Bridge (Claude Desktop & Cursor)
 
-AI client akan menjalankan perintah `ssh` lokal yang menyambungkan stream `stdio` langsung ke binary `panel-agent` di server remote.
+Gunakan metode ini jika AI client yang Anda gunakan hanya mendukung transport `stdio`:
+
+#### Skenario A: AI Client dan YPanel di Server yang Sama (Direct Stdio)
+Gunakan perintah binary langsung:
+```bash
+/opt/ypanel/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA
+```
+
+#### Skenario B: AI Client di Laptop Pribadi (Windows / Mac), YPanel di VPS Remote (SSH Bridge)
+Claude Desktop atau Cursor di komputer kerja terhubung ke binary di server VPS melalui jembatan SSH:
 
 #### Konfigurasi Claude Desktop via SSH Bridge:
 File konfigurasi Claude Desktop:

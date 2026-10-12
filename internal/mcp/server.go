@@ -71,84 +71,117 @@ func (s *Server) handleLine(ctx context.Context, raw []byte) error {
 		return s.sendError(nil, ErrCodeParseError, "parse error")
 	}
 
+	resp := s.ProcessRequest(ctx, req)
+	if resp != nil {
+		s.outMu.Lock()
+		defer s.outMu.Unlock()
+		return s.out.Encode(resp)
+	}
+	return nil
+}
+
+
+// ProcessRequest processes a single JSON-RPC request and returns the response object.
+// Returns nil if the request is a notification (e.g. "initialized") which expects no response.
+func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 	switch req.Method {
 	case "initialize":
-		return s.handleInitialize(req)
+		result := InitializeResult{
+			ProtocolVersion: MCPProtocolVersion,
+			ServerInfo: ServerInfo{
+				Name:    "ypanel",
+				Version: "1.0.0",
+			},
+			Capabilities: ServerCapability{
+				Tools: &ToolsCapability{},
+			},
+		}
+		return &Response{JSONRPC: "2.0", ID: req.ID, Result: result}
+
 	case "initialized":
-		// Client notification — no response needed
 		return nil
+
 	case "ping":
-		return s.sendResult(req.ID, map[string]any{})
+		return &Response{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{}}
+
 	case "tools/list":
-		return s.handleToolsList(req)
+		s.mu.Lock()
+		tools := make([]Tool, len(s.tools))
+		copy(tools, s.tools)
+		s.mu.Unlock()
+		return &Response{JSONRPC: "2.0", ID: req.ID, Result: ListToolsResult{Tools: tools}}
+
 	case "tools/call":
-		return s.handleToolsCall(ctx, req)
+		var params CallToolParams
+		if req.Params != nil {
+			b, err := json.Marshal(req.Params)
+			if err == nil {
+				_ = json.Unmarshal(b, &params)
+			}
+		}
+
+		s.mu.Lock()
+		handler, ok := s.handlers[params.Name]
+		s.mu.Unlock()
+
+		if !ok {
+			return &Response{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Result: CallToolResult{
+					IsError: true,
+					Content: []ContentItem{{Type: "text", Text: fmt.Sprintf("tool not found: %s", params.Name)}},
+				},
+			}
+		}
+
+		if params.Arguments == nil {
+			params.Arguments = map[string]any{}
+		}
+
+		text, err := handler(ctx, params.Arguments)
+		if err != nil {
+			return &Response{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Result: CallToolResult{
+					IsError: true,
+					Content: []ContentItem{{Type: "text", Text: err.Error()}},
+				},
+			}
+		}
+
+		return &Response{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result: CallToolResult{
+				Content: []ContentItem{{Type: "text", Text: text}},
+			},
+		}
+
 	default:
-		return s.sendError(req.ID, ErrCodeMethodNotFound, fmt.Sprintf("method not found: %s", req.Method))
+		return &Response{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Error:   &Error{Code: ErrCodeMethodNotFound, Message: fmt.Sprintf("method not found: %s", req.Method)},
+		}
 	}
 }
 
-func (s *Server) handleInitialize(req Request) error {
-	result := InitializeResult{
-		ProtocolVersion: MCPProtocolVersion,
-		ServerInfo: ServerInfo{
-			Name:    "ypanel",
-			Version: "1.0.0",
-		},
-		Capabilities: ServerCapability{
-			Tools: &ToolsCapability{},
-		},
-	}
-	return s.sendResult(req.ID, result)
-}
-
-func (s *Server) handleToolsList(req Request) error {
+// ToolCount returns the total number of registered tools.
+func (s *Server) ToolCount() int {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.tools)
+}
+
+// Tools returns a snapshot slice of all registered tools.
+func (s *Server) Tools() []Tool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	tools := make([]Tool, len(s.tools))
 	copy(tools, s.tools)
-	s.mu.Unlock()
-
-	return s.sendResult(req.ID, ListToolsResult{Tools: tools})
-}
-
-func (s *Server) handleToolsCall(ctx context.Context, req Request) error {
-	var params CallToolParams
-	if req.Params != nil {
-		b, err := json.Marshal(req.Params)
-		if err != nil {
-			return s.sendError(req.ID, ErrCodeInvalidParams, "invalid params")
-		}
-		if err := json.Unmarshal(b, &params); err != nil {
-			return s.sendError(req.ID, ErrCodeInvalidParams, "invalid params")
-		}
-	}
-
-	s.mu.Lock()
-	handler, ok := s.handlers[params.Name]
-	s.mu.Unlock()
-
-	if !ok {
-		return s.sendResult(req.ID, CallToolResult{
-			IsError: true,
-			Content: []ContentItem{{Type: "text", Text: fmt.Sprintf("tool not found: %s", params.Name)}},
-		})
-	}
-
-	if params.Arguments == nil {
-		params.Arguments = map[string]any{}
-	}
-
-	text, err := handler(ctx, params.Arguments)
-	if err != nil {
-		return s.sendResult(req.ID, CallToolResult{
-			IsError: true,
-			Content: []ContentItem{{Type: "text", Text: err.Error()}},
-		})
-	}
-
-	return s.sendResult(req.ID, CallToolResult{
-		Content: []ContentItem{{Type: "text", Text: text}},
-	})
+	return tools
 }
 
 func (s *Server) sendResult(id any, result any) error {

@@ -13,6 +13,8 @@ import {
   LoaderCircle,
   ChevronDown,
   ChevronUp,
+  Bot,
+  Globe,
 } from "lucide-react";
 import {
   listAPITokens,
@@ -122,6 +124,12 @@ export function ApiTokensTab() {
 
   const role = me?.role || "user";
   const isAdmin = role === "superadmin" || role === "admin";
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8787";
+  const tokenPlaceholder = newlyCreatedToken || "ypat_PASTE_TOKEN_ANDA";
+  const mcpHttpUrl = `${origin}/mcp?key=${tokenPlaceholder}`;
+  const hermesCommand = `hermes mcp add YPANEL --url "${mcpHttpUrl}"`;
+  const openclawCommand = `openclaw mcp add YPANEL --transport streamable-http --url "${mcpHttpUrl}"`;
 
   const claudeConfigSnippet = JSON.stringify(
     {
@@ -233,14 +241,25 @@ export function ApiTokensTab() {
 
       {/* ── Newly Generated Token Alert (Shown once) ── */}
       {newlyCreatedToken && (
-        <div className="panel-shell-card p-4 border-2 border-emerald-500/50 bg-emerald-500/5 flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold text-[13px]">
-            <Check size={16} />
-            <span>Token Berhasil Dibuat! Simpan Sekarang</span>
+        <div className="panel-shell-card p-4.5 border-2 border-emerald-500/50 bg-emerald-500/5 flex flex-col gap-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-emerald-400 font-semibold text-[13px]">
+              <Check size={16} />
+              <span>Token Berhasil Dibuat! Simpan Sekarang</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNewlyCreatedToken(null)}
+              className="text-[11.5px] text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
+            >
+              Tutup Notifikasi
+            </button>
           </div>
+
           <p className="text-[12px] text-[var(--text-secondary)]">
             Demi keamanan, nilai token ini <strong>hanya ditampilkan satu kali</strong>. Harap salin dan simpan di tempat yang aman.
           </p>
+
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -256,13 +275,67 @@ export function ApiTokensTab() {
               {copiedKey === "newToken" ? <Check size={14} /> : <Copy size={14} />}
               <span>{copiedKey === "newToken" ? "Tersalin!" : "Salin Token"}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setNewlyCreatedToken(null)}
-              className="panel-btn h-[40px] px-3 rounded-xl text-[12px] text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
-            >
-              Tutup
-            </button>
+          </div>
+
+          {/* 1-Click Quick Connect Presets (IDCloudHost / Hermes Agent ATM) */}
+          <div className="pt-2 border-t border-emerald-500/20 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Hermes Agent Quick Card */}
+            <div className="p-3 rounded-xl bg-black/30 border border-emerald-500/30 flex flex-col justify-between gap-2">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-300">
+                    <Bot size={14} />
+                    <span>Hermes Agent CLI</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                    1-Click Add
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  Hubungkan langsung ke terminal Hermes Agent:
+                </p>
+                <code className="panel-mono text-[10.5px] text-amber-300 block p-2 rounded-lg bg-black/40 mt-1.5 break-all">
+                  {hermesCommand}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(hermesCommand, "quickHermes")}
+                className="panel-btn panel-btn--primary !h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {copiedKey === "quickHermes" ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copiedKey === "quickHermes" ? "Perintah Tersalin!" : "Salin Perintah Hermes"}</span>
+              </button>
+            </div>
+
+            {/* OpenClaw / Streamable HTTP Quick Card */}
+            <div className="p-3 rounded-xl bg-black/30 border border-emerald-500/30 flex flex-col justify-between gap-2">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-300">
+                    <Globe size={14} />
+                    <span>OpenClaw / Streamable HTTP</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-medium">
+                    HTTP Transport
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+                  Integrasi via transport streamable-http:
+                </p>
+                <code className="panel-mono text-[10.5px] text-amber-300 block p-2 rounded-lg bg-black/40 mt-1.5 break-all">
+                  {openclawCommand}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(openclawCommand, "quickOpenclaw")}
+                className="panel-btn panel-btn--primary !h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {copiedKey === "quickOpenclaw" ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copiedKey === "quickOpenclaw" ? "Perintah Tersalin!" : "Salin Perintah OpenClaw"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -456,11 +529,68 @@ export function ApiTokensTab() {
               </ul>
             </div>
 
+            {/* Modern HTTP Streamable MCP: Hermes Agent & OpenClaw (IDCloudHost pattern) */}
+            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot size={16} className="text-emerald-400" />
+                  <span className="text-[12.5px] font-semibold text-emerald-400">
+                    1. Hermes Agent CLI (Rekomendasi AI Agent Cepat)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(hermesCommand, "guideHermes")}
+                  className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedKey === "guideHermes" ? <Check size={12} /> : <Copy size={12} />}
+                  <span>{copiedKey === "guideHermes" ? "Tersalin!" : "Salin Perintah"}</span>
+                </button>
+              </div>
+
+              <p className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed">
+                Hermes Agent mendukung MCP secara native melalui HTTP Streamable endpoint. Jalankan perintah ini di terminal Anda untuk menghubungkan YPanel:
+              </p>
+
+              <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/40 border border-emerald-500/30 text-amber-300 overflow-x-auto leading-relaxed break-all">
+                {hermesCommand}
+              </pre>
+
+              {/* OpenClaw option */}
+              <div className="pt-2 border-t border-emerald-500/20 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11.5px] font-semibold text-[var(--win-text)] flex items-center gap-1.5">
+                    <Globe size={13} className="text-blue-400" />
+                    Atau gunakan OpenClaw CLI (Streamable HTTP):
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(openclawCommand, "guideOpenclaw")}
+                    className="text-[11px] text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedKey === "guideOpenclaw" ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{copiedKey === "guideOpenclaw" ? "Tersalin!" : "Salin Perintah"}</span>
+                  </button>
+                </div>
+                <pre className="panel-mono text-[11px] p-2.5 rounded-xl bg-black/40 border border-[var(--win-border)] text-blue-300 overflow-x-auto leading-relaxed break-all">
+                  {openclawCommand}
+                </pre>
+              </div>
+
+              {/* Example Prompts */}
+              <div className="pt-2 border-t border-emerald-500/20 text-[11px] text-[var(--text-secondary)] space-y-1">
+                <span className="font-semibold text-emerald-300 block">💡 Contoh Perintah Chat di Hermes Agent:</span>
+                <p>• <em>"Hermes, cek penggunaan CPU dan RAM server YPanel saya saat ini."</em></p>
+                <p>• <em>"Daftar semua container Docker, lalu carikan log container yang error."</em></p>
+                <p>• <em>"Buka file /var/www/my-project/config.json dan periksa isinya."</em></p>
+              </div>
+            </div>
+
             {/* Remote SSH VPS Setup */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11.5px] font-semibold text-amber-400">
-                  1. Skenario Utama: AI di Laptop / PC Menghubungi VPS (via SSH Bridge)
+                  2. Skenario Desktop: Claude Desktop / Cursor via SSH Bridge
                 </span>
                 <button
                   type="button"
@@ -483,7 +613,7 @@ export function ApiTokensTab() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  2. Konfigurasi Claude Desktop Lokal (<code>claude_desktop_config.json</code>)
+                  3. Konfigurasi Claude Desktop Lokal (<code>claude_desktop_config.json</code>)
                 </span>
                 <button
                   type="button"
@@ -503,7 +633,7 @@ export function ApiTokensTab() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  3. Konfigurasi Cursor IDE (<code>.cursor/mcp.json</code>)
+                  4. Konfigurasi Cursor IDE (<code>.cursor/mcp.json</code>)
                 </span>
                 <button
                   type="button"
@@ -523,7 +653,7 @@ export function ApiTokensTab() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  4. Jalankan Manual via Terminal Server (Stdio)
+                  5. Jalankan Manual via Terminal Server (Stdio)
                 </span>
                 <button
                   type="button"
@@ -548,7 +678,7 @@ export function ApiTokensTab() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  5. Penggunaan REST API Langsung via cURL
+                  6. Penggunaan REST API Langsung via cURL
                 </span>
                 <button
                   type="button"

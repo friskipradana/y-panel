@@ -28,6 +28,10 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/me/api-tokens", s.requireAuthV2(http.HandlerFunc(s.handleCreateAPIToken)))
 	s.mux.Handle("DELETE /api/v1/me/api-tokens/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteAPIToken)))
 
+	// ── Model Context Protocol (MCP) Streamable HTTP & SSE ────────────────────
+	s.mux.HandleFunc("/mcp", s.handleMCP)
+	s.mux.HandleFunc("/api/v1/mcp", s.handleMCP)
+
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))

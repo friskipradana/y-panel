@@ -104,20 +104,26 @@ func (s *Server) notifyCurrentUserAction(r *http.Request, title, body, notifType
 // requireAuthV2 validates the session cookie OR a Bearer API token and injects the User into context.
 func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try Bearer API token first (used by MCP and programmatic clients)
+		// Try Bearer API token or query parameter (?key=... / ?token=...)
+		rawToken := ""
 		if authHeader := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(authHeader, "Bearer ") {
-			rawToken := strings.TrimPrefix(authHeader, "Bearer ")
-			if strings.HasPrefix(rawToken, "ypat_") {
-				tokenHash := hashAPIToken(rawToken)
-				u, _, ok := s.database.GetAPITokenUser(tokenHash)
-				if !ok || u == nil {
-					s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
-					return
-				}
-				ctx := context.WithValue(r.Context(), ctxUser, u)
-				next.ServeHTTP(w, r.WithContext(ctx))
+			rawToken = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if qKey := strings.TrimSpace(r.URL.Query().Get("key")); qKey != "" {
+			rawToken = qKey
+		} else if qToken := strings.TrimSpace(r.URL.Query().Get("token")); qToken != "" {
+			rawToken = qToken
+		}
+
+		if rawToken != "" && strings.HasPrefix(rawToken, "ypat_") {
+			tokenHash := hashAPIToken(rawToken)
+			u, _, ok := s.database.GetAPITokenUser(tokenHash)
+			if !ok || u == nil {
+				s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
 				return
 			}
+			ctx := context.WithValue(r.Context(), ctxUser, u)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
 		}
 		// Fall back to session cookie
 		cookie, err := r.Cookie(sessionCookieName)
