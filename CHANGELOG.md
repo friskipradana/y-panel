@@ -2,6 +2,14 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.1.5] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.1.5** mencakup 1 pembaruan penting berikut:
+
+### 🐛 Perbaikan Bug (Fixed)
+- **fix(mcp): add cloudflare_create_tunnel_route, delete_dns, and auto-overwrite DNS conflicts** (`079bb42` by AknalRe)
+
 ## [3.1.4] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
