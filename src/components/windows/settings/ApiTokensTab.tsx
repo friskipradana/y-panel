@@ -15,6 +15,7 @@ import {
   ChevronUp,
   Bot,
   Globe,
+  ExternalLink,
 } from "lucide-react";
 import {
   listAPITokens,
@@ -192,8 +193,18 @@ export function ApiTokensTab() {
             </div>
           </div>
 
-          {/* Current Role Pill */}
-          <div className="flex items-center gap-2">
+          {/* Current Role Pill & Public Guide Link */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="/docs/mcp"
+              target="_blank"
+              rel="noreferrer"
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Bot size={13} />
+              <span>Panduan Publik Hermes & AI</span>
+              <ExternalLink size={10} className="opacity-70" />
+            </a>
             <span
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
                 isAdmin

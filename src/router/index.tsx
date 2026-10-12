@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { DesktopPage } from '@/pages/DesktopPage'
+import { McpGuidePage } from '@/pages/McpGuidePage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 
 export const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 export const HOME_PATH = '/home'
 export const LANDING_PATH = '/'
+export const MCP_GUIDE_PATH = '/docs/mcp'
 
 export function AppRouter() {
   const location = useLocation()
@@ -44,6 +46,21 @@ export function AppRouter() {
             </motion.div>
           }
         />
+        <Route
+          path="/docs/mcp"
+          element={
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full overflow-y-auto"
+            >
+              <McpGuidePage />
+            </motion.div>
+          }
+        />
+        <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
         <Route
           path={LOGIN_PATH}
           element={
