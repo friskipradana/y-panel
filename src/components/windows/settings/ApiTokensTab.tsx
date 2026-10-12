@@ -260,7 +260,7 @@ export function ApiTokensTab() {
           <div>
             {isAdmin ? (
               <>
-                <strong className="text-amber-400 font-semibold">Akses Penuh Administrator (28 Tools MCP Aktif):</strong>
+                <strong className="text-amber-400 font-semibold">Akses Penuh Administrator (34 Tools MCP Aktif):</strong>
                 <p className="text-[var(--text-secondary)] mt-0.5">
                   Token yang Anda buat memiliki hak istimewa <strong>{role}</strong>. AI Agent MCP dapat mengakses eksekusi shell host (Terminal root), manajemen lifecycle seluruh container Docker, manipulasi file sistem, manajemen proyek, pengguna server, dan DNS Cloudflare.
                 </p>
