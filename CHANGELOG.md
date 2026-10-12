@@ -2,6 +2,14 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.1.4] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.1.4** mencakup 1 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat: implement Model Context Protocol (MCP) server integration and settings UI** (`7e0e40c` by AknalRe)
+
 ## [3.1.3] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
