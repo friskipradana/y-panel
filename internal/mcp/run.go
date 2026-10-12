@@ -62,6 +62,28 @@ func Run(ctx context.Context, cfg Config) error {
 		log.Println("[mcp] PANEL_MCP_TOKEN not set — running in unauthenticated mode with restricted tools")
 	}
 
+	srv := BuildServer(cfg, userRole, cfg.SessionToken)
+
+	totalTools := len(srv.tools)
+	log.Printf("[mcp] YPanel MCP server started (stdio transport, %d tools registered, role: %s)", totalTools, userRole)
+	if username != "" {
+		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (user: %s, role: %s)\n", totalTools, username, userRole)
+	} else {
+		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (role: %s)\n", totalTools, userRole)
+	}
+
+	return srv.Serve(ctx, os.Stdin)
+}
+
+// BuildServer initializes an MCP Server instance and registers tools according to user role and configuration.
+func BuildServer(cfg Config, userRole string, rawToken string) *Server {
+	if cfg.PanelURL == "" {
+		cfg.PanelURL = "http://localhost:8787"
+	}
+	if cfg.StateDir == "" {
+		cfg.StateDir = "/var/lib/ypanel"
+	}
+
 	isAdmin := userRole == "superadmin" || userRole == "admin"
 	isUser := userRole == "user"
 
@@ -85,8 +107,12 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	// 5. API-backed tools (requires valid account token)
-	if cfg.SessionToken != "" && (isAdmin || isUser) {
-		client := newAPIClient(cfg.PanelURL, cfg.SessionToken)
+	effectiveToken := rawToken
+	if effectiveToken == "" {
+		effectiveToken = cfg.SessionToken
+	}
+	if effectiveToken != "" && (isAdmin || isUser) {
+		client := newAPIClient(cfg.PanelURL, effectiveToken)
 		registerProjectTools(srv, client)
 		registerCloudflareTools(srv, client)
 		if isAdmin {
@@ -94,13 +120,5 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 
-	totalTools := len(srv.tools)
-	log.Printf("[mcp] YPanel MCP server started (stdio transport, %d tools registered, role: %s)", totalTools, userRole)
-	if username != "" {
-		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (user: %s, role: %s)\n", totalTools, username, userRole)
-	} else {
-		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (role: %s)\n", totalTools, userRole)
-	}
-
-	return srv.Serve(ctx, os.Stdin)
+	return srv
 }
