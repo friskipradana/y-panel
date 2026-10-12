@@ -2,6 +2,15 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.0.2] - 2026-10-12
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis versi **v3.0.2** mencakup 2 pembaruan penting berikut:
+
+### 🚀 Fitur Baru (Added / Features)
+- **feat: add automated release script, API tokens settings tab, and release installer CI workflow** (`888aea1` by AknalRe)
+- **feat: add SettingsWindow component for desktop preferences and system configuration** (`126e67d` by AknalRe)
+
 ## [3.0.1] - 2026-10-11
 
 ### 🌟 Ringkasan Rilis (Release Overview)
