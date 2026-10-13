@@ -119,6 +119,9 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 			registerUserTools(srv, client)
 			registerWorkflowTools(srv, client, cfg)
 		}
+		// Catalog of REST-backed tools (docker, files, tunnels, docs, notifications, ...)
+		registerCatalogTools(srv, client, isAdmin)
+		registerCustomTools(srv, client, isAdmin)
 	}
 
 	return srv
