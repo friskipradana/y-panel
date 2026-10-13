@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.4.2] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.4.2** berisi 1 perubahan: 1 perbaikan. (2 files changed, 131 insertions(+), 37 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **widgets:** Lay out with measured heights and resolve overlaps to the nearest free spot ([`c0a3d6c`](https://github.com/friskipradana/panel-desktop-ui/commit/c0a3d6c))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.1...v3.4.2
+
 ## [3.4.1] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
