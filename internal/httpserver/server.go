@@ -16,7 +16,9 @@ import (
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
+	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
 )
@@ -41,6 +43,7 @@ type Server struct {
 	terminalUpgrader             websocket.Upgrader
 	database                     *database.Manager
 	projectManager               *projects.Manager
+	metrics                      *metrics.Recorder
 	cfDaemon                     *cloudflareapi.Daemon
 	notificationMu               sync.RWMutex
 	notificationWSConns          map[int64][]*wsConn
@@ -116,6 +119,16 @@ func New(cfg config.Config) *Server {
 		CheckOrigin:     s.isWebSocketOriginAllowed,
 	}
 	s.authedFrontend = s.requireHTMLAuthV2(s.frontendFS)
+
+	s.metrics = metrics.New(cfg.StateDir, func() (map[string]float64, map[string]uint64) {
+		sm := system.TakeSample(cfg.StateDir)
+		values := map[string]float64{"cpu": sm.CPUPercent, "ram": sm.RAMPercent, "disk": sm.DiskPercent}
+		if sm.CPUTemp > 0 {
+			values["temp"] = sm.CPUTemp
+		}
+		return values, map[string]uint64{"net-rx": sm.BytesRecv, "net-tx": sm.BytesSent}
+	})
+	go s.metrics.Run()
 
 	s.routes()
 	go s.runProjectReconcileLoop(25 * time.Second)

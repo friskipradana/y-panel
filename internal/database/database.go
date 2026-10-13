@@ -269,6 +269,7 @@ func (m *Manager) ensureSchema() error {
 			UNIQUE(user_id, slug)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
+		`ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS widgets_data JSONB`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS spa_fallback BOOLEAN NOT NULL DEFAULT true`,
 
 		`CREATE TABLE IF NOT EXISTS project_env_vars (
@@ -1797,6 +1798,42 @@ func (m *Manager) GetWallpaper(userID int64) (string, error) {
 	}
 	// Fallback: return raw value (for legacy data stored before this fix)
 	return data.String, nil
+}
+
+// ─── Desktop widgets (per user) ──────────────────────────────────────────────
+
+// GetWidgets returns the user's stored widget layout JSON ("" when none) and its update time.
+func (m *Manager) GetWidgets(userID int64) (string, time.Time, error) {
+	if !m.IsConnected() || m.db == nil {
+		return "", time.Time{}, fmt.Errorf("database tidak tersambung")
+	}
+	var (
+		data sql.NullString
+		at   time.Time
+	)
+	err := m.db.QueryRow("SELECT widgets_data, updated_at FROM user_preferences WHERE user_id = $1", userID).Scan(&data, &at)
+	if err == sql.ErrNoRows {
+		return "", time.Time{}, nil
+	}
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	if !data.Valid {
+		return "", time.Time{}, nil
+	}
+	return data.String, at, nil
+}
+
+func (m *Manager) SetWidgets(userID int64, raw string) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database tidak tersambung")
+	}
+	_, err := m.db.Exec(`
+		INSERT INTO user_preferences (user_id, widgets_data)
+		VALUES ($1, $2::jsonb)
+		ON CONFLICT (user_id) DO UPDATE SET widgets_data = EXCLUDED.widgets_data, updated_at = NOW()
+	`, userID, raw)
+	return err
 }
 
 // ─── TruncateData ─────────────────────────────────────────────────────────────

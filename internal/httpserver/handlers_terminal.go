@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
@@ -80,6 +83,13 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	s.writeJSON(w, http.StatusOK, jsonResponse{"sessionId": startResult.SessionID})
 }
 
+const (
+	terminalWriteWait  = 10 * time.Second
+	terminalPongWait   = 75 * time.Second
+	terminalPingPeriod = 25 * time.Second
+	terminalReadLimit  = 64 * 1024
+)
+
 func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -95,34 +105,79 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 	}
 
 	log.Printf("[terminal] ws attached id=%s user=%q remote=%s", id, username, remoteAddr(r))
-	writeMu := syncWriter{}
-	closed := make(chan struct{})
 
+	var (
+		writeMu   sync.Mutex
+		closeOnce sync.Once
+	)
+	closed := make(chan struct{})
+	markClosed := func() { closeOnce.Do(func() { close(closed) }) }
+
+	// A write deadline keeps one half-open client from stalling the PTY reader
+	// (and with it every later re-attach of the same session).
 	safeWrite := func(payload terminalSocketMessage) error {
 		writeMu.Lock()
 		defer writeMu.Unlock()
+		_ = conn.SetWriteDeadline(time.Now().Add(terminalWriteWait))
 		return conn.WriteJSON(payload)
 	}
 
-	if err := s.terminalManager.Attach(
+	conn.SetReadLimit(terminalReadLimit)
+	_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
+	})
+
+	gen, err := s.terminalManager.Attach(
 		id,
-		func(chunk string) {
-			_ = safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
+		func(chunk string) error {
+			return safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
 		},
 		func() {
 			log.Printf("[terminal] session closed id=%s user=%q", id, username)
 			_ = safeWrite(terminalSocketMessage{Type: "closed", Closed: true, Session: id})
-			closeChannel(closed)
+			markClosed()
+			_ = conn.Close()
 		},
-	); err != nil {
+		func() {
+			log.Printf("[terminal] ws replaced by newer connection id=%s user=%q", id, username)
+			markClosed()
+			_ = conn.Close()
+		},
+	)
+	if err != nil {
 		log.Printf("[terminal] attach failed id=%s user=%q remote=%s err=%v", id, username, remoteAddr(r), err)
 		_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 		_ = conn.Close()
 		return
 	}
+
+	pingDone := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(terminalPingPeriod)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-pingDone:
+				return
+			case <-closed:
+				return
+			case <-ticker.C:
+				writeMu.Lock()
+				err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(terminalWriteWait))
+				writeMu.Unlock()
+				if err != nil {
+					_ = conn.Close()
+					return
+				}
+			}
+		}
+	}()
+
 	defer func() {
+		close(pingDone)
 		log.Printf("[terminal] ws detached id=%s user=%q remote=%s", id, username, remoteAddr(r))
-		_ = s.terminalManager.Detach(id)
+		_ = s.terminalManager.Detach(id, gen)
 		_ = conn.Close()
 	}()
 
@@ -139,8 +194,11 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		if err := conn.ReadJSON(&msg); err != nil {
 			return
 		}
+		_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
 
 		switch msg.Type {
+		case "ping":
+			_ = safeWrite(terminalSocketMessage{Type: "pong", Session: id})
 		case "input":
 			if err := s.terminalManager.Write(id, msg.Data); err != nil {
 				log.Printf("[terminal] input failed id=%s user=%q err=%v", id, username, err)
@@ -149,9 +207,9 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 			}
 		case "resize":
 			if err := s.terminalManager.Resize(id, msg.Cols, msg.Rows); err != nil {
+				// A bad size must not tear down a healthy shell; report and continue.
 				log.Printf("[terminal] resize failed id=%s user=%q cols=%d rows=%d err=%v", id, username, msg.Cols, msg.Rows, err)
 				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
-				return
 			}
 		case "close":
 			log.Printf("[terminal] close requested id=%s user=%q", id, username)

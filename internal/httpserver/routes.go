@@ -100,6 +100,9 @@ func (s *Server) routes() {
 
 	// ── System / Settings ─────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/system/summary", s.requireAuthV2(http.HandlerFunc(s.handleSystemSummary)))
+	s.mux.Handle("GET /api/v1/system/history", s.requireAuthV2(http.HandlerFunc(s.handleSystemHistory)))
+	s.mux.Handle("GET /api/v1/me/widgets", s.requireAuthV2(http.HandlerFunc(s.handleGetMyWidgets)))
+	s.mux.Handle("PUT /api/v1/me/widgets", s.requireAuthV2(http.HandlerFunc(s.handlePutMyWidgets)))
 	s.mux.Handle("GET /api/v1/system/logs", s.requireAuthV2(http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuthV2(http.HandlerFunc(s.handleSystemChangelog)))
 	s.mux.Handle("GET /api/v1/database/status", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDatabaseStatus)))
@@ -176,6 +179,9 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))
 	s.mux.Handle("DELETE /api/v1/terminal/presets/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteTerminalPreset)))
 	s.mux.Handle("POST /api/v1/terminal/presets/reset", s.requireAuthV2(http.HandlerFunc(s.handleResetTerminalPresets)))
+
+	// ── Network tools (widgets) ───────────────────────────────────────────────
+	s.mux.Handle("POST /api/v1/tools/ping", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handlePing)))
 
 	s.mux.Handle("/", s.authedFrontend)
 }
