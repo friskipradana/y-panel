@@ -17,12 +17,14 @@
     "build:fast": "vite build",
     "build:check": "tsc -b --pretty false",
     "lint": "eslint .",
+    "check:ui": "bun run ./scripts/check-ui.ts",
     "preview": "vite preview",
     "release": "bun run ./scripts/release.ts",
     "release:patch": "bun run ./scripts/release.ts patch",
     "release:minor": "bun run ./scripts/release.ts minor",
     "release:major": "bun run ./scripts/release.ts major",
-    "release:dry-run": "bun run ./scripts/release.ts patch --dry-run"
+    "release:dry-run": "bun run ./scripts/release.ts patch --dry-run",
+    "release:notes": "bun run ./scripts/release.ts patch --dry-run"
   },
   "dependencies": {
     "@fluentui/react-icons": "^2.0.343",

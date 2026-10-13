@@ -1,242 +1,84 @@
 #!/usr/bin/env bun
-import { execSync } from "child_process";
+import { execFileSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
 // ── Colors for CLI Output ──────────────────────────────────────────────────
-const colors = {
+const c = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
   green: "\x1b[32m",
   cyan: "\x1b[36m",
   yellow: "\x1b[33m",
-  magenta: "\x1b[35m",
   red: "\x1b[31m",
   gray: "\x1b[90m",
 };
 
-function run(command: string, options: { silent?: boolean } = {}): string {
+type BumpType = "patch" | "minor" | "major";
+type Kind = "feat" | "fix" | "perf" | "refactor" | "docs" | "maintenance" | "other";
+
+interface Commit {
+  hash: string;
+  author: string;
+  date: string;
+  subject: string;
+  body: string;
+  type: string;
+  scope: string;
+  description: string;
+  kind: Kind;
+  breaking: boolean;
+  breakingNote: string;
+}
+
+// ── Process helpers ────────────────────────────────────────────────────────
+function git(args: string[], opts: { allowFail?: boolean } = {}): string {
   try {
-    return execSync(command, {
-      encoding: "utf-8",
-      stdio: options.silent ? "pipe" : ["pipe", "pipe", "pipe"],
-    }).trim();
-  } catch (err: any) {
-    if (options.silent) return "";
+    return execFileSync("git", args, { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  } catch (err) {
+    if (opts.allowFail) return "";
     throw err;
   }
 }
 
-// ── Helper Types ───────────────────────────────────────────────────────────
-type BumpType = "patch" | "minor" | "major";
-
-interface CommitInfo {
-  hash: string;
-  subject: string;
-  author: string;
-  date: string;
+function runStep(label: string, cmd: string, args: string[]): boolean {
+  process.stdout.write(`  ${c.gray}•${c.reset} ${label} ... `);
+  const res = spawnSync(cmd, args, { encoding: "utf-8", shell: process.platform === "win32" });
+  if (res.status === 0) {
+    console.log(`${c.green}ok${c.reset}`);
+    return true;
+  }
+  console.log(`${c.red}gagal${c.reset}`);
+  const out = `${res.stdout || ""}${res.stderr || ""}`.trim().split("\n").slice(-15).join("\n");
+  if (out) console.log(`${c.gray}${out}${c.reset}`);
+  return false;
 }
 
-interface CategorizedCommits {
-  features: string[];
-  fixes: string[];
-  improvements: string[];
-  docs: string[];
-  maintenance: string[];
-  others: string[];
+function help() {
+  console.log(`\n${c.bold}${c.cyan}YPanel Release & Release Notes Generator${c.reset}
+
+Penggunaan:
+  bun run release:patch      3.1.5 -> 3.1.6
+  bun run release:minor      3.1.5 -> 3.2.0
+  bun run release:major      3.1.5 -> 4.0.0
+  bun run release            patch (default) atau nomor manual, mis. 3.2.0
+  bun run release:notes      Pratinjau catatan rilis (sama dengan --dry-run)
+
+Opsi:
+  --dry-run        Pratinjau catatan rilis tanpa mengubah file, commit, atau tag
+  --no-push        Commit dan tag lokal saja, tanpa git push
+  --skip-checks    Lewati validasi sebelum rilis (tsc, check:ui, go build, go test)
+  --allow-dirty    Izinkan working tree dengan perubahan yang belum di-commit
+
+Validasi sebelum rilis: working tree bersih, HEAD belum bertag, build dan tes lolos.
+Catatan rilis dibuat dari Conventional Commits sejak tag terakhir (feat, fix, perf,
+refactor, docs, build/ci/chore) dengan penanda breaking change (\`!\` atau BREAKING CHANGE:).\n`);
 }
 
-// ── Main Release Logic ─────────────────────────────────────────────────────
-async function main() {
-  const args = process.argv.slice(2);
-  if (args.includes("--help") || args.includes("-h")) {
-    console.log(`\n${colors.bold}${colors.cyan}🚀 YPanel Release & Walkthrough Generator${colors.reset}`);
-    console.log(`\nPenggunaan:`);
-    console.log(`  bun run release:patch     Naikkan versi patch (misal 3.0.0 -> 3.0.1)`);
-    console.log(`  bun run release:minor     Naikkan versi minor (misal 3.0.0 -> 3.1.0)`);
-    console.log(`  bun run release:major     Naikkan versi major (misal 3.0.0 -> 4.0.0)`);
-    console.log(`  bun run release:dry-run   Simulasi rilis tanpa merubah disk/git`);
-    console.log(`\nOpsi Tambahan:`);
-    console.log(`  --dry-run                 Pratinjau walkthrough tanpa commit/tag/push`);
-    console.log(`  --no-push                 Buat commit & tag lokal tanpa git push`);
-    console.log(`  <custom-version>          Tentukan nomor versi manual (misal 3.0.5)\n`);
-    process.exit(0);
-  }
-
-  const isDryRun = args.includes("--dry-run");
-  const isNoPush = args.includes("--no-push");
-
-  const cleanArgs = args.filter((a) => !a.startsWith("--"));
-  let bumpArg = cleanArgs[0] || "patch";
-
-  console.log(`\n${colors.bold}${colors.cyan}🚀 YPanel Release & Walkthrough Generator${colors.reset}`);
-  if (isDryRun) {
-    console.log(`${colors.yellow}⚠️  MODE DRY-RUN: Tidak ada commit/tag/push yang akan dieksekusi.${colors.reset}`);
-  }
-
-  // 1. Read package.json
-  const pkgPath = path.resolve(process.cwd(), "package.json");
-  if (!fs.existsSync(pkgPath)) {
-    console.error(`${colors.red}Error: package.json tidak ditemukan!${colors.reset}`);
-    process.exit(1);
-  }
-
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-  const currentVersion: string = pkg.version || "1.0.0";
-
-  // 2. Compute Next Version
-  let nextVersion: string;
-  if (["patch", "minor", "major"].includes(bumpArg.toLowerCase())) {
-    nextVersion = incrementVersion(currentVersion, bumpArg.toLowerCase() as BumpType);
-  } else if (/^\d+\.\d+\.\d+.*$/.test(bumpArg)) {
-    nextVersion = bumpArg.replace(/^v/, "");
-  } else {
-    console.log(`${colors.yellow}Tipe rilis "${bumpArg}" tidak dikenal. Menggunakan default: "patch".${colors.reset}`);
-    nextVersion = incrementVersion(currentVersion, "patch");
-  }
-
-  const nextTag = `v${nextVersion}`;
-  console.log(`Versi saat ini: ${colors.bold}${currentVersion}${colors.reset}`);
-  console.log(`Versi rilis baru: ${colors.bold}${colors.green}${nextVersion}${colors.reset} (Tag: ${nextTag})\n`);
-
-  // 3. Find Last Git Tag
-  let lastTag = "";
-  try {
-    lastTag = run("git describe --tags --abbrev=0", { silent: true });
-  } catch {
-    lastTag = "";
-  }
-
-  // 4. Retrieve Commits Since Last Tag
-  let logRange = lastTag ? `${lastTag}..HEAD` : "HEAD~10..HEAD";
-  let rawLog = "";
-
-  try {
-    rawLog = run(`git log ${logRange} --pretty=format:"%h|%s|%an|%ad" --date=short`, { silent: true });
-  } catch {
-    rawLog = "";
-  }
-
-  // If no commits between last tag and HEAD (e.g. HEAD is already tagged or empty)
-  if (!rawLog) {
-    try {
-      rawLog = run(`git log -n 5 --pretty=format:"%h|%s|%an|%ad" --date=short`, { silent: true });
-    } catch {
-      rawLog = "";
-    }
-  }
-
-  const commits: CommitInfo[] = [];
-  if (rawLog) {
-    for (const line of rawLog.split("\n")) {
-      const [hash, subject, author, date] = line.split("|");
-      if (hash && subject) {
-        // Skip automated version bump commits
-        if (/^\d+\.\d+\.\d+$/.test(subject.trim()) || /^v\d+\.\d+\.\d+$/.test(subject.trim()) || subject.startsWith("chore(release):")) {
-          continue;
-        }
-        commits.push({ hash, subject: subject.trim(), author: author || "", date: date || "" });
-      }
-    }
-  }
-
-  // 5. Categorize Commits
-  const categories: CategorizedCommits = {
-    features: [],
-    fixes: [],
-    improvements: [],
-    docs: [],
-    maintenance: [],
-    others: [],
-  };
-
-  for (const c of commits) {
-    const s = c.subject;
-    const lower = s.toLowerCase();
-    const entry = `- **${s}** (\`${c.hash}\` by ${c.author})`;
-
-    if (/^feat(\(.*\))?:/i.test(s) || lower.includes("tambah") || lower.includes("fitur") || lower.includes("implement")) {
-      categories.features.push(entry);
-    } else if (/^fix(\(.*\))?:/i.test(s) || lower.includes("perbaiki") || lower.includes("bug") || lower.includes("error")) {
-      categories.fixes.push(entry);
-    } else if (/^refactor(\(.*\))?:/i.test(s) || /^perf(\(.*\))?:/i.test(s) || /^style(\(.*\))?:/i.test(s) || lower.includes("optim") || lower.includes("cleanup")) {
-      categories.improvements.push(entry);
-    } else if (/^docs(\(.*\))?:/i.test(s) || lower.includes("dokumentasi") || lower.includes("readme") || lower.includes("guide")) {
-      categories.docs.push(entry);
-    } else if (/^chore(\(.*\))?:/i.test(s) || /^build(\(.*\))?:/i.test(s) || /^ci(\(.*\))?:/i.test(s)) {
-      categories.maintenance.push(entry);
-    } else {
-      categories.others.push(entry);
-    }
-  }
-
-  // 6. Generate Markdown Walkthrough
-  const today = new Date().toISOString().split("T")[0];
-  const walkthrough = generateWalkthroughMarkdown(nextVersion, today, categories, commits);
-
-  // Print Walkthrough to Terminal
-  console.log(`${colors.bold}${colors.green}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-  console.log(`${colors.bold}📋 WALKTHROUGH & RELEASE NOTES (v${nextVersion}):${colors.reset}`);
-  console.log(`${colors.bold}${colors.green}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}`);
-  console.log(walkthrough);
-  console.log(`${colors.bold}${colors.green}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${colors.reset}\n`);
-
-  if (isDryRun) {
-    console.log(`${colors.yellow}Dry-run selesai. Tidak ada perubahan yang disimpan ke disk atau Git.${colors.reset}`);
-    return;
-  }
-
-  // 7. Update CHANGELOG.md
-  updateChangelogFile(nextVersion, today, walkthrough);
-
-  // 8. Update package.json
-  pkg.version = nextVersion;
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
-  console.log(`${colors.green}✓ package.json diperbarui ke v${nextVersion}${colors.reset}`);
-
-  // 9. Git Commit, Tag & Push
-  try {
-    run("git add package.json CHANGELOG.md");
-    
-    // Check if there are staged changes
-    const staged = run("git diff --cached --name-only", { silent: true });
-    if (staged) {
-      run(`git commit -m "chore(release): v${nextVersion}"`);
-      console.log(`${colors.green}✓ Git commit dibuat: "chore(release): v${nextVersion}"${colors.reset}`);
-    }
-
-    // Create Annotated Tag with Walkthrough Summary
-    const tagSummary = `Release v${nextVersion}\n\n${walkthrough}`;
-    const tmpMsgFile = path.resolve(process.cwd(), `.git-tag-msg-${Date.now()}.txt`);
-    try {
-      fs.writeFileSync(tmpMsgFile, tagSummary + "\n", "utf-8");
-      run(`git tag -a ${nextTag} -F "${tmpMsgFile}"`);
-      console.log(`${colors.green}✓ Git annotated tag dibuat: ${nextTag}${colors.reset}`);
-    } finally {
-      if (fs.existsSync(tmpMsgFile)) {
-        try { fs.unlinkSync(tmpMsgFile); } catch {}
-      }
-    }
-
-    if (!isNoPush) {
-      console.log(`Mendorong commit dan tag ke remote repository...`);
-      run("git push --follow-tags");
-      console.log(`${colors.bold}${colors.green}🎉 Sukses! Rilis v${nextVersion} berhasil di-push ke GitHub.${colors.reset}`);
-      console.log(`${colors.cyan}GitHub Actions akan otomatis memicu build installer publik.${colors.reset}\n`);
-    } else {
-      console.log(`${colors.yellow}Opsi --no-push aktif. Tag ${nextTag} dibuat lokal (belum di-push).${colors.reset}`);
-    }
-  } catch (err: any) {
-    console.error(`${colors.red}Gagal menjalankan perintah Git:${colors.reset}`, err.message);
-    process.exit(1);
-  }
-}
-
-// ── Version Increment Helper ───────────────────────────────────────────────
+// ── Version ────────────────────────────────────────────────────────────────
 function incrementVersion(version: string, type: BumpType): string {
-  const parts = version.split(".").map((p) => parseInt(p, 10));
+  const parts = version.split(".").map((p) => parseInt(p, 10) || 0);
   while (parts.length < 3) parts.push(0);
-
   if (type === "major") {
     parts[0] += 1;
     parts[1] = 0;
@@ -247,99 +89,325 @@ function incrementVersion(version: string, type: BumpType): string {
   } else {
     parts[2] += 1;
   }
-
-  return parts.join(".");
+  return parts.slice(0, 3).join(".");
 }
 
-// ── Markdown Walkthrough Generator ─────────────────────────────────────────
-function generateWalkthroughMarkdown(
-  version: string,
-  date: string,
-  cat: CategorizedCommits,
-  allCommits: CommitInfo[]
-): string {
-  const sections: string[] = [];
+// ── Commit parsing ─────────────────────────────────────────────────────────
+const CONVENTIONAL = /^(\w+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/;
 
-  sections.push(`## [${version}] - ${date}`);
+function classify(type: string, subject: string): Kind {
+  switch (type.toLowerCase()) {
+    case "feat":
+    case "feature":
+      return "feat";
+    case "fix":
+    case "hotfix":
+      return "fix";
+    case "perf":
+      return "perf";
+    case "refactor":
+    case "style":
+      return "refactor";
+    case "docs":
+    case "doc":
+      return "docs";
+    case "chore":
+    case "build":
+    case "ci":
+    case "test":
+    case "tests":
+    case "revert":
+      return "maintenance";
+  }
+  // Free-form (non-conventional) subjects: fall back to keywords
+  const s = subject.toLowerCase();
+  if (/\b(fix|perbaiki|bug|hotfix)\b/.test(s)) return "fix";
+  if (/\b(tambah|tambahkan|fitur|implement|add)\b/.test(s)) return "feat";
+  if (/\b(refactor|optimi[sz]e|cleanup|rapikan)\b/.test(s)) return "refactor";
+  if (/\b(docs?|dokumentasi|readme)\b/.test(s)) return "docs";
+  return "other";
+}
 
-  let totalChanges =
-    cat.features.length +
-    cat.fixes.length +
-    cat.improvements.length +
-    cat.docs.length +
-    cat.maintenance.length +
-    cat.others.length;
+function readCommits(range: string): Commit[] {
+  const SEP = "\x1e";
+  const FIELD = "\x1f";
+  const raw = git(["log", range, `--pretty=format:%h${FIELD}%an${FIELD}%ad${FIELD}%s${FIELD}%b${SEP}`, "--date=short", "--no-merges"], {
+    allowFail: true,
+  });
+  if (!raw) return [];
 
-  // Overview Summary
-  sections.push(`\n### 🌟 Ringkasan Rilis (Release Overview)`);
-  if (totalChanges === 0) {
-    sections.push(`- Pembaruan rutin stabilitas, dependensi, dan peningkatan performa sistem YPanel.`);
+  const commits: Commit[] = [];
+  for (const record of raw.split(SEP)) {
+    const [hash, author, date, subject, body = ""] = record.replace(/^\n+/, "").split(FIELD);
+    if (!hash || !subject) continue;
+    const subj = subject.trim();
+    // Automated version bump commits are not release content
+    if (/^v?\d+\.\d+\.\d+$/.test(subj) || subj.startsWith("chore(release):")) continue;
+
+    const m = subj.match(CONVENTIONAL);
+    const type = m?.[1] ?? "";
+    const scope = m?.[2] ?? "";
+    const description = (m?.[4] ?? subj).trim();
+    const bodyText = body.trim();
+    const noteMatch = bodyText.match(/BREAKING[ -]CHANGE:\s*([\s\S]+?)(?:\n\n|$)/);
+
+    commits.push({
+      hash,
+      author: author || "",
+      date: date || "",
+      subject: subj,
+      body: bodyText,
+      type,
+      scope,
+      description,
+      kind: classify(type, subj),
+      breaking: Boolean(m?.[3]) || Boolean(noteMatch),
+      breakingNote: noteMatch ? noteMatch[1].replace(/\s+/g, " ").trim() : "",
+    });
+  }
+  return commits;
+}
+
+// ── Release notes ──────────────────────────────────────────────────────────
+function repoWebUrl(): string {
+  const upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], { allowFail: true });
+  const remote = upstream.includes("/") ? upstream.split("/")[0] : git(["remote"], { allowFail: true }).split("\n")[0];
+  const url = remote ? git(["remote", "get-url", remote], { allowFail: true }) : "";
+  return url
+    .replace(/^git@([^:]+):/, "https://$1/")
+    .replace(/^ssh:\/\/git@/, "https://")
+    .replace(/\.git$/, "");
+}
+
+const SECTIONS: Array<{ kind: Kind; title: string }> = [
+  { kind: "feat", title: "🚀 Fitur Baru (Added)" },
+  { kind: "fix", title: "🐛 Perbaikan Bug (Fixed)" },
+  { kind: "perf", title: "⚡ Performa (Performance)" },
+  { kind: "refactor", title: "♻️ Refaktor & Peningkatan (Changed)" },
+  { kind: "docs", title: "📚 Dokumentasi (Documentation)" },
+  { kind: "maintenance", title: "🔧 Pemeliharaan (Chores & Maintenance)" },
+  { kind: "other", title: "📦 Lainnya (Other)" },
+];
+
+function capitalize(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+function entryLine(commit: Commit, repo: string): string {
+  const link = repo ? `[\`${commit.hash}\`](${repo}/commit/${commit.hash})` : `\`${commit.hash}\``;
+  const scope = commit.scope ? `**${commit.scope}:** ` : "";
+  return `- ${scope}${capitalize(commit.description)} (${link})`;
+}
+
+// Same kind + scope are grouped together so related changes read as one block
+function renderSection(commits: Commit[], repo: string): string {
+  const sorted = [...commits].sort((a, b) => (a.scope || "~").localeCompare(b.scope || "~"));
+  return sorted.map((cm) => entryLine(cm, repo)).join("\n");
+}
+
+function generateNotes(opts: {
+  version: string;
+  date: string;
+  commits: Commit[];
+  repo: string;
+  prevTag: string;
+  tag: string;
+  stats: string;
+}): string {
+  const { version, date, commits, repo, prevTag, tag, stats } = opts;
+  const out: string[] = [`## [${version}] - ${date}`];
+
+  const counts = (kind: Kind) => commits.filter((cm) => cm.kind === kind).length;
+  const summaryParts = [
+    counts("feat") ? `${counts("feat")} fitur` : "",
+    counts("fix") ? `${counts("fix")} perbaikan` : "",
+    counts("perf") + counts("refactor") ? `${counts("perf") + counts("refactor")} peningkatan` : "",
+    counts("docs") ? `${counts("docs")} dokumentasi` : "",
+    counts("maintenance") + counts("other") ? `${counts("maintenance") + counts("other")} pemeliharaan` : "",
+  ].filter(Boolean);
+
+  out.push(`\n### 🌟 Ringkasan Rilis (Release Overview)`);
+  if (commits.length === 0) {
+    out.push(`Pembaruan rutin stabilitas dan pemeliharaan sistem YPanel.`);
   } else {
-    sections.push(`Rilis versi **v${version}** mencakup ${totalChanges} pembaruan penting berikut:`);
+    out.push(`Rilis **v${version}** berisi ${commits.length} perubahan: ${summaryParts.join(", ")}.${stats ? ` ${stats}` : ""}`);
   }
 
-  // Features
-  if (cat.features.length > 0) {
-    sections.push(`\n### 🚀 Fitur Baru (Added / Features)\n` + cat.features.join("\n"));
+  const breaking = commits.filter((cm) => cm.breaking);
+  if (breaking.length > 0) {
+    const lines = breaking.map((cm) => `${entryLine(cm, repo)}${cm.breakingNote ? `\n  - ${cm.breakingNote}` : ""}`);
+    out.push(`\n### ⚠️ Perubahan Breaking (Breaking Changes)\n${lines.join("\n")}`);
   }
 
-  // Fixes
-  if (cat.fixes.length > 0) {
-    sections.push(`\n### 🐛 Perbaikan Bug (Fixed)\n` + cat.fixes.join("\n"));
+  for (const { kind, title } of SECTIONS) {
+    const items = commits.filter((cm) => cm.kind === kind);
+    if (items.length > 0) out.push(`\n### ${title}\n${renderSection(items, repo)}`);
   }
 
-  // Improvements
-  if (cat.improvements.length > 0) {
-    sections.push(`\n### ⚡ Peningkatan & Refaktor (Changed / Improved)\n` + cat.improvements.join("\n"));
-  }
+  const authors = [...new Set(commits.map((cm) => cm.author).filter(Boolean))];
+  if (authors.length > 0) out.push(`\n### 👥 Kontributor\n${authors.map((a) => `- ${a}`).join("\n")}`);
 
-  // Documentation
-  if (cat.docs.length > 0) {
-    sections.push(`\n### 📚 Dokumentasi (Documentation)\n` + cat.docs.join("\n"));
+  if (repo && prevTag) {
+    out.push(`\n**Full Changelog**: ${repo}/compare/${prevTag}...${tag}`);
   }
-
-  // Maintenance & Others
-  if (cat.maintenance.length > 0 || cat.others.length > 0) {
-    const maintList = [...cat.maintenance, ...cat.others];
-    sections.push(`\n### 🔧 Pemeliharaan & Dependensi (Chores & Maintenance)\n` + maintList.join("\n"));
-  }
-
-  return sections.join("\n");
+  return out.join("\n");
 }
 
-// ── CHANGELOG.md Injector ──────────────────────────────────────────────────
-function updateChangelogFile(version: string, date: string, newEntry: string) {
+// ── CHANGELOG.md ───────────────────────────────────────────────────────────
+function updateChangelogFile(version: string, entry: string) {
   const changelogPath = path.resolve(process.cwd(), "CHANGELOG.md");
-  let content = "";
-  if (fs.existsSync(changelogPath)) {
-    content = fs.readFileSync(changelogPath, "utf-8");
-  } else {
-    content = `# Changelog\n\nAll notable changes to the YPanel project will be documented in this file.\n\n`;
+  const header = `# Changelog\n\nAll notable changes to the YPanel project will be documented in this file.\n`;
+  const content = fs.existsSync(changelogPath) ? fs.readFileSync(changelogPath, "utf-8") : header;
+
+  if (content.includes(`## [${version}]`)) {
+    throw new Error(`CHANGELOG.md sudah memuat entri untuk v${version}`);
   }
 
-  const headerRegex = /# Changelog\s*\n\s*(All notable changes[^\n]*\n)?/i;
-  const match = content.match(headerRegex);
-
-  let updatedContent = "";
+  const match = content.match(/# Changelog\s*\n\s*(All notable changes[^\n]*\n)?/i);
+  let updated: string;
   if (match) {
-    const headerEndIndex = match.index! + match[0].length;
-    const headerPart = content.slice(0, headerEndIndex);
-    const restPart = content.slice(headerEndIndex).trim();
-
-    updatedContent = `${headerPart}\n${newEntry}\n\n${restPart}`.trim() + "\n";
+    const end = match.index! + match[0].length;
+    updated = `${content.slice(0, end)}\n${entry}\n\n${content.slice(end).trim()}`.trim() + "\n";
   } else {
-    updatedContent = `# Changelog\n\n${newEntry}\n\n${content}`.trim() + "\n";
+    updated = `${header}\n${entry}\n\n${content}`.trim() + "\n";
   }
-
-  fs.writeFileSync(changelogPath, updatedContent, "utf-8");
-  console.log(`${colors.green}✓ CHANGELOG.md diperbarui dengan entri v${version}${colors.reset}`);
+  fs.writeFileSync(changelogPath, updated, "utf-8");
+  console.log(`${c.green}✓ CHANGELOG.md diperbarui untuk v${version}${c.reset}`);
 }
 
-function escapeGitTagMessage(msg: string): string {
-  return msg.replace(/"/g, '\\"').replace(/`/g, "\\`");
+// ── Main ───────────────────────────────────────────────────────────────────
+async function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--help") || args.includes("-h")) {
+    help();
+    return;
+  }
+
+  const isDryRun = args.includes("--dry-run");
+  const isNoPush = args.includes("--no-push");
+  const skipChecks = args.includes("--skip-checks");
+  const allowDirty = args.includes("--allow-dirty");
+  const bumpArg = args.filter((a) => !a.startsWith("--"))[0] || "patch";
+
+  console.log(`\n${c.bold}${c.cyan}YPanel Release${c.reset}`);
+  if (isDryRun) console.log(`${c.yellow}Mode dry-run: tidak ada file, commit, atau tag yang diubah.${c.reset}`);
+
+  const pkgPath = path.resolve(process.cwd(), "package.json");
+  if (!fs.existsSync(pkgPath)) {
+    console.error(`${c.red}package.json tidak ditemukan.${c.reset}`);
+    process.exit(1);
+  }
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  const currentVersion: string = pkg.version || "1.0.0";
+
+  let nextVersion: string;
+  if (["patch", "minor", "major"].includes(bumpArg.toLowerCase())) {
+    nextVersion = incrementVersion(currentVersion, bumpArg.toLowerCase() as BumpType);
+  } else if (/^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(bumpArg)) {
+    nextVersion = bumpArg.replace(/^v/, "");
+  } else {
+    console.error(`${c.red}Argumen "${bumpArg}" tidak dikenal. Pakai patch, minor, major, atau nomor versi (mis. 3.2.0).${c.reset}`);
+    process.exit(1);
+  }
+  const nextTag = `v${nextVersion}`;
+
+  const branch = git(["branch", "--show-current"], { allowFail: true }) || "(detached)";
+  const lastTag = git(["describe", "--tags", "--abbrev=0"], { allowFail: true });
+  console.log(`Branch: ${c.bold}${branch}${c.reset}`);
+  console.log(`Versi: ${c.bold}${currentVersion}${c.reset} -> ${c.bold}${c.green}${nextVersion}${c.reset} (tag ${nextTag})`);
+  console.log(`Sejak tag: ${c.bold}${lastTag || "(belum ada tag)"}${c.reset}\n`);
+
+  if (git(["tag", "--list", nextTag], { allowFail: true })) {
+    console.error(`${c.red}Tag ${nextTag} sudah ada.${c.reset}`);
+    process.exit(1);
+  }
+
+  // Release content = commits since last tag. Nothing new means nothing to release.
+  const commits = readCommits(lastTag ? `${lastTag}..HEAD` : "HEAD");
+  if (lastTag && git(["rev-list", "--count", `${lastTag}..HEAD`], { allowFail: true }) === "0") {
+    console.error(`${c.red}HEAD sudah bertag ${lastTag}; tidak ada perubahan baru untuk dirilis.${c.reset}`);
+    process.exit(1);
+  }
+
+  const stats = lastTag ? git(["diff", "--shortstat", `${lastTag}..HEAD`], { allowFail: true }) : "";
+  const notes = generateNotes({
+    version: nextVersion,
+    date: new Date().toISOString().split("T")[0],
+    commits,
+    repo: repoWebUrl(),
+    prevTag: lastTag,
+    tag: nextTag,
+    stats: stats ? `(${stats.trim()})` : "",
+  });
+
+  console.log(`${c.bold}${c.green}${"━".repeat(66)}${c.reset}`);
+  console.log(`${c.bold}Catatan rilis v${nextVersion}${c.reset}`);
+  console.log(`${c.bold}${c.green}${"━".repeat(66)}${c.reset}`);
+  console.log(notes);
+  console.log(`${c.bold}${c.green}${"━".repeat(66)}${c.reset}\n`);
+
+  if (isDryRun) {
+    console.log(`${c.yellow}Dry-run selesai.${c.reset}`);
+    return;
+  }
+
+  // Pre-flight: a release must be reproducible from what is committed
+  const dirty = git(["status", "--porcelain", "--untracked-files=no"], { allowFail: true });
+  if (dirty && !allowDirty) {
+    console.error(`${c.red}Working tree belum bersih. Commit atau stash perubahan dulu (atau --allow-dirty):${c.reset}`);
+    console.error(dirty.split("\n").slice(0, 12).join("\n"));
+    process.exit(1);
+  }
+
+  if (!skipChecks) {
+    console.log(`${c.bold}Validasi sebelum rilis${c.reset}`);
+    const ok =
+      runStep("TypeScript (tsc -b)", "bunx", ["tsc", "-b", "--pretty", "false"]) &&
+      runStep("Aturan UI (check:ui)", "bun", ["run", "check:ui"]) &&
+      runStep("Go build", "go", ["build", "./..."]) &&
+      runStep("Go test", "go", ["test", "./..."]);
+    if (!ok) {
+      console.error(`\n${c.red}Validasi gagal. Rilis dibatalkan (pakai --skip-checks bila disengaja).${c.reset}`);
+      process.exit(1);
+    }
+    console.log("");
+  }
+
+  updateChangelogFile(nextVersion, notes);
+  pkg.version = nextVersion;
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf-8");
+  console.log(`${c.green}✓ package.json diperbarui ke v${nextVersion}${c.reset}`);
+
+  try {
+    // Pathspec commit: only the release files, never other staged work
+    git(["add", "package.json", "CHANGELOG.md"]);
+    git(["commit", "-m", `chore(release): v${nextVersion}`, "--", "package.json", "CHANGELOG.md"]);
+    console.log(`${c.green}✓ Commit: chore(release): v${nextVersion}${c.reset}`);
+
+    const tmp = path.resolve(process.cwd(), `.git-tag-msg-${Date.now()}.txt`);
+    try {
+      fs.writeFileSync(tmp, `Release v${nextVersion}\n\n${notes}\n`, "utf-8");
+      git(["tag", "-a", nextTag, "-F", tmp]);
+      console.log(`${c.green}✓ Tag: ${nextTag}${c.reset}`);
+    } finally {
+      if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    }
+
+    if (isNoPush) {
+      console.log(`${c.yellow}--no-push aktif: commit dan tag ${nextTag} baru ada di lokal.${c.reset}`);
+      return;
+    }
+    console.log(`Mendorong commit dan tag ke remote...`);
+    git(["push", "--follow-tags"]);
+    console.log(`${c.bold}${c.green}Rilis v${nextVersion} berhasil di-push.${c.reset}`);
+    console.log(`${c.cyan}GitHub Actions akan membangun installer dari tag ${nextTag}.${c.reset}\n`);
+  } catch (err: any) {
+    console.error(`${c.red}Gagal menjalankan perintah Git:${c.reset}`, err.stderr?.toString() || err.message);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
-  console.error(`${colors.red}Release error:${colors.reset}`, err);
+  console.error(`${c.red}Release error:${c.reset}`, err);
   process.exit(1);
 });
