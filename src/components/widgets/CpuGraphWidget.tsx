@@ -1,195 +1,64 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Flame, TrendingUp } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { getSystemSummary } from '@/api/system'
+import { useMemo } from 'react'
+import { Flame, History } from 'lucide-react'
+import { useSystemSummary } from '@/hooks/useSystemSampler'
+import { asRange, useMetricSeries } from '@/store/metricsStore'
+import { useWidgetStore } from '@/store/widgetStore'
+import { useI18n } from '@/lib/i18n'
+import { LineChart, RangeSwitch } from './LineChart'
+import { summarize } from './chartStats'
+import type { WidgetProps } from './types'
 
-const MAX_POINTS = 24
-const SVG_WIDTH = 250
-const SVG_HEIGHT = 65
+const pct = (v: number) => `${v.toFixed(0)}%`
 
-export function CpuGraphWidget() {
-  const { data: summary } = useQuery({
-    queryKey: ['system', 'summary', 'widget-cpu-graph'],
-    queryFn: getSystemSummary,
-    refetchInterval: 2500,
-  })
+export function CpuGraphWidget({ widget }: WidgetProps) {
+  const { t } = useI18n()
+  const { data: summary } = useSystemSummary()
+  const points = useMetricSeries('cpu')
+  const updateConfig = useWidgetStore((s) => s.updateWidgetConfig)
+  const range = asRange(widget.config?.range)
 
-  const currentCpu = summary?.cpuUsagePercent ?? 0
-
-  const [history, setHistory] = useState<number[]>(() => {
-    // Initial placeholder points for smooth initial look
-    return Array.from({ length: MAX_POINTS }, () => Math.floor(Math.random() * 12) + 5)
-  })
-
-  useEffect(() => {
-    if (typeof summary?.cpuUsagePercent === 'number') {
-      const rounded = Math.min(100, Math.max(0, Number(summary.cpuUsagePercent.toFixed(1))))
-      setHistory((prev) => {
-        const next = [...prev.slice(1), rounded]
-        return next
-      })
-    }
-  }, [summary?.cpuUsagePercent])
-
-  const maxCpu = useMemo(() => {
-    return history.length > 0 ? Math.max(...history) : 0
-  }, [history])
-
-  const avgCpu = useMemo(() => {
-    if (history.length === 0) return 0
-    const sum = history.reduce((acc, v) => acc + v, 0)
-    return Math.round((sum / history.length) * 10) / 10
-  }, [history])
-
-  // Generate SVG coordinates
-  const { linePath, areaPath, lastPoint } = useMemo(() => {
-    if (history.length < 2) return { linePath: '', areaPath: '', lastPoint: { x: 0, y: 0 } }
-
-    const stepX = SVG_WIDTH / (history.length - 1)
-    const points = history.map((val, idx) => {
-      const x = Math.round(idx * stepX)
-      // Clamp Y inside [4, SVG_HEIGHT - 6]
-      const availableHeight = SVG_HEIGHT - 12
-      const y = Math.round(SVG_HEIGHT - 6 - (val / 100) * availableHeight)
-      return { x, y }
-    })
-
-    const pathCommands = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-    const areaCommands = `${pathCommands} L ${SVG_WIDTH} ${SVG_HEIGHT} L 0 ${SVG_HEIGHT} Z`
-
-    return {
-      linePath: pathCommands,
-      areaPath: areaCommands,
-      lastPoint: points[points.length - 1],
-    }
-  }, [history])
+  const stats = useMemo(() => summarize(points, range), [points, range])
+  const current = summary?.cpuUsagePercent ?? points[points.length - 1]?.v ?? 0
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-3 select-none gap-2">
-      {/* Main Stats Row */}
-      <div className="flex items-baseline justify-between pt-0.5">
+    <div className="flex flex-1 select-none flex-col justify-between gap-2 p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 pt-0.5">
         <div className="flex items-baseline gap-1.5">
-          <span className="font-mono text-2xl font-bold tracking-tight text-[var(--win-text)]">
-            {currentCpu.toFixed(1)}%
-          </span>
-          <span className="text-[10px] text-[var(--text-secondary)] uppercase">Usage</span>
+          <span className="font-mono text-2xl font-bold tracking-tight text-[var(--win-text)]">{current.toFixed(1)}%</span>
+          <span className="hidden text-[10px] uppercase text-[var(--text-secondary)] @[260px]:inline">{t('widget.cpu.usage')}</span>
         </div>
 
-        <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--text-secondary)]">
-          <span title="Beban rata-rata">
-            AVG: <strong className="font-semibold text-[var(--win-text)]">{avgCpu}%</strong>
+        <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--text-secondary)]">
+          <span title={t('widget.cpu.avgLoad')}>
+            AVG <strong className="font-semibold text-[var(--win-text)]">{stats.avg.toFixed(1)}%</strong>
           </span>
-          <span>•</span>
-          <span title="Puncak beban tertinggi">
-            MAX: <strong className="font-semibold text-amber-500">{maxCpu}%</strong>
+          <span title={t('widget.cpu.peakLoad')}>
+            MAX <strong className="font-semibold text-[var(--panel-warning-text)]">{stats.max.toFixed(0)}%</strong>
           </span>
-          {typeof summary?.cpuTemp === 'number' && summary.cpuTemp > 0 && (
-            <>
-              <span>•</span>
-              <span className="flex items-center gap-0.5 text-rose-400" title="Suhu CPU">
-                <Flame size={10} />
-                {Math.round(summary.cpuTemp)}°C
-              </span>
-            </>
-          )}
+          {typeof summary?.cpuTemp === 'number' && summary.cpuTemp > 0 ? (
+            <span className="flex items-center gap-0.5 text-[var(--panel-danger-text)]" title={t('widget.cpu.temp')}>
+              <Flame size={10} />
+              {Math.round(summary.cpuTemp)}°
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* Pure Native SVG Chart */}
-      <div
-        className="relative overflow-hidden rounded-lg border p-1"
-        style={{
-          backgroundColor: 'var(--panel-surface-strong)',
-          borderColor: 'var(--win-border)',
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-          className="w-full h-[65px] overflow-visible block"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="cpuGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.4" />
-              <stop offset="90%" stopColor="#06b6d4" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
+      <LineChart
+        ariaLabel={t('widget.graph.cpuAria')}
+        range={range}
+        yMax={100}
+        height={72}
+        format={pct}
+        series={[{ key: 'cpu', label: 'CPU', color: 'var(--panel-info-text)', points }]}
+      />
 
-          {/* Grid lines */}
-          <line
-            x1="0"
-            y1={Math.round(SVG_HEIGHT * 0.25)}
-            x2={SVG_WIDTH}
-            y2={Math.round(SVG_HEIGHT * 0.25)}
-            stroke="var(--win-border)"
-            strokeDasharray="2 3"
-            opacity="0.4"
-          />
-          <line
-            x1="0"
-            y1={Math.round(SVG_HEIGHT * 0.5)}
-            x2={SVG_WIDTH}
-            y2={Math.round(SVG_HEIGHT * 0.5)}
-            stroke="var(--win-border)"
-            strokeDasharray="2 3"
-            opacity="0.5"
-          />
-          <line
-            x1="0"
-            y1={Math.round(SVG_HEIGHT * 0.75)}
-            x2={SVG_WIDTH}
-            y2={Math.round(SVG_HEIGHT * 0.75)}
-            stroke="var(--win-border)"
-            strokeDasharray="2 3"
-            opacity="0.4"
-          />
-
-          {/* Area Fill */}
-          {areaPath && <path d={areaPath} fill="url(#cpuGradient)" />}
-
-          {/* Line Stroke */}
-          {linePath && (
-            <path
-              d={linePath}
-              fill="none"
-              stroke="#06b6d4"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
-
-          {/* Latest Data Point Indicator */}
-          {lastPoint && (
-            <>
-              <circle
-                cx={lastPoint.x}
-                cy={lastPoint.y}
-                r="3"
-                fill="#06b6d4"
-                className="animate-ping"
-                opacity="0.5"
-              />
-              <circle
-                cx={lastPoint.x}
-                cy={lastPoint.y}
-                r="2.5"
-                fill="#ffffff"
-                stroke="#06b6d4"
-                strokeWidth="1.5"
-              />
-            </>
-          )}
-        </svg>
-      </div>
-
-      {/* Footer timeframe & scale hint */}
-      <div className="flex items-center justify-between text-[9px] font-mono text-[var(--text-secondary)] px-0.5">
-        <span className="flex items-center gap-1">
-          <TrendingUp size={9} />
-          Realtime 60s window
+      <div className="flex items-center justify-between px-0.5">
+        <span className="flex items-center gap-1 font-mono text-[9px] text-[var(--text-secondary)]">
+          <History size={9} />
+          {t('widget.graph.samples', { count: stats.count })}
         </span>
-        <span>0% - 100% Scale</span>
+        <RangeSwitch label={t('widget.graph.range')} value={range} onChange={(r) => updateConfig(widget.id, { range: r })} />
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { Box, Loader2, Trash2 } from 'lucide-react'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { Dock } from '@/components/dock/Dock'
 import { Window } from '@/components/desktop/Window'
@@ -45,7 +45,7 @@ function PortainerPlaceholder() {
   const { t } = useI18n()
   return (
     <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
-      <span className="text-4xl">🛡️</span>
+      <Box size={36} strokeWidth={1.5} />
       <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
         {t('app.portainerTitle')}
       </p>
@@ -73,7 +73,7 @@ function TrashPlaceholder() {
   const { t } = useI18n()
   return (
     <div className="flex flex-col items-center justify-center h-24 gap-2" style={{ color: 'var(--sand-400)' }}>
-      <span className="text-4xl">🗑️</span>
+      <Trash2 size={36} strokeWidth={1.5} />
       <span className="text-sm">{t('app.trashEmpty')}</span>
     </div>
   )
@@ -200,7 +200,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
 
   const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
     const rawType = e.dataTransfer.getData('application/ypanel-widget') || e.dataTransfer.getData('text/plain')
-    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph'].includes(rawType)) {
+    if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping'].includes(rawType)) {
       e.preventDefault()
       const minSafeX = typeof window !== 'undefined' && window.innerWidth >= 640 ? 200 : 16
       const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280

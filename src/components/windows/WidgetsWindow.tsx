@@ -1,9 +1,21 @@
 import { useState } from 'react'
-import { Plus, Check, RotateCcw, Move } from 'lucide-react'
-import { WIDGET_CATALOG, useWidgetStore } from '@/store/widgetStore'
+import { Plus, Check, RotateCcw, Move, Clock, Gauge, Network, StickyNote, Activity, Puzzle, Radar } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { WIDGET_CATALOG, useWidgetStore, MULTI_INSTANCE_WIDGETS } from '@/store/widgetStore'
 import type { WidgetType } from '@/types'
+import { useI18n } from '@/lib/i18n'
+
+const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
+  'clock-uptime': Clock,
+  'system-vital': Gauge,
+  'network-traffic': Network,
+  'quick-note': StickyNote,
+  'cpu-graph': Activity,
+  ping: Radar,
+}
 
 export function WidgetsWindow() {
+  const { t } = useI18n()
   const { placedWidgets, addWidget, resetLayout } = useWidgetStore()
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
@@ -33,10 +45,10 @@ export function WidgetsWindow() {
       <div className="flex items-center justify-between border-b border-[var(--win-border)] bg-[var(--win-bar)] px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xl">🧩</span>
-            <h2 className="text-base font-bold text-[var(--win-text)] tracking-tight">Widget Gallery</h2>
+            <Puzzle size={20} strokeWidth={1.75} className="text-[var(--panel-primary-text)]" />
+            <h2 className="text-base font-bold text-[var(--win-text)] tracking-tight">{t('widgets.gallery')}</h2>
             <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-medium text-cyan-500">
-              Desktop Modules
+              {t('widgets.modules')}
             </span>
           </div>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -63,10 +75,11 @@ export function WidgetsWindow() {
       {/* Catalog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
         {WIDGET_CATALOG.map((item) => {
-          const isPlaced = placedWidgets.some((w) => w.type === item.type)
+          const isPlaced = !MULTI_INSTANCE_WIDGETS.includes(item.type) && placedWidgets.some((w) => w.type === item.type)
           const isBeingDragged = draggedType === item.type
           const wasJustAdded = justAdded === item.type
 
+          const Icon = WIDGET_ICONS[item.type]
           return (
             <div
               key={item.type}
@@ -82,7 +95,7 @@ export function WidgetsWindow() {
               <div>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-2xl">{item.icon}</span>
+                    <span className="text-[var(--panel-primary-text)]"><Icon size={22} strokeWidth={1.75} /></span>
                     <div>
                       <h3 className="text-sm font-semibold text-[var(--win-text)]">{item.title}</h3>
                       <span className="rounded bg-[var(--panel-surface-strong)] border border-[var(--win-border)] px-1.5 py-0.5 text-[9px] font-mono uppercase text-[var(--text-secondary)]">
@@ -101,7 +114,7 @@ export function WidgetsWindow() {
               <div className="mt-5 flex items-center justify-between border-t border-[var(--win-border)] pt-3 text-xs">
                 <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] group-hover:text-cyan-500 transition-colors">
                   <Move size={12} />
-                  <span>Drag ke desktop</span>
+                  <span>{t('widgets.dragHint')}</span>
                 </div>
 
                 <button

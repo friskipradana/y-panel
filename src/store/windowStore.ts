@@ -6,26 +6,26 @@ import { soundManager } from "@/lib/sound";
 
 const DEFAULTS: Record<
   WindowKind,
-  { title: string; icon: string; width: number; height: number; singleton?: boolean }
+  { title: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "Docker", icon: "🐋", width: 960, height: 600, singleton: true },
-  terminal: { title: "Terminal", icon: "💻", width: 580, height: 360, singleton: true },
-  "host-terminal": { title: "Host Terminal", icon: "🖥️", width: 840, height: 520, singleton: true },
-  system: { title: "System Info", icon: "⚙️", width: 900, height: 560, singleton: true },
-  "system-logs": { title: "System Logs", icon: "📜", width: 860, height: 540, singleton: true },
-  docs: { title: "Docs", icon: "📚", width: 840, height: 530, singleton: true },
-  changelog: { title: "Changelog", icon: "🔔", width: 780, height: 490, singleton: true },
-  portainer: { title: "Portainer", icon: "🐋", width: 720, height: 460, singleton: true },
-  settings: { title: "Settings", icon: "🔧", width: 900, height: 570, singleton: true },
-  database: { title: "Database", icon: "🗄️", width: 960, height: 600, singleton: true },
-  "file-manager": { title: "File Manager", icon: "📁", width: 900, height: 560, singleton: true },
-  "file-editor": { title: "Code Editor", icon: "📝", width: 960, height: 600, singleton: true },
-  trash: { title: "Trash", icon: "🗑️", width: 520, height: 340, singleton: true },
-  users: { title: "User Management", icon: "👥", width: 860, height: 560, singleton: true },
-  projects: { title: "Projects", icon: "🗂️", width: 880, height: 560, singleton: true },
-  tunnels: { title: "Cloudflare", icon: "🌐", width: 960, height: 600, singleton: true },
-  profile: { title: "Profile & Integrasi", icon: "👤", width: 500, height: 560, singleton: true },
-  widgets: { title: "Widgets", icon: "🧩", width: 720, height: 480, singleton: true },
+  apps: { title: "Docker", width: 960, height: 600, singleton: true },
+  terminal: { title: "Terminal", width: 580, height: 360, singleton: true },
+  "host-terminal": { title: "Host Terminal", width: 840, height: 520, singleton: true },
+  system: { title: "System Info", width: 900, height: 560, singleton: true },
+  "system-logs": { title: "System Logs", width: 860, height: 540, singleton: true },
+  docs: { title: "Docs", width: 840, height: 530, singleton: true },
+  changelog: { title: "Changelog", width: 780, height: 490, singleton: true },
+  portainer: { title: "Portainer", width: 720, height: 460, singleton: true },
+  settings: { title: "Settings", width: 900, height: 570, singleton: true },
+  database: { title: "Database", width: 960, height: 600, singleton: true },
+  "file-manager": { title: "File Manager", width: 900, height: 560, singleton: true },
+  "file-editor": { title: "Code Editor", width: 960, height: 600, singleton: true },
+  trash: { title: "Trash", width: 520, height: 340, singleton: true },
+  users: { title: "User Management", width: 860, height: 560, singleton: true },
+  projects: { title: "Projects", width: 880, height: 560, singleton: true },
+  tunnels: { title: "Cloudflare", width: 960, height: 600, singleton: true },
+  profile: { title: "Profile & Integrasi", width: 500, height: 560, singleton: true },
+  widgets: { title: "Widgets", width: 720, height: 480, singleton: true },
 };
 
 // Z-index tiers
@@ -122,12 +122,8 @@ interface WindowStore {
   setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
   closeWindowsByKind: (kind: WindowKind) => void;
-  setShowSystemStats: (v: boolean) => void;
-  setSystemStatsConfig: (config: { cpu: boolean; ram: boolean; temp: boolean }) => void;
   resetWindows: () => void;
 
-  showSystemStats: boolean;
-  systemStatsConfig: { cpu: boolean; ram: boolean; temp: boolean };
 }
 
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
@@ -194,7 +190,6 @@ export const useWindowStore = create<WindowStore>()(
             id,
             kind,
             title: nextWindowTitle(kind, state.windows),
-            icon: def.icon,
             x,
             y,
             width,
@@ -346,17 +341,6 @@ export const useWindowStore = create<WindowStore>()(
           state.focusedId = null;
         }),
 
-      showSystemStats: false,
-      systemStatsConfig: { cpu: true, ram: true, temp: true },
-      setShowSystemStats: (v) =>
-        set((state) => {
-          state.showSystemStats = v;
-        }),
-
-      setSystemStatsConfig: (config) =>
-        set((state) => {
-          state.systemStatsConfig = config;
-        }),
     })),
     {
       name: "ui-panel-windows",
@@ -365,26 +349,3 @@ export const useWindowStore = create<WindowStore>()(
   )
 );
 
-const DEBUG = true;
-
-useWindowStore.subscribe((state) => {
-  if (!DEBUG) return;
-
-  console.log("🧠 [STATE UPDATE]", {
-    total: state.windows.length,
-    focusedId: state.focusedId,
-    autoHideDock: state.autoHideDock,
-    windows: state.windows.map((w) => ({
-      id: w.id,
-      kind: w.kind,
-      z: w.zIndex,
-      x: Math.round(w.x),
-      y: Math.round(w.y),
-      minimized: w.isMinimized,
-      maximized: w.isMaximized,
-      fullscreen: w.isFullscreen,
-      action: w.lastAction,
-      params: w.params,
-    })),
-  });
-});
