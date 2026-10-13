@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Activity, ArrowDown, ArrowUp, ShieldCheck, Terminal } from 'lucide-react'
+import { Activity, ArrowDown, ArrowUp, Server, Terminal } from 'lucide-react'
+import { IconBadge } from '@/components/ui/IconBadge'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { asRange, useMetricSeries } from '@/store/metricsStore'
 import { useWidgetStore } from '@/store/widgetStore'
@@ -26,6 +27,25 @@ function formatBytes(bytes: number): string {
 }
 
 type Tab = 'speed' | 'interfaces'
+
+interface HostAddress {
+  iface: string
+  ip: string
+  v6: boolean
+}
+
+// The agent reports "ip (iface)"; split it and put IPv4 first, link-local last
+function parseAddresses(list: string[] | undefined): HostAddress[] {
+  const out: HostAddress[] = []
+  for (const raw of list ?? []) {
+    const m = raw.match(/^(.+?)\s*\(([^)]+)\)$/)
+    const ip = (m ? m[1] : raw).trim()
+    if (!ip) continue
+    out.push({ ip, iface: m ? m[2] : '', v6: ip.includes(':') })
+  }
+  const rank = (a: HostAddress) => (a.v6 ? (a.ip.toLowerCase().startsWith('fe80') ? 2 : 1) : 0)
+  return out.sort((a, b) => rank(a) - rank(b))
+}
 
 export function NetworkTrafficWidget({ widget }: WidgetProps) {
   const { t } = useI18n()
@@ -63,7 +83,8 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
     [rx, tx],
   )
 
-  const ipList = summary?.ipAddresses?.length ? summary.ipAddresses.slice(0, 3) : ['127.0.0.1']
+  const addresses = useMemo(() => parseAddresses(summary?.ipAddresses), [summary?.ipAddresses])
+  const visibleAddresses = addresses.slice(0, 4)
 
   const tabButton = (tab: Tab, icon: React.ReactNode, label: string) => (
     <button
@@ -83,7 +104,7 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
   )
 
   return (
-    <div className="flex flex-1 select-none flex-col justify-between gap-2 p-3">
+    <div className="flex flex-1 select-none flex-col gap-2.5 p-3">
       <div className="flex items-center justify-between gap-2">
         <span className="hidden min-w-0 truncate font-mono text-[10px] uppercase tracking-wider text-[var(--text-secondary)] @[300px]:block">{t('widget.net.title')}</span>
         <div
@@ -139,40 +160,49 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2 pt-0.5">
-          <div className="flex flex-col gap-1 rounded-lg border p-2 text-[11px]" style={{ backgroundColor: 'var(--panel-surface-strong)', borderColor: 'var(--win-border)' }}>
-            <div className="flex items-center justify-between text-[var(--text-secondary)]">
-              <span className="flex items-center gap-1.5">
-                <Terminal size={11} />
-                Host / OS
-              </span>
-              <span className="max-w-[140px] truncate font-mono font-medium text-[var(--win-text)]">{summary?.hostname || 'server'}</span>
-            </div>
-            <div className="truncate text-[10px] text-[var(--text-secondary)]">
-              {summary?.osName || 'Linux'} ({summary?.kernel || 'kernel'})
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2.5 rounded-lg border px-2.5 py-2" style={{ backgroundColor: 'var(--panel-surface-strong)', borderColor: 'var(--win-border)' }}>
+            <IconBadge size="sm" tone="info">
+              <Server />
+            </IconBadge>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-mono text-[0.8125rem] font-semibold text-[var(--win-text)]" title={summary?.hostname}>
+                {summary?.hostname || '-'}
+              </div>
+              <div className="truncate text-[10.5px] text-[var(--text-secondary)]" title={`${summary?.osName ?? ''} ${summary?.kernel ?? ''}`}>
+                {[summary?.osName, summary?.kernel].filter(Boolean).join(' · ') || '-'}
+              </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">IP Interfaces</span>
-              <span className="flex items-center gap-1 font-mono text-[10px] font-semibold text-[var(--panel-success-text)]">
-                <ShieldCheck size={11} />
-                ONLINE
-              </span>
+            <div className="flex items-center justify-between px-0.5">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">{t('widget.net.addresses')}</span>
+              <span className="font-mono text-[10px] text-[var(--text-secondary)]">{addresses.length}</span>
             </div>
-            <div className="flex flex-col gap-1">
-              {ipList.map((ip, idx) => (
+            {visibleAddresses.length === 0 ? (
+              <div className="rounded-lg border px-2.5 py-2 text-[11px] text-[var(--text-secondary)]" style={{ borderColor: 'var(--win-border)' }}>
+                {t('widget.net.noAddress')}
+              </div>
+            ) : (
+              visibleAddresses.map((addr) => (
                 <div
-                  key={ip}
-                  className="flex items-center justify-between rounded border px-2 py-1 font-mono text-[11px]"
+                  key={`${addr.iface}-${addr.ip}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1 font-mono text-[11px]"
                   style={{ backgroundColor: 'var(--panel-surface-strong)', borderColor: 'var(--win-border)' }}
                 >
-                  <span className="text-[10px] text-[var(--text-secondary)]">if-{idx}</span>
-                  <span className="font-semibold text-[var(--panel-info-text)]">{ip}</span>
+                  <span className="shrink-0 text-[10px] text-[var(--text-secondary)]">{addr.iface || (addr.v6 ? 'IPv6' : 'IPv4')}</span>
+                  <span className="min-w-0 truncate font-semibold text-[var(--panel-info-text)]" title={addr.ip}>
+                    {addr.ip}
+                  </span>
                 </div>
-              ))}
-            </div>
+              ))
+            )}
+            {addresses.length > visibleAddresses.length ? (
+              <span className="px-0.5 font-mono text-[10px] text-[var(--text-secondary)]">
+                {t('widget.net.more', { count: addresses.length - visibleAddresses.length })}
+              </span>
+            ) : null}
           </div>
         </div>
       )}
