@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.3.1] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.3.1** berisi 1 perubahan: 1 fitur. (6 files changed, 310 insertions(+), 1 deletion(-))
+
+### 🚀 Fitur Baru (Added)
+- **cloudflare:** Redirect rules API and MCP tools ([`8c38ad3`](https://github.com/friskipradana/panel-desktop-ui/commit/8c38ad3))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.3.0...v3.3.1
+
 ## [3.3.0] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
