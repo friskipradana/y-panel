@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
@@ -18,6 +19,11 @@ const (
 	maxBufferedOutput = 256 * 1024
 	defaultCols       = 120
 	defaultRows       = 32
+
+	// A session without an attached websocket is kept alive this long so the
+	// browser can re-attach after a network drop, then it is reaped.
+	detachedTTL  = 30 * time.Minute
+	reapInterval = time.Minute
 )
 
 type Session struct {
@@ -28,8 +34,11 @@ type Session struct {
 	meta   SessionMeta
 
 	mu         sync.RWMutex
-	onChunk    func(string)
+	onChunk    func(string) error
 	onClose    func()
+	onReplaced func()
+	attachGen  uint64
+	detachedAt time.Time
 	closeOnce  sync.Once
 	callbackMu sync.RWMutex
 	outputMu   sync.RWMutex
@@ -66,7 +75,33 @@ type Manager struct {
 }
 
 func NewManager() *Manager {
-	return &Manager{sessions: map[string]*Session{}}
+	m := &Manager{sessions: map[string]*Session{}}
+	go m.reapLoop()
+	return m
+}
+
+// reapLoop closes sessions that stayed detached longer than detachedTTL.
+func (m *Manager) reapLoop() {
+	ticker := time.NewTicker(reapInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now()
+		var stale []*Session
+		m.mu.RLock()
+		for _, s := range m.sessions {
+			s.callbackMu.RLock()
+			attached := s.onChunk != nil
+			detachedAt := s.detachedAt
+			s.callbackMu.RUnlock()
+			if !attached && !detachedAt.IsZero() && now.Sub(detachedAt) > detachedTTL {
+				stale = append(stale, s)
+			}
+		}
+		m.mu.RUnlock()
+		for _, s := range stale {
+			m.closeSession(s)
+		}
+	}
 }
 
 func (m *Manager) Start(req StartRequest) (*StartResult, error) {
@@ -113,9 +148,10 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	}
 
 	session := &Session{
-		id:  id,
-		cmd: cmd,
-		pty: ptyFile,
+		id:         id,
+		cmd:        cmd,
+		pty:        ptyFile,
+		detachedAt: time.Now(),
 		meta: SessionMeta{
 			Mode:       mode,
 			Target:     target,
@@ -153,10 +189,13 @@ func (m *Manager) Write(id, input string) error {
 	return nil
 }
 
-func (m *Manager) Attach(id string, onChunk func(string), onClose func()) error {
+// Attach binds a websocket to the session and returns an attach generation.
+// Output buffered while detached is flushed first. A previous attachment is
+// told to go away through its onReplaced callback.
+func (m *Manager) Attach(id string, onChunk func(string) error, onClose func(), onReplaced func()) (uint64, error) {
 	session, err := m.get(id)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var buffered string
@@ -168,35 +207,57 @@ func (m *Manager) Attach(id string, onChunk func(string), onClose func()) error 
 	}
 	session.outputMu.Unlock()
 	session.callbackMu.Lock()
+	previous := session.onReplaced
+	session.attachGen++
+	gen := session.attachGen
 	session.onChunk = onChunk
 	session.onClose = onClose
+	session.onReplaced = onReplaced
+	session.detachedAt = time.Time{}
 	session.callbackMu.Unlock()
 	session.streamMu.Unlock()
+
+	if previous != nil {
+		previous()
+	}
 
 	session.mu.RLock()
 	closed := session.closed
 	session.mu.RUnlock()
 
 	if buffered != "" && onChunk != nil {
-		onChunk(buffered)
+		if err := onChunk(buffered); err != nil {
+			session.appendOutput([]byte(buffered))
+			m.detachIfCurrent(session, gen)
+		}
 	}
 	if closed && onClose != nil {
 		onClose()
 	}
-	return nil
+	return gen, nil
 }
 
-func (m *Manager) Detach(id string) error {
+// Detach releases the attachment only when gen still owns the session, so a
+// stale connection can never wipe the callbacks of its replacement.
+func (m *Manager) Detach(id string, gen uint64) error {
 	session, err := m.get(id)
 	if err != nil {
 		return err
 	}
+	m.detachIfCurrent(session, gen)
+	return nil
+}
 
+func (m *Manager) detachIfCurrent(session *Session, gen uint64) {
 	session.callbackMu.Lock()
+	defer session.callbackMu.Unlock()
+	if session.attachGen != gen {
+		return
+	}
 	session.onChunk = nil
 	session.onClose = nil
-	session.callbackMu.Unlock()
-	return nil
+	session.onReplaced = nil
+	session.detachedAt = time.Now()
 }
 
 func (m *Manager) Close(id string) error {
@@ -233,35 +294,37 @@ func (m *Manager) captureOutput(session *Session, reader io.Reader) {
 		n, err := reader.Read(buffer)
 		if n > 0 {
 			chunk := string(buffer[:n])
-			session.streamMu.Lock()
-			session.callbackMu.RLock()
-			cb := session.onChunk
-			session.callbackMu.RUnlock()
-			if cb != nil {
-				cb(chunk)
-			} else {
-				session.appendOutput(buffer[:n])
-			}
-			session.streamMu.Unlock()
+			m.deliver(session, chunk, buffer[:n])
 		}
 		if err != nil {
 			if err != io.EOF {
 				errChunk := "\r\n[terminal error] " + err.Error() + "\r\n"
-				session.streamMu.Lock()
-				session.callbackMu.RLock()
-				cb := session.onChunk
-				session.callbackMu.RUnlock()
-				if cb != nil {
-					cb(errChunk)
-				} else {
-					session.appendOutput([]byte(errChunk))
-				}
-				session.streamMu.Unlock()
+				m.deliver(session, errChunk, []byte(errChunk))
 			}
 			m.closeSession(session)
 			return
 		}
 	}
+}
+
+// deliver sends a chunk to the attached websocket, or buffers it when no
+// websocket is attached or the write failed (so nothing is lost on reconnect).
+func (m *Manager) deliver(session *Session, chunk string, raw []byte) {
+	session.streamMu.Lock()
+	defer session.streamMu.Unlock()
+
+	session.callbackMu.RLock()
+	cb := session.onChunk
+	gen := session.attachGen
+	session.callbackMu.RUnlock()
+
+	if cb != nil {
+		if err := cb(chunk); err == nil {
+			return
+		}
+		m.detachIfCurrent(session, gen)
+	}
+	session.appendOutput(raw)
 }
 
 func (m *Manager) waitForExit(session *Session) {
