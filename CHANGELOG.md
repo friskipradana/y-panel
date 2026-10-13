@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.3.0] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.3.0** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (9 files changed, 1218 insertions(+), 16 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **mcp:** Expand tool catalog to 97 tools with annotations, prompts and widget control ([`5148e1c`](https://github.com/friskipradana/panel-desktop-ui/commit/5148e1c))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **release:** Publish CHANGELOG notes as the GitHub release body ([`8f09803`](https://github.com/friskipradana/panel-desktop-ui/commit/8f09803))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.2...v3.3.0
+
 ## [3.2.2] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
