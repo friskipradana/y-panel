@@ -97,7 +97,7 @@ export function WidgetsWindow() {
                   <div className="flex items-center gap-2.5">
                     <span className="text-[var(--panel-primary-text)]"><Icon size={22} strokeWidth={1.75} /></span>
                     <div>
-                      <h3 className="text-sm font-semibold text-[var(--win-text)]">{item.title}</h3>
+                      <h3 className="text-sm font-semibold text-[var(--win-text)]">{t(`widget.catalog.${item.type}.title`)}</h3>
                       <span className="rounded bg-[var(--panel-surface-strong)] border border-[var(--win-border)] px-1.5 py-0.5 text-[9px] font-mono uppercase text-[var(--text-secondary)]">
                         {item.badge}
                       </span>
@@ -106,7 +106,7 @@ export function WidgetsWindow() {
                 </div>
 
                 <p className="mt-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {item.subtitle}
+                  {t(`widget.catalog.${item.type}.subtitle`)}
                 </p>
               </div>
 

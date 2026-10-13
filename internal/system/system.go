@@ -308,35 +308,49 @@ func readNetworkIO() NetworkIO {
 	if err != nil {
 		return NetworkIO{}
 	}
+	return parseNetDev(data)
+}
+
+// isVirtualInterface reports interfaces whose traffic is already counted on a
+// physical NIC (container bridges, veth pairs) or never leaves the host (lo).
+func isVirtualInterface(name string) bool {
+	if name == "lo" {
+		return true
+	}
+	for _, prefix := range []string{"docker", "veth", "br-", "virbr", "cni", "flannel", "cali"} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// parseNetDev sums rx/tx bytes of the physical interfaces in /proc/net/dev.
+func parseNetDev(data []byte) NetworkIO {
 	var totalRx, totalTx uint64
 	scanner := bufio.NewScanner(bytes.NewReader(data))
-	lineNum := 0
 	for scanner.Scan() {
-		lineNum++
-		if lineNum <= 2 {
-			continue
-		}
 		line := scanner.Text()
-		colonIdx := strings.Index(line, ":")
-		if colonIdx == -1 {
+		colon := strings.Index(line, ":")
+		if colon == -1 {
+			continue // header lines
+		}
+		if isVirtualInterface(strings.TrimSpace(line[:colon])) {
 			continue
 		}
-		ifaceName := strings.TrimSpace(line[:colonIdx])
-		if ifaceName == "lo" {
+		fields := strings.Fields(line[colon+1:])
+		if len(fields) < 9 {
 			continue
 		}
-		fields := strings.Fields(line[colonIdx+1:])
-		if len(fields) >= 9 {
-			rx, _ := strconv.ParseUint(fields[0], 10, 64)
-			tx, _ := strconv.ParseUint(fields[8], 10, 64)
-			totalRx += rx
-			totalTx += tx
+		rx, errRx := strconv.ParseUint(fields[0], 10, 64)
+		tx, errTx := strconv.ParseUint(fields[8], 10, 64)
+		if errRx != nil || errTx != nil {
+			continue
 		}
+		totalRx += rx
+		totalTx += tx
 	}
-	return NetworkIO{
-		BytesRecv: totalRx,
-		BytesSent: totalTx,
-	}
+	return NetworkIO{BytesRecv: totalRx, BytesSent: totalTx}
 }
 
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {

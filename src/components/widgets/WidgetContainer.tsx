@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
-import { snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS, WIDGET_WIDTH } from '@/store/widgetStore'
+import { snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS, WIDGET_TOP, WIDGET_WIDTH } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
@@ -30,17 +30,8 @@ const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType<Widget
   ping: PingWidget,
 }
 
-const WIDGET_META: Record<PlacedWidget['type'], { title: string }> = {
-  'clock-uptime': { title: 'Clock & Uptime' },
-  'system-vital': { title: 'System Vitals' },
-  'network-traffic': { title: 'Network Traffic' },
-  'quick-note': { title: 'Sticky Note' },
-  'cpu-graph': { title: 'CPU History' },
-  ping: { title: 'Ping Monitor' },
-}
-
 const EDGE = 12
-const TOP_MIN = 64 // below the taskbar, leaves room for the hover title
+const TOP_MIN = WIDGET_TOP // below the taskbar
 
 function useViewport() {
   const [size, setSize] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
@@ -52,21 +43,16 @@ function useViewport() {
   return size
 }
 
-// Chrome (title, grip, lock, close) only appears on hover/focus; touch devices always show it
-const CHROME_VISIBILITY =
-  'opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
-
 export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLock }: WidgetContainerProps) {
   const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const viewport = useViewport()
   const Component = WIDGET_COMPONENTS[widget.type]
-  const meta = WIDGET_META[widget.type] || { title: widget.type }
   const title =
     widget.type === 'ping'
       ? `Ping · ${String(widget.config?.label || widget.config?.host || '')}`.trim()
-      : meta.title
+      : t(`widget.catalog.${widget.type}.title`)
 
   // Width follows the viewport on narrow screens; position is kept inside it
   const width = Math.min(WIDGET_WIDTH, viewport.w - EDGE * 2)
@@ -165,45 +151,50 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
-      className={`group @container pointer-events-auto flex select-none flex-col rounded-xl border backdrop-blur-md transition-[border-color,box-shadow] duration-200 hover:border-[var(--widget-border)] ${
+      className={`group @container pointer-events-auto z-0 hover:z-20 focus-within:z-20 flex select-none flex-col rounded-xl border backdrop-blur-md transition-[border-color,box-shadow] duration-200 hover:border-[var(--widget-border)] ${
         isDragging ? 'cursor-grabbing border-[var(--widget-border)]' : 'border-transparent'
       } ${widget.isLocked ? 'cursor-default' : isDragging ? '' : 'cursor-grab'}`}
     >
-      {/* Hover chrome: floats on the top edge so it never shifts content */}
-      <div className={`pointer-events-none absolute -top-4 left-1 right-1 flex items-center justify-between ${CHROME_VISIBILITY}`}>
-        <span className="flex min-w-0 items-center gap-1 text-[0.75rem] font-medium text-[var(--win-text)]" style={{ textShadow: '0 1px 3px var(--widget-border)' }}>
-          {!widget.isLocked ? <GripVertical size={11} className="shrink-0 opacity-60" /> : null}
-          <span className="truncate">{title}</span>
-        </span>
-        <div
-          className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-md border px-0.5 text-[var(--text-secondary)] backdrop-blur-md"
-          style={{ backgroundColor: 'var(--widget-bg)', borderColor: 'var(--widget-border)' }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleLock(widget.id)
-            }}
-            title={widget.isLocked ? t('widget.unlock') : t('widget.lock')}
-            aria-label={widget.isLocked ? t('widget.unlock') : t('widget.lock')}
-            aria-pressed={!!widget.isLocked}
-            className="cursor-pointer rounded p-1 transition-colors hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
-          >
-            {widget.isLocked ? <Lock size={11} className="text-[var(--panel-warning-text)]" /> : <Unlock size={11} />}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              void handleRemove()
-            }}
-            title={t('widget.remove')}
-            aria-label={t('widget.remove')}
-            className="cursor-pointer rounded p-1 transition-colors hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]"
-          >
-            <X size={11} />
-          </button>
+      {/* Header lives inside the card: collapsed at rest, opens on hover and pushes the content down */}
+      <div
+        className={`grid shrink-0 transition-[grid-template-rows,opacity] duration-200 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100 ${
+          isDragging ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex h-7 items-center justify-between gap-2 border-b pl-2.5 pr-1" style={{ borderColor: 'var(--widget-border)' }}>
+            <span className="flex min-w-0 items-center gap-1.5 text-[0.75rem] font-medium text-[var(--win-text)]">
+              {!widget.isLocked ? <GripVertical size={12} className="shrink-0 text-[var(--text-secondary)]" /> : null}
+              <span className="truncate">{title}</span>
+            </span>
+            <div className="flex shrink-0 items-center text-[var(--text-secondary)]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleLock(widget.id)
+                }}
+                title={widget.isLocked ? t('widget.unlock') : t('widget.lock')}
+                aria-label={widget.isLocked ? t('widget.unlock') : t('widget.lock')}
+                aria-pressed={!!widget.isLocked}
+                className="grid h-6 w-6 cursor-pointer place-items-center rounded-md transition-colors hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
+              >
+                {widget.isLocked ? <Lock size={12} className="text-[var(--panel-warning-text)]" /> : <Unlock size={12} />}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void handleRemove()
+                }}
+                title={t('widget.remove')}
+                aria-label={t('widget.remove')}
+                className="grid h-6 w-6 cursor-pointer place-items-center rounded-md transition-colors hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

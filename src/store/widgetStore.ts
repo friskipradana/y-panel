@@ -67,17 +67,21 @@ export const DEFAULT_WIDGET_CONFIG: Partial<Record<WidgetType, WidgetConfig>> = 
   'network-traffic': { range: '15m' },
 }
 
+// Top of the widget area, just below the taskbar
+export const WIDGET_TOP = 64
+
 export const WIDGET_WIDTH = 280
 export const WIDGET_GAP = 15
 export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 295px
 
+// Resting heights (header collapsed); a hovered card grows by the 28px header
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
-  'clock-uptime': 148,
-  'system-vital': 190,
-  'quick-note': 168,
-  'network-traffic': 236,
-  'cpu-graph': 184,
-  ping: 196,
+  'clock-uptime': 120,
+  'system-vital': 162,
+  'quick-note': 140,
+  'network-traffic': 208,
+  'cpu-graph': 156,
+  ping: 168,
 }
 
 function getDefaultPositions(): PlacedWidget[] {
@@ -90,21 +94,21 @@ function getDefaultPositions(): PlacedWidget[] {
       id: 'default-clock',
       type: 'clock-uptime',
       x: defaultX,
-      y: 64,
+      y: WIDGET_TOP,
       isLocked: false,
     },
     {
       id: 'default-vital',
       type: 'system-vital',
       x: defaultX,
-      y: 64 + WIDGET_HEIGHTS['clock-uptime'] + WIDGET_GAP, // 64 + 165 + 15 = 244
+      y: WIDGET_TOP + WIDGET_HEIGHTS['clock-uptime'] + WIDGET_GAP,
       isLocked: false,
     },
   ]
 }
 
 export function autoSpaceWidgets(widgets: PlacedWidget[]): PlacedWidget[] {
-  const topMargin = 64
+  const topMargin = WIDGET_TOP
 
   // Group widgets by approximate column (within 140px horizontal distance)
   const columns: { colX: number; widgets: PlacedWidget[] }[] = []
@@ -164,8 +168,8 @@ export function snapWidgetPosition(
   }
 
   // 2. Snap Y to top margin
-  if (Math.abs(rawY - 64) < 24) {
-    snappedY = 64
+  if (Math.abs(rawY - WIDGET_TOP) < 24) {
+    snappedY = WIDGET_TOP
   }
 
   // 3. Snap Y to 15px gap relative to other widgets in the same column (X within 60px)
@@ -186,7 +190,7 @@ export function snapWidgetPosition(
 
     // Gap 15px above 'other'
     const targetAboveY = other.y - thisH - WIDGET_GAP
-    if (Math.abs(rawY - targetAboveY) < SNAP_DISTANCE && targetAboveY >= 50) {
+    if (Math.abs(rawY - targetAboveY) < SNAP_DISTANCE && targetAboveY >= WIDGET_TOP - 14) {
       snappedY = targetAboveY
       break
     }
@@ -200,7 +204,7 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType):
   const screenWidth = isBrowser ? window.innerWidth : 1280
   const screenHeight = isBrowser ? window.innerHeight : 800
 
-  const topMargin = 64
+  const topMargin = WIDGET_TOP
   const bottomMargin = 90
   const maxBottom = screenHeight - bottomMargin
   const thisHeight = newType ? (WIDGET_HEIGHTS[newType] || 195) : 195
@@ -322,7 +326,7 @@ export const useWidgetStore = create<WidgetState>()(
         const isBrowser = typeof window !== 'undefined'
         const screenWidth = isBrowser ? window.innerWidth : 1280
         const screenHeight = isBrowser ? window.innerHeight : 800
-        const topMargin = 64
+        const topMargin = WIDGET_TOP
         const bottomMargin = 90
         const maxBottom = screenHeight - bottomMargin
 
