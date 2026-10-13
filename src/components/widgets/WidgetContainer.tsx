@@ -2,7 +2,18 @@ import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
-import { resolveWidgetOverlap, snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS, WIDGET_TOP, WIDGET_WIDTH } from '@/store/widgetStore'
+import {
+  forgetWidgetHeight,
+  reportWidgetHeight,
+  resolveWidgetOverlap,
+  scheduleLayoutSettle,
+  snapWidgetPosition,
+  useWidgetStore,
+  widgetHeightOf,
+  WIDGET_HEIGHTS,
+  WIDGET_TOP,
+  WIDGET_WIDTH,
+} from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
@@ -46,6 +57,7 @@ function useViewport() {
 export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLock }: WidgetContainerProps) {
   const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const viewport = useViewport()
   const Component = WIDGET_COMPONENTS[widget.type]
@@ -54,9 +66,26 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       ? `Ping · ${String(widget.config?.label || widget.config?.host || '')}`.trim()
       : t(`widget.catalog.${widget.type}.title`)
 
+  // Report the resting height (card minus the hover header) so layout uses real sizes
+  useEffect(() => {
+    const card = containerRef.current
+    if (!card || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      const header = headerRef.current?.offsetHeight ?? 0
+      if (reportWidgetHeight(widget.id, card.offsetHeight - header)) scheduleLayoutSettle()
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(card)
+    return () => {
+      observer.disconnect()
+      forgetWidgetHeight(widget.id)
+    }
+  }, [widget.id])
+
   // Width follows the viewport on narrow screens; position is kept inside it
   const width = Math.min(WIDGET_WIDTH, viewport.w - EDGE * 2)
-  const height = WIDGET_HEIGHTS[widget.type] || 165
+  const height = widgetHeightOf(widget)
   const left = Math.max(EDGE, Math.min(widget.x, viewport.w - width - EDGE))
   const top = Math.max(TOP_MIN, Math.min(widget.y, viewport.h - height - 24))
 
@@ -143,7 +172,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         left,
         top,
         width,
-        minHeight: height,
+        minHeight: WIDGET_HEIGHTS[widget.type] || 165,
         background,
         color: 'var(--win-text)',
         boxShadow: isDragging ? 'var(--widget-shadow-hover)' : 'var(--widget-shadow)',
@@ -158,6 +187,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     >
       {/* Header lives inside the card: collapsed at rest, opens on hover and pushes the content down */}
       <div
+        ref={headerRef}
         className={`grid shrink-0 transition-[grid-template-rows,opacity] duration-200 ease-out group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-within:grid-rows-[1fr] group-focus-within:opacity-100 [@media(hover:none)]:grid-rows-[1fr] [@media(hover:none)]:opacity-100 ${
           isDragging ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
