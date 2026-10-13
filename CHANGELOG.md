@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.4.4] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.4.4** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (7 files changed, 711 insertions(+), 10 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **mcp:** Host operations tools for disk, firewall and PostgreSQL exposure ([`bd41367`](https://github.com/friskipradana/panel-desktop-ui/commit/bd41367))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **typescript:** Update build info ([`8194f74`](https://github.com/friskipradana/panel-desktop-ui/commit/8194f74))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.3...v3.4.4
+
 ## [3.4.3] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
