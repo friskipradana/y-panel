@@ -8,6 +8,7 @@ Setiap perubahan UI wajib mengikuti aturan berikut dan skill `anti-slop` (`.clau
 
 @.agents/rules/design-system.md
 @.agents/rules/component-list.md
+@.agents/rules/ui-components.md
 
 Referensi lengkap (baca saat mengerjakan visual): [DESIGN.md](DESIGN.md).
 
@@ -16,6 +17,7 @@ Referensi lengkap (baca saat mengerjakan visual): [DESIGN.md](DESIGN.md).
 - `bun run dev` menjalankan agent + UI
 - `bun run build` harus exit 0 tanpa warning
 - `bun run lint`
+- `bun run check:ui` memvalidasi aturan UI (harus 0 error)
 - `go test ./...`
 
 Branch aktif: `main-runtime-dev`. Rilis: `main-runtime`.

@@ -27,7 +27,7 @@ Slop adalah output yang terlihat "sudah jadi" tetapi tidak membawa informasi ata
 1. **Kartu melayang** yang menumpuk di atas screenshot/hero tanpa fungsi. Informasi masuk ke layout, bukan overlay.
 2. **Ilustrasi/gambar generik AI** (orb, mesh abstrak, 3D blob, orang tersenyum). Ganti dengan tampilan produk asli atau mockup yang hidup.
 3. **Lencana kepercayaan palsu**: perisai, centang dalam lingkaran, "Enterprise-grade", "Bank-level security", sertifikasi yang tidak ada.
-4. **Gradient dekoratif** multi-warna pada teks, tombol, atau latar kartu. Gradient hanya untuk data (grafik, progress) atau wallpaper pilihan user.
+4. **Gradient dekoratif** multi-warna pada teks, tombol, avatar, atau latar kartu. Gradient hanya untuk data (grafik, progress), wallpaper pilihan user, atau transisi tonal satu warna dari token.
 5. **Glow & blur berlebihan**: `box-shadow` berwarna besar, `blur` di luar taskbar/modal/window.
 6. **Emoji sebagai ikon UI** atau penghias judul.
 7. **Kartu bersarang** (card di dalam card di dalam card) dan grid tiga kartu identik berisi ikon + judul + kalimat.
@@ -65,8 +65,9 @@ Centang semua sebelum menyatakan selesai:
 - [ ] Tidak ada gradient dekoratif baru; tidak ada emoji ikon.
 - [ ] Semua warna dari token; token baru ada di `:root` dan `[data-theme="dark"]`.
 - [ ] Data teknis memakai font mono.
+- [ ] Kotak ikon, header seksi, toggle, kartu terpilih memakai `components/ui/` (bukan className salinan).
 - [ ] State lengkap: hover, fokus, disabled, loading, empty, error.
 - [ ] Teks lewat `t()`, `id` dan `en` terisi.
 - [ ] Komponen yang sudah ada dipakai ulang; component-list diperbarui bila menambah.
-- [ ] Light dan dark dicek; `bun run build` dan `bun run lint` bersih.
+- [ ] Light dan dark dicek; `bun run build`, `bun run lint`, dan `bun run check:ui` bersih.
 - [ ] Copy konkret, tanpa kata kosong.
