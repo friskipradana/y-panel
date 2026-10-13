@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Bell, CheckCheck, Cpu, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Thermometer, Zap, Activity, Database } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Bell, CheckCheck, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Database } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
@@ -13,6 +13,7 @@ import { ApplicationsMenu } from './ApplicationsMenu'
 import { formatDateTimeID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
 import { soundManager } from '@/lib/sound'
+import { Button } from '@/components/ui/Button'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -42,12 +43,9 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const queryClient = useQueryClient()
   const { toggleCommandPalette } = useCommandStore()
 
-  const { openWindow, resetWindows, showSystemStats, systemStatsConfig, setShowSystemStats, setSystemStatsConfig } = useWindowStore()
+  const { openWindow, resetWindows } = useWindowStore()
   const [time, setTime] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
-  const [stats, setStats] = useState<{ cpu: number, ram: number, temp: number }>({ cpu: 0, ram: 0, temp: 0 })
-  const [showMenu, setShowMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
   const [showNotifications, setShowNotifications] = useState(false)
   const notificationPanelRef = useRef<HTMLDivElement>(null)
   const { data: currentUser } = useQuery({
@@ -81,54 +79,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [])
-
-  // ── WebSocket for System Stats ─────────────────────────────────────────────
-  useEffect(() => {
-    if (!showSystemStats) return
-
-    let socket: WebSocket | null = null
-    let retryTimer: number
-
-    const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const apiBase = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
-      const url = `${protocol}//${window.location.host}${apiBase}/system/stats/ws`
-
-      socket = new WebSocket(url)
-
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          console.log('[Stats WS] Received:', data)
-
-          const cpu = data.cpuUsagePercent || 0
-          const mem = data.memory || { used: 0, total: 1 }
-          // Pastikan total tidak nol untuk menghindari pembagian nol
-          const totalMem = mem.total || 1
-          const ram = (mem.used / totalMem) * 100
-          const temp = data.cpuTemp || 0
-
-          setStats({
-            cpu,
-            ram: isNaN(ram) ? 0 : ram,
-            temp
-          })
-        } catch (e) {
-          console.error('[Stats WS] Parse Error:', e)
-        }
-      }
-
-      socket.onclose = () => {
-        retryTimer = window.setTimeout(connect, 5000)
-      }
-    }
-
-    connect()
-    return () => {
-      if (socket) socket.close()
-      clearTimeout(retryTimer)
-    }
-  }, [showSystemStats])
 
   useEffect(() => {
     if (!authenticated) return
@@ -229,10 +179,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
       const target = e.target as Node
       const targetElement = target instanceof HTMLElement ? target : null
 
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setShowMenu(false)
-      }
-
       const clickedNotificationButton = Boolean(targetElement?.closest('#taskbar-notifications-button'))
       const clickedInsideNotifications = Boolean(notificationPanelRef.current?.contains(target))
 
@@ -241,18 +187,9 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
       }
     }
 
-    if (showMenu || showNotifications) window.addEventListener('mousedown', handler)
+    if (showNotifications) window.addEventListener('mousedown', handler)
     return () => window.removeEventListener('mousedown', handler)
-  }, [showMenu, showNotifications])
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setShowMenu(true)
-  }
-
-  const toggleConfig = (key: keyof typeof systemStatsConfig) => {
-    setSystemStatsConfig({ ...systemStatsConfig, [key]: !systemStatsConfig[key] })
-  }
+  }, [showNotifications])
 
   const handleLogout = async () => {
     if (loggingOut) return
@@ -276,108 +213,8 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
         <ApplicationsMenu isAdmin={isAdmin} />
       </div>
 
-      <div className="taskbar-actions" onContextMenu={handleContextMenu}>
-        <AnimatePresence>
-          {showSystemStats && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, x: 10 }}
-              animate={{ opacity: 1, scale: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.95, x: 10 }}
-              className="flex items-center gap-3.5 mr-3 px-3 py-2 transition-all"
-            >
-              {systemStatsConfig.cpu && (
-                <div className="flex items-center gap-1.5" title={t('taskbar.cpuUsage')}>
-                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-[var(--panel-primary-text)]' : 'bg-[var(--panel-primary-solid)]'}`} />
-                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
-                    {stats.cpu.toFixed(0)}%
-                  </span>
-                </div>
-              )}
-              {systemStatsConfig.ram && (
-                <div className="flex items-center gap-1.5 pl-2" title={t('taskbar.ramUsage')}>
-                  <Zap size={11} className={isDark ? 'text-[var(--panel-warning-text)]/80' : 'text-[var(--panel-warning-text)]'} />
-                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
-                    {stats.ram.toFixed(0)}%
-                  </span>
-                </div>
-              )}
-              {systemStatsConfig.temp && (
-                <div className="flex items-center gap-1.5 pl-2" title={t('taskbar.cpuTemperature')}>
-                  <Thermometer size={11} className={isDark ? 'text-[var(--panel-danger-text)]/80' : 'text-[var(--panel-danger-text)]'} />
-                  <span className={`text-[12px] font-mono font-bold tracking-tight ${isDark ? 'text-[var(--win-text)]' : 'text-[var(--text-secondary)]'}`}>
-                    {stats.temp > 0 ? `${stats.temp.toFixed(0)}°` : 'N/A'}
-                  </span>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+      <div className="taskbar-actions">
         <span id="taskbar-clock" className={`taskbar-clock ${!isDark ? 'text-[var(--text-secondary)]' : ''}`}>{time}</span>
-
-        {showMenu && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            ref={menuRef}
-            className={`absolute right-4 top-[50px] w-60 p-2 rounded-2xl backdrop-blur-2xl z-[999999] ${isDark
-              ? 'bg-[var(--taskbar-menu-bg)] text-[var(--win-text)]'
-              : 'bg-[var(--menu-bg)] text-[var(--text-secondary)]'
-              }`}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <div className={`px-3 py-2 text-[12px] font-bold uppercase tracking-[0.2em] mb-1 ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'
-              }`}>
-              {t('taskbar.settings')}
-            </div>
-            <button
-              className={`flex items-center justify-between w-full px-3 py-2 text-[12.5px] font-semibold rounded-lg transition-all group ${isDark
-                ? 'hover:bg-[var(--taskbar-menu-hover-bg)]'
-                : 'hover:bg-[var(--panel-surface-hover)]'
-                }`}
-              onClick={() => { setShowSystemStats(!showSystemStats); setShowMenu(false); }}
-            >
-              <div className="flex items-center gap-2.5">
-                <Activity size={14} className="text-[var(--panel-primary-text)]" />
-                <span>{t('taskbar.systemStatsTray')}</span>
-              </div>
-              <div className={`w-8 h-4 rounded-full transition-all duration-300 relative ${showSystemStats ? 'bg-[var(--taskbar-toggle-active-bg)]' : 'bg-[var(--panel-neutral-bg)]'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 bg-[var(--win-content-bg)] rounded-full shadow-sm transition-all duration-300 ${showSystemStats ? 'left-4.5' : 'left-0.5'}`} />
-              </div>
-            </button>
-
-            <div className="mt-1 pt-1">
-              <div className={`px-3 pb-1 text-[12px] font-bold uppercase tracking-wider ${isDark ? 'text-[var(--text-secondary)]' : 'text-[var(--text-secondary)]'}`}>{t('taskbar.metrics')}</div>
-              <div className="space-y-0.5">
-                {[
-                  { key: 'cpu' as const, label: t('taskbar.cpuLoad'), icon: <Cpu size={14} />, color: isDark ? 'text-[var(--panel-primary-text)]' : 'text-[var(--panel-primary-text)]' },
-                  { key: 'ram' as const, label: t('taskbar.ramUsage'), icon: <Zap size={14} />, color: isDark ? 'text-[var(--panel-warning-text)]' : 'text-[var(--panel-warning-text)]' },
-                  { key: 'temp' as const, label: t('taskbar.cpuTemp'), icon: <Thermometer size={14} />, color: isDark ? 'text-[var(--panel-danger-text)]' : 'text-[var(--panel-danger-text)]' },
-                ].map(item => (
-                  <button
-                    key={item.key}
-                    disabled={!showSystemStats}
-                    className={`flex items-center justify-between w-full px-3 py-2 text-[12px] font-medium rounded-lg transition-all ${!showSystemStats
-                      ? 'opacity-50 grayscale cursor-not-allowed'
-                      : isDark
-                        ? 'hover:bg-[var(--taskbar-menu-hover-bg)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                        : 'hover:bg-[var(--panel-surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
-                      }`}
-                    onClick={() => toggleConfig(item.key)}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className={`${item.color}`}>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </div>
-                    {systemStatsConfig[item.key] && (
-                      <div className={`w-1 h-1 rounded-full ${isDark ? 'bg-[var(--panel-primary-text)]' : 'bg-[var(--panel-primary-solid)]'}`} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {showNotifications && (
           <motion.div
@@ -401,15 +238,14 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                   </div>
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => markAllMutation.mutate()}
-                disabled={!unreadCount || markAllMutation.isPending}
-                className="panel-btn panel-btn--ghost taskbar-notifications__mark-all"
+                disabled={!unreadCount || markAllMutation.isPending} variant="ghost" className="taskbar-notifications__mark-all"
               >
                 <CheckCheck size={12} />
                 {t('taskbar.markAll')}
-              </button>
+              </Button>
             </div>
 
             <div className="taskbar-notifications__meta">
@@ -462,12 +298,11 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
 
         <button
           id="taskbar-search-button"
-          title="Command Palette & Pencarian Cepat (Ctrl+K)"
+          title={t('taskbar.commandPaletteTitle')}
           className="taskbar-icon-btn text-[var(--panel-primary-text)] hover:text-cyan-400"
           onClick={() => {
             toggleCommandPalette()
             setShowNotifications(false)
-            setShowMenu(false)
           }}
         >
           <Search size={14} />
@@ -479,7 +314,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           className="taskbar-icon-btn taskbar-icon-btn--notification"
           onClick={() => {
             setShowNotifications((current) => !current)
-            setShowMenu(false)
           }}
         >
           <Bell size={14} />

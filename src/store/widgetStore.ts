@@ -1,12 +1,12 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { PlacedWidget, WidgetType } from '@/types'
+import type { PlacedWidget, WidgetConfig, WidgetType } from '@/types'
+import { useMetricsStore } from '@/store/metricsStore'
 
 export interface WidgetCatalogItem {
   type: WidgetType
   title: string
   subtitle: string
-  icon: string
   badge: string
   category: 'system' | 'network' | 'utility'
 }
@@ -16,7 +16,6 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     type: 'clock-uptime',
     title: 'Clock & Uptime',
     subtitle: 'Jam digital real-time, tanggal, dan status uptime server',
-    icon: '🕒',
     badge: 'Time',
     category: 'system',
   },
@@ -24,7 +23,6 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     type: 'system-vital',
     title: 'System Vitals',
     subtitle: 'Monitor real-time penggunaan CPU, Memori RAM, dan Storage',
-    icon: '⚡',
     badge: 'Metrics',
     category: 'system',
   },
@@ -32,27 +30,42 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
     type: 'network-traffic',
     title: 'Network & Host',
     subtitle: 'Grafik bandwidth real-time, live transfer rate, dan interface jaringan',
-    icon: '🌐',
     badge: 'Network',
     category: 'network',
   },
   {
     type: 'quick-note',
-    title: 'Sysadmin Memo',
-    subtitle: 'Catatan cepat sticky note untuk menyimpan perintah atau info server',
-    icon: '📝',
+    title: 'Sticky Note',
+    subtitle: 'Catatan tempel berwarna untuk perintah atau info server, bisa dibuat banyak',
     badge: 'Utility',
     category: 'utility',
   },
   {
     type: 'cpu-graph',
     title: 'CPU Live History',
-    subtitle: 'Grafik real-time pemakaian prosesor dengan riwayat tren beban kerja',
-    icon: '📈',
+    subtitle: 'Grafik garis pemakaian prosesor dengan riwayat tersimpan dan rentang waktu',
     badge: 'Graph',
     category: 'system',
   },
+  {
+    type: 'ping',
+    title: 'Ping Monitor',
+    subtitle: 'Pantau latensi dan ketersediaan host mana pun (ICMP atau TCP port), bisa lebih dari satu',
+    badge: 'Ping',
+    category: 'network',
+  },
 ]
+
+// Widget types that may be placed more than once (each keeps its own config + history)
+export const MULTI_INSTANCE_WIDGETS: WidgetType[] = ['ping', 'quick-note']
+
+export const DEFAULT_WIDGET_CONFIG: Partial<Record<WidgetType, WidgetConfig>> = {
+  ping: { host: '1.1.1.1', port: 0, intervalSec: 10, range: '15m', label: '' },
+  'quick-note': { text: '', color: 'yellow' },
+  'cpu-graph': { range: '15m' },
+  'system-vital': { mode: 'bars', range: '15m' },
+  'network-traffic': { range: '15m' },
+}
 
 export const WIDGET_WIDTH = 280
 export const WIDGET_GAP = 15
@@ -60,10 +73,11 @@ export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 295px
 
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
   'clock-uptime': 148,
-  'system-vital': 168,
-  'quick-note': 172,
-  'network-traffic': 215,
-  'cpu-graph': 170,
+  'system-vital': 190,
+  'quick-note': 168,
+  'network-traffic': 236,
+  'cpu-graph': 184,
+  ping: 196,
 }
 
 function getDefaultPositions(): PlacedWidget[] {
@@ -226,6 +240,8 @@ interface WidgetState {
   resetToDefault: () => void
   resetLayout: () => void
   tidyUpWidgets: () => void
+  updateWidgetConfig: (id: string, patch: WidgetConfig) => void
+  setLayout: (widgets: PlacedWidget[]) => void
   hasWidget: (type: WidgetType) => boolean
 }
 
@@ -235,10 +251,12 @@ export const useWidgetStore = create<WidgetState>()(
       placedWidgets: getDefaultPositions(),
 
       addWidget: (type, pos) => {
-        // Prevent duplicate widget of the same type on desktop
-        const existing = get().placedWidgets.find((w) => w.type === type)
-        if (existing) {
-          return existing.id
+        // Single-instance widgets: return the one already on the desktop
+        if (!MULTI_INSTANCE_WIDGETS.includes(type)) {
+          const existing = get().placedWidgets.find((w) => w.type === type)
+          if (existing) {
+            return existing.id
+          }
         }
 
         const id = `widget-${type}-${Date.now()}`
@@ -250,6 +268,7 @@ export const useWidgetStore = create<WidgetState>()(
           x: Math.round(finalPos.x),
           y: Math.round(finalPos.y),
           isLocked: false,
+          config: DEFAULT_WIDGET_CONFIG[type] ? { ...DEFAULT_WIDGET_CONFIG[type] } : undefined,
         }
 
         set((state) => ({
@@ -260,8 +279,19 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       removeWidget: (id) => {
+        useMetricsStore.getState().clear(`ping:${id}`)
         set((state) => ({
           placedWidgets: state.placedWidgets.filter((w) => w.id !== id),
+        }))
+      },
+
+      setLayout: (widgets) => set({ placedWidgets: widgets }),
+
+      updateWidgetConfig: (id, patch) => {
+        set((state) => ({
+          placedWidgets: state.placedWidgets.map((w) =>
+            w.id === id ? { ...w, config: { ...(w.config ?? {}), ...patch } } : w
+          ),
         }))
       },
 
@@ -323,6 +353,7 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       hasWidget: (type) => {
+        if (MULTI_INSTANCE_WIDGETS.includes(type)) return false
         return get().placedWidgets.some((w) => w.type === type)
       },
     }),

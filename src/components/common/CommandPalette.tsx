@@ -23,8 +23,7 @@ import {
   Activity,
   Sparkles,
   CornerDownLeft,
-  X,
-} from 'lucide-react'
+  X, Radar } from 'lucide-react'
 import { useCommandStore } from '@/store/commandStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useWidgetStore } from '@/store/widgetStore'
@@ -32,8 +31,11 @@ import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import { canAccessWindow } from '@/components/desktop/Desktop'
 import type { WindowKind, WidgetType } from '@/types'
+import { useI18n } from '@/lib/i18n'
+import { IconBadge } from '@/components/ui/IconBadge'
 
 export function CommandPalette() {
+  const { t } = useI18n()
   const { isOpen, closeCommandPalette } = useCommandStore()
   const { openWindow, resetWindows } = useWindowStore()
   const { addWidget, resetLayout, hasWidget } = useWidgetStore()
@@ -86,9 +88,12 @@ export function CommandPalette() {
 
   // Uniform monochrome icon wrapper matching YPanel desktop icon aesthetics
   const renderIconBox = (IconComp: React.ComponentType<{ size?: number; className?: string }>) => (
-    <div className="h-8 w-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/10 flex items-center justify-center shrink-0 text-[var(--win-text)] group-data-[selected=true]:border-cyan-500/40 group-data-[selected=true]:bg-cyan-500/10 group-data-[selected=true]:text-cyan-500 dark:group-data-[selected=true]:text-cyan-400 transition-colors">
-      <IconComp size={16} />
-    </div>
+    <IconBadge
+      size="md"
+      className="group-data-[selected=true]:border-cyan-500/40 group-data-[selected=true]:bg-cyan-500/10 group-data-[selected=true]:text-cyan-500 dark:group-data-[selected=true]:text-cyan-400 transition-colors"
+    >
+      <IconComp />
+    </IconBadge>
   )
 
   return (
@@ -132,7 +137,7 @@ export function CommandPalette() {
                 <Search size={18} className="text-cyan-500 shrink-0 opacity-90" />
                 <Command.Input
                   autoFocus
-                  placeholder="Ketik nama aplikasi, widget, atau perintah sistem..."
+                  placeholder={t('commandPalette.placeholder')}
                   className="w-full bg-transparent text-[14px] text-[var(--win-text)] placeholder-[var(--text-secondary)]/60 focus:outline-none"
                 />
                 <button
@@ -143,8 +148,8 @@ export function CommandPalette() {
                     backgroundColor: 'var(--panel-surface-strong)',
                     borderColor: 'var(--win-border)',
                   }}
-                  title="Tutup (ESC)"
-                  aria-label="Tutup"
+                  title={t('commandPalette.closeHint')}
+                  aria-label={t('common.close')}
                 >
                   <X size={13} />
                 </button>
@@ -512,10 +517,10 @@ export function CommandPalette() {
                       {renderIconBox(StickyNote)}
                       <div className="flex flex-col min-w-0 gap-1.5 justify-center">
                         <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pasang Sysadmin Memo
+                          Tambah Sticky Note
                         </span>
                         <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Sticky note catatan cepat perintah atau info server
+                          Catatan tempel berwarna, bisa dibuat banyak
                         </span>
                       </div>
                     </div>
@@ -546,6 +551,29 @@ export function CommandPalette() {
                     <div className="flex items-center gap-2 shrink-0 ml-3">
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
                         {hasWidget('cpu-graph') ? 'Terpasang' : 'Widget'}
+                      </span>
+                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
+                    </div>
+                  </Command.Item>
+
+                  <Command.Item
+                    onSelect={() => handleAddWidget('ping')}
+                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {renderIconBox(Radar)}
+                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
+                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
+                          {t('widget.ping.paletteTitle')}
+                        </span>
+                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
+                          {t('widget.ping.paletteDesc')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
+                        {'Widget'}
                       </span>
                       <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
                     </div>
