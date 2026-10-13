@@ -52,6 +52,8 @@ export const getMeV2 = () =>
 
 export interface FrontendRevisionResponse {
   revision: string
+  /** Installed panel version reported by the agent (empty when unknown) */
+  version?: string
 }
 
 export const getFrontendRevision = () =>

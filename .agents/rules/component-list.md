@@ -8,8 +8,9 @@ Inventaris komponen YPanel. Cek di sini sebelum membuat komponen atau class baru
 | :--- | :--- | :--- |
 | `AppShell` | `src/shell/index.tsx` | Cek sesi, shortcut global, revision sync, host router |
 | `AppRouter` | `src/router/index.tsx` | Rute `/`, `/docs/mcp`, `/login`, `/home`, `*` dengan transisi |
-| `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik |
-| `McpGuidePage` | `src/pages/McpGuidePage.tsx` | Panduan MCP publik |
+| `PublicShell`, `CopyBlock` | `src/components/public/` | Kerangka halaman publik (header, versi, footer; selalu tema gelap via `data-theme="dark"`) dan blok kode dengan tombol salin |
+| `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik; versi dari `usePanelVersion` (`lib/version.ts`: versi agent, fallback versi bundle) |
+| `McpGuidePage` | `src/pages/McpGuidePage.tsx` + `mcp-guide/` | Panduan MCP: `ConnectPanel`, `ToolCatalog`; `toolsData.ts` dibuat dari registry agent |
 | `LoginPage` | `src/pages/LoginPage.tsx` | Login + wizard first-run |
 | `DesktopPage` | `src/pages/DesktopPage.tsx` | Pembungkus `Desktop` |
 | `FrontendNotFoundPage` | `src/components/system/` | 404 frontend |

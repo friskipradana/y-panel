@@ -1,217 +1,173 @@
-import { useEffect, useState } from 'react'
 import {
   Activity,
   ArrowRight,
+  Bot,
   Box,
-  Check,
-  Copy,
   Database,
   Download,
-  ExternalLink,
   FileText,
   FolderKanban,
   Globe,
   HardDrive,
+  LayoutGrid,
   Settings,
   Terminal,
   Users,
-  Bot,
 } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
+import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
+import { CopyBlock } from '@/components/public/CopyBlock'
+import { IconBadge } from '@/components/ui/IconBadge'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { MCP_TOOL_COUNTS } from '@/pages/mcp-guide/toolsData'
 
 export type LandingPageProps = {
   authenticated: boolean
   onNavigate: (path: string) => void
 }
 
-const INSTALLER_URL = 'https://github.com/friskipradana/y-panel/releases/latest/download/ypanel-installer.run'
-const INSTALL_COMMAND = `wget -O ypanel-installer.run ${INSTALLER_URL} && sudo bash ypanel-installer.run`
+// Short redirect to the latest release asset (Cloudflare redirect rule); INSTALLER_URL is the direct fallback
+const INSTALL_COMMAND = 'wget -O ypanel-installer.run https://install.reneo.my.id && sudo bash ypanel-installer.run'
 
-const FEATURE_MODULES = [
-  { id: 'docker', icon: Box, label: 'Docker' },
-  { id: 'projects', icon: FolderKanban, label: 'Projects' },
-  { id: 'cloudflare', icon: Globe, label: 'Cloudflare' },
-  { id: 'terminal', icon: Terminal, label: 'Terminal' },
-  { id: 'files', icon: HardDrive, label: 'Files' },
-  { id: 'users', icon: Users, label: 'Users' },
-  { id: 'database', icon: Database, label: 'Database' },
-  { id: 'system', icon: Activity, label: 'System' },
-  { id: 'logs', icon: FileText, label: 'Logs' },
-  { id: 'settings', icon: Settings, label: 'Settings' },
+const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number }> }> = [
+  { id: 'docker', icon: Box },
+  { id: 'projects', icon: FolderKanban },
+  { id: 'cloudflare', icon: Globe },
+  { id: 'terminal', icon: Terminal },
+  { id: 'files', icon: HardDrive },
+  { id: 'users', icon: Users },
+  { id: 'database', icon: Database },
+  { id: 'system', icon: Activity },
+  { id: 'logs', icon: FileText },
+  { id: 'widgets', icon: LayoutGrid },
+  { id: 'settings', icon: Settings },
+  { id: 'mcp', icon: Bot },
 ]
+
+const STEPS = ['download', 'setup', 'open'] as const
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = window.setTimeout(() => setCopied(false), 2200)
-    return () => window.clearTimeout(timer)
-  }, [copied])
-
-  const copyCommand = async () => {
-    if (navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(INSTALL_COMMAND)
-        setCopied(true)
-        return
-      } catch {}
-    }
-  }
 
   return (
-    <div className="min-h-screen w-full bg-[#03060c] text-[#f1f5f9] font-sans antialiased selection:bg-cyan-500/20 selection:text-cyan-200">
-      {/* Background Ambient Glow */}
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(56,189,248,0.12),transparent_70%)]" />
-
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#03060c]/85 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
-          <div className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="YPanel" className="w-7 h-7" />
-            <span className="font-semibold text-sm tracking-tight text-white flex items-center gap-2">
-              YPanel
-              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                v0.1.0
-              </span>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <a
-              href="https://github.com/friskipradana/y-panel"
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/[0.04] transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>GitHub</span>
-              <ExternalLink size={11} className="opacity-60" />
-            </a>
-            <button
-              type="button"
-              onClick={() => onNavigate('/docs/mcp')}
-              className="text-xs text-amber-300 hover:text-amber-200 px-3 py-1.5 rounded-md border border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Bot size={13} />
-              <span>MCP & AI Agent</span>
-            </button>
-            <a
-              href={INSTALLER_URL}
-              className="text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-md border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.06] transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Download size={12} />
-              <span>Installer</span>
-            </a>
-            <button
-              type="button"
-              onClick={() => onNavigate(primaryPath)}
-              className="text-xs font-medium text-[#03060c] bg-white hover:bg-slate-200 px-3.5 py-1.5 rounded-md transition flex items-center gap-1.5 shadow-sm font-semibold cursor-pointer"
-            >
-              <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
-              <ArrowRight size={12} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Hero Container */}
-      <main className="max-w-6xl mx-auto px-6 pt-14 pb-20 relative z-10">
-        {/* Hero Header */}
-        <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-[1.08] mb-5">
-            Control your server <br className="hidden sm:inline" />
-            like a{' '}
-            <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">
-              desktop.
+    <PublicShell>
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pt-16">
+        {/* Hero */}
+        <section className="mx-auto max-w-3xl text-center">
+          <p className="panel-mono mb-4 text-[0.75rem] uppercase tracking-widest text-[var(--panel-info-text)]">{t('landing.eyebrow')}</p>
+          <h1 className="mb-5 text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl">
+            {t('landing.hero.line1')}{' '}
+            <span className="bg-gradient-to-r from-[var(--panel-info-text)] to-[var(--panel-primary-text)] bg-clip-text text-transparent">
+              {t('landing.hero.line2')}
             </span>
           </h1>
+          <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">{t('landing.description')}</p>
 
-          <p className="text-base sm:text-lg text-slate-400 leading-relaxed max-w-2xl mx-auto mb-8">
-            YPanel brings Docker, Projects, Terminal, Files, Cloudflare, Users, Database, and Logs together in a lightweight visual workspace for homeservers and VPS instances.
-          </p>
-
-          {/* Primary CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <button
-              type="button"
-              onClick={() => onNavigate(primaryPath)}
-              className="h-11 px-6 rounded-lg text-sm font-semibold text-[#03060c] bg-white hover:bg-slate-200 transition shadow-lg shadow-white/5 flex items-center gap-2 cursor-pointer"
-            >
-              <span>{authenticated ? 'Open Dashboard' : 'Login Agent'}</span>
+          <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
+            <Button variant="primary" onClick={() => onNavigate(primaryPath)} className="!h-11 !px-6">
+              <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={15} />
-            </button>
-            <a
-              href={INSTALLER_URL}
-              className="h-11 px-5 rounded-lg text-sm font-medium text-slate-300 hover:text-white border border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.06] transition flex items-center gap-2 cursor-pointer"
-            >
+            </Button>
+            <a href={INSTALLER_URL} className="panel-btn !h-11 !px-5">
               <Download size={15} />
-              <span>Download Installer</span>
+              <span>{t('landing.downloadInstaller')}</span>
             </a>
           </div>
 
-          {/* Quick Install Command Snippet */}
-          <div className="max-w-xl mx-auto rounded-lg border border-white/[0.08] bg-[#070b14] p-2.5 flex items-center justify-between text-left shadow-xl shadow-black/50 mb-12">
-            <div className="flex items-center gap-2.5 overflow-hidden pl-2">
-              <Terminal size={14} className="text-cyan-400 shrink-0" />
-              <code className="text-xs font-mono text-slate-300 truncate">
-                {INSTALL_COMMAND}
-              </code>
-            </div>
-            <button
-              type="button"
-              onClick={copyCommand}
-              className="shrink-0 ml-3 flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-3 py-1.5 rounded transition cursor-pointer"
-            >
-              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
+          <div className="mx-auto max-w-2xl text-left">
+            <CopyBlock text={INSTALL_COMMAND} />
+            <p className="mt-2 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.pasteTerminal')}</p>
           </div>
-        </div>
+        </section>
 
-        {/* High-Fidelity Live Desktop Showcase */}
-        <DesktopShowcase />
+        {/* Live desktop preview */}
+        <section className="mt-14" aria-label={t('landing.previewAria')}>
+          <DesktopShowcase />
+        </section>
 
-        {/* Feature Icons Grid (10 Core Modules matching real panel apps) */}
-        <div className="mt-14">
-          <div className="text-center mb-6">
-            <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
-              Unified Server Modules
-            </span>
+        {/* Modules */}
+        <section className="mt-20" aria-labelledby="landing-modules">
+          <div className="mb-8 text-center">
+            <h2 id="landing-modules" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              {t('landing.modules.title')}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-[0.875rem] text-[var(--text-secondary)]">{t('landing.modules.subtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {FEATURE_MODULES.map((item) => {
-              const Icon = item.icon
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-col items-center justify-center p-3.5 rounded-xl border border-white/[0.06] bg-[#070b14]/50 hover:bg-[#070b14] hover:border-cyan-500/30 transition text-center group cursor-default"
-                >
-                  <Icon size={20} className="text-slate-400 group-hover:text-cyan-400 transition mb-2" />
-                  <span className="text-xs font-medium text-slate-300 group-hover:text-white transition">
-                    {item.label}
-                  </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {MODULES.map(({ id, icon: Icon }) => (
+              <article
+                key={id}
+                className="flex items-start gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 transition-colors hover:bg-[var(--panel-surface-hover)]"
+              >
+                <IconBadge tone={id === 'mcp' ? 'warning' : 'info'}>
+                  <Icon />
+                </IconBadge>
+                <div className="min-w-0">
+                  <h3 className="text-[0.875rem] font-semibold">{t(`landing.module.${id}.title`)}</h3>
+                  <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`landing.module.${id}.desc`)}</p>
                 </div>
-              )
-            })}
+              </article>
+            ))}
           </div>
-        </div>
+        </section>
 
-        {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-mono">
-          <div className="flex items-center gap-2">
-            <span>Owner: <strong className="text-slate-300">Y_Corp</strong></span>
-            <span>·</span>
-            <span>Contributors: <strong className="text-slate-300">AknalRe · FriskiPradana</strong></span>
+        {/* AI agents */}
+        <section
+          className="mt-20 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-6 sm:p-8"
+          aria-labelledby="landing-agent"
+        >
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-xl">
+              <Badge tone="warning" className="mb-3">{t('landing.agent.badge')}</Badge>
+              <h2 id="landing-agent" className="text-2xl font-bold tracking-tight">
+                {t('landing.agent.title')}
+              </h2>
+              <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">{t('landing.agent.desc')}</p>
+              <Button variant="primary-soft" onClick={() => onNavigate('/docs/mcp')} className="mt-5">
+                <Bot size={14} />
+                <span>{t('landing.agent.cta')}</span>
+                <ArrowRight size={13} />
+              </Button>
+            </div>
+
+            <dl className="grid grid-cols-3 gap-3 text-center md:min-w-[18rem]">
+              {(
+                [
+                  [MCP_TOOL_COUNTS.admin, t('landing.agent.statTools')],
+                  [MCP_TOOL_COUNTS.user, t('landing.agent.statUser')],
+                  [3, t('landing.agent.statRoles')],
+                ] as Array<[number, string]>
+              ).map(([value, label]) => (
+                <div key={label} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-3 py-4">
+                  <dt className="panel-mono text-2xl font-bold">{value}</dt>
+                  <dd className="mt-1 text-[0.75rem] text-[var(--text-secondary)]">{label}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-          <div className="text-slate-400">
-            <span>Self-Hosted · Open Source</span>
-          </div>
-        </footer>
+        </section>
+
+        {/* Install steps */}
+        <section className="mt-20" aria-labelledby="landing-steps">
+          <h2 id="landing-steps" className="mb-8 text-center text-2xl font-bold tracking-tight sm:text-3xl">
+            {t('landing.steps.title')}
+          </h2>
+          <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {STEPS.map((step, index) => (
+              <li key={step} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
+                <IconBadge tone="primary">{index + 1}</IconBadge>
+                <h3 className="mt-3 text-[0.875rem] font-semibold">{t(`landing.steps.${step}.title`)}</h3>
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`landing.steps.${step}.desc`)}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
       </main>
-    </div>
+    </PublicShell>
   )
 }
