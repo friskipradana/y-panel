@@ -2,6 +2,31 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.2.0] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.2.0** berisi 7 perubahan: 2 fitur, 1 peningkatan, 3 dokumentasi, 1 pemeliharaan. (168 files changed, 20283 insertions(+), 18649 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **agent:** Terminal keepalive and reattach, ping probe, metrics history, per-user widget layout ([`560b623`](https://github.com/friskipradana/panel-desktop-ui/commit/560b623))
+- **widgets:** Persistent line graphs, ping monitor, multi sticky notes, hover-only chrome ([`5856336`](https://github.com/friskipradana/panel-desktop-ui/commit/5856336))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **ui:** Shared UI kit, split large windows into hooks and sections, terminal reconnect client ([`8051af6`](https://github.com/friskipradana/panel-desktop-ui/commit/8051af6))
+
+### 📚 Dokumentasi (Documentation)
+- **rules:** Rewrite design system, component list, UI kit rules and anti-slop skill ([`f5338ea`](https://github.com/friskipradana/panel-desktop-ui/commit/f5338ea))
+- **rules:** Integrate UI design system, anti-slop, and review checklist into AGENTS.md and GEMINI.md ([`615c835`](https://github.com/friskipradana/panel-desktop-ui/commit/615c835))
+- **rules:** Establish design standards and agent guidelines ([`792dea5`](https://github.com/friskipradana/panel-desktop-ui/commit/792dea5))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **tooling:** Add check:ui validator and rework release notes generator ([`405ae4d`](https://github.com/friskipradana/panel-desktop-ui/commit/405ae4d))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.1.5...v3.2.0
+
 ## [3.1.5] - 2026-10-12
 
 ### 🌟 Ringkasan Rilis (Release Overview)
