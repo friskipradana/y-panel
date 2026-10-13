@@ -81,7 +81,36 @@ export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
   'quick-note': 140,
   'network-traffic': 208,
   'cpu-graph': 156,
-  ping: 168,
+  ping: 190,
+}
+
+// ── Measured heights ─────────────────────────────────────────────────────────
+// Widgets differ from the nominal heights below (content wraps, notes grow), so layout
+// decisions use what the DOM really renders. Containers report their resting height here.
+const measuredHeights = new Map<string, number>()
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+
+export function reportWidgetHeight(id: string, height: number): boolean {
+  const h = Math.round(height)
+  if (!(h > 0)) return false
+  const prev = measuredHeights.get(id)
+  if (prev !== undefined && Math.abs(prev - h) < 2) return false
+  measuredHeights.set(id, h)
+  return true
+}
+
+export function forgetWidgetHeight(id: string) {
+  measuredHeights.delete(id)
+}
+
+export function widgetHeightOf(w: { id: string; type: WidgetType }): number {
+  return measuredHeights.get(w.id) ?? WIDGET_HEIGHTS[w.type] ?? 165
+}
+
+// Re-run the overlap cleanup shortly after sizes settle (many widgets report at once)
+export function scheduleLayoutSettle() {
+  if (settleTimer) clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => useWidgetStore.getState().settleLayout(), 250)
 }
 
 function getDefaultPositions(): PlacedWidget[] {
@@ -130,7 +159,7 @@ export function autoSpaceWidgets(widgets: PlacedWidget[]): PlacedWidget[] {
 
     col.widgets.forEach((w) => {
       result.push({ ...w, x: col.colX, y: Math.round(currentY) })
-      const h = WIDGET_HEIGHTS[w.type] || 195
+      const h = widgetHeightOf(w)
       currentY += h + WIDGET_GAP
     })
   })
@@ -178,8 +207,8 @@ export function snapWidgetPosition(
   )
 
   for (const other of sameColWidgets) {
-    const otherH = WIDGET_HEIGHTS[other.type] || 195
-    const thisH = WIDGET_HEIGHTS[draggedType] || 195
+    const otherH = widgetHeightOf(other)
+    const thisH = widgetHeightOf({ id: draggedId, type: draggedType })
 
     // Gap 15px below 'other'
     const targetBelowY = other.y + otherH + WIDGET_GAP
@@ -200,21 +229,18 @@ export function snapWidgetPosition(
 }
 
 
-function widgetHeight(type: WidgetType) {
-  return WIDGET_HEIGHTS[type] || 165
-}
-
 function overlapsWidget(x: number, y: number, height: number, other: PlacedWidget) {
   return (
-    x < other.x + WIDGET_WIDTH &&
-    x + WIDGET_WIDTH > other.x &&
-    y < other.y + widgetHeight(other.type) &&
-    y + height > other.y
+    x < other.x + WIDGET_WIDTH + 2 &&
+    x + WIDGET_WIDTH + 2 > other.x &&
+    y < other.y + widgetHeightOf(other) + 2 &&
+    y + height + 2 > other.y
   )
 }
 
-// Moves a widget out of the way of the others without disturbing them: below the one it
-// overlaps, or into the next column to the left when the column is full.
+// Finds the free spot closest to where the widget was wanted. Candidates sit directly
+// beside, above or below the existing widgets (or at the wanted spot itself), so a
+// widget moves as little as possible and never teleports to another column.
 export function resolveWidgetOverlap(
   id: string,
   type: WidgetType,
@@ -222,26 +248,55 @@ export function resolveWidgetOverlap(
   y: number,
   all: PlacedWidget[]
 ): { x: number; y: number } {
+  const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
-  const height = widgetHeight(type)
-  const maxY = Math.max(WIDGET_TOP, screenH - 90 - height)
-  let curX = x
-  let curY = y
+  const height = widgetHeightOf({ id, type })
+  const minX = 12
+  const maxX = Math.max(minX, screenW - WIDGET_WIDTH - 12)
+  const minY = WIDGET_TOP
+  const maxY = Math.max(minY, screenH - height - 24)
 
-  for (let i = 0; i < 24; i++) {
-    const hit = all.find((w) => w.id !== id && overlapsWidget(curX, curY, height, w))
-    if (!hit) break
+  const clampX = (v: number) => Math.min(Math.max(v, minX), maxX)
+  const clampY = (v: number) => Math.min(Math.max(v, minY), maxY)
+  const others = all.filter((w) => w.id !== id)
+  const free = (cx: number, cy: number) => !others.some((w) => overlapsWidget(cx, cy, height, w))
 
-    const below = hit.y + widgetHeight(hit.type) + WIDGET_GAP
-    if (below <= maxY) {
-      curY = below
-      continue
-    }
-    if (hit.x - COLUMN_WIDTH < 12) break
-    curX = hit.x - COLUMN_WIDTH
-    curY = WIDGET_TOP
+  const wantedX = clampX(x)
+  const wantedY = clampY(y)
+  if (free(wantedX, wantedY)) return { x: Math.round(wantedX), y: Math.round(wantedY) }
+
+  const candidates: Array<{ x: number; y: number }> = []
+  for (const w of others) {
+    const wh = widgetHeightOf(w)
+    const below = w.y + wh + WIDGET_GAP
+    const above = w.y - height - WIDGET_GAP
+    candidates.push(
+      { x: wantedX, y: below },
+      { x: wantedX, y: above },
+      { x: w.x, y: below },
+      { x: w.x, y: above },
+      { x: w.x - WIDGET_WIDTH - WIDGET_GAP, y: wantedY },
+      { x: w.x + WIDGET_WIDTH + WIDGET_GAP, y: wantedY },
+      { x: w.x - WIDGET_WIDTH - WIDGET_GAP, y: w.y },
+      { x: w.x + WIDGET_WIDTH + WIDGET_GAP, y: w.y }
+    )
   }
-  return { x: Math.round(curX), y: Math.round(curY) }
+
+  let best: { x: number; y: number } | null = null
+  let bestDist = Infinity
+  for (const c of candidates) {
+    if (c.x < minX || c.x > maxX || c.y < minY || c.y > maxY) continue
+    if (!free(c.x, c.y)) continue
+    const dist = (c.x - wantedX) ** 2 + (c.y - wantedY) ** 2
+    if (dist < bestDist) {
+      bestDist = dist
+      best = c
+    }
+  }
+
+  // No free spot on this screen: keep the wanted position instead of jumping elsewhere
+  const spot = best ?? { x: wantedX, y: wantedY }
+  return { x: Math.round(spot.x), y: Math.round(spot.y) }
 }
 
 // Non-destructive cleanup for stored layouts: keeps every widget where the user put it and
@@ -253,7 +308,7 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
 
   const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x)
   for (const w of ordered) {
-    const height = widgetHeight(w.type)
+    const height = widgetHeightOf(w)
     const x = Math.min(Math.max(w.x, 12), Math.max(12, screenW - WIDGET_WIDTH - 12))
     const y = Math.min(Math.max(w.y, WIDGET_TOP), Math.max(WIDGET_TOP, screenH - height - 24))
     const spot = resolveWidgetOverlap(w.id, w.type, x, y, placed)
@@ -287,7 +342,7 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType):
 
     // Check after the lowest widget in column
     const lastWidget = colWidgets[colWidgets.length - 1]
-    const lastWidgetH = WIDGET_HEIGHTS[lastWidget.type] || 195
+    const lastWidgetH = widgetHeightOf(lastWidget)
     const nextY = lastWidget.y + lastWidgetH + WIDGET_GAP
 
     if (nextY + thisHeight <= maxBottom) {
@@ -310,6 +365,7 @@ interface WidgetState {
   tidyUpWidgets: () => void
   updateWidgetConfig: (id: string, patch: WidgetConfig) => void
   setLayout: (widgets: PlacedWidget[]) => void
+  settleLayout: () => void
   hasWidget: (type: WidgetType) => boolean
 }
 
@@ -360,6 +416,14 @@ export const useWidgetStore = create<WidgetState>()(
 
       setLayout: (widgets) => set({ placedWidgets: widgets }),
 
+      // Separates widgets that overlap once real sizes are known (no-op when already clean)
+      settleLayout: () => {
+        const current = get().placedWidgets
+        const next = sanitizeLayout(current)
+        const changed = next.some((w, i) => w.x !== current[i].x || w.y !== current[i].y)
+        if (changed) set({ placedWidgets: next })
+      },
+
       updateWidgetConfig: (id, patch) => {
         set((state) => ({
           placedWidgets: state.placedWidgets.map((w) =>
@@ -404,7 +468,7 @@ export const useWidgetStore = create<WidgetState>()(
         let currentY = topMargin
 
         current.forEach((w) => {
-          const h = WIDGET_HEIGHTS[w.type] || 195
+          const h = widgetHeightOf(w)
           if (currentY + h > maxBottom && currentY > topMargin) {
             col++
             currentY = topMargin
