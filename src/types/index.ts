@@ -22,7 +22,10 @@ export type WindowKind =
 export type WindowId = WindowKind
 
 // ── Desktop Widgets ──────────────────────────────────────────────
-export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note' | 'cpu-graph'
+export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note' | 'cpu-graph' | 'ping'
+
+export type WidgetConfigValue = string | number | boolean
+export type WidgetConfig = Record<string, WidgetConfigValue>
 
 export interface PlacedWidget {
   id: string
@@ -30,6 +33,8 @@ export interface PlacedWidget {
   x: number
   y: number
   isLocked?: boolean
+  /** Pengaturan per-widget (host ping, rentang grafik, mode tampilan) */
+  config?: WidgetConfig
 }
 
 
@@ -37,7 +42,6 @@ export interface WindowState {
   id: string
   kind: WindowKind
   title: string
-  icon: string
   x: number
   y: number
   width: number

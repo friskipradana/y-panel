@@ -438,4 +438,18 @@
 .ht-manager-del:disabled {
   opacity: 0.35;
 }
-
+
+.ht-status-dot--pulse {
+  animation: ht-dot-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes ht-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}

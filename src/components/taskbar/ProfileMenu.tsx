@@ -81,7 +81,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <div className="profile-role flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)] mt-0.5">
                 <span className="font-semibold capitalize text-[var(--panel-primary-text)]">{displayRole}</span>
                 <span>•</span>
-                <span className="text-emerald-500 font-semibold">Active</span>
+                <span className="text-emerald-500 font-semibold">{t('profileMenu.active')}</span>
                 <span
                   className="inline-flex items-center justify-center text-[var(--text-secondary)] opacity-55 hover:opacity-100 cursor-help transition-opacity ml-0.5"
                   title={`Host: ${clientHost}`}

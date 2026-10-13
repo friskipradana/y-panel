@@ -118,7 +118,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   }, [mode, setupStatusQuery.isLoading, t])
 
   return (
-    <main className="mac-login-page relative w-full h-full min-h-screen overflow-hidden" id="panel-login-screen">
+    <main className="login-page relative w-full h-full min-h-screen overflow-hidden" id="panel-login-screen">
       {/* Dynamic wallpaper background layer */}
       <div className="absolute inset-0 z-0" style={backgroundStyle} />
       {/* Ambient background contrast overlay */}
@@ -128,7 +128,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
           id="login-back-button"
           type="button"
           onClick={onBack}
-          title="Back"
+          title={t('login.back')}
           style={pillStyle}
           className="absolute top-6 left-6 z-30 flex items-center justify-center w-9 h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer"
         >

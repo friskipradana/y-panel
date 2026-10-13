@@ -19,30 +19,6 @@
   user-select: none;
 }
 
-.taskbar-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-}
-
-.taskbar-nav-btn {
-  font-size: 14px;
-  color: var(--tb-text);
-  padding: 6px 12px;
-  border-radius: 6px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  transition: background 150ms, color 150ms;
-}
-
-.taskbar-nav-btn:hover {
-  background: var(--tb-hover);
-}
-
 .taskbar-actions {
   display: flex;
   align-items: center;
@@ -108,9 +84,13 @@
   background: transparent;
   color: var(--tb-text);
   cursor: pointer;
-  outline: none;
   text-align: left;
   transition: all 140ms ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
 
   &:hover {
     background: var(--tb-hover);
@@ -431,7 +411,7 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f76707, #8b5cf6);
+  background: var(--panel-primary-solid);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -450,19 +430,6 @@
 .profile-role {
   font-size: 12px;
   color: var(--tb-clock);
-}
-
-.profile-section-label {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--tb-clock);
-  margin-bottom: 6px;
-  padding-left: 4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .profile-menu-btn {
@@ -487,10 +454,10 @@
 }
 
 .profile-menu-btn-danger {
-  color: #ef4444;
+  color: var(--panel-danger-text);
 }
 
 .profile-menu-btn-danger:hover {
-  background: rgba(239, 68, 68, 0.10) !important;
+  background: var(--panel-danger-bg) !important;
 }
 

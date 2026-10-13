@@ -29,7 +29,11 @@ import { getMeV2 } from "@/api/auth";
 import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { formatDateTimeID } from "@/lib/datetime";
-import { PanelSelectMenu } from "@/components/system/PanelSelectMenu";
+import { Select } from "@/components/ui/Select";
+import { IconBadge } from "@/components/ui/IconBadge";
+import { useI18n } from "@/lib/i18n";
+import { Button } from "@/components/ui/Button"
+import { TextInput } from "@/components/ui/Field"
 
 const EXPIRY_OPTIONS: { label: string; value: CreateAPITokenPayload["expiresIn"] }[] = [
   { label: "30 Hari (Direkomendasikan)", value: "30d" },
@@ -45,6 +49,7 @@ const EXPIRY_SELECT_OPTIONS = EXPIRY_OPTIONS.map((opt) => ({
 }));
 
 export function ApiTokensTab() {
+  const { t } = useI18n()
   const queryClient = useQueryClient();
   const [tokenName, setTokenName] = useState("");
   const [expiresIn, setExpiresIn] = useState<CreateAPITokenPayload["expiresIn"]>("30d");
@@ -207,9 +212,9 @@ export function ApiTokensTab() {
       <div className="panel-shell-card p-4.5 flex flex-col gap-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="panel-muted-block flex h-8 w-8 items-center justify-center rounded-lg text-[var(--win-text)]">
-              <Key size={18} className="text-[var(--panel-primary-text)]" />
-            </div>
+            <IconBadge size="md" tone="neutral">
+              <Key />
+            </IconBadge>
             <div>
               <h3 className="text-[13.5px] font-semibold text-[var(--win-text)]">
                 API Key & Token MCP
@@ -307,20 +312,18 @@ export function ApiTokensTab() {
           </p>
 
           <div className="flex items-center gap-2">
-            <input
+            <TextInput
               type="text"
               readOnly
-              value={newlyCreatedToken}
-              className="panel-input panel-mono flex-1 h-[40px] px-3.5 text-[12.5px] font-semibold text-emerald-400 bg-black/20"
+              value={newlyCreatedToken} className="panel-mono flex-1 h-[40px] px-3.5 text-[12.5px] font-semibold text-emerald-400 bg-black/20"
             />
-            <button
+            <Button
               type="button"
-              onClick={() => handleCopy(newlyCreatedToken, "newToken")}
-              className="panel-btn panel-btn--primary h-[40px] px-4 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer"
+              onClick={() => handleCopy(newlyCreatedToken, "newToken")} variant="primary" className="h-[40px] px-4 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               {copiedKey === "newToken" ? <Check size={14} /> : <Copy size={14} />}
               <span>{copiedKey === "newToken" ? "Tersalin!" : "Salin Token"}</span>
-            </button>
+            </Button>
           </div>
 
           {/* 1-Click Quick Connect Presets (IDCloudHost / Hermes Agent ATM) */}
@@ -344,14 +347,13 @@ export function ApiTokensTab() {
                   {hermesCommand}
                 </code>
               </div>
-              <button
+              <Button
                 type="button"
-                onClick={() => handleCopy(hermesCommand, "quickHermes")}
-                className="panel-btn panel-btn--primary !h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={() => handleCopy(hermesCommand, "quickHermes")} variant="primary" className="!h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {copiedKey === "quickHermes" ? <Check size={12} /> : <Copy size={12} />}
                 <span>{copiedKey === "quickHermes" ? "Perintah Tersalin!" : "Salin Perintah Hermes"}</span>
-              </button>
+              </Button>
             </div>
 
             {/* OpenClaw / Streamable HTTP Quick Card */}
@@ -373,14 +375,13 @@ export function ApiTokensTab() {
                   {openclawCommand}
                 </code>
               </div>
-              <button
+              <Button
                 type="button"
-                onClick={() => handleCopy(openclawCommand, "quickOpenclaw")}
-                className="panel-btn panel-btn--primary !h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={() => handleCopy(openclawCommand, "quickOpenclaw")} variant="primary" className="!h-8 !text-[11px] font-medium w-full flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {copiedKey === "quickOpenclaw" ? <Check size={12} /> : <Copy size={12} />}
                 <span>{copiedKey === "quickOpenclaw" ? "Perintah Tersalin!" : "Salin Perintah OpenClaw"}</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -402,12 +403,11 @@ export function ApiTokensTab() {
             <label className="block text-[11.5px] font-medium text-[var(--win-text)] mb-1.5">
               Nama / Deskripsi Token
             </label>
-            <input
+            <TextInput
               type="text"
-              placeholder="Contoh: Claude Desktop, Cursor IDE, GitHub Actions"
+              placeholder={t("apiTokens.namePlaceholder")}
               value={tokenName}
-              onChange={(e) => setTokenName(e.target.value)}
-              className="panel-input h-[38px] px-3.5 text-[12.5px] w-full"
+              onChange={(e) => setTokenName(e.target.value)} className="h-[38px] px-3.5 text-[12.5px] w-full"
               maxLength={120}
               required
             />
@@ -417,7 +417,7 @@ export function ApiTokensTab() {
             <label className="block text-[11.5px] font-medium text-[var(--win-text)] mb-1.5">
               Masa Berlaku
             </label>
-            <PanelSelectMenu
+            <Select
               id="api-token-expiry"
               value={expiresIn || "never"}
               onChange={(val) => {
@@ -428,10 +428,9 @@ export function ApiTokensTab() {
             />
           </div>
 
-          <button
+          <Button
             type="submit"
-            disabled={createMutation.isPending || !tokenName.trim()}
-            className="panel-btn panel-btn--primary h-[38px] px-4 rounded-xl text-[12.5px] font-semibold flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer w-full sm:w-auto"
+            disabled={createMutation.isPending || !tokenName.trim()} variant="primary" className="h-[38px] px-4 rounded-xl text-[12.5px] font-semibold flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer w-full sm:w-auto"
           >
             {createMutation.isPending ? (
               <LoaderCircle size={14} className="animate-spin" />
@@ -439,7 +438,7 @@ export function ApiTokensTab() {
               <Plus size={14} />
             )}
             <span>Generate Token</span>
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -489,9 +488,9 @@ export function ApiTokensTab() {
                 className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--panel-surface-hover)] transition-colors"
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="panel-muted-block h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                    <Code2 size={15} className="text-[var(--panel-primary-text)]" />
-                  </div>
+                  <IconBadge size="md" tone="neutral">
+                    <Code2 />
+                  </IconBadge>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[12.5px] font-semibold text-[var(--win-text)] truncate">
@@ -524,27 +523,25 @@ export function ApiTokensTab() {
                 </div>
 
                 <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleRegenerate(token)}
-                    disabled={deleteMutation.isPending || createMutation.isPending}
-                    className="panel-btn !h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] flex items-center gap-1.5 cursor-pointer transition-colors"
-                    title="Buat ulang token dan dapatkan kunci baru"
+                    disabled={deleteMutation.isPending || createMutation.isPending} className="!h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title={t("apiTokens.regenerateTitle")}
                   >
                     <RefreshCw size={12} className={createMutation.isPending ? "animate-spin" : ""} />
                     <span>Regenerate</span>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleDelete(token)}
-                    disabled={deleteMutation.isPending}
-                    className="panel-btn !h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
-                    title="Cabut dan nonaktifkan token ini selamanya"
+                    disabled={deleteMutation.isPending} className="!h-7.5 px-2.5 rounded-lg text-[11px] font-medium border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title={t("apiTokens.revokeTitle")}
                   >
                     <Trash2 size={12} />
                     <span>Revoke</span>
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -582,7 +579,7 @@ export function ApiTokensTab() {
             {/* Access Target Overview */}
             <div className="p-3 rounded-xl bg-black/20 border border-[var(--win-border)] text-[11.5px] leading-relaxed">
               <span className="font-semibold text-[var(--win-text)] block mb-1">
-                📍 Ke Mana Saja MCP Ini Terhubung?
+                Ke Mana Saja MCP Ini Terhubung?
               </span>
               <ul className="list-disc list-inside space-y-0.5 text-[var(--text-secondary)]">
                 <li><strong className="text-[var(--win-text)]">Host Linux OS:</strong> CPU, RAM, Disk, Systemd journalctl, dan Filesystem host.</li>
@@ -641,7 +638,7 @@ export function ApiTokensTab() {
 
               {/* Example Prompts */}
               <div className="pt-2 border-t border-emerald-500/20 text-[11px] text-[var(--text-secondary)] space-y-1">
-                <span className="font-semibold text-emerald-300 block">💡 Contoh Perintah Chat di Hermes Agent:</span>
+                <span className="font-semibold text-emerald-300 block">Contoh Perintah Chat di Hermes Agent:</span>
                 <p>• <em>"Hermes, cek penggunaan CPU dan RAM server YPanel saya saat ini."</em></p>
                 <p>• <em>"Daftar semua container Docker, lalu carikan log container yang error."</em></p>
                 <p>• <em>"Buka file /var/www/my-project/config.json dan periksa isinya."</em></p>

@@ -9,7 +9,7 @@ type SelectOption = {
   badge?: string
 }
 
-type PanelSelectMenuProps = {
+type SelectProps = {
   id?: string
   value: string
   onChange: (value: string) => void
@@ -26,7 +26,7 @@ type PanelSelectMenuProps = {
   emptyText?: string
 }
 
-export function PanelSelectMenu({
+export function Select({
   id,
   value,
   onChange,
@@ -41,7 +41,7 @@ export function PanelSelectMenu({
   searchable = false,
   clearable = false,
   emptyText,
-}: PanelSelectMenuProps) {
+}: SelectProps) {
   const { t } = useI18n()
   const effectivePlaceholder = placeholder ?? t('common.selectOption')
   const effectiveSearchPlaceholder = searchPlaceholder ?? t('common.searchOptions')

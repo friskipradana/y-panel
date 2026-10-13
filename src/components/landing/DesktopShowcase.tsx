@@ -277,7 +277,7 @@ export function DesktopShowcase() {
                       <span className="text-slate-200 font-sans font-medium text-[10px] truncate">{dns.name}</span>
                     </div>
                     <span className="text-sky-400 bg-sky-500/10 px-1.5 py-0.2 rounded text-[8.5px] shrink-0">
-                      ⚡ Proxied
+                      Proxied
                     </span>
                   </div>
                 ))}
@@ -318,10 +318,10 @@ export function DesktopShowcase() {
                 <span className="text-white font-semibold">ypanel status</span>
               </div>
               <div className="text-emerald-400 text-[9px]">
-                ✓ ypanel-agent daemon active (PID 8787) · Port 8787
+                [ok] ypanel-agent daemon active (PID 8787) · Port 8787
               </div>
               <div className="text-cyan-400 text-[9px]">
-                ✓ Docker engine connected (v26.1.1) · 3 containers up
+                [ok] Docker engine connected (v26.1.1) · 3 containers up
               </div>
               <div className="text-slate-400 flex items-center gap-1 pt-0.5">
                 <span className="text-emerald-400">root@ypanel-node</span>

@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
-import { PanelSelectMenu } from '@/components/system/PanelSelectMenu'
+import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
+import { IconBadge } from '@/components/ui/IconBadge'
+import { IconButton } from '@/components/ui/IconButton'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { TextInput } from '@/components/ui/Field'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
 const TRUNCATE_DAYS = [3, 7, 14, 30, 60]
@@ -124,10 +130,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <div className="panel-loading">
-            <RefreshCcw size={16} className="animate-spin" />
-            {t('database.loadingStatus')}
-          </div>
+          <LoadingState>{t('database.loadingStatus')}</LoadingState>
         </div>
       </div>
     )
@@ -146,13 +149,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <div className="panel-error-state">
-            <TriangleAlert className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('database.statusLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{t('database.statusLoadFailedHint')}</p>
-            </div>
-          </div>
+          <ErrorState title={t('database.statusLoadFailed')} hint={t('database.statusLoadFailedHint')} />
         </div>
       </div>
     )
@@ -171,9 +168,9 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button id="database-refresh" type="button" onClick={() => void query.refetch()} className="panel-icon-btn" aria-label={t('database.refreshStatus')}>
+          <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -189,7 +186,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
               {t('database.heroDescription')}
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <PanelSelectMenu
+              <Select
                 id="database-truncate-target"
                 value={truncateTarget}
                 onChange={setTruncateTarget}
@@ -201,7 +198,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 searchPlaceholder={t('database.searchTargetPlaceholder')}
               />
 
-              <PanelSelectMenu
+              <Select
                 id="database-truncate-day"
                 value={String(truncateDay)}
                 onChange={(value) => setTruncateDay(Number(value))}
@@ -213,9 +210,9 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 searchPlaceholder={t('database.searchDayPlaceholder')}
               />
 
-              <button type="button" onClick={() => void handleTruncate()} disabled={truncating} className="panel-btn panel-btn--danger rounded-full px-4 py-2 text-[12px]">
+              <Button type="button" onClick={() => void handleTruncate()} disabled={truncating} variant="danger" className="rounded-full px-4 py-2 text-[12px]">
                 {truncating ? t('database.truncatingShort') : t('database.truncateButton')}
-              </button>
+              </Button>
             </div>
           </section>
 
@@ -243,9 +240,9 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
             <section className="panel-shell-card p-5">
               <div className="mb-4 flex items-start gap-3">
-                <div className="panel-muted-block grid h-11 w-11 place-items-center rounded-[16px] text-[var(--win-text)]">
-                  <Database size={18} />
-                </div>
+                <IconBadge size="lg">
+                  <Database />
+                </IconBadge>
                 <div className="min-w-0 flex-1">
                   <div className="panel-shell-card__title">{t('database.connectionDetailsTitle')}</div>
                   <p className="panel-shell-card__meta">{t('database.connectionDetailsMeta')}</p>
@@ -272,16 +269,15 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative min-w-[220px] flex-1">
                     <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-                    <input
+                    <TextInput
                       id="database-log-search"
                       value={logQuery}
                       onChange={(e) => setLogQuery(e.target.value)}
-                      placeholder={t('database.logSearchPlaceholder')}
-                      className="panel-input h-9 pl-9 pr-3 text-[12px]"
+                      placeholder={t('database.logSearchPlaceholder')} className="h-9 pl-9 pr-3 text-[12px]"
                     />
                   </div>
 
-                  <PanelSelectMenu
+                  <Select
                     id="database-log-limit"
                     value={String(logLimit)}
                     onChange={(value) => setLogLimit(Number(value))}
@@ -298,15 +294,9 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
 
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                 {runtimeLogs.length === 0 ? (
-                  <div className="panel-empty min-h-[220px]">
-                    <HardDriveDownload className="h-8 w-8" />
-                    <span>{t('database.emptyRuntimeLogs')}</span>
-                  </div>
+                  <EmptyState icon={<HardDriveDownload />} className="min-h-[220px]">{t('database.emptyRuntimeLogs')}</EmptyState>
                 ) : filteredRuntimeLogs.length === 0 ? (
-                  <div className="panel-empty min-h-[220px]">
-                    <Search className="h-8 w-8" />
-                    <span>{t('database.noMatchingLogs')}</span>
-                  </div>
+                  <EmptyState icon={<Search />} className="min-h-[220px]">{t('database.noMatchingLogs')}</EmptyState>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {filteredRuntimeLogs.map((entry) => {
@@ -344,14 +334,11 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 <div className="panel-shell-card__title">{t('database.recentAuditTitle')}</div>
                 <p className="panel-shell-card__meta">{t('database.recentAuditMeta')}</p>
               </div>
-              <div className="panel-badge panel-badge--warning">{t('database.rowsCount', { count: settingsAudit.length })}</div>
+              <Badge tone="warning">{t('database.rowsCount', { count: settingsAudit.length })}</Badge>
             </div>
             <div className="mt-4 flex max-h-[360px] flex-col gap-3 overflow-auto pr-1">
               {settingsAudit.length === 0 ? (
-                <div className="panel-empty min-h-[140px]">
-                  <ActivitySquare className="h-8 w-8" />
-                  <span>{t('database.emptySettingsAudit')}</span>
-                </div>
+                <EmptyState icon={<ActivitySquare />} className="min-h-[140px]">{t('database.emptySettingsAudit')}</EmptyState>
               ) : (
                 settingsAudit.map((entry) => (
                   <div key={entry.id} className="panel-muted-block rounded-[14px] px-4 py-3.5">
@@ -372,13 +359,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </section>
 
           {!status.connected && status.enabled ? (
-            <div className="panel-error-state">
-              <TriangleAlert size={15} />
-              <div>
-                <p className="font-semibold">{t('database.mariadbNotReady')}</p>
-                <p className="mt-1 text-[12px] leading-6 opacity-90">{t('database.mariadbNotReadyHint')}</p>
-              </div>
-            </div>
+            <ErrorState title={t('database.mariadbNotReady')} hint={t('database.mariadbNotReadyHint')} />
           ) : null}
         </div>
       </div>

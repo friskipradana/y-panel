@@ -1,10 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ServerCrash, ShieldAlert, TimerReset } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ShieldAlert, TimerReset } from 'lucide-react'
 import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 import type { RuntimeDatabaseLog } from '@/types'
+import { IconButton } from '@/components/ui/IconButton'
+import { ErrorState, LoadingState } from '@/components/ui/states'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -157,10 +159,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <div className="panel-loading">
-            <RefreshCw className="h-4 w-4 animate-spin" />
-            {t('system.loadingRuntime')}
-          </div>
+          <LoadingState>{t('system.loadingRuntime')}</LoadingState>
         </div>
       </div>
     )
@@ -179,13 +178,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <div className="panel-error-state">
-            <ServerCrash className="h-5 w-5" />
-            <div>
-              <p className="font-semibold">{t('system.summaryLoadFailed')}</p>
-              <p className="mt-1 text-[12px] leading-6 opacity-90">{t('system.summaryLoadFailedHint')}</p>
-            </div>
-          </div>
+          <ErrorState title={t('system.summaryLoadFailed')} hint={t('system.summaryLoadFailedHint')} />
         </div>
       </div>
     )
@@ -207,9 +200,9 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => void refetch()} className="panel-icon-btn" aria-label={t('system.refreshSummary')}>
+          <IconButton type="button" onClick={() => void refetch()} label={t('system.refreshSummary')}>
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
