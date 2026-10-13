@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.2.2] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.2.2** berisi 2 perubahan: 1 fitur, 1 perbaikan. (7 files changed, 385 insertions(+), 87 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- Add NetworkTrafficWidget component and English/Indonesian localization files ([`f911f0a`](https://github.com/friskipradana/panel-desktop-ui/commit/f911f0a))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **installer:** Start service after install, fix database detection, ship prebuilt agent, clearer output ([`7e7264d`](https://github.com/friskipradana/panel-desktop-ui/commit/7e7264d))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.1...v3.2.2
+
 ## [3.2.1] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
