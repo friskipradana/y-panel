@@ -37,6 +37,13 @@ func NewServer() *Server {
 func (s *Server) Register(tool Tool, handler ToolHandler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, exists := s.handlers[tool.Name]; exists {
+		log.Printf("[mcp] duplicate tool %q ignored", tool.Name)
+		return
+	}
+	if tool.Annotations == nil {
+		tool.Annotations = inferAnnotations(tool.Name)
+	}
 	s.tools = append(s.tools, tool)
 	s.handlers[tool.Name] = handler
 }
@@ -81,7 +88,6 @@ func (s *Server) handleLine(ctx context.Context, raw []byte) error {
 	return nil
 }
 
-
 // ProcessRequest processes a single JSON-RPC request and returns the response object.
 // Returns nil if the request is a notification (e.g. "initialized") which expects no response.
 func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
@@ -91,7 +97,7 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 			ProtocolVersion: MCPProtocolVersion,
 			ServerInfo: ServerInfo{
 				Name:    "ypanel",
-				Version: "3.1.4",
+				Version: serverVersion(),
 			},
 			Capabilities: ServerCapability{
 				Tools:     &ToolsCapability{},
@@ -133,7 +139,7 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 		}
 
 		s.mu.Lock()
-		sysHandler, hasSys := s.handlers["system_status"]
+		sysHandler, hasSys := s.handlers["system_info"]
 		dockerHandler, hasDocker := s.handlers["docker_list_containers"]
 		s.mu.Unlock()
 
@@ -183,6 +189,29 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 					{Name: "title", Description: "Page headline or title to display", Required: true},
 				},
 			},
+			{
+				Name:        "server-health-report",
+				Description: "Concise status report: resources, Docker, projects needing attention, unread notifications and metric trends.",
+			},
+			{
+				Name:        "troubleshoot-container",
+				Description: "Find why a Docker container is failing: state, config, recent logs and likely cause.",
+				Arguments: []PromptArgument{
+					{Name: "container", Description: "Container ID or name", Required: true},
+				},
+			},
+			{
+				Name:        "monitor-host",
+				Description: "Check reachability of a host and put a ping monitor widget on the desktop.",
+				Arguments: []PromptArgument{
+					{Name: "host", Description: "IP address or hostname", Required: true},
+					{Name: "port", Description: "TCP port (omit for ICMP)", Required: false},
+				},
+			},
+			{
+				Name:        "audit-access",
+				Description: "Review users, roles, quotas and API tokens and flag risky settings.",
+			},
 		}
 		return &Response{JSONRPC: "2.0", ID: req.ID, Result: ListPromptsResult{Prompts: prompts}}
 
@@ -199,12 +228,29 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 		switch params.Name {
 		case "diagnose-server":
 			desc = "Perform full health check of the server"
-			msg = "Please run system_status, docker_list_containers, and check if any container or resource is abnormal."
+			msg = "Run server_overview, then docker_list_containers and system_history. Report anything abnormal: high CPU/RAM/disk, stopped or unhealthy containers, projects needing attention."
 		case "deploy-static-page":
 			desc = "Deploy static HTML webpage"
 			hostname := params.Arguments["hostname"]
 			title := params.Arguments["title"]
 			msg = fmt.Sprintf("Please use quick_deploy_static to deploy a clean HTML page for %s with title '%s'.", hostname, title)
+		case "server-health-report":
+			desc = "Server health report"
+			msg = "Call server_overview and system_history. Write a short report: current CPU/RAM/disk and the trend over the last hour, Docker state, projects needing attention, unread notifications. End with a prioritized list of recommended actions. Do not change anything."
+		case "troubleshoot-container":
+			desc = "Troubleshoot a container"
+			msg = fmt.Sprintf("Investigate container %q: docker_inspect_container for its config, docker_container_logs (tail 200) for errors, and docker_list_containers for its state. Explain the most likely cause and propose a fix. Ask before restarting or deleting anything.", params.Arguments["container"])
+		case "monitor-host":
+			desc = "Monitor a host"
+			host := params.Arguments["host"]
+			port := params.Arguments["port"]
+			if port == "" {
+				port = "0"
+			}
+			msg = fmt.Sprintf("Run ping_host for %s (port %s; 0 means ICMP). If it answers, add a ping widget with widget_add (type ping, config host=%s port=%s) and report the latency.", host, port, host, port)
+		case "audit-access":
+			desc = "Access audit"
+			msg = "Use user_list, user_quota_get for each user, and api_token_list. Flag: superadmin/admin accounts that look unused, suspended users that still hold tokens, tokens without expiry, and quotas that are unlimited. Report only; do not modify accounts."
 		default:
 			return &Response{
 				JSONRPC: "2.0",

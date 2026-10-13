@@ -35,9 +35,9 @@ type ServerInfo struct {
 }
 
 type InitializeResult struct {
-	ProtocolVersion string            `json:"protocolVersion"`
-	ServerInfo      ServerInfo        `json:"serverInfo"`
-	Capabilities    ServerCapability  `json:"capabilities"`
+	ProtocolVersion string           `json:"protocolVersion"`
+	ServerInfo      ServerInfo       `json:"serverInfo"`
+	Capabilities    ServerCapability `json:"capabilities"`
 }
 
 type ServerCapability struct {
@@ -122,9 +122,20 @@ type PromptMessage struct {
 // Tool types
 
 type Tool struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	InputSchema InputSchema `json:"inputSchema"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	InputSchema InputSchema      `json:"inputSchema"`
+	Annotations *ToolAnnotations `json:"annotations,omitempty"`
+}
+
+// ToolAnnotations are MCP behavior hints that let clients decide when to ask for
+// confirmation (e.g. before a destructive call) and which calls are safe to retry.
+type ToolAnnotations struct {
+	Title           string `json:"title,omitempty"`
+	ReadOnlyHint    bool   `json:"readOnlyHint"`
+	DestructiveHint bool   `json:"destructiveHint"`
+	IdempotentHint  bool   `json:"idempotentHint"`
+	OpenWorldHint   bool   `json:"openWorldHint"`
 }
 
 type InputSchema struct {
@@ -134,10 +145,11 @@ type InputSchema struct {
 }
 
 type Property struct {
-	Type        string   `json:"type"`
-	Description string   `json:"description,omitempty"`
-	Enum        []string `json:"enum,omitempty"`
-	Default     any      `json:"default,omitempty"`
+	Type        string    `json:"type"`
+	Description string    `json:"description,omitempty"`
+	Enum        []string  `json:"enum,omitempty"`
+	Default     any       `json:"default,omitempty"`
+	Items       *Property `json:"items,omitempty"`
 }
 
 type ListToolsResult struct {

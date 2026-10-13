@@ -267,6 +267,36 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 33. **`service_manage`**: Mengontrol status service sistem (`cloudflared`, `docker`, `nginx`, `ypanel`).
 34. **`network_ports_list`**: Memeriksa port TCP yang sedang listening dan otomatis menemukan port bebas untuk aplikasi baru.
 
+### Kategori 9: Katalog Tambahan (REST-backed)
+
+YPanel menyediakan hampir 100 tool. Tool di kategori ini memanggil REST API panel dengan token Anda sendiri, sehingga kepemilikan, kuota, dan pemeriksaan role tetap dijalankan di server. Setiap tool membawa **annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`) agar klien MCP dapat meminta konfirmasi sebelum aksi destruktif.
+
+| Area | Tool | Akses |
+| :--- | :--- | :--- |
+| Ringkasan | `server_overview` (status host, resource, Docker, project, notifikasi dalam satu panggilan), `whoami` | Semua |
+| Monitoring | `system_history` (CPU/RAM/disk/suhu/network 1 jam @ 5 dtk), `ping_host` (ICMP atau TCP), `system_changelog`, `database_status` | `ping_host`, `database_status`: Admin |
+| Widget desktop | `widgets_get`, `widget_add` (clock, vitals, network, cpu-graph, ping, quick-note), `widget_remove` | Semua |
+| Notifikasi | `notification_list`, `notification_mark_read`, `notification_mark_all_read` | Semua |
+| Project | `project_create`, `project_update`, `project_delete`, `project_attention_summary` | Semua |
+| Tunnel | `tunnel_list`, `tunnel_get`, `tunnel_create`, `tunnel_update`, `tunnel_delete` | Semua |
+| Cloudflare | `cloudflare_get_config`, `cloudflare_list_zones`, `cloudflare_update_dns`, `cloudflare_list_tunnel_routes`, `cloudflare_create_tunnel_profile`, `cloudflare_delete_tunnel_profile` | Semua |
+| Docker | `docker_inspect_container`, `docker_deploy_image`, `docker_deploy_compose`, `docker_list_images`, `docker_pull_image`, `docker_remove_image`, `docker_list_networks`, `docker_create_network`, `docker_remove_network`, `docker_list_templates`, `docker_create_template`, `docker_delete_template` | Semua (sesuai kepemilikan) |
+| File | `file_rename`, `file_move`, `file_copy`, `file_touch`, `file_chmod` (mode oktal, mis. `"755"`), `file_compress`, `file_extract` | Semua (aturan root-access berlaku) |
+| Dokumentasi | `docs_list`, `docs_get`; `docs_create`, `docs_update`, `docs_delete` | Tulis: Admin |
+| Terminal | `terminal_presets_list` | Semua |
+| Pengguna | `user_create`, `user_update`, `user_delete`, `user_quota_get`, `user_quota_set` | Admin |
+| Token API | `api_token_list`, `api_token_revoke` | Semua |
+| Pengaturan | `settings_get`, `settings_update` | Admin |
+
+**Prompt siap pakai** (`prompts/list`): `diagnose-server`, `server-health-report`, `troubleshoot-container`, `monitor-host`, `audit-access`, `deploy-static-page`.
+
+Catatan:
+
+- Gunakan `server_overview` sebagai langkah pertama untuk mendiagnosis atau melaporkan status.
+- `widget_add` bekerja pada layout akun yang sudah pernah dibuka di panel (layout tersimpan di server). Sesi panel yang terbuka menampilkan perubahan setelah dimuat ulang.
+- Tool destruktif (`*_delete`, `*_remove`, `api_token_revoke`, `terminal_exec`) sebaiknya selalu dikonfirmasi ke pengguna.
+- Versi server MCP (`serverInfo.version`) mengikuti `/opt/ypanel/VERSION` yang ditulis installer.
+
 ---
 
 ## 7. Contoh Prompt Real-World untuk AI
