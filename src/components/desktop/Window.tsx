@@ -20,6 +20,26 @@ const BOTTOM_SAFE_OFFSET = 96
 const VIEWPORT_PADDING = 8
 const WINDOW_GRAB_VISIBILITY = 180
 
+const DRAG_THRESHOLD = 4
+const SNAP_EDGE = 6
+
+type SnapZone = 'left' | 'right' | 'top' | null
+
+function detectSnapZone(clientX: number, clientY: number): SnapZone {
+  if (clientY <= SNAP_EDGE) return 'top'
+  if (clientX <= SNAP_EDGE) return 'left'
+  if (clientX >= window.innerWidth - SNAP_EDGE - 1) return 'right'
+  return null
+}
+
+function snapRect(zone: Exclude<SnapZone, null>) {
+  const height = window.innerHeight - TOP_SAFE_OFFSET - VIEWPORT_PADDING
+  const half = Math.floor(window.innerWidth / 2)
+  if (zone === 'left') return { x: 0, y: TOP_SAFE_OFFSET, width: half, height }
+  if (zone === 'right') return { x: half, y: TOP_SAFE_OFFSET, width: window.innerWidth - half, height }
+  return { x: 0, y: TOP_SAFE_OFFSET, width: window.innerWidth, height: window.innerHeight - TOP_SAFE_OFFSET }
+}
+
 export function Window({ win, children }: Props) {
   const { t } = useI18n()
   const {
@@ -63,33 +83,88 @@ export function Window({ win, children }: Props) {
     }
   }, [win.lastAction])
 
-  const handleBarMouseDown = (e: React.MouseEvent) => {
+  // Drag by the title bar. A maximized window is restored under the cursor once the
+  // pointer actually moves; dropping on a screen edge snaps it (left/right half, top = maximize).
+  const handleBarPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
     e.stopPropagation()
     focusWindow(win.id)
-    if (win.isMaximized || win.isFullscreen) return
+    if (win.isFullscreen) return
 
     const startClientX = e.clientX
     const startClientY = e.clientY
-    const startWinX = win.x
-    const startWinY = win.y
+    let startWinX = win.x
+    let startWinY = win.y
     let curX = startWinX
     let curY = startWinY
     let rafId: number | null = null
+    let started = false
+    let snap: SnapZone = null
+    let preview: HTMLDivElement | null = null
+    const wasMaximized = win.isMaximized
 
-    document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'move'
+    const showPreview = (zone: SnapZone) => {
+      if (!zone) {
+        preview?.remove()
+        preview = null
+        return
+      }
+      if (!preview) {
+        preview = document.createElement('div')
+        Object.assign(preview.style, {
+          position: 'fixed',
+          zIndex: '9998',
+          pointerEvents: 'none',
+          borderRadius: '14px',
+          border: '2px solid var(--win-border-focus)',
+          background: 'var(--panel-primary-bg)',
+          transition: 'left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease',
+        })
+        document.body.appendChild(preview)
+      }
+      const rect = snapRect(zone)
+      Object.assign(preview.style, {
+        left: `${rect.x}px`,
+        top: `${rect.y}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+      })
+    }
 
-    const onMove = (ev: MouseEvent) => {
+    const begin = () => {
+      started = true
+      document.body.style.userSelect = 'none'
+      document.body.style.cursor = 'move'
+      if (wasMaximized) {
+        // Keep the grab point proportionally under the cursor when leaving maximized state
+        const ratio = startClientX / window.innerWidth
+        startWinX = Math.round(startClientX - win.width * ratio)
+        startWinY = TOP_SAFE_OFFSET
+        maximizeWindow(win.id)
+        moveWindow(win.id, startWinX, startWinY)
+      }
+    }
+
+    const onMove = (ev: PointerEvent) => {
       const deltaX = ev.clientX - startClientX
       const deltaY = ev.clientY - startClientY
-      const nextX = startWinX + deltaX
-      const nextY = startWinY + deltaY
+      if (!started) {
+        if (Math.hypot(deltaX, deltaY) < DRAG_THRESHOLD) return
+        begin()
+      }
+
       const minX = VIEWPORT_PADDING - (win.width - WINDOW_GRAB_VISIBILITY)
       const maxX = window.innerWidth - WINDOW_GRAB_VISIBILITY - VIEWPORT_PADDING
       const minY = TOP_SAFE_OFFSET
       const maxY = window.innerHeight - BOTTOM_SAFE_OFFSET
-      curX = Math.min(Math.max(nextX, minX), maxX)
-      curY = Math.min(Math.max(nextY, minY), maxY)
+      curX = Math.min(Math.max(startWinX + deltaX, minX), maxX)
+      curY = Math.min(Math.max(startWinY + deltaY, minY), maxY)
+
+      const zone = detectSnapZone(ev.clientX, ev.clientY)
+      if (zone !== snap) {
+        snap = zone
+        showPreview(zone)
+      }
 
       if (rafId === null) {
         rafId = requestAnimationFrame(() => {
@@ -102,23 +177,44 @@ export function Window({ win, children }: Props) {
       }
     }
 
-    const onUp = () => {
+    const finish = (apply: boolean) => {
       if (rafId !== null) {
         cancelAnimationFrame(rafId)
         rafId = null
       }
+      preview?.remove()
+      preview = null
       document.body.style.userSelect = ''
       document.body.style.cursor = ''
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      if (!started || !apply) return
+
+      if (snap === 'top') {
+        // Position first so un-maximizing later returns near where the user dropped it
+        moveWindow(win.id, curX, curY)
+        maximizeWindow(win.id)
+        return
+      }
+      if (snap === 'left' || snap === 'right') {
+        const rect = snapRect(snap)
+        moveWindow(win.id, rect.x, rect.y)
+        resizeWindow(win.id, rect.width, rect.height)
+        return
+      }
       moveWindow(win.id, curX, curY)
     }
 
-    window.addEventListener('mousemove', onMove, { passive: true })
-    window.addEventListener('mouseup', onUp)
+    const onUp = () => finish(true)
+    const onCancel = () => finish(false)
+
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
   }
 
-  const handleResizeStart = (direction: ResizeDirection, event: React.MouseEvent) => {
+  const handleResizeStart = (direction: ResizeDirection, event: React.PointerEvent) => {
     event.stopPropagation()
     event.preventDefault()
     focusWindow(win.id)
@@ -138,7 +234,7 @@ export function Window({ win, children }: Props) {
 
     document.body.style.userSelect = 'none'
 
-    const onMove = (moveEvent: MouseEvent) => {
+    const onMove = (moveEvent: PointerEvent) => {
       const deltaX = moveEvent.clientX - startX
       const deltaY = moveEvent.clientY - startY
 
@@ -148,13 +244,13 @@ export function Window({ win, children }: Props) {
       let nextHeight = initial.height
 
       if (direction.includes('e')) {
-        nextWidth = Math.max(minWidth, initial.width + deltaX)
+        nextWidth = Math.min(Math.max(minWidth, initial.width + deltaX), window.innerWidth - initial.x)
       }
       if (direction.includes('s')) {
-        nextHeight = Math.max(minHeight, initial.height + deltaY)
+        nextHeight = Math.min(Math.max(minHeight, initial.height + deltaY), window.innerHeight - initial.y - VIEWPORT_PADDING)
       }
       if (direction.includes('w')) {
-        const candidateX = Math.min(initial.x + initial.width - minWidth, initial.x + deltaX)
+        const candidateX = Math.max(0, Math.min(initial.x + initial.width - minWidth, initial.x + deltaX))
         nextX = candidateX
         nextWidth = Math.max(minWidth, initial.width + (initial.x - candidateX))
       }
@@ -188,14 +284,16 @@ export function Window({ win, children }: Props) {
         rafId = null
       }
       document.body.style.userSelect = ''
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       moveWindow(win.id, curX, curY)
       resizeWindow(win.id, curWidth, curHeight)
     }
 
-    window.addEventListener('mousemove', onMove, { passive: true })
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   const isExpanded = win.isMaximized || win.isFullscreen
@@ -248,7 +346,7 @@ export function Window({ win, children }: Props) {
               borderBottom: '1px solid var(--win-border)',
               cursor: isExpanded ? 'default' : 'move',
             }}
-            onMouseDown={handleBarMouseDown}
+            onPointerDown={handleBarPointerDown}
             onDoubleClick={() => maximizeWindow(win.id)}
           >
             {/* Window Icon & Title (Left-aligned) */}
@@ -267,7 +365,7 @@ export function Window({ win, children }: Props) {
             {/* Window Action Controls (Right-aligned) */}
             <div
               className="flex items-center gap-1 shrink-0"
-              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
@@ -377,7 +475,7 @@ export function Window({ win, children }: Props) {
           {!isExpanded && RESIZE_HANDLES.map((handle) => (
             <div
               key={handle.direction}
-              onMouseDown={(event) => handleResizeStart(handle.direction, event)}
+              onPointerDown={(event) => handleResizeStart(handle.direction, event)}
               style={{
                 position: 'absolute',
                 ...handle.style,

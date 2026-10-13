@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMyWidgets, putMyWidgets } from '@/api/system'
 import { useAuthStore } from '@/store/authStore'
-import { autoSpaceWidgets, useWidgetStore } from '@/store/widgetStore'
+import { sanitizeLayout, useWidgetStore } from '@/store/widgetStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 
 const OWNER_KEY = 'ypanel-widgets-owner'
@@ -76,7 +76,7 @@ export function useWidgetSync(): boolean {
       const store = useWidgetStore.getState()
       const owner = readOwner()
       if (remote) {
-        store.setLayout(autoSpaceWidgets(remote))
+        store.setLayout(sanitizeLayout(remote))
       } else if (owner && owner !== username) {
         // Another account used this browser: start clean instead of inheriting its widgets
         store.resetToDefault()

@@ -122,6 +122,7 @@ interface WindowStore {
   setGlobalTerminalFontSize: (value: number) => void;
   toggleDockAutoHide: () => void;
   closeWindowsByKind: (kind: WindowKind) => void;
+  clampWindowsToViewport: () => void;
   resetWindows: () => void;
 
 }
@@ -180,9 +181,14 @@ export const useWindowStore = create<WindowStore>()(
             height = Math.max(220, Math.round(height * scale));
           }
 
-          const offset = state.windows.filter((w) => w.kind === kind).length * 24;
-          const x = Math.max(16, Math.round((window.innerWidth - width) / 2 + offset));
-          const y = Math.max(48, Math.round((window.innerHeight - 56 - height) / 2 + Math.min(offset, 48)));
+          // Cascade over every open window (not only the same kind) so new windows never
+          // land exactly on top of another one.
+          const openCount = state.windows.filter((w) => !w.isMinimized && !w.isMaximized && !w.isFullscreen).length;
+          const step = (openCount % 8) * 28;
+          const baseX = Math.round((window.innerWidth - width) / 2);
+          const baseY = Math.round((window.innerHeight - 56 - height) / 2);
+          const x = Math.min(Math.max(16, baseX + step), Math.max(16, window.innerWidth - width - 16));
+          const y = Math.min(Math.max(48, baseY + step), Math.max(48, window.innerHeight - height - 72));
           const id = createWindowId(kind);
           openedId = id;
 
@@ -325,6 +331,22 @@ export const useWindowStore = create<WindowStore>()(
       toggleDockAutoHide: () =>
         set((state) => {
           state.autoHideDock = !state.autoHideDock;
+        }),
+
+      // Pull windows back on screen after the viewport shrank (resize, rotation, smaller display)
+      clampWindowsToViewport: () =>
+        set((state) => {
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          for (const win of state.windows) {
+            if (win.isMaximized || win.isFullscreen) continue;
+            win.width = Math.min(win.width, Math.max(320, vw - 16));
+            win.height = Math.min(win.height, Math.max(220, vh - 44 - 24));
+            const minX = 8 - (win.width - 180);
+            const maxX = vw - 180 - 8;
+            win.x = Math.min(Math.max(win.x, minX), Math.max(minX, maxX));
+            win.y = Math.min(Math.max(win.y, 44), Math.max(44, vh - 96));
+          }
         }),
 
       closeWindowsByKind: (kind) =>
