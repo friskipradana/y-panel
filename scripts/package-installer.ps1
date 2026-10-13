@@ -48,6 +48,29 @@ foreach ($item in @('go.mod', 'go.sum', 'cmd', 'internal', 'main.go')) {
   if (Test-Path $source) { Copy-Item $source $BackendDir -Recurse -Force }
 }
 
+# Prebuilt static agents so the target server needs no Go toolchain
+Require-Command go
+$BinDir = Join-Path $BackendDir 'bin'
+New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+$oldGoos = $env:GOOS; $oldGoarch = $env:GOARCH; $oldCgo = $env:CGO_ENABLED
+try {
+  $env:GOOS = 'linux'; $env:CGO_ENABLED = '0'
+  foreach ($arch in @('amd64', 'arm64')) {
+    $env:GOARCH = $arch
+    $out = Join-Path $BinDir "ypanel-agent-linux-$arch"
+    Push-Location $ProjectRoot
+    try { & go build -trimpath -ldflags '-s -w' -o $out ./cmd/panel-agent; if ($LASTEXITCODE -ne 0) { throw "go build linux/$arch gagal." } }
+    finally { Pop-Location }
+    Write-Host ("Agent linux/{0}: {1} MB" -f $arch, [math]::Round((Get-Item $out).Length / 1MB, 1))
+  }
+} finally {
+  $env:GOOS = $oldGoos; $env:GOARCH = $oldGoarch; $env:CGO_ENABLED = $oldCgo
+}
+
+# Bundle version shown by the installer and stored in /opt/ypanel/VERSION
+$pkgVersion = (Get-Content (Join-Path $ProjectRoot 'package.json') -Raw | ConvertFrom-Json).version
+[System.IO.File]::WriteAllText((Join-Path $BackendDir 'VERSION'), "$pkgVersion`n", (New-Object System.Text.UTF8Encoding($false)))
+
 Remove-Item "$InstallerDir\*" -Recurse -Force -ErrorAction SilentlyContinue
 $sourceInstaller = Join-Path $ProjectRoot 'installer\linux'
 if (Test-Path $sourceInstaller) { Copy-Item "$sourceInstaller\*" $InstallerDir -Recurse -Force }
@@ -79,7 +102,7 @@ if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
 fi
 find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
 chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
-bash installer/linux/install.sh
+bash installer/linux/install.sh "$@"
 exit 0
 __ARCHIVE__
 '@

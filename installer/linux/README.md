@@ -104,3 +104,24 @@ Atau dari menu:
 
 Installer membuat alias sementara ui-panel dan ui-panel-agent yang menunjuk ke command baru ypanel dan ypanel-agent. Alias ini menjaga server existing tetap bisa memakai command lama selama fase transisi.
 
+## Opsi installer
+
+```bash
+sudo bash ypanel-installer.run [opsi]
+```
+
+| Opsi | Fungsi |
+| :--- | :--- |
+| `--bind ADDR` | Alamat bind panel, mis. `0.0.0.0:8787` |
+| `-y`, `--yes` | Non-interaktif: pakai nilai terpasang/default tanpa bertanya |
+| `--skip-start` | Pasang tanpa menjalankan atau me-restart service |
+| `--no-color` | Matikan warna output |
+| `-h`, `--help` | Bantuan |
+
+Perilaku penting:
+
+- Paket membawa binary agent statis `linux/amd64` dan `linux/arm64`, jadi Go tidak perlu dipasang di server. Go hanya dipasang bila arsitektur tidak tercakup.
+- Pemasangan ulang di server yang sudah ada diperlakukan sebagai pembaruan: `agent.env` dicadangkan ke `agent.env.bak`, service di-restart, lalu installer menunggu `/healthz` merespons dan menampilkan log bila gagal.
+- `PANEL_DATABASE_DSN` hanya dianggap disediakan bila datang dari lingkungan atau `agent.env`. Tanpa itu, PostgreSQL lokal dipasang dan disiapkan.
+- Versi paket tersimpan di `/opt/ypanel/VERSION`. Log lengkap: `/tmp/ypanel-install.log`.
+
