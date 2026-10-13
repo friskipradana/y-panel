@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.2.1] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.2.1** berisi 2 perubahan: 1 perbaikan, 1 pemeliharaan. (12 files changed, 181 insertions(+), 101 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **agent:** Count physical interfaces only for network IO, add widgets_data migration ([`64e0ba2`](https://github.com/friskipradana/panel-desktop-ui/commit/64e0ba2))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **build:** Update typescript build info ([`48c3a93`](https://github.com/friskipradana/panel-desktop-ui/commit/48c3a93))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.0...v3.2.1
+
 ## [3.2.0] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
