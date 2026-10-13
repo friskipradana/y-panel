@@ -311,7 +311,27 @@ func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleFrontendRevision(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"revision": s.frontendRevision(),
+		"version":  s.appVersion(),
 	})
+}
+
+// appVersion is the installed panel version written by the installer ("" when unknown).
+func (s *Server) appVersion() string {
+	if v := strings.TrimSpace(os.Getenv("PANEL_VERSION")); v != "" {
+		return v
+	}
+	candidates := []string{"/opt/ypanel/VERSION"}
+	if s.cfg.FrontendDir != "" {
+		candidates = append([]string{filepath.Join(filepath.Dir(s.cfg.FrontendDir), "VERSION")}, candidates...)
+	}
+	for _, path := range candidates {
+		if b, err := os.ReadFile(path); err == nil {
+			if v := strings.TrimSpace(string(b)); v != "" {
+				return v
+			}
+		}
+	}
+	return ""
 }
 
 func (s *Server) frontendRevision() string {

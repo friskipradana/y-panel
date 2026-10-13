@@ -1,472 +1,104 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  Bot,
-  Globe,
-  Terminal,
-  Key,
-  Shield,
-  Copy,
-  Check,
-  ArrowRight,
-  ArrowLeft,
-  Box,
-  HardDrive,
-  Activity,
-  Sparkles,
-  Code2,
-} from 'lucide-react'
-import { copyTextToClipboard } from '@/api/agent'
-import { IconBadge } from '@/components/ui/IconBadge'
+import { Activity, ArrowLeft, Bot, Box, HardDrive, Shield, Sparkles, Terminal } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n'
+import { PublicShell } from '@/components/public/PublicShell'
+import { SectionHeader } from '@/components/ui/SectionHeader'
+import { IconBadge } from '@/components/ui/IconBadge'
 import { Button } from '@/components/ui/Button'
-import { TextInput } from '@/components/ui/Field'
+import { Badge } from '@/components/ui/Badge'
+import { ConnectPanel } from '@/pages/mcp-guide/ConnectPanel'
+import { ToolCatalog } from '@/pages/mcp-guide/ToolCatalog'
+import { MCP_TOOL_COUNTS } from '@/pages/mcp-guide/toolsData'
+
+const STEPS = ['token', 'add', 'ask'] as const
+const PROMPTS: Array<{ key: string; icon: ReactNode }> = [
+  { key: 'health', icon: <Activity size={14} /> },
+  { key: 'docker', icon: <Box size={14} /> },
+  { key: 'files', icon: <HardDrive size={14} /> },
+  { key: 'shell', icon: <Terminal size={14} /> },
+]
+const ROLES = [
+  { role: 'admin', count: MCP_TOOL_COUNTS.admin, tone: 'primary' as const },
+  { role: 'user', count: MCP_TOOL_COUNTS.user, tone: 'info' as const },
+  { role: 'anonymous', count: MCP_TOOL_COUNTS.anonymous, tone: 'neutral' as const },
+]
 
 export function McpGuidePage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [userToken, setUserToken] = useState('')
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
-
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://panel.example.com'
-  const effectiveToken = userToken.trim() || 'ypat_TOKEN_KAMU'
-
-  const mcpUrl = `${origin}/mcp?key=${effectiveToken}`
-  const hermesCommand = `hermes mcp add YPANEL --url "${mcpUrl}"`
-  const openclawCommand = `openclaw mcp add YPANEL --transport streamable-http --url "${mcpUrl}"`
-
-  const claudeDesktopConfig = JSON.stringify(
-    {
-      mcpServers: {
-        ypanel: {
-          url: mcpUrl,
-        },
-      },
-    },
-    null,
-    2
-  )
-
-  const cursorConfig = JSON.stringify(
-    {
-      mcpServers: {
-        ypanel: {
-          url: mcpUrl,
-        },
-      },
-    },
-    null,
-    2
-  )
-
-  const handleCopy = async (text: string, key: string) => {
-    const ok = await copyTextToClipboard(text)
-    if (ok) {
-      setCopiedKey(key)
-      setTimeout(() => setCopiedKey(null), 2500)
-    }
-  }
 
   return (
-    <div className="min-h-screen bg-[var(--win-bg,#0b1120)] text-[var(--win-text,#f1f5f9)] font-sans flex flex-col selection:bg-[var(--accent,#f97316)] selection:text-white">
-      {/* ── Top Navigation Bar ── */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--win-bg,#0b1120)]/85 border-b border-[var(--win-border,rgba(255,255,255,0.08))] px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2.5 text-left cursor-pointer group"
-          >
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              Y
-            </div>
-            <div>
-              <div className="text-[13.5px] font-bold tracking-tight text-[var(--win-text)] flex items-center gap-1.5">
-                <span>YPanel</span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  MCP Hub
-                </span>
-              </div>
-              <div className="text-[11px] text-[var(--text-secondary,#94a3b8)]">
-                Server Control Panel
-              </div>
-            </div>
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={() => navigate('/')} className="!h-8 px-3 rounded-lg text-[12px] text-[var(--text-secondary,#94a3b8)] hover:text-white flex items-center gap-1.5 cursor-pointer"
-          >
+    <PublicShell>
+      <main className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
+        <header className="mx-auto max-w-3xl space-y-4 text-center">
+          <Button variant="ghost" onClick={() => navigate('/')} className="mx-auto">
             <ArrowLeft size={13} />
-            <span className="hidden sm:inline">Beranda</span>
+            <span>{t('mcpGuide.back')}</span>
           </Button>
-          <Button
-            type="button"
-            onClick={() => navigate('/login')} variant="primary" className="!h-8 px-3.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Masuk Panel</span>
-            <ArrowRight size={13} />
-          </Button>
-        </div>
-      </header>
-
-      {/* ── Main Content Container ── */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
-        {/* Hero Section */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11.5px] font-semibold">
-            <Bot size={14} />
-            <span>Integrasi AI Agent Mandiri • Model Context Protocol</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-[var(--win-text)] leading-tight">
-            Panduan Menghubungkan <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">Hermes Agent</span> ke YPanel
-          </h1>
-          <p className="text-[13.5px] sm:text-[15px] text-[var(--text-secondary,#94a3b8)] leading-relaxed">
-            Kendalikan Linux Server, Docker Container, Filesystem, dan Cloudflare langsung dari perintah chat AI Agent tanpa perlu membuka web dashboard.
+          <Badge tone="success">
+            <Bot size={13} />
+            {t('mcpGuide.badge')}
+          </Badge>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{t('mcpGuide.title')}</h1>
+          <p className="text-[0.9375rem] leading-relaxed text-[var(--text-secondary)]">
+            {t('mcpGuide.subtitle', { count: MCP_TOOL_COUNTS.admin })}
           </p>
-        </div>
+        </header>
 
-        {/* ── Interactive 1-Click Command Generator ── */}
-        <div className="panel-shell-card p-5 sm:p-6 rounded-2xl border border-[var(--win-border,rgba(255,255,255,0.1))] bg-[var(--panel-surface,rgba(255,255,255,0.02))] space-y-5 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--win-border,rgba(255,255,255,0.08))]">
-            <div className="flex items-center gap-2.5">
-              <Key size={18} className="text-amber-400" />
-              <div>
-                <h2 className="text-[14px] font-semibold text-[var(--win-text)]">
-                  Generator Perintah Cepat (Instant Quick Connect)
-                </h2>
-                <p className="text-[11.5px] text-[var(--text-secondary,#94a3b8)]">
-                  Masukkan token API YPanel Anda di bawah untuk menghasilkan perintah CLI siap salin.
-                </p>
-              </div>
-            </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-black/30 border border-[var(--win-border)] text-[var(--text-secondary)] self-start sm:self-auto">
-              Endpoint: {origin}/mcp
-            </span>
-          </div>
+        <ConnectPanel />
 
-          <div>
-            <label className="block text-[12px] font-medium text-[var(--win-text)] mb-1.5">
-              API Token YPanel Anda (format: <code>ypat_...</code>)
-            </label>
-            <TextInput
-              type="text"
-              placeholder={t('mcpGuide.tokenPlaceholder')}
-              value={userToken}
-              onChange={(e) => setUserToken(e.target.value)} className="panel-mono w-full h-[42px] px-3.5 text-[12.5px] rounded-xl border border-[var(--win-border)] bg-black/25 text-amber-300 focus:border-amber-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Quick CLI Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Hermes Agent Card */}
-            <div className="p-4 rounded-xl bg-black/30 border border-emerald-500/30 flex flex-col justify-between gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-semibold text-[13px] text-emerald-400">
-                    <Bot size={16} />
-                    <span>Hermes Agent CLI</span>
-                  </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
-                    Rekomendasi
-                  </span>
-                </div>
-                <p className="text-[11.5px] text-[var(--text-secondary,#94a3b8)]">
-                  Jalankan perintah ini di Command Prompt / Terminal:
-                </p>
-                <pre className="panel-mono text-[11px] p-2.5 rounded-lg bg-black/50 text-amber-300 border border-emerald-500/20 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                  {hermesCommand}
-                </pre>
-              </div>
-              <Button
-                type="button"
-                onClick={() => handleCopy(hermesCommand, 'hermesGen')} variant="primary" className="!h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
-              >
-                {copiedKey === 'hermesGen' ? <Check size={13} /> : <Copy size={13} />}
-                <span>{copiedKey === 'hermesGen' ? 'Tersalin!' : 'Salin Perintah Hermes'}</span>
-              </Button>
-            </div>
-
-            {/* OpenClaw Card */}
-            <div className="p-4 rounded-xl bg-black/30 border border-blue-500/30 flex flex-col justify-between gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-semibold text-[13px] text-blue-400">
-                    <Globe size={16} />
-                    <span>OpenClaw CLI</span>
-                  </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300">
-                    Streamable HTTP
-                  </span>
-                </div>
-                <p className="text-[11.5px] text-[var(--text-secondary,#94a3b8)]">
-                  Jalankan perintah ini di OpenClaw terminal:
-                </p>
-                <pre className="panel-mono text-[11px] p-2.5 rounded-lg bg-black/50 text-blue-300 border border-blue-500/20 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
-                  {openclawCommand}
-                </pre>
-              </div>
-              <Button
-                type="button"
-                onClick={() => handleCopy(openclawCommand, 'openclawGen')} variant="primary" className="!h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
-              >
-                {copiedKey === 'openclawGen' ? <Check size={13} /> : <Copy size={13} />}
-                <span>{copiedKey === 'openclawGen' ? 'Tersalin!' : 'Salin Perintah OpenClaw'}</span>
-              </Button>
-            </div>
-          </div>
-
-          {/* Direct Endpoint URL */}
-          <div className="p-3 rounded-xl bg-black/20 border border-[var(--win-border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="min-w-0">
-              <span className="text-[11px] text-[var(--text-secondary)] block">
-                URL Endpoint MCP Langsung (untuk HTTP Client / Web Connectors):
-              </span>
-              <code className="panel-mono text-[11px] text-emerald-400 truncate block">
-                {mcpUrl}
-              </code>
-            </div>
-            <Button
-              type="button"
-              onClick={() => handleCopy(mcpUrl, 'mcpUrlGen')} className="!h-7.5 px-3 rounded-lg text-[11px] font-medium text-[var(--panel-primary-text)] hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
-            >
-              {copiedKey === 'mcpUrlGen' ? <Check size={12} /> : <Copy size={12} />}
-              <span>{copiedKey === 'mcpUrlGen' ? 'Tersalin' : 'Salin URL'}</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* ── Step-by-Step Integration Guide ── */}
-        <div className="space-y-6">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-[var(--win-text)]">
-              Langkah Demi Langkah (3 Menit Setup)
-            </h2>
-            <p className="text-[12.5px] text-[var(--text-secondary,#94a3b8)]">
-              Ikuti tiga tahap mudah berikut untuk mulai memerintah server via AI.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Step 1 */}
-            <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <IconBadge tone="warning">1</IconBadge>
-              <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
-                Dapatkan API Token
-              </h3>
-              <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-                Login ke YPanel, buka aplikasi <strong>Settings</strong> di layar desktop, lalu masuk ke tab <strong>API & Token MCP</strong>. Klik <em>Generate Token</em> dan salin token <code>ypat_...</code> Anda.
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <IconBadge tone="success">2</IconBadge>
-              <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
-                Tambahkan ke Hermes Agent
-              </h3>
-              <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-                Jalankan perintah <code>hermes mcp add YPANEL --url "..."</code> di terminal Anda. Hermes akan langsung memverifikasi ketersediaan tools secara otomatis.
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <IconBadge tone="info">3</IconBadge>
-              <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
-                Mulai Beri Perintah
-              </h3>
-              <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
-                Buka sesi chat Hermes Agent dan berikan instruksi dengan bahasa biasa. Agent akan mengeksekusi operasi server dan melaporkan hasilnya kepada Anda.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Real-World Prompts Showcase ── */}
-        <div className="panel-shell-card p-5 sm:p-6 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-amber-400" />
-            <h2 className="text-[14px] font-semibold text-[var(--win-text)]">
-              Contoh Perintah Nyata untuk AI Agent
-            </h2>
-          </div>
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Berikut beberapa instruksi yang bisa Anda ketikkan langsung ke Hermes Agent atau Claude:
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            <div className="p-3.5 rounded-xl bg-black/25 border border-[var(--win-border)] space-y-1">
-              <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
-                <Activity size={13} />
-                Diagnostik Kesehatan Server
-              </span>
-              <p className="text-[12px] italic text-[var(--win-text)]">
-                "Hermes, tolong periksa penggunaan RAM, CPU, dan sisa kapasitas disk di server YPanel saya sekarang."
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-black/25 border border-[var(--win-border)] space-y-1">
-              <span className="text-[11px] font-semibold text-blue-400 flex items-center gap-1.5">
-                <Box size={13} />
-                Troubleshooting Docker
-              </span>
-              <p className="text-[12px] italic text-[var(--win-text)]">
-                "Daftar semua container Docker. Jika ada container yang statusnya Exited, bacakan log error terakhirnya lalu restart."
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-black/25 border border-[var(--win-border)] space-y-1">
-              <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1.5">
-                <HardDrive size={13} />
-                Inspeksi Konfigurasi File
-              </span>
-              <p className="text-[12px] italic text-[var(--win-text)]">
-                "Buka file /var/www/my-project/ecosystem.config.js dan periksa port yang digunakan oleh aplikasi."
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-black/25 border border-[var(--win-border)] space-y-1">
-              <span className="text-[11px] font-semibold text-purple-400 flex items-center gap-1.5">
-                <Terminal size={13} />
-                Eksekusi Shell Host (Admin)
-              </span>
-              <p className="text-[12px] italic text-[var(--win-text)]">
-                "Jalankan perintah systemctl status nginx dan periksa apakah daemon web server berjalan stabil."
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── RBAC Security Model ── */}
-        <div className="panel-shell-card p-5 sm:p-6 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-4">
-          <div className="flex items-center gap-2">
-            <Shield size={18} className="text-emerald-400" />
-            <h2 className="text-[14px] font-semibold text-[var(--win-text)]">
-              Model Keamanan & Hak Akses Berbasis Peran (RBAC)
-            </h2>
-          </div>
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Ketersediaan tools yang dapat diakses oleh AI agent dibatasi secara ketat sesuai peran pemilik token API:
-          </p>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[12px]">
-              <thead>
-                <tr className="border-b border-[var(--win-border)] text-[var(--text-secondary)]">
-                  <th className="py-2.5 px-3 font-semibold">Role Akun</th>
-                  <th className="py-2.5 px-3 font-semibold">Jumlah Tools</th>
-                  <th className="py-2.5 px-3 font-semibold">Hak Akses & Cakupan</th>
-                  <th className="py-2.5 px-3 font-semibold">Proteksi Keamanan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--win-border)]">
-                <tr className="hover:bg-white/5 transition-colors">
-                  <td className="py-3 px-3 font-semibold text-amber-400">superadmin / admin</td>
-                  <td className="py-3 px-3 font-mono font-bold">22 Tools</td>
-                  <td className="py-3 px-3 text-[var(--win-text)]">
-                    Akses Penuh: Terminal root host, Docker full lifecycle (start/stop/restart/delete), Filesystem read/write, Proyek, User, Cloudflare.
-                  </td>
-                  <td className="py-3 px-3 text-emerald-400">Guardrail anti-perintah destruktif (rm -rf / diblokir otomatis).</td>
-                </tr>
-                <tr className="hover:bg-white/5 transition-colors">
-                  <td className="py-3 px-3 font-semibold text-blue-400">user (Developer)</td>
-                  <td className="py-3 px-3 font-mono font-bold">9 Tools</td>
-                  <td className="py-3 px-3 text-[var(--win-text)]">
-                    Sandbox Pengembang: Kelola proyek web miliknya sendiri, pantau status sistem & Cloudflare, baca file proyek (read-only), baca logs Docker.
-                  </td>
-                  <td className="py-3 px-3 text-amber-300">Terminal shell host & modifikasi file sistem dinonaktifkan.</td>
-                </tr>
-                <tr className="hover:bg-white/5 transition-colors">
-                  <td className="py-3 px-3 font-semibold text-[var(--text-secondary)]">Tanpa Token (Anonim)</td>
-                  <td className="py-3 px-3 font-mono font-bold">6 Tools</td>
-                  <td className="py-3 px-3 text-[var(--win-text)]">
-                    Diagnostik Publik: Info resource CPU, RAM, disk, dan daftar container berjalan.
-                  </td>
-                  <td className="py-3 px-3 text-gray-400">Hanya pembacaan aman tanpa mutasi state.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* ── Claude Desktop & Cursor IDE Alternative ── */}
-        <div className="panel-shell-card p-5 sm:p-6 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-4">
-          <h2 className="text-[14px] font-semibold text-[var(--win-text)] flex items-center gap-2">
-            <Code2 size={16} className="text-amber-400" />
-            Integrasi Alternatif: Claude Desktop & Cursor IDE (HTTP / JSON)
+        {/* Steps */}
+        <section aria-labelledby="mcp-steps">
+          <h2 id="mcp-steps" className="mb-4 text-xl font-bold tracking-tight">
+            {t('mcpGuide.steps.title')}
           </h2>
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            Jika Anda ingin menggunakan Claude Desktop atau Cursor dengan endpoint HTTP YPanel:
-          </p>
+          <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <li key={step} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
+                <IconBadge tone={i === 0 ? 'warning' : i === 1 ? 'success' : 'info'}>{i + 1}</IconBadge>
+                <h3 className="mt-3 text-[0.875rem] font-semibold">{t(`mcpGuide.steps.${step}.title`)}</h3>
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`mcpGuide.steps.${step}.desc`)}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  Claude Desktop (<code>claude_desktop_config.json</code>)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(claudeDesktopConfig, 'claudeJson')}
-                  className="text-[11px] text-[var(--panel-primary-text)] hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedKey === 'claudeJson' ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{copiedKey === 'claudeJson' ? 'Tersalin' : 'Salin JSON'}</span>
-                </button>
-              </div>
-              <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/40 border border-[var(--win-border)] text-amber-300 overflow-x-auto leading-relaxed">
-                {claudeDesktopConfig}
-              </pre>
-            </div>
+        <ToolCatalog />
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  Cursor IDE (<code>.cursor/mcp.json</code>)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(cursorConfig, 'cursorJson')}
-                  className="text-[11px] text-[var(--panel-primary-text)] hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedKey === 'cursorJson' ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{copiedKey === 'cursorJson' ? 'Tersalin' : 'Salin JSON'}</span>
-                </button>
-              </div>
-              <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/40 border border-[var(--win-border)] text-blue-300 overflow-x-auto leading-relaxed">
-                {cursorConfig}
-              </pre>
-            </div>
+        {/* Prompts */}
+        <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
+          <SectionHeader icon={<Sparkles />} tone="warning" title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {PROMPTS.map((item) => (
+              <figure key={item.key} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-4">
+                <figcaption className="flex items-center gap-1.5 text-[0.75rem] font-semibold text-[var(--panel-info-text)]">
+                  {item.icon}
+                  {t(`mcpGuide.prompts.${item.key}.title`)}
+                </figcaption>
+                <blockquote className="mt-1.5 text-[0.8125rem] italic leading-relaxed">{t(`mcpGuide.prompts.${item.key}.text`)}</blockquote>
+              </figure>
+            ))}
           </div>
-        </div>
-      </main>
+        </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-[var(--win-border,rgba(255,255,255,0.08))] py-6 px-4 sm:px-8 text-center text-[12px] text-[var(--text-secondary,#94a3b8)] space-y-2">
-        <p>
-          YPanel MCP Server • Protokol Standar Industri untuk Otomasi Server & AI Autonomous Agent.
-        </p>
-        <div className="flex items-center justify-center gap-4 text-[11.5px]">
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="text-[var(--panel-primary-text)] hover:underline cursor-pointer"
-          >
-            Login ke Panel
-          </button>
-          <span>•</span>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="text-[var(--text-secondary)] hover:text-white cursor-pointer"
-          >
-            Kembali ke Beranda
-          </button>
-        </div>
-      </footer>
-    </div>
+        {/* Roles */}
+        <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
+          <SectionHeader icon={<Shield />} tone="success" title={t('mcpGuide.roles.title')} subtitle={t('mcpGuide.roles.subtitle')} />
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {ROLES.map((item) => (
+              <article key={item.role} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-4">
+                <div className="flex items-center justify-between">
+                  <Badge tone={item.tone}>{t(`mcpGuide.access.${item.role}`)}</Badge>
+                  <span className="panel-mono text-lg font-bold">{item.count}</span>
+                </div>
+                <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`mcpGuide.roles.${item.role}.desc`)}</p>
+                <p className="mt-2 text-[0.75rem] text-[var(--panel-success-text)]">{t(`mcpGuide.roles.${item.role}.guard`)}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+    </PublicShell>
   )
 }
