@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { ConnectPanel } from '@/pages/mcp-guide/ConnectPanel'
 import { ToolCatalog } from '@/pages/mcp-guide/ToolCatalog'
-import { MCP_TOOL_COUNTS } from '@/pages/mcp-guide/toolsData'
+import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 
 const STEPS = ['token', 'add', 'ask'] as const
 const PROMPTS: Array<{ key: string; icon: ReactNode }> = [
@@ -18,15 +18,17 @@ const PROMPTS: Array<{ key: string; icon: ReactNode }> = [
   { key: 'files', icon: <HardDrive size={14} /> },
   { key: 'shell', icon: <Terminal size={14} /> },
 ]
-const ROLES = [
-  { role: 'admin', count: MCP_TOOL_COUNTS.admin, tone: 'primary' as const },
-  { role: 'user', count: MCP_TOOL_COUNTS.user, tone: 'info' as const },
-  { role: 'anonymous', count: MCP_TOOL_COUNTS.anonymous, tone: 'neutral' as const },
+const ROLE_TONES = [
+  { role: 'admin', tone: 'primary' as const },
+  { role: 'user', tone: 'info' as const },
+  { role: 'anonymous', tone: 'neutral' as const },
 ]
 
 export function McpGuidePage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const { counts } = useMcpCatalog()
+  const ROLES = ROLE_TONES.map((r) => ({ ...r, count: counts[r.role as keyof typeof counts] }))
 
   return (
     <PublicShell>
@@ -42,7 +44,7 @@ export function McpGuidePage() {
           </Badge>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{t('mcpGuide.title')}</h1>
           <p className="text-[0.9375rem] leading-relaxed text-[var(--text-secondary)]">
-            {t('mcpGuide.subtitle', { count: MCP_TOOL_COUNTS.admin })}
+            {t('mcpGuide.subtitle', { count: counts.admin })}
           </p>
         </header>
 
