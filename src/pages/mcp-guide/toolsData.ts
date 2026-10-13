@@ -10,7 +10,7 @@ export interface McpToolInfo {
   desc: string
 }
 
-export const MCP_TOOL_COUNTS = {"admin": 100, "anonymous": 6, "user": 70} as const
+export const MCP_TOOL_COUNTS = {"admin": 108, "anonymous": 6, "user": 70} as const
 
 export const MCP_TOOLS: McpToolInfo[] = [
   { name: "api_token_list", group: "overview", access: "user", kind: "read", desc: "List the account's API tokens (prefix, name, expiry, last use)." },
@@ -33,6 +33,8 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "cloudflare_update_dns", group: "cloudflare", access: "user", kind: "write", desc: "Replace a DNS record." },
   { name: "cloudflare_verify_token", group: "cloudflare", access: "user", kind: "write", desc: "Verify Cloudflare API token status and check required permissions (Zone:Read, DNS:Edit, Cloudflare Tunnel:Edit)." },
   { name: "database_status", group: "system", access: "admin", kind: "read", desc: "Connection state and basic statistics of the panel PostgreSQL database." },
+  { name: "disk_cleanup", group: "system", access: "admin", kind: "destroy", desc: "Reclaim disk space from safe, regenerable data: unused Docker images and build cache (never volumes or running containers), the APT package cache, and old systemd jour..." },
+  { name: "disk_usage_breakdown", group: "system", access: "admin", kind: "read", desc: "Find what fills the disk: filesystem usage of the mount holding `path` plus the largest sub-directories (one filesystem only, via du)." },
   { name: "docker_container_logs", group: "docker", access: "anonymous", kind: "read", desc: "Fetch recent log output from a Docker container." },
   { name: "docker_create_network", group: "docker", access: "user", kind: "write", desc: "Create a bridge network, optionally with subnet and gateway." },
   { name: "docker_create_template", group: "docker", access: "user", kind: "write", desc: "Save a Docker Compose template for later reuse." },
@@ -68,6 +70,9 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "file_rename", group: "files", access: "user", kind: "write", desc: "Rename a file or directory." },
   { name: "file_touch", group: "files", access: "user", kind: "write", desc: "Create an empty file or update its timestamp." },
   { name: "file_write", group: "files", access: "admin", kind: "write", desc: "Write or overwrite a file with the given text content." },
+  { name: "firewall_allow", group: "system", access: "admin", kind: "write", desc: "Open a port in UFW, preferably only for a trusted source (`from` IP or CIDR)." },
+  { name: "firewall_remove", group: "system", access: "admin", kind: "destroy", desc: "Delete a UFW rule by its number from firewall_status." },
+  { name: "firewall_status", group: "system", access: "admin", kind: "read", desc: "Show UFW status and numbered rules (use the numbers with firewall_remove)." },
   { name: "network_ports_list", group: "system", access: "admin", kind: "read", desc: "Inspect open listening TCP ports on the server and find available free ports for running new apps." },
   { name: "notification_list", group: "overview", access: "user", kind: "read", desc: "List panel notifications for the current account (deploys, user changes, warnings)." },
   { name: "notification_mark_all_read", group: "overview", access: "user", kind: "write", desc: "Mark every notification of the current account as read." },
@@ -76,6 +81,9 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "pm2_list", group: "system", access: "admin", kind: "read", desc: "List all PM2 managed processes and web applications on the server with runtime metrics (status, memory, CPU, port, uptime)." },
   { name: "pm2_logs", group: "system", access: "admin", kind: "read", desc: "Retrieve recent stdout and stderr logs for a PM2 application." },
   { name: "pm2_restart", group: "system", access: "admin", kind: "write", desc: "Restart a PM2 managed process or application by name or ID (e.g." },
+  { name: "postgres_hba_allow", group: "system", access: "admin", kind: "destroy", desc: "Allow one role to reach one database from a network over TCP with scram-sha-256 by appending a pg_hba.conf rule and reloading." },
+  { name: "postgres_listen_set", group: "system", access: "admin", kind: "destroy", desc: "Change PostgreSQL listen_addresses (ALTER SYSTEM) and restart the service so remote clients can connect, e.g." },
+  { name: "postgres_listen_status", group: "system", access: "admin", kind: "read", desc: "Inspect how PostgreSQL is exposed: listen_addresses, port, hba file, non-local pg_hba rules and whether the port is listening." },
   { name: "project_attention_summary", group: "projects", access: "user", kind: "read", desc: "Counts of projects that are degraded, drifted or otherwise need attention." },
   { name: "project_create", group: "projects", access: "user", kind: "write", desc: "Create a project record." },
   { name: "project_delete", group: "projects", access: "user", kind: "destroy", desc: "Delete a project and its configuration." },

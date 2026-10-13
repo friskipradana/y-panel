@@ -284,6 +284,7 @@ YPanel menyediakan hampir 100 tool. Tool di kategori ini memanggil REST API pane
 | File | `file_rename`, `file_move`, `file_copy`, `file_touch`, `file_chmod` (mode oktal, mis. `"755"`), `file_compress`, `file_extract` | Semua (aturan root-access berlaku) |
 | Dokumentasi | `docs_list`, `docs_get`; `docs_create`, `docs_update`, `docs_delete` | Tulis: Admin |
 | Terminal | `terminal_presets_list` | Semua |
+| Operasi host *(Admin)* | `disk_usage_breakdown` (direktori terbesar dalam JSON), `disk_cleanup` (docker, apt, journal; `dry_run` bawaan true), `firewall_status`, `firewall_allow`, `firewall_remove` (UFW), `postgres_listen_status`, `postgres_listen_set`, `postgres_hba_allow` | Admin |
 | Pengguna | `user_create`, `user_update`, `user_delete`, `user_quota_get`, `user_quota_set` | Admin |
 | Token API | `api_token_list`, `api_token_revoke` | Semua |
 | Pengaturan | `settings_get`, `settings_update` | Admin |
@@ -292,6 +293,8 @@ YPanel menyediakan hampir 100 tool. Tool di kategori ini memanggil REST API pane
 
 Catatan:
 
+- Operasi host berbahaya dijaga: port sensitif (SSH, database, Redis, Docker) menolak aturan firewall untuk semua sumber tanpa `confirm_public=true`, `listen_addresses` `*` dan CIDR `/0` juga butuh konfirmasi, dan semua perintah dijalankan tanpa shell dengan argumen yang divalidasi.
+- `cloudflare_verify_token` kini melaporkan `canManageRedirects` agar kekurangan izin Single Redirect terlihat sebelum membuat rule.
 - Redirect rule membutuhkan token Cloudflare dengan izin edit Single Redirect/Rulesets pada zone, dan hostname harus punya record DNS yang diproksi (mis. `AAAA 100::`).
 - Gunakan `server_overview` sebagai langkah pertama untuk mendiagnosis atau melaporkan status.
 - `widget_add` bekerja pada layout akun yang sudah pernah dibuka di panel (layout tersimpan di server). Sesi panel yang terbuka menampilkan perubahan setelah dimuat ulang.

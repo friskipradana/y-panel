@@ -104,6 +104,7 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 	// 4. Terminal tools (root/shell exec only for superadmin/admin)
 	if isAdmin {
 		registerTerminalTools(srv)
+		registerOpsTools(srv)
 	}
 
 	// 5. API-backed tools (requires valid account token)

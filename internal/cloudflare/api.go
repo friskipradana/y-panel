@@ -49,14 +49,16 @@ func (c *Client) VerifyToken() error {
 
 // TokenPermissions holds detailed capability test results for a Cloudflare API token.
 type TokenPermissions struct {
-	Valid          bool     `json:"valid"`
-	Status         string   `json:"status"`
-	CanReadZones   bool     `json:"canReadZones"`
-	CanManageDNS   bool     `json:"canManageDNS"`
-	CanEditTunnels bool     `json:"canEditTunnels"`
-	AccountID      string   `json:"accountId,omitempty"`
-	MissingScopes  []string `json:"missingScopes,omitempty"`
-	Summary        string   `json:"summary"`
+	Valid          bool   `json:"valid"`
+	Status         string `json:"status"`
+	CanReadZones   bool   `json:"canReadZones"`
+	CanManageDNS   bool   `json:"canManageDNS"`
+	CanEditTunnels bool   `json:"canEditTunnels"`
+	// CanManageRedirects reports access to Single Redirect rules (Rulesets) on the first zone
+	CanManageRedirects bool     `json:"canManageRedirects"`
+	AccountID          string   `json:"accountId,omitempty"`
+	MissingScopes      []string `json:"missingScopes,omitempty"`
+	Summary            string   `json:"summary"`
 }
 
 // VerifyTokenPermissions checks token validity and inspects required scopes (Zones, DNS, Tunnels).
@@ -88,6 +90,10 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 			} else {
 				perm.MissingScopes = append(perm.MissingScopes, "Zone:DNS:Edit")
 			}
+			// Redirect rules are optional: report them separately instead of failing the token
+			if _, redirErr := c.ListRedirectRules(zones[0].ID); redirErr == nil {
+				perm.CanManageRedirects = true
+			}
 		} else {
 			perm.CanManageDNS = true
 		}
@@ -107,6 +113,9 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 
 	if len(perm.MissingScopes) == 0 {
 		perm.Summary = "Token Cloudflare aktif dengan hak akses lengkap (Zone:Read, DNS:Edit, Cloudflare Tunnel:Edit)."
+		if !perm.CanManageRedirects && perm.CanReadZones {
+			perm.Summary += " Izin Single Redirect (Zone:Single Redirect:Edit) belum ada, jadi tool redirect rule tidak dapat dipakai."
+		}
 	} else {
 		perm.Summary = fmt.Sprintf("Token aktif, namun kekurangan izin: %s. Buat token baru di Cloudflare Dashboard dengan template 'Cloudflare Tunnel' & 'Edit zone DNS'.", strings.Join(perm.MissingScopes, ", "))
 	}
