@@ -7,6 +7,7 @@ Dokumen terkait:
 
 - [.agents/rules/design-system.md](.agents/rules/design-system.md): aturan wajib saat menulis UI
 - [.agents/rules/component-list.md](.agents/rules/component-list.md): inventaris komponen & class
+- [.agents/rules/ui-components.md](.agents/rules/ui-components.md): kit komponen umum (`IconBadge`, `SectionHeader`, `SettingRow`, ...)
 - [.agents/skills/anti-slop/SKILL.md](.agents/skills/anti-slop/SKILL.md): larangan slop & checklist review
 
 ---
@@ -146,7 +147,7 @@ src/assets/
 Pembagian peran:
 
 - **Tailwind**: layout cepat, spacing, flex/grid di TSX.
-- **SCSS modul**: komponen bernama (`.panel-*`, `.docker-*`, `.ht-*`, `.taskbar-*`, `.login-*`, `.landing-*`). Dipakai ulang lintas window.
+- **SCSS modul**: komponen bernama (`.panel-*`, `.docker-*`, `.ht-*`, `.taskbar-*`). Dipakai ulang lintas window. Halaman login dan landing memakai Tailwind inline.
 - **Inline style**: hanya nilai dinamis (posisi, ukuran window, z-index).
 
 Penamaan: BEM ringan `.block`, `.block__elem`, `.block--mod`. Prefix mengikuti modul pemilik.
@@ -172,12 +173,17 @@ Penamaan: BEM ringan `.block`, `.block__elem`, `.block--mod`. Prefix mengikuti m
 
 ## 10. Hutang Visual yang Diketahui
 
-Bagian ini jujur soal kode yang belum selaras dengan aturan. Perbaiki bertahap, jangan jadikan contoh.
+Status setelah audit dan perbaikan 2026-10-12. Yang sudah diperbaiki tidak ditulis ulang di sini; lihat riwayat git.
 
-| Lokasi | Masalah | Aturan dilanggar |
+| Lokasi | Masalah | Aturan |
 | :--- | :--- | :--- |
-| `.landing-floating-card-top/-bottom` di [_landing.scss](src/assets/scss/modules/_landing.scss) | Kartu melayang di atas screenshot hero | Anti-slop 2.1 |
-| `.landing-trust-strip` | Strip "trust" teks marketing | Anti-slop 2.3 |
-| `--panel-accent-gradient`, `--status-page-*-gradient`, `--action-cloudflare-gradient` | Gradient dekoratif multi-warna | Anti-slop 2.4 |
-| Nilai hex langsung di `ICON_MAP`, `.login-*`, `.landing-*` | Warna di luar token | Rules 3.1 |
-| `.panel-btn:hover` dan `.panel-input:focus-visible` memakai `translateY(-1px)` | Layout shift kecil pada baris padat | Rules 5.3 |
+| `_terminal.scss` (63), konsol deploy Docker di `_docker.scss` (22), blok log di `_components.scss` (8) | Warna lepas. **Pengecualian disengaja** untuk permukaan terminal/log yang selalu gelap di kedua tema; jangan dijadikan contoh di luar itu | Rules 3.1 |
+| `_login.scss` (28) | Variabel tema halaman login (`--login-*`) berisi warna lepas. Halaman login belum memakai token panel | Rules 3.1 |
+| `AppIcon` `ICON_MAP` (19), `McpGuidePage` (12), `DesktopShowcase` (10), `LandingPage`, `LockScreen` | Warna lepas di TSX (hex dan Tailwind arbitrary value) | Rules 3.1 |
+| `--panel-accent-gradient`, `--status-page-*`, `--action-cloudflare-gradient`, `--login-avatar-bg` | Gradient dekoratif multi-warna di token | Anti-slop 2.4 |
+| `ApiTokensTab` (kalimat panjang bermarkup `<strong>`), `TunnelsWindow` (label), `LandingPage` (nav), `McpGuidePage`, `DesktopShowcase`, `DebugPanel` | String UI hardcoded tanpa `t()` | Rules 5.6 |
+| `DebugPanel`, `DebugGrid` | Emoji di overlay dev (tidak tampil di produksi) | Rules 5.7 |
+| `.panel-input`, `.panel-search__input`, `.ht-manager-input`, `.docker-image-combobox__item` | Memakai `outline: none`; sudah punya pengganti fokus (ring/border). Pertahankan pasangan itu | Aksesibilitas |
+| `DeployModal.tsx` (600+ baris), `useDockerWindow`, `useFileManager`, `useProjectsWindow`, `useTunnelsWindow` | Hook/komponen masih besar; pecah lagi per bagian form/aksi bila disentuh | Rules 1.4 |
+| `UsersWindow`, `HostTerminalWindow`, `DatabaseWindow`, `FileEditorWindow`, `DocsWindow` | 340-600 baris dalam satu file; belum dipecah | Rules 1.4 |
+| ESLint | 0 error, 112 warning (terutama `any`, `react-refresh/only-export-components`) | Rules 8 |
