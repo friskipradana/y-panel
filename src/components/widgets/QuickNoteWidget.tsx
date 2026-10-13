@@ -68,15 +68,14 @@ export function QuickNoteWidget({ widget }: WidgetProps) {
               aria-label={c}
               title={c}
               onClick={() => updateConfig(widget.id, { color: c })}
-              className={`h-3.5 w-3.5 rounded-full border transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${
-                color === c ? 'ring-2 ring-[var(--win-text)]/40' : ''
+              className={`h-2.5 w-2.5 rounded-full border transition-transform hover:scale-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${
+                color === c ? 'scale-125 ring-1 ring-[var(--win-text)]/50 ring-offset-1 ring-offset-transparent' : ''
               }`}
               style={{ backgroundColor: noteSwatch(c), borderColor: 'var(--win-border)' }}
             />
           ))}
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--text-secondary)]">
-          <span>{text.length}</span>
+        <div className="flex items-center text-[var(--text-secondary)]">
           <button
             type="button"
             onClick={() => addWidget('quick-note')}

@@ -52,8 +52,17 @@ export function PingWidget({ widget }: WidgetProps) {
       setRequestError(null)
       useMetricsStore.getState().push([[key, res.ok ? res.latencyMs : FAIL_VALUE]])
     } catch (err) {
-      setRequestError(err instanceof Error ? err.message : t('widget.ping.requestFailed'))
-      useMetricsStore.getState().push([[key, FAIL_VALUE]])
+      // The request itself failed (agent outdated, no permission, offline): this says
+      // nothing about the target host, so it is shown as an error and not recorded as loss.
+      const res = (err as { response?: { status?: number; data?: { error?: string } } }).response
+      const message =
+        res?.status === 404
+          ? t('widget.ping.agentOutdated')
+          : res?.status === 403
+            ? t('widget.ping.forbidden')
+            : res?.data?.error || t('widget.ping.requestFailed')
+      setRequestError(message)
+      setLast(null)
     } finally {
       inFlight.current = false
     }
@@ -215,10 +224,16 @@ export function PingWidget({ widget }: WidgetProps) {
               {port > 0 ? 'TCP' : 'ICMP'}
             </span>
           </div>
-          <div className="mt-0.5 truncate font-mono text-[9.5px] text-[var(--text-secondary)]">
-            {label ? target : null}
-            {last?.resolved ? `${label ? ' · ' : ''}${last.resolved}` : null}
-          </div>
+          {requestError ? (
+            <div role="alert" className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-[var(--panel-danger-text)]">
+              {requestError}
+            </div>
+          ) : (
+            <div className="mt-0.5 truncate font-mono text-[9.5px] text-[var(--text-secondary)]">
+              {label ? target : null}
+              {last?.resolved ? `${label ? ' · ' : ''}${last.resolved}` : null}
+            </div>
+          )}
         </div>
         <button
           type="button"
