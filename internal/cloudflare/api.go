@@ -527,3 +527,65 @@ func generateSecret() (string, error) {
 	}
 	return base64.StdEncoding.EncodeToString(buf), nil
 }
+
+// ─── Redirect rules (Single Redirects via the Rulesets API) ───────────────────
+
+const redirectPhase = "http_request_dynamic_redirect"
+
+// RedirectRule is one rule of a zone's dynamic redirect ruleset.
+type RedirectRule struct {
+	ID               string         `json:"id,omitempty"`
+	Ref              string         `json:"ref,omitempty"`
+	Action           string         `json:"action"`
+	Expression       string         `json:"expression"`
+	Description      string         `json:"description,omitempty"`
+	Enabled          bool           `json:"enabled"`
+	ActionParameters map[string]any `json:"action_parameters,omitempty"`
+}
+
+func redirectEntrypoint(zoneID string) string {
+	return fmt.Sprintf("/zones/%s/rulesets/phases/%s/entrypoint", zoneID, redirectPhase)
+}
+
+// ListRedirectRules returns the zone's redirect rules (empty when none exist yet).
+func (c *Client) ListRedirectRules(zoneID string) ([]RedirectRule, error) {
+	resp, err := c.get(redirectEntrypoint(zoneID))
+	if err != nil {
+		// No entrypoint ruleset yet: Cloudflare answers 404 until the first rule is created
+		if resp != nil && strings.Contains(err.Error(), "status 404") {
+			return []RedirectRule{}, nil
+		}
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list redirect rules failed: %v", resp.Errors)
+	}
+	var ruleset struct {
+		Rules []RedirectRule `json:"rules"`
+	}
+	if err := mapResult(resp.Result, &ruleset); err != nil {
+		return nil, err
+	}
+	if ruleset.Rules == nil {
+		ruleset.Rules = []RedirectRule{}
+	}
+	return ruleset.Rules, nil
+}
+
+// SetRedirectRules replaces the zone's redirect ruleset with the given rules.
+func (c *Client) SetRedirectRules(zoneID string, rules []RedirectRule) ([]RedirectRule, error) {
+	resp, err := c.put(redirectEntrypoint(zoneID), map[string]any{"rules": rules})
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("update redirect rules failed: %v", resp.Errors)
+	}
+	var ruleset struct {
+		Rules []RedirectRule `json:"rules"`
+	}
+	if err := mapResult(resp.Result, &ruleset); err != nil {
+		return nil, err
+	}
+	return ruleset.Rules, nil
+}
