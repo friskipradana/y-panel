@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.4.3] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.4.3** berisi 1 perubahan: 1 perbaikan. (4 files changed, 27 insertions(+), 6 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **desktop:** Keep the command palette and snap preview above windows ([`d9bb54b`](https://github.com/friskipradana/panel-desktop-ui/commit/d9bb54b))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.2...v3.4.3
+
 ## [3.4.2] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
