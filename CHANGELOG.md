@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.4.0] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.4.0** berisi 1 perubahan: 1 fitur. (15 files changed, 949 insertions(+), 623 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **public:** Rebuild landing and MCP guide pages, show the real panel version ([`a576825`](https://github.com/friskipradana/panel-desktop-ui/commit/a576825))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.3.1...v3.4.0
+
 ## [3.3.1] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
