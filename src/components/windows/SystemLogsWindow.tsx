@@ -4,6 +4,8 @@ import { Activity, AlertTriangle, RefreshCcw, ScrollText, Search } from 'lucide-
 import { getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
+import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState, LoadingState } from '@/components/ui/states'
 
 const SERVICE_OPTIONS = [
   { value: 'ypanel', label: 'YPanel Agent' },
@@ -103,9 +105,9 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
           <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} text-xs py-1 px-2.5`}>
             ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
           </button>
-          <button id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} className="panel-icon-btn" aria-label={t('systemLogs.refreshAria')}>
+          <IconButton id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} label={t('systemLogs.refreshAria')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -142,15 +144,9 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
                   </div>
                 </div>
               ) : query.isLoading ? (
-                <div className="panel-loading min-h-[320px] border-none bg-transparent shadow-none">
-                  <Activity size={13} className="animate-pulse" />
-                  {t('systemLogs.loadingHostLogs')}
-                </div>
+                <LoadingState className="min-h-[320px] border-none bg-transparent shadow-none">{t('systemLogs.loadingHostLogs')}</LoadingState>
               ) : lines.length === 0 ? (
-                <div className="panel-empty min-h-[320px] border-none bg-transparent">
-                  <ScrollText className="h-8 w-8" />
-                  <span>{search.trim() ? t('systemLogs.noMatchingLogs') : t('systemLogs.noLogs')}</span>
-                </div>
+                <EmptyState icon={<ScrollText />} className="min-h-[320px] border-none bg-transparent">{search.trim() ? t('systemLogs.noMatchingLogs') : t('systemLogs.noLogs')}</EmptyState>
               ) : (
                 <div className="py-2">
                   {lines.map((line, index) => (

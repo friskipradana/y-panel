@@ -152,7 +152,6 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       tabs.forEach(tab => {
         // Only retry if it was in an error state or stuck loading
         if (tab.isLoading || (tab.content === t('fileEditor.unreadableContent') && tab.originalContent === '')) {
-          console.log(`[FileEditor] Re-trying to load file: ${tab.path}`)
           void handleOpenFile(tab.path, tab.name, true)
         }
       })

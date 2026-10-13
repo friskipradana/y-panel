@@ -57,14 +57,14 @@ interface TerminalTabPaneProps {
   target?: string
   fontFamily: string
   fontSize: number
-  onStatusChange?: (connected: boolean, error: boolean) => void
+  onStatusChange?: (connected: boolean, error: boolean, reconnecting: boolean) => void
   onStart?: (start: (target?: string) => Promise<void>) => void
   onSendInput?: (fn: (cmd: string) => Promise<void>) => void
 }
 
 function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
   const {
-    starting, connected, error,
+    sessionId, starting, connected, reconnecting, error,
     start, sendInput, updateTerminalSize, setOutputListener, close,
   } = useTerminalSession()
 
@@ -74,12 +74,11 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
 
   useEffect(() => { onStart?.(start) }, [onStart, start])
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
-  useEffect(() => { onStatusChange?.(connected, !!error) }, [connected, error, onStatusChange])
+  useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
 
-  // Auto-start and Re-connect on authentication
+  // Auto-start once authenticated; an existing session is re-attached by the hook itself
   useEffect(() => {
-    if (authenticated && (!connected || error) && !starting) {
-      console.log(`[Terminal] Session recovered or initial mount. Starting session for ${target}...`)
+    if (authenticated && !sessionId && !starting) {
       void start(target)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,6 +185,7 @@ interface Tab {
   target: string
   connected: boolean
   error: boolean
+  reconnecting: boolean
   startFn: ((target?: string) => Promise<void>) | null
   sendInputFn: ((cmd: string) => Promise<void>) | null
 }
@@ -202,7 +202,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: t('hostTerminal.localServer'), target: 'local', connected: false, error: false, startFn: null, sendInputFn: null },
+    { id: nextTabId++, label: t('hostTerminal.localServer'), target: 'local', connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
   ])
   const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
 
@@ -224,6 +224,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
       target,
       connected: false, 
       error: false, 
+      reconnecting: false,
       startFn: null, 
       sendInputFn: null 
     }])
@@ -250,16 +251,22 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     })
   }, [activeTabId])
 
-  const handleStatusChange = useCallback((tabId: number, connected: boolean, error: boolean) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, connected, error } : t))
+  const handleStatusChange = useCallback((tabId: number, connected: boolean, error: boolean, reconnecting: boolean) => {
+    setTabs((prev) => (prev.some((t) => t.id === tabId && (t.connected !== connected || t.error !== error || t.reconnecting !== reconnecting))
+      ? prev.map((t) => (t.id === tabId ? { ...t, connected, error, reconnecting } : t))
+      : prev))
   }, [])
 
   const handleStart = useCallback((tabId: number, fn: (target?: string) => Promise<void>) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, startFn: fn } : t))
+    setTabs((prev) => (prev.some((t) => t.id === tabId && t.startFn !== fn)
+      ? prev.map((t) => (t.id === tabId ? { ...t, startFn: fn } : t))
+      : prev))
   }, [])
 
   const handleSendInput = useCallback((tabId: number, fn: (cmd: string) => Promise<void>) => {
-    setTabs((prev) => prev.map((t) => t.id === tabId ? { ...t, sendInputFn: fn } : t))
+    setTabs((prev) => (prev.some((t) => t.id === tabId && t.sendInputFn !== fn)
+      ? prev.map((t) => (t.id === tabId ? { ...t, sendInputFn: fn } : t))
+      : prev))
   }, [])
 
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
@@ -428,26 +435,51 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           onMouseMove={handleTabsMouseMove}
         >
           {tabs.map((tab) => (
-            <button
+            <div
               key={tab.id}
+              role="tab"
+              tabIndex={0}
+              aria-selected={tab.id === activeTabId}
               className={`ht-tab${tab.id === activeTabId ? ' ht-tab--active' : ''}`}
               onClick={(e) => handleTabClick(tab.id, e)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setActiveTabId(tab.id)
+                }
+              }}
             >
-              <span className="ht-status-dot" style={{
-                background: tab.error ? 'var(--status-error)' : tab.connected ? 'var(--status-online)' : 'var(--status-offline)',
-              }} />
+              <span
+                className={`ht-status-dot${tab.reconnecting ? ' ht-status-dot--pulse' : ''}`}
+                title={tab.reconnecting ? t('hostTerminal.reconnecting') : undefined}
+                style={{
+                  background: tab.error
+                    ? 'var(--status-error)'
+                    : tab.reconnecting
+                      ? 'var(--panel-warning-text)'
+                      : tab.connected
+                        ? 'var(--status-online)'
+                        : 'var(--status-offline)',
+                }}
+              />
               <span className="ht-tab-label">{tab.label}</span>
               {tabs.length > 1 && (
-                <button className="ht-tab-close" onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}>
+                <button
+                  type="button"
+                  className="ht-tab-close"
+                  aria-label={t('common.close')}
+                  onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
+                >
                   <X size={11} />
                 </button>
               )}
-            </button>
+            </div>
           ))}
         </div>
         <div className="ht-tabbar-actions">
           <button className="ht-action-btn" onClick={handleReconnect} title={t('hostTerminal.reconnect')}>
-            <RefreshCcw size={13} /><span>{t('hostTerminal.reconnect')}</span>
+            <RefreshCcw size={13} className={activeTab.reconnecting ? 'animate-spin' : ''} />
+            <span>{activeTab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}</span>
           </button>
           
           <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-[var(--win-border)]">
@@ -503,7 +535,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
               key={p.id}
               className="ht-preset-btn"
               onClick={(e) => handlePresetClick(p.command, e)}
-              disabled={!activeTab.connected}
+              disabled={!activeTab.connected && !activeTab.reconnecting}
               title={p.command}
             >
               {p.label || p.command}
@@ -587,7 +619,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
             target={tab.target}
             fontFamily={fontFamily}
             fontSize={fontSize}
-            onStatusChange={(c, e) => handleStatusChange(tab.id, c, e)}
+            onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
             onStart={(fn) => handleStart(tab.id, fn)}
             onSendInput={(fn) => handleSendInput(tab.id, fn)}
           />

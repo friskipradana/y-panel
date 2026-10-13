@@ -11,7 +11,6 @@ import {
   Calendar,
   Eye,
   Trash2,
-  X,
   Save,
   PenSquare,
 } from 'lucide-react'
@@ -19,6 +18,12 @@ import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
 import { createDoc, deleteDoc, listDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import { IconButton } from '@/components/ui/IconButton'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState, LoadingState } from '@/components/ui/states'
+import { TextInput, Textarea } from '@/components/ui/Field'
+import { Modal } from '@/components/ui/Modal'
 
 const PAGE_SIZE = 6
 
@@ -159,14 +164,14 @@ export default function DocsWindow() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => docsQuery.refetch()} className="panel-icon-btn" aria-label={t('docs.refresh')}>
+          <IconButton onClick={() => docsQuery.refetch()} label={t('docs.refresh')}>
             <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching ? 'animate-spin' : ''}`} />
-          </button>
+          </IconButton>
           {isAdmin && (
-            <button onClick={openCreate} className="panel-btn panel-btn--primary-soft text-xs py-1 px-2.5">
+            <Button onClick={openCreate} variant="primary-soft" className="text-xs py-1 px-2.5">
               <Plus className="h-3.5 w-3.5" />
               {t('docs.newArticle')}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -174,15 +179,9 @@ export default function DocsWindow() {
       <div className="panel-window__body">
         <div className="panel-window__stack">
           {docsQuery.isLoading ? (
-            <div className="panel-loading">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              {t('docs.loading')}
-            </div>
+            <LoadingState>{t('docs.loading')}</LoadingState>
           ) : docs.length === 0 ? (
-            <div className="panel-empty">
-              <FileText className="h-8 w-8" />
-              <span>{t('docs.empty')}</span>
-            </div>
+            <EmptyState icon={<FileText />}>{t('docs.empty')}</EmptyState>
           ) : (
             <div className="docs-layout">
               <div className="panel-table-container">
@@ -203,9 +202,9 @@ export default function DocsWindow() {
                       className="panel-search__input"
                       placeholder={t('docs.searchPlaceholder')}
                     />
-                    <button type="submit" className="panel-btn panel-btn--primary-soft">
+                    <Button type="submit" variant="primary-soft">
                       {t('docs.search')}
-                    </button>
+                    </Button>
                   </form>
                   <div className="panel-pagination-summary">{t('docs.paginationSummary', { total, page, totalPages })}</div>
                 </div>
@@ -232,26 +231,24 @@ export default function DocsWindow() {
                 })}
 
                 <div className="panel-pagination">
-                  <button
+                  <Button
                     id="docs-prev-page"
-                    type="button"
-                    className="panel-btn panel-btn--ghost"
+                    type="button" variant="ghost"
                     disabled={offset <= 0}
                     onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                     {t('docs.previous')}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     id="docs-next-page"
-                    type="button"
-                    className="panel-btn panel-btn--ghost"
+                    type="button" variant="ghost"
                     disabled={offset + PAGE_SIZE >= total}
                     onClick={() => setOffset((value) => value + PAGE_SIZE)}
                   >
                     {t('docs.next')}
                     <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -262,18 +259,18 @@ export default function DocsWindow() {
                       <div>
                         <div className="docs-viewer__title">{selectedDoc.title}</div>
                         <div className="docs-viewer__meta">
-                          <span className="panel-badge panel-badge--info">/{selectedDoc.slug}</span>
+                          <Badge tone="info">/{selectedDoc.slug}</Badge>
                           <span className="docs-viewer__meta-item"><Calendar className="h-3.5 w-3.5" /> {formatDate(selectedDoc.updatedAt)}</span>
                           <span className="docs-viewer__meta-item"><Eye className="h-3.5 w-3.5" /> {t('docs.status', { status: t(`docs.status.${selectedDoc.status}`) })}</span>
                         </div>
                       </div>
                       {isAdmin && (
                         <div className="docs-viewer__actions">
-                          <button onClick={() => openEdit(selectedDoc)} className="panel-btn panel-btn--ghost">
+                          <Button onClick={() => openEdit(selectedDoc)} variant="ghost">
                             <PenSquare className="h-3.5 w-3.5" />
                             {t('common.edit')}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={async () => {
                               const confirmed = await alertLib.confirm(
                                 t('docs.deleteArticle'),
@@ -284,12 +281,11 @@ export default function DocsWindow() {
                                 'docs',
                               )
                               if (confirmed) deleteMut.mutate(selectedDoc.id)
-                            }}
-                            className="panel-btn panel-btn--danger-soft"
+                            }} variant="danger-soft"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                             {t('common.delete')}
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -297,10 +293,7 @@ export default function DocsWindow() {
                     <div className="docs-viewer__content">{selectedDoc.content}</div>
                   </>
                 ) : (
-                  <div className="panel-empty docs-viewer__empty">
-                    <BookOpen className="h-8 w-8" />
-                    <span>{t('docs.selectArticle')}</span>
-                  </div>
+                  <EmptyState icon={<BookOpen />} className="docs-viewer__empty">{t('docs.selectArticle')}</EmptyState>
                 )}
               </article>
             </div>
@@ -308,56 +301,51 @@ export default function DocsWindow() {
         </div>
       </div>
 
-      {showEditor && (
-        <div className="panel-modal-overlay">
-          <div className="panel-modal-card docs-editor-modal">
-            <div className="docs-editor-modal__header">
-              <div>
-                <div className="docs-editor-modal__title">{editingDoc ? t('docs.editArticle') : t('docs.newArticle')}</div>
-                <div className="panel-window__meta">{t('docs.editorSubtitle')}</div>
-              </div>
-              <button onClick={() => setShowEditor(false)} className="panel-icon-btn">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="docs-editor-modal__body">
-              <div className="panel-grid-compact panel-grid-compact--2">
-                <div>
-                  <label className="panel-section-label">{t('docs.fieldTitle')}</label>
-                  <input value={form.title ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} className="panel-input" />
-                </div>
-                <div>
-                  <label className="panel-section-label">{t('docs.fieldSlug')}</label>
-                  <input value={form.slug ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))} className="panel-input panel-input--mono" />
-                </div>
-              </div>
-              <div>
-                <label className="panel-section-label">{t('docs.fieldExcerpt')}</label>
-                <textarea value={form.excerpt ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, excerpt: e.target.value }))} className="panel-textarea" rows={3} />
-              </div>
-              <div>
-                <label className="panel-section-label">{t('docs.fieldContent')}</label>
-                <textarea value={form.content} onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))} className="panel-textarea docs-editor-modal__content" rows={14} />
-              </div>
-              <div>
-                <label className="panel-section-label">{t('docs.fieldStatus')}</label>
-                <select value={form.status ?? 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as DocPayload['status'] }))} className="panel-select">
-                  <option value="draft">{t('docs.status.draft')}</option>
-                  <option value="published">{t('docs.status.published')}</option>
-                  <option value="archived">{t('docs.status.archived')}</option>
-                </select>
-              </div>
-            </div>
-            <div className="docs-editor-modal__footer">
-              <button onClick={() => setShowEditor(false)} className="panel-btn panel-btn--ghost">{t('common.cancel')}</button>
-              <button onClick={submit} disabled={createMut.isPending || updateMut.isPending || !form.title || !form.content} className="panel-btn panel-btn--primary">
+      <Modal
+        open={showEditor}
+        onClose={() => setShowEditor(false)}
+        title={editingDoc ? t('docs.editArticle') : t('docs.newArticle')}
+        subtitle={t('docs.editorSubtitle')}
+        size="lg"
+        footer={
+          <>
+              <Button onClick={() => setShowEditor(false)} variant="ghost">{t('common.cancel')}</Button>
+              <Button onClick={submit} disabled={createMut.isPending || updateMut.isPending || !form.title || !form.content} variant="primary">
                 <Save className="h-3.5 w-3.5" />
                 {createMut.isPending || updateMut.isPending ? t('docs.saving') : t('docs.saveArticle')}
-              </button>
-            </div>
+              </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+        <div className="panel-grid-compact panel-grid-compact--2">
+          <div>
+            <label className="panel-section-label">{t('docs.fieldTitle')}</label>
+            <TextInput value={form.title ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
+          </div>
+          <div>
+            <label className="panel-section-label">{t('docs.fieldSlug')}</label>
+            <TextInput value={form.slug ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))} mono />
           </div>
         </div>
-      )}
+        <div>
+          <label className="panel-section-label">{t('docs.fieldExcerpt')}</label>
+          <Textarea value={form.excerpt ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, excerpt: e.target.value }))} rows={3} />
+        </div>
+        <div>
+          <label className="panel-section-label">{t('docs.fieldContent')}</label>
+          <Textarea value={form.content} onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))} className="docs-editor-modal__content" rows={14} />
+        </div>
+        <div>
+          <label className="panel-section-label">{t('docs.fieldStatus')}</label>
+          <select value={form.status ?? 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as DocPayload['status'] }))} className="panel-select">
+            <option value="draft">{t('docs.status.draft')}</option>
+            <option value="published">{t('docs.status.published')}</option>
+            <option value="archived">{t('docs.status.archived')}</option>
+          </select>
+        </div>
+        </div>
+      </Modal>
     </div>
   )
 }

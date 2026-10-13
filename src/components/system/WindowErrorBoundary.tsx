@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import { translate, type Language } from '@/lib/i18n'
 
 interface ErrorBoundaryProps {
@@ -50,7 +51,7 @@ export class WindowErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
           style={{ color: 'var(--win-text)' }}
         >
           <div className="flex flex-col items-center gap-2 text-center">
-            <span className="text-4xl">⚠️</span>
+            <TriangleAlert size={36} strokeWidth={1.5} />
             <h3 className="text-sm font-semibold opacity-90">{t('errorBoundary.windowError')}</h3>
             <p className="max-w-sm text-[12px] leading-relaxed opacity-60">
               {this.state.error?.message || t('errorBoundary.fallbackMessage')}

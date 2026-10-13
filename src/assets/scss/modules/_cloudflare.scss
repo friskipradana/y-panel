@@ -13,24 +13,6 @@
   justify-content: flex-end;
 }
 
-.cloudflare-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px 0;
-}
-
-.cloudflare-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 650;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .cloudflare-window__body {
   min-height: 0;
   padding-top: 12px;
@@ -101,13 +83,13 @@
 }
 
 .cloudflare-domain-status-panel__status.is-pending {
-  color: #b45309;
-  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: var(--panel-warning-text);
+  background: color-mix(in srgb, var(--panel-warning-text) 18%, transparent);
 }
 
 .cloudflare-domain-status-panel__status.is-active {
-  color: #047857;
-  background: color-mix(in srgb, #10b981 18%, transparent);
+  color: var(--panel-success-text);
+  background: color-mix(in srgb, var(--panel-success-text) 18%, transparent);
 }
 
 .cloudflare-domain-status-panel__copy {
@@ -439,54 +421,15 @@
   gap: 6px;
 }
 
-.cloudflare-tabs {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 64%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--panel-surface) 64%, transparent);
-}
-
-.cloudflare-tabs__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 11px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 740;
-  transition: background 140ms ease, color 140ms ease;
-}
-
 .cloudflare-tabs__item.is-active {
   color: var(--win-text);
   background: color-mix(in srgb, var(--panel-info-bg) 62%, transparent);
-}
-
-.cloudflare-tabs__count {
-  min-width: 18px;
-  height: 18px;
-  display: inline-grid;
-  place-items: center;
-  padding: 0 5px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--win-bg) 70%, transparent);
 }
 
 .cloudflare-empty {
   min-height: 180px;
   border: 0;
   background: transparent;
-}
-
-.cloudflare-modal-card {
-  width: min(100%, 560px);
 }
 
 .cloudflare-checkbox {
@@ -503,10 +446,10 @@
   display: grid;
   gap: 14px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, #38bdf8 34%, var(--win-border));
+  border: 1px solid color-mix(in srgb, var(--panel-info-text) 34%, var(--win-border));
   border-radius: 18px;
   background:
-    radial-gradient(circle at 0% 0%, color-mix(in srgb, #38bdf8 18%, transparent), transparent 34%),
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--panel-info-text) 18%, transparent), transparent 34%),
     color-mix(in srgb, var(--panel-info-bg) 44%, var(--win-bg));
 }
 
@@ -523,8 +466,8 @@
   height: 34px;
   place-items: center;
   border-radius: 12px;
-  color: #0284c7;
-  background: color-mix(in srgb, #38bdf8 18%, transparent);
+  color: var(--panel-info-text);
+  background: color-mix(in srgb, var(--panel-info-text) 18%, transparent);
 }
 
 .cloudflare-domain-success__eyebrow {
@@ -551,13 +494,13 @@
 }
 
 .cloudflare-domain-success__status.is-pending {
-  color: #b45309;
-  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: var(--panel-warning-text);
+  background: color-mix(in srgb, var(--panel-warning-text) 18%, transparent);
 }
 
 .cloudflare-domain-success__status.is-active {
-  color: #047857;
-  background: color-mix(in srgb, #10b981 18%, transparent);
+  color: var(--panel-success-text);
+  background: color-mix(in srgb, var(--panel-success-text) 18%, transparent);
 }
 
 .cloudflare-domain-success__steps {
@@ -581,10 +524,10 @@
   height: 20px;
   place-items: center;
   border-radius: 999px;
-  color: #0369a1;
+  color: var(--panel-info-text);
   font-size: 12px;
   font-weight: 900;
-  background: color-mix(in srgb, #38bdf8 22%, transparent);
+  background: color-mix(in srgb, var(--panel-info-text) 22%, transparent);
 }
 
 .cloudflare-ns-card {
@@ -616,7 +559,7 @@
   gap: 10px;
   width: 100%;
   padding: 10px 11px;
-  border: 1px solid color-mix(in srgb, #38bdf8 18%, var(--win-border));
+  border: 1px solid color-mix(in srgb, var(--panel-info-text) 18%, var(--win-border));
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel-surface) 78%, transparent);
   color: var(--win-text);
@@ -626,17 +569,17 @@
 
 .cloudflare-ns-copy-row:hover {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, #38bdf8 42%, var(--win-border));
-  background: color-mix(in srgb, #38bdf8 10%, var(--panel-surface));
+  border-color: color-mix(in srgb, var(--panel-info-text) 42%, var(--win-border));
+  background: color-mix(in srgb, var(--panel-info-text) 10%, var(--panel-surface));
 }
 
 .cloudflare-ns-copy-row__index {
   padding: 3px 7px;
   border-radius: 999px;
-  color: #0284c7;
+  color: var(--panel-info-text);
   font-size: 12px;
   font-weight: 900;
-  background: color-mix(in srgb, #38bdf8 15%, transparent);
+  background: color-mix(in srgb, var(--panel-info-text) 15%, transparent);
 }
 
 .cloudflare-ns-copy-row__value {
@@ -654,10 +597,10 @@
   padding: 9px 11px;
   border: 0;
   border-radius: 12px;
-  color: #0369a1;
+  color: var(--panel-info-text);
   font-size: 12px;
   font-weight: 850;
-  background: color-mix(in srgb, #38bdf8 16%, transparent);
+  background: color-mix(in srgb, var(--panel-info-text) 16%, transparent);
 }
 
 .cloudflare-domain-success__actions {
@@ -676,19 +619,8 @@
   line-height: 1.55;
 }
 
-.taskbar-nav-btn--accent {
-  color: var(--win-text);
-  background: linear-gradient(135deg, rgba(56, 189, 248, .22), rgba(34, 197, 94, .16));
-  border: 1px solid rgba(125, 211, 252, .25);
-}
-
-.taskbar-nav-btn--accent:hover {
-  background: linear-gradient(135deg, rgba(56, 189, 248, .3), rgba(34, 197, 94, .22));
-}
-
 @media (max-width: 980px) {
 
-  .cloudflare-topbar,
   .cloudflare-window__header {
     align-items: flex-start;
     flex-direction: column;
@@ -701,9 +633,5 @@
   .cloudflare-pane__header {
     grid-template-columns: 1fr;
   }
-
-  .cloudflare-hint {
-    white-space: normal;
-  }
 }
-
+

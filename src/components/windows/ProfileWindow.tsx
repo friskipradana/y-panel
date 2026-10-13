@@ -13,8 +13,11 @@ import {
 } from 'lucide-react'
 import { getMeV2 } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
+import { useI18n } from '@/lib/i18n'
+import { IconBadge } from '@/components/ui/IconBadge'
 
 export default function ProfileWindow() {
+  const { t } = useI18n()
   const openWindow = useWindowStore((s) => s.openWindow)
   const { data: me } = useQuery({
     queryKey: ['me-v2'],
@@ -103,7 +106,7 @@ export default function ProfileWindow() {
 
           {/* ── Shortcuts / Quick Management ── */}
           <div className="panel-shell-card p-5 space-y-3">
-            <div className="text-[13px] font-bold text-[var(--win-text)]">Quick Actions</div>
+            <div className="text-[13px] font-bold text-[var(--win-text)]">{t('profile.quickActions')}</div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
@@ -111,12 +114,12 @@ export default function ProfileWindow() {
                 onClick={() => openWindow('settings')}
                 className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]">
-                  <KeyRound size={16} />
-                </div>
+                <IconBadge size="md" tone="primary">
+                  <KeyRound />
+                </IconBadge>
                 <div>
-                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)]">Security & Passwords</div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">Kelola password root & database</div>
+                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)]">{t('profile.securityTitle')}</div>
+                  <div className="text-[11px] text-[var(--text-secondary)]">{t('profile.securityDesc')}</div>
                 </div>
               </button>
 
@@ -125,12 +128,12 @@ export default function ProfileWindow() {
                 onClick={() => openWindow('users')}
                 className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-                  <Users size={16} />
-                </div>
+                <IconBadge size="md" tone="success">
+                  <Users />
+                </IconBadge>
                 <div>
-                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-emerald-500">Manage Users</div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">Kelola pengguna & hak akses</div>
+                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-emerald-500">{t('profile.usersTitle')}</div>
+                  <div className="text-[11px] text-[var(--text-secondary)]">{t('profile.usersDesc')}</div>
                 </div>
               </button>
             </div>

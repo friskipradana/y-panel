@@ -275,7 +275,7 @@ export function Window({ win, children }: Props) {
                 style={controlButtonStyle}
                 onMouseEnter={(e) => applyHover(e.currentTarget)}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title="Minimize"
+                title={t('window.minimize')}
               >
                 <Minus size={13} strokeWidth={1.75} />
               </button>
@@ -286,7 +286,7 @@ export function Window({ win, children }: Props) {
                 style={controlButtonStyle}
                 onMouseEnter={(e) => applyHover(e.currentTarget)}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title={win.isMaximized ? 'Restore' : 'Maximize'}
+                title={win.isMaximized ? t('window.restore') : t('window.maximize')}
               >
                 {win.isMaximized ? (
                   <Copy size={11} strokeWidth={1.75} className="rotate-90" />
@@ -301,7 +301,7 @@ export function Window({ win, children }: Props) {
                 style={controlButtonStyle}
                 onMouseEnter={(e) => applyHover(e.currentTarget)}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title={win.isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                title={win.isFullscreen ? t('window.exitFullscreen') : t('window.fullscreen')}
               >
                 {win.isFullscreen ? (
                   <ExitFullscreen size={12} strokeWidth={1.75} />
@@ -319,7 +319,7 @@ export function Window({ win, children }: Props) {
                   e.currentTarget.style.color = 'var(--window-close-hover-text, #ffffff)'
                 }}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title="Close"
+                title={t('common.close')}
               >
                 <X size={13} strokeWidth={1.75} />
               </button>

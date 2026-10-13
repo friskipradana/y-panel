@@ -17,8 +17,13 @@ import {
   Code2,
 } from 'lucide-react'
 import { copyTextToClipboard } from '@/api/agent'
+import { IconBadge } from '@/components/ui/IconBadge'
+import { useI18n } from '@/lib/i18n'
+import { Button } from '@/components/ui/Button'
+import { TextInput } from '@/components/ui/Field'
 
 export function McpGuidePage() {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [userToken, setUserToken] = useState('')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -90,22 +95,20 @@ export function McpGuidePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
-            onClick={() => navigate('/')}
-            className="panel-btn !h-8 px-3 rounded-lg text-[12px] text-[var(--text-secondary,#94a3b8)] hover:text-white flex items-center gap-1.5 cursor-pointer"
+            onClick={() => navigate('/')} className="!h-8 px-3 rounded-lg text-[12px] text-[var(--text-secondary,#94a3b8)] hover:text-white flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft size={13} />
             <span className="hidden sm:inline">Beranda</span>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            onClick={() => navigate('/login')}
-            className="panel-btn panel-btn--primary !h-8 px-3.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer"
+            onClick={() => navigate('/login')} variant="primary" className="!h-8 px-3.5 rounded-lg text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer"
           >
             <span>Masuk Panel</span>
             <ArrowRight size={13} />
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -148,12 +151,11 @@ export function McpGuidePage() {
             <label className="block text-[12px] font-medium text-[var(--win-text)] mb-1.5">
               API Token YPanel Anda (format: <code>ypat_...</code>)
             </label>
-            <input
+            <TextInput
               type="text"
-              placeholder="Tempel token di sini, contoh: ypat_525b7d6624ba1622692b3283b49ed04f6b9a7b1c"
+              placeholder={t('mcpGuide.tokenPlaceholder')}
               value={userToken}
-              onChange={(e) => setUserToken(e.target.value)}
-              className="panel-input panel-mono w-full h-[42px] px-3.5 text-[12.5px] rounded-xl border border-[var(--win-border)] bg-black/25 text-amber-300 focus:border-amber-400 focus:outline-none"
+              onChange={(e) => setUserToken(e.target.value)} className="panel-mono w-full h-[42px] px-3.5 text-[12.5px] rounded-xl border border-[var(--win-border)] bg-black/25 text-amber-300 focus:border-amber-400 focus:outline-none"
             />
           </div>
 
@@ -178,14 +180,13 @@ export function McpGuidePage() {
                   {hermesCommand}
                 </pre>
               </div>
-              <button
+              <Button
                 type="button"
-                onClick={() => handleCopy(hermesCommand, 'hermesGen')}
-                className="panel-btn panel-btn--primary !h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                onClick={() => handleCopy(hermesCommand, 'hermesGen')} variant="primary" className="!h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
               >
                 {copiedKey === 'hermesGen' ? <Check size={13} /> : <Copy size={13} />}
                 <span>{copiedKey === 'hermesGen' ? 'Tersalin!' : 'Salin Perintah Hermes'}</span>
-              </button>
+              </Button>
             </div>
 
             {/* OpenClaw Card */}
@@ -207,14 +208,13 @@ export function McpGuidePage() {
                   {openclawCommand}
                 </pre>
               </div>
-              <button
+              <Button
                 type="button"
-                onClick={() => handleCopy(openclawCommand, 'openclawGen')}
-                className="panel-btn panel-btn--primary !h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                onClick={() => handleCopy(openclawCommand, 'openclawGen')} variant="primary" className="!h-8.5 rounded-lg text-[11.5px] font-medium flex items-center justify-center gap-1.5 cursor-pointer w-full"
               >
                 {copiedKey === 'openclawGen' ? <Check size={13} /> : <Copy size={13} />}
                 <span>{copiedKey === 'openclawGen' ? 'Tersalin!' : 'Salin Perintah OpenClaw'}</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -228,14 +228,13 @@ export function McpGuidePage() {
                 {mcpUrl}
               </code>
             </div>
-            <button
+            <Button
               type="button"
-              onClick={() => handleCopy(mcpUrl, 'mcpUrlGen')}
-              className="panel-btn !h-7.5 px-3 rounded-lg text-[11px] font-medium text-[var(--panel-primary-text)] hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
+              onClick={() => handleCopy(mcpUrl, 'mcpUrlGen')} className="!h-7.5 px-3 rounded-lg text-[11px] font-medium text-[var(--panel-primary-text)] hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
             >
               {copiedKey === 'mcpUrlGen' ? <Check size={12} /> : <Copy size={12} />}
               <span>{copiedKey === 'mcpUrlGen' ? 'Tersalin' : 'Salin URL'}</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -253,9 +252,7 @@ export function McpGuidePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Step 1 */}
             <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <div className="h-8 w-8 rounded-xl bg-amber-500/15 text-amber-400 font-bold flex items-center justify-center text-[13px] border border-amber-500/30">
-                1
-              </div>
+              <IconBadge tone="warning">1</IconBadge>
               <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
                 Dapatkan API Token
               </h3>
@@ -266,9 +263,7 @@ export function McpGuidePage() {
 
             {/* Step 2 */}
             <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <div className="h-8 w-8 rounded-xl bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center text-[13px] border border-emerald-500/30">
-                2
-              </div>
+              <IconBadge tone="success">2</IconBadge>
               <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
                 Tambahkan ke Hermes Agent
               </h3>
@@ -279,9 +274,7 @@ export function McpGuidePage() {
 
             {/* Step 3 */}
             <div className="p-5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] space-y-3">
-              <div className="h-8 w-8 rounded-xl bg-blue-500/15 text-blue-400 font-bold flex items-center justify-center text-[13px] border border-blue-500/30">
-                3
-              </div>
+              <IconBadge tone="info">3</IconBadge>
               <h3 className="text-[14px] font-semibold text-[var(--win-text)]">
                 Mulai Beri Perintah
               </h3>
