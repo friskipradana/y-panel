@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
 import { soundManager } from "@/lib/sound";
+import { Z } from "@/lib/zLayers";
 
 const DEFAULTS: Record<
   WindowKind,
@@ -29,10 +30,10 @@ const DEFAULTS: Record<
 };
 
 // Z-index tiers
-const Z_NORMAL = 100;
-const Z_MAXIMIZED = 500;
-const Z_FOCUS_BOOST = 50000; // window terfokus non-fullscreen di atas window biasa
-const Z_FULLSCREEN = 120000; // fullscreen tetap layer tertinggi
+const Z_NORMAL = Z.windowNormal;
+const Z_MAXIMIZED = Z.windowMaximized;
+const Z_FOCUS_BOOST = Z.windowFocused; // window terfokus non-fullscreen di atas window biasa
+const Z_FULLSCREEN = Z.windowFullscreen; // fullscreen di atas window lain (palette dan alert tetap di atasnya)
 
 function reorder(windows: WindowState[]) {
   const non = windows.filter((w) => !w.isFullscreen);

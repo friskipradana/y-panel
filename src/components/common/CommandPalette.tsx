@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react'
 import { Command } from 'cmdk'
+import { Z } from '@/lib/zLayers'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Terminal,
@@ -99,7 +100,7 @@ export function CommandPalette() {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 select-none">
+        <div className="fixed inset-0 flex items-center justify-center p-4 select-none" style={{ zIndex: Z.commandPalette }}>
           {/* Backdrop Blur Overlay */}
           <motion.div
             initial={{ opacity: 0 }}

@@ -7,6 +7,7 @@ import { InnerAlert } from '@/components/alert/GlobalAlert'
 import { AppIcon } from '@/components/common/AppIcon'
 import type { WindowState } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { Z } from '@/lib/zLayers'
 
 type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
 
@@ -113,7 +114,7 @@ export function Window({ win, children }: Props) {
         preview = document.createElement('div')
         Object.assign(preview.style, {
           position: 'fixed',
-          zIndex: '9998',
+          zIndex: String(Z.snapPreview),
           pointerEvents: 'none',
           borderRadius: '14px',
           border: '2px solid var(--win-border-focus)',
