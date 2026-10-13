@@ -22,7 +22,7 @@ import { CopyBlock } from '@/components/public/CopyBlock'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { MCP_TOOL_COUNTS } from '@/pages/mcp-guide/toolsData'
+import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 
 export type LandingPageProps = {
   authenticated: boolean
@@ -52,6 +52,7 @@ const STEPS = ['download', 'setup', 'open'] as const
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
+  const { counts } = useMcpCatalog()
 
   return (
     <PublicShell>
@@ -138,8 +139,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <dl className="grid grid-cols-3 gap-3 text-center md:min-w-[18rem]">
               {(
                 [
-                  [MCP_TOOL_COUNTS.admin, t('landing.agent.statTools')],
-                  [MCP_TOOL_COUNTS.user, t('landing.agent.statUser')],
+                  [counts.admin, t('landing.agent.statTools')],
+                  [counts.user, t('landing.agent.statUser')],
                   [3, t('landing.agent.statRoles')],
                 ] as Array<[number, string]>
               ).map(([value, label]) => (

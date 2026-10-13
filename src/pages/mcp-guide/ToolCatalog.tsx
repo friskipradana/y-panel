@@ -6,7 +6,8 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { Badge } from '@/components/ui/Badge'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { EmptyState } from '@/components/ui/states'
-import { MCP_TOOLS, MCP_TOOL_COUNTS, type ToolAccess, type ToolKind } from './toolsData'
+import type { ToolAccess, ToolKind } from './toolsData'
+import { useMcpCatalog } from './useMcpCatalog'
 
 const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'cloudflare', 'widgets', 'users'] as const
 type GroupKey = 'all' | (typeof TOOL_GROUPS)[number]
@@ -19,6 +20,7 @@ export function ToolCatalog() {
   const { t } = useI18n()
   const [group, setGroup] = useState<GroupKey>('all')
   const [query, setQuery] = useState('')
+  const { tools: MCP_TOOLS, counts } = useMcpCatalog()
 
   const tabs: TabItem<GroupKey>[] = [
     { key: 'all', label: t('mcpGuide.tools.all'), count: MCP_TOOLS.length },
@@ -34,7 +36,7 @@ export function ToolCatalog() {
     return MCP_TOOLS.filter(
       (tool) => (group === 'all' || tool.group === group) && (!q || tool.name.includes(q) || tool.desc.toLowerCase().includes(q)),
     )
-  }, [group, query])
+  }, [MCP_TOOLS, group, query])
 
   return (
     <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6" aria-labelledby="mcp-tools">
@@ -42,7 +44,7 @@ export function ToolCatalog() {
         icon={<Wrench />}
         tone="info"
         title={t('mcpGuide.tools.title')}
-        subtitle={t('mcpGuide.tools.subtitle', { count: MCP_TOOL_COUNTS.admin })}
+        subtitle={t('mcpGuide.tools.subtitle', { count: counts.admin })}
       />
 
       <div className="mt-5 space-y-3">
