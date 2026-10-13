@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Error trap — print line number and failing command for diagnostics
-trap 'rc=$?; echo "[ypanel] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND}" >&2; exit $rc' ERR
+trap 'rc=$?; echo "[ypanel] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND} (log: /tmp/ypanel-install.log)" >&2; exit $rc' ERR
 
 APP_NAME="ypanel"
 APP_USER="root"
@@ -30,20 +30,94 @@ INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
 MANAGED_ORIGINS_BLOCK_BEGIN="# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 MANAGED_ORIGINS_BLOCK_END="# UI_PANEL_ALLOWED_ORIGINS_END"
 
+# ---- Output helpers ----------------------------------------------------------
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  C_RESET=$'\033[0m'; C_BOLD=$'\033[1m'; C_DIM=$'\033[2m'
+  C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'; C_CYAN=$'\033[36m'
+else
+  C_RESET=""; C_BOLD=""; C_DIM=""; C_GREEN=""; C_YELLOW=""; C_RED=""; C_CYAN=""
+fi
+
+TOTAL_STEPS=9
+STEP_NO=0
+INSTALL_STARTED_AT="$(date +%s)"
+
+# Major phase header: [3/9] Judul
+step() {
+  STEP_NO=$((STEP_NO + 1))
+  printf '\n%s[%d/%d]%s %s%s%s\n' "$C_CYAN" "$STEP_NO" "$TOTAL_STEPS" "$C_RESET" "$C_BOLD" "$1" "$C_RESET"
+}
+
+# Detail line within a phase
 log() {
-  printf '\n[%s] %s\n' "$APP_NAME" "$1"
+  printf '  %s•%s %s\n' "$C_DIM" "$C_RESET" "$1"
+}
+
+ok() {
+  printf '  %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$1"
+}
+
+warn() {
+  printf '  %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$1" >&2
+}
+
+usage() {
+  cat <<USAGE
+YPanel installer
+
+Penggunaan: bash ypanel-installer.run [opsi]
+
+Opsi:
+  --bind ADDR       Alamat bind panel (default: 0.0.0.0:8787 atau nilai terpasang)
+  -y, --yes         Non-interaktif, pakai nilai default/terpasang tanpa bertanya
+  --skip-start      Pasang tanpa menjalankan/restart service
+  --no-color        Matikan warna output
+  -h, --help        Tampilkan bantuan ini
+
+Variabel lingkungan: PANEL_BIND_ADDR, PANEL_DATABASE_DSN, PANEL_DB_PASSWORD,
+PANEL_ALLOWED_HOSTS, PANEL_ALLOWED_ORIGINS, PANEL_SESSION_TTL.
+Log lengkap instalasi: ${INSTALL_LOG_FILE}
+USAGE
+}
+
+ASSUME_YES=0
+SKIP_START=0
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --bind) PANEL_BIND_ADDR="${2:-}"; shift 2 ;;
+      --bind=*) PANEL_BIND_ADDR="${1#*=}"; shift ;;
+      -y|--yes) ASSUME_YES=1; shift ;;
+      --skip-start) SKIP_START=1; shift ;;
+      --no-color) C_RESET=""; C_BOLD=""; C_DIM=""; C_GREEN=""; C_YELLOW=""; C_RED=""; C_CYAN=""; shift ;;
+      -h|--help) usage; exit 0 ;;
+      *) printf 'Opsi tidak dikenal: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
+    esac
+  done
+}
+
+# Version of the bundle being installed (written by scripts/package-installer.ps1)
+read_bundle_version() {
+  local file
+  for file in "$REPO_ROOT/VERSION" "$SCRIPT_DIR/VERSION"; do
+    if [[ -f "$file" ]]; then
+      tr -d '\r\n[:space:]' <"$file"
+      return
+    fi
+  done
+  printf 'dev'
 }
 
 run_quiet() {
   if ! "$@" >>"$INSTALL_LOG_FILE" 2>&1; then
-    printf '\n[%s] ERROR: command gagal. Cek log: %s\n' "$APP_NAME" "$INSTALL_LOG_FILE" >&2
-    tail -n 40 "$INSTALL_LOG_FILE" >&2 || true
+    printf '\n%s✗ ERROR:%s perintah gagal: %s\n  Log lengkap: %s\n\n' "$C_RED" "$C_RESET" "$*" "$INSTALL_LOG_FILE" >&2
+    tail -n 25 "$INSTALL_LOG_FILE" >&2 || true
     exit 1
   fi
 }
 
 fail() {
-  printf '\n[%s] ERROR: %s\n' "$APP_NAME" "$1" >&2
+  printf '\n%s✗ ERROR:%s %s\n' "$C_RED" "$C_RESET" "$1" >&2
   exit 1
 }
 
@@ -88,17 +162,19 @@ detect_pm() {
 }
 
 install_base_packages() {
-  log "memastikan package dasar tersedia"
-  eval "$PKG_UPDATE" >/dev/null 2>&1
-  eval "$PKG_INSTALL curl ca-certificates tar gzip sed grep coreutils systemd" >/dev/null 2>&1
+  log "memeriksa package dasar (curl, tar, gzip, systemd)"
+  eval "$PKG_UPDATE" >>"$INSTALL_LOG_FILE" 2>&1 || warn "pembaruan indeks package gagal; melanjutkan dengan cache yang ada"
+  eval "$PKG_INSTALL curl ca-certificates tar gzip sed grep coreutils systemd openssl" >>"$INSTALL_LOG_FILE" 2>&1 \
+    || fail "gagal memasang package dasar. Cek log: $INSTALL_LOG_FILE"
 }
 
 ensure_docker() {
   if command -v docker >/dev/null 2>&1; then
-    log "docker sudah tersedia"
+    ok "docker sudah tersedia ($(docker --version 2>/dev/null | cut -d, -f1))"
   else
-    log "menginstall docker"
-    curl -fsSL https://get.docker.com | sh >/dev/null 2>&1
+    log "menginstall docker (beberapa menit)"
+    curl -fsSL https://get.docker.com | sh >>"$INSTALL_LOG_FILE" 2>&1 \
+      || fail "gagal memasang docker. Cek log: $INSTALL_LOG_FILE"
   fi
 
   run_quiet systemctl enable docker
@@ -128,9 +204,23 @@ ensure_node_tooling() {
   fail "installer frontend saat ini membutuhkan Node.js modern (>=20). Pasang Node.js secara manual untuk distro ini."
 }
 
+# Prebuilt agent shipped inside the bundle for this CPU architecture ("" if none)
+prebuilt_agent_path() {
+  local arch name
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64) name="ypanel-agent-linux-amd64" ;;
+    aarch64|arm64) name="ypanel-agent-linux-arm64" ;;
+    *) return 0 ;;
+  esac
+  if [[ -f "$REPO_ROOT/bin/$name" ]]; then
+    printf '%s' "$REPO_ROOT/bin/$name"
+  fi
+}
+
 ensure_go() {
   if command -v go >/dev/null 2>&1; then
-    log "go sudah tersedia: $(go version)"
+    ok "go sudah tersedia: $(go version | awk '{print $3}')"
     return
   fi
 
@@ -150,7 +240,7 @@ ensure_go() {
     "https://go.dev/dl/${archive}"
   )
 
-  log "menginstall Go ${go_version}"
+  log "menginstall Go ${go_version} (untuk membangun agent dari source)"
   rm -rf /usr/local/go "$archive_path"
 
   local downloaded=0
@@ -172,7 +262,7 @@ ensure_go() {
       printf '[%s] fallback install Go via apt-get\n' "$APP_NAME" >>"$INSTALL_LOG_FILE"
       run_quiet apt-get update -y
       run_quiet apt-get install -y golang-go
-      log "go tersedia via apt: $(go version)"
+      ok "go tersedia via apt: $(go version | awk '{print $3}')"
       return
     fi
     fail "gagal mengunduh archive Go dari mirror mana pun"
@@ -183,12 +273,12 @@ ensure_go() {
   if [[ ! -x /usr/local/go/bin/go ]]; then
     fail "instalasi Go gagal: /usr/local/go/bin/go tidak ditemukan setelah ekstraksi"
   fi
-  log "go berhasil diinstall: $(/usr/local/go/bin/go version)"
+  ok "go terpasang: $(/usr/local/go/bin/go version | awk '{print $3}')"
 }
 
 ensure_cloudflared() {
   if command -v cloudflared >/dev/null 2>&1; then
-    log "cloudflared sudah tersedia: $(cloudflared -V)"
+    ok "cloudflared sudah tersedia ($(cloudflared -V 2>&1 | head -n 1))"
     return
   fi
 
@@ -210,19 +300,17 @@ ensure_cloudflared() {
     fail "gagal mengunduh cloudflared"
   fi
   chmod +x "$bin_path"
-  log "cloudflared berhasil diinstall: $(cloudflared -V)"
+  ok "cloudflared terpasang ($(cloudflared -V 2>&1 | head -n 1))"
 }
 
 ypanel_config() {
-  log "konfigurasi YPanel"
-
   local current_bind_addr=""
   local current_allowed_hosts=""
   local current_allowed_origins=""
   local current_hostname=""
   local primary_ip=""
   local interactive_mode=0
-  if [[ -t 0 && -t 1 ]]; then
+  if [[ -t 0 && -t 1 && "$ASSUME_YES" -eq 0 ]]; then
     interactive_mode=1
   fi
 
@@ -239,16 +327,28 @@ ypanel_config() {
 
   current_bind_addr="${current_bind_addr:-$DEFAULT_BIND_ADDR}"
 
+  # A DSN counts as "provided" only when it came from the environment or an existing
+  # agent.env. The generated default below must not skip local PostgreSQL setup.
+  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
+    DSN_PROVIDED=1
+  else
+    DSN_PROVIDED=0
+  fi
+
   if [[ -z "${PANEL_BIND_ADDR:-}" ]]; then
     if [[ "$interactive_mode" -eq 1 ]]; then
       read -r -p "Bind address panel [${current_bind_addr}]: " PANEL_BIND_ADDR || true
       PANEL_BIND_ADDR="${PANEL_BIND_ADDR:-$current_bind_addr}"
     else
       PANEL_BIND_ADDR="$current_bind_addr"
-      log "Bind address (otomatis): $PANEL_BIND_ADDR"
+      log "bind address: $PANEL_BIND_ADDR"
     fi
   else
-    log "Bind address (dari env): $PANEL_BIND_ADDR"
+    log "bind address: $PANEL_BIND_ADDR"
+  fi
+
+  if [[ ! "$PANEL_BIND_ADDR" =~ ^[^[:space:]]*:[0-9]{1,5}$ ]]; then
+    fail "bind address tidak valid: '$PANEL_BIND_ADDR' (format host:port, contoh 0.0.0.0:8787)"
   fi
 
   current_hostname="$(hostname 2>/dev/null || true)"
@@ -414,7 +514,7 @@ migrate_legacy_runtime() {
 }
 
 install_legacy_aliases() {
-  log "menyiapkan alias compatibility ui-panel"
+  log "alias kompatibilitas ui-panel"
   ln -sfn "$BIN_PATH" /usr/local/bin/ui-panel-agent
   ln -sfn "$CLI_PATH" /usr/local/bin/ui-panel
   mkdir -p /etc/ui-panel
@@ -425,6 +525,7 @@ setup_directories() {
   log "menyiapkan direktori runtime"
   mkdir -p "$INSTALL_ROOT" "$STATE_DIR" "$CONFIG_DIR" "$FRONTEND_DIR"
   chmod 700 "$CONFIG_DIR"
+  read_bundle_version >"$INSTALL_ROOT/VERSION"
 }
 
 ensure_hostname_resolution() {
@@ -450,12 +551,28 @@ ensure_hostname_resolution() {
   fi
 }
 
-build_agent() {
-  log "membangun binary Go agent"
+install_agent() {
+  local prebuilt
+  prebuilt="$(prebuilt_agent_path)"
+
+  # Stop the running agent first so the binary can be replaced safely
+  if systemctl is-active --quiet ypanel.service 2>/dev/null; then
+    log "menghentikan service ypanel untuk mengganti binary"
+    systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+  fi
+
+  if [[ -n "$prebuilt" ]]; then
+    log "memasang binary agent bawaan paket ($(basename "$prebuilt"))"
+    install -m 755 "$prebuilt" "$BIN_PATH"
+    return
+  fi
+
+  log "binary bawaan tidak tersedia untuk $(uname -m); membangun dari source"
+  ensure_go
   export PATH="/usr/local/go/bin:$PATH"
   cd "$REPO_ROOT"
   run_quiet go mod download
-  run_quiet go build -o "$BIN_PATH" ./cmd/panel-agent
+  run_quiet go build -trimpath -ldflags="-s -w" -o "$BIN_PATH" ./cmd/panel-agent
   chmod 755 "$BIN_PATH"
 }
 
@@ -474,7 +591,11 @@ extract_managed_origins_block() {
 write_env_file() {
   local preserved_origins_block
 
-  log "menulis file konfigurasi $ENV_FILE"
+  if [[ -f "$ENV_FILE" ]]; then
+    cp -p "$ENV_FILE" "${ENV_FILE}.bak"
+    log "cadangan konfigurasi lama: ${ENV_FILE}.bak"
+  fi
+  log "menulis konfigurasi $ENV_FILE"
   preserved_origins_block="$(extract_managed_origins_block || true)"
   cat > "$ENV_FILE" <<EOF
 PANEL_BIND_ADDR=${PANEL_BIND_ADDR}
@@ -502,7 +623,6 @@ EOF
 }
 
 prepare_frontend() {
-  log "menyiapkan frontend panel"
   cd "$REPO_ROOT"
 
   if [[ ! -d "$REPO_ROOT/dist" ]]; then
@@ -518,7 +638,7 @@ prepare_frontend() {
       fail "npm atau bun diperlukan untuk build frontend"
     fi
   else
-    log "menggunakan frontend build yang sudah tersedia"
+    log "memakai frontend build bawaan paket"
   fi
 
   rm -rf "$FRONTEND_DIR"
@@ -527,7 +647,7 @@ prepare_frontend() {
 }
 
 install_service() {
-  log "menginstall systemd service"
+  log "memasang unit systemd ypanel.service"
 
   if [[ ! -f "$REPO_ROOT/installer/linux/ypanel.service.tpl" ]]; then
     fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ypanel.service.tpl"
@@ -546,8 +666,55 @@ install_service() {
   run_quiet systemctl enable ypanel.service
 }
 
+bind_port() {
+  printf '%s' "${PANEL_BIND_ADDR##*:}"
+}
+
+# Is something other than ypanel already listening on the panel port?
+port_conflict() {
+  local port
+  port="$(bind_port)"
+  command -v ss >/dev/null 2>&1 || return 1
+  ss -ltnpH "sport = :${port}" 2>/dev/null | grep -v 'ypanel-agent' | grep -q .
+}
+
+start_service() {
+  if [[ "$SKIP_START" -eq 1 ]]; then
+    warn "--skip-start: service tidak dijalankan. Jalankan: systemctl restart ypanel"
+    SERVICE_STATE="dilewati"
+    return
+  fi
+
+  if port_conflict; then
+    warn "port $(bind_port) sudah dipakai proses lain; service mungkin gagal start (cek: ss -ltnp | grep :$(bind_port))"
+  fi
+
+  log "menjalankan service ypanel"
+  systemctl restart ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+
+  local port tries=0 max=40
+  port="$(bind_port)"
+  while [[ "$tries" -lt "$max" ]]; do
+    if curl -fsS --max-time 2 "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1; then
+      SERVICE_STATE="berjalan"
+      ok "panel merespons di 127.0.0.1:${port} (/healthz)"
+      return
+    fi
+    if ! systemctl is-active --quiet ypanel.service; then
+      break
+    fi
+    tries=$((tries + 1))
+    sleep 1
+  done
+
+  SERVICE_STATE="gagal"
+  printf '\n%s✗ Service ypanel tidak sehat setelah %ss.%s Log terakhir:\n' "$C_RED" "$tries" "$C_RESET" >&2
+  journalctl -u ypanel -n 25 --no-pager >&2 || true
+  fail "panel tidak merespons. Periksa: journalctl -u ypanel -n 100 --no-pager"
+}
+
 install_cli() {
-  log "menginstall command line ypanel"
+  log "memasang CLI /usr/local/bin/ypanel"
   cat > "$CLI_PATH" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -953,7 +1120,7 @@ EOF
 }
 
 disable_portainer() {
-  log "Portainer dinonaktifkan; memastikan sidecar Portainer bawaan panel tidak berjalan"
+  log "memastikan sidecar Portainer lama tidak berjalan"
 
   if docker ps -a --format '{{.Names}}' | grep -q "^${PORTAINER_CONTAINER}$"; then
     docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
@@ -962,57 +1129,105 @@ disable_portainer() {
 }
 
 print_summary() {
-  local host_ip
-  local bind_port
+  local host_ip port elapsed version
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   host_ip="${host_ip:-127.0.0.1}"
-  bind_port="${PANEL_BIND_ADDR##*:}"
+  port="$(bind_port)"
+  elapsed=$(( $(date +%s) - INSTALL_STARTED_AT ))
+  version="$(read_bundle_version)"
 
-  log "instalasi selesai"
-  printf '\nYPanel URL     : http://%s\n' "$host_ip:$bind_port"
-  printf 'Panel local    : http://127.0.0.1:%s\n' "$bind_port"
-  printf 'Bind address   : %s\n' "$PANEL_BIND_ADDR"
-  printf 'Frontend path  : %s\n' "$FRONTEND_DIR"
-  printf 'Docker         : dikelola langsung oleh backend YPanel tanpa Portainer\n'
-  printf 'CLI command    : ypanel\n'
-  printf '\nLangkah berikutnya:\n'
-  printf '  1. Buka YPanel di browser\n'
-  printf '  2. Jalankan first-run setup\n'
-  printf '  3. Buat Admin Pertama dari UI\n'
+  printf '\n%s%s=====================================================%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
+  if [[ "$IS_UPGRADE" -eq 1 ]]; then
+    printf '%s%s YPanel diperbarui ke v%s%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+  else
+    printf '%s%s YPanel v%s terpasang%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+  fi
+  printf '%s%s=====================================================%s\n\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
 
-  printf '\nPerintah penting:\n'
-  printf '  ypanel\n'
-  printf '  systemctl status ypanel\n'
-  printf '  journalctl -u ypanel -f\n'
+  printf '  %-14s %s\n' "Buka panel" "http://${host_ip}:${port}"
+  printf '  %-14s %s\n' "Lokal" "http://127.0.0.1:${port}"
+  printf '  %-14s %s\n' "Service" "ypanel.service (${SERVICE_STATE})"
+  printf '  %-14s %s\n' "Konfigurasi" "$ENV_FILE"
+  printf '  %-14s %s\n' "Data" "$STATE_DIR"
+  printf '  %-14s %s\n' "Frontend" "$FRONTEND_DIR"
+  printf '  %-14s %s\n' "Database" "$([[ "$DSN_PROVIDED" -eq 1 ]] && printf 'DSN dari konfigurasi' || printf 'PostgreSQL lokal (%s)' "$PANEL_DB_NAME")"
+  printf '  %-14s %s\n' "Log instalasi" "$INSTALL_LOG_FILE"
+
+  if [[ "$IS_UPGRADE" -eq 1 ]]; then
+    printf '\n%sCatatan upgrade:%s muat ulang browser (Ctrl+F5). Konfigurasi lama dicadangkan di %s.bak\n' "$C_BOLD" "$C_RESET" "$ENV_FILE"
+  else
+    printf '\n%sLangkah berikutnya:%s\n' "$C_BOLD" "$C_RESET"
+    printf '  1. Buka http://%s:%s di browser\n' "$host_ip" "$port"
+    printf '  2. Selesaikan first-run setup\n'
+    printf '  3. Buat akun Admin pertama\n'
+  fi
+
+  printf '\n%sPerintah berguna:%s\n' "$C_BOLD" "$C_RESET"
+  printf '  ypanel                          menu kelola panel (password, port, origins, migrasi)\n'
+  printf '  systemctl status ypanel         status service\n'
+  printf '  journalctl -u ypanel -f         log langsung\n'
+  printf '  bash %s --help        opsi installer\n\n' "ypanel-installer.run"
 }
 
 main() {
+  parse_args "$@"
   require_root
   prepare_install_log
+
+  # Upgrade when a previous configuration exists
+  IS_UPGRADE=0
+  if [[ -f "$ENV_FILE" || -f /etc/ui-panel/agent.env ]]; then
+    IS_UPGRADE=1
+  fi
+  SERVICE_STATE="tidak dijalankan"
+  DSN_PROVIDED=0
+
+  local mode="pemasangan baru"
+  [[ "$IS_UPGRADE" -eq 1 ]] && mode="pembaruan"
+  printf '%sYPanel installer%s  v%s  (%s)\n' "$C_BOLD" "$C_RESET" "$(read_bundle_version | sed 's/^v//')" "$mode"
+
+  step "Prasyarat sistem"
   detect_pm
   install_base_packages
   ensure_docker
-  ensure_go
   ensure_cloudflared
+
+  step "Konfigurasi"
   ypanel_config
   migrate_legacy_runtime
   setup_directories
   ensure_hostname_resolution
-  if [[ -n "${PANEL_DATABASE_DSN:-}" ]]; then
-    log "PANEL_DATABASE_DSN terdeteksi; setup PostgreSQL lokal dilewati"
+
+  step "Database"
+  if [[ "$DSN_PROVIDED" -eq 1 ]]; then
+    log "memakai database dari konfigurasi (PANEL_DATABASE_DSN); PostgreSQL lokal tidak disentuh"
   else
     ensure_postgres
     provision_database
   fi
-  build_agent
+
+  step "Agent"
+  install_agent
+
+  step "Frontend"
   prepare_frontend
+
+  step "Menulis konfigurasi"
   write_env_file
-  log "menjalankan migrasi database"
+
+  step "Migrasi database"
+  log "menjalankan migrasi"
   PANEL_ENV_FILE="$ENV_FILE" run_quiet "$BIN_PATH" migrate up
+  ok "skema database terbaru"
+
+  step "Service dan CLI"
   install_service
   install_cli
   install_legacy_aliases
   disable_portainer
+  start_service
+
+  step "Selesai"
   print_summary
 }
 
