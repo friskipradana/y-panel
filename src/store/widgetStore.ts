@@ -199,6 +199,70 @@ export function snapWidgetPosition(
   return { x: Math.round(snappedX), y: Math.round(snappedY) }
 }
 
+
+function widgetHeight(type: WidgetType) {
+  return WIDGET_HEIGHTS[type] || 165
+}
+
+function overlapsWidget(x: number, y: number, height: number, other: PlacedWidget) {
+  return (
+    x < other.x + WIDGET_WIDTH &&
+    x + WIDGET_WIDTH > other.x &&
+    y < other.y + widgetHeight(other.type) &&
+    y + height > other.y
+  )
+}
+
+// Moves a widget out of the way of the others without disturbing them: below the one it
+// overlaps, or into the next column to the left when the column is full.
+export function resolveWidgetOverlap(
+  id: string,
+  type: WidgetType,
+  x: number,
+  y: number,
+  all: PlacedWidget[]
+): { x: number; y: number } {
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
+  const height = widgetHeight(type)
+  const maxY = Math.max(WIDGET_TOP, screenH - 90 - height)
+  let curX = x
+  let curY = y
+
+  for (let i = 0; i < 24; i++) {
+    const hit = all.find((w) => w.id !== id && overlapsWidget(curX, curY, height, w))
+    if (!hit) break
+
+    const below = hit.y + widgetHeight(hit.type) + WIDGET_GAP
+    if (below <= maxY) {
+      curY = below
+      continue
+    }
+    if (hit.x - COLUMN_WIDTH < 12) break
+    curX = hit.x - COLUMN_WIDTH
+    curY = WIDGET_TOP
+  }
+  return { x: Math.round(curX), y: Math.round(curY) }
+}
+
+// Non-destructive cleanup for stored layouts: keeps every widget where the user put it and
+// only pulls strays back into the viewport and out of overlaps.
+export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
+  const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
+  const placed: PlacedWidget[] = []
+
+  const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x)
+  for (const w of ordered) {
+    const height = widgetHeight(w.type)
+    const x = Math.min(Math.max(w.x, 12), Math.max(12, screenW - WIDGET_WIDTH - 12))
+    const y = Math.min(Math.max(w.y, WIDGET_TOP), Math.max(WIDGET_TOP, screenH - height - 24))
+    const spot = resolveWidgetOverlap(w.id, w.type, x, y, placed)
+    placed.push({ ...w, x: spot.x, y: spot.y })
+  }
+  const byId = new Map(placed.map((w) => [w.id, w]))
+  return widgets.map((w) => byId.get(w.id) ?? w)
+}
+
 function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType): { x: number; y: number } {
   const isBrowser = typeof window !== 'undefined'
   const screenWidth = isBrowser ? window.innerWidth : 1280
@@ -264,7 +328,12 @@ export const useWidgetStore = create<WidgetState>()(
         }
 
         const id = `widget-${type}-${Date.now()}`
-        const finalPos = pos ?? findSmartSpawnPosition(get().placedWidgets, type)
+        const current = get().placedWidgets
+        // A drop keeps the spot the user chose (snapped to neighbours); only overlaps are resolved
+        const wanted = pos
+          ? snapWidgetPosition(id, type, pos.x, pos.y, current)
+          : findSmartSpawnPosition(current, type)
+        const finalPos = resolveWidgetOverlap(id, type, wanted.x, wanted.y, current)
 
         const newWidget: PlacedWidget = {
           id,
@@ -276,7 +345,7 @@ export const useWidgetStore = create<WidgetState>()(
         }
 
         set((state) => ({
-          placedWidgets: autoSpaceWidgets([...state.placedWidgets, newWidget]),
+          placedWidgets: [...state.placedWidgets, newWidget],
         }))
 
         return id
@@ -366,7 +435,7 @@ export const useWidgetStore = create<WidgetState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state && Array.isArray(state.placedWidgets)) {
-          state.placedWidgets = autoSpaceWidgets(state.placedWidgets)
+          state.placedWidgets = sanitizeLayout(state.placedWidgets)
         }
       },
     }

@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useRef } from 'react'
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { Box, Loader2, Trash2 } from 'lucide-react'
 import { Taskbar } from '@/components/taskbar/Taskbar'
@@ -9,7 +9,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import { lazyNamed, lazyDefault } from '@/lib/lazy'
-import type { WindowKind, WindowState } from '@/types'
+import type { WidgetType, WindowKind, WindowState } from '@/types'
 import { useI18n } from '@/lib/i18n'
 
 // Code-split window components with clean 1-line syntax & preloading support
@@ -29,7 +29,7 @@ const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWind
 const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
 import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
-import { useWidgetStore } from '@/store/widgetStore'
+import { WIDGET_TOP, useWidgetStore } from '@/store/widgetStore'
 
 import { LockScreen } from '@/components/desktop/LockScreen'
 import { CommandPalette } from '@/components/common/CommandPalette'
@@ -167,6 +167,22 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     void syncCustomImage()
   }, [authenticated, syncCustomImage])
 
+  // Keep windows reachable when the viewport changes
+  useEffect(() => {
+    const clamp = () => useWindowStore.getState().clampWindowsToViewport()
+    clamp()
+    let timer: number | undefined
+    const onResize = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(clamp, 150)
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
   // Auto-lock idle timer
   useEffect(() => {
     if (!authenticated || !lockScreenEnabled || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
@@ -191,24 +207,38 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
 
   const backgroundStyle = useMemo(() => getBackgroundStyle(), [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl])
 
+  // Ghost showing where a widget dragged from the gallery will land
+  const [dropGhost, setDropGhost] = useState<{ x: number; y: number } | null>(null)
+
+  const dropPosition = (clientX: number, clientY: number) => {
+    const minSafeX = window.innerWidth >= 640 ? 200 : 16
+    return {
+      x: Math.max(minSafeX, Math.min(window.innerWidth - 292, clientX - 140)),
+      y: Math.max(WIDGET_TOP, Math.min(window.innerHeight - 120, clientY - 30)),
+    }
+  }
+
   const handleDesktopDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (e.dataTransfer.types.includes('application/ypanel-widget') || e.dataTransfer.types.includes('text/plain')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
+      setDropGhost(dropPosition(e.clientX, e.clientY))
     }
+  }
+
+  const handleDesktopDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // Only when the pointer leaves the desktop itself, not when it crosses child elements
+    if (e.currentTarget === e.target) setDropGhost(null)
   }
 
   const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
     const rawType = e.dataTransfer.getData('application/ypanel-widget') || e.dataTransfer.getData('text/plain')
     if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping'].includes(rawType)) {
       e.preventDefault()
-      const minSafeX = typeof window !== 'undefined' && window.innerWidth >= 640 ? 200 : 16
-      const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
-      const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
-      const dropX = Math.max(minSafeX, Math.min(screenW - 292, e.clientX - 140))
-      const dropY = Math.max(56, Math.min(screenH - 120, e.clientY - 30))
-      useWidgetStore.getState().addWidget(rawType as any, { x: dropX, y: dropY })
+      const drop = dropPosition(e.clientX, e.clientY)
+      useWidgetStore.getState().addWidget(rawType as WidgetType, drop)
     }
+    setDropGhost(null)
   }
 
   return (
@@ -217,8 +247,23 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       className="desktop-root"
       style={backgroundStyle}
       onDragOver={handleDesktopDragOver}
+      onDragLeave={handleDesktopDragLeave}
       onDrop={handleDesktopDrop}
     >
+      {dropGhost ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[11] rounded-xl border-2 border-dashed"
+          style={{
+            left: dropGhost.x,
+            top: dropGhost.y,
+            width: 280,
+            height: 120,
+            borderColor: 'var(--win-border-focus)',
+            background: 'var(--panel-primary-bg)',
+          }}
+        />
+      ) : null}
       <Taskbar onLogout={onLogout} authenticated={authenticated} />
 
       {/* Desktop App Shortcuts (Left Grid) */}

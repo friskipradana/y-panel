@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
-import { snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS, WIDGET_TOP, WIDGET_WIDTH } from '@/store/widgetStore'
+import { resolveWidgetOverlap, snapWidgetPosition, useWidgetStore, WIDGET_HEIGHTS, WIDGET_TOP, WIDGET_WIDTH } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
@@ -116,7 +116,8 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       window.removeEventListener('pointercancel', onPointerUp)
 
       const allWidgets = useWidgetStore.getState().placedWidgets
-      const snapped = snapWidgetPosition(widget.id, widget.type, latestX, latestY, allWidgets)
+      const wanted = snapWidgetPosition(widget.id, widget.type, latestX, latestY, allWidgets)
+      const snapped = resolveWidgetOverlap(widget.id, widget.type, wanted.x, wanted.y, allWidgets)
 
       if (containerRef.current) {
         containerRef.current.style.left = `${snapped.x}px`
