@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [3.4.1] - 2026-10-13
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v3.4.1** berisi 2 perubahan: 1 perbaikan, 1 pemeliharaan. (7 files changed, 283 insertions(+), 48 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **desktop:** Keep dropped widget position, snap windows to edges, cascade and clamp windows ([`34e4ac1`](https://github.com/friskipradana/panel-desktop-ui/commit/34e4ac1))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **compiler:** Refresh typescript build cache ([`58a5127`](https://github.com/friskipradana/panel-desktop-ui/commit/58a5127))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.0...v3.4.1
+
 ## [3.4.0] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
