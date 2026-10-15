@@ -159,6 +159,12 @@ export function autoSpaceWidgets(widgets: PlacedWidget[]): PlacedWidget[] {
     let currentY = topMargin
 
     col.widgets.forEach((w) => {
+      // a locked widget stays exactly where it was put
+      if (w.isLocked) {
+        result.push(w)
+        currentY = Math.max(currentY, w.y + widgetHeightOf(w) + WIDGET_GAP)
+        return
+      }
       result.push({ ...w, x: col.colX, y: Math.round(currentY) })
       const h = widgetHeightOf(w)
       currentY += h + WIDGET_GAP
@@ -310,8 +316,13 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
   const placed: PlacedWidget[] = []
 
-  const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x)
+  // locked widgets keep their coordinates; the others are fitted around them
+  const ordered = [...widgets].sort((a, b) => Number(!!b.isLocked) - Number(!!a.isLocked) || a.y - b.y || a.x - b.x)
   for (const w of ordered) {
+    if (w.isLocked) {
+      placed.push(w)
+      continue
+    }
     const height = widgetHeightOf(w)
     const x = Math.min(Math.max(w.x, 12), Math.max(12, screenW - WIDGET_WIDTH - 12))
     const y = Math.min(Math.max(w.y, WIDGET_TOP), Math.max(WIDGET_TOP, screenH - height - 24))
@@ -522,6 +533,10 @@ export const useWidgetStore = create<WidgetState>()(
         let currentY = topMargin
 
         current.forEach((w) => {
+          if (w.isLocked) {
+            rearranged.push(w)
+            return
+          }
           const h = widgetHeightOf(w)
           if (currentY + h > maxBottom && currentY > topMargin) {
             col++
@@ -536,12 +551,12 @@ export const useWidgetStore = create<WidgetState>()(
           currentY += h + WIDGET_GAP
         })
 
-        set({ placedWidgets: rearranged })
+        set({ placedWidgets: sanitizeLayout(rearranged) })
       },
 
       tidyUpWidgets: () => {
         if (isMobileLayoutNow()) return
-        set({ placedWidgets: autoSpaceWidgets(get().placedWidgets) })
+        set({ placedWidgets: sanitizeLayout(autoSpaceWidgets(get().placedWidgets)) })
       },
 
       hasWidget: (type) => {

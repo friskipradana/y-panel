@@ -5,6 +5,7 @@ import { sanitizeLayout, useWidgetStore, type MobileWidgetLayout } from '@/store
 import type { PlacedWidget, WidgetType } from '@/types'
 
 const OWNER_KEY = 'reneo-widgets-owner'
+const DIRTY_KEY = 'reneo-widgets-dirty'
 const PUSH_DELAY_MS = 1_500
 const KNOWN_TYPES: WidgetType[] = ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping']
 
@@ -40,6 +41,25 @@ function readOwner() {
   }
 }
 
+// A change that has not reached the server yet (page left or reloaded inside the push delay).
+// On the next start this local copy wins, so a lock or a moved widget is not undone by the old server copy.
+function readDirty() {
+  try {
+    return localStorage.getItem(DIRTY_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeDirty(username: string | null) {
+  try {
+    if (username) localStorage.setItem(DIRTY_KEY, username)
+    else localStorage.removeItem(DIRTY_KEY)
+  } catch {
+    // storage unavailable: the check is skipped
+  }
+}
+
 function writeOwner(username: string) {
   try {
     localStorage.setItem(OWNER_KEY, username)
@@ -66,9 +86,13 @@ export function useWidgetSync(): boolean {
       window.clearTimeout(timer)
       if (!dirty) return
       dirty = false
-      void putMyWidgets(snapshot()).catch(() => {
-        dirty = true // retried on the next change or when the tab is hidden
-      })
+      void putMyWidgets(snapshot())
+        .then(() => {
+          if (!dirty) writeDirty(null)
+        })
+        .catch(() => {
+          dirty = true // retried on the next change or when the tab is hidden
+        })
     }
     const onHidden = () => {
       if (document.visibilityState === 'hidden') push()
@@ -89,7 +113,13 @@ export function useWidgetSync(): boolean {
 
       const store = useWidgetStore.getState()
       const owner = readOwner()
-      if (remote) {
+      const unsynced = readDirty() === username
+      if (remote && unsynced) {
+        // local edits never reached the server: keep them and send them now
+        void putMyWidgets(snapshot())
+          .then(() => writeDirty(null))
+          .catch(() => undefined)
+      } else if (remote) {
         store.setLayout(sanitizeLayout(remote))
         if (remoteMobile) store.setMobileLayout(remoteMobile)
       } else if (owner && owner !== username) {
@@ -110,6 +140,7 @@ export function useWidgetSync(): boolean {
           prev = state.placedWidgets
           prevMobile = state.mobile
           dirty = true
+          writeDirty(username)
           window.clearTimeout(timer)
           timer = window.setTimeout(push, PUSH_DELAY_MS)
         })
