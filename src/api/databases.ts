@@ -4,6 +4,7 @@ export interface DatabaseEngine {
   id: string
   label: string
   defaultVersion: string
+  versions: string[]
   port: number
   hasDatabase: boolean
   hasUser: boolean

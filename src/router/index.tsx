@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { DesktopPage } from '@/pages/DesktopPage'
 import { McpGuidePage } from '@/pages/McpGuidePage'
 import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
+import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 
@@ -22,7 +23,10 @@ export function AppRouter() {
 
   const handleLogin = async (userData?: { username: string; role?: string }) => {
     await loginSuccess(userData)
-    navigate(HOME_PATH, { replace: true })
+    // a page that sent the visitor to the login form (e.g. /database/3) is where they go back to
+    const next = new URLSearchParams(location.search).get('next')
+    const safeNext = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith(LOGIN_PATH) ? next : HOME_PATH
+    navigate(safeNext, { replace: true })
   }
 
   const handleLogout = async () => {
@@ -100,6 +104,18 @@ export function AppRouter() {
               >
                 <DesktopPage onLogout={handleLogout} />
               </motion.div>
+            )
+          }
+        />
+        <Route
+          path="/database/:id"
+          element={
+            !authenticated ? (
+              <Navigate to={`${LOGIN_PATH}?next=${encodeURIComponent(location.pathname)}`} replace />
+            ) : (
+              <div className="absolute inset-0 z-0">
+                <DatabaseAdminPage />
+              </div>
             )
           }
         />

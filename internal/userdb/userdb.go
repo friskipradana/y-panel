@@ -31,19 +31,21 @@ type Engine struct {
 	Label          string `json:"label"`
 	Repository     string `json:"-"`
 	DefaultVersion string `json:"defaultVersion"`
-	InternalPort   int    `json:"port"`
-	DataDir        string `json:"-"`
+	// Versions are the image tags offered in the UI, newest first
+	Versions     []string `json:"versions"`
+	InternalPort int      `json:"port"`
+	DataDir      string   `json:"-"`
 	// HasDatabaseName / HasUser say which credentials the engine actually uses
 	HasDatabaseName bool `json:"hasDatabase"`
 	HasUser         bool `json:"hasUser"`
 }
 
 var engines = []Engine{
-	{ID: "postgres", Label: "PostgreSQL", Repository: "postgres", DefaultVersion: "16-alpine", InternalPort: 5432, DataDir: "/var/lib/postgresql/data", HasDatabaseName: true, HasUser: true},
-	{ID: "mysql", Label: "MySQL", Repository: "mysql", DefaultVersion: "8.4", InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
-	{ID: "mariadb", Label: "MariaDB", Repository: "mariadb", DefaultVersion: "11.4", InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
-	{ID: "mongodb", Label: "MongoDB", Repository: "mongo", DefaultVersion: "7", InternalPort: 27017, DataDir: "/data/db", HasDatabaseName: true, HasUser: true},
-	{ID: "redis", Label: "Redis", Repository: "redis", DefaultVersion: "7-alpine", InternalPort: 6379, DataDir: "/data"},
+	{ID: "postgres", Label: "PostgreSQL", Repository: "postgres", DefaultVersion: "16-alpine", Versions: []string{"17-alpine", "16-alpine", "15-alpine", "14-alpine", "13-alpine"}, InternalPort: 5432, DataDir: "/var/lib/postgresql/data", HasDatabaseName: true, HasUser: true},
+	{ID: "mysql", Label: "MySQL", Repository: "mysql", DefaultVersion: "8.4", Versions: []string{"9.0", "8.4", "8.0"}, InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
+	{ID: "mariadb", Label: "MariaDB", Repository: "mariadb", DefaultVersion: "11.4", Versions: []string{"11.4", "10.11", "10.6"}, InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
+	{ID: "mongodb", Label: "MongoDB", Repository: "mongo", DefaultVersion: "7", Versions: []string{"8", "7", "6"}, InternalPort: 27017, DataDir: "/data/db", HasDatabaseName: true, HasUser: true},
+	{ID: "redis", Label: "Redis", Repository: "redis", DefaultVersion: "7-alpine", Versions: []string{"8-alpine", "7-alpine", "6-alpine"}, InternalPort: 6379, DataDir: "/data"},
 }
 
 // Engines lists the supported products.
@@ -112,6 +114,7 @@ func RandomPassword(length int) (string, error) {
 type Spec struct {
 	ID         int64
 	OwnerID    int64
+	OwnerName  string
 	Engine     Engine
 	Version    string
 	HostPort   int
@@ -179,6 +182,10 @@ func (s Spec) RunArgs() []string {
 		"-v", volumeName(s.ID) + ":" + s.Engine.DataDir,
 		"--label", labelKind + "=database",
 		"--label", fmt.Sprintf("%s=%d", labelOwner, s.OwnerID),
+		// the same labels the panel puts on every container it creates, so the Docker window lists this one for its owner
+		"--label", fmt.Sprintf("panel.owner_id=%d", s.OwnerID),
+		"--label", "panel.owner_username=" + s.OwnerName,
+		"--label", "panel.source=database",
 	}
 	if s.MemoryMB > 0 {
 		args = append(args, "--memory", fmt.Sprintf("%dm", s.MemoryMB))

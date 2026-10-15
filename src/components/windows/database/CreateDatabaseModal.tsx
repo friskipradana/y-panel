@@ -15,6 +15,7 @@ export function CreateDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
   const [version, setVersion] = useState('')
 
   const engine = engines.find((item) => item.id === engineId)
+  const selectedVersion = version || engine?.defaultVersion || ''
   const nameInvalid = name.length > 0 && !NAME_PATTERN.test(name)
   const ready = NAME_PATTERN.test(name) && !!engine
 
@@ -41,7 +42,7 @@ export function CreateDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
             variant="primary"
             disabled={!ready}
             loading={createMut.isPending}
-            onClick={() => createMut.mutate({ name, engine: engineId, version: version.trim() || undefined })}
+            onClick={() => createMut.mutate({ name, engine: engineId, version: selectedVersion === engine?.defaultVersion ? undefined : selectedVersion })}
           >
             {t('databases.createAction')}
           </Button>
@@ -52,7 +53,10 @@ export function CreateDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
         <Field label={t('databases.engine')}>
           <Select
             value={engineId}
-            onChange={setEngineId}
+            onChange={(value) => {
+              setEngineId(value)
+              setVersion('')
+            }}
             options={engines.map((item) => ({ value: item.id, label: item.label, description: `:${item.port}` }))}
           />
         </Field>
@@ -60,7 +64,15 @@ export function CreateDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
           <TextInput mono value={name} invalid={nameInvalid} onChange={(e) => setName(e.target.value.toLowerCase())} placeholder={t('databases.namePlaceholder')} />
         </Field>
         <Field label={t('databases.version')} hint={t('databases.versionHint', { version: engine?.defaultVersion ?? '' })}>
-          <TextInput mono value={version} onChange={(e) => setVersion(e.target.value)} placeholder={engine?.defaultVersion ?? ''} />
+          <Select
+            value={selectedVersion}
+            onChange={setVersion}
+            options={(engine?.versions ?? []).map((v) => ({
+              value: v,
+              label: v,
+              description: v === engine?.defaultVersion ? t('databases.versionDefault') : undefined,
+            }))}
+          />
         </Field>
         <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('databases.localOnlyNote')}</p>
       </div>

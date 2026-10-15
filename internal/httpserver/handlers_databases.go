@@ -142,7 +142,7 @@ func (s *Server) handleCreateUserDatabase(w http.ResponseWriter, r *http.Request
 	}
 
 	spec := userdb.Spec{
-		ID: row.ID, OwnerID: u.ID, Engine: engine, Version: req.Version, HostPort: port,
+		ID: row.ID, OwnerID: u.ID, OwnerName: u.Username, Engine: engine, Version: req.Version, HostPort: port,
 		Database: dbName, User: dbUser, Password: password,
 	}
 	if quota != nil {

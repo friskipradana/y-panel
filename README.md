@@ -54,6 +54,8 @@ Window **Database** membuat database milik user sebagai container terpisah (Post
 - user dan izin (baca saja, baca-tulis, penuh) untuk PostgreSQL, MySQL, MariaDB
 - ganti atau buat password
 
+Container database juga tampil di window Docker dengan lencana "Database" (hapus hanya dari window Database), dan pengelola penuh dapat dibuka di tab sendiri pada `/database/{id}` (tetap di balik login panel).
+
 Info database internal Reneo dan log sistem hanya untuk superadmin di Settings.
 
 ### Cloudflare
