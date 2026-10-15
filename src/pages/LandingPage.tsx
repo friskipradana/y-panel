@@ -19,6 +19,7 @@ import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
 import { CopyBlock } from '@/components/public/CopyBlock'
+import { InstallGuide } from '@/pages/landing/InstallGuide'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -47,7 +48,6 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number }> }> = [
   { id: 'mcp', icon: Bot },
 ]
 
-const STEPS = ['download', 'setup', 'open'] as const
 const PHILOSOPHY = [{ id: 'rein' }, { id: 'neo' }, { id: 'rene' }] as const
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
@@ -179,21 +179,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </div>
         </section>
 
-        {/* Install steps */}
-        <section className="mt-20" aria-labelledby="landing-steps">
-          <h2 id="landing-steps" className="mb-8 text-center text-2xl font-bold tracking-tight sm:text-3xl">
-            {t('landing.steps.title')}
-          </h2>
-          <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            {STEPS.map((step, index) => (
-              <li key={step} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
-                <IconBadge tone="primary">{index + 1}</IconBadge>
-                <h3 className="mt-3 text-[0.875rem] font-semibold">{t(`landing.steps.${step}.title`)}</h3>
-                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`landing.steps.${step}.desc`)}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <InstallGuide installCommand={INSTALL_COMMAND} onNavigate={onNavigate} />
       </main>
     </PublicShell>
   )
