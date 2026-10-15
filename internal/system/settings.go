@@ -1,15 +1,17 @@
 package system
 
 import (
-	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"fmt"
 	"net"
 	neturl "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 )
 
 const (
@@ -59,33 +61,114 @@ func ReadEditableSettings() (SettingsSnapshot, error) {
 	}, nil
 }
 
+var (
+	hostnameLabelRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
+	timezoneRe      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_+./-]{0,63}$`)
+)
+
+// ValidateHostname accepts an RFC 1123 name: dot separated labels of letters,
+// digits and hyphens, not starting or ending with a hyphen, 253 characters at most.
+func ValidateHostname(name string) error {
+	if name == "" {
+		return fmt.Errorf("hostname tidak boleh kosong")
+	}
+	if len(name) > 253 {
+		return fmt.Errorf("hostname terlalu panjang (maksimal 253 karakter)")
+	}
+	for _, label := range strings.Split(name, ".") {
+		if !hostnameLabelRe.MatchString(label) {
+			return fmt.Errorf("hostname hanya boleh berisi huruf, angka, dan tanda hubung; tiap bagian 1-63 karakter dan tidak diawali atau diakhiri tanda hubung")
+		}
+	}
+	return nil
+}
+
+// ValidateTimezone checks the shape and that the zone exists on this host.
+func ValidateTimezone(zone string) error {
+	if zone == "" {
+		return fmt.Errorf("timezone tidak boleh kosong")
+	}
+	if !timezoneRe.MatchString(zone) || strings.Contains(zone, "..") {
+		return fmt.Errorf("timezone tidak valid")
+	}
+	if info, err := os.Stat(filepath.Join("/usr/share/zoneinfo", zone)); err != nil || info.IsDir() {
+		// hosts without zoneinfo (containers, Windows dev) cannot be checked: let timedatectl decide
+		if _, dirErr := os.Stat("/usr/share/zoneinfo"); dirErr == nil {
+			return fmt.Errorf("timezone %q tidak dikenal di host ini", zone)
+		}
+	}
+	return nil
+}
+
+// UpdateEditableSettings validates everything first, then applies only what changed,
+// so a bad timezone cannot leave a renamed host behind and unchanged DNS is not restarted.
 func UpdateEditableSettings(input SettingsUpdate) (SettingsSnapshot, error) {
+	current, _ := ReadEditableSettings()
+
 	nextHostname := strings.TrimSpace(input.Hostname)
 	if nextHostname != "" {
-		if err := exec.Command("hostnamectl", "set-hostname", nextHostname).Run(); err != nil {
-			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui hostname")
+		if err := ValidateHostname(nextHostname); err != nil {
+			return SettingsSnapshot{}, err
 		}
 	}
-
 	nextTimezone := strings.TrimSpace(input.Timezone)
 	if nextTimezone != "" {
-		if err := exec.Command("timedatectl", "set-timezone", nextTimezone).Run(); err != nil {
-			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui timezone")
-		}
-	}
-
-	sanitizedNameservers := sanitizeNameservers(input.Nameservers)
-	if len(sanitizedNameservers) > 0 {
-		if err := writeManagedNameservers(sanitizedNameservers); err != nil {
+		if err := ValidateTimezone(nextTimezone); err != nil {
 			return SettingsSnapshot{}, err
 		}
 	}
 
-	if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins, false); err != nil {
-		return SettingsSnapshot{}, err
+	var nameservers []string
+	nameserversRequested := false
+	for _, value := range input.Nameservers {
+		if strings.TrimSpace(value) != "" {
+			nameserversRequested = true
+			break
+		}
+	}
+	if nameserversRequested {
+		nameservers = sanitizeNameservers(input.Nameservers)
+		if len(nameservers) == 0 {
+			return SettingsSnapshot{}, fmt.Errorf("tidak ada nameserver yang valid: gunakan alamat IP publik (bukan loopback atau link-local)")
+		}
+	}
+
+	if nextHostname != "" && nextHostname != current.Hostname {
+		if err := exec.Command("hostnamectl", "set-hostname", nextHostname).Run(); err != nil {
+			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui hostname")
+		}
+	}
+	if nextTimezone != "" && nextTimezone != current.Timezone {
+		if err := exec.Command("timedatectl", "set-timezone", nextTimezone).Run(); err != nil {
+			return SettingsSnapshot{}, fmt.Errorf("gagal memperbarui timezone")
+		}
+	}
+	if nameserversRequested && !sameStrings(nameservers, current.Nameservers) {
+		if err := writeManagedNameservers(nameservers); err != nil {
+			return SettingsSnapshot{}, err
+		}
+	}
+
+	// the panel's access settings are only rewritten when the request carries them
+	if strings.TrimSpace(input.BindAddr) != "" || len(input.AllowedHosts) > 0 || len(input.AllowedOrigins) > 0 || strings.TrimSpace(input.OriginsRaw) != "" {
+		if err := updatePanelAccessSettings(input.BindAddr, input.AllowedHosts, input.AllowedOrigins, false); err != nil {
+			return SettingsSnapshot{}, err
+		}
 	}
 
 	return ReadEditableSettings()
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func UpdatePanelPort(port int) (SettingsSnapshot, error) {

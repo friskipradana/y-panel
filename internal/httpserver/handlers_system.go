@@ -313,6 +313,19 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if name := strings.TrimSpace(req.Hostname); name != "" {
+		if err := system.ValidateHostname(name); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	if zone := strings.TrimSpace(req.Timezone); zone != "" {
+		if err := system.ValidateTimezone(zone); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+
 	snapshot, err := system.UpdateEditableSettings(system.SettingsUpdate{
 		Hostname:    req.Hostname,
 		Timezone:    req.Timezone,

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isIpAddress } from "@/lib/hostValidation";
 import { CheckCircle2, Globe2, Plus, Trash2 } from "lucide-react";
 import { Select } from "@/components/ui/Select";
 import { useI18n } from "@/lib/i18n";
@@ -58,9 +59,17 @@ export function DnsEditor({
   const [newEntry, setNewEntry] = useState("");
   const { t } = useI18n();
 
+  const [entryError, setEntryError] = useState(false);
+
   const addEntry = () => {
     const value = newEntry.trim();
-    if (!value || nameservers.includes(value)) return;
+    if (!value) return;
+    if (!isIpAddress(value)) {
+      setEntryError(true);
+      return;
+    }
+    setEntryError(false);
+    if (nameservers.includes(value)) return;
     onChange([...nameservers, value]);
     setNewEntry("");
   };
@@ -109,12 +118,20 @@ export function DnsEditor({
         </div>
       )}
 
+      {entryError ? (
+        <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{t("settings.dnsInvalid")}</p>
+      ) : null}
+
       {/* Add Custom DNS Input Group */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <TextInput
             value={newEntry}
-            onChange={(event) => setNewEntry(event.target.value)}
+            onChange={(event) => {
+              setNewEntry(event.target.value);
+              setEntryError(false);
+            }}
+            invalid={entryError}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
