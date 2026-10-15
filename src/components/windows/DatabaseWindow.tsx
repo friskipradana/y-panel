@@ -1,4 +1,4 @@
-import { Database, KeyRound, Play, Plus, RefreshCw, Square, Trash2 } from 'lucide-react'
+import { Database, KeyRound, Play, Plus, RefreshCw, Settings2, Square, Trash2 } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import type { WindowState } from '@/types'
 import { ConnectionModal } from './database/ConnectionModal'
 import { CreateDatabaseModal } from './database/CreateDatabaseModal'
+import { ManageDatabaseModal } from './database/ManageDatabaseModal'
 import { useDatabasesWindow } from './database/useDatabasesWindow'
 
 type Tone = 'success' | 'warning' | 'danger' | 'neutral'
@@ -24,7 +25,7 @@ function stateTone(item: UserDatabase): Tone {
 // The panel's own database lives in Settings and is for the superadmin only.
 export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boolean }) {
   const dbw = useDatabasesWindow(win)
-  const { t, query, items, startMut, stopMut, confirmDelete, setShowCreate, setConnectionTarget } = dbw
+  const { t, query, items, startMut, stopMut, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget } = dbw
 
   return (
     <div className="panel-window flex h-full flex-col">
@@ -96,6 +97,9 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                   }
                   actions={
                     <div className="flex items-center gap-1">
+                      <IconButton label={t('databases.admin.manage')} tone="primary" disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>
+                        <Settings2 className="h-3.5 w-3.5" />
+                      </IconButton>
                       <IconButton label={t('databases.showConnection')} tone="primary" disabled={pending || broken} onClick={() => setConnectionTarget(item)}>
                         <KeyRound className="h-3.5 w-3.5" />
                       </IconButton>
@@ -122,6 +126,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
 
       <CreateDatabaseModal dbw={dbw} />
       <ConnectionModal dbw={dbw} />
+      <ManageDatabaseModal dbw={dbw} />
     </div>
   )
 }
