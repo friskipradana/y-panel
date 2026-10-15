@@ -1,6 +1,6 @@
-# YPanel Public Use License
+# Reneo Public Use License
 
-Copyright (c) 2026 Y_Corp
+Copyright (c) 2026 Reneo contributors
 
 Official contributors: AknalRe, FriskiPradana
 
@@ -13,7 +13,7 @@ below.
 
 You may:
 
-- use YPanel on your own local machine, VPS, homeserver, private server, or
+- use Reneo on your own local machine, VPS, homeserver, private server, or
   organization-owned infrastructure;
 - copy and redistribute unmodified copies of the public release;
 - study the source code for learning, auditing, and operational review;
@@ -26,7 +26,7 @@ repository, push commits, create releases, publish official builds, or represent
 changes as approved by the project owner.
 
 Editing, committing, pushing, merging, publishing, or maintaining the official
-YPanel repository requires explicit permission from the project owner or an
+Reneo repository requires explicit permission from the project owner or an
 authorized maintainer.
 
 ## 3. Redistribution and Modified Versions
@@ -35,12 +35,12 @@ If you redistribute modified versions, forks, or derivative builds, you must:
 
 - clearly state that the version is modified and unofficial;
 - not use the project owner's name to imply endorsement;
-- not misrepresent the modified version as the official YPanel release;
+- not misrepresent the modified version as the official Reneo release;
 - preserve this license notice and copyright notice.
 
 ## 4. Trademark and Branding
 
-The names "YPanel", project logos, icons, social preview images, and other brand
+The names "Reneo", project logos, icons, social preview images, and other brand
 assets may be used to identify the official project, but may not be used in a way
 that suggests endorsement, ownership, or official maintainer status without
 permission.
@@ -58,5 +58,5 @@ connection with the software or the use of the software.
 
 ## 6. Summary
 
-Everyone may access and use YPanel. Official repository edits, pushes, releases,
+Everyone may access and use Reneo. Official repository edits, pushes, releases,
 and maintainer actions require permission.
