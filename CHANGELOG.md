@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.3.2] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.3.2** berisi 1 perubahan: 1 fitur. (32 files changed, 1633 insertions(+), 874 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- GitHub-backed changelog, public articles with markdown docs editor, system info and logs reworked, no system vitals widget on mobile ([`5f0bdf7`](https://github.com/friskipradana/panel-desktop-ui/commit/5f0bdf7))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.1...v4.3.2
+
 ## [4.3.1] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
