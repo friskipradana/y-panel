@@ -96,7 +96,7 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 		result := InitializeResult{
 			ProtocolVersion: MCPProtocolVersion,
 			ServerInfo: ServerInfo{
-				Name:    "ypanel",
+				Name:    "reneo",
 				Version: serverVersion(),
 			},
 			Capabilities: ServerCapability{
@@ -294,8 +294,9 @@ func (s *Server) ProcessRequest(ctx context.Context, req Request) *Response {
 		if idx := strings.LastIndex(cleanName, "__"); idx != -1 {
 			cleanName = cleanName[idx+2:]
 		}
-		cleanName = strings.TrimPrefix(cleanName, "ypanel_")
-		cleanName = strings.TrimPrefix(cleanName, "ypanel__")
+		for _, prefix := range []string{"reneo__", "reneo_", "ypanel__", "ypanel_"} {
+			cleanName = strings.TrimPrefix(cleanName, prefix)
+		}
 
 		s.mu.Lock()
 		handler, ok := s.handlers[cleanName]

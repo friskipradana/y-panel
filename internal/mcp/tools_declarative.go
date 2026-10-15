@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"fmt"
 	"net/url"
@@ -230,7 +231,7 @@ func serverVersion() string {
 	if v := strings.TrimSpace(os.Getenv("PANEL_VERSION")); v != "" {
 		return v
 	}
-	for _, path := range []string{"/opt/ypanel/VERSION", "VERSION"} {
+	for _, path := range []string{runtimepath.VersionFile(), "VERSION"} {
 		if b, err := os.ReadFile(path); err == nil {
 			if v := strings.TrimSpace(string(b)); v != "" {
 				return v

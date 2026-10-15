@@ -79,7 +79,7 @@ func catalogSpecs() []apiSpec {
 			Desc:   "Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s). Each point is {t: epoch ms, v: value}. Use `since` for incremental reads.",
 			Params: []apiParam{queryParam("since", "integer", "Only return points newer than this epoch-ms timestamp.")}},
 		{Name: "system_changelog", Title: "Panel changelog", Method: "GET", Path: "/api/v1/system/changelog",
-			Desc: "Release notes of the installed YPanel versions."},
+			Desc: "Release notes of the installed Reneo versions."},
 		{Name: "ping_host", Title: "Ping a host", Method: "POST", Path: "/api/v1/tools/ping", AdminOnly: true, Hint: "read",
 			Desc: "Measure reachability and latency from the server. Without `port` it sends an ICMP echo; with `port` it times a TCP connect. Returns {ok, latencyMs, resolved, error}.",
 			Params: []apiParam{

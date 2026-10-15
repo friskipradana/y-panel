@@ -143,7 +143,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
 	service := strings.TrimSpace(r.URL.Query().Get("service"))
 	if service == "" {
-		service = "ypanel"
+		service = "reneo"
 	}
 	limit := 160
 	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
@@ -435,21 +435,21 @@ func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.
 
 	targetUser, err := s.database.GetPrimarySuperadmin()
 	if err != nil || targetUser == nil {
-		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama YPanel tidak ditemukan"})
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "akun utama Reneo tidak ditemukan"})
 		return
 	}
 
 	if err := s.auth.ResetPassword(targetUser.ID, req.NewPassword); err != nil {
-		log.Printf("[auth] reset primary YPanel password failed remote=%s err=%v", remoteAddr(r), err)
-		s.recordRuntimeLog("error", "primary YPanel password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
+		log.Printf("[auth] reset primary Reneo password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "primary Reneo password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error(), "targetUser": targetUser.Username})
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	actor, _ := s.currentUser(r)
-	message := fmt.Sprintf("Password akun utama YPanel (%s) berhasil diperbarui.", targetUser.Username)
-	log.Printf("[auth] primary YPanel password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
-	s.recordRuntimeLog("warning", "primary YPanel password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
+	message := fmt.Sprintf("Password akun utama Reneo (%s) berhasil diperbarui.", targetUser.Username)
+	log.Printf("[auth] primary Reneo password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
+	s.recordRuntimeLog("warning", "primary Reneo password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
 	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
 	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
 }

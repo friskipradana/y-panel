@@ -123,7 +123,7 @@ func apiResult(data []byte, statusCode int, err error) (string, error) {
 func registerProjectTools(s *Server, client *apiClient) {
 	s.Register(Tool{
 		Name:        "project_list",
-		Description: "List all YPanel projects (web/app projects managed by the panel) with their status.",
+		Description: "List all Reneo projects (web/app projects managed by the panel) with their status.",
 		InputSchema: InputSchema{Type: "object"},
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
 		data, code, err := client.get(ctx, "/api/v1/projects")
@@ -132,7 +132,7 @@ func registerProjectTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "project_get",
-		Description: "Get detailed information about a specific YPanel project.",
+		Description: "Get detailed information about a specific Reneo project.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -151,7 +151,7 @@ func registerProjectTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "project_start",
-		Description: "Start a YPanel project.",
+		Description: "Start a Reneo project.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -170,7 +170,7 @@ func registerProjectTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "project_stop",
-		Description: "Stop a running YPanel project.",
+		Description: "Stop a running Reneo project.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -192,7 +192,7 @@ func registerProjectTools(s *Server, client *apiClient) {
 func registerUserTools(s *Server, client *apiClient) {
 	s.Register(Tool{
 		Name:        "user_list",
-		Description: "List all YPanel users with their roles, status, and quota info.",
+		Description: "List all Reneo users with their roles, status, and quota info.",
 		InputSchema: InputSchema{Type: "object"},
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
 		data, code, err := client.get(ctx, "/api/v1/users")
@@ -201,7 +201,7 @@ func registerUserTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "user_get",
-		Description: "Get a single YPanel user by ID.",
+		Description: "Get a single Reneo user by ID.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -220,7 +220,7 @@ func registerUserTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "user_suspend",
-		Description: "Suspend a YPanel user account (prevent login).",
+		Description: "Suspend a Reneo user account (prevent login).",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -239,7 +239,7 @@ func registerUserTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "user_activate",
-		Description: "Activate a suspended YPanel user account.",
+		Description: "Activate a suspended Reneo user account.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -261,7 +261,7 @@ func registerUserTools(s *Server, client *apiClient) {
 func registerCloudflareTools(s *Server, client *apiClient) {
 	s.Register(Tool{
 		Name:        "cloudflare_list_domains",
-		Description: "List all Cloudflare domains (zones) connected to YPanel.",
+		Description: "List all Cloudflare domains (zones) connected to Reneo.",
 		InputSchema: InputSchema{Type: "object"},
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
 		data, code, err := client.get(ctx, "/api/v1/cloudflare/domains")
@@ -270,7 +270,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "cloudflare_list_dns",
-		Description: "List DNS records for a Cloudflare zone managed by YPanel.",
+		Description: "List DNS records for a Cloudflare zone managed by Reneo.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -289,7 +289,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "cloudflare_list_tunnel_profiles",
-		Description: "List all Cloudflare tunnel profiles configured in YPanel.",
+		Description: "List all Cloudflare tunnel profiles configured in Reneo.",
 		InputSchema: InputSchema{Type: "object"},
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
 		data, code, err := client.get(ctx, "/api/v1/cloudflare/tunnel-profiles")
@@ -307,7 +307,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 
 	s.Register(Tool{
 		Name:        "cloudflare_create_dns",
-		Description: "Create a DNS record (CNAME, A, AAAA, TXT) in Cloudflare for a domain/zone managed by YPanel.",
+		Description: "Create a DNS record (CNAME, A, AAAA, TXT) in Cloudflare for a domain/zone managed by Reneo.",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
@@ -367,7 +367,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			Type: "object",
 			Properties: map[string]Property{
 				"hostname":  {Type: "string", Description: "The public ingress hostname to point (e.g. test.aknalre.my.id)."},
-				"tunnel_id": {Type: "string", Description: "Optional: Cloudflare tunnel ID. If omitted, automatically uses the active tunnel in YPanel."},
+				"tunnel_id": {Type: "string", Description: "Optional: Cloudflare tunnel ID. If omitted, automatically uses the active tunnel in Reneo."},
 			},
 			Required: []string{"hostname"},
 		},
@@ -388,7 +388,7 @@ func registerCloudflareTools(s *Server, client *apiClient) {
 			Name string `json:"name"`
 		}
 		if err := json.Unmarshal(zonesData, &zones); err != nil || len(zones) == 0 {
-			return "", fmt.Errorf("no active Cloudflare domains found in YPanel")
+			return "", fmt.Errorf("no active Cloudflare domains found in Reneo")
 		}
 
 		// Find best matching zone for hostname (e.g. aknalre.my.id matches test.aknalre.my.id)

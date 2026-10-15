@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
@@ -52,15 +52,7 @@ func rewriteEnvValue(path, key, value string) error {
 }
 
 func runtimeEnvPath() string {
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func firstNonEmpty(values ...string) string {

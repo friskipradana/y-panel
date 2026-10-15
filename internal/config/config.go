@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"errors"
 	"log"
 	"os"
@@ -57,6 +58,10 @@ type Config struct {
 
 func Load() (Config, error) {
 	loadDotEnv(".env")
+	// RENEO_* names are accepted wherever PANEL_* is
+	runtimepath.ApplyEnvAliases()
+	// RENEO_* names are accepted wherever PANEL_* is
+	runtimepath.ApplyEnvAliases()
 	cfg := Config{
 		BindAddr:                   getenv("PANEL_BIND_ADDR", "0.0.0.0:8787"),
 		AllowedHosts:               parseCSVEnv("PANEL_ALLOWED_HOSTS", nil),
@@ -65,8 +70,8 @@ func Load() (Config, error) {
 		SessionTTL:                 parseDurationEnv("PANEL_SESSION_TTL", 12*time.Hour),
 		DatabaseDSN:                os.Getenv("PANEL_DATABASE_DSN"),
 		DatabaseEnable:             parseBoolEnv("PANEL_DB_ENABLED", true),
-		StateDir:                   getenv("PANEL_STATE_DIR", "/var/lib/ypanel"),
-		FrontendDir:                getenv("PANEL_FRONTEND_DIR", "/opt/ypanel/frontend"),
+		StateDir:                   getenv("PANEL_STATE_DIR", runtimepath.StateDir()),
+		FrontendDir:                getenv("PANEL_FRONTEND_DIR", runtimepath.FrontendDir()),
 		TerminalEnabled:            parseBoolEnv("PANEL_TERMINAL_ENABLED", true),
 		TerminalAllowRemote:        parseBoolEnv("PANEL_TERMINAL_ALLOW_REMOTE", false),
 		AdminFileManagerRootAccess: parseBoolEnv("PANEL_ADMIN_FILE_ROOT_ACCESS", false),
@@ -267,18 +272,7 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 }
 
 func runtimeEnvPath() string {
-	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
-		return envPath
-	}
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func firstNonEmpty(values ...string) string {

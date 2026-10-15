@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"errors"
 	"fmt"
 	"html"
@@ -303,7 +304,7 @@ func (s *Server) Close() error {
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"status":  "ok",
-		"service": "ypanel-agent",
+		"service": "reneo-agent",
 		"time":    time.Now().UTC().Format(time.RFC3339),
 	})
 }
@@ -320,7 +321,7 @@ func (s *Server) appVersion() string {
 	if v := strings.TrimSpace(os.Getenv("PANEL_VERSION")); v != "" {
 		return v
 	}
-	candidates := []string{"/opt/ypanel/VERSION"}
+	candidates := []string{runtimepath.VersionFile()}
 	if s.cfg.FrontendDir != "" {
 		candidates = append([]string{filepath.Join(filepath.Dir(s.cfg.FrontendDir), "VERSION")}, candidates...)
 	}
@@ -478,7 +479,7 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>%d • %s</title>
-  <meta name="description" content="Halaman status YPanel untuk %s" />
+  <meta name="description" content="Halaman status Reneo untuk %s" />
   <style>
     :root {
       color-scheme: dark;
@@ -709,7 +710,7 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   <main class="status-shell">
     <section class="status-grid">
       <div class="status-hero">
-        <div class="brand"><span class="brand-mark"></span> YPanel Runtime</div>
+        <div class="brand"><span class="brand-mark"></span> Reneo Runtime</div>
         <div class="code">%d</div>
         <h1>%s</h1>
         <p class="lead">%s</p>

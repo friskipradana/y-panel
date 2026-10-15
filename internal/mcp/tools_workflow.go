@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -316,13 +317,13 @@ func registerWorkflowTools(s *Server, client *apiClient, cfg Config) {
 	// ── 5. service_manage ────────────────────────────────────────────────────
 	s.Register(Tool{
 		Name:        "service_manage",
-		Description: "Check status or control system services (cloudflared, docker, nginx, ypanel, redis, postgresql).",
+		Description: "Check status or control system services (cloudflared, docker, nginx, reneo, redis, postgresql).",
 		InputSchema: InputSchema{
 			Type: "object",
 			Properties: map[string]Property{
 				"service": {
 					Type:        "string",
-					Description: "Service name (e.g. 'cloudflared', 'docker', 'nginx', 'ypanel').",
+					Description: "Service name (e.g. 'cloudflared', 'docker', 'nginx', 'reneo').",
 				},
 				"action": {
 					Type:        "string",
@@ -333,7 +334,7 @@ func registerWorkflowTools(s *Server, client *apiClient, cfg Config) {
 			Required: []string{"service", "action"},
 		},
 	}, func(ctx context.Context, args map[string]any) (string, error) {
-		service := strings.TrimSpace(stringArg(args, "service", ""))
+		service := runtimepath.ResolveServiceAlias(strings.TrimSpace(stringArg(args, "service", "")))
 		action := strings.TrimSpace(stringArg(args, "action", "status"))
 		if service == "" {
 			return "", fmt.Errorf("service is required")
@@ -420,8 +421,8 @@ func updateTunnelIngressFile(hostname, serviceURL string) bool {
 		"/etc/cloudflared/config.yaml",
 	}
 
-	// Also look for user tunnel configs in /var/lib/ypanel/tunnels/
-	matches, _ := filepath.Glob("/var/lib/ypanel/tunnels/*/*/config.yml")
+	// Also look for user tunnel configs in <state dir>/tunnels/
+	matches, _ := filepath.Glob(filepath.Join(runtimepath.StateDir(), "tunnels", "*", "*", "config.yml"))
 	candidates = append(candidates, matches...)
 
 	for _, path := range candidates {

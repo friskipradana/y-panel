@@ -141,8 +141,8 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Standard Discovery JSON (Browser / cURL inspection)
-		hermesCLI := fmt.Sprintf("hermes mcp add YPANEL --url \"%s\"", mcpEndpointURL)
-		openclawCLI := fmt.Sprintf("openclaw mcp add YPANEL --transport streamable-http --url \"%s\"", mcpEndpointURL)
+		hermesCLI := fmt.Sprintf("hermes mcp add RENEO --url \"%s\"", mcpEndpointURL)
+		openclawCLI := fmt.Sprintf("openclaw mcp add RENEO --transport streamable-http --url \"%s\"", mcpEndpointURL)
 
 		tools := srv.Tools()
 		toolNames := make([]string, len(tools))
@@ -151,7 +151,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.writeJSON(w, http.StatusOK, jsonResponse{
-			"service":          "YPanel Model Context Protocol (MCP) Server",
+			"service":          "Reneo Model Context Protocol (MCP) Server",
 			"status":           "active",
 			"protocol_version": mcp.MCPProtocolVersion,
 			"authenticated":    userRole != "anonymous",

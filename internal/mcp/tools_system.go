@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -29,7 +30,7 @@ func registerSystemTools(s *Server, cfg systemConfig) {
 			Properties: map[string]Property{
 				"service": {
 					Type:        "string",
-					Description: "Systemd service name (e.g. 'ypanel', 'nginx', 'docker'). Defaults to 'ypanel'.",
+					Description: "Systemd service name (e.g. 'reneo', 'nginx', 'docker'). 'reneo' and 'ypanel' resolve to the installed panel unit. Defaults to 'reneo'.",
 				},
 				"limit": {
 					Type:        "integer",
@@ -39,7 +40,7 @@ func registerSystemTools(s *Server, cfg systemConfig) {
 			},
 		},
 	}, func(ctx context.Context, args map[string]any) (string, error) {
-		service := stringArg(args, "service", "ypanel")
+		service := runtimepath.ResolveServiceAlias(stringArg(args, "service", runtimepath.Name))
 		limit := intArg(args, "limit", 100)
 		entries, err := system.ReadServiceLogs(service, limit)
 		if err != nil {

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"fmt"
 	"net"
 	neturl "net/url"
@@ -344,18 +345,7 @@ const (
 )
 
 func panelEnvPath() string {
-	if envPath := strings.TrimSpace(os.Getenv("PANEL_ENV_FILE")); envPath != "" {
-		return envPath
-	}
-	newPath := filepath.Join("/etc", "ypanel", "agent.env")
-	if _, err := os.Stat(newPath); err == nil {
-		return newPath
-	}
-	legacyPath := filepath.Join("/etc", "ui-panel", "agent.env")
-	if _, err := os.Stat(legacyPath); err == nil {
-		return legacyPath
-	}
-	return newPath
+	return runtimepath.EnvFile()
 }
 
 func panelOriginsRawPath() string {

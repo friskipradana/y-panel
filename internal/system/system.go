@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"bufio"
 	"bytes"
 	"fmt"
@@ -356,8 +357,10 @@ func parseNetDev(data []byte) NetworkIO {
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
 	service = strings.TrimSpace(service)
 	if service == "" {
-		service = "ypanel"
+		service = runtimepath.Name
 	}
+	// "reneo" and "ypanel" both mean the panel unit, whichever name is installed
+	service = runtimepath.ResolveServiceAlias(service)
 	if limit <= 0 {
 		limit = 120
 	}
