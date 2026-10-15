@@ -17,6 +17,7 @@ import (
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docsync"
 	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
@@ -41,6 +42,7 @@ type Server struct {
 	mux                          *http.ServeMux
 	frontendFS                   http.Handler
 	authedFrontend               http.Handler
+	docsSync                     *docsync.Client
 	terminalManager              *terminal.Manager
 	terminalUpgrader             websocket.Upgrader
 	database                     *database.Manager
@@ -121,7 +123,7 @@ func New(cfg config.Config) *Server {
 		WriteBufferSize: 4096,
 		CheckOrigin:     s.isWebSocketOriginAllowed,
 	}
-	s.authedFrontend = s.requireHTMLAuthV2(s.frontendFS)
+	s.authedFrontend = s.requireHTMLAuthV2(s.seoFrontend(s.frontendFS, cfg.FrontendDir))
 
 	s.metrics = metrics.New(cfg.StateDir, func() (map[string]float64, map[string]uint64) {
 		sm := system.TakeSample(cfg.StateDir)
@@ -133,6 +135,9 @@ func New(cfg config.Config) *Server {
 	})
 	go s.metrics.Run()
 	s.updates = updater.New()
+	if docsync.Enabled() {
+		s.docsSync = docsync.New()
+	}
 
 	s.routes()
 	go s.runProjectReconcileLoop(25 * time.Second)

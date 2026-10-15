@@ -10,6 +10,8 @@ export interface DocRecord {
   content: string
   status: 'published' | 'draft' | 'archived'
   isPublic: boolean
+  /** official: synced from the project repository, read-only */
+  source?: 'official'
   createdAt: string
   updatedAt: string
 }
@@ -68,3 +70,9 @@ export const listPublicDocs = () =>
 
 export const getPublicDoc = (slug: string) =>
   agentApi.get<PublicDoc>(`/api/v1/public/docs/${encodeURIComponent(slug)}`).then((r) => r.data)
+
+// Official articles synced from the project repository (same on every installation)
+export const listOfficialDocs = (refresh = false) =>
+  agentApi
+    .get<{ items: DocRecord[] }>('/api/v1/docs/official', { params: { refresh: refresh ? 1 : undefined } })
+    .then((r) => r.data.items.map((doc) => ({ ...doc, source: 'official' as const })))

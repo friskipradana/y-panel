@@ -1,0 +1,9 @@
+{
+  "articles": [
+    { "slug": "memasang-reneo", "title": "Memasang Reneo di server Linux", "excerpt": "Satu perintah untuk memasang Reneo, membuat akun admin, dan memperbarui panel.", "file": "memasang-reneo.md", "updatedAt": "2026-10-16" },
+    { "slug": "menghubungkan-agen-ai-mcp", "title": "Menghubungkan agen AI lewat MCP", "excerpt": "Buat token API lalu hubungkan Hermes, Claude Desktop, Cursor, atau cURL ke Reneo.", "file": "menghubungkan-agen-ai-mcp.md", "updatedAt": "2026-10-16" },
+    { "slug": "mengelola-database", "title": "Membuat dan mengelola database", "excerpt": "PostgreSQL, MySQL, MariaDB, MongoDB, dan Redis: buat, kelola tabel, user, izin, dan password dari panel.", "file": "mengelola-database.md", "updatedAt": "2026-10-16" },
+    { "slug": "project-dan-runtime", "title": "Project dan runtime yang didukung", "excerpt": "Static, Node.js, Python, PHP, dan custom: cara tiap tipe dijalankan dan aturan direktori kerja.", "file": "project-dan-runtime.md", "updatedAt": "2026-10-16" },
+    { "slug": "akun-kuota-dan-demo", "title": "Akun, kuota, dan akun demo", "excerpt": "Role superadmin, admin, dan user, kuota sumber daya, reset password, serta akun demo hanya-baca.", "file": "akun-kuota-dan-demo.md", "updatedAt": "2026-10-16" }
+  ]
+}

@@ -4,267 +4,194 @@
 
 ![Reneo social preview](public/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png)
 
-**Reneo** adalah panel kontrol server Linux dengan pengalaman antarmuka bergaya Desktop OS. Proyek ini menggabungkan frontend React modern dan backend Go agent agar administrator dapat mengelola server, Docker, file, terminal, user, project, Cloudflare, database, dan observability dari satu workspace visual.
+**Reneo** adalah panel kontrol server Linux dengan antarmuka bergaya desktop. Frontend React 19 dan agent Go menyatukan Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI (lewat MCP) dalam satu workspace visual, dengan tampilan desktop dan tampilan ponsel.
 
-Reneo dibuat untuk kebutuhan homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan panel ringan, self-hosted, dan tetap nyaman digunakan seperti desktop environment.
+Cocok untuk homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan panel ringan, self-hosted, dan nyaman dipakai.
 
-## Tujuan Proyek
+## Pasang
 
-Reneo bertujuan menjadi control center yang:
+Di server Linux (Ubuntu, Debian, RHEL dan turunannya; amd64 atau arm64):
 
-- mudah dipakai dari browser tanpa kehilangan rasa desktop native
-- aman untuk multi-user dengan pembatasan akses berbasis role/capability
-- mampu mengelola Docker container, image, network, template, dan log realtime
-- menyediakan workflow project, file manager, terminal, dan system monitoring dalam satu UI
-- tetap transparan untuk operator Linux melalui service, log, migration, dan deploy script yang jelas
+```bash
+curl -fsSL https://install.reneo.my.id | sudo bash
+```
 
-## Style dan Arah Desain
+Lalu buka `http://IP-SERVER:8787` dan selesaikan penyiapan pertama untuk membuat akun superadmin.
 
-Reneo menggunakan gaya **Desktop OS Panel**:
+| Perintah | Fungsi |
+| :--- | :--- |
+| `systemctl status reneo` | Status service |
+| `journalctl -u reneo -f` | Log langsung |
+| `sudo reneo` | Menu pengelolaan (password, port, origin) |
+| `sudo reneo check-update` / `sudo reneo update` | Cek dan terapkan pembaruan |
+| `sudo bash /opt/reneo/installer/uninstall.sh` | Mencopot |
 
-- taskbar, dock, window manager, minimize/maximize, dan multi-window workflow
-- panel/window dengan visual modern, rapi, dan tidak terlalu banyak dekorasi berlebihan
-- warna netral-premium dengan aksen biru/indigo yang konsisten
-- komponen interaktif seperti custom dropdown, modal scoped ke window, toast, dan alert kontekstual
-- fokus pada density yang nyaman untuk operator server: banyak data tetap terbaca tanpa terasa penuh
+Opsi installer: `--bind ADDR`, `--yes`, `--skip-start`. Detail: [Installer Architecture](docs/installer-architecture.md).
 
-Prinsip desain saat menambah fitur baru:
+## Fitur
 
-1. Ikuti style window/panel yang sudah ada.
-2. Hindari card/bubble berlebihan.
-3. Gunakan komponen shared seperti select/menu/button yang sudah dipakai window lain.
-4. Modal harus menghormati ukuran window aplikasi.
-5. Polling data harus aktif hanya saat window fokus/aktif jika memungkinkan.
+### Desktop dan ponsel
 
-## Fitur Utama
+- taskbar, dock, window manager, widget (jam, sistem, jaringan, grafik CPU, sticky note, ping), palet perintah
+- layout ponsel otomatis di bawah 768px (`?ui=mobile` / `?ui=desktop` memaksa sekali muat): satu aplikasi layar penuh, navigasi bawah, notifikasi, urutan dan kunci widget terpisah dari desktop
+- tema terang/gelap, bahasa Indonesia dan Inggris
 
-### Desktop Workspace
+### Docker
 
-- taskbar dan dock
-- window management
-- shortcut aplikasi internal
-- wallpaper/theme runtime
-- attention badge untuk incident atau status penting
+- container, image, network, template compose, deploy dari image atau compose
+- log realtime, start/stop/restart/hapus, audit runtime
 
-### Docker Workspace
+### Project
 
-- list container, image, network, template
-- deploy dari image atau compose
-- edit/redeploy container
-- start, stop, restart, delete container
-- cleanup image/volume dengan validasi
-- log container realtime dengan auto-scroll
-- runtime audit untuk restart count, health, exit code, dan status container
+Tipe yang dapat dijalankan: `static` (SPA fallback), `nodejs`, `python`, `php`, `custom` (`start.sh`). Direktori kerja dikunci ke home pemilik, proses hanya menerima environment minimal, port dialokasi dari blok per akun. Detail: [artikel resmi](docs/articles/project-dan-runtime.md).
 
-### Project Management
+### Database
 
-- registrasi project user
-- metadata runtime dan drift/degraded status
-- quick action untuk inspect log, file manager, terminal, start/stop, dan reconcile
+Window **Database** membuat database milik user sebagai container terpisah (PostgreSQL, MySQL, MariaDB, MongoDB, Redis), terikat ke `127.0.0.1`, dengan kuota per akun. Tombol **Kelola database** menyediakan, tanpa memasang phpMyAdmin atau aplikasi lain:
 
-### Cloudflare Integration
+- tabel: daftar, isi per halaman, form pembuat tabel, hapus tabel
+- konsol SQL (Redis: konsol perintah)
+- user dan izin (baca saja, baca-tulis, penuh) untuk PostgreSQL, MySQL, MariaDB
+- ganti atau buat password
 
-- konfigurasi Cloudflare per user
-- tunnel management
-- DNS/route integration
-- validasi token dan account/zone context
+Info database internal Reneo dan log sistem hanya untuk superadmin di Settings.
 
-### User dan Access Control
+### Cloudflare
 
-- multi-user dengan role/capability
-- reset password akun utama Reneo
-- pembatasan akses file, terminal, Docker, dan project berdasarkan user/context
+Token per user, tunnel, DNS, aturan redirect, dan publikasi project lewat tunnel.
 
-### File Manager dan Editor
+### Pengguna dan akses
 
-- browse file server dari browser
-- upload/download
-- drag/drop internal
-- editor file berbasis Monaco
-- akses root/admin dikontrol melalui setting keamanan
+- role `superadmin`, `admin`, `user`; admin hanya mengelola user biasa, hanya superadmin memberi role admin
+- kuota project, tunnel, database, disk, CPU, memori, dengan tampilan pemakaian
+- reset password oleh admin, ganti password sendiri, suspend/hapus menghentikan beban kerja akun
+- **akun demo hanya-baca** (lihat di bawah)
 
-### Terminal
+### Docs dan artikel publik
 
-- terminal host berbasis Xterm.js
-- guard akses untuk user biasa
-- integrasi quick inspect command dari window lain
+- window Docs menulis artikel dengan markdown dan pratinjau
+- artikel berstatus terbit dan "terbuka untuk umum" dibaca tanpa login di `/articles` dan `/articles/{slug}`
+- **artikel resmi tersinkron**: panel membaca [docs/articles](docs/articles) dari repository ini lewat GitHub (cache 1 jam), sehingga instalasi di mana pun, dengan database berbeda, menampilkan dokumentasi yang sama. Artikel buatan sendiri tetap milik panel itu. Matikan dengan `RENEO_DOCS_SYNC=false`.
 
-### System dan Database Monitoring
+### Changelog
 
-- healthcheck runtime agent
-- log systemd/journal
-- database status
-- runtime audit log
-- migration status
-- system settings dan hardening controls
+Mengikuti GitHub Releases proyek (cache 1 jam, fallback ke entri lokal bila offline).
 
-## Stack Teknologi
+### MCP untuk agen AI
 
-### Frontend
+Server MCP di `/mcp` dengan token API, tool mengikuti role. Panduan publik di `/docs/mcp`. Lihat [docs/mcp.md](docs/mcp.md).
 
-- React 19
-- Vite
-- TypeScript
-- Zustand
-- TanStack Query
-- Framer Motion
-- Xterm.js
-- Monaco Editor
-- Lucide React
-- Sonner dan SweetAlert2
-- CSS utama berbasis vanilla/global stylesheet dengan beberapa integrasi Tailwind tooling
+### Terminal, file, sistem
 
-### Backend
+Terminal host (Xterm.js), file manager dan editor Monaco, monitoring host, update panel dari UI atau CLI.
 
-- Go
-- PostgreSQL
-- Docker CLI / Docker Compose
-- systemd/journalctl integration
-- Cloudflare API integration
-- versioned SQL migrations
+## Mudah ditemukan mesin pencari dan AI
 
-## Struktur Repository
+Halaman publik (`/`, `/articles`, `/docs/mcp`) memuat meta tag, Open Graph, JSON-LD, dan konten cadangan tanpa JavaScript. Agent juga menyajikan:
+
+- `/robots.txt` (mengizinkan crawler dan bot AI utama, menutup `/api/`, `/home`, `/login`)
+- `/sitemap.xml` (landing, MCP, daftar artikel, setiap artikel publik)
+- `/llms.txt` (ringkasan produk dan daftar artikel untuk model bahasa)
+- `/articles/{slug}.md` (markdown mentah tiap artikel publik)
+
+Atur `RENEO_PUBLIC_URL=https://panel.domain-anda.com` agar tautan kanonik dan sitemap memakai alamat publik yang benar.
+
+## Akun demo
+
+Isi `RENEO_DEMO_PASSWORD` di environment agent (opsional `RENEO_DEMO_USERNAME`, bawaan `demo`) lalu restart. Akun hanya membaca: desktop, widget, ringkasan sistem, dan daftar project/container miliknya. Terminal, file, pengaturan, user, database, log, Cloudflare, dan semua aksi tulis ditolak; endpoint baru ditolak secara bawaan. Username dan password tampil di landing page, jadi pakai password yang tidak dipakai di tempat lain. Detail: [Security Hardening](docs/security-hardening.md).
+
+## Konfigurasi environment
+
+Nama `RENEO_*` diterima di mana pun `PANEL_*` dipakai.
+
+| Variabel | Fungsi |
+| :--- | :--- |
+| `PANEL_BIND_ADDR` | Alamat dan port panel (bawaan `0.0.0.0:8787`) |
+| `PANEL_DATABASE_DSN`, `PANEL_SESSION_SECRET` | Database panel dan rahasia sesi (diisi installer) |
+| `PANEL_ENCRYPTION_KEY` | Kunci enkripsi token Cloudflare dan kredensial database user |
+| `RENEO_PUBLIC_URL` | Alamat publik untuk sitemap dan tautan kanonik |
+| `RENEO_DEMO_PASSWORD`, `RENEO_DEMO_USERNAME` | Mengaktifkan akun demo hanya-baca |
+| `RENEO_UPDATE_CHECK=false` | Mematikan cek pembaruan dan changelog GitHub |
+| `RENEO_UPDATE_REPO` | Repository GitHub sumber rilis |
+| `RENEO_DOCS_SYNC=false`, `RENEO_DOCS_REPO` | Mematikan atau mengganti sumber artikel resmi |
+| `PANEL_TERMINAL_ENABLED`, `PANEL_TERMINAL_ALLOW_REMOTE`, `PANEL_ADMIN_FILE_ROOT_ACCESS` | Pengerasan terminal dan file |
+
+## Stack
+
+- Frontend: React 19, Vite, TypeScript, Zustand, TanStack Query, Framer Motion, Tailwind v4 dan SCSS modul, Xterm.js, Monaco
+- Backend: Go, PostgreSQL, Docker CLI, systemd/journalctl, Cloudflare API, migrasi SQL berversi
+
+## Struktur repository
 
 ```txt
 .
-├── cmd/                 # entrypoint binary Go agent
-├── deploy/              # script build/deploy ke server
-├── docs/                # dokumentasi teknis dan arsitektur
+├── cmd/panel-agent/     # entrypoint agent Go
+├── internal/            # paket backend
 ├── installer/           # installer Linux dan template service
-├── internal/            # backend Go packages
-├── public/              # static assets frontend
-├── src/                 # frontend React/Vite
-├── README.md
+├── deploy/              # script build dan deploy
+├── docs/                # dokumentasi teknis, filosofi, dan artikel resmi (docs/articles)
+├── public/              # aset statis frontend
+├── src/                 # frontend React
+├── scripts/             # release, validasi UI, ikon merek
 ├── CHANGELOG.md
-├── go.mod
-├── package.json
-└── vite.config.ts
+└── README.md
 ```
 
-Dokumentasi struktur lebih detail:
-
-- [Repository Structure](docs/architecture/repository-structure.md)
-- [Backend Go Structure](docs/architecture/backend-go-structure.md)
-- [Frontend Structure](docs/architecture/frontend-structure.md)
-
-## Backend Go Layout
-
-Backend berada di `cmd/` dan `internal/`.
-
-Package penting:
+Paket backend utama:
 
 ```txt
 internal/
-  auth/          # session/auth manager
-  cloudflare/    # Cloudflare API/domain logic
-  config/        # runtime config/env loading
-  database/      # PostgreSQL persistence dan migrations
-  docker/        # Docker container/image/network/deploy/log service
-  httpserver/    # HTTP API, handler, middleware, static frontend serving
-  osuser/        # Linux user provisioning/helper
-  projects/      # project runtime metadata/reconciliation
-  system/        # system stats, logs, settings
-  terminal/      # terminal session guard/runtime
-  users/         # user domain logic
+  auth/        session dan role/capability
+  cloudflare/  API, tunnel, daemon cloudflared
+  config/      konfigurasi runtime
+  database/    PostgreSQL dan migrasi
+  docker/      container, image, network, deploy, log
+  docsync/     artikel resmi dari GitHub
+  httpserver/  API, middleware, SEO, penyajian frontend
+  mcp/         server MCP dan katalog tool
+  metrics/     riwayat metrik host
+  osuser/      akun Linux per user
+  projects/    proses project, direktori kerja, environment
+  runtimepath/ nama dan path runtime (reneo/ypanel)
+  system/      statistik, log, pengaturan
+  terminal/    sesi terminal
+  updater/     cek dan terapkan pembaruan, GitHub Releases
+  userdb/      database milik user (container) dan administrasinya
+  users/       aturan akun dan kuota
 ```
 
-`internal/docker` sudah dipecah menjadi file fokus:
+## Pengembangan
 
-```txt
-internal/docker/
-  types.go
-  containers.go
-  inspect.go
-  deploy.go
-  compose.go
-  compose_errors.go
-  logs.go
-  images.go
-  networks.go
-  utils.go
-```
-
-## Development
-
-### Prasyarat
-
-- Go sesuai `go.mod`
-- Bun atau Node.js modern
-- Docker dan Docker Compose untuk fitur Docker
-- PostgreSQL untuk mode runtime penuh
-
-### Install dependency frontend
+Prasyarat: Go sesuai `go.mod`, Bun atau Node.js, Docker (untuk fitur Docker dan database), PostgreSQL.
 
 ```bash
 bun install
-```
-
-atau:
-
-```bash
-npm install
-```
-
-### Jalankan frontend
-
-```bash
-bun run dev
-```
-
-### Jalankan backend agent
-
-```bash
+bun run dev            # agent + UI
 go run ./cmd/panel-agent
 ```
 
-Konfigurasi runtime dibaca dari environment atau file env agent.
-Runtime production sekarang memakai nama teknis baru `reneo-agent`, CLI `reneo`, service `reneo`, dan path `/etc/reneo`, `/opt/reneo`, `/var/lib/reneo`. Alias legacy `ui-panel` dan `ui-panel-agent` tetap disediakan sementara untuk kompatibilitas.
-
-## Build dan Validasi
+Validasi sebelum commit:
 
 ```bash
+bun run lint
+bun run check:ui       # aturan UI, harus 0 error
+bun run build          # harus tanpa warning
 go test ./...
-bun run build
 ```
 
-Untuk formatting Go package tertentu:
+Aturan UI ada di [DESIGN.md](DESIGN.md) dan `.agents/rules/`. Ikon `Sparkles`/`WandSparkles` dilarang dan diperiksa oleh `check:ui`.
 
-```powershell
-Get-ChildItem internal\docker -Filter *.go | ForEach-Object { gofmt -w $_.FullName }
-```
+Rilis: `bun run release:patch|minor|major` (memvalidasi, memperbarui CHANGELOG, membuat tag, push; workflow GitHub membangun installer).
 
 ## Deployment
-
-Deploy utama menggunakan PowerShell script:
 
 ```powershell
 .\deploy\build.ps1 -HostName <host> -SshUsername <user> -SshPassword <password>
 ```
 
-Script akan:
+Skrip membangun frontend, membuat installer `.run`, mengunggah, memasang service, menjalankan migrasi, dan melakukan healthcheck.
 
-1. build frontend
-2. menyiapkan bundle production
-3. membuat installer Linux `.run`
-4. upload ke server
-5. install/update service
-6. konfigurasi environment
-7. menjalankan migration
-8. restart service
-9. healthcheck runtime
-
-<!-- > [!NOTE]
-> Rebranding public sudah menggunakan nama Reneo. Namun service/path/binary production masih dipertahankan untuk compatibility dan akan direbrand bertahap melalui migration plan khusus. -->
-
-## Database Migrations
-
-Schema PostgreSQL dikelola menggunakan versioned migrations.
-
-Panduan lengkap:
-
-- [Database Migrations](docs/database-migrations.md)
-
-Command utama runtime saat ini:
+## Migrasi database
 
 ```bash
 reneo-agent migrate create <nama>
@@ -273,44 +200,27 @@ reneo-agent migrate status
 reneo-agent migrate rollback
 ```
 
-## Security Hardening
+Panduan: [Database Migrations](docs/database-migrations.md).
 
-Panduan lengkap:
+## Keamanan
 
-- [Security Hardening](docs/security-hardening.md)
+Panduan lengkap: [Security Hardening](docs/security-hardening.md). Poin penting:
 
-Flag penting:
+- aksi sensitif dilindungi role dan capability di backend, dengan audit
+- proses project tidak mewarisi environment agent dan terkunci pada direktori home pemiliknya
+- kredensial database user dienkripsi dan hanya dibuka untuk pemiliknya
+- log sistem, database internal, dan runtime Reneo hanya untuk superadmin
 
-```env
-PANEL_TERMINAL_ENABLED=false
-PANEL_TERMINAL_ALLOW_REMOTE=false
-PANEL_ADMIN_FILE_ROOT_ACCESS=false
-```
+## Dokumentasi
 
-Aksi sensitif dilindungi oleh role dan capability-based authorization di backend.
-
-## Dokumentasi Tambahan
-
+- [Artikel resmi](docs/articles) (disinkronkan ke setiap panel)
 - [Installer Architecture](docs/installer-architecture.md)
+- [MCP](docs/mcp.md)
 - [Database Migrations](docs/database-migrations.md)
 - [Security Hardening](docs/security-hardening.md)
 - [Repository Structure](docs/architecture/repository-structure.md)
 - [Backend Go Structure](docs/architecture/backend-go-structure.md)
 - [Frontend Structure](docs/architecture/frontend-structure.md)
-
-<!-- ## Roadmap Rebrand Runtime
-
-Tahap saat ini:
-
-- public/product name: **Reneo**
-- service/binary/path utama: `reneo` / `reneo-agent`, dengan alias legacy `ui-panel` / `ui-panel-agent` selama fase transisi
-
-Tahap berikutnya dilakukan terpisah dan bertahap:
-
-1. siapkan migration script untuk systemd service, binary, path, env, dan state directory
-2. support alias command lama selama masa transisi
-3. update deploy script agar bisa detect instalasi lama dan migrasi otomatis
-4. validasi rollback jika service baru gagal start -->
 
 ## Lisensi
 

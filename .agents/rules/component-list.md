@@ -57,11 +57,11 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `system` | `SystemWindow` | Pemantauan host (CPU, RAM, disk, Docker, beban kerja). Isi internal Reneo (state path, Portainer, insiden reconcile) ada di Settings, tab `ReneoRuntimeTab`, hanya superadmin |
 | `system-logs` | `SystemLogsWindow` | Hanya superadmin (API juga). Filter level, sorot pencarian, jeda, salin, unduh |
 | `file-editor` | `FileEditorWindow` | Monaco (belum dipecah) |
-| `database` | `DatabaseWindow` | `database/`: `useDatabasesWindow`, `CreateDatabaseModal`, `ConnectionModal`. Database milik user (PostgreSQL, MySQL, MariaDB, MongoDB, Redis) sebagai container di 127.0.0.1 (`internal/userdb`). Info database Reneo sendiri ada di Settings, tab `ReneoDatabaseTab`, hanya superadmin |
+| `database` | `DatabaseWindow` | `database/`: `useDatabasesWindow`, `CreateDatabaseModal`, `ConnectionModal`, `ManageDatabaseModal` (tab `TablesPanel`+`CreateTableModal`, `SqlPanel`, `UsersPanel`, `PasswordPanel`, `ResultTable`). Database milik user (PostgreSQL, MySQL, MariaDB, MongoDB, Redis) sebagai container di 127.0.0.1 (`internal/userdb`). Info database Reneo sendiri ada di Settings, tab `ReneoDatabaseTab`, hanya superadmin |
 | `users` | `UsersWindow` | `users/`: `UserQuotaPanel` (kuota + pemakaian), `ResetPasswordModal`, `permissions` (cermin kebijakan agent: admin hanya mengelola user biasa, hanya superadmin memberi role admin) |
 | `profile` | `ProfileWindow` | `profile/AccountSecurityCard` (pemakaian sendiri + ganti password) |
 | `widgets` | `WidgetsWindow` | – |
-| `docs` | `DocsWindow` | `docs/`: `useDocsWindow`, `DocEditorModal`. Markdown lewat `lib/markdown`; artikel berstatus terbit + `isPublic` tampil publik di `/articles` tanpa login |
+| `docs` | `DocsWindow` | `docs/`: `useDocsWindow`, `DocEditorModal`. Markdown lewat `lib/markdown`; artikel berstatus terbit + `isPublic` tampil publik di `/articles` tanpa login; artikel resmi (`docs/articles` di repo, `internal/docsync`) tersinkron ke semua panel dan read-only; SEO (`robots.txt`, `sitemap.xml`, `llms.txt`, meta + JSON-LD) di `internal/httpserver/seo.go` |
 | `changelog` | `ChangelogWindow` | Mengikuti GitHub Releases lewat agent (cache 1 jam, fallback ke entri lokal); catatan rilis dirender oleh `lib/markdown` |
 
 ## 4. Widget Desktop
