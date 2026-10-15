@@ -270,6 +270,24 @@ func (m *Manager) ensureSchema() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id)`,
 		`ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS widgets_data JSONB`,
+		`CREATE TABLE IF NOT EXISTS managed_databases (
+			id                 BIGSERIAL PRIMARY KEY,
+			user_id            BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			name               VARCHAR(48)  NOT NULL,
+			engine             VARCHAR(16)  NOT NULL,
+			version            VARCHAR(32)  NOT NULL DEFAULT '',
+			container_name     VARCHAR(80)  NOT NULL DEFAULT '',
+			host_port          INTEGER      NOT NULL,
+			db_name            VARCHAR(63)  NOT NULL DEFAULT '',
+			db_user            VARCHAR(63)  NOT NULL DEFAULT '',
+			password_encrypted TEXT         NOT NULL,
+			status             VARCHAR(16)  NOT NULL DEFAULT 'creating',
+			last_error         TEXT,
+			created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			UNIQUE(user_id, name),
+			UNIQUE(host_port)
+		)`,
+		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_databases INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS spa_fallback BOOLEAN NOT NULL DEFAULT true`,
 
 		`CREATE TABLE IF NOT EXISTS project_env_vars (
@@ -932,6 +950,7 @@ type UserQuota struct {
 	UserID        int64 `json:"userId"`
 	MaxProjects   int   `json:"maxProjects"`
 	MaxTunnels    int   `json:"maxTunnels"`
+	MaxDatabases  int   `json:"maxDatabases"`
 	DiskQuotaMB   int64 `json:"diskQuotaMb"`
 	CPULimitPct   int   `json:"cpuLimitPct"`
 	MemoryLimitMB int   `json:"memoryLimitMb"`
@@ -943,12 +962,12 @@ func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	}
 	var q UserQuota
 	err := m.db.QueryRow(`
-		SELECT user_id, max_projects, max_tunnels, disk_quota_mb, cpu_limit_pct, memory_limit_mb
+		SELECT user_id, max_projects, max_tunnels, max_databases, disk_quota_mb, cpu_limit_pct, memory_limit_mb
 		FROM user_quotas WHERE user_id = $1
-	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
+	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.MaxDatabases, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
 	if err == sql.ErrNoRows {
 		// Return defaults
-		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
+		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
 	}
 	return &q, err
 }
@@ -958,16 +977,17 @@ func (m *Manager) UpdateUserQuota(q UserQuota) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, max_databases, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (user_id) DO UPDATE SET
 			max_projects = EXCLUDED.max_projects,
 			max_tunnels = EXCLUDED.max_tunnels,
+			max_databases = EXCLUDED.max_databases,
 			disk_quota_mb = EXCLUDED.disk_quota_mb,
 			cpu_limit_pct = EXCLUDED.cpu_limit_pct,
 			memory_limit_mb = EXCLUDED.memory_limit_mb,
 			updated_at = NOW()
-	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
+	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.MaxDatabases, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
 	return err
 }
 

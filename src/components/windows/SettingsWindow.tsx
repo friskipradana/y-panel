@@ -39,10 +39,13 @@ import { SecurityTab } from "./settings/tabs/SecurityTab";
 import { PaymentTab } from "./settings/tabs/PaymentTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
+import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
+import { useAuthStore } from "@/store/authStore";
 import { LoadingState } from "@/components/ui/states"
 
 export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("general");
 
   const host = useHostSettings({ authenticated });
@@ -96,6 +99,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       label: t("settings.tabs.audit"),
       icon: Clock,
     },
+    // the panel's own database: superadmin only
+    ...(isSuperadmin ? [{ key: "reneo_database" as SettingsTabKey, label: t("settings.tabs.reneoDatabase"), icon: Database }] : []),
   ];
 
   return (
@@ -184,6 +189,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {activeTab === "audit" && <AuditTab host={host} />}
 
               {activeTab === "api_tokens" && <ApiTokensTab />}
+
+              {activeTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
             </>
           )}
         </div>

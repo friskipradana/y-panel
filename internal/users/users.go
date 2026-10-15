@@ -59,11 +59,12 @@ func ActivateUser(db *database.Manager, id int64) error {
 
 // Quota limits keep a typo from granting or removing capacity by orders of magnitude.
 const (
-	maxQuotaProjects = 1000
-	maxQuotaTunnels  = 1000
-	maxQuotaDiskMB   = 100 * 1024 * 1024
-	maxQuotaCPUPct   = 6400
-	maxQuotaMemoryMB = 4 * 1024 * 1024
+	maxQuotaProjects  = 1000
+	maxQuotaTunnels   = 1000
+	maxQuotaDatabases = 200
+	maxQuotaDiskMB    = 100 * 1024 * 1024
+	maxQuotaCPUPct    = 6400
+	maxQuotaMemoryMB  = 4 * 1024 * 1024
 )
 
 // ValidateQuota rejects negative or absurd quota values.
@@ -73,6 +74,8 @@ func ValidateQuota(q database.UserQuota) error {
 		return fmt.Errorf("maxProjects must be between 0 and %d", maxQuotaProjects)
 	case q.MaxTunnels < 0 || q.MaxTunnels > maxQuotaTunnels:
 		return fmt.Errorf("maxTunnels must be between 0 and %d", maxQuotaTunnels)
+	case q.MaxDatabases < 0 || q.MaxDatabases > maxQuotaDatabases:
+		return fmt.Errorf("maxDatabases must be between 0 and %d", maxQuotaDatabases)
 	case q.DiskQuotaMB < 0 || q.DiskQuotaMB > maxQuotaDiskMB:
 		return fmt.Errorf("diskQuotaMb must be between 0 and %d", maxQuotaDiskMB)
 	case q.CPULimitPct < 1 || q.CPULimitPct > maxQuotaCPUPct:

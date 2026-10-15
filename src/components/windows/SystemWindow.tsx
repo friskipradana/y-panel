@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ShieldAlert, TimerReset } from 'lucide-react'
 import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
+import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 import type { RuntimeDatabaseLog } from '@/types'
@@ -107,11 +108,14 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     retry: 1,
     refetchInterval: 5_000,
   })
+  // the panel's own database is readable by the superadmin only
+  const isSuperadmin = useAuthStore((state) => state.user?.role) === 'superadmin'
   const databaseQuery = useQuery({
     queryKey: ['database-status'],
     queryFn: getDatabaseStatus,
     retry: 1,
     refetchInterval: 15_000,
+    enabled: isSuperadmin,
   })
   const openWindow = useWindowStore((state) => state.openWindow)
   const { t } = useI18n()

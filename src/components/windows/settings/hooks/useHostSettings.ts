@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/store/authStore";
 import { getDatabaseStatus, getEditableSystemSettings, resetDatabasePassword, resetPrimaryPanelPassword, updateEditableSystemSettings, updatePanelOrigins, updatePanelPort } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
@@ -15,11 +16,14 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     retry: 1,
   });
 
+  // the panel's own database is readable by the superadmin only
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const databaseQuery = useQuery({
     queryKey: ["database-status"],
     queryFn: getDatabaseStatus,
     retry: 1,
     refetchInterval: 10_000,
+    enabled: isSuperadmin,
   });
 
   const [hostname, setHostname] = useState("");

@@ -47,6 +47,10 @@ func TestDemoAllowedIsReadOnly(t *testing.T) {
 		{http.MethodGet, "/api/v1/containers/owners"},
 		{http.MethodPost, "/api/v1/tools/ping"},
 		{http.MethodGet, "/api/v1/projects/1"},
+		{http.MethodGet, "/api/v1/databases"},
+		{http.MethodPost, "/api/v1/databases"},
+		{http.MethodGet, "/api/v1/databases/1/credentials"},
+		{http.MethodDelete, "/api/v1/databases/1"},
 	}
 	for _, c := range blocked {
 		r := httptest.NewRequest(c.method, c.path, nil)

@@ -22,6 +22,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
+	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -482,6 +483,7 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.stopUserWorkloads(targetUser.ID)
+	s.stopUserDatabases(targetUser.ID, true)
 	_ = s.database.DeleteUserSessions(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -556,6 +558,7 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	var patch struct {
 		MaxProjects   *int   `json:"maxProjects"`
 		MaxTunnels    *int   `json:"maxTunnels"`
+		MaxDatabases  *int   `json:"maxDatabases"`
 		DiskQuotaMB   *int64 `json:"diskQuotaMb"`
 		CPULimitPct   *int   `json:"cpuLimitPct"`
 		MemoryLimitMB *int   `json:"memoryLimitMb"`
@@ -569,6 +572,9 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.MaxTunnels != nil {
 		q.MaxTunnels = *patch.MaxTunnels
+	}
+	if patch.MaxDatabases != nil {
+		q.MaxDatabases = *patch.MaxDatabases
 	}
 	if patch.DiskQuotaMB != nil {
 		q.DiskQuotaMB = *patch.DiskQuotaMB
@@ -1234,9 +1240,25 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	req.ProjectType = strings.ToLower(strings.TrimSpace(req.ProjectType))
+	if err := validateProjectType(req.ProjectType); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
 	slug := slugify(req.Name)
 	existing, _ := s.database.ListProjects(u.ID)
-	assignedPort := allocateProjectPort(u.ID, len(existing))
+	for _, other := range existing {
+		if other.Slug == slug {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "a project with this name already exists"})
+			return
+		}
+	}
+	assignedPort, err := allocateProjectPort(u.ID, existing)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
 	workingDir, err := prepareProjectWorkingDir(u, slug, req.WorkingDir, req.ProjectType)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
@@ -1270,12 +1292,19 @@ func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType 
 	if workingDir == "" {
 		workingDir = filepath.Join(panelosuser.ResolveHomeDir(u.Username), "project", slug)
 	}
-	workingDir = filepath.Clean(workingDir)
+	// the panel chowns this directory to the user, so it has to stay inside their home
+	resolvedDir, inHome, err := projects.ResolveWorkingDir(filepath.Clean(workingDir), panelosuser.ResolveHomeDir(u.Username), u.Role == "superadmin")
+	if err != nil {
+		return "", err
+	}
+	workingDir = resolvedDir
 	if err := os.MkdirAll(workingDir, 0755); err != nil {
 		return "", err
 	}
-	if err := chownPathToUser(workingDir, osUsername); err != nil {
-		return "", err
+	if inHome {
+		if err := chownPathToUser(workingDir, osUsername); err != nil {
+			return "", err
+		}
 	}
 
 	if strings.EqualFold(strings.TrimSpace(projectType), "static") {
@@ -1299,8 +1328,10 @@ func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType 
 			if err := os.WriteFile(indexPath, []byte(content), 0644); err != nil {
 				return "", err
 			}
-			if err := chownPathToUser(indexPath, osUsername); err != nil {
-				return "", err
+			if inHome {
+				if err := chownPathToUser(indexPath, osUsername); err != nil {
+					return "", err
+				}
 			}
 		} else if err != nil {
 			return "", err
@@ -1513,7 +1544,11 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "upload build hanya tersedia untuk static project"})
 		return
 	}
-	projectDir := filepath.Clean(project.WorkingDir)
+	projectDir, _, dirErr := projects.ResolveWorkingDir(filepath.Clean(project.WorkingDir), panelosuser.ResolveHomeDir(u.Username), u.Role == "superadmin")
+	if dirErr != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": dirErr.Error()})
+		return
+	}
 	if projectDir == "" || projectDir == "." {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "project belum memiliki working directory"})
 		return
@@ -1661,6 +1696,16 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	projectType := strings.TrimSpace(req.ProjectType)
 	if projectType == "" {
 		projectType = existing.ProjectType
+	}
+	projectType = strings.ToLower(projectType)
+	if projectType != existing.ProjectType {
+		if err := validateProjectType(projectType); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	if strings.TrimSpace(req.WorkingDir) == "" {
+		req.WorkingDir = existing.WorkingDir
 	}
 	workingDir, err := prepareProjectWorkingDir(u, existing.Slug, req.WorkingDir, projectType)
 	if err != nil {
@@ -2341,8 +2386,42 @@ func slugify(name string) string {
 	return result
 }
 
-func allocateProjectPort(userID int64, projectIndex int) int {
+// runnableProjectTypes are the types the agent can start as a process. "docker" and
+// "proxy" rows only exist from older versions: containers belong in the Docker
+// window and public routes in Cloudflare tunnels.
+var runnableProjectTypes = map[string]bool{"static": true, "nodejs": true, "python": true, "php": true, "custom": true}
+
+func validateProjectType(projectType string) error {
+	if runnableProjectTypes[projectType] {
+		return nil
+	}
+	switch projectType {
+	case "docker":
+		return errors.New("container workloads are created from the Docker window, not as a project")
+	case "proxy":
+		return errors.New("public routes to existing services are created from Cloudflare tunnels, not as a project")
+	case "":
+		return errors.New("project type is required")
+	}
+	return fmt.Errorf("unsupported project type %q (use static, nodejs, python, php or custom)", projectType)
+}
+
+// allocateProjectPort returns the first port of the user's block that no project of
+// theirs holds and nothing is listening on. Counting projects instead would reuse a
+// live project's port after an earlier one was deleted.
+func allocateProjectPort(userID int64, existing []database.Project) (int, error) {
 	const base, block, maxUID = 10000, 100, 900
-	basePt := base + int((userID-1)%int64(maxUID))*block
-	return basePt + (projectIndex % block)
+	start := base + int((userID-1)%int64(maxUID))*block
+	taken := make(map[int]bool, len(existing))
+	for _, p := range existing {
+		taken[p.AssignedPort] = true
+	}
+	for offset := 0; offset < block; offset++ {
+		port := start + offset
+		if taken[port] || projects.PortInUse(port) {
+			continue
+		}
+		return port, nil
+	}
+	return 0, errors.New("no free port left in your project port range")
 }

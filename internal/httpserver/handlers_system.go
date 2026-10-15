@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
@@ -70,7 +71,9 @@ type truncateDataRequest struct {
 func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 	summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
 	dbStatus := s.database.Status()
-	demo := s.isDemoUser(userFromCtx(r))
+	viewer := userFromCtx(r)
+	demo := s.isDemoUser(viewer)
+	isSuperadmin := viewer != nil && viewer.Role == auth.SuperadminRole
 
 	projectSummary := map[string]any{
 		"total":          0,
@@ -125,10 +128,13 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		// live load figures stay; anything that identifies or locates the host is hidden
 		summary.Hostname = "demo-server"
 		summary.Kernel = ""
-		dbStatus = database.Status{Enabled: true, Connected: dbStatus.Connected}
+	}
+	// the panel's own database (host, user, port, counts) is for the superadmin only
+	if !isSuperadmin {
+		dbStatus = database.Status{Enabled: dbStatus.Enabled, Connected: dbStatus.Connected}
 	}
 	portainerURL, stateDir := s.cfg.PortainerURL, s.cfg.StateDir
-	if demo {
+	if demo || !isSuperadmin {
 		portainerURL, stateDir = "", ""
 	}
 

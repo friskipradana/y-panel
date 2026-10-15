@@ -78,6 +78,7 @@ func (s *Server) stopUserWorkloads(userID int64) {
 	if s.database == nil {
 		return
 	}
+	s.stopUserDatabases(userID, false)
 	if s.projectManager != nil {
 		if list, err := s.database.ListProjects(userID); err == nil {
 			for _, p := range list {
@@ -103,6 +104,7 @@ type accountUsage struct {
 	Projects        int                 `json:"projects"`
 	ProjectsActive  int                 `json:"projectsActive"`
 	Tunnels         int                 `json:"tunnels"`
+	Databases       int                 `json:"databases"`
 	DiskUsedMB      int64               `json:"diskUsedMb"`
 	DiskScanPartial bool                `json:"diskScanPartial"`
 	Quota           *database.UserQuota `json:"quota"`
@@ -120,6 +122,9 @@ func (s *Server) collectUsage(target *database.User) accountUsage {
 	}
 	if list, err := s.database.ListTunnels(target.ID); err == nil {
 		usage.Tunnels = len(list)
+	}
+	if n, err := s.database.CountManagedDatabases(target.ID); err == nil {
+		usage.Databases = n
 	}
 	usage.Quota, _ = s.database.GetUserQuota(target.ID)
 

@@ -21,7 +21,8 @@ export const STATUS_PILL: Record<string, string> = {
   degraded: 'panel-badge--warning',
 }
 
-export const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'docker', 'proxy', 'custom']
+// docker and proxy rows from older versions still render; new projects can only be runnable types
+export const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'custom']
 
 export const PAGE_SIZE = 8
 
