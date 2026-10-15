@@ -24,7 +24,7 @@ export function DemoAccess({ onNavigate }: { onNavigate: (path: string) => void 
         <div className="space-y-3">
           <CopyBlock label={t('landing.demo.username')} text={data.username} />
           <CopyBlock label={t('landing.demo.password')} text={data.password} />
-          <Button variant="primary" onClick={() => onNavigate('/login')}>
+          <Button variant="primary" onClick={() => onNavigate('/login?demo=1')}>
             <span>{t('landing.demo.cta')}</span>
             <ArrowRight size={13} />
           </Button>

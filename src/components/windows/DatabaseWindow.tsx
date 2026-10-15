@@ -97,7 +97,13 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                   }
                   actions={
                     <div className="flex items-center gap-1">
-                      <IconButton label={t('databases.admin.openTab')} disabled={pending || broken || !running} onClick={() => window.open(`/database/${item.id}`, '_blank', 'noopener')}>
+                      <IconButton
+                        label={['postgres', 'mysql', 'mariadb'].includes(item.engine) ? t('databases.admin.openAdminer') : t('databases.admin.openTab')}
+                        disabled={pending || broken || !running}
+                        onClick={() =>
+                          window.open(['postgres', 'mysql', 'mariadb'].includes(item.engine) ? `/api/v1/databases/${item.id}/adminer` : `/database/${item.id}`, '_blank', 'noopener')
+                        }
+                      >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </IconButton>
                       <IconButton label={t('databases.admin.manage')} tone="primary" disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>

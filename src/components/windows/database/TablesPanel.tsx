@@ -113,7 +113,7 @@ export function TablesPanel({ databaseId }: { databaseId: number }) {
                   <ChevronLeft className="h-3.5 w-3.5" />
                   {t('docs.previous')}
                 </Button>
-                <Button variant="ghost" disabled={rows.data.rows.length < PAGE} onClick={() => setOffset((v) => v + PAGE)}>
+                <Button variant="ghost" disabled={(rows.data.rows?.length ?? 0) < PAGE} onClick={() => setOffset((v) => v + PAGE)}>
                   {t('docs.next')}
                   <ChevronRight className="h-3.5 w-3.5" />
                 </Button>

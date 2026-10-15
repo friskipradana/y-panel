@@ -59,7 +59,16 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   }, [windows.length])
 
   const open = useMemo(() => windows.filter((w) => canAccessWindow(w.kind, role)), [windows, role])
-  const current = view === 'app' ? open.find((w) => w.id === focusedId) ?? open[open.length - 1] : undefined
+  const current = view === 'app' ? open.find((w) => w.id === focusedId) : undefined
+
+  // Apps stay mounted once visited (hidden, not unmounted) so a terminal session or a form
+  // survives going home and coming back. Closing a window releases it.
+  const [visited, setVisited] = useState<string[]>([])
+  useEffect(() => {
+    if (!current) return
+    setVisited((prev) => (prev.includes(current.id) ? prev : [...prev, current.id]))
+  }, [current])
+  const kept = open.filter((w) => visited.includes(w.id) || w.id === current?.id)
 
   const launch = (kind: WindowKind) => {
     const id = openWindow(kind)
@@ -77,9 +86,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   // short labels: the bottom bar has room for one word
   const quickLabel = (kind: WindowKind) =>
     kind === 'host-terminal' ? t('mobile.terminal') : kind === 'file-manager' ? t('mobile.files') : t(windowTitleKey(kind))
-  const renderContent = current ? WINDOW_CONTENT[current.kind] : undefined
-  const showingApp = Boolean(current && renderContent)
-  const ownsScroll = current ? SCROLL_OWNERS.includes(current.kind) : false
+  const showingApp = Boolean(current && WINDOW_CONTENT[current.kind])
   const alertForCurrent = current ? alertState.isOpen && alertState.data?.windowId === current.kind : false
 
   const navButton = (key: string, active: boolean, label: string, onClick: () => void, icon: ReactNode, badge?: number) => (
@@ -117,7 +124,13 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               <AppIcon kind={current.kind} size={18} />
               <span className="truncate text-[0.9375rem] font-semibold">{t(windowTitleKey(current.kind))}</span>
             </span>
-            <IconButton label={t('common.close')} onClick={() => closeWindow(current.id)}>
+            <IconButton
+              label={t('common.close')}
+              onClick={() => {
+                closeWindow(current.id)
+                goHome()
+              }}
+            >
               <X className="h-5 w-5" />
             </IconButton>
           </>
@@ -147,23 +160,31 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
 
       {/* Content */}
       <main className="relative min-h-0 flex-1 overflow-hidden">
-        {showingApp && current && renderContent ? (
-          <div className="relative flex h-full flex-col">
-            <div className={`min-h-0 flex-1 ${ownsScroll ? 'overflow-hidden' : 'overflow-auto'}`}>
-              <div className={ownsScroll ? 'flex h-full flex-col' : 'min-h-full'}>
-                <WindowErrorBoundary>
-                  <Suspense fallback={<WindowFallback />}>{renderContent(current, authenticated)}</Suspense>
-                </WindowErrorBoundary>
+        {kept.map((win) => {
+          const renderContent = WINDOW_CONTENT[win.kind]
+          if (!renderContent) return null
+          const isCurrent = showingApp && current?.id === win.id
+          const owns = SCROLL_OWNERS.includes(win.kind)
+          return (
+            <div key={win.id} hidden={!isCurrent} className="relative flex h-full flex-col">
+              <div className={`min-h-0 flex-1 ${owns ? 'overflow-hidden' : 'overflow-auto'}`}>
+                <div className={owns ? 'flex h-full flex-col' : 'min-h-full'}>
+                  <WindowErrorBoundary>
+                    <Suspense fallback={<WindowFallback />}>{renderContent(win, authenticated)}</Suspense>
+                  </WindowErrorBoundary>
+                </div>
               </div>
             </div>
-            <AnimatePresence>
-              {alertForCurrent ? (
-                <div className="absolute inset-0 z-[100] flex items-center justify-center overflow-hidden">
-                  <InnerAlert data={alertState.data} closeDialog={alertState.closeDialog} />
-                </div>
-              ) : null}
-            </AnimatePresence>
-          </div>
+          )
+        })}
+        {showingApp ? (
+          <AnimatePresence>
+            {alertForCurrent ? (
+              <div className="absolute inset-0 z-[100] flex items-center justify-center overflow-hidden">
+                <InnerAlert data={alertState.data} closeDialog={alertState.closeDialog} />
+              </div>
+            ) : null}
+          </AnimatePresence>
         ) : (
           <div className="h-full overflow-y-auto">
             <MobileHome role={role} onLaunch={launch} />

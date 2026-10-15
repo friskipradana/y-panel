@@ -7,10 +7,12 @@ const COLUMN_WIDTH_REM = 10
 // Query / table rows. Wide results scroll sideways instead of squeezing the columns.
 export function ResultTable({ result, label }: { result: QueryResult; label: string }) {
   const { t } = useI18n()
-  if (result.columns.length === 0) {
+  const columnNames = result.columns ?? []
+  const rows = result.rows ?? []
+  if (columnNames.length === 0) {
     return <p className="text-[0.8125rem] text-[var(--text-secondary)]">{result.message ?? t('databases.admin.noRows')}</p>
   }
-  const columns = result.columns.map((header, index) => ({
+  const columns = columnNames.map((header, index) => ({
     key: `c${index}`,
     header,
     width: `${COLUMN_WIDTH_REM}rem`,
@@ -19,18 +21,18 @@ export function ResultTable({ result, label }: { result: QueryResult; label: str
   return (
     <div className="space-y-1.5">
       <div className="overflow-x-auto">
-        <div style={{ minWidth: `${result.columns.length * (COLUMN_WIDTH_REM + 0.75)}rem` }}>
+        <div style={{ minWidth: `${columnNames.length * (COLUMN_WIDTH_REM + 0.75)}rem` }}>
           <DataTable
             label={label}
             columns={columns}
-            rows={result.rows}
-            getRowKey={(row) => row.join('\u0001') + result.rows.indexOf(row)}
+            rows={rows}
+            getRowKey={(row) => row.join('\u0001') + rows.indexOf(row)}
             emptyText={t('databases.admin.noRows')}
           />
         </div>
       </div>
       <p className="text-[0.75rem] text-[var(--text-secondary)]">
-        {t('databases.admin.rowCount', { count: result.rows.length })}
+        {t('databases.admin.rowCount', { count: rows.length })}
         {result.truncated ? ` · ${t('databases.admin.truncated')}` : ''}
         {result.durationMs ? ` · ${result.durationMs} ms` : ''}
       </p>
