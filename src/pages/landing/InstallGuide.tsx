@@ -84,7 +84,7 @@ export function InstallGuide({ installCommand, onNavigate }: InstallGuideProps) 
       </ol>
 
       <h3 className="mb-3 mt-8 text-[0.9375rem] font-semibold">{t('landing.guide.after.title')}</h3>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid max-w-3xl grid-cols-1 gap-3 md:grid-cols-2">
         {AFTER_INSTALL.map((item) => (
           <div key={item.id} className="min-w-0">
             <CopyBlock label={t(`landing.guide.after.${item.id}`)} text={item.command} wrap />

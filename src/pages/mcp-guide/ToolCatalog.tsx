@@ -69,7 +69,7 @@ export function ToolCatalog() {
         {rows.length === 0 ? (
           <EmptyState>{t('mcpGuide.tools.empty')}</EmptyState>
         ) : (
-          <ul className="max-h-[32rem] divide-y divide-[var(--win-border)] overflow-y-auto rounded-xl border border-[var(--win-border)] custom-widget-scrollbar">
+          <ul className="sm:max-h-[32rem] divide-y divide-[var(--win-border)] overflow-y-auto rounded-xl border border-[var(--win-border)] custom-widget-scrollbar">
             {rows.map((tool) => (
               <li key={tool.name} className="flex flex-col gap-1.5 px-3.5 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">

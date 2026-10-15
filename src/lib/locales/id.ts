@@ -382,7 +382,7 @@ export const id: Record<string, string> = {
   'mcpGuide.roles.anonymous.guard': "Hanya baca, tidak mengubah state.",
   'landing.hero.name': "Reneo dibaca re-ne-o, juga rene o dalam bahasa Jawa: kesini aja.",
   'landing.philosophy.summary': "Re + Neo: kendali yang diperbarui, dengan antarmuka yang menyambut.",
-  'public.footer.formerly': "sebelumnya Reneo",
+  'public.footer.formerly': "sebelumnya YPanel",
   'landing.guide.title': "Panduan instalasi",
   'landing.guide.subtitle': "Dari server kosong sampai panel berjalan. Lima langkah, dua di antaranya opsional.",
   'landing.guide.optional': "opsional",

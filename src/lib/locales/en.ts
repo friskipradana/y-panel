@@ -382,7 +382,7 @@ export const en: Record<string, string> = {
   'mcpGuide.roles.anonymous.guard': "Read only, never changes state.",
   'landing.hero.name': "Reneo reads re-ne-o, and rene o in Javanese: \"come here\".",
   'landing.philosophy.summary': "Re + Neo: control, renewed, with an interface that welcomes you.",
-  'public.footer.formerly': "formerly Reneo",
+  'public.footer.formerly': "formerly YPanel",
   'landing.guide.title': "Installation guide",
   'landing.guide.subtitle': "From an empty server to a running panel. Five steps, two of them optional.",
   'landing.guide.optional': "optional",

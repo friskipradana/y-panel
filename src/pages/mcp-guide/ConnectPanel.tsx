@@ -6,7 +6,6 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { Field, TextInput } from '@/components/ui/Field'
 import { IconButton } from '@/components/ui/IconButton'
-import { Badge } from '@/components/ui/Badge'
 
 type ClientKey = 'hermes' | 'openclaw' | 'claude' | 'cursor' | 'curl'
 
@@ -67,10 +66,11 @@ export function ConnectPanel() {
         tone="warning"
         title={t('mcpGuide.connect.title')}
         subtitle={t('mcpGuide.connect.subtitle')}
-        actions={<Badge className="panel-mono">{origin}/mcp</Badge>}
       />
 
-      <div className="mt-5 space-y-4">
+      <p className="panel-mono mt-3 break-all text-[0.75rem] text-[var(--text-secondary)]">{origin}/mcp</p>
+
+      <div className="mt-4 space-y-4">
         <Field label={t('mcpGuide.connect.tokenLabel')} htmlFor="mcp-token" hint={t('mcpGuide.connect.tokenHint')}>
           <div className="flex items-center gap-2">
             <TextInput
