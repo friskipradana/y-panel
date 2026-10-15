@@ -32,7 +32,7 @@ export function McpGuidePage() {
 
   return (
     <PublicShell>
-      <main className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
+      <main className="mx-auto max-w-4xl space-y-8 px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         <header className="mx-auto max-w-3xl space-y-4 text-center">
           <Button variant="ghost" onClick={() => navigate('/')} className="mx-auto">
             <ArrowLeft size={13} />
@@ -52,15 +52,17 @@ export function McpGuidePage() {
 
         {/* Steps */}
         <section aria-labelledby="mcp-steps">
-          <h2 id="mcp-steps" className="mb-4 text-xl font-bold tracking-tight">
+          <h2 id="mcp-steps" className="mb-3 text-xl font-bold tracking-tight">
             {t('mcpGuide.steps.title')}
           </h2>
-          <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <ol className="divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
             {STEPS.map((step, i) => (
-              <li key={step} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
-                <IconBadge tone={i === 0 ? 'warning' : i === 1 ? 'success' : 'info'}>{i + 1}</IconBadge>
-                <h3 className="mt-3 text-[0.875rem] font-semibold">{t(`mcpGuide.steps.${step}.title`)}</h3>
-                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`mcpGuide.steps.${step}.desc`)}</p>
+              <li key={step} className="grid grid-cols-[1.75rem_1fr] gap-x-3 px-4 py-3">
+                <IconBadge size="sm">{i + 1}</IconBadge>
+                <div>
+                  <h3 className="pt-0.5 text-[0.875rem] font-semibold">{t(`mcpGuide.steps.${step}.title`)}</h3>
+                  <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`mcpGuide.steps.${step}.desc`)}</p>
+                </div>
               </li>
             ))}
           </ol>
@@ -71,34 +73,36 @@ export function McpGuidePage() {
         {/* Prompts */}
         <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
           <SectionHeader icon={<Sparkles />} tone="warning" title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <ul className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
             {PROMPTS.map((item) => (
-              <figure key={item.key} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-4">
-                <figcaption className="flex items-center gap-1.5 text-[0.75rem] font-semibold text-[var(--panel-info-text)]">
+              <li key={item.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
+                <span className="flex items-center gap-1.5 text-[0.8125rem] font-semibold text-[var(--panel-info-text)]">
                   {item.icon}
                   {t(`mcpGuide.prompts.${item.key}.title`)}
-                </figcaption>
-                <blockquote className="mt-1.5 text-[0.8125rem] italic leading-relaxed">{t(`mcpGuide.prompts.${item.key}.text`)}</blockquote>
-              </figure>
+                </span>
+                <q className="text-[0.8125rem] italic leading-relaxed">{t(`mcpGuide.prompts.${item.key}.text`)}</q>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
 
         {/* Roles */}
         <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
           <SectionHeader icon={<Shield />} tone="success" title={t('mcpGuide.roles.title')} subtitle={t('mcpGuide.roles.subtitle')} />
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <dl className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
             {ROLES.map((item) => (
-              <article key={item.role} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-4">
-                <div className="flex items-center justify-between">
+              <div key={item.role} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 px-4 py-3 sm:grid-cols-[9rem_1fr_auto] sm:gap-x-4">
+                <dt>
                   <Badge tone={item.tone}>{t(`mcpGuide.access.${item.role}`)}</Badge>
-                  <span className="panel-mono text-lg font-bold">{item.count}</span>
-                </div>
-                <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`mcpGuide.roles.${item.role}.desc`)}</p>
-                <p className="mt-2 text-[0.75rem] text-[var(--panel-success-text)]">{t(`mcpGuide.roles.${item.role}.guard`)}</p>
-              </article>
+                </dt>
+                <dd className="panel-mono text-right text-[0.9375rem] font-bold sm:order-last">{item.count}</dd>
+                <dd className="col-span-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)] sm:col-span-1">
+                  {t(`mcpGuide.roles.${item.role}.desc`)}
+                  <span className="mt-0.5 block text-[var(--panel-success-text)]">{t(`mcpGuide.roles.${item.role}.guard`)}</span>
+                </dd>
+              </div>
             ))}
-          </div>
+          </dl>
         </section>
       </main>
     </PublicShell>

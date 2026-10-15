@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios'
 import type { PaginationParams } from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
+import { isPublicRoute } from '@/lib/publicPaths'
 
 export const agentApi = axios.create({
   baseURL: import.meta.env.VITE_AGENT_BASE,
@@ -14,7 +15,7 @@ let unauthorizedEventArmed = true
 agentApi.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    const isPublicPath = window.location.pathname === (import.meta.env.VITE_LOGIN_PATH || '/login') || window.location.pathname === '/'
+    const isPublicPath = isPublicRoute(window.location.pathname)
     const isUnauthorized = error.response?.status === 401
     const isRevisionCheck = error.config?.url?.includes('/api/v1/frontend/revision')
     const isStatsWS = error.config?.url?.includes('/api/v1/system/stats/ws')

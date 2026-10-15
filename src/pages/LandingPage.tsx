@@ -59,7 +59,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
         {/* Hero */}
         <section className="mx-auto max-w-3xl text-center">
           <p className="panel-mono mb-3 text-[0.75rem] uppercase tracking-widest text-[var(--text-secondary)]">{t('landing.eyebrow')}</p>
-          <h1 className="mb-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+          <h1 className="mb-4 text-balance text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
             {t('landing.hero.line1')} <span className="text-[var(--panel-info-text)]">{t('landing.hero.line2')}</span>
           </h1>
           <p className="mx-auto mb-6 max-w-2xl text-[0.9375rem] leading-relaxed text-[var(--text-secondary)] sm:text-base">{t('landing.description')}</p>

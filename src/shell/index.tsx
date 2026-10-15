@@ -6,6 +6,7 @@ import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
+import { isPublicRoute } from '@/lib/publicPaths'
 
 export function AppShell() {
   const { t } = useI18n()
@@ -25,7 +26,7 @@ export function AppShell() {
   useEffect(() => {
     const onSessionExpired = () => {
       handleSessionExpired()
-      if (location.pathname !== LOGIN_PATH && location.pathname !== '/') {
+      if (!isPublicRoute(location.pathname)) {
         navigate(LOGIN_PATH, { replace: true })
       }
     }
