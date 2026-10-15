@@ -2,6 +2,20 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.3.3] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.3.3** berisi 2 perubahan: 2 fitur. (38 files changed, 2941 insertions(+), 249 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- SEO and AI discovery, synced official docs, database administration UI, README refresh ([`ebe6053`](https://github.com/friskipradana/panel-desktop-ui/commit/ebe6053))
+- **databases:** Manage tables, SQL console, users and permissions, password from the Database window ([`864fb27`](https://github.com/friskipradana/panel-desktop-ui/commit/864fb27))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.2...v4.3.3
+
 ## [4.3.2] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
