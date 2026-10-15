@@ -5,6 +5,7 @@ import {
   Box,
   Database,
   Download,
+  Eye,
   FileText,
   FolderKanban,
   Globe,
@@ -22,6 +23,8 @@ import { CopyBlock } from '@/components/public/CopyBlock'
 import { InstallGuide } from '@/pages/landing/InstallGuide'
 import { DemoAccess } from '@/pages/landing/DemoAccess'
 import { Button } from '@/components/ui/Button'
+import { useQuery } from '@tanstack/react-query'
+import { getDemoInfo } from '@/api/agent'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 
 export type LandingPageProps = {
@@ -50,6 +53,7 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
+  const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
   const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
   const { counts } = useMcpCatalog()
@@ -70,6 +74,12 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={15} />
             </Button>
+            {!authenticated && demo?.enabled ? (
+              <Button onClick={() => onNavigate('/login?demo=1')} className="!h-10 !px-4">
+                <Eye size={15} />
+                <span>{t('landing.demo.heroCta')}</span>
+              </Button>
+            ) : null}
             <a href={INSTALLER_URL} className="panel-btn !h-10 !px-4">
               <Download size={15} />
               <span>{t('landing.downloadInstaller')}</span>

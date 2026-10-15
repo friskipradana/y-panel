@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   LoaderCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Sun, Moon
 } from 'lucide-react'
-import { getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
+import { getDemoInfo, getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
@@ -62,6 +62,17 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     queryFn: getSetupStatus,
     retry: 1,
   })
+
+  // Arriving from the landing page's demo button: the demo account fills the form
+  const wantsDemo = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1'
+  const demoQuery = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, enabled: wantsDemo, staleTime: 5 * 60_000, retry: false })
+  const demoFilled = wantsDemo && !!demoQuery.data?.enabled && !!demoQuery.data.username
+  useEffect(() => {
+    const info = demoQuery.data
+    if (!wantsDemo || !info?.enabled || !info.username || !info.password) return
+    setUsername(info.username)
+    setPassword(info.password)
+  }, [wantsDemo, demoQuery.data])
 
   useEffect(() => {
     if (setupStatusQuery.data) {
@@ -271,6 +282,9 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
               loginMutation.mutate()
             }}
           >
+            {demoFilled ? (
+              <p className="px-2 text-center text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('login.demoFilled')}</p>
+            ) : null}
             <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
               <input
                 id="panel-login-username"

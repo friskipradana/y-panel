@@ -70,9 +70,9 @@ func IsSQL(e Engine) bool { return isSQL(e) }
 
 func quote(e Engine, ident string) string {
 	if e.ID == "postgres" {
-		return `"` + ident + `"`
+		return `"` + strings.ReplaceAll(ident, `"`, `""`) + `"`
 	}
-	return "`" + ident + "`"
+	return "`" + strings.ReplaceAll(ident, "`", "``") + "`"
 }
 
 // lit renders a validated plain string as a SQL literal.
@@ -201,7 +201,7 @@ func parseCSV(out []byte, maxRows int) Result {
 	reader.LazyQuotes = true
 	records, _ := reader.ReadAll()
 	if len(records) == 0 {
-		return Result{}
+		return Result{Columns: []string{}, Rows: [][]string{}}
 	}
 	res := Result{Columns: records[0], Rows: [][]string{}}
 	for _, rec := range records[1:] {
@@ -225,7 +225,7 @@ func unescapeMySQL(value string) string {
 func parseTSV(out []byte, maxRows int) Result {
 	text := strings.TrimRight(string(out), "\n")
 	if text == "" {
-		return Result{}
+		return Result{Columns: []string{}, Rows: [][]string{}}
 	}
 	lines := strings.Split(text, "\n")
 	res := Result{Columns: strings.Split(lines[0], "\t"), Rows: [][]string{}}
@@ -308,8 +308,21 @@ func firstColumn(res Result, err error) ([]string, error) {
 
 // Browse returns a page of rows of one table.
 func Browse(ctx context.Context, c Conn, table string, limit, offset int) (Result, error) {
-	if err := ValidateIdentifier(table); err != nil {
-		return Result{}, err
+	if ValidateIdentifier(table) != nil {
+		known, err := Tables(ctx, c)
+		if err != nil {
+			return Result{}, err
+		}
+		found := false
+		for _, name := range known {
+			if name == table {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return Result{}, errors.New("table not found")
+		}
 	}
 	if limit <= 0 || limit > 500 {
 		limit = 100
@@ -318,7 +331,22 @@ func Browse(ctx context.Context, c Conn, table string, limit, offset int) (Resul
 		offset = 0
 	}
 	stmt := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", quote(c.Engine, table), limit, offset)
-	return RunSQL(ctx, c, stmt, limit, false)
+	res, err := RunSQL(ctx, c, stmt, limit, false)
+	if err != nil {
+		return res, err
+	}
+	// MySQL prints nothing for an empty table: take the headers from the column list
+	if len(res.Columns) == 0 && c.Engine.ID != "postgres" {
+		if cols, colErr := RunSQL(ctx, c, "SHOW COLUMNS FROM "+quote(c.Engine, table), 500, false); colErr == nil {
+			for _, row := range cols.Rows {
+				if len(row) > 0 {
+					res.Columns = append(res.Columns, row[0])
+				}
+			}
+		}
+	}
+	res.Message = ""
+	return res, nil
 }
 
 // Column describes one column of a new table.
