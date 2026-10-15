@@ -89,6 +89,13 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 		delete(m.procs, project.ID)
 	}
 
+	// rows created before directory checks existed may still point outside the owner's home
+	if user != nil {
+		if _, _, err := ResolveWorkingDir(project.WorkingDir, osuser.ResolveHomeDir(user.Username), user.Role == "superadmin"); err != nil {
+			return fmt.Errorf("project %d: %w", project.ID, err)
+		}
+	}
+
 	cmd, err := buildCommand(user, project)
 	if err != nil {
 		return err
@@ -97,7 +104,8 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 	cmd.Dir = project.WorkingDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), fmt.Sprintf("PORT=%d", project.AssignedPort))
+	// never hand the agent's own environment (secrets, DSN, keys) to user code
+	cmd.Env = RuntimeEnv(project.AssignedPort)
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start project %d: %w", project.ID, err)
@@ -342,6 +350,9 @@ func isLocalPortOpen(port int) bool {
 	_ = conn.Close()
 	return true
 }
+
+// PortInUse reports whether something already listens on the local port.
+func PortInUse(port int) bool { return isLocalPortOpen(port) }
 
 func terminateLocalPort(port int) error {
 	if port <= 0 || !isLocalPortOpen(port) {

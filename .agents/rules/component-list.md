@@ -56,7 +56,7 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `system` | `SystemWindow` | belum dipecah |
 | `system-logs` | `SystemLogsWindow` | belum dipecah |
 | `file-editor` | `FileEditorWindow` | Monaco (belum dipecah) |
-| `database` | `DatabaseWindow` | belum dipecah |
+| `database` | `DatabaseWindow` | `database/`: `useDatabasesWindow`, `CreateDatabaseModal`, `ConnectionModal`. Database milik user (PostgreSQL, MySQL, MariaDB, MongoDB, Redis) sebagai container di 127.0.0.1 (`internal/userdb`). Info database Reneo sendiri ada di Settings, tab `ReneoDatabaseTab`, hanya superadmin |
 | `users` | `UsersWindow` | `users/`: `UserQuotaPanel` (kuota + pemakaian), `ResetPasswordModal`, `permissions` (cermin kebijakan agent: admin hanya mengelola user biasa, hanya superadmin memberi role admin) |
 | `profile` | `ProfileWindow` | `profile/AccountSecurityCard` (pemakaian sendiri + ganti password) |
 | `widgets` | `WidgetsWindow` | – |

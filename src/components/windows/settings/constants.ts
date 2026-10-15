@@ -72,4 +72,5 @@ export type SettingsTabKey =
   | "payment"
   | "notifications"
   | "audit"
-  | "api_tokens";
+  | "api_tokens"
+  | "reneo_database";
