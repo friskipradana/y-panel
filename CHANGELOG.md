@@ -2,6 +2,34 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.0.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.0.0** berisi 10 perubahan: 6 fitur, 2 perbaikan, 1 dokumentasi, 1 pemeliharaan. (99 files changed, 2535 insertions(+), 618 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **brand:** Rename YPanel to Reneo across UI, installer, runtime and docs ([`8b27342`](https://github.com/friskipradana/panel-desktop-ui/commit/8b27342))
+- **brand:** Reneo landing page, philosophy and icon set from the REN brand kit ([`210486f`](https://github.com/friskipradana/panel-desktop-ui/commit/210486f))
+- **installer:** One-line curl | sudo bash install, pipe-safe .run and sha256 asset ([`fdafeaf`](https://github.com/friskipradana/panel-desktop-ui/commit/fdafeaf))
+- **landing:** Step-by-step installation guide ([`65a0277`](https://github.com/friskipradana/panel-desktop-ui/commit/65a0277))
+- **runtime:** Reneo naming with RENEO_* env aliases and legacy ypanel fallback ([`5583ecd`](https://github.com/friskipradana/panel-desktop-ui/commit/5583ecd))
+- **updater:** Check and apply releases via cli and web ui ([`535d77b`](https://github.com/friskipradana/panel-desktop-ui/commit/535d77b))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **landing:** Use reneo.my.id in the Cloudflare preview ([`3eab805`](https://github.com/friskipradana/panel-desktop-ui/commit/3eab805))
+- **landing:** Tidy the hero install command block ([`61cca00`](https://github.com/friskipradana/panel-desktop-ui/commit/61cca00))
+
+### 📚 Dokumentasi (Documentation)
+- Add Reneo philosophy and guiding principles documentation ([`9bd9ac4`](https://github.com/friskipradana/panel-desktop-ui/commit/9bd9ac4))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- Update typescript build info cache ([`246cc0e`](https://github.com/friskipradana/panel-desktop-ui/commit/246cc0e))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.5...v4.0.0
+
 ## [3.4.5] - 2026-10-13
 
 ### 🌟 Ringkasan Rilis (Release Overview)
