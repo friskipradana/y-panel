@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/states'
 import type { ToolAccess, ToolKind } from './toolsData'
 import { useMcpCatalog } from './useMcpCatalog'
 
-const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'cloudflare', 'widgets', 'users'] as const
+const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'databases', 'cloudflare', 'widgets', 'users'] as const
 type GroupKey = 'all' | (typeof TOOL_GROUPS)[number]
 
 const KIND_TONE: Record<ToolKind, 'success' | 'warning' | 'danger'> = { read: 'success', write: 'warning', destroy: 'danger' }

@@ -355,6 +355,7 @@ export const id: Record<string, string> = {
   'mcpGuide.group.docker': "Docker",
   'mcpGuide.group.files': "File",
   'mcpGuide.group.projects': "Project & tunnel",
+  'mcpGuide.group.databases': "Database",
   'mcpGuide.group.cloudflare': "Cloudflare",
   'mcpGuide.group.widgets': "Widget",
   'mcpGuide.group.users': "Pengguna & docs",
