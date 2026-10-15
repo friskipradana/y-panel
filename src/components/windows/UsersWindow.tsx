@@ -14,6 +14,10 @@ import {
 } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
+import { useAuthStore } from '@/store/authStore'
+import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
+import { ResetPasswordModal } from '@/components/windows/users/ResetPasswordModal'
+import { canManageUser, grantableRoles } from '@/components/windows/users/permissions'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
 import { toast } from 'sonner'
@@ -27,6 +31,7 @@ import {
   Crown,
   CircleUser,
   Settings2,
+  KeyRound,
   RefreshCw,
   Eye,
   EyeOff,
@@ -38,6 +43,7 @@ import {
   ChevronRight,
   // Sparkles,
 } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/states'
@@ -49,6 +55,12 @@ const ROLE_VARIANTS: Record<string, string> = {
   superadmin: 'panel-badge--warning',
   admin: 'panel-badge--info',
   user: 'panel-badge--neutral',
+}
+
+const ROLE_TONES: Record<string, 'warning' | 'info' | 'neutral'> = {
+  superadmin: 'warning',
+  admin: 'info',
+  user: 'neutral',
 }
 
 const STATUS_VARIANTS: Record<string, string> = {
@@ -69,7 +81,7 @@ const ROLE_OPTIONS = [
   { value: 'superadmin', labelKey: 'users.roleSuperadmin' },
 ]
 
-const ROLE_SELECT_OPTIONS = (t: (key: string) => string) => ROLE_OPTIONS.map((role) => ({
+const ROLE_SELECT_OPTIONS = (t: (key: string) => string, allowed?: string[]) => ROLE_OPTIONS.filter((role) => !allowed || allowed.includes(role.value)).map((role) => ({
   value: role.value,
   label: t(role.labelKey),
   description: role.value,
@@ -83,6 +95,9 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [showQuota, setShowQuota] = useState<number | null>(null)
+  const [resetTarget, setResetTarget] = useState<PanelUser | null>(null)
+  const actor = useAuthStore((s) => s.user)
+  const assignable = grantableRoles(actor?.role)
   const [showPwd, setShowPwd] = useState(false)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
@@ -234,7 +249,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
               id="users-create-role-select"
               value={form.role}
               onChange={(nextValue) => setForm((current) => ({ ...current, role: nextValue }))}
-              options={ROLE_SELECT_OPTIONS(t)}
+              options={ROLE_SELECT_OPTIONS(t, assignable)}
               buttonClassName="h-[42px]"
               searchable
               searchPlaceholder={t('users.searchRole')}
@@ -313,6 +328,9 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                     }}
                     onQuota={() => setShowQuota(showQuota === u.id ? null : u.id)}
                     showQuota={showQuota === u.id}
+                    canManage={canManageUser(actor, u)}
+                    assignableRoles={assignable}
+                    onResetPassword={() => setResetTarget(u)}
                   />
                 ))}
               </>
@@ -331,6 +349,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
           </div>
         </div>
       </div>
+      <ResetPasswordModal user={resetTarget} onClose={() => setResetTarget(null)} />
     </div>
   )
 }
@@ -342,6 +361,9 @@ function UserRow({
   onDelete,
   onQuota,
   showQuota,
+  canManage,
+  assignableRoles,
+  onResetPassword,
 }: {
   user: PanelUser
   onSuspend: () => void
@@ -349,6 +371,9 @@ function UserRow({
   onDelete: () => void
   onQuota: () => void
   showQuota: boolean
+  canManage: boolean
+  assignableRoles: string[]
+  onResetPassword: () => void
 }) {
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -382,7 +407,6 @@ function UserRow({
     },
   })
 
-  const [editQuota, setEditQuota] = useState<Partial<UserQuota>>({})
   const [editingRole, setEditingRole] = useState(false)
   const [selectedRole, setSelectedRole] = useState(user.role)
 
@@ -420,7 +444,7 @@ function UserRow({
               <Select
                 value={selectedRole}
                 onChange={setSelectedRole}
-                options={ROLE_SELECT_OPTIONS(t)}
+                options={ROLE_SELECT_OPTIONS(t, assignableRoles)}
                 className="min-w-[150px]"
                 buttonClassName="h-8 rounded-full border-[var(--win-border)] bg-[var(--panel-surface)] pl-3 pr-10 text-[12px] font-medium"
                 dropdownClassName="min-w-[180px]"
@@ -435,6 +459,10 @@ function UserRow({
                 <X className="h-3 w-3" />
               </IconButton>
             </div>
+          ) : !canManage || assignableRoles.length < 2 ? (
+            <Badge tone={ROLE_TONES[user.role] ?? 'neutral'}>
+              {ROLE_ICON[user.role]} {user.role}
+            </Badge>
           ) : (
             <button
               onClick={() => { setEditingRole(true); setSelectedRole(user.role) }}
@@ -454,7 +482,12 @@ function UserRow({
           <IconButton onClick={onQuota} tone="primary" label={t('users.manageQuota')}>
             <Settings2 className="h-3.5 w-3.5" />
           </IconButton>
-          {user.status === 'active' ? (
+          {canManage ? (
+            <IconButton onClick={onResetPassword} label={t('users.resetPassword')}>
+              <KeyRound className="h-3.5 w-3.5" />
+            </IconButton>
+          ) : null}
+          {!canManage ? null : user.status === 'active' ? (
             <IconButton onClick={onSuspend} tone="warning" label={t('users.suspend')}>
               <ShieldOff className="h-3.5 w-3.5" />
             </IconButton>
@@ -463,37 +496,16 @@ function UserRow({
               <Shield className="h-3.5 w-3.5" />
             </IconButton>
           )}
-          <IconButton onClick={onDelete} tone="danger" label={t('common.delete')}>
-            <Trash2 className="h-3.5 w-3.5" />
-          </IconButton>
+          {canManage ? (
+            <IconButton onClick={onDelete} tone="danger" label={t('common.delete')}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </IconButton>
+          ) : null}
         </div>
       }
       expanded={
         showQuota && quota ? (
-          <div className="border-t border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3.5">
-            <p className="mb-3 text-[12px] font-medium text-[var(--text-secondary)]">{t('users.resourceQuota')}</p>
-            <div className="panel-grid-compact panel-grid-compact--3">
-              {[
-                { key: 'maxProjects', label: t('users.maxProjects'), val: quota.maxProjects },
-                { key: 'maxTunnels', label: t('users.maxTunnels'), val: quota.maxTunnels },
-                { key: 'diskQuotaMb', label: t('users.diskMb'), val: quota.diskQuotaMb },
-                { key: 'cpuLimitPct', label: t('users.cpuLimitPct'), val: quota.cpuLimitPct },
-                { key: 'memoryLimitMb', label: t('users.ramMb'), val: quota.memoryLimitMb },
-              ].map(({ key, label, val }) => (
-                <div key={key}>
-                  <label className="panel-section-label mb-1">{label}</label>
-                  <TextInput
-                    type="number"
-                    defaultValue={val}
-                    onChange={(e) => setEditQuota((q) => ({ ...q, [key]: Number(e.target.value) }))}
-                  />
-                </div>
-              ))}
-            </div>
-            <Button onClick={() => updateQuotaMut.mutate(editQuota)} disabled={updateQuotaMut.isPending} variant="primary-soft" className="mt-3 w-full">
-              {t('users.saveQuota')}
-            </Button>
-          </div>
+          <UserQuotaPanel user={user} quota={quota} saving={updateQuotaMut.isPending} onSave={(patch) => updateQuotaMut.mutate(patch)} />
         ) : null
       }
     />

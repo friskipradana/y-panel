@@ -113,6 +113,8 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "user_delete", group: "users", access: "admin", kind: "destroy", desc: "Permanently delete a user (superadmin only)." },
   { name: "user_get", group: "users", access: "admin", kind: "read", desc: "Get a single Reneo user by ID." },
   { name: "user_list", group: "users", access: "admin", kind: "read", desc: "List all Reneo users with their roles, status, and quota info." },
+  { name: "user_usage_get", group: "users", access: "admin", kind: "read", desc: "Read what a user consumes against the quota: projects, tunnels and disk used." },
+  { name: "user_password_reset", group: "users", access: "admin", kind: "write", desc: "Set a new password for a user account and sign that user out everywhere." },
   { name: "user_quota_get", group: "users", access: "admin", kind: "read", desc: "Read a user's resource quota (projects, tunnels, disk, CPU, memory)." },
   { name: "user_quota_set", group: "users", access: "admin", kind: "write", desc: "Set a user's resource quota." },
   { name: "user_suspend", group: "users", access: "admin", kind: "write", desc: "Suspend a Reneo user account (prevent login)." },

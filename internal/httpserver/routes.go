@@ -46,6 +46,10 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/users/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteUser)))
 	s.mux.Handle("POST /api/v1/users/{id}/suspend", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleSuspendUser)))
 	s.mux.Handle("POST /api/v1/users/{id}/activate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleActivateUser)))
+	s.mux.Handle("GET /api/v1/users/{id}/usage", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUserUsage)))
+	s.mux.Handle("POST /api/v1/users/{id}/password", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleResetUserPassword)))
+	s.mux.Handle("GET /api/v1/me/usage", s.requireAuthV2(http.HandlerFunc(s.handleGetMyUsage)))
+	s.mux.Handle("POST /api/v1/me/password", s.requireAuthV2(http.HandlerFunc(s.handleChangeMyPassword)))
 	s.mux.Handle("GET /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUserQuota)))
 	s.mux.Handle("PATCH /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateUserQuota)))
 

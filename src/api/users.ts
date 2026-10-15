@@ -54,3 +54,24 @@ export const getUserQuota = (id: number) =>
 
 export const updateUserQuota = (id: number, quota: Partial<UserQuota>) =>
   agentApi.patch<{ ok: boolean }>(`/api/v1/users/${id}/quota`, quota).then((r) => r.data)
+
+export interface AccountUsage {
+  userId: number
+  projects: number
+  projectsActive: number
+  tunnels: number
+  diskUsedMb: number
+  diskScanPartial: boolean
+  quota: UserQuota | null
+}
+
+export const getUserUsage = (id: number) =>
+  agentApi.get<AccountUsage>(`/api/v1/users/${id}/usage`).then((r) => r.data)
+
+export const getMyUsage = () => agentApi.get<AccountUsage>('/api/v1/me/usage').then((r) => r.data)
+
+export const resetUserPassword = (id: number, newPassword: string) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/users/${id}/password`, { newPassword }).then((r) => r.data)
+
+export const changeMyPassword = (currentPassword: string, newPassword: string) =>
+  agentApi.post<{ ok: boolean }>('/api/v1/me/password', { currentPassword, newPassword }).then((r) => r.data)

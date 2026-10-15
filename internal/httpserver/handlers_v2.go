@@ -387,6 +387,15 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
 	}
+	if req.Role == "" {
+		req.Role = "user"
+	}
+	if actor := userFromCtx(r); actor != nil {
+		if err := users.CanAssignRole(actor.Role, req.Role); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
 	u, err := s.auth.CreateUser(req.Username, req.Email, req.Password, req.Role, req.DisplayName)
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
@@ -420,6 +429,17 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	actor := userFromCtx(r)
+	target, _ := s.database.GetUserByID(id)
+	if target == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+	fields, err := s.vetUserFields(actor, target, fields)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
 	if err := s.database.UpdateUser(id, fields); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -445,11 +465,20 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if actor != nil {
+		if err := users.CanManage(actor.ID, actor.Role, targetUser, false); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+	s.stopUserWorkloads(targetUser.ID)
+	_ = s.database.DeleteUserSessions(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	if actor != nil {
+		s.auditSensitiveAction(r, actor, "user.delete", "ok", map[string]any{"target": targetUser.Username})
 		s.notifyUserAction(actor.ID, "User dihapus 🗑️", fmt.Sprintf("User '%s' berhasil dihapus.", targetUser.Username), "warning")
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
@@ -462,10 +491,20 @@ func (s *Server) handleSuspendUser(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
 		return
 	}
+	if actor := userFromCtx(r); actor != nil {
+		if err := users.CanManage(actor.ID, actor.Role, targetUser, false); err != nil {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+			return
+		}
+		s.auditSensitiveAction(r, actor, "user.suspend", "ok", map[string]any{"target": targetUser.Username})
+	}
 	if err := users.SuspendUser(s.database, id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	// A suspended account must stop serving: sign it out and halt its projects and tunnels
+	_ = s.database.DeleteUserSessions(id)
+	s.stopUserWorkloads(id)
 	s.notifyCurrentUserAction(r, "User disuspend ⛔", fmt.Sprintf("User '%s' berhasil disuspend.", targetUser.Username), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
@@ -498,13 +537,44 @@ func (s *Server) handleGetUserQuota(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	id := parsePathID(r, "id")
-	var q database.UserQuota
-	if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
+	// Partial update: fields that are not sent keep their stored value
+	q, err := s.database.GetUserQuota(id)
+	if err != nil || q == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+	var patch struct {
+		MaxProjects   *int   `json:"maxProjects"`
+		MaxTunnels    *int   `json:"maxTunnels"`
+		DiskQuotaMB   *int64 `json:"diskQuotaMb"`
+		CPULimitPct   *int   `json:"cpuLimitPct"`
+		MemoryLimitMB *int   `json:"memoryLimitMb"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
+	if patch.MaxProjects != nil {
+		q.MaxProjects = *patch.MaxProjects
+	}
+	if patch.MaxTunnels != nil {
+		q.MaxTunnels = *patch.MaxTunnels
+	}
+	if patch.DiskQuotaMB != nil {
+		q.DiskQuotaMB = *patch.DiskQuotaMB
+	}
+	if patch.CPULimitPct != nil {
+		q.CPULimitPct = *patch.CPULimitPct
+	}
+	if patch.MemoryLimitMB != nil {
+		q.MemoryLimitMB = *patch.MemoryLimitMB
+	}
+	if err := users.ValidateQuota(*q); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	q.UserID = id
-	if err := s.database.UpdateUserQuota(q); err != nil {
+	if err := s.database.UpdateUserQuota(*q); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}

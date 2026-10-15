@@ -797,6 +797,15 @@ func (m *Manager) GetSessionUser(token string) (*User, bool) {
 	return u, true
 }
 
+// DeleteUserSessions signs a user out everywhere (suspend, delete, password reset).
+func (m *Manager) DeleteUserSessions(userID int64) error {
+	if !m.IsConnected() || m.db == nil {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec("DELETE FROM user_sessions WHERE user_id = $1", userID)
+	return err
+}
+
 func (m *Manager) DeleteSession(token string) {
 	if !m.IsConnected() || m.db == nil {
 		return

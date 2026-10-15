@@ -56,8 +56,8 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `system-logs` | `SystemLogsWindow` | belum dipecah |
 | `file-editor` | `FileEditorWindow` | Monaco (belum dipecah) |
 | `database` | `DatabaseWindow` | belum dipecah |
-| `users` | `UsersWindow` | belum dipecah |
-| `profile` | `ProfileWindow` | – |
+| `users` | `UsersWindow` | `users/`: `UserQuotaPanel` (kuota + pemakaian), `ResetPasswordModal`, `permissions` (cermin kebijakan agent: admin hanya mengelola user biasa, hanya superadmin memberi role admin) |
+| `profile` | `ProfileWindow` | `profile/AccountSecurityCard` (pemakaian sendiri + ganti password) |
 | `widgets` | `WidgetsWindow` | – |
 | `docs` | `DocsWindow` | – |
 | `changelog` | `ChangelogWindow` | – |

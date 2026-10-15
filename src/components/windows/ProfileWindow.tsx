@@ -15,6 +15,7 @@ import { getMeV2 } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 import { IconBadge } from '@/components/ui/IconBadge'
+import { AccountSecurityCard } from '@/components/windows/profile/AccountSecurityCard'
 
 export default function ProfileWindow() {
   const { t } = useI18n()
@@ -78,14 +79,14 @@ export default function ProfileWindow() {
           <div className="panel-shell-card p-5 space-y-3.5">
             <div className="text-[13px] font-bold text-[var(--win-text)] flex items-center gap-2">
               <ShieldCheck size={16} className="text-[var(--panel-primary-text)]" />
-              Account Metadata & Security
+              {t('account.metadataTitle')}
             </div>
 
             <div className="space-y-2.5 text-[12.5px]">
               <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                 <span className="text-[var(--text-secondary)] flex items-center gap-2">
                   <Calendar size={14} className="opacity-70" />
-                  Member Since
+                  {t('account.memberSince')}
                 </span>
                 <span className="font-medium text-[var(--win-text)]">
                   {me?.createdAt ? new Date(me.createdAt).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '—'}
@@ -95,14 +96,16 @@ export default function ProfileWindow() {
               <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                 <span className="text-[var(--text-secondary)] flex items-center gap-2">
                   <Clock size={14} className="opacity-70" />
-                  Last Login Session
+                  {t('account.lastLogin')}
                 </span>
                 <span className="font-medium text-[var(--win-text)]">
-                  {me?.lastLoginAt ? new Date(me.lastLoginAt).toLocaleString('id-ID') : 'Current Session'}
+                  {me?.lastLoginAt ? new Date(me.lastLoginAt).toLocaleString('id-ID') : t('account.currentSession')}
                 </span>
               </div>
             </div>
           </div>
+
+          <AccountSecurityCard />
 
           {/* ── Shortcuts / Quick Management ── */}
           <div className="panel-shell-card p-5 space-y-3">
