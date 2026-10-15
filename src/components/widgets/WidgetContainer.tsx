@@ -32,7 +32,7 @@ interface WidgetContainerProps {
   onToggleLock: (id: string) => void
 }
 
-const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType<WidgetProps>> = {
+export const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType<WidgetProps>> = {
   'clock-uptime': ClockUptimeWidget,
   'system-vital': SystemVitalWidget,
   'network-traffic': NetworkTrafficWidget,

@@ -17,8 +17,8 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
   } = docker
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-      <div className="flex items-center gap-1">
+    <div className="flex items-center justify-between gap-2 border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {(['containers', 'images', 'networks', 'templates'] as const).map((tab) => (
           <button
             key={tab}
@@ -33,7 +33,7 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <IconButton
           type="button"
           onClick={() => {

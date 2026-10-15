@@ -503,6 +503,15 @@ button:focus-visible,
   gap: 12px;
 }
 
+// Phones: two metrics per row instead of one tall card each
+@media (max-width: 767px) {
+  .panel-kpi-grid--2,
+  .panel-kpi-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
 @media (min-width: 768px) {
   .panel-kpi-grid--2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
