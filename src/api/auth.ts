@@ -9,7 +9,7 @@ export interface AuthMeV2 {
   id: number
   username: string
   email: string
-  role: 'superadmin' | 'admin' | 'user'
+  role: 'superadmin' | 'admin' | 'user' | 'demo'
   status: 'active' | 'suspended' | 'pending'
   displayName: string
   avatarUrl: string

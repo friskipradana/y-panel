@@ -82,6 +82,15 @@ export interface WidgetLayoutResponse {
   updatedAt: string | null
 }
 
+export interface DemoInfo {
+  enabled: boolean
+  username?: string
+  password?: string
+  readOnly?: boolean
+}
+
+export const getDemoInfo = () => agentApi.get<DemoInfo>('/api/v1/public/demo').then((r) => r.data)
+
 export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)
 
 export const putMyWidgets = (data: { placedWidgets: unknown; mobile?: unknown }) =>

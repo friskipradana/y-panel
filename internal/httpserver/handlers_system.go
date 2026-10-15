@@ -67,9 +67,10 @@ type truncateDataRequest struct {
 	Days   int    `json:"days"`
 }
 
-func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 	summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
 	dbStatus := s.database.Status()
+	demo := s.isDemoUser(userFromCtx(r))
 
 	projectSummary := map[string]any{
 		"total":          0,
@@ -120,6 +121,17 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 
+	if demo {
+		// live load figures stay; anything that identifies or locates the host is hidden
+		summary.Hostname = "demo-server"
+		summary.Kernel = ""
+		dbStatus = database.Status{Enabled: true, Connected: dbStatus.Connected}
+	}
+	portainerURL, stateDir := s.cfg.PortainerURL, s.cfg.StateDir
+	if demo {
+		portainerURL, stateDir = "", ""
+	}
+
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"hostname":           summary.Hostname,
 		"osName":             summary.OSName,
@@ -133,8 +145,8 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, _ *http.Request) {
 		"dockerReachable":    summary.DockerReachable,
 		"dockerStatus":       summary.DockerStatus,
 		"portainerReachable": summary.PortainerReachable,
-		"portainerUrl":       s.cfg.PortainerURL,
-		"stateDir":           s.cfg.StateDir,
+		"portainerUrl":       portainerURL,
+		"stateDir":           stateDir,
 		"database":           dbStatus,
 		"projects":           projectSummary,
 	})

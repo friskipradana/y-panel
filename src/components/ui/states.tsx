@@ -23,13 +23,14 @@ export function LoadingState({ children, className = '' }: StateBase & { childre
   )
 }
 
-export function ErrorState({ title, hint, className = '' }: StateBase & { title: string; hint?: string }) {
+export function ErrorState({ title, hint, action, className = '' }: StateBase & { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div role="alert" className={`panel-error-state ${className}`.trim()}>
       <TriangleAlert className="h-5 w-5 shrink-0" />
       <div>
         <p className="font-semibold">{title}</p>
         {hint ? <p className="mt-1 text-[12px] leading-6 opacity-90">{hint}</p> : null}
+        {action ? <div className="mt-3">{action}</div> : null}
       </div>
     </div>
   )

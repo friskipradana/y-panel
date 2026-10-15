@@ -161,3 +161,20 @@ Aksi sensitif berikut sekarang tercatat ke `runtime_logs` dengan service `securi
 - `file.move`
 - `file.chmod`
 - `file.extract`
+
+## Akun Demo (opsional)
+
+Instance publik dapat membuka satu akun demo yang hanya bisa melihat. Aktifkan dengan environment berikut lalu restart agent:
+
+```bash
+RENEO_DEMO_PASSWORD=ganti-dengan-password-demo   # minimal 8 karakter; kosong = demo mati
+RENEO_DEMO_USERNAME=demo                          # opsional, default "demo"
+```
+
+Perilaku:
+
+- Akun dibuat otomatis dengan role `user`, kuota nol, tanpa akun OS. Password dari env diterapkan ulang tiap agent start.
+- Hanya endpoint pada allowlist (`internal/httpserver/handlers_demo.go`) yang bisa dipanggil; endpoint baru otomatis ditolak dengan 403.
+- Terminal, file, pengaturan, user, database, log sistem, Cloudflare, token API, dan semua aksi tulis ditolak. Satu-satunya tulis yang diizinkan: tata letak widget milik akun demo.
+- Ringkasan sistem menyembunyikan hostname, kernel, path state, dan detail database.
+- Username dan password tampil di landing page (`GET /api/v1/public/demo`). Pakai password yang tidak dipakai di tempat lain.
