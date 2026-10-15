@@ -81,9 +81,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </div>
 
           <div className="mx-auto max-w-2xl text-left">
-            <CopyBlock text={INSTALL_COMMAND} />
-            <p className="mt-2 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.pasteTerminal')}</p>
-            <p className="mt-1 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.hero.name')}</p>
+            <CopyBlock text={INSTALL_COMMAND} prompt="$" />
+            <p className="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[0.75rem] text-[var(--text-secondary)]">
+              <span>{t('landing.pasteTerminal')}</span>
+              <span aria-hidden="true">·</span>
+              <a href="#landing-guide" className="text-[var(--panel-info-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+                {t('landing.hero.guideLink')}
+              </a>
+            </p>
           </div>
         </section>
 
@@ -99,6 +104,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               {t('landing.philosophy.title')}
             </h2>
             <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">{t('landing.philosophy.subtitle')}</p>
+            <p className="panel-mono mt-1 text-[0.75rem] text-[var(--text-secondary)]">{t('landing.hero.name')}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
