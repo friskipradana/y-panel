@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, BookOpen, Bot, Download, ExternalLink, GitBranch } from 'lucide-react'
+import { ArrowRight, BookOpen, Bot, Download, ExternalLink, GitBranch, Moon, Sun } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
 import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { useThemeStore } from '@/store/themeStore'
 
 export const GITHUB_URL = 'https://github.com/friskipradana/y-panel'
 export const INSTALLER_URL = `${GITHUB_URL}/releases/latest/download/reneo-installer.run`
@@ -13,19 +15,21 @@ interface PublicShellProps {
   children: ReactNode
 }
 
-// Shared frame of the public pages (landing, MCP guide). Always dark, whatever the desktop theme.
+// Shared frame of the public pages (landing, MCP guide, articles). Follows the saved light/dark mode.
 export function PublicShell({ children }: PublicShellProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const authenticated = useAuthStore((s) => s.authenticated)
   const { version } = usePanelVersion()
   const primaryPath = authenticated ? '/home' : '/login'
+  const themeMode = useThemeStore((s) => s.mode)
+  const toggleMode = useThemeStore((s) => s.toggleMode)
 
   const navLink =
     'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]'
 
   return (
-    <div data-theme="dark" className="relative min-h-full w-full overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
+    <div className="relative min-h-full w-full overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
 
       <header className="sticky top-0 z-50 border-b border-[var(--win-border)] bg-[var(--win-bg)]/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
@@ -65,6 +69,9 @@ export function PublicShell({ children }: PublicShellProps) {
               <Download size={14} />
               <span className="hidden md:inline">{t('public.nav.installer')}</span>
             </a>
+            <IconButton label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')} onClick={toggleMode}>
+              {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </IconButton>
             <Button variant="primary" onClick={() => navigate(primaryPath)} className="ml-1 !h-8">
               <span className="sm:hidden">{authenticated ? t('landing.dashboardShort') : t('landing.loginShort')}</span>
               <span className="max-sm:hidden">{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>

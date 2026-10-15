@@ -37,7 +37,7 @@ export function DesktopShowcase() {
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto select-none text-left font-sans">
+    <div data-theme="dark" className="w-full max-w-5xl mx-auto select-none text-left font-sans">
       {/* Outer Desktop Canvas */}
       <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[var(--win-bg)] shadow-lg">
         {/* Top Desktop Taskbar */}

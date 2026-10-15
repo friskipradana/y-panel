@@ -725,6 +725,8 @@ export const en: Record<string, string> = {
   'update.progress.logLabel': "Update log",
   'update.progress.noClose': "This dialog cannot be closed while the update is running.",
   'update.progress.reload': "Reload now",
+  'public.theme.toLight': "Switch to light mode",
+  'public.theme.toDark': "Switch to dark mode",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',
