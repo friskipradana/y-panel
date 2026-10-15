@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Save } from 'lucide-react'
 import type { DocPayload } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select'
 import { Tabs } from '@/components/ui/Tabs'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { Markdown } from '@/lib/markdown'
+import { MarkdownToolbar } from './MarkdownToolbar'
 import { emptyDocForm, publicLink, type DocsWindowState } from './useDocsWindow'
 
 type EditorTab = 'write' | 'preview'
@@ -17,6 +18,7 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
   const { t, editorOpen, setEditorOpen, editing, saveMut } = dw
   const [form, setForm] = useState<DocPayload>(emptyDocForm())
   const [tab, setTab] = useState<EditorTab>('write')
+  const contentRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!editorOpen) return
@@ -87,7 +89,10 @@ export function DocEditorModal({ dw }: { dw: DocsWindowState }) {
           </div>
           {tab === 'write' ? (
             <>
-              <Textarea mono rows={14} value={form.content} onChange={(e) => patch({ content: e.target.value })} />
+              <div className="mb-1.5">
+                <MarkdownToolbar textareaRef={contentRef} value={form.content} onChange={(content) => patch({ content })} />
+              </div>
+              <Textarea ref={contentRef} mono rows={14} value={form.content} onChange={(e) => patch({ content: e.target.value })} />
               <p className="mt-1 text-[0.75rem] text-[var(--text-secondary)]">{t('docs.markdownHint')}</p>
             </>
           ) : (

@@ -76,3 +76,12 @@ export const listOfficialDocs = (refresh = false) =>
   agentApi
     .get<{ items: DocRecord[] }>('/api/v1/docs/official', { params: { refresh: refresh ? 1 : undefined } })
     .then((r) => r.data.items.map((doc) => ({ ...doc, source: 'official' as const })))
+
+// Stored by content hash; the returned url works in markdown as ![alt](url)
+export const uploadDocImage = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return agentApi
+    .post<{ url: string; name: string }>('/api/v1/docs/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((r) => r.data)
+}

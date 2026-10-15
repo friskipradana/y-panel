@@ -10,6 +10,8 @@ Window **Projects** menjalankan aplikasi Anda sebagai proses di bawah akun Linux
 
 Aplikasi harus mendengarkan di port dari variabel lingkungan `PORT`. Tiap akun mendapat blok 100 port; port bebas pertama dipakai untuk project baru.
 
+![Window Projects](img/projects-window.png)
+
 ## Aturan
 
 - Direktori kerja harus berada di dalam direktori home akun Anda. Superadmin dapat memakai lokasi lain kecuali direktori sistem.

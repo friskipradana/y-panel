@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
+import type { InputHTMLAttributes, ReactNode, Ref, TextareaHTMLAttributes } from 'react'
 
 export interface FieldProps {
   label: string
@@ -42,6 +42,7 @@ export function TextInput({ mono = false, invalid = false, className = '', ...re
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   mono?: boolean
   invalid?: boolean
+  ref?: Ref<HTMLTextAreaElement>
 }
 
 export function Textarea({ mono = false, invalid = false, className = '', ...rest }: TextareaProps) {

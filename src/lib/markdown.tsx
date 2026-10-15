@@ -2,10 +2,21 @@ import { Fragment, type ReactNode } from 'react'
 
 // Small markdown renderer for docs and release notes. It builds React elements
 // (never HTML strings), so article content cannot inject markup or scripts, and
-// only http(s) and mailto links are rendered as links.
+// only http(s) and mailto links are rendered as links. Images are limited to the article image
+// store of the panel, https URLs, and the img/ folder of the official docs in the repository.
 
 const SAFE_LINK = /^(https?:\/\/|mailto:)/i
-const INLINE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\([^)\s]+\))/g
+const OFFICIAL_IMAGE_BASE = 'https://raw.githubusercontent.com/friskipradana/y-panel/HEAD/docs/articles/img/'
+
+// Returns a loadable src, or null when the address is not allowed
+export function resolveImageSrc(raw: string): string | null {
+  if (/^\/api\/v1\/public\/doc-images\/[a-f0-9]{40}\.(png|jpg|gif|webp)$/.test(raw)) return raw
+  if (/^https:\/\//i.test(raw)) return raw
+  const relative = /^(?:\.\/)?img\/([\w.-]+\.(?:png|jpe?g|gif|webp))$/i.exec(raw)
+  return relative ? OFFICIAL_IMAGE_BASE + relative[1] : null
+}
+
+const INLINE = /(!\[[^\]\n]*\]\([^)\s]+\)|`[^`\n]+`|\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\([^)\s]+\))/g
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const out: ReactNode[] = []
@@ -16,7 +27,25 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (start > last) out.push(text.slice(last, start))
     const token = match[0]
     const key = `${keyPrefix}-${index++}`
-    if (token.startsWith('`')) {
+    if (token.startsWith('![')) {
+      const close = token.indexOf('](')
+      const alt = token.slice(2, close)
+      const src = resolveImageSrc(token.slice(close + 2, -1))
+      out.push(
+        src ? (
+          <img
+            key={key}
+            src={src}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            className="my-2 block h-auto max-w-full rounded-xl border border-[var(--win-border)]"
+          />
+        ) : (
+          <Fragment key={key}>{alt}</Fragment>
+        ),
+      )
+    } else if (token.startsWith('`')) {
       out.push(
         <code key={key} className="panel-mono rounded bg-[var(--panel-surface-strong)] px-1 py-0.5 text-[0.85em]">
           {token.slice(1, -1)}
