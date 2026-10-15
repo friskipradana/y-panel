@@ -1,4 +1,4 @@
-import { Clock, Lock, LockKeyhole, Monitor, Sparkles, Terminal } from "lucide-react";
+import { Clock, Lock, LockKeyhole, Monitor, MonitorPlay, Orbit, Terminal } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useThemeStore } from "@/store/themeStore";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -130,7 +130,7 @@ export function ScreensaverTab() {
       {/* Screensaver Visual Model Card */}
       <div className="panel-shell-card p-3.5 flex flex-col gap-3">
         <SectionHeader
-          icon={<Sparkles />}
+          icon={<MonitorPlay />}
           title={t("settings.screensaver.styleTitle")}
           subtitle={t("settings.screensaver.styleSubtitle")}
         />
@@ -153,7 +153,7 @@ export function ScreensaverTab() {
               id: "starfield" as const,
               label: t("settings.screensaver.styleStarfield"),
               desc: t("settings.screensaver.styleStarfieldDesc"),
-              icon: <Sparkles size={16} className="text-indigo-400" />,
+              icon: <Orbit size={16} className="text-indigo-400" />,
             },
             {
               id: "none" as const,

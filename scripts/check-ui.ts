@@ -104,6 +104,9 @@ for (const abs of walk(SRC)) {
       add('raw-row', 'error', file, n, 'use ListRow / EntityRow / DataTable from components/ui')
     }
     if (isTsx && /\bh-6 w-11\b/.test(raw)) add('toggle', 'error', file, n, 'use ToggleSwitch from components/ui')
+    if ((isTsx || file.endsWith('.ts')) && /\b(Sparkles?|WandSparkles)\b/.test(raw) && !/^\s*(\/\/|\{\/\*)/.test(raw)) {
+      add('no-sparkles', 'error', file, n, 'sparkle icons are banned (AI slop): pick an icon that names the thing')
+    }
     if (isTsx && /ring-2 ring-\[var\(--panel-primary-solid\)\]\/30/.test(raw)) {
       add('selectable', 'error', file, n, 'use SelectableCard from components/ui')
     }

@@ -22,7 +22,7 @@ import {
   Globe,
   StickyNote,
   Activity,
-  Sparkles,
+  Puzzle,
   CornerDownLeft,
   X, Radar } from 'lucide-react'
 import { useCommandStore } from '@/store/commandStore'
@@ -419,7 +419,7 @@ export function CommandPalette() {
                     className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Sparkles)}
+                      {renderIconBox(Puzzle)}
                       <div className="flex flex-col min-w-0 gap-1.5 justify-center">
                         <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
                           Galeri Widget Desktop

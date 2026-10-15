@@ -151,7 +151,7 @@ bun run check:ui              # error = gagal, warning = informasi
 bun run check:ui --warnings   # daftar lengkap
 ```
 
-**Error**: bulatan macOS, `console.log`, emoji di TSX, kotak ikon/toggle/kartu terpilih tulisan sendiri, overlay modal tulisan sendiri, baris daftar tulisan sendiri (`panel-table-row` di luar `ui/`).
+**Error**: bulatan macOS, `console.log`, emoji di TSX, ikon `Sparkles`/`Sparkle`/`WandSparkles`, kotak ikon/toggle/kartu terpilih tulisan sendiri, overlay modal tulisan sendiri, baris daftar tulisan sendiri (`panel-table-row` di luar `ui/`).
 **Warning**: class mentah `panel-btn`/`panel-badge`/`panel-input`, ukuran file di atas 400 baris, hex di TSX, atribut teks hardcoded, `outline: none` tanpa gaya fokus.
 
 Daftar pengecualian bangunan khusus (ikon desktop, dock, lock screen, logo merek) ada di `ALLOW` dalam [scripts/check-ui.ts](../../scripts/check-ui.ts); entri baru butuh alasan di PR.

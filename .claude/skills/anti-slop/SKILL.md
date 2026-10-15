@@ -29,7 +29,7 @@ Slop adalah output yang terlihat "sudah jadi" tetapi tidak membawa informasi ata
 3. **Lencana kepercayaan palsu**: perisai, centang dalam lingkaran, "Enterprise-grade", "Bank-level security", sertifikasi yang tidak ada.
 4. **Gradient dekoratif** multi-warna pada teks, tombol, avatar, atau latar kartu. Gradient hanya untuk data (grafik, progress), wallpaper pilihan user, atau transisi tonal satu warna dari token.
 5. **Glow & blur berlebihan**: `box-shadow` berwarna besar, `blur` di luar taskbar/modal/window.
-6. **Emoji sebagai ikon UI** atau penghias judul.
+6. **Emoji sebagai ikon UI** atau penghias judul. Termasuk ikon lucide `Sparkles`, `Sparkle`, `WandSparkles`: dilarang total, tanpa pengecualian (check:ui = error).
 7. **Kartu bersarang** (card di dalam card di dalam card) dan grid tiga kartu identik berisi ikon + judul + kalimat.
 8. **Angka fiktif**: uptime, jumlah user, statistik "10x lebih cepat" tanpa sumber. Pakai data nyata atau jangan tampilkan.
 
@@ -62,7 +62,7 @@ Centang semua sebelum menyatakan selesai:
 
 - [ ] Tidak ada bulatan macOS.
 - [ ] Tidak ada kartu melayang, lencana kepercayaan, atau ilustrasi generik baru.
-- [ ] Tidak ada gradient dekoratif baru; tidak ada emoji ikon.
+- [ ] Tidak ada gradient dekoratif baru; tidak ada emoji ikon; tidak ada ikon `Sparkles`/`WandSparkles`.
 - [ ] Semua warna dari token; token baru ada di `:root` dan `[data-theme="dark"]`.
 - [ ] Data teknis memakai font mono.
 - [ ] Kotak ikon, header seksi, toggle, kartu terpilih memakai `components/ui/` (bukan className salinan).

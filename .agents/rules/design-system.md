@@ -38,6 +38,7 @@ Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DES
 5. Aksi destruktif lewat `GlobalAlert`/`InnerAlert` dengan nama objek yang jelas. Tombol memakai `.panel-btn--danger`.
 6. Teks UI selalu lewat `t()`. Tidak ada string Indonesia/Inggris langsung di JSX.
 7. Ikon aplikasi lewat `<AppIcon kind=... />`. Kotak ikon lewat `IconBadge`. Tidak ada emoji sebagai ikon.
+8. Dilarang memakai ikon lucide `Sparkles`, `Sparkle`, dan `WandSparkles` di mana pun (hiasan "AI" tanpa arti). Pilih ikon yang menamai benda atau aksinya: `CircleCheck` untuk status sehat, `CircleArrowUp` untuk pembaruan, `MessageSquareText` untuk prompt. `bun run check:ui` menggagalkan pelanggaran ini.
 
 ## 6. Layout & Scroll
 
