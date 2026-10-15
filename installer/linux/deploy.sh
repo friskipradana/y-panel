@@ -1,18 +1,18 @@
 #!/bin/bash
-# YPanel — Deploy Script
+# Reneo — Deploy Script
 # Run on: server 100.65.152.14
 
 set -e
 
-PANEL_USER="ypanel"
-PANEL_DIR="/opt/ypanel"
-STATE_DIR="/var/lib/ypanel"
-SERVICE_NAME="ypanel"
+PANEL_USER="reneo"
+PANEL_DIR="/opt/reneo"
+STATE_DIR="/var/lib/reneo"
+SERVICE_NAME="reneo"
 REPO_DIR="/tmp/panel-deploy-$$"
 GO_BIN="/usr/local/go/bin/go"
 
 echo "═══════════════════════════════════════════"
-echo "  YPanel — Deploy Script"
+echo "  Reneo — Deploy Script"
 echo "═══════════════════════════════════════════"
 
 # ─── 0. Dependencies ─────────────────────────────────────────────
@@ -99,11 +99,11 @@ cd "$REPO_DIR"
 
 # Download deps and build
 $GO_BIN mod download
-$GO_BIN build -o "$PANEL_DIR/ypanel-agent" ./cmd/agent/main.go 2>/dev/null || \
-    $GO_BIN build -o "$PANEL_DIR/ypanel-agent" ./main.go
+$GO_BIN build -o "$PANEL_DIR/reneo-agent" ./cmd/agent/main.go 2>/dev/null || \
+    $GO_BIN build -o "$PANEL_DIR/reneo-agent" ./main.go
 
-sudo chown "$PANEL_USER:$PANEL_USER" "$PANEL_DIR/ypanel-agent"
-sudo chmod +x "$PANEL_DIR/ypanel-agent"
+sudo chown "$PANEL_USER:$PANEL_USER" "$PANEL_DIR/reneo-agent"
+sudo chmod +x "$PANEL_DIR/reneo-agent"
 echo "  ✓ Backend built"
 
 # ─── 5. Build frontend ────────────────────────────────────────────
@@ -119,7 +119,7 @@ echo "  ✓ Frontend built"
 # ─── 6. Write .env ────────────────────────────────────────────────
 
 echo "[7/8] Writing environment config..."
-sudo tee /etc/ypanel.env > /dev/null <<ENVFILE
+sudo tee /etc/reneo.env > /dev/null <<ENVFILE
 PANEL_BIND_ADDR=0.0.0.0:8787
 PANEL_DB_ENABLED=true
 PANEL_DATABASE_DSN=postgres://panel_user:${DB_PASS}@127.0.0.1:5432/serverpanel?sslmode=disable
@@ -129,8 +129,8 @@ PANEL_FRONTEND_DIR=${PANEL_DIR}/frontend
 PANEL_SESSION_TTL=12h
 ENVFILE
 
-sudo chmod 600 /etc/ypanel.env
-sudo chown "$PANEL_USER:$PANEL_USER" /etc/ypanel.env
+sudo chmod 600 /etc/reneo.env
+sudo chown "$PANEL_USER:$PANEL_USER" /etc/reneo.env
 echo "  ✓ Environment configured"
 
 # ─── 7. Systemd service ───────────────────────────────────────────
@@ -138,7 +138,7 @@ echo "  ✓ Environment configured"
 echo "[8/8] Installing systemd service..."
 sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null <<SERVICE
 [Unit]
-Description=YPanel — UI Panel Agent
+Description=Reneo — UI Panel Agent
 After=network.target postgresql.service
 Wants=postgresql.service
 
@@ -147,13 +147,13 @@ Type=simple
 User=${PANEL_USER}
 Group=${PANEL_USER}
 WorkingDirectory=${STATE_DIR}
-EnvironmentFile=/etc/ypanel.env
-ExecStart=${PANEL_DIR}/ypanel-agent
+EnvironmentFile=/etc/reneo.env
+ExecStart=${PANEL_DIR}/reneo-agent
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ypanel
+SyslogIdentifier=reneo
 
 # Security hardening
 NoNewPrivileges=yes
@@ -183,7 +183,7 @@ rm -rf "$REPO_DIR"
 
 echo ""
 echo "═══════════════════════════════════════════"
-echo "  ✅ YPanel Deployed!"
+echo "  ✅ Reneo Deployed!"
 echo ""
 echo "  URL    : http://$(hostname -I | awk '{print $1}'):8787"
 echo "  Login  : admin"

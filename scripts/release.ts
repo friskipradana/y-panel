@@ -55,7 +55,7 @@ function runStep(label: string, cmd: string, args: string[]): boolean {
 }
 
 function help() {
-  console.log(`\n${c.bold}${c.cyan}YPanel Release & Release Notes Generator${c.reset}
+  console.log(`\n${c.bold}${c.cyan}Reneo Release & Release Notes Generator${c.reset}
 
 Penggunaan:
   bun run release:patch      3.1.5 -> 3.1.6
@@ -228,7 +228,7 @@ function generateNotes(opts: {
 
   out.push(`\n### 🌟 Ringkasan Rilis (Release Overview)`);
   if (commits.length === 0) {
-    out.push(`Pembaruan rutin stabilitas dan pemeliharaan sistem YPanel.`);
+    out.push(`Pembaruan rutin stabilitas dan pemeliharaan sistem Reneo.`);
   } else {
     out.push(`Rilis **v${version}** berisi ${commits.length} perubahan: ${summaryParts.join(", ")}.${stats ? ` ${stats}` : ""}`);
   }
@@ -256,7 +256,7 @@ function generateNotes(opts: {
 // ── CHANGELOG.md ───────────────────────────────────────────────────────────
 function updateChangelogFile(version: string, entry: string) {
   const changelogPath = path.resolve(process.cwd(), "CHANGELOG.md");
-  const header = `# Changelog\n\nAll notable changes to the YPanel project will be documented in this file.\n`;
+  const header = `# Changelog\n\nAll notable changes to the Reneo project will be documented in this file.\n`;
   const content = fs.existsSync(changelogPath) ? fs.readFileSync(changelogPath, "utf-8") : header;
 
   if (content.includes(`## [${version}]`)) {
@@ -289,7 +289,7 @@ async function main() {
   const allowDirty = args.includes("--allow-dirty");
   const bumpArg = args.filter((a) => !a.startsWith("--"))[0] || "patch";
 
-  console.log(`\n${c.bold}${c.cyan}YPanel Release${c.reset}`);
+  console.log(`\n${c.bold}${c.cyan}Reneo Release${c.reset}`);
   if (isDryRun) console.log(`${c.yellow}Mode dry-run: tidak ada file, commit, atau tag yang diubah.${c.reset}`);
 
   const pkgPath = path.resolve(process.cwd(), "package.json");

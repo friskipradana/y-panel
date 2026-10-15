@@ -2,11 +2,11 @@
 
 <#
 .SYNOPSIS
-  Deploy cepat untuk frontend YPanel.
+  Deploy cepat untuk frontend Reneo.
 
 .DESCRIPTION
   Build frontend lokal, upload hasil dist ke server via SSH/SCP, lalu mengganti
-  folder frontend instalasi YPanel di server. Script ini memakai path relatif
+  folder frontend instalasi Reneo di server. Script ini memakai path relatif
   project, kompatibel dengan parameter deploy utama, dan tidak lagi bergantung
   pada hard-coded drive lokal.
 
@@ -28,9 +28,9 @@ param(
   [string]$SshUsername = 'renaldi',
 
   [string]$SshPassword = '',
-  [string]$RemoteBaseDir = '/root/ypanel-deploy',
-  [string]$InstallFrontendDir = '/opt/ypanel/frontend',
-  [string]$ServiceName = 'ypanel',
+  [string]$RemoteBaseDir = '/root/reneo-deploy',
+  [string]$InstallFrontendDir = '/opt/reneo/frontend',
+  [string]$ServiceName = 'reneo',
   [string]$PanelUser = 'root',
   [switch]$SkipFrontendBuild
 )

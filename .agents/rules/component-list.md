@@ -1,6 +1,6 @@
 # Component List
 
-Inventaris komponen YPanel. Cek di sini sebelum membuat komponen atau class baru. Aturan pemakaian: [design-system.md](design-system.md).
+Inventaris komponen Reneo. Cek di sini sebelum membuat komponen atau class baru. Aturan pemakaian: [design-system.md](design-system.md).
 
 ## 1. Shell & Halaman
 

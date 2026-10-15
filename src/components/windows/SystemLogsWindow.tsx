@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { EmptyState, LoadingState } from '@/components/ui/states'
 
 const SERVICE_OPTIONS = [
-  { value: 'ypanel', label: 'YPanel Agent' },
+  { value: 'reneo', label: 'Reneo Agent' },
   { value: 'docker', label: 'docker' },
   { value: 'postgresql', label: 'postgresql' },
   { value: 'nginx', label: 'nginx' },
@@ -27,7 +27,7 @@ function lineToneClass(line: string): string {
 }
 
 export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
-  const [service, setService] = useState('ypanel')
+  const [service, setService] = useState('reneo')
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
   const [autoScroll, setAutoScroll] = useState(true)

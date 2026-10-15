@@ -1,6 +1,6 @@
 # UI Kit: Komponen Umum & Aturan
 
-Komponen dasar yang wajib dipakai di seluruh YPanel. Lokasi: `src/components/ui/`. Import langsung per file (tanpa barrel):
+Komponen dasar yang wajib dipakai di seluruh Reneo. Lokasi: `src/components/ui/`. Import langsung per file (tanpa barrel):
 
 ```tsx
 import { Button } from '@/components/ui/Button'

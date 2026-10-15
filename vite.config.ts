@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       chunkSizeWarningLimit: 800,
       rollupOptions: {
-        // YPanel intentionally ships a large desktop-style CSS skin.
+        // Reneo intentionally ships a large desktop-style CSS skin.
         // Keep production build output clean by disabling Rolldown's informational timing diagnostic.
         checks: {
           pluginTimings: false,

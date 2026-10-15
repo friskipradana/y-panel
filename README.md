@@ -1,14 +1,16 @@
-# YPanel
+# Reneo
 
-![YPanel social preview](public/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png)
+> Pembaruan kendali. Kesini aja. (sebelumnya YPanel; filosofi di [docs/FILOSOFI-RENEO.md](docs/FILOSOFI-RENEO.md))
 
-**YPanel** adalah panel kontrol server Linux dengan pengalaman antarmuka bergaya Desktop OS. Proyek ini menggabungkan frontend React modern dan backend Go agent agar administrator dapat mengelola server, Docker, file, terminal, user, project, Cloudflare, database, dan observability dari satu workspace visual.
+![Reneo social preview](public/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png)
 
-YPanel dibuat untuk kebutuhan homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan panel ringan, self-hosted, dan tetap nyaman digunakan seperti desktop environment.
+**Reneo** adalah panel kontrol server Linux dengan pengalaman antarmuka bergaya Desktop OS. Proyek ini menggabungkan frontend React modern dan backend Go agent agar administrator dapat mengelola server, Docker, file, terminal, user, project, Cloudflare, database, dan observability dari satu workspace visual.
+
+Reneo dibuat untuk kebutuhan homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan panel ringan, self-hosted, dan tetap nyaman digunakan seperti desktop environment.
 
 ## Tujuan Proyek
 
-YPanel bertujuan menjadi control center yang:
+Reneo bertujuan menjadi control center yang:
 
 - mudah dipakai dari browser tanpa kehilangan rasa desktop native
 - aman untuk multi-user dengan pembatasan akses berbasis role/capability
@@ -18,7 +20,7 @@ YPanel bertujuan menjadi control center yang:
 
 ## Style dan Arah Desain
 
-YPanel menggunakan gaya **Desktop OS Panel**:
+Reneo menggunakan gaya **Desktop OS Panel**:
 
 - taskbar, dock, window manager, minimize/maximize, dan multi-window workflow
 - panel/window dengan visual modern, rapi, dan tidak terlalu banyak dekorasi berlebihan
@@ -70,7 +72,7 @@ Prinsip desain saat menambah fitur baru:
 ### User dan Access Control
 
 - multi-user dengan role/capability
-- reset password akun utama YPanel
+- reset password akun utama Reneo
 - pembatasan akses file, terminal, Docker, dan project berdasarkan user/context
 
 ### File Manager dan Editor
@@ -216,7 +218,7 @@ go run ./cmd/panel-agent
 ```
 
 Konfigurasi runtime dibaca dari environment atau file env agent.
-Runtime production sekarang memakai nama teknis baru `ypanel-agent`, CLI `ypanel`, service `ypanel`, dan path `/etc/ypanel`, `/opt/ypanel`, `/var/lib/ypanel`. Alias legacy `ui-panel` dan `ui-panel-agent` tetap disediakan sementara untuk kompatibilitas.
+Runtime production sekarang memakai nama teknis baru `reneo-agent`, CLI `reneo`, service `reneo`, dan path `/etc/reneo`, `/opt/reneo`, `/var/lib/reneo`. Alias legacy `ui-panel` dan `ui-panel-agent` tetap disediakan sementara untuk kompatibilitas.
 
 ## Build dan Validasi
 
@@ -252,7 +254,7 @@ Script akan:
 9. healthcheck runtime
 
 <!-- > [!NOTE]
-> Rebranding public sudah menggunakan nama YPanel. Namun service/path/binary production masih dipertahankan untuk compatibility dan akan direbrand bertahap melalui migration plan khusus. -->
+> Rebranding public sudah menggunakan nama Reneo. Namun service/path/binary production masih dipertahankan untuk compatibility dan akan direbrand bertahap melalui migration plan khusus. -->
 
 ## Database Migrations
 
@@ -265,10 +267,10 @@ Panduan lengkap:
 Command utama runtime saat ini:
 
 ```bash
-ypanel-agent migrate create <nama>
-ypanel-agent migrate up
-ypanel-agent migrate status
-ypanel-agent migrate rollback
+reneo-agent migrate create <nama>
+reneo-agent migrate up
+reneo-agent migrate status
+reneo-agent migrate rollback
 ```
 
 ## Security Hardening
@@ -300,8 +302,8 @@ Aksi sensitif dilindungi oleh role dan capability-based authorization di backend
 
 Tahap saat ini:
 
-- public/product name: **YPanel**
-- service/binary/path utama: `ypanel` / `ypanel-agent`, dengan alias legacy `ui-panel` / `ui-panel-agent` selama fase transisi
+- public/product name: **Reneo**
+- service/binary/path utama: `reneo` / `reneo-agent`, dengan alias legacy `ui-panel` / `ui-panel-agent` selama fase transisi
 
 Tahap berikutnya dilakukan terpisah dan bertahap:
 
@@ -312,11 +314,11 @@ Tahap berikutnya dilakukan terpisah dan bertahap:
 
 ## Lisensi
 
-YPanel menggunakan **YPanel Public Use License**.
+Reneo menggunakan **Reneo Public Use License**.
 
 - **Owner:** Y_Corp
 - **Contributors:** AknalRe, FriskiPradana
 
-Semua orang boleh mengakses, mengunduh, memasang, menjalankan, dan memakai YPanel. Namun perubahan pada repository resmi, push commit, merge, release, atau tindakan maintainer hanya boleh dilakukan oleh owner atau contributor yang memiliki izin.
+Semua orang boleh mengakses, mengunduh, memasang, menjalankan, dan memakai Reneo. Namun perubahan pada repository resmi, push commit, merge, release, atau tindakan maintainer hanya boleh dilakukan oleh owner atau contributor yang memiliki izin.
 
 Detail lengkap tersedia di [LICENSE](LICENSE).

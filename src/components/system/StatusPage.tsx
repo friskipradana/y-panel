@@ -19,7 +19,7 @@ export function StatusPage({
   title,
   description,
   hint,
-  eyebrow = 'YPanel Experience',
+  eyebrow = 'Reneo Experience',
   badge = 'Runtime Frontend',
   actions,
   showActions = true,

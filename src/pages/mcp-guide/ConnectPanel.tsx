@@ -13,7 +13,7 @@ type ClientKey = 'hermes' | 'openclaw' | 'claude' | 'cursor' | 'curl'
 const TOKEN_PLACEHOLDER = 'ypat_TOKEN_ANDA'
 
 function jsonConfig(url: string) {
-  return JSON.stringify({ mcpServers: { ypanel: { url } } }, null, 2)
+  return JSON.stringify({ mcpServers: { reneo: { url } } }, null, 2)
 }
 
 // Generates ready-to-paste connection snippets for the common MCP clients
@@ -30,9 +30,9 @@ export function ConnectPanel() {
 
   const snippets = useMemo<Record<ClientKey, { text: string; hint: string; wrap?: boolean }>>(
     () => ({
-      hermes: { text: `hermes mcp add YPANEL --url "${url}"`, hint: t('mcpGuide.client.hermesHint'), wrap: true },
+      hermes: { text: `hermes mcp add RENEO --url "${url}"`, hint: t('mcpGuide.client.hermesHint'), wrap: true },
       openclaw: {
-        text: `openclaw mcp add YPANEL --transport streamable-http --url "${url}"`,
+        text: `openclaw mcp add RENEO --transport streamable-http --url "${url}"`,
         hint: t('mcpGuide.client.openclawHint'),
         wrap: true,
       },

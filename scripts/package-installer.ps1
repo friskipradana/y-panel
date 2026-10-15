@@ -13,10 +13,12 @@ $FrontendDir = Join-Path $BuildDir 'frontend'
 $BackendDir = Join-Path $BuildDir 'backend'
 $InstallerDir = Join-Path $BuildDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ypanel-bundle.tar.gz'
-$RunPath = Join-Path $TmpDir 'ypanel-installer.run'
+$ArchivePath = Join-Path $TmpDir 'reneo-bundle.tar.gz'
+$RunPath = Join-Path $TmpDir 'reneo-installer.run'
 $ReleaseDir = Join-Path $ProjectRoot 'dist-release'
-$ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
+$ReleaseInstaller = Join-Path $ReleaseDir 'reneo-installer.run'
+# Same file under the pre-rename name so existing download links and redirects keep working
+$LegacyInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
 
 function Require-Command([string]$Name) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -57,7 +59,7 @@ try {
   $env:GOOS = 'linux'; $env:CGO_ENABLED = '0'
   foreach ($arch in @('amd64', 'arm64')) {
     $env:GOARCH = $arch
-    $out = Join-Path $BinDir "ypanel-agent-linux-$arch"
+    $out = Join-Path $BinDir "reneo-agent-linux-$arch"
     Push-Location $ProjectRoot
     try { & go build -trimpath -ldflags '-s -w' -o $out ./cmd/panel-agent; if ($LASTEXITCODE -ne 0) { throw "go build linux/$arch gagal." } }
     finally { Pop-Location }
@@ -67,7 +69,7 @@ try {
   $env:GOOS = $oldGoos; $env:GOARCH = $oldGoarch; $env:CGO_ENABLED = $oldCgo
 }
 
-# Bundle version shown by the installer and stored in /opt/ypanel/VERSION
+# Bundle version shown by the installer and stored in /opt/reneo/VERSION
 $pkgVersion = (Get-Content (Join-Path $ProjectRoot 'package.json') -Raw | ConvertFrom-Json).version
 [System.IO.File]::WriteAllText((Join-Path $BackendDir 'VERSION'), "$pkgVersion`n", (New-Object System.Text.UTF8Encoding($false)))
 
@@ -89,7 +91,7 @@ $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchiveP
 $selfExtract = @'
 #!/usr/bin/env bash
 set -euo pipefail
-WORK=$(mktemp -d /tmp/ypanel.XXXXXX)
+WORK=$(mktemp -d /tmp/reneo.XXXXXX)
 trap 'rm -rf $WORK' EXIT
 awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0" | base64 -d > "$WORK/payload.tar.gz"
 tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
@@ -110,6 +112,7 @@ __ARCHIVE__
 $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
 [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
 Copy-Item $RunPath $ReleaseInstaller -Force
+Copy-Item $RunPath $LegacyInstaller -Force
 
 $sizeMB = [math]::Round((Get-Item $ReleaseInstaller).Length / 1MB, 1)
 Write-Host "Installer artifact: $ReleaseInstaller (${sizeMB}MB)"

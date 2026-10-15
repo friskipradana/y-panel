@@ -2,7 +2,7 @@
   "name": "ypanel",
   "private": true,
   "version": "3.4.5",
-  "description": "YPanel is a desktop-style Linux server control panel built with React 19 and Go",
+  "description": "Reneo is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {
     "dev": "concurrently -n \"AGENT,UI\" -c \"cyan.bold,magenta.bold\" \"go run ./cmd/panel-agent\" \"wait-on tcp:8787 && vite\"",

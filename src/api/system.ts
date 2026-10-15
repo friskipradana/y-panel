@@ -16,7 +16,7 @@ import type {
 export const getSystemSummary = () =>
   agentApi.get<SystemSummary>('/api/v1/system/summary').then((r) => r.data)
 
-export const getSystemLogs = (service = 'ypanel', limit = 160) =>
+export const getSystemLogs = (service = 'reneo', limit = 160) =>
   agentApi.get<SystemLogsResponse>('/api/v1/system/logs', { params: { service, limit } }).then((r) => r.data)
 
 export const getSystemChangelog = () =>

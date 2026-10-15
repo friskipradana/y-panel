@@ -1,11 +1,11 @@
 ---
 name: ypanel-workflow
-description: Standard operating procedure and engineering workflow for developing, refactoring, and maintaining the YPanel desktop Linux server control panel codebase.
+description: Standard operating procedure and engineering workflow for developing, refactoring, and maintaining the Reneo desktop Linux server control panel codebase.
 ---
 
-# YPanel Workflow & Engineering Standards
+# Reneo Workflow & Engineering Standards
 
-Skill ini memandu AI Assistant dan developer dalam mengembangkan fitur, merapikan kode, dan menjaga stabilitas proyek **YPanel**.
+Skill ini memandu AI Assistant dan developer dalam mengembangkan fitur, merapikan kode, dan menjaga stabilitas proyek **Reneo**.
 
 ---
 
