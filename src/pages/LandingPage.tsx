@@ -30,7 +30,7 @@ export type LandingPageProps = {
 }
 
 // Short redirect to the latest release asset (Cloudflare redirect rule); INSTALLER_URL is the direct fallback
-const INSTALL_COMMAND = 'wget -O reneo-installer.run https://install.reneo.my.id && sudo bash reneo-installer.run'
+const INSTALL_COMMAND = 'curl -fsSL https://install.reneo.my.id | sudo bash'
 
 const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number }> }> = [
   { id: 'docker', icon: Box },

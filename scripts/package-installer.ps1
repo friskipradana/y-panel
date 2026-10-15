@@ -90,22 +90,36 @@ if (-not (Test-Path $remoteInstall)) { throw 'deploy/lib/remote_install.sh tidak
 $payloadB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($ArchivePath))
 $selfExtract = @'
 #!/usr/bin/env bash
+# Reneo installer. Runs as a file (bash reneo-installer.run) and piped (curl -fsSL URL | sudo bash).
 set -euo pipefail
-WORK=$(mktemp -d /tmp/reneo.XXXXXX)
-trap 'rm -rf $WORK' EXIT
-awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0" | base64 -d > "$WORK/payload.tar.gz"
-tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
-cd "$WORK"
-[ -d frontend ] && mv frontend dist
-[ -d backend  ] && { cp -r backend/* . 2>/dev/null||true; rm -rf backend; }
-mkdir -p installer/linux
-if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
-  find installer -maxdepth 1 -type f -exec cp {} installer/linux/ \;
-fi
-find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
-chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
-bash installer/linux/install.sh "$@"
-exit 0
+
+extract_payload() {
+  if [ -f "$0" ] && grep -qx '__ARCHIVE__' "$0" 2>/dev/null; then
+    awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0"
+  else
+    # Piped: bash reads the script from stdin byte by byte, so the payload is still in the pipe
+    awk 'found{print}/^__ARCHIVE__$/{found=1;next}'
+  fi
+}
+
+run_install() {
+  WORK=$(mktemp -d /tmp/reneo.XXXXXX)
+  trap 'rm -rf "$WORK"' EXIT
+  extract_payload | base64 -d > "$WORK/payload.tar.gz"
+  tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
+  cd "$WORK"
+  [ -d frontend ] && mv frontend dist
+  [ -d backend  ] && { cp -r backend/* . 2>/dev/null||true; rm -rf backend; }
+  mkdir -p installer/linux
+  if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
+    find installer -maxdepth 1 -type f -exec cp {} installer/linux/ \;
+  fi
+  find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
+  chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
+  bash installer/linux/install.sh "$@"
+}
+
+run_install "$@"; exit 0
 __ARCHIVE__
 '@
 
@@ -113,6 +127,10 @@ $content = ($selfExtract -replace "`r`n", "`n") + "`n" + $payloadB64 + "`n"
 [System.IO.File]::WriteAllText($RunPath, $content, (New-Object System.Text.UTF8Encoding($false)))
 Copy-Item $RunPath $ReleaseInstaller -Force
 Copy-Item $RunPath $LegacyInstaller -Force
+
+$hash = (Get-FileHash -Algorithm SHA256 $ReleaseInstaller).Hash.ToLower()
+[System.IO.File]::WriteAllText((Join-Path $ReleaseDir 'reneo-installer.run.sha256'), "$hash  reneo-installer.run`n", (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "SHA256: $hash"
 
 $sizeMB = [math]::Round((Get-Item $ReleaseInstaller).Length / 1MB, 1)
 Write-Host "Installer artifact: $ReleaseInstaller (${sizeMB}MB)"
