@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.3.1] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.3.1** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (42 files changed, 2058 insertions(+), 404 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **databases:** User-managed databases in the Database window, Reneo database moved to superadmin-only Settings tab; project runtime hardening ([`f131d08`](https://github.com/friskipradana/panel-desktop-ui/commit/f131d08))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **ui:** Ban lucide Sparkles icons everywhere and enforce it in check:ui ([`50fbcf7`](https://github.com/friskipradana/panel-desktop-ui/commit/50fbcf7))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.0...v4.3.1
+
 ## [4.3.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
