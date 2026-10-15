@@ -324,8 +324,10 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
 
 function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType): { x: number; y: number } {
   const isBrowser = typeof window !== 'undefined'
-  const screenWidth = isBrowser ? window.innerWidth : 1280
-  const screenHeight = isBrowser ? window.innerHeight : 800
+  // a phone adds widgets for the desktop too: place them on a desktop-sized canvas
+  const onPhone = isBrowser && isMobileLayoutNow()
+  const screenWidth = onPhone ? 1440 : isBrowser ? window.innerWidth : 1280
+  const screenHeight = onPhone ? 900 : isBrowser ? window.innerHeight : 800
 
   const topMargin = WIDGET_TOP
   const bottomMargin = 90
@@ -358,8 +360,29 @@ function findSmartSpawnPosition(existing: PlacedWidget[], newType?: WidgetType):
   return { x: Math.max(200, screenWidth - WIDGET_WIDTH - 24), y: topMargin }
 }
 
+// Phone-only arrangement: order and locks never touch the desktop coordinates
+export interface MobileWidgetLayout {
+  order: string[]
+  locked: string[]
+}
+
+const EMPTY_MOBILE: MobileWidgetLayout = { order: [], locked: [] }
+
+// Widgets in the order the phone shows them: saved order first, the rest by desktop position
+export function orderWidgetsForMobile(widgets: PlacedWidget[], order: string[]): PlacedWidget[] {
+  const rank = new Map(order.map((id, i) => [id, i]))
+  const known = widgets.filter((w) => rank.has(w.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+  const rest = widgets.filter((w) => !rank.has(w.id)).sort((a, b) => a.y - b.y || a.x - b.x)
+  return [...known, ...rest]
+}
+
 interface WidgetState {
   placedWidgets: PlacedWidget[]
+  mobile: MobileWidgetLayout
+  moveMobileWidget: (id: string, delta: -1 | 1) => void
+  toggleMobileLock: (id: string) => void
+  setMobileLayout: (layout: MobileWidgetLayout) => void
+  resetMobileLayout: () => void
   addWidget: (type: WidgetType, pos?: { x: number; y: number }) => string
   removeWidget: (id: string) => void
   updateWidgetPosition: (id: string, x: number, y: number) => void
@@ -377,6 +400,28 @@ export const useWidgetStore = create<WidgetState>()(
   persist(
     (set, get) => ({
       placedWidgets: getDefaultPositions(),
+      mobile: EMPTY_MOBILE,
+
+      moveMobileWidget: (id, delta) => {
+        const { placedWidgets, mobile } = get()
+        if (mobile.locked.includes(id)) return
+        const ids = orderWidgetsForMobile(placedWidgets, mobile.order).map((w) => w.id)
+        const from = ids.indexOf(id)
+        const to = from + delta
+        if (from < 0 || to < 0 || to >= ids.length) return
+        ;[ids[from], ids[to]] = [ids[to], ids[from]]
+        set({ mobile: { ...mobile, order: ids } })
+      },
+
+      toggleMobileLock: (id) => {
+        const { mobile } = get()
+        const locked = mobile.locked.includes(id) ? mobile.locked.filter((x) => x !== id) : [...mobile.locked, id]
+        set({ mobile: { ...mobile, locked } })
+      },
+
+      setMobileLayout: (layout) => set({ mobile: layout }),
+
+      resetMobileLayout: () => set({ mobile: EMPTY_MOBILE }),
 
       addWidget: (type, pos) => {
         // Single-instance widgets: return the one already on the desktop
@@ -457,6 +502,11 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       resetLayout: () => {
+        // On a phone "reset" means the phone order; desktop coordinates stay as arranged
+        if (isMobileLayoutNow()) {
+          set({ mobile: EMPTY_MOBILE })
+          return
+        }
         const current = get().placedWidgets
         if (current.length === 0) return
 
@@ -490,6 +540,7 @@ export const useWidgetStore = create<WidgetState>()(
       },
 
       tidyUpWidgets: () => {
+        if (isMobileLayoutNow()) return
         set({ placedWidgets: autoSpaceWidgets(get().placedWidgets) })
       },
 

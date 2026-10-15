@@ -78,13 +78,13 @@ export const getSystemHistory = (since = 0) =>
     .then((r) => r.data.series)
 
 export interface WidgetLayoutResponse {
-  data: { placedWidgets?: unknown } | null
+  data: { placedWidgets?: unknown; mobile?: unknown } | null
   updatedAt: string | null
 }
 
 export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)
 
-export const putMyWidgets = (data: { placedWidgets: unknown }) =>
+export const putMyWidgets = (data: { placedWidgets: unknown; mobile?: unknown }) =>
   agentApi.put<{ ok: boolean }>('/api/v1/me/widgets', { data }).then((r) => r.data)
 
 export interface UpdateInfo {

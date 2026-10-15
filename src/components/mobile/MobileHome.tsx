@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
+import { ArrowDown, ArrowUp, Lock, Unlock } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
-import { useWidgetStore } from '@/store/widgetStore'
+import { IconButton } from '@/components/ui/IconButton'
+import { orderWidgetsForMobile, useWidgetStore } from '@/store/widgetStore'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import type { WindowKind } from '@/types'
 
@@ -58,7 +60,11 @@ function Meter({ label, percent, detail }: { label: string; percent: number; det
 export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
-  const widgets = useWidgetStore((s) => s.placedWidgets)
+  const placed = useWidgetStore((s) => s.placedWidgets)
+  const mobile = useWidgetStore((s) => s.mobile)
+  const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
+  const toggleMobileLock = useWidgetStore((s) => s.toggleMobileLock)
+  const widgets = useMemo(() => orderWidgetsForMobile(placed, mobile.order), [placed, mobile.order])
   const apps = useMemo(
     () => [...DESKTOP_SHORTCUTS.map((a) => a.windowId), ...EXTRA_APPS].filter((kind) => canAccessWindow(kind, role)),
     [role],
@@ -97,7 +103,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
                 className="flex min-h-[5.25rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-1 py-3 text-center transition-colors active:bg-[var(--panel-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
               >
                 <AppIcon kind={app} size={28} />
-                <span className="w-full truncate text-[0.75rem] font-medium">{t(windowTitleKey(app))}</span>
+                <span className="line-clamp-2 w-full break-words text-[0.75rem] font-medium leading-tight">{t(windowTitleKey(app))}</span>
               </button>
             </li>
           ))}
@@ -107,11 +113,28 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
       {widgets.length > 0 ? (
         <section aria-label={t('mobile.widgets')} className="space-y-3">
           <h2 className="text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">{t('mobile.widgets')}</h2>
-          {widgets.map((widget) => {
+          {widgets.map((widget, index) => {
             const Component = WIDGET_COMPONENTS[widget.type]
             if (!Component) return null
+            const locked = mobile.locked.includes(widget.id)
             return (
               <div key={widget.id} className="@container flex flex-col overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+                <div className="flex items-center justify-end gap-0.5 border-b border-[var(--win-border)] px-1.5 py-0.5">
+                  <IconButton label={t('mobile.widgetUp')} disabled={locked || index === 0} onClick={() => moveMobileWidget(widget.id, -1)}>
+                    <ArrowUp className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton label={t('mobile.widgetDown')} disabled={locked || index === widgets.length - 1} onClick={() => moveMobileWidget(widget.id, 1)}>
+                    <ArrowDown className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton
+                    label={locked ? t('mobile.widgetUnlock') : t('mobile.widgetLock')}
+                    tone={locked ? 'warning' : undefined}
+                    aria-pressed={locked}
+                    onClick={() => toggleMobileLock(widget.id)}
+                  >
+                    {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  </IconButton>
+                </div>
                 <Component widget={widget} />
               </div>
             )

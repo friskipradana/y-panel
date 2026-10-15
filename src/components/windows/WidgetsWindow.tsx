@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { WIDGET_CATALOG, useWidgetStore, MULTI_INSTANCE_WIDGETS } from '@/store/widgetStore'
 import type { WidgetType } from '@/types'
 import { useI18n } from '@/lib/i18n'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
 const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
   'clock-uptime': Clock,
@@ -16,6 +17,7 @@ const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
 
 export function WidgetsWindow() {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const { placedWidgets, addWidget, resetLayout } = useWidgetStore()
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
   const [justAdded, setJustAdded] = useState<string | null>(null)
@@ -52,7 +54,7 @@ export function WidgetsWindow() {
             </span>
           </div>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Tarik (drag) kartu widget dari galeri ini langsung ke layar desktop, atau klik tombol pasang.
+            {isMobile ? t('widgets.galleryHintMobile') : t('widgets.galleryHint')}
           </p>
         </div>
 
@@ -60,7 +62,7 @@ export function WidgetsWindow() {
           type="button"
           onClick={resetLayout}
           disabled={!hasWidgets}
-          title={hasWidgets ? 'Rapikan kembali posisi widget ke susunan kolom default' : 'Belum ada widget aktif di desktop'}
+          title={hasWidgets ? (isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')) : t('widgets.noneActive')}
           className={`flex items-center gap-1.5 rounded-lg border border-[var(--win-border)] px-3 py-1.5 text-xs font-medium transition ${
             hasWidgets
               ? 'bg-[var(--panel-surface-strong)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] cursor-pointer'
@@ -68,7 +70,7 @@ export function WidgetsWindow() {
           }`}
         >
           <RotateCcw size={12} className={hasWidgets ? 'text-[var(--text-secondary)]' : 'opacity-40'} />
-          Reset Tata Letak
+          {isMobile ? t('widgets.resetMobile') : t('widgets.reset')}
         </button>
       </div>
 
@@ -121,7 +123,7 @@ export function WidgetsWindow() {
                   type="button"
                   onClick={() => !isPlaced && handleAddClick(item.type)}
                   disabled={isPlaced}
-                  title={isPlaced ? 'Widget sudah aktif di layar desktop' : 'Pasang widget ini ke desktop'}
+                  title={isPlaced ? t('widgets.installedTitle') : t('widgets.installTitle')}
                   className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                     isPlaced
                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 opacity-70 cursor-default'
@@ -132,11 +134,11 @@ export function WidgetsWindow() {
                 >
                   {isPlaced || wasJustAdded ? (
                     <>
-                      <Check size={12} /> Terpasang
+                      <Check size={12} /> {t('widgets.installed')}
                     </>
                   ) : (
                     <>
-                      <Plus size={12} /> Pasang
+                      <Plus size={12} /> {t('widgets.install')}
                     </>
                   )}
                 </button>
