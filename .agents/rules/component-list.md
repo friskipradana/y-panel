@@ -75,6 +75,8 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `quick-note` | `QuickNoteWidget` (sticky note, boleh banyak) | `text`, `color` (yellow/green/blue/pink/violet/plain, lihat `noteColors.ts`) |
 | `ping` | `PingWidget` (boleh banyak) | `host`, `port` (0 = ICMP), `intervalSec`, `label`, `range` |
 
+Ponsel: urutan dan kunci widget disimpan terpisah di `mobile` (`order`, `locked`) pada blob yang sama dan tidak menyentuh koordinat desktop; `resetLayout` di ponsel hanya mengosongkan `mobile`.
+
 Penyimpanan: layout, konfigurasi, dan isi note milik akun, disimpan di tabel `user_preferences.widgets_data` lewat `GET/PUT /api/v1/me/widgets` (hook `useWidgetSync`; localStorage hanya cache dan tidak diwariskan ke akun lain). Riwayat CPU/RAM/disk/suhu/network direkam agent (`internal/metrics`, 1 jam @ 5 dtk, file `metrics-history.json`) dan diambil lewat `GET /api/v1/system/history?since=`. Riwayat ping masih lokal per browser.
 
 Pendukung: `LineChart` + `RangeSwitch` (grafik garis dengan tooltip dan celah data), `chartStats.summarize`, `useMetricSeries(key)`. Kunci seri: `cpu`, `ram`, `disk`, `temp`, `net-rx`, `net-tx`, `ping:<widgetId>`.

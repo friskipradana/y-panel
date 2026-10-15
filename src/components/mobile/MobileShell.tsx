@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Home, Layers, LogOut, Monitor, Search, User, X } from 'lucide-react'
+import { ChevronLeft, Home, Layers, Lock, LogOut, Monitor, Search, User, X } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
 import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
@@ -41,6 +41,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   const alertState = useAlertStore()
   const themeMode = useThemeStore((s) => s.mode)
   const setThemeMode = useThemeStore((s) => s.setMode)
+  const setIsLocked = useThemeStore((s) => s.setIsLocked)
 
   const [view, setView] = useState<'home' | 'app'>('home')
   const [switcher, setSwitcher] = useState(false)
@@ -234,6 +235,10 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               ))}
             </div>
           </div>
+          <Button onClick={() => { setAccount(false); setIsLocked(true) }} className="w-full">
+            <Lock size={14} />
+            <span>{t('mobile.lock')}</span>
+          </Button>
           <Button onClick={() => { setAccount(false); launch('profile') }} className="w-full">
             <User size={14} />
             <span>{t('window.profile')}</span>

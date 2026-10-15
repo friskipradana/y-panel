@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMyWidgets, putMyWidgets } from '@/api/system'
 import { useAuthStore } from '@/store/authStore'
-import { sanitizeLayout, useWidgetStore } from '@/store/widgetStore'
+import { sanitizeLayout, useWidgetStore, type MobileWidgetLayout } from '@/store/widgetStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 
 const OWNER_KEY = 'ypanel-widgets-owner'
@@ -18,6 +18,18 @@ function sanitize(input: unknown): PlacedWidget[] {
       Number.isFinite(w.x) &&
       Number.isFinite(w.y),
   )
+}
+
+function sanitizeMobile(input: unknown): MobileWidgetLayout | null {
+  if (!input || typeof input !== 'object') return null
+  const m = input as Record<string, unknown>
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+  return { order: ids(m.order), locked: ids(m.locked) }
+}
+
+function snapshot() {
+  const { placedWidgets, mobile } = useWidgetStore.getState()
+  return { placedWidgets, mobile }
 }
 
 function readOwner() {
@@ -54,7 +66,7 @@ export function useWidgetSync(): boolean {
       window.clearTimeout(timer)
       if (!dirty) return
       dirty = false
-      void putMyWidgets({ placedWidgets: useWidgetStore.getState().placedWidgets }).catch(() => {
+      void putMyWidgets(snapshot()).catch(() => {
         dirty = true // retried on the next change or when the tab is hidden
       })
     }
@@ -65,9 +77,11 @@ export function useWidgetSync(): boolean {
     void (async () => {
       let reachable = true
       let remote: PlacedWidget[] | null = null
+      let remoteMobile: MobileWidgetLayout | null = null
       try {
         const res = await getMyWidgets()
         if (res.data && Array.isArray(res.data.placedWidgets)) remote = sanitize(res.data.placedWidgets)
+        remoteMobile = sanitizeMobile(res.data?.mobile)
       } catch {
         reachable = false
       }
@@ -77,6 +91,7 @@ export function useWidgetSync(): boolean {
       const owner = readOwner()
       if (remote) {
         store.setLayout(sanitizeLayout(remote))
+        if (remoteMobile) store.setMobileLayout(remoteMobile)
       } else if (owner && owner !== username) {
         // Another account used this browser: start clean instead of inheriting its widgets
         store.resetToDefault()
@@ -86,12 +101,14 @@ export function useWidgetSync(): boolean {
       if (reachable) {
         if (!remote) {
           // First sync for this account: promote the local layout to the server
-          void putMyWidgets({ placedWidgets: useWidgetStore.getState().placedWidgets }).catch(() => undefined)
+          void putMyWidgets(snapshot()).catch(() => undefined)
         }
         let prev = useWidgetStore.getState().placedWidgets
+        let prevMobile = useWidgetStore.getState().mobile
         unsubscribe = useWidgetStore.subscribe((state) => {
-          if (state.placedWidgets === prev) return
+          if (state.placedWidgets === prev && state.mobile === prevMobile) return
           prev = state.placedWidgets
+          prevMobile = state.mobile
           dirty = true
           window.clearTimeout(timer)
           timer = window.setTimeout(push, PUSH_DELAY_MS)
