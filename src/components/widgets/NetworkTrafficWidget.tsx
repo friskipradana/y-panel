@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Activity, ArrowDown, ArrowUp, Server, Terminal } from 'lucide-react'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
-import { asRange, useMetricSeries } from '@/store/metricsStore'
+import { asRange } from '@/store/metricsStore'
+import { useRangeSeries } from '@/store/liveStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
@@ -70,8 +71,8 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
     }
   }
 
-  const rx = useMetricSeries('net-rx')
-  const tx = useMetricSeries('net-tx')
+  const rx = useRangeSeries('net-rx', range)
+  const tx = useRangeSeries('net-tx', range)
   const rxNow = rx[rx.length - 1]?.v ?? 0
   const txNow = tx[tx.length - 1]?.v ?? 0
 

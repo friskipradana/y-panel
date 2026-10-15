@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getSystemHistory, getSystemSummary } from '@/api/system'
+import { acquireLiveSocket } from '@/lib/liveSocket'
 import { SAMPLE_INTERVAL_MS, useMetricsStore } from '@/store/metricsStore'
 
 // One shared poll for every system widget (CPU, RAM, disk, network)
@@ -28,6 +29,8 @@ function lastSeen() {
 // Pulls the agent's recorded history (it keeps sampling while no browser is open).
 // Falls back to sampling in the browser when the agent has no history endpoint.
 export function useSystemSampler() {
+  // live one-second stream; the polling below stays as the history source and the fallback
+  useEffect(() => acquireLiveSocket(), [])
   const { data, dataUpdatedAt } = useSystemSummary()
   const prevNet = useRef<{ rx: number; tx: number; t: number } | null>(null)
 
