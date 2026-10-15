@@ -8,6 +8,8 @@ curl -fsSL https://install.reneo.my.id | sudo bash
 
 Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared), memasang agent, membuat service `reneo`, lalu menunggu panel sehat.
 
+![Halaman depan Reneo setelah terpasang](img/landing.png)
+
 ## Setelah terpasang
 
 1. Buka `http://IP-SERVER:8787` di browser.
@@ -21,6 +23,10 @@ Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared), mema
 - `--skip-start` memasang tanpa menjalankan service.
 
 Contoh port lain: `curl -fsSL https://install.reneo.my.id | sudo bash -s -- --bind 0.0.0.0:9000`.
+
+Pengaturan port, origin, DNS, dan pembaruan ada di window Settings.
+
+![Window Settings](img/settings-window.png)
 
 ## Perintah sehari-hari
 

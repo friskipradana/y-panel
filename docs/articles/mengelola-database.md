@@ -2,6 +2,8 @@
 
 Window **Database** membuat database milik Anda sendiri sebagai container terpisah: PostgreSQL, MySQL, MariaDB, MongoDB, dan Redis. Database Reneo sendiri tidak ikut tampil di sini.
 
+![Window Database dengan tiga database](img/database-window.png)
+
 ## Membuat
 
 1. Klik **Buat database**, pilih jenis, beri nama (huruf kecil, angka, strip), lalu pilih versi dari daftar (bawaan sudah terpilih).

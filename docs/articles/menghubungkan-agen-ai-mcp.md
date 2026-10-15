@@ -2,6 +2,8 @@
 
 Reneo menyediakan server Model Context Protocol (MCP) sehingga agen AI dapat memeriksa dan mengelola server dengan aturan role yang sama seperti pengguna.
 
+![Panduan MCP dengan katalog tool](img/mcp-guide.png)
+
 ## Langkah
 
 1. Masuk ke panel, buka **Settings > API & MCP Tokens**, buat token baru.

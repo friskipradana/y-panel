@@ -15,6 +15,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/public/demo", s.handlePublicDemo)
 	s.mux.HandleFunc("GET /api/v1/public/docs", s.handlePublicDocsList)
 	s.mux.HandleFunc("GET /api/v1/public/docs/{slug}", s.handlePublicDocGet)
+	s.mux.HandleFunc("GET /api/v1/public/doc-images/{name}", s.handlePublicDocImage)
 	s.mux.Handle("GET /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleGetWallpaper)))
 	s.mux.Handle("POST /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleUpdateWallpaper)))
 
@@ -99,6 +100,7 @@ func (s *Server) routes() {
 	// ── Docs ──────────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/docs", s.requireAuthV2(http.HandlerFunc(s.handleListDocs)))
 	s.mux.Handle("POST /api/v1/docs", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateDoc)))
+	s.mux.Handle("POST /api/v1/docs/images", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUploadDocImage)))
 	s.mux.Handle("GET /api/v1/docs/official", s.requireAuthV2(http.HandlerFunc(s.handleListOfficialDocs)))
 	s.mux.Handle("GET /api/v1/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetDoc)))
 	s.mux.Handle("PATCH /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateDoc)))
