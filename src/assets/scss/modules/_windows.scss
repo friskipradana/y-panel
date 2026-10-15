@@ -887,8 +887,9 @@ button:focus-visible,
 
 .panel-entity-row__main {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 14px;
+  gap: 10px 14px;
 }
 
 .panel-entity-row__main--center {
@@ -898,7 +899,7 @@ button:focus-visible,
 .panel-entity-row__body {
   display: flex;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 12rem;
   flex-direction: column;
   gap: 5px;
 }
