@@ -7,6 +7,7 @@ import { InnerAlert } from '@/components/alert/GlobalAlert'
 import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
 import { WINDOW_CONTENT, WindowFallback, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { MobileHome } from '@/components/mobile/MobileHome'
+import { MobileNotifications } from '@/components/mobile/MobileNotifications'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -17,6 +18,7 @@ import { setUiMode } from '@/hooks/useIsMobileLayout'
 import { useAlertStore } from '@/store/alertStore'
 import { useAuthStore } from '@/store/authStore'
 import { useCommandStore } from '@/store/commandStore'
+import { useThemeStore } from '@/store/themeStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import type { WindowKind } from '@/types'
@@ -27,7 +29,7 @@ interface MobileShellProps {
 }
 
 const QUICK_APPS: WindowKind[] = ['apps', 'host-terminal', 'file-manager']
-const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs']
+const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor']
 
 // Phone layout: one app at a time, bottom navigation, no floating windows
 export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
@@ -37,6 +39,8 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   const { windows, focusedId, openWindow, closeWindow, focusWindow } = useWindowStore()
   const openPalette = useCommandStore((s) => s.openCommandPalette)
   const alertState = useAlertStore()
+  const themeMode = useThemeStore((s) => s.mode)
+  const setThemeMode = useThemeStore((s) => s.setMode)
 
   const [view, setView] = useState<'home' | 'app'>('home')
   const [switcher, setSwitcher] = useState(false)
@@ -125,6 +129,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
             <IconButton label={t('mobile.search')} onClick={openPalette}>
               <Search className="h-5 w-5" />
             </IconButton>
+            {authenticated ? <MobileNotifications /> : null}
             <button
               type="button"
               onClick={() => setAccount(true)}
@@ -209,6 +214,16 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
       {/* Account */}
       <Modal open={account} onClose={() => setAccount(false)} title={user?.displayName || user?.username || t('mobile.account')} subtitle={user?.role} size="sm">
         <div className="space-y-3">
+          <div>
+            <p className="mb-1.5 text-[0.75rem] font-medium text-[var(--text-secondary)]">{t('mobile.theme')}</p>
+            <div className="flex gap-2">
+              {(['light', 'dark'] as const).map((mode) => (
+                <Button key={mode} variant={themeMode === mode ? 'primary-soft' : 'default'} onClick={() => setThemeMode(mode)} className="flex-1">
+                  {mode === 'light' ? t('mobile.themeLight') : t('mobile.themeDark')}
+                </Button>
+              ))}
+            </div>
+          </div>
           <div>
             <p className="mb-1.5 text-[0.75rem] font-medium text-[var(--text-secondary)]">{t('mobile.language')}</p>
             <div className="flex gap-2">
