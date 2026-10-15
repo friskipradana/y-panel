@@ -2,6 +2,20 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.5.1] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.5.1** berisi 2 perubahan: 2 perbaikan. (7 files changed, 202 insertions(+), 497 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **adminer,status:** Same-origin referrer so the sign-in POST keeps its Origin; simpler themed status pages for 403/404/500 ([`42722e3`](https://github.com/friskipradana/y-panel/commit/42722e3))
+- **mobile:** Docker toolbar tabs fit, entity row actions on their own aligned line, project search counter under the field ([`47004d0`](https://github.com/friskipradana/y-panel/commit/47004d0))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.0...v4.5.1
+
 ## [4.5.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
