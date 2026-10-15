@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.0.3] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.0.3** berisi 1 perubahan: 1 perbaikan. (11 files changed, 57 insertions(+), 42 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **public:** Keep /docs/mcp reachable without a session; lists instead of cards on the MCP guide ([`fd1c74f`](https://github.com/friskipradana/panel-desktop-ui/commit/fd1c74f))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.2...v4.0.3
+
 ## [4.0.2] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
