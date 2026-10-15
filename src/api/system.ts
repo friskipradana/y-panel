@@ -86,3 +86,34 @@ export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me
 
 export const putMyWidgets = (data: { placedWidgets: unknown }) =>
   agentApi.put<{ ok: boolean }>('/api/v1/me/widgets', { data }).then((r) => r.data)
+
+export interface UpdateInfo {
+  enabled: boolean
+  current: string
+  latest: string
+  available: boolean
+  releaseUrl?: string
+  notes?: string
+  publishedAt?: string
+  checkedAt?: string
+  canApply: boolean
+  error?: string
+}
+
+export interface UpdateState {
+  state: 'idle' | 'running' | 'done' | 'failed'
+  from?: string
+  to?: string
+  startedAt?: string
+  log?: string[]
+}
+
+export const getUpdateInfo = (refresh = false) =>
+  agentApi.get<UpdateInfo>('/api/v1/system/update', { params: refresh ? { refresh: 1 } : undefined }).then((r) => r.data)
+
+export const getUpdateStatus = () =>
+  agentApi.get<UpdateState>('/api/v1/system/update/status').then((r) => r.data)
+
+export const applyUpdate = (version?: string) =>
+  agentApi.post<{ ok: boolean; state: UpdateState; startedAt: string }>('/api/v1/system/update/apply', { version, confirm: true }).then((r) => r.data)
+

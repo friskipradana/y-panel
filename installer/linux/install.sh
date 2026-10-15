@@ -775,7 +775,7 @@ start_service() {
 
 install_cli() {
   log "memasang CLI /usr/local/bin/reneo"
-  cat > "$CLI_PATH" <<'EOF'
+  cat > "${CLI_PATH}.new" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -831,6 +831,118 @@ get_bind_port() {
   printf '%s' "${bind_addr##*:}"
 }
 
+RELEASE_REPO="${RENEO_UPDATE_REPO:-friskipradana/y-panel}"
+VERSION_FILE="/opt/reneo/VERSION"
+
+installed_version() {
+  local v=""
+  [[ -f "$VERSION_FILE" ]] && v="$(tr -d 'v \r\n' <"$VERSION_FILE")"
+  printf '%s' "${v:-unknown}"
+}
+
+latest_version() {
+  local json tag
+  json="$(curl -fsSL --max-time 10 -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${RELEASE_REPO}/releases/latest" 2>/dev/null)" || return 1
+  tag="$(printf '%s' "$json" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+  [[ -n "$tag" ]] || return 1
+  printf '%s' "${tag#v}"
+}
+
+# true when $1 is a newer version than $2
+version_gt() {
+  [[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" == "$1" ]]
+}
+
+# exit 0 up to date, 10 update available, 2 could not check
+check_update() {
+  local current latest
+  current="$(installed_version)"
+  printf 'Versi terpasang : v%s\n' "$current"
+  if ! latest="$(latest_version)"; then
+    printf 'Versi terbaru   : tidak dapat diperiksa (tanpa internet atau batas API GitHub)\n' >&2
+    return 2
+  fi
+  printf 'Versi terbaru   : v%s\n' "$latest"
+  if [[ "$current" == "unknown" ]]; then
+    printf '\nVersi terpasang tidak diketahui; jalankan: sudo reneo update\n'
+    return 10
+  fi
+  if version_gt "$latest" "$current"; then
+    printf '\nPembaruan tersedia. Jalankan: sudo reneo update\n'
+    printf 'Catatan rilis   : https://github.com/%s/releases/tag/v%s\n' "$RELEASE_REPO" "$latest"
+    return 10
+  fi
+  printf '\nSudah versi terbaru.\n'
+  return 0
+}
+
+# reneo update [--yes] [--check] [--version X.Y.Z]
+do_update() {
+  local assume_yes=0 check_only=0 target="" current answer asset url tmp_file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -y|--yes) assume_yes=1 ;;
+      --check) check_only=1 ;;
+      --version) target="${2:-}"; shift ;;
+      --version=*) target="${1#*=}" ;;
+      *) printf 'Opsi update tidak dikenal: %s\n' "$1" >&2; return 1 ;;
+    esac
+    shift
+  done
+
+  current="$(installed_version)"
+  if [[ -z "$target" ]]; then
+    if ! target="$(latest_version)"; then
+      printf '\nTidak dapat memeriksa versi terbaru. Periksa koneksi internet.\n' >&2
+      return 2
+    fi
+  fi
+  target="${target#v}"
+  if [[ ! "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf '\nVersi tidak valid: %s (contoh: 3.4.0)\n' "$target" >&2
+    return 1
+  fi
+
+  printf 'Versi terpasang : v%s\nVersi tujuan    : v%s\n' "$current" "$target"
+  if [[ "$current" != "unknown" ]] && ! version_gt "$target" "$current"; then
+    printf '\nTidak ada pembaruan: v%s tidak lebih baru dari v%s.\n' "$target" "$current"
+    return 0
+  fi
+  if [[ "$check_only" -eq 1 ]]; then
+    printf '\nPembaruan tersedia ke v%s.\n' "$target"
+    return 10
+  fi
+
+  if [[ "$assume_yes" -ne 1 ]]; then
+    read -r -p "Perbarui ke v${target}? Service akan direstart sebentar. [y/N]: " answer || true
+    case "${answer,,}" in
+      y|ya|yes) ;;
+      *) printf 'Dibatalkan.\n'; return 0 ;;
+    esac
+  fi
+
+  asset="reneo-installer.run"
+  version_gt "3.4.0" "$target" && asset="ypanel-installer.run"
+  url="https://github.com/${RELEASE_REPO}/releases/download/v${target}/${asset}"
+  tmp_file="$(mktemp /tmp/reneo-update.XXXXXX.run)"
+  trap 'rm -f "$tmp_file" "$tmp_file.sha256"' RETURN
+
+  printf '\nMengunduh %s\n' "$url"
+  curl -fL --retry 3 --connect-timeout 15 -o "$tmp_file" "$url" || { printf 'Gagal mengunduh installer.\n' >&2; return 1; }
+  if curl -fsSL --connect-timeout 15 -o "$tmp_file.sha256" "https://github.com/${RELEASE_REPO}/releases/download/v${target}/reneo-installer.run.sha256" 2>/dev/null; then
+    local want have
+    want="$(cut -d' ' -f1 "$tmp_file.sha256")"
+    have="$(sha256sum "$tmp_file" | cut -d' ' -f1)"
+    if [[ "$want" != "$have" ]]; then
+      printf 'Checksum tidak cocok, pembaruan dibatalkan.\n' >&2
+      return 1
+    fi
+    printf 'Checksum sha256 cocok.\n'
+  fi
+
+  bash "$tmp_file" --yes
+}
+
 show_panel_info() {
   local bind_addr
   local bind_port
@@ -844,7 +956,7 @@ show_panel_info() {
   hostname_value="$(hostname 2>/dev/null || true)"
   hostname_value="${hostname_value:-localhost}"
 
-  printf '\nReneo Service Manager\n'
+  printf '\nReneo Service Manager  v%s\n' "$(installed_version)"
   printf 'Panel bind    : %s\n' "$bind_addr"
   printf 'Panel local   : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Panel network : http://%s:%s\n' "$host_ip" "$bind_port"
@@ -1080,7 +1192,9 @@ change_panel_access() {
 }
 
 run_action() {
-  case "$1" in
+  local action="$1"
+  shift || true
+  case "$action" in
     restart)
       systemctl restart reneo.service
       printf '\nService berhasil direstart.\n'
@@ -1116,11 +1230,20 @@ run_action() {
     migrate-status)
       migration_status
       ;;
+    version)
+      printf 'Reneo v%s\n' "$(installed_version)"
+      ;;
+    check-update)
+      check_update
+      ;;
+    update)
+      do_update "$@"
+      ;;
     uninstall)
       bash /opt/reneo/installer/uninstall.sh
       ;;
     *)
-      printf '\nAksi tidak dikenal: %s\n' "$1"
+      printf '\nAksi tidak dikenal: %s\n' "$action"
       exit 1
       ;;
   esac
@@ -1139,9 +1262,11 @@ show_menu() {
   printf '9. Jalankan Migrasi Database\n'
   printf '10. Rollback Migrasi Terakhir\n'
   printf '11. Lihat Status Migrasi\n'
-  printf '12. Uninstall\n'
-  printf '13. Exit\n\n'
-  read -r -p 'Pilih opsi [1-13]: ' choice
+  printf '12. Cek Pembaruan\n'
+  printf '13. Perbarui Sekarang\n'
+  printf '14. Uninstall\n'
+  printf '15. Exit\n\n'
+  read -r -p 'Pilih opsi [1-15]: ' choice
 
   case "$choice" in
     1) run_action restart ;;
@@ -1155,8 +1280,10 @@ show_menu() {
     9) run_action migrate-up ;;
     10) run_action migrate-rollback ;;
     11) run_action migrate-status ;;
-    12) run_action uninstall ;;
-    13) exit 0 ;;
+    12) run_action check-update || true ;;
+    13) run_action update ;;
+    14) run_action uninstall ;;
+    15) exit 0 ;;
     *)
       printf '\nPilihan tidak valid.\n'
       exit 1
@@ -1167,12 +1294,13 @@ show_menu() {
 require_root_cli
 
 if [[ $# -gt 0 ]]; then
-  run_action "$1"
+  run_action "$@"
 else
   show_menu
 fi
 EOF
-  chmod 755 "$CLI_PATH"
+  chmod 755 "${CLI_PATH}.new"
+  mv -f "${CLI_PATH}.new" "$CLI_PATH"
 
   mkdir -p "$INSTALL_ROOT/installer"
   cp "$REPO_ROOT/installer/linux/uninstall.sh" "$INSTALL_ROOT/installer/uninstall.sh"

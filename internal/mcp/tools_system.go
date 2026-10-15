@@ -1,14 +1,16 @@
 package mcp
 
 import (
-	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
+	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 )
 
 // registerSystemTools adds system-related tools to the server.
@@ -51,6 +53,21 @@ func registerSystemTools(s *Server, cfg systemConfig) {
 			lines = append(lines, e.Line)
 		}
 		return fmt.Sprintf("=== Logs: %s (last %d lines) ===\n%s", service, len(lines), strings.Join(lines, "\n")), nil
+	})
+
+	s.Register(Tool{
+		Name:        "update_check",
+		Description: "Check GitHub Releases to see if a newer Reneo version is available.",
+		InputSchema: InputSchema{Type: "object"},
+	}, func(ctx context.Context, _ map[string]any) (string, error) {
+		current := "dev"
+		if b, err := os.ReadFile(runtimepath.VersionFile()); err == nil {
+			if v := strings.TrimSpace(string(b)); v != "" {
+				current = strings.TrimPrefix(v, "v")
+			}
+		}
+		info := updater.New().Check(ctx, current, false)
+		return formatJSON(info)
 	})
 }
 
