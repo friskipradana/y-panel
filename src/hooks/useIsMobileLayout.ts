@@ -1,38 +1,30 @@
 import { useEffect, useState } from 'react'
 
 const QUERY = '(max-width: 767px)'
-const STORAGE_KEY = 'reneo-ui-mode'
+const LEGACY_STORAGE_KEY = 'reneo-ui-mode'
 
 type UiMode = 'mobile' | 'desktop' | null
 
-// ?ui=mobile or ?ui=desktop pins the layout; without it the screen width decides
-function readOverride(): UiMode {
+// ?ui=mobile or ?ui=desktop pins the layout for this page load only: it lives in memory,
+// so a reload without the parameter returns to the automatic choice
+let override: UiMode = (() => {
   try {
+    // an earlier version persisted the choice; drop it so nobody stays stuck on it
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
     const fromUrl = new URLSearchParams(window.location.search).get('ui')
-    if (fromUrl === 'mobile' || fromUrl === 'desktop') {
-      window.localStorage.setItem(STORAGE_KEY, fromUrl)
-      return fromUrl
-    }
-    const stored = window.localStorage.getItem(STORAGE_KEY)
-    return stored === 'mobile' || stored === 'desktop' ? stored : null
+    return fromUrl === 'mobile' || fromUrl === 'desktop' ? fromUrl : null
   } catch {
     return null
   }
-}
+})()
 
 export function setUiMode(mode: Exclude<UiMode, null> | 'auto') {
-  try {
-    if (mode === 'auto') window.localStorage.removeItem(STORAGE_KEY)
-    else window.localStorage.setItem(STORAGE_KEY, mode)
-  } catch {
-    // storage unavailable: the choice only lasts until reload
-  }
+  override = mode === 'auto' ? null : mode
   window.dispatchEvent(new Event('reneo:ui-mode'))
 }
 
 // Non-hook form for stores: true while the phone layout is the one on screen
 export function isMobileLayoutNow(): boolean {
-  const override = readOverride()
   if (override) return override === 'mobile'
   return window.matchMedia(QUERY).matches
 }
@@ -40,12 +32,12 @@ export function isMobileLayoutNow(): boolean {
 // True on phones and narrow windows, where the floating-window desktop is not usable
 export function useIsMobileLayout(): boolean {
   const [narrow, setNarrow] = useState(() => window.matchMedia(QUERY).matches)
-  const [override, setOverride] = useState<UiMode>(readOverride)
+  const [mode, setMode] = useState<UiMode>(override)
 
   useEffect(() => {
     const media = window.matchMedia(QUERY)
     const onMedia = () => setNarrow(media.matches)
-    const onMode = () => setOverride(readOverride())
+    const onMode = () => setMode(override)
     media.addEventListener('change', onMedia)
     window.addEventListener('reneo:ui-mode', onMode)
     return () => {
@@ -54,7 +46,7 @@ export function useIsMobileLayout(): boolean {
     }
   }, [])
 
-  if (override === 'mobile') return true
-  if (override === 'desktop') return false
+  if (mode === 'mobile') return true
+  if (mode === 'desktop') return false
   return narrow
 }
