@@ -2,6 +2,28 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.0.4] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.0.4** berisi 6 perubahan: 3 fitur, 2 perbaikan, 1 peningkatan. (20 files changed, 767 insertions(+), 164 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **mobile:** Notification bell, theme switch in account menu, file editor owns scroll ([`f1f9e9b`](https://github.com/friskipradana/panel-desktop-ui/commit/f1f9e9b))
+- **mobile:** Open any window from the palette, profile and extra apps on phone, logs toolbar and settings tabs fit ([`1d5c780`](https://github.com/friskipradana/panel-desktop-ui/commit/1d5c780))
+- **mobile:** Phone layout for the panel home and apps ([`673b2aa`](https://github.com/friskipradana/panel-desktop-ui/commit/673b2aa))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **mobile:** Wrap entity row actions and drop file manager columns on narrow windows ([`bbb8a40`](https://github.com/friskipradana/panel-desktop-ui/commit/bbb8a40))
+- **widgets:** Never clamp the stored widget layout while the phone layout is active ([`9794a5b`](https://github.com/friskipradana/panel-desktop-ui/commit/9794a5b))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **mobile:** Scope phone-only styles to the mobile shell so desktop windows stay untouched ([`0a4666f`](https://github.com/friskipradana/panel-desktop-ui/commit/0a4666f))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.3...v4.0.4
+
 ## [4.0.3] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
