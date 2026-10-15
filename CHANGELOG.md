@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.0.2] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.0.2** berisi 1 perubahan: 1 perbaikan. (6 files changed, 184 insertions(+), 250 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **landing:** Remove decorative slop, use tables and lists instead of card grids ([`2f698ae`](https://github.com/friskipradana/panel-desktop-ui/commit/2f698ae))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.1...v4.0.2
+
 ## [4.0.1] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
