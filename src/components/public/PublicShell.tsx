@@ -26,11 +26,6 @@ export function PublicShell({ children }: PublicShellProps) {
 
   return (
     <div data-theme="dark" className="relative min-h-full w-full overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0"
-        style={{ background: 'radial-gradient(ellipse 80% 55% at 50% -10%, var(--panel-info-bg), transparent 70%)' }}
-      />
 
       <header className="sticky top-0 z-50 border-b border-[var(--win-border)] bg-[var(--win-bg)]/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
