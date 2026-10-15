@@ -6,6 +6,7 @@ import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
+import { BootSplash } from '@/components/system/BootSplash'
 import { isPublicRoute } from '@/lib/publicPaths'
 
 export function AppShell() {
@@ -42,13 +43,7 @@ export function AppShell() {
   useRevisionSync(authenticated)
 
   if (checkingSession) {
-    return (
-      <div className="min-h-screen grid place-items-center text-[var(--app-overlay-text)] login-shell">
-        <div className="glass-panel rounded-[28px] px-8 py-6 text-sm text-[var(--app-glass-muted-text)]">
-          {t('app.checkingSession')}
-        </div>
-      </div>
-    )
+    return <BootSplash message={t('app.checkingSession')} />
   }
 
   return (
