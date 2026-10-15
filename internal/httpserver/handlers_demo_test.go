@@ -11,8 +11,6 @@ func TestDemoAllowedIsReadOnly(t *testing.T) {
 		{http.MethodGet, "/api/v1/me"},
 		{http.MethodGet, "/api/v1/system/summary"},
 		{http.MethodGet, "/api/v1/projects"},
-		{http.MethodGet, "/api/v1/docs/42"},
-		{http.MethodPut, "/api/v1/me/widgets"},
 		{http.MethodPost, "/api/v1/auth/logout"},
 	}
 	for _, c := range allowed {
@@ -39,6 +37,16 @@ func TestDemoAllowedIsReadOnly(t *testing.T) {
 		{http.MethodPost, "/api/v1/system/update/apply"},
 		{http.MethodPatch, "/api/v1/docs/1"},
 		{http.MethodGet, "/api/v1/me/cloudflare"},
+		{http.MethodPut, "/api/v1/me/widgets"},
+		{http.MethodGet, "/api/v1/docs"},
+		{http.MethodGet, "/api/v1/docs/42"},
+		{http.MethodGet, "/api/v1/docker/images"},
+		{http.MethodGet, "/api/v1/docker/networks"},
+		{http.MethodGet, "/api/v1/system/changelog"},
+		{http.MethodGet, "/api/v1/system/update"},
+		{http.MethodGet, "/api/v1/containers/owners"},
+		{http.MethodPost, "/api/v1/tools/ping"},
+		{http.MethodGet, "/api/v1/projects/1"},
 	}
 	for _, c := range blocked {
 		r := httptest.NewRequest(c.method, c.path, nil)

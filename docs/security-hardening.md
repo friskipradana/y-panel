@@ -174,7 +174,8 @@ RENEO_DEMO_USERNAME=demo                          # opsional, default "demo"
 Perilaku:
 
 - Akun dibuat otomatis dengan role `user`, kuota nol, tanpa akun OS. Password dari env diterapkan ulang tiap agent start.
-- Hanya endpoint pada allowlist (`internal/httpserver/handlers_demo.go`) yang bisa dipanggil; endpoint baru otomatis ditolak dengan 403.
-- Terminal, file, pengaturan, user, database, log sistem, Cloudflare, token API, dan semua aksi tulis ditolak. Satu-satunya tulis yang diizinkan: tata letak widget milik akun demo.
+- Tiga proyek contoh (status `stopped`, tanpa direktori dan port) diisi sekali agar jendela Projects tidak kosong; akun demo tidak dapat menjalankannya.
+- Hanya endpoint pada allowlist (`internal/httpserver/handlers_demo.go`) yang bisa dipanggil; endpoint baru otomatis ditolak dengan 403. Tidak ada data bersama atau global di daftar itu (docs, image, network, changelog, pengaturan).
+- Terminal, file, pengaturan, user, database, log sistem, Cloudflare, token API, dan semua aksi tulis ditolak, termasuk menyimpan tata letak widget (tata letak demo hanya tersimpan di peramban pengunjung, jadi satu pengunjung tidak meninggalkan isi untuk pengunjung lain).
 - Ringkasan sistem menyembunyikan hostname, kernel, path state, dan detail database.
 - Username dan password tampil di landing page (`GET /api/v1/public/demo`). Pakai password yang tidak dipakai di tempat lain.

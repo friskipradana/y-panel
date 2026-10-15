@@ -1,91 +1,24 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { apiError } from '@/components/windows/users/apiError'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  listUsers,
-  createUser,
-  updateUser,
-  suspendUser,
-  activateUser,
-  deleteUser,
-  getUserQuota,
-  updateUserQuota,
-  type PanelUser,
-  type UserQuota,
-} from '@/api/agent'
+import { Users, UserPlus, RefreshCw, Eye, EyeOff, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { listUsers, createUser, suspendUser, activateUser, deleteUser, type PanelUser } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
-import { alertLib } from '@/lib/alert'
-import { useAuthStore } from '@/store/authStore'
-import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
-import { ResetPasswordModal } from '@/components/windows/users/ResetPasswordModal'
-import { canManageUser, grantableRoles } from '@/components/windows/users/permissions'
-import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
-import type { WindowState } from '@/types'
-import { toast } from 'sonner'
-import { useI18n } from '@/lib/i18n'
-import {
-  Users,
-  UserPlus,
-  Shield,
-  ShieldOff,
-  Trash2,
-  Crown,
-  CircleUser,
-  Settings2,
-  KeyRound,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  Pencil,
-  Check,
-  X,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  // Sparkles,
-} from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/states'
 import { Modal } from '@/components/ui/Modal'
 import { Field, TextInput } from '@/components/ui/Field'
-import { EntityRow } from '@/components/ui/EntityRow'
-
-const ROLE_VARIANTS: Record<string, string> = {
-  superadmin: 'panel-badge--warning',
-  admin: 'panel-badge--info',
-  user: 'panel-badge--neutral',
-}
-
-const ROLE_TONES: Record<string, 'warning' | 'info' | 'neutral'> = {
-  superadmin: 'warning',
-  admin: 'info',
-  user: 'neutral',
-}
-
-const STATUS_VARIANTS: Record<string, string> = {
-  active: 'panel-badge--success',
-  suspended: 'panel-badge--danger',
-  pending: 'panel-badge--warning',
-}
-
-const ROLE_ICON: Record<string, ReactElement> = {
-  superadmin: <Crown className="h-3 w-3" />,
-  admin: <Shield className="h-3 w-3" />,
-  user: <CircleUser className="h-3 w-3" />,
-}
-
-const ROLE_OPTIONS = [
-  { value: 'user', labelKey: 'users.roleUser' },
-  { value: 'admin', labelKey: 'users.roleAdmin' },
-  { value: 'superadmin', labelKey: 'users.roleSuperadmin' },
-]
-
-const ROLE_SELECT_OPTIONS = (t: (key: string) => string, allowed?: string[]) => ROLE_OPTIONS.filter((role) => !allowed || allowed.includes(role.value)).map((role) => ({
-  value: role.value,
-  label: t(role.labelKey),
-  description: role.value,
-}))
+import { alertLib } from '@/lib/alert'
+import { useAuthStore } from '@/store/authStore'
+import { ResetPasswordModal } from '@/components/windows/users/ResetPasswordModal'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { toast } from 'sonner'
+import { useI18n } from '@/lib/i18n'
+import type { WindowState } from '@/types'
+import { UserRow } from '@/components/windows/users/UserRow'
+import { canManageUser, grantableRoles } from '@/components/windows/users/permissions'
+import { ROLE_SELECT_OPTIONS } from '@/components/windows/users/constants'
 
 const PAGE_SIZE = 8
 
@@ -125,8 +58,8 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       setShowCreate(false)
       setForm({ username: '', email: '', password: '', role: 'user', displayName: '' })
     },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? t('users.createFailed')
+    onError: (e: unknown) => {
+      const message = apiError(e, t('users.createFailed'))
       toast.error(t('users.createFailed'), { description: message })
       alertLib.fire(t('users.createFailedTitle'), message, 'error', 'users')
     },
@@ -138,7 +71,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       alertLib.fire(t('users.suspendedTitle'), t('users.suspendedMessage'), 'warning', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (e: any) => alertLib.fire(t('users.suspendFailedTitle'), e.response?.data?.error ?? t('users.suspendFailedMessage'), 'error', 'users'),
+    onError: (e: unknown) => alertLib.fire(t('users.suspendFailedTitle'), apiError(e, t('users.suspendFailedMessage')), 'error', 'users'),
   })
 
   const activateMut = useMutation({
@@ -147,7 +80,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       alertLib.fire(t('users.activatedTitle'), t('users.activatedMessage'), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (e: any) => alertLib.fire(t('users.activateFailedTitle'), e.response?.data?.error ?? t('users.activateFailedMessage'), 'error', 'users'),
+    onError: (e: unknown) => alertLib.fire(t('users.activateFailedTitle'), apiError(e, t('users.activateFailedMessage')), 'error', 'users'),
   })
 
   const deleteMut = useMutation({
@@ -156,14 +89,14 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       alertLib.fire(t('users.deletedTitle'), t('users.deletedMessage'), 'success', 'users')
       qc.invalidateQueries({ queryKey: ['users'] })
     },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? t('users.deleteFailed')
+    onError: (e: unknown) => {
+      const message = apiError(e, t('users.deleteFailed'))
       toast.error(t('users.deleteFailed'), { description: message })
       alertLib.fire(t('users.deleteFailedTitle'), message, 'error', 'users')
     },
   })
 
-  const users = data?.items ?? []
+  const users = useMemo(() => data?.items ?? [], [data?.items])
   const total = data?.total ?? 0
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -221,7 +154,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
               <TextInput
                 type={type}
                 placeholder={placeholder}
-                value={(form as any)[key]}
+                value={form[key as keyof typeof form]}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
               />
             </Field>
@@ -353,165 +286,3 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
     </div>
   )
 }
-
-function UserRow({
-  user,
-  onSuspend,
-  onActivate,
-  onDelete,
-  onQuota,
-  showQuota,
-  canManage,
-  assignableRoles,
-  onResetPassword,
-}: {
-  user: PanelUser
-  onSuspend: () => void
-  onActivate: () => void
-  onDelete: () => void
-  onQuota: () => void
-  showQuota: boolean
-  canManage: boolean
-  assignableRoles: string[]
-  onResetPassword: () => void
-}) {
-  const { t } = useI18n()
-  const qc = useQueryClient()
-  const { data: quota } = useQuery({
-    queryKey: ['quota', user.id],
-    queryFn: () => getUserQuota(user.id),
-    enabled: showQuota,
-  })
-
-  const updateQuotaMut = useMutation({
-    mutationFn: (q: Partial<UserQuota>) => updateUserQuota(user.id, q),
-    onSuccess: () => {
-      alertLib.fire(t('users.quotaUpdatedTitle'), t('users.quotaUpdatedMessage', { username: user.username }), 'success', 'users')
-      qc.invalidateQueries({ queryKey: ['quota', user.id] })
-    },
-    onError: (e: any) => alertLib.fire(t('users.quotaUpdateFailedTitle'), e.response?.data?.error ?? t('users.quotaUpdateFailedMessage'), 'error', 'users'),
-  })
-
-  const changeRoleMut = useMutation({
-    mutationFn: (role: string) => updateUser(user.id, { role } as any),
-    onSuccess: (updated) => {
-      alertLib.fire(t('users.roleChangedTitle'), t('users.roleChangedMessage', { username: user.username, role: updated.role }), 'success', 'users')
-      qc.invalidateQueries({ queryKey: ['users'] })
-      setEditingRole(false)
-    },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? t('users.roleChangeFailed')
-      toast.error(t('users.roleChangeFailed'), { description: message })
-      alertLib.fire(t('users.roleChangeFailedTitle'), message, 'error', 'users')
-      setEditingRole(false)
-    },
-  })
-
-  const [editingRole, setEditingRole] = useState(false)
-  const [selectedRole, setSelectedRole] = useState(user.role)
-
-  const handleRoleSave = async () => {
-    if (selectedRole === user.role) {
-      setEditingRole(false)
-      return
-    }
-    const confirmed = await alertLib.confirm(
-      t('users.changeRoleQuestion'),
-      t('users.changeRoleMessage', { username: user.username, currentRole: user.role, nextRole: selectedRole }),
-      t('users.confirmChangeRole'),
-      t('common.cancel'),
-      'warning',
-      'users',
-    )
-    if (confirmed) {
-      changeRoleMut.mutate(selectedRole)
-    } else {
-      setSelectedRole(user.role)
-      setEditingRole(false)
-    }
-  }
-
-  return (
-    <EntityRow
-      overflowVisible
-      centered
-      leading={<div className="panel-avatar rounded-full text-sm">{user.username[0]?.toUpperCase()}</div>}
-      title={user.username}
-      badges={
-        <>
-          {editingRole ? (
-            <div className="flex items-center gap-1 overflow-visible">
-              <Select
-                value={selectedRole}
-                onChange={setSelectedRole}
-                options={ROLE_SELECT_OPTIONS(t, assignableRoles)}
-                className="min-w-[150px]"
-                buttonClassName="h-8 rounded-full border-[var(--win-border)] bg-[var(--panel-surface)] pl-3 pr-10 text-[12px] font-medium"
-                dropdownClassName="min-w-[180px]"
-                searchable
-                searchPlaceholder={t('users.searchRole')}
-              />
-  
-              <IconButton onClick={handleRoleSave} disabled={changeRoleMut.isPending} tone="success" label={t('users.saveRole')} className="h-6 w-6 rounded-md">
-                <Check className="h-3 w-3" />
-              </IconButton>
-              <IconButton onClick={() => { setEditingRole(false); setSelectedRole(user.role) }} label={t('common.cancel')} className="h-6 w-6 rounded-md">
-                <X className="h-3 w-3" />
-              </IconButton>
-            </div>
-          ) : !canManage || assignableRoles.length < 2 ? (
-            <Badge tone={ROLE_TONES[user.role] ?? 'neutral'}>
-              {ROLE_ICON[user.role]} {user.role}
-            </Badge>
-          ) : (
-            <button
-              onClick={() => { setEditingRole(true); setSelectedRole(user.role) }}
-              className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'} cursor-pointer transition-opacity hover:opacity-75`}
-              title={t('users.clickChangeRole')}
-            >
-              {ROLE_ICON[user.role]} {user.role}
-              <Pencil className="h-2.5 w-2.5 opacity-60" />
-            </button>
-          )}
-          <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>{user.status}</span>
-        </>
-      }
-      subtitle={user.email}
-      actions={
-        <div className="flex items-center gap-1">
-          <IconButton onClick={onQuota} tone="primary" label={t('users.manageQuota')}>
-            <Settings2 className="h-3.5 w-3.5" />
-          </IconButton>
-          {canManage ? (
-            <IconButton onClick={onResetPassword} label={t('users.resetPassword')}>
-              <KeyRound className="h-3.5 w-3.5" />
-            </IconButton>
-          ) : null}
-          {!canManage ? null : user.status === 'active' ? (
-            <IconButton onClick={onSuspend} tone="warning" label={t('users.suspend')}>
-              <ShieldOff className="h-3.5 w-3.5" />
-            </IconButton>
-          ) : (
-            <IconButton onClick={onActivate} tone="success" label={t('users.activate')}>
-              <Shield className="h-3.5 w-3.5" />
-            </IconButton>
-          )}
-          {canManage ? (
-            <IconButton onClick={onDelete} tone="danger" label={t('common.delete')}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </IconButton>
-          ) : null}
-        </div>
-      }
-      expanded={
-        showQuota && quota ? (
-          <UserQuotaPanel user={user} quota={quota} saving={updateQuotaMut.isPending} onSave={(patch) => updateQuotaMut.mutate(patch)} />
-        ) : null
-      }
-    />
-  )
-}
-
-
-
-
