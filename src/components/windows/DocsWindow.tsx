@@ -13,7 +13,7 @@ type Tone = 'success' | 'warning' | 'neutral'
 const STATUS_TONE: Record<DocRecord['status'], Tone> = { published: 'success', draft: 'warning', archived: 'neutral' }
 
 function DocList({ dw }: { dw: DocsWindowState }) {
-  const { t, docs, total, offset, setOffset, query, setQuery, setSearch, selected, setSelectedId } = dw
+  const { t, docs, official, total, offset, setOffset, query, setQuery, setSearch, selected, setSelectedId } = dw
   const page = Math.floor(offset / DOCS_PAGE_SIZE) + 1
   const totalPages = Math.max(1, Math.ceil(total / DOCS_PAGE_SIZE))
   return (
@@ -36,7 +36,7 @@ function DocList({ dw }: { dw: DocsWindowState }) {
       </form>
 
       <ul className="min-h-0 flex-1 divide-y divide-[var(--win-border)] overflow-y-auto">
-        {docs.map((doc) => (
+        {[...official, ...docs].map((doc) => (
           <li key={doc.id}>
             <button
               id={`docs-item-${doc.id}`}
@@ -48,8 +48,12 @@ function DocList({ dw }: { dw: DocsWindowState }) {
               }`}
             >
               <span className="flex flex-wrap items-center gap-1.5">
-                <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>
-                {doc.isPublic ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
+                {doc.source === 'official' ? (
+                  <Badge tone="primary">{t('docs.officialBadge')}</Badge>
+                ) : (
+                  <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>
+                )}
+                {doc.isPublic && doc.source !== 'official' ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
                 <span className="text-[0.75rem] text-[var(--text-secondary)]">{formatDateID(doc.updatedAt)}</span>
               </span>
               <span className="mt-1 block text-[0.875rem] font-semibold leading-snug">{doc.title}</span>
@@ -79,6 +83,7 @@ function DocList({ dw }: { dw: DocsWindowState }) {
 function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
   const { t, isAdmin, openEdit, confirmDelete, copyLink, setSelectedId } = dw
   const shared = doc.isPublic && doc.status === 'published'
+  const official = doc.source === 'official'
   return (
     <article className="min-h-0 overflow-y-auto rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
       <Button variant="ghost" className="mb-3 @3xl:hidden" onClick={() => setSelectedId(null)}>
@@ -88,8 +93,8 @@ function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
       <header className="space-y-2">
         <h2 className="text-lg font-bold leading-snug">{doc.title}</h2>
         <div className="flex flex-wrap items-center gap-2 text-[0.75rem] text-[var(--text-secondary)]">
-          <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>
-          {shared ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
+          {official ? <Badge tone="primary">{t('docs.officialBadge')}</Badge> : <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>}
+          {shared && !official ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
           <span className="panel-mono">/{doc.slug}</span>
           <span className="inline-flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
@@ -97,13 +102,13 @@ function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {shared ? (
+          {shared || official ? (
             <Button variant="ghost" onClick={() => void copyLink(doc)}>
               <Link2 className="h-3.5 w-3.5" />
               {t('docs.copyPublicLink')}
             </Button>
           ) : null}
-          {isAdmin ? (
+          {isAdmin && !official ? (
             <>
               <Button variant="ghost" onClick={() => openEdit(doc)}>
                 <PenSquare className="h-3.5 w-3.5" />
@@ -124,7 +129,7 @@ function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
 
 export default function DocsWindow() {
   const dw = useDocsWindow()
-  const { t, isAdmin, docsQuery, docs, selected, openCreate } = dw
+  const { t, isAdmin, docsQuery, docs, official, selected, openCreate } = dw
 
   return (
     <div className="panel-window @container flex h-full flex-col">
@@ -158,12 +163,12 @@ export default function DocsWindow() {
               </Button>
             }
           />
-        ) : docs.length === 0 && !dw.search ? (
+        ) : docs.length === 0 && official.length === 0 && !dw.search ? (
           <EmptyState icon={<FileText />}>{isAdmin ? t('docs.empty') : t('docs.emptyReader')}</EmptyState>
         ) : (
           <div className="grid h-full min-h-0 gap-3 @3xl:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)]">
             <div className={`min-h-0 ${selected ? '@max-3xl:hidden' : ''}`}>
-              {docs.length === 0 ? <EmptyState icon={<Search />}>{t('docs.noMatch')}</EmptyState> : <DocList dw={dw} />}
+              {docs.length === 0 && official.length === 0 ? <EmptyState icon={<Search />}>{t('docs.noMatch')}</EmptyState> : <DocList dw={dw} />}
             </div>
             <div className={`min-h-0 ${selected ? '' : '@max-3xl:hidden'}`}>
               {selected ? <DocViewer dw={dw} doc={selected} /> : <EmptyState icon={<BookOpen />}>{t('docs.selectArticle')}</EmptyState>}

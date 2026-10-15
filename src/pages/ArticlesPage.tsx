@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { formatDateID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
 import { Markdown } from '@/lib/markdown'
+import { usePageMeta } from '@/hooks/usePageMeta'
 
 // Public article index: published docs marked public, readable without a session
 export function ArticlesPage() {
@@ -15,6 +16,7 @@ export function ArticlesPage() {
   const navigate = useNavigate()
   const query = useQuery({ queryKey: ['public-docs'], queryFn: listPublicDocs, staleTime: 60_000 })
   const items = query.data ?? []
+  usePageMeta(`${t('articles.title')} | Reneo`, t('articles.subtitle'))
 
   return (
     <PublicShell>
@@ -62,6 +64,7 @@ export function ArticlePage() {
   const { slug = '' } = useParams()
   const query = useQuery({ queryKey: ['public-doc', slug], queryFn: () => getPublicDoc(slug), retry: false, staleTime: 60_000 })
   const doc = query.data
+  usePageMeta(doc ? `${doc.title} | Reneo` : 'Reneo', doc?.excerpt)
 
   return (
     <PublicShell>

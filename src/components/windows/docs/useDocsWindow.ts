@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { copyTextToClipboard, createDoc, deleteDoc, listDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
+import { copyTextToClipboard, createDoc, deleteDoc, listDocs, listOfficialDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
@@ -41,7 +41,16 @@ export function useDocsWindow() {
   })
   const docs = docsQuery.data?.items ?? []
   const total = docsQuery.data?.total ?? 0
-  const selected = docs.find((doc) => doc.id === selectedId) ?? null
+
+  // official articles are the same on every panel; local articles with the same slug win
+  const officialQuery = useQuery({ queryKey: ['docs-official'], queryFn: () => listOfficialDocs(), staleTime: 10 * 60_000, retry: 0 })
+  const needle = search.trim().toLowerCase()
+  const official = (officialQuery.data ?? []).filter(
+    (doc) =>
+      !docs.some((local) => local.slug === doc.slug) &&
+      (!needle || `${doc.title} ${doc.excerpt} ${doc.content}`.toLowerCase().includes(needle)),
+  )
+  const selected = docs.find((doc) => doc.id === selectedId) ?? official.find((doc) => doc.id === selectedId) ?? null
 
   const done = () => {
     void qc.invalidateQueries({ queryKey: ['docs'] })
@@ -105,6 +114,8 @@ export function useDocsWindow() {
     isAdmin,
     docsQuery,
     docs,
+    official,
+    officialQuery,
     total,
     query,
     setQuery,

@@ -684,6 +684,7 @@ export const id: Record<string, string> = {
   'databases.admin.generatePassword': "Buat password acak",
   'databases.admin.passwordChanged': "Password diganti. Simpan sekarang.",
   'databases.admin.passwordFailed': "Password gagal diganti",
+  'docs.officialBadge': "resmi",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',

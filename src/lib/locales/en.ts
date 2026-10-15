@@ -684,6 +684,7 @@ export const en: Record<string, string> = {
   'databases.admin.generatePassword': "Generate random password",
   'databases.admin.passwordChanged': "Password changed. Save it now.",
   'databases.admin.passwordFailed': "Password could not be changed",
+  'docs.officialBadge': "official",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',

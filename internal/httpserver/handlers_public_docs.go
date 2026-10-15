@@ -20,11 +20,7 @@ type publicDocSummary struct {
 }
 
 func (s *Server) handlePublicDocsList(w http.ResponseWriter, _ *http.Request) {
-	docs, err := s.database.ListPublicDocs(100)
-	if err != nil {
-		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "articles are unavailable"})
-		return
-	}
+	docs := s.publicArticles()
 	items := make([]publicDocSummary, 0, len(docs))
 	for _, d := range docs {
 		items = append(items, publicDocSummary{Title: d.Title, Slug: d.Slug, Excerpt: d.Excerpt, UpdatedAt: d.UpdatedAt})
@@ -39,11 +35,7 @@ func (s *Server) handlePublicDocGet(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "article not found"})
 		return
 	}
-	doc, err := s.database.GetPublicDocBySlug(slug)
-	if err != nil {
-		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "articles are unavailable"})
-		return
-	}
+	doc := s.findPublicDoc(r.Context(), slug)
 	if doc == nil {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "article not found"})
 		return
