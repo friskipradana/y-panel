@@ -76,7 +76,7 @@ export function WidgetsWindow() {
 
       {/* Catalog Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-        {WIDGET_CATALOG.map((item) => {
+        {WIDGET_CATALOG.filter((item) => !(isMobile && item.type === 'system-vital')).map((item) => {
           const isPlaced = !MULTI_INSTANCE_WIDGETS.includes(item.type) && placedWidgets.some((w) => w.type === item.type)
           const isBeingDragged = draggedType === item.type
           const wasJustAdded = justAdded === item.type

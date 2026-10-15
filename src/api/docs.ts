@@ -9,8 +9,20 @@ export interface DocRecord {
   excerpt: string
   content: string
   status: 'published' | 'draft' | 'archived'
+  isPublic: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface PublicDocSummary {
+  title: string
+  slug: string
+  excerpt: string
+  updatedAt: string
+}
+
+export interface PublicDoc extends PublicDocSummary {
+  content: string
 }
 
 export interface DocPayload {
@@ -19,6 +31,7 @@ export interface DocPayload {
   excerpt?: string
   content: string
   status?: 'published' | 'draft' | 'archived'
+  isPublic?: boolean
 }
 
 export interface DocListParams extends PaginationParams {
@@ -48,3 +61,10 @@ export const updateDoc = (id: number, payload: DocPayload) =>
 
 export const deleteDoc = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/docs/${id}`).then((r) => r.data)
+
+// Readable without a session: only published articles marked public
+export const listPublicDocs = () =>
+  agentApi.get<{ items: PublicDocSummary[] }>('/api/v1/public/docs').then((r) => r.data.items)
+
+export const getPublicDoc = (slug: string) =>
+  agentApi.get<PublicDoc>(`/api/v1/public/docs/${encodeURIComponent(slug)}`).then((r) => r.data)

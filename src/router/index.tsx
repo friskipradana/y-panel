@@ -4,6 +4,7 @@ import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { DesktopPage } from '@/pages/DesktopPage'
 import { McpGuidePage } from '@/pages/McpGuidePage'
+import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 
@@ -61,6 +62,8 @@ export function AppRouter() {
           }
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
+        <Route path="/articles" element={<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>} />
+        <Route path="/articles/:slug" element={<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>} />
         <Route
           path={LOGIN_PATH}
           element={

@@ -8,6 +8,7 @@ import {
   Clock,
   Cloud,
   CreditCard,
+  Activity,
   Database,
   Globe2,
   ImagePlus,
@@ -40,6 +41,7 @@ import { PaymentTab } from "./settings/tabs/PaymentTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
+import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
 import { LoadingState } from "@/components/ui/states"
 
@@ -100,7 +102,12 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       icon: Clock,
     },
     // the panel's own database: superadmin only
-    ...(isSuperadmin ? [{ key: "reneo_database" as SettingsTabKey, label: t("settings.tabs.reneoDatabase"), icon: Database }] : []),
+    ...(isSuperadmin
+      ? [
+          { key: "reneo_runtime" as SettingsTabKey, label: t("settings.tabs.reneoRuntime"), icon: Activity },
+          { key: "reneo_database" as SettingsTabKey, label: t("settings.tabs.reneoDatabase"), icon: Database },
+        ]
+      : []),
   ];
 
   return (
@@ -191,6 +198,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {activeTab === "api_tokens" && <ApiTokensTab />}
 
               {activeTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
+
+              {activeTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
             </>
           )}
         </div>

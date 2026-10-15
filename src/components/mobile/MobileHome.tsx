@@ -64,7 +64,11 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const mobile = useWidgetStore((s) => s.mobile)
   const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
   const toggleMobileLock = useWidgetStore((s) => s.toggleMobileLock)
-  const widgets = useMemo(() => orderWidgetsForMobile(placed, mobile.order), [placed, mobile.order])
+  // the host card above already shows CPU, RAM and disk, so the System Vitals widget is not repeated
+  const widgets = useMemo(
+    () => orderWidgetsForMobile(placed, mobile.order).filter((w) => w.type !== 'system-vital'),
+    [placed, mobile.order],
+  )
   const apps = useMemo(
     () => [...DESKTOP_SHORTCUTS.map((a) => a.windowId), ...EXTRA_APPS].filter((kind) => canAccessWindow(kind, role)),
     [role],

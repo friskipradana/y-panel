@@ -10,6 +10,7 @@ import (
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
@@ -89,7 +90,12 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 			total       int64
 		)
 		var err error
-		projectList, total, err = s.database.ListAllProjects(250, 0)
+		if viewer != nil && auth.IsAdmin(viewer.Role) {
+			projectList, total, err = s.database.ListAllProjects(250, 0)
+		} else if viewer != nil {
+			// a regular account sees workload counts of its own projects only
+			projectList, total, err = s.database.ListProjectsFiltered(viewer.ID, false, "", 250, 0)
+		}
 		if err != nil {
 			log.Printf("[system] failed to summarize projects: %v", err)
 		} else {
@@ -187,13 +193,49 @@ func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleSystemChangelog(w http.ResponseWriter, _ *http.Request) {
+// handleSystemChangelog follows the GitHub releases of the project. When GitHub
+// cannot be reached (offline server, rate limit, updates disabled) the locally
+// stored entries are returned instead and the response says so.
+func (s *Server) handleSystemChangelog(w http.ResponseWriter, r *http.Request) {
+	force := r.URL.Query().Get("refresh") == "1"
+	if updater.Enabled() && s.updates != nil {
+		notes, err := s.updates.Releases(r.Context(), force)
+		if len(notes) > 0 {
+			resp := jsonResponse{"source": "github", "items": releaseNotesAsEntries(notes), "current": s.currentVersion()}
+			if err != nil {
+				resp["warning"] = err.Error()
+			}
+			s.writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		if err != nil {
+			log.Printf("[changelog] github releases unavailable: %v", err)
+		}
+	}
 	items, err := s.database.ListChangelog(24)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, changelogResponse{Items: items})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"source": "local", "items": items, "current": s.currentVersion()})
+}
+
+func releaseNotesAsEntries(notes []updater.ReleaseNote) []map[string]any {
+	out := make([]map[string]any, 0, len(notes))
+	for i, n := range notes {
+		out = append(out, map[string]any{
+			"id":         i + 1,
+			"version":    n.Version,
+			"title":      n.Title,
+			"summary":    n.Summary,
+			"body":       n.Body,
+			"url":        n.URL,
+			"prerelease": n.Prerelease,
+			"releasedAt": n.PublishedAt,
+			"createdAt":  n.PublishedAt,
+		})
+	}
+	return out
 }
 
 func (s *Server) handleDatabaseStatus(w http.ResponseWriter, _ *http.Request) {

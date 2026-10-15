@@ -3,5 +3,5 @@
 const PUBLIC_PATHS = ['/', '/docs/mcp', '/mcp/guide']
 
 export function isPublicRoute(pathname: string, loginPath = import.meta.env.VITE_LOGIN_PATH || '/login') {
-  return pathname === loginPath || PUBLIC_PATHS.includes(pathname)
+  return pathname === loginPath || PUBLIC_PATHS.includes(pathname) || pathname === '/articles' || pathname.startsWith('/articles/')
 }

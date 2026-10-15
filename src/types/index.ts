@@ -406,10 +406,18 @@ export interface ChangelogEntry {
   summary: string
   releasedAt: string
   createdAt: string
+  /** Markdown release notes (GitHub source only) */
+  body?: string
+  url?: string
+  prerelease?: boolean
 }
 
 export interface ChangelogResponse {
   items: ChangelogEntry[]
+  /** github: live releases, local: entries stored on this server */
+  source?: 'github' | 'local'
+  current?: string
+  warning?: string
 }
 
 // -- Payment Gateway Settings -------------------------------------------

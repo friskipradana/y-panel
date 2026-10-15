@@ -1,355 +1,178 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  BookOpen,
-  FileText,
-  Plus,
-  RefreshCw,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  Eye,
-  Trash2,
-  Save,
-  PenSquare,
-} from 'lucide-react'
-import { alertLib } from '@/lib/alert'
-import { toast } from 'sonner'
-import { createDoc, deleteDoc, listDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
-import { useI18n } from '@/lib/i18n'
-import { IconButton } from '@/components/ui/IconButton'
-import { Button } from '@/components/ui/Button'
+import { ArrowLeft, BookOpen, Calendar, ChevronLeft, ChevronRight, FileText, Link2, PenSquare, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import type { DocRecord } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
-import { EmptyState, LoadingState } from '@/components/ui/states'
-import { TextInput, Textarea } from '@/components/ui/Field'
-import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { formatDateID } from '@/lib/datetime'
+import { Markdown } from '@/lib/markdown'
+import { DocEditorModal } from './docs/DocEditorModal'
+import { DOCS_PAGE_SIZE, useDocsWindow, type DocsWindowState } from './docs/useDocsWindow'
 
-const PAGE_SIZE = 6
+type Tone = 'success' | 'warning' | 'neutral'
+const STATUS_TONE: Record<DocRecord['status'], Tone> = { published: 'success', draft: 'warning', archived: 'neutral' }
 
-function formatDate(value: string) {
-  try {
-    return new Intl.DateTimeFormat('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(value))
-  } catch {
-    return value
-  }
-}
-
-function excerptFromContent(content: string) {
-  const normalized = content.replace(/[#>*`_-]/g, ' ').replace(/\s+/g, ' ').trim()
-  return normalized.length > 220 ? `${normalized.slice(0, 220)}...` : normalized
-}
-
-function initialForm(): DocPayload {
-  return {
-    title: '',
-    slug: '',
-    excerpt: '',
-    content: '',
-    status: 'draft',
-  }
-}
-
-export default function DocsWindow() {
-  const { t } = useI18n()
-  const qc = useQueryClient()
-  const me = useMemo(() => {
-    const raw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
-    return raw ? (JSON.parse(raw) as { role?: string }) : null
-  }, [])
-  const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
-
-  const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
-  const [offset, setOffset] = useState(0)
-  const [selectedDoc, setSelectedDoc] = useState<DocRecord | null>(null)
-  const [showEditor, setShowEditor] = useState(false)
-  const [editingDoc, setEditingDoc] = useState<DocRecord | null>(null)
-  const [form, setForm] = useState<DocPayload>(initialForm())
-
-  const docsQuery = useQuery({
-    queryKey: ['docs', { search, offset, isAdmin }],
-    queryFn: () => listDocs({ q: search, limit: PAGE_SIZE, offset, includeDrafts: isAdmin }),
-    refetchInterval: 20_000,
-  })
-
-  const docs = docsQuery.data?.items ?? []
-  const total = docsQuery.data?.total ?? 0
-  const page = Math.floor(offset / PAGE_SIZE) + 1
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  const createMut = useMutation({
-    mutationFn: createDoc,
-    onSuccess: (doc) => {
-      toast.success(t('docs.created'), { description: t('docs.createdDesc', { title: doc.title }) })
-      qc.invalidateQueries({ queryKey: ['docs'] })
-      setShowEditor(false)
-      setEditingDoc(null)
-      setForm(initialForm())
-      setSelectedDoc(doc)
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.error ?? t('docs.createFailed')
-      toast.error(t('docs.createFailed'), { description: message })
-    },
-  })
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: DocPayload }) => updateDoc(id, payload),
-    onSuccess: (doc) => {
-      toast.success(t('docs.updated'), { description: t('docs.updatedDesc', { title: doc.title }) })
-      qc.invalidateQueries({ queryKey: ['docs'] })
-      setShowEditor(false)
-      setEditingDoc(null)
-      setForm(initialForm())
-      setSelectedDoc(doc)
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.error ?? t('docs.updateFailed')
-      toast.error(t('docs.updateFailed'), { description: message })
-    },
-  })
-
-  const deleteMut = useMutation({
-    mutationFn: deleteDoc,
-    onSuccess: () => {
-      toast.success(t('docs.deleted'))
-      qc.invalidateQueries({ queryKey: ['docs'] })
-      setSelectedDoc(null)
-    },
-    onError: (error: any) => {
-      const message = error.response?.data?.error ?? t('docs.deleteFailed')
-      toast.error(t('docs.deleteFailed'), { description: message })
-    },
-  })
-
-  const openCreate = () => {
-    setEditingDoc(null)
-    setForm(initialForm())
-    setShowEditor(true)
-  }
-
-  const openEdit = (doc: DocRecord) => {
-    setEditingDoc(doc)
-    setForm({
-      title: doc.title,
-      slug: doc.slug,
-      excerpt: doc.excerpt,
-      content: doc.content,
-      status: doc.status,
-    })
-    setShowEditor(true)
-  }
-
-  const submit = () => {
-    if (editingDoc) {
-      updateMut.mutate({ id: editingDoc.id, payload: form })
-      return
-    }
-    createMut.mutate(form)
-  }
-
+function DocList({ dw }: { dw: DocsWindowState }) {
+  const { t, docs, total, offset, setOffset, query, setQuery, setSearch, selected, setSelectedId } = dw
+  const page = Math.floor(offset / DOCS_PAGE_SIZE) + 1
+  const totalPages = Math.max(1, Math.ceil(total / DOCS_PAGE_SIZE))
   return (
-    <div className="panel-window">
-      {/* ── Compact Toolbar ── */}
-      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--win-text)]">{docs.length} {t('docs.title')}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <IconButton onClick={() => docsQuery.refetch()} label={t('docs.refresh')}>
-            <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching ? 'animate-spin' : ''}`} />
-          </IconButton>
-          {isAdmin && (
-            <Button onClick={openCreate} variant="primary-soft" className="text-xs py-1 px-2.5">
-              <Plus className="h-3.5 w-3.5" />
-              {t('docs.newArticle')}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="panel-window__body">
-        <div className="panel-window__stack">
-          {docsQuery.isLoading ? (
-            <LoadingState>{t('docs.loading')}</LoadingState>
-          ) : docs.length === 0 ? (
-            <EmptyState icon={<FileText />}>{t('docs.empty')}</EmptyState>
-          ) : (
-            <div className="docs-layout">
-              <div className="panel-table-container">
-                <div className="panel-toolbar panel-toolbar--search">
-                  <form
-                    className="panel-search"
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      setOffset(0)
-                      setSearch(query.trim())
-                    }}
-                  >
-                    <Search className="h-4 w-4" />
-                    <input
-                      id="docs-search-input"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      className="panel-search__input"
-                      placeholder={t('docs.searchPlaceholder')}
-                    />
-                    <Button type="submit" variant="primary-soft">
-                      {t('docs.search')}
-                    </Button>
-                  </form>
-                  <div className="panel-pagination-summary">{t('docs.paginationSummary', { total, page, totalPages })}</div>
-                </div>
-                {docs.map((doc) => {
-                  const active = selectedDoc?.id === doc.id
-                  return (
-                    <button
-                      key={doc.id}
-                      id={`docs-item-${doc.id}`}
-                      type="button"
-                      onClick={() => setSelectedDoc(doc)}
-                      className={`docs-list__item ${active ? 'docs-list__item--active' : ''}`}
-                    >
-                      <div className="docs-list__meta-row">
-                        <span className={`panel-badge ${doc.status === 'published' ? 'panel-badge--success' : doc.status === 'draft' ? 'panel-badge--warning' : 'panel-badge--neutral'}`}>
-                          {t(`docs.status.${doc.status}`)}
-                        </span>
-                        <span className="docs-list__date">{formatDate(doc.updatedAt)}</span>
-                      </div>
-                      <div className="docs-list__title">{doc.title}</div>
-                      <div className="docs-list__excerpt">{doc.excerpt || excerptFromContent(doc.content)}</div>
-                    </button>
-                  )
-                })}
-
-                <div className="panel-pagination">
-                  <Button
-                    id="docs-prev-page"
-                    type="button" variant="ghost"
-                    disabled={offset <= 0}
-                    onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                    {t('docs.previous')}
-                  </Button>
-                  <Button
-                    id="docs-next-page"
-                    type="button" variant="ghost"
-                    disabled={offset + PAGE_SIZE >= total}
-                    onClick={() => setOffset((value) => value + PAGE_SIZE)}
-                  >
-                    {t('docs.next')}
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-
-              <article className="docs-viewer">
-                {selectedDoc ? (
-                  <>
-                    <div className="docs-viewer__header">
-                      <div>
-                        <div className="docs-viewer__title">{selectedDoc.title}</div>
-                        <div className="docs-viewer__meta">
-                          <Badge tone="info">/{selectedDoc.slug}</Badge>
-                          <span className="docs-viewer__meta-item"><Calendar className="h-3.5 w-3.5" /> {formatDate(selectedDoc.updatedAt)}</span>
-                          <span className="docs-viewer__meta-item"><Eye className="h-3.5 w-3.5" /> {t('docs.status', { status: t(`docs.status.${selectedDoc.status}`) })}</span>
-                        </div>
-                      </div>
-                      {isAdmin && (
-                        <div className="docs-viewer__actions">
-                          <Button onClick={() => openEdit(selectedDoc)} variant="ghost">
-                            <PenSquare className="h-3.5 w-3.5" />
-                            {t('common.edit')}
-                          </Button>
-                          <Button
-                            onClick={async () => {
-                              const confirmed = await alertLib.confirm(
-                                t('docs.deleteArticle'),
-                                t('docs.deleteArticleMessage', { title: selectedDoc.title }),
-                                t('docs.deleteArticle'),
-                                t('common.cancel'),
-                                'warning',
-                                'docs',
-                              )
-                              if (confirmed) deleteMut.mutate(selectedDoc.id)
-                            }} variant="danger-soft"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            {t('common.delete')}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="docs-viewer__excerpt">{selectedDoc.excerpt || excerptFromContent(selectedDoc.content)}</div>
-                    <div className="docs-viewer__content">{selectedDoc.content}</div>
-                  </>
-                ) : (
-                  <EmptyState icon={<BookOpen />} className="docs-viewer__empty">{t('docs.selectArticle')}</EmptyState>
-                )}
-              </article>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <Modal
-        open={showEditor}
-        onClose={() => setShowEditor(false)}
-        title={editingDoc ? t('docs.editArticle') : t('docs.newArticle')}
-        subtitle={t('docs.editorSubtitle')}
-        size="lg"
-        footer={
-          <>
-              <Button onClick={() => setShowEditor(false)} variant="ghost">{t('common.cancel')}</Button>
-              <Button onClick={submit} disabled={createMut.isPending || updateMut.isPending || !form.title || !form.content} variant="primary">
-                <Save className="h-3.5 w-3.5" />
-                {createMut.isPending || updateMut.isPending ? t('docs.saving') : t('docs.saveArticle')}
-              </Button>
-          </>
-        }
+    <div className="flex min-h-0 flex-col rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+      <form
+        className="flex flex-wrap items-center gap-2 border-b border-[var(--win-border)] p-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setOffset(0)
+          setSearch(query.trim())
+        }}
       >
-        <div className="space-y-3">
-        <div className="panel-grid-compact panel-grid-compact--2">
-          <div>
-            <label className="panel-section-label">{t('docs.fieldTitle')}</label>
-            <TextInput value={form.title ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
-          </div>
-          <div>
-            <label className="panel-section-label">{t('docs.fieldSlug')}</label>
-            <TextInput value={form.slug ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))} mono />
-          </div>
-        </div>
-        <div>
-          <label className="panel-section-label">{t('docs.fieldExcerpt')}</label>
-          <Textarea value={form.excerpt ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, excerpt: e.target.value }))} rows={3} />
-        </div>
-        <div>
-          <label className="panel-section-label">{t('docs.fieldContent')}</label>
-          <Textarea value={form.content} onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))} className="docs-editor-modal__content" rows={14} />
-        </div>
-        <div>
-          <label className="panel-section-label">{t('docs.fieldStatus')}</label>
-          <select value={form.status ?? 'draft'} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as DocPayload['status'] }))} className="panel-select">
-            <option value="draft">{t('docs.status.draft')}</option>
-            <option value="published">{t('docs.status.published')}</option>
-            <option value="archived">{t('docs.status.archived')}</option>
-          </select>
-        </div>
-        </div>
-      </Modal>
+        <label className="panel-search flex-1">
+          <Search className="h-4 w-4" />
+          <input id="docs-search-input" value={query} onChange={(e) => setQuery(e.target.value)} className="panel-search__input min-w-0" placeholder={t('docs.searchPlaceholder')} />
+        </label>
+        <Button type="submit" variant="primary-soft" className="shrink-0">
+          {t('docs.search')}
+        </Button>
+      </form>
+
+      <ul className="min-h-0 flex-1 divide-y divide-[var(--win-border)] overflow-y-auto">
+        {docs.map((doc) => (
+          <li key={doc.id}>
+            <button
+              id={`docs-item-${doc.id}`}
+              type="button"
+              onClick={() => setSelectedId(doc.id)}
+              aria-current={selected?.id === doc.id ? 'true' : undefined}
+              className={`block w-full px-3 py-3 text-left transition-colors hover:bg-[var(--panel-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--focus-ring)] ${
+                selected?.id === doc.id ? 'bg-[var(--panel-primary-bg)]' : ''
+              }`}
+            >
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>
+                {doc.isPublic ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
+                <span className="text-[0.75rem] text-[var(--text-secondary)]">{formatDateID(doc.updatedAt)}</span>
+              </span>
+              <span className="mt-1 block text-[0.875rem] font-semibold leading-snug">{doc.title}</span>
+              {doc.excerpt ? <span className="mt-0.5 line-clamp-2 block text-[0.8125rem] text-[var(--text-secondary)]">{doc.excerpt}</span> : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--win-border)] p-2">
+        <Button id="docs-prev-page" type="button" variant="ghost" disabled={offset <= 0} onClick={() => setOffset((v) => Math.max(0, v - DOCS_PAGE_SIZE))}>
+          <ChevronLeft className="h-3.5 w-3.5" />
+          {t('docs.previous')}
+        </Button>
+        <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">
+          {page}/{totalPages}
+        </span>
+        <Button id="docs-next-page" type="button" variant="ghost" disabled={offset + DOCS_PAGE_SIZE >= total} onClick={() => setOffset((v) => v + DOCS_PAGE_SIZE)}>
+          {t('docs.next')}
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
     </div>
   )
 }
 
+function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
+  const { t, isAdmin, openEdit, confirmDelete, copyLink, setSelectedId } = dw
+  const shared = doc.isPublic && doc.status === 'published'
+  return (
+    <article className="min-h-0 overflow-y-auto rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+      <Button variant="ghost" className="mb-3 @3xl:hidden" onClick={() => setSelectedId(null)}>
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {t('docs.back')}
+      </Button>
+      <header className="space-y-2">
+        <h2 className="text-lg font-bold leading-snug">{doc.title}</h2>
+        <div className="flex flex-wrap items-center gap-2 text-[0.75rem] text-[var(--text-secondary)]">
+          <Badge tone={STATUS_TONE[doc.status]}>{t(`docs.status.${doc.status}`)}</Badge>
+          {shared ? <Badge tone="info">{t('docs.publicBadge')}</Badge> : null}
+          <span className="panel-mono">/{doc.slug}</span>
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDateID(doc.updatedAt)}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {shared ? (
+            <Button variant="ghost" onClick={() => void copyLink(doc)}>
+              <Link2 className="h-3.5 w-3.5" />
+              {t('docs.copyPublicLink')}
+            </Button>
+          ) : null}
+          {isAdmin ? (
+            <>
+              <Button variant="ghost" onClick={() => openEdit(doc)}>
+                <PenSquare className="h-3.5 w-3.5" />
+                {t('common.edit')}
+              </Button>
+              <Button variant="danger-soft" onClick={() => void confirmDelete(doc)}>
+                <Trash2 className="h-3.5 w-3.5" />
+                {t('common.delete')}
+              </Button>
+            </>
+          ) : null}
+        </div>
+      </header>
+      <Markdown source={doc.content} className="mt-5" />
+    </article>
+  )
+}
 
+export default function DocsWindow() {
+  const dw = useDocsWindow()
+  const { t, isAdmin, docsQuery, docs, selected, openCreate } = dw
 
+  return (
+    <div className="panel-window @container flex h-full flex-col">
+      <div className="flex min-h-[40px] shrink-0 items-center justify-between gap-2 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1">
+        <span className="text-xs font-semibold text-[var(--win-text)]">
+          {dw.total} {t('docs.title')}
+        </span>
+        <div className="flex items-center gap-2">
+          <IconButton onClick={() => void docsQuery.refetch()} label={t('docs.refresh')}>
+            <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching ? 'animate-spin' : ''}`} />
+          </IconButton>
+          {isAdmin ? (
+            <Button onClick={openCreate} variant="primary-soft" className="px-2.5 py-1 text-xs">
+              <Plus className="h-3.5 w-3.5" />
+              {t('docs.newArticle')}
+            </Button>
+          ) : null}
+        </div>
+      </div>
 
+      <div className="min-h-0 flex-1 p-3">
+        {docsQuery.isLoading ? (
+          <LoadingState>{t('docs.loading')}</LoadingState>
+        ) : docsQuery.isError ? (
+          <ErrorState
+            title={t('docs.loadFailed')}
+            hint={t('docs.loadFailedHint')}
+            action={
+              <Button variant="ghost" loading={docsQuery.isFetching} onClick={() => void docsQuery.refetch()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        ) : docs.length === 0 && !dw.search ? (
+          <EmptyState icon={<FileText />}>{isAdmin ? t('docs.empty') : t('docs.emptyReader')}</EmptyState>
+        ) : (
+          <div className="grid h-full min-h-0 gap-3 @3xl:grid-cols-[minmax(15rem,20rem)_minmax(0,1fr)]">
+            <div className={`min-h-0 ${selected ? '@max-3xl:hidden' : ''}`}>
+              {docs.length === 0 ? <EmptyState icon={<Search />}>{t('docs.noMatch')}</EmptyState> : <DocList dw={dw} />}
+            </div>
+            <div className={`min-h-0 ${selected ? '' : '@max-3xl:hidden'}`}>
+              {selected ? <DocViewer dw={dw} doc={selected} /> : <EmptyState icon={<BookOpen />}>{t('docs.selectArticle')}</EmptyState>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <DocEditorModal dw={dw} />
+    </div>
+  )
+}
