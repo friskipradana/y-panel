@@ -31,6 +31,7 @@ Inventaris komponen Reneo. Cek di sini sebelum membuat komponen atau class baru.
 | `ProfileMenu` | `components/taskbar/` | Akun, tema, logout |
 | `LanguageSwitcher` | `components/taskbar/` | `id` / `en` |
 | `Dock` | `components/dock/Dock.tsx` | Auto-hide, preview window, context menu |
+| `MobileShell`, `MobileHome` | `components/mobile/` | Layout ponsel (di bawah 768px, atau `?ui=mobile`): satu aplikasi layar penuh, navigasi bawah, daftar jendela terbuka, widget bertumpuk. Konten aplikasi memakai `windowRegistry` yang sama dengan desktop. Pilihan layout: `hooks/useIsMobileLayout` |
 | `CommandPalette` | `components/common/` | `cmdk`, pintasan global, tambah widget |
 | `GlobalAlert` / `InnerAlert` | `components/alert/` | Konfirmasi & notifikasi, global dan in-window |
 | `AppIcon` | `components/common/` | Satu-satunya pemetaan ikon aplikasi |

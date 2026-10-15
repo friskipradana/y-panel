@@ -24,7 +24,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
   } = tw
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
       <div className="flex items-center gap-1">
         <button
           className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
