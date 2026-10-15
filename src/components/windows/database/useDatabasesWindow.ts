@@ -27,6 +27,7 @@ export function useDatabasesWindow(win?: WindowState) {
   const pollingActive = useWindowPollingActive(win)
   const [showCreate, setShowCreate] = useState(false)
   const [connectionTarget, setConnectionTarget] = useState<UserDatabase | null>(null)
+  const [manageTarget, setManageTarget] = useState<UserDatabase | null>(null)
 
   const query = useQuery({
     queryKey: KEY,
@@ -76,6 +77,8 @@ export function useDatabasesWindow(win?: WindowState) {
     setShowCreate,
     connectionTarget,
     setConnectionTarget,
+    manageTarget,
+    setManageTarget,
     createMut,
     startMut,
     stopMut,
