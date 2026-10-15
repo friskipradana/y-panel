@@ -11,6 +11,9 @@ import (
 )
 
 // Demo account: a normal "user" row that is locked to a read-only allowlist.
+// Nothing shared or global is on the list (docs, images, networks, changelog,
+// settings) and widget layouts are never saved to the server, so one visitor
+// cannot leave content for the next.
 // It is enabled by setting RENEO_DEMO_PASSWORD (or PANEL_DEMO_PASSWORD); the
 // credentials are shown on the public landing page on purpose.
 
@@ -21,20 +24,14 @@ const defaultDemoUsername = "demo"
 var demoReadOnlyRoutes = map[string]bool{
 	"GET /api/v1/me":                         true,
 	"GET /api/v1/me/widgets":                 true,
-	"PUT /api/v1/me/widgets":                 true,
 	"GET /api/v1/projects":                   true,
 	"GET /api/v1/projects/attention-summary": true,
 	"GET /api/v1/tunnels":                    true,
 	"GET /api/v1/containers":                 true,
-	"GET /api/v1/docker/networks":            true,
-	"GET /api/v1/docker/images":              true,
-	"GET /api/v1/docs":                       true,
 	"GET /api/v1/notifications":              true,
 	"GET /api/v1/notifications/ws":           true,
 	"GET /api/v1/system/summary":             true,
 	"GET /api/v1/system/history":             true,
-	"GET /api/v1/system/changelog":           true,
-	"GET /api/v1/system/update":              true,
 	"GET /api/v1/settings/wallpaper":         true,
 	"GET /api/v1/frontend/revision":          true,
 	"GET /api/v1/mcp-catalog":                true,
@@ -55,16 +52,13 @@ func (s *Server) demoUsername() string {
 
 func (s *Server) isDemoUser(u *database.User) bool {
 	name := s.demoUsername()
-	return u != nil && name != "" && strings.EqualFold(u.Username, name)
+	// only a plain "user" row can be the demo account; an admin that happens to share the name is not locked
+	return u != nil && name != "" && u.Role == auth.UserRole && strings.EqualFold(u.Username, name)
 }
 
 // demoAllowed reports whether the demo account may perform this request.
 func demoAllowed(r *http.Request) bool {
-	path := r.URL.Path
-	if r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/docs/") {
-		return true
-	}
-	return demoReadOnlyRoutes[r.Method+" "+path]
+	return demoReadOnlyRoutes[r.Method+" "+r.URL.Path]
 }
 
 // guardDemo writes the refusal and returns false when the demo account tries
@@ -120,6 +114,31 @@ func (s *Server) EnsureDemoAccount() {
 	}
 	// no capacity to create anything, even if the allowlist were bypassed
 	_ = s.database.UpdateUserQuota(database.UserQuota{UserID: existing.ID, MaxProjects: 0, MaxTunnels: 0, DiskQuotaMB: 0, CPULimitPct: 1, MemoryLimitMB: 0})
+	s.seedDemoProjects(existing.ID)
+}
+
+// demoSampleProjects are display rows only: they stay "stopped", have no working
+// directory and no port, and the demo account cannot start them.
+var demoSampleProjects = []struct {
+	name, slug, description, projectType string
+	spa                                  bool
+}{
+	{"landing-site", "landing-site", "Static marketing site (sample)", "static", true},
+	{"orders-api", "orders-api", "Node.js REST API (sample)", "nodejs", false},
+	{"report-worker", "report-worker", "Python batch worker (sample)", "python", false},
+}
+
+func (s *Server) seedDemoProjects(userID int64) {
+	if existing, err := s.database.ListProjects(userID); err != nil || len(existing) > 0 {
+		return
+	}
+	for _, sample := range demoSampleProjects {
+		if _, err := s.database.CreateProject(userID, sample.name, sample.slug, sample.description, sample.projectType, "", "", sample.spa, 0); err != nil {
+			log.Printf("[demo] could not seed sample project %q: %v", sample.name, err)
+			return
+		}
+	}
+	log.Printf("[demo] seeded %d sample projects", len(demoSampleProjects))
 }
 
 // handlePublicDemo exposes the demo credentials for the landing page.

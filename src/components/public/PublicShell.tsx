@@ -34,15 +34,17 @@ export function PublicShell({ children }: PublicShellProps) {
               <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg" />
               <span className="text-[0.9375rem] font-bold tracking-tight">Reneo</span>
             </button>
-            <a
-              href={releaseUrl(version)}
-              target="_blank"
-              rel="noreferrer"
-              title={t('public.versionTitle')}
-              className="panel-badge panel-badge--info panel-mono !text-[0.6875rem] max-[480px]:hidden"
-            >
-              v{version}
-            </a>
+            <span className="max-[520px]:hidden">
+              <a
+                href={releaseUrl(version)}
+                target="_blank"
+                rel="noreferrer"
+                title={t('public.versionTitle')}
+                className="panel-badge panel-badge--info panel-mono !text-[0.6875rem]"
+              >
+                v{version}
+              </a>
+            </span>
           </div>
 
           <nav aria-label={t('public.navLabel')} className="flex items-center gap-1">
@@ -60,7 +62,8 @@ export function PublicShell({ children }: PublicShellProps) {
               <span className="hidden md:inline">{t('public.nav.installer')}</span>
             </a>
             <Button variant="primary" onClick={() => navigate(primaryPath)} className="ml-1 !h-8">
-              <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
+              <span className="sm:hidden">{authenticated ? t('landing.dashboardShort') : t('landing.loginShort')}</span>
+              <span className="max-sm:hidden">{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={13} />
             </Button>
           </nav>
@@ -72,8 +75,7 @@ export function PublicShell({ children }: PublicShellProps) {
       <footer className="relative z-10 border-t border-[var(--win-border)]">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-[0.75rem] text-[var(--text-secondary)] sm:flex-row sm:px-6">
           <span>
-            {t('public.footer.owner')} <strong className="text-[var(--win-text)]">Y_Corp</strong> · {t('public.footer.contributors')}{' '}
-            <strong className="text-[var(--win-text)]">AknalRe · FriskiPradana</strong>
+            {t('public.footer.contributors')} <strong className="text-[var(--win-text)]">AknalRe · FriskiPradana</strong>
           </span>
           <span className="flex items-center gap-3">
             <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="panel-mono hover:text-[var(--win-text)]">

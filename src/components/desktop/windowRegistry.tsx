@@ -25,7 +25,7 @@ const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
 
 // The public demo account only browses: no files, terminal, users, settings or cloud access
-const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'system', 'widgets', 'docs', 'changelog', 'profile'])
+const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'system', 'widgets', 'profile'])
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)
