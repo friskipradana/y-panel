@@ -1,6 +1,29 @@
 # Linux Installer Guide
 
-## Install
+## Instalasi satu baris
+
+```bash
+curl -fsSL https://install.reneo.my.id | sudo bash
+```
+
+Dengan opsi (setelah `--`):
+
+```bash
+curl -fsSL https://install.reneo.my.id | sudo bash -s -- --bind 0.0.0.0:8787 --yes
+```
+
+Mengunduh dulu untuk diperiksa (sha256 tersedia di halaman rilis sebagai `reneo-installer.run.sha256`):
+
+```bash
+wget https://github.com/friskipradana/y-panel/releases/latest/download/reneo-installer.run
+sha256sum reneo-installer.run
+sudo bash reneo-installer.run
+```
+
+Berkas `.run` aman dijalankan lewat pipe: ia membaca payload-nya dari stdin bila bukan berkas. Saat dipipe, installer berjalan non-interaktif dan memakai nilai default atau nilai terpasang.
+
+## Install dari source
+
 
 Jalankan dari root proyek:
 

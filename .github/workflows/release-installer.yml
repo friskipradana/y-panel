@@ -50,6 +50,7 @@ jobs:
           name: reneo-installer
           path: |
             dist-release/reneo-installer.run
+            dist-release/reneo-installer.run.sha256
             dist-release/ypanel-installer.run
           if-no-files-found: error
 
@@ -80,6 +81,12 @@ jobs:
             '## Instalasi',
             '',
             "${fence}bash",
+            "curl -fsSL $url | sudo bash",
+            $fence,
+            '',
+            'Atau unduh dulu, lalu jalankan (untuk memeriksa berkasnya):',
+            '',
+            "${fence}bash",
             "wget -O reneo-installer.run $url && sudo bash reneo-installer.run",
             $fence,
             '',
@@ -97,6 +104,7 @@ jobs:
           body_path: release-notes.md
           files: |
             dist-release/reneo-installer.run
+            dist-release/reneo-installer.run.sha256
             dist-release/ypanel-installer.run
           fail_on_unmatched_files: true
           generate_release_notes: false
