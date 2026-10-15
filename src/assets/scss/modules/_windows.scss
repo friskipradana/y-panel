@@ -948,3 +948,38 @@ button:focus-visible,
   gap: 8px;
   margin-left: auto;
 }
+
+// Phone layout: shared fixes for every window
+.layout-mobile {
+  // the search field keeps a desktop minimum width that pushes its button out of view
+  .panel-search {
+    min-width: 0;
+  }
+
+  // "Page 1/1" and similar toolbar captions
+  .panel-pagination-summary {
+    padding: 8px 12px 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  // empty states should not take half a screen
+  .panel-empty {
+    min-height: 0;
+    padding-block: 20px;
+  }
+
+  // avatar and text start at the top so action rows below line up with the text
+  .panel-entity-row__main--center {
+    align-items: flex-start;
+  }
+
+  .docker-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .docker-summary-card {
+    padding: 10px;
+  }
+}

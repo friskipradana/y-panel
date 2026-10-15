@@ -52,7 +52,7 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `file-manager` | `FileManagerWindow` | `file-manager/`: `useFileManager`, `FileTabsStrip`, `FileToolbar`, `FileTableHeader`, `FileList`, `FileRow`, `FileStatusBar`, `BulkActionsBar`, `FileActionModal`, `RootAccessModal`, `FileContextMenu`, `fileManagerConfig` |
 | `projects` | `ProjectsWindow` | `projects/`: `useProjectsWindow`, `ProjectsToolbar`, `ProjectsBody`, `ProjectCard`, `ProjectFormModal`, `StaticUploadOverlay`, `UploadDraftModal`, `projectsConfig` |
 | `tunnels` | `TunnelsWindow` | `tunnels/`: `useTunnelsWindow`, `TunnelsToolbar`, `CloudflareSetupNotice`, `TunnelsBody`, `TunnelRows`, `TunnelModals`, `TunnelModalHost`, `ProfileModalHost`, `TunnelsShared`, `tunnelForms` |
-| `host-terminal` | `HostTerminalWindow` | xterm, multi-pane, preset (belum dipecah) |
+| `host-terminal` | `HostTerminalWindow` | xterm, multi-pane, preset (belum dipecah). Di ponsel ada `terminal/TerminalKeyBar` (Esc, Tab, Ctrl+C/D, panah, simbol) |
 | `terminal`, `portainer`, `trash` | placeholder | `Desktop.tsx` |
 | `system` | `SystemWindow` | Pemantauan host (CPU, RAM, disk, Docker, beban kerja). Isi internal Reneo (state path, Portainer, insiden reconcile) ada di Settings, tab `ReneoRuntimeTab`, hanya superadmin |
 | `system-logs` | `SystemLogsWindow` | Hanya superadmin (API juga). Filter level, sorot pencarian, jeda, salin, unduh |

@@ -453,3 +453,43 @@
     opacity: 0.35;
   }
 }
+
+// Extra keys for phones: Esc, Tab, Ctrl+C/D, arrows and a few symbols the on-screen keyboard hides
+.ht-keybar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  background: #161b22;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  scrollbar-width: none;
+}
+
+.ht-keybar__key {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6edf3;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.ht-keybar__key:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.ht-keybar__key:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ht-keybar__key:focus-visible {
+  outline: 2px solid #58a6ff;
+  outline-offset: 1px;
+}

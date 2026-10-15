@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
 import { Plus, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -624,6 +625,15 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
             onSendInput={(fn) => handleSendInput(tab.id, fn)}
           />
         ))}
+      </div>
+
+      <div className="hidden mobile:block">
+        <TerminalKeyBar
+          disabled={!activeTab.connected}
+          onKey={(sequence) => {
+            void activeTab.sendInputFn?.(sequence)
+          }}
+        />
       </div>
     </div>
   )
