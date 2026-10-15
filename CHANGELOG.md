@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.3.4] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.3.4** berisi 2 perubahan: 1 perbaikan, 1 dokumentasi. (11 files changed, 250 insertions(+), 25 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **settings:** Validate and apply General & Host changes safely, clearer errors and update status ([`1046db4`](https://github.com/friskipradana/panel-desktop-ui/commit/1046db4))
+
+### 📚 Dokumentasi (Documentation)
+- Use a landing page screenshot in the README ([`3916b5e`](https://github.com/friskipradana/panel-desktop-ui/commit/3916b5e))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.3...v4.3.4
+
 ## [4.3.3] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
