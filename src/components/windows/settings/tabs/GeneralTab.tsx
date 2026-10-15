@@ -23,6 +23,7 @@ import { IconBadge } from "@/components/ui/IconBadge";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Field";
 import { getUpdateInfo, getUpdateStatus, applyUpdate } from "@/api/system";
+import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 
 export function GeneralTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
@@ -40,6 +41,8 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
     setNameservers,
     mutation,
     handleUpdateIdentity,
+    hostnameError,
+    identityDirty,
   } = host;
 
   const updateQuery = useQuery({
@@ -88,11 +91,13 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
 
   const handleCopyCli = async () => {
     try {
-      await navigator.clipboard.writeText("sudo reneo update");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // works on plain http too, where navigator.clipboard is unavailable
+      if (await copyTextToClipboard("sudo reneo update")) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     } catch {
-      // fallback
+      // the command stays visible in the block above
     }
   };
 
@@ -142,7 +147,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
               className="text-[var(--panel-primary-text)]"
             />
             <span>
-              DNS: <strong className="font-semibold text-[var(--win-text)]">{systemSettings.dnsMode}</strong>
+              {t("settings.dnsLabel")}: <strong className="font-semibold text-[var(--win-text)]">{systemSettings.dnsMode}</strong>
             </span>
           </div>
         </div>
@@ -249,6 +254,23 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
           </div>
         )}
 
+        {statusQuery.data?.state === "done" && statusQuery.data.to ? (
+          <div className="p-3 rounded-xl border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] text-[12px] font-medium">
+            {t("settings.update.statusDone", { version: statusQuery.data.to })}
+          </div>
+        ) : null}
+
+        {statusQuery.data?.state === "failed" ? (
+          <div className="p-3 rounded-xl border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[12px] space-y-1.5">
+            <div className="font-medium">{t("settings.update.statusFailed")}</div>
+            {statusQuery.data.log && statusQuery.data.log.length > 0 && (
+              <pre className="p-2 rounded bg-black/40 text-[11px] font-mono text-zinc-300 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                {statusQuery.data.log.slice(-8).join("\n")}
+              </pre>
+            )}
+          </div>
+        ) : null}
+
         {statusQuery.data?.state === "running" && (
           <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[12px] space-y-1.5">
             <div className="flex items-center gap-2 font-medium">
@@ -280,12 +302,20 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
             />
             <TextInput
               id="settings-hostname"
+              mono
               value={hostname}
+              invalid={hostnameError}
+              aria-describedby={hostnameError ? "settings-hostname-error" : undefined}
               onChange={(event) =>
                 setHostname(event.target.value)
               } className="h-[38px] px-3 text-[12.5px] font-medium"
               placeholder={t("settings.hostnamePlaceholder")}
             />
+            {hostnameError ? (
+              <p id="settings-hostname-error" role="alert" className="mt-1.5 text-[12px] text-[var(--panel-danger-text)]">
+                {t("settings.hostnameInvalid")}
+              </p>
+            ) : null}
           </div>
           <div>
             <FieldLabel
@@ -323,7 +353,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
               {t("settings.saveHostChanges")}
             </div>
             <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-              {t("settings.saveHostChangesHint")}
+              {identityDirty ? t("settings.saveHostChangesHint") : t("settings.noChanges")}
             </div>
           </div>
 
@@ -331,7 +361,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
             id="settings-save"
             type="button"
             onClick={handleUpdateIdentity}
-            disabled={mutation.isPending} variant="primary" className="rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+            disabled={mutation.isPending || !identityDirty || hostnameError} variant="primary" className="rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
           >
             {mutation.isPending ? (
               <LoaderCircle size={14} className="animate-spin" />

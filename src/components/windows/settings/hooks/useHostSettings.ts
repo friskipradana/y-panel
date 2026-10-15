@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
+import { isValidHostname } from "@/lib/hostValidation";
 import { getDatabaseStatus, getEditableSystemSettings, resetDatabasePassword, resetPrimaryPanelPassword, updateEditableSystemSettings, updatePanelOrigins, updatePanelPort } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
 import { type ResetDatabasePasswordResponse, type ResetPrimaryPanelPasswordPayload, type UpdatePanelPortPayload, type UpdateSystemSettingsPayload } from "@/types";
+
+// The agent's own explanation when it sent one, instead of "Request failed with status code 400"
+function apiMessage(error: unknown): string | undefined {
+  const fromApi = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+  if (fromApi) return fromApi;
+  return error instanceof Error ? error.message : undefined;
+}
 
 export function useHostSettings({ authenticated }: { authenticated?: boolean }) {
   const queryClient = useQueryClient();
@@ -71,6 +79,14 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     [primaryPassword, primaryPasswordConfirm],
   );
 
+  const hostnameError = hostname.trim() !== "" && !isValidHostname(hostname.trim());
+  const identityDirty = Boolean(
+    query.data &&
+      (hostname.trim() !== (query.data.hostname ?? "") ||
+        timezone.trim() !== (query.data.timezone ?? "") ||
+        payload.nameservers.join(",") !== (query.data.nameservers ?? []).join(","))
+  );
+
   const syncSettingsSnapshot = (
     data: Awaited<ReturnType<typeof getEditableSystemSettings>>,
   ) => {
@@ -97,7 +113,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     onError: (error: any) => {
       alertLib.fire(
         t("settings.host.saveFailedTitle"),
-        error?.message || t("settings.host.saveFailedMessage"),
+        apiMessage(error) || t("settings.host.saveFailedMessage"),
         "error",
         "settings",
       );
@@ -118,7 +134,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     onError: (error: any) => {
       alertLib.fire(
         t("settings.port.updateFailedTitle"),
-        error?.message || t("settings.port.updateFailedMessage"),
+        apiMessage(error) || t("settings.port.updateFailedMessage"),
         "error",
         "settings",
       );
@@ -139,7 +155,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     onError: (error: any) => {
       alertLib.fire(
         t("settings.origins.saveFailedTitle"),
-        error?.message || t("settings.origins.saveFailedMessage"),
+        apiMessage(error) || t("settings.origins.saveFailedMessage"),
         "error",
         "settings",
       );
@@ -162,7 +178,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     onError: (error: any) => {
       alertLib.fire(
         t("settings.database.rotateFailedTitle"),
-        error?.message || t("settings.database.rotateFailedMessage"),
+        apiMessage(error) || t("settings.database.rotateFailedMessage"),
         "error",
         "settings",
       );
@@ -184,7 +200,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     onError: (error: any) => {
       alertLib.fire(
         t("settings.password.updateFailedTitle"),
-        error?.message || t("settings.password.updateFailedMessage"),
+        apiMessage(error) || t("settings.password.updateFailedMessage"),
         "error",
         "settings",
       );
@@ -320,6 +336,8 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     resetDatabaseMutation,
     resetPrimaryPasswordMutation,
     handleUpdateIdentity,
+    hostnameError,
+    identityDirty,
     handleUpdatePanelPort,
     handleUpdateOrigins,
     handleResetDatabase,
