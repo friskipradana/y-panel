@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"bufio"
 	"context"
 	"database/sql"
@@ -53,14 +54,14 @@ func main() {
 	srv := httpserver.New(cfg)
 	defer func() {
 		if err := srv.Close(); err != nil {
-			log.Printf("YPanel agent close warning: %v", err)
+			log.Printf("Reneo agent close warning: %v", err)
 		}
 	}()
 
 	srv.RestoreProjects()
 	srv.RestoreTunnels()
 
-	log.Printf("YPanel agent listening on %s", cfg.BindAddr)
+	log.Printf("Reneo agent listening on %s", cfg.BindAddr)
 	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {
 		log.Fatalf("listen and serve: %v", err)
 	}
@@ -108,19 +109,19 @@ func runResetPrimaryPassword(args []string) error {
 	targetUser, err := db.GetPrimarySuperadmin()
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no rows") {
-			return fmt.Errorf("akun utama YPanel tidak ditemukan: tabel users kosong")
+			return fmt.Errorf("akun utama Reneo tidak ditemukan: tabel users kosong")
 		}
-		return fmt.Errorf("gagal menemukan akun utama YPanel: %w", err)
+		return fmt.Errorf("gagal menemukan akun utama Reneo: %w", err)
 	}
 	if targetUser == nil {
-		return fmt.Errorf("akun utama YPanel tidak ditemukan")
+		return fmt.Errorf("akun utama Reneo tidak ditemukan")
 	}
 	if err := authMgr.ResetPassword(targetUser.ID, password); err != nil {
 		return err
 	}
 
-	log.Printf("[auth] primary YPanel password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
-	fmt.Printf("Password akun utama YPanel (%s) berhasil diperbarui.\n", targetUser.Username)
+	log.Printf("[auth] primary Reneo password reset actor=%q target=%q source=runtime-cli", "root", targetUser.Username)
+	fmt.Printf("Password akun utama Reneo (%s) berhasil diperbarui.\n", targetUser.Username)
 	return nil
 }
 
@@ -143,11 +144,8 @@ func loadRuntimeEnv() error {
 	if envPath != "" {
 		candidates = append(candidates, envPath)
 	} else {
-		candidates = append(candidates,
-			filepath.Join("/etc", "ypanel", "agent.env"),
-			filepath.Join("/etc", "ui-panel", "agent.env"),
-			".env",
-		)
+		candidates = append(candidates, runtimepath.EnvFileCandidates()...)
+		candidates = append(candidates, ".env")
 	}
 
 	var data []byte
@@ -185,6 +183,7 @@ func loadRuntimeEnv() error {
 		_ = os.Setenv(key, strings.TrimSpace(value))
 	}
 	_ = os.Setenv("PANEL_ENV_FILE", loadedPath)
+	runtimepath.ApplyEnvAliases()
 	return nil
 }
 
@@ -239,7 +238,7 @@ func runMCP() error {
 	}
 
 	if mcpCfg.StateDir == "" {
-		mcpCfg.StateDir = "/var/lib/ypanel"
+		mcpCfg.StateDir = runtimepath.StateDir()
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

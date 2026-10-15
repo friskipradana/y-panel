@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 
 // Config holds configuration for the MCP server runtime.
 type Config struct {
-	// PanelURL is the base URL of the YPanel agent HTTP server.
+	// PanelURL is the base URL of the Reneo agent HTTP server.
 	// Defaults to http://localhost:8787 if empty.
 	PanelURL string
 
@@ -31,7 +32,7 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg.PanelURL = "http://localhost:8787"
 	}
 	if cfg.StateDir == "" {
-		cfg.StateDir = "/var/lib/ypanel"
+		cfg.StateDir = runtimepath.StateDir()
 	}
 
 	userRole := "anonymous"
@@ -65,11 +66,11 @@ func Run(ctx context.Context, cfg Config) error {
 	srv := BuildServer(cfg, userRole, cfg.SessionToken)
 
 	totalTools := len(srv.tools)
-	log.Printf("[mcp] YPanel MCP server started (stdio transport, %d tools registered, role: %s)", totalTools, userRole)
+	log.Printf("[mcp] Reneo MCP server started (stdio transport, %d tools registered, role: %s)", totalTools, userRole)
 	if username != "" {
-		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (user: %s, role: %s)\n", totalTools, username, userRole)
+		fmt.Fprintf(os.Stderr, "Reneo MCP server ready — %d tools available (user: %s, role: %s)\n", totalTools, username, userRole)
 	} else {
-		fmt.Fprintf(os.Stderr, "YPanel MCP server ready — %d tools available (role: %s)\n", totalTools, userRole)
+		fmt.Fprintf(os.Stderr, "Reneo MCP server ready — %d tools available (role: %s)\n", totalTools, userRole)
 	}
 
 	return srv.Serve(ctx, os.Stdin)
@@ -81,7 +82,7 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 		cfg.PanelURL = "http://localhost:8787"
 	}
 	if cfg.StateDir == "" {
-		cfg.StateDir = "/var/lib/ypanel"
+		cfg.StateDir = runtimepath.StateDir()
 	}
 
 	isAdmin := userRole == "superadmin" || userRole == "admin"

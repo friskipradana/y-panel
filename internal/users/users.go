@@ -1,5 +1,5 @@
 // Package users provides user management, quota management, and
-// per-user Cloudflare configuration for YPanel.
+// per-user Cloudflare configuration for Reneo.
 package users
 
 import (

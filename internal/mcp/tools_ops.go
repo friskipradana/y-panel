@@ -556,7 +556,7 @@ func registerOpsTools(s *Server) {
 		if err != nil {
 			return "", fmt.Errorf("cannot write %s: %w", hba, err)
 		}
-		_, werr := f.WriteString("# added by YPanel MCP " + time.Now().UTC().Format(time.RFC3339) + "\n" + line)
+		_, werr := f.WriteString("# added by Reneo MCP " + time.Now().UTC().Format(time.RFC3339) + "\n" + line)
 		_ = f.Close()
 		if werr != nil {
 			return "", werr

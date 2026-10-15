@@ -61,7 +61,7 @@ func buildRedirectRule(req createRedirectRuleRequest) (cloudflareapi.RedirectRul
 
 	description := strings.TrimSpace(req.Description)
 	if description == "" {
-		description = "YPanel redirect " + host
+		description = "Reneo redirect " + host
 	}
 	if len(description) > 120 {
 		description = description[:120]
