@@ -707,6 +707,7 @@ export const id: Record<string, string> = {
   'widgets.removeMessage': "Widget {name} akan dihapus dari desktop dan beranda ponsel. Isi dan pengaturannya ikut hilang.",
   'widgets.removeConfirm': "Hapus widget",
   'mobile.widgetRemove': "Hapus widget",
+  'users.countLabel': "{count} pengguna",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',

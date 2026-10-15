@@ -33,7 +33,7 @@ export const FileRow = memo(({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr_80px] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
+      className={`grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
@@ -45,9 +45,15 @@ export const FileRow = memo(({
       </div>
       <div className="flex items-center gap-3 overflow-hidden">
         {item.isDir ? <Folder size={17} className="text-[var(--panel-primary-text)] fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />}
-        <span className="text-[13px] font-medium text-[var(--win-text)] truncate group-hover:text-[var(--panel-primary-text)] transition-colors">{item.name}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-medium text-[var(--win-text)] transition-colors group-hover:text-[var(--panel-primary-text)]">{item.name}</span>
+          <span className="hidden truncate text-[11px] text-[var(--text-secondary)] mobile:block">
+            {item.isDir ? '' : `${formatSize(item.size)} · `}
+            {formatDate(item.modified)}
+          </span>
+        </span>
       </div>
-      <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight">
+      <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight mobile:hidden">
         {item.isDir ? '--' : formatSize(item.size)}
       </div>
       <div className="flex items-center mobile:hidden">

@@ -112,7 +112,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       {/* ── Compact Toolbar ── */}
       <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--win-text)]">{total} {t('users.title')}</span>
+          <span className="font-semibold text-[var(--win-text)]">{t('users.countLabel', { count: total })}</span>
           <span>•</span>
           <span className="text-[var(--panel-success-text)] font-medium">{activeUsers} active</span>
         </div>

@@ -20,14 +20,14 @@ export function FileToolbar({ fm }: { fm: FileManagerState }) {
   } = fm
 
   return (
-    <div className="file-manager-toolbar panel-toolbar--flat border-b border-[var(--win-border)] bg-[var(--win-bar)] px-4 py-2">
+    <div className="file-manager-toolbar panel-toolbar--flat border-b border-[var(--win-border)] bg-[var(--win-bar)] px-4 py-2 mobile:flex-wrap mobile:gap-y-2">
       <IconButton
         disabled={!activeTab.data?.parent}
         onClick={() => { if (activeTab.data?.parent) setCurrentPath(activeTab.data.parent) }} label={t('fileManager.parentDirectory')}
       >
         <CornerLeftUp size={16} />
       </IconButton>
-      <div className="file-manager-path flex min-w-0 flex-1 items-center gap-2">
+      <div className="file-manager-path flex min-w-0 flex-1 items-center gap-2 mobile:order-last mobile:basis-full">
         <span className="hidden select-none text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] sm:inline">{t('fileManager.path')}</span>
         <TextInput mono className="h-[34px] min-w-0 flex-1 border-0 bg-transparent px-0 shadow-none focus:ring-0"
           value={activeTab.inputPath}
@@ -48,7 +48,7 @@ export function FileToolbar({ fm }: { fm: FileManagerState }) {
             title={rootAccess.enabled ? t('fileManager.closeRootAccessTitle') : t('fileManager.openRootAccessTitle')}
           >
             <Key size={14} />
-            {rootAccess.enabled ? t('fileManager.rootActive') : t('fileManager.rootAccess')}
+            <span className="mobile:hidden">{rootAccess.enabled ? t('fileManager.rootActive') : t('fileManager.rootAccess')}</span>
           </button>
         ) : null}
         <Button

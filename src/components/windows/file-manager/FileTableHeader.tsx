@@ -10,7 +10,7 @@ export function FileTableHeader({ fm }: { fm: FileManagerState }) {
   } = fm
 
   return (
-    <div className="grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr_80px] gap-4 px-6 py-2 border-b border-[var(--win-border)] bg-[var(--tb-hover)] text-[10.5px] uppercase tracking-[0.05em] font-bold text-[var(--tb-clock)] sticky top-0">
+    <div className="grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr] gap-4 px-6 py-2 border-b border-[var(--win-border)] bg-[var(--tb-hover)] text-[10.5px] uppercase tracking-[0.05em] font-bold text-[var(--tb-clock)] sticky top-0">
       <div className="flex items-center justify-center">
         <input
           type="checkbox"
@@ -26,7 +26,7 @@ export function FileTableHeader({ fm }: { fm: FileManagerState }) {
         />
       </div>
       <div>{t('fileManager.nameColumn')}</div>
-      <div>{t('fileManager.sizeColumn')}</div>
+      <div className="mobile:hidden">{t('fileManager.sizeColumn')}</div>
       <div className="mobile:hidden">{t('fileManager.accessColumn')}</div>
       <div className="mobile:hidden">{t('fileManager.modifiedColumn')}</div>
     </div>

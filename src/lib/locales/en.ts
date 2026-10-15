@@ -707,6 +707,7 @@ export const en: Record<string, string> = {
   'widgets.removeMessage': "The {name} widget is removed from the desktop and the phone home. Its content and settings are lost.",
   'widgets.removeConfirm': "Remove widget",
   'mobile.widgetRemove': "Remove widget",
+  'users.countLabel': "{count} users",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',

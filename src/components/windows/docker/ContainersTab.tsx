@@ -152,8 +152,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                   subtitle={container.Image}
                   meta={
                     <>
-                      <span className="docker-inline-code">ID {container.Id.slice(0, 12)}</span>
-                      <span className="docker-inline-code">Network {networks}</span>
+                      <span className="docker-inline-code mobile:hidden">ID {container.Id.slice(0, 12)}</span>
+                      <span className="docker-inline-code mobile:hidden">Network {networks}</span>
                       <span className="docker-inline-code">IP {ipAddresses}</span>
                       <span className="docker-inline-code">Port {primaryPublished || t('docker.unavailable')}</span>
                       <span className="docker-inline-dot" />
