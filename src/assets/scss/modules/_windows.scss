@@ -878,6 +878,43 @@ button:focus-visible,
   border-top: 1px solid var(--win-border);
 }
 
+// Phones: the dialog is sized to the visible app area (the shell is its containing block), the
+// footer stays reachable, and buttons are easy to hit
+.layout-mobile {
+  .ui-modal-overlay {
+    position: fixed;
+    padding: 10px;
+  }
+
+  .ui-modal-overlay--sheet {
+    padding: 6px;
+  }
+
+  .ui-modal {
+    max-height: 100%;
+    border-radius: 16px;
+  }
+
+  .ui-modal__header {
+    padding: 12px 14px;
+  }
+
+  .ui-modal__body {
+    padding: 14px;
+    overscroll-behavior: contain;
+  }
+
+  .ui-modal__footer {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+
+    > * {
+      flex: 1 1 8rem;
+      min-height: 2.75rem;
+    }
+  }
+}
+
 // Entity row (components/ui/EntityRow)
 .panel-entity-row {
   display: flex;
