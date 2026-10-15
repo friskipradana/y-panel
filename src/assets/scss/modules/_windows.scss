@@ -938,6 +938,14 @@ button:focus-visible,
   flex: 1 1 12rem;
 }
 
+// Phones: row actions sit on their own full-width line under the text, left aligned
+.layout-mobile .panel-entity-row__actions {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-left: 0;
+}
+
 .panel-entity-row__main--center {
   align-items: center;
 }
@@ -991,6 +999,15 @@ button:focus-visible,
   // the search field keeps a desktop minimum width that pushes its button out of view
   .panel-search {
     min-width: 0;
+  }
+
+  // search with its page counter: the counter drops under the field instead of squeezing it
+  .panel-toolbar--search {
+    flex-wrap: wrap;
+
+    .panel-search {
+      flex: 1 1 100%;
+    }
   }
 
   // "Page 1/1" and similar toolbar captions

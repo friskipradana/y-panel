@@ -17,12 +17,12 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
   } = docker
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-      <div className="flex items-center gap-1 mobile:min-w-0 mobile:overflow-x-auto">
+    <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px] mobile:flex-wrap mobile:gap-y-1.5 mobile:py-1.5">
+      <div className="flex items-center gap-1 mobile:min-w-0 mobile:basis-full mobile:overflow-x-auto">
         {(['containers', 'images', 'networks', 'templates'] as const).map((tab) => (
           <button
             key={tab}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer mobile:min-h-9 mobile:shrink-0 ${
               activeTab === tab
                 ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-[var(--tb-hover)]'
@@ -33,7 +33,7 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2 mobile:shrink-0">
+      <div className="flex items-center gap-2 mobile:ml-auto mobile:shrink-0">
         <IconButton
           type="button"
           onClick={() => {
