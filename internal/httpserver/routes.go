@@ -13,6 +13,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
 	s.mux.HandleFunc("GET /api/v1/mcp-catalog", s.handleMCPCatalog)
 	s.mux.HandleFunc("GET /api/v1/public/demo", s.handlePublicDemo)
+	s.mux.HandleFunc("GET /api/v1/public/docs", s.handlePublicDocsList)
+	s.mux.HandleFunc("GET /api/v1/public/docs/{slug}", s.handlePublicDocGet)
 	s.mux.Handle("GET /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleGetWallpaper)))
 	s.mux.Handle("POST /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleUpdateWallpaper)))
 
@@ -115,7 +117,8 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/system/update", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateInfo)))
 	s.mux.Handle("GET /api/v1/system/update/status", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateStatus)))
 	s.mux.Handle("POST /api/v1/system/update/apply", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdateApply)))
-	s.mux.Handle("GET /api/v1/system/logs", s.requireAuthV2(http.HandlerFunc(s.handleSystemLogs)))
+	// service journals show every account's activity: superadmin only
+	s.mux.Handle("GET /api/v1/system/logs", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSystemLogs)))
 	s.mux.Handle("GET /api/v1/system/changelog", s.requireAuthV2(http.HandlerFunc(s.handleSystemChangelog)))
 	// The panel's own database: superadmin only
 	s.mux.Handle("GET /api/v1/database/status", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDatabaseStatus)))

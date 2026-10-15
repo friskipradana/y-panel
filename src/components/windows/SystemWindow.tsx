@@ -1,11 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, CheckCircle2, Cpu, Database, HardDriveDownload, MemoryStick, Network, RefreshCw, ShieldAlert, TimerReset } from 'lucide-react'
-import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
-import { useAuthStore } from '@/store/authStore'
-import { useWindowStore } from '@/store/windowStore'
+import { Activity, AlertTriangle, CheckCircle2, Cpu, HardDriveDownload, MemoryStick, Network, RefreshCw, ShieldAlert, TimerReset } from 'lucide-react'
+import { getSystemSummary } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
-import type { RuntimeDatabaseLog } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { ErrorState, LoadingState } from '@/components/ui/states'
@@ -79,77 +76,19 @@ function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: str
   )
 }
 
-function extractProjectId(metadata: string) {
-  if (!metadata || metadata === '{}') return null
-  try {
-    const parsed = JSON.parse(metadata) as { projectId?: number; projectID?: number }
-    const raw = parsed.projectId ?? parsed.projectID
-    const nextId = Number(raw ?? 0)
-    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
-  } catch {
-    const match = metadata.match(/"project(?:Id|ID)"\s*:\s*(\d+)/)
-    if (!match) return null
-    const nextId = Number(match[1])
-    return Number.isFinite(nextId) && nextId > 0 ? nextId : null
-  }
-}
-
-function extractAttentionType(message: string, metadata: string) {
-  const haystack = `${message} ${metadata}`.toLowerCase()
-  if (haystack.includes('drift')) return 'drift'
-  if (haystack.includes('degraded') || haystack.includes('project status reconciled')) return 'degraded'
-  return 'all'
-}
-
 export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
+  const { t } = useI18n()
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
     queryFn: getSystemSummary,
     retry: 1,
     refetchInterval: 5_000,
   })
-  // the panel's own database is readable by the superadmin only
-  const isSuperadmin = useAuthStore((state) => state.user?.role) === 'superadmin'
-  const databaseQuery = useQuery({
-    queryKey: ['database-status'],
-    queryFn: getDatabaseStatus,
-    retry: 1,
-    refetchInterval: 15_000,
-    enabled: isSuperadmin,
-  })
-  const openWindow = useWindowStore((state) => state.openWindow)
-  const { t } = useI18n()
 
   useEffect(() => {
-    if (authenticated) {
-      void refetch()
-      void databaseQuery.refetch()
-    }
+    if (authenticated) void refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
-
-  const reconcileIncidents = useMemo(() => {
-    const runtimeLogs = databaseQuery.data?.runtimeLogs ?? []
-    return runtimeLogs
-      .filter((entry) => {
-        const message = entry.message.toLowerCase()
-        return message.includes('reconcile') || message.includes('drift') || message.includes('degraded')
-      })
-      .slice(0, 5)
-  }, [databaseQuery.data?.runtimeLogs])
-
-  const openProjectsAttention = (entry: RuntimeDatabaseLog) => {
-    const projectId = extractProjectId(entry.metadata)
-    const attentionType = extractAttentionType(entry.message, entry.metadata)
-    openWindow('projects', {
-      attentionOnly: true,
-      attentionType,
-      highlightProjectId: projectId ?? undefined,
-      incidentMessage: entry.message,
-      incidentMetadata: entry.metadata,
-      incidentAt: entry.createdAt,
-    })
-  }
 
   if (isLoading) {
     return (
@@ -237,7 +176,6 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
               <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
               <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
               <HealthPill ok={data.portainerReachable} label={data.portainerReachable ? t('system.portainerOnline') : t('system.portainerOffline')} />
-              <HealthPill ok={data.database?.connected} label={data.database?.connected ? t('system.mariadbConnected') : data.database?.enabled ? t('system.mariadbUnavailable') : t('system.mariadbDisabled')} />
             </div>
           </section>
 
@@ -245,7 +183,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             <MetricCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={`${data.cpuUsagePercent.toFixed(1)}%`} subtitle={t('system.cpuUsageSubtitle')} percent={data.cpuUsagePercent} />
             <MetricCard icon={<TimerReset size={15} />} title={t('system.systemUptime')} value={formatUptime(data.uptimeSeconds)} subtitle={t('system.systemUptimeSubtitle')} />
             <MetricCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`} subtitle={t('system.memoryRamSubtitle')} percent={memoryPercent} />
-            <MetricCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitle', { path: data.stateDir })} percent={storagePercent} />
+            <MetricCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitleShort')} percent={storagePercent} />
           </div>
 
           <div className="panel-kpi-grid panel-kpi-grid--4">
@@ -259,25 +197,6 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
               <p className="panel-shell-card__title">{data.dockerStatus}</p>
               <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
-            </InfoCard>
-
-            <InfoCard icon={<Activity size={15} />} title={t('system.portainerIntegration')}>
-              <p className="panel-section-label">{t('system.endpoint')}</p>
-              <code className="panel-mono block break-all text-[12px] leading-relaxed text-[var(--win-text)]">{data.portainerUrl}</code>
-              <p className="panel-shell-card__meta">{t('system.portainerMeta')}</p>
-            </InfoCard>
-
-            <InfoCard icon={<Database size={15} />} title={t('system.mariadbRuntime')}>
-              <p className="panel-shell-card__title">
-                {data.database?.connected
-                  ? `${data.database?.user}@${data.database?.host}:${data.database?.port}`
-                  : data.database?.enabled ? t('system.configuredNotConnected') : t('system.disabled')}
-              </p>
-              <p className="panel-shell-card__meta">
-                {data.database?.connected
-                  ? t('system.databaseCounts', { logs: data.database?.runtimeLogCount, changelog: data.database?.changelogCount, audit: data.database?.settingsAuditCount })
-                  : data.database?.lastError || t('system.persistenceInactive')}
-              </p>
             </InfoCard>
 
             <InfoCard icon={<ShieldAlert size={15} />} title={t('system.orchestratorHealth')}>
@@ -302,40 +221,6 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             </InfoCard>
           </div>
 
-          <InfoCard icon={<AlertTriangle size={15} />} title={t('system.recentIncidents')}>
-            {reconcileIncidents.length === 0 ? (
-              <p className="panel-shell-card__meta">{t('system.noRecentIncidents')}</p>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {reconcileIncidents.map((entry) => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => openProjectsAttention(entry)}
-                    className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition hover:-translate-y-[1px] hover:shadow-[var(--system-incident-hover-shadow)]"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`panel-badge ${entry.level === 'warning' ? 'panel-badge--warning' : entry.level === 'error' ? 'panel-badge--danger' : 'panel-badge--info'}`}>
-                        {entry.level}
-                      </span>
-                      <span className="text-[12px] font-semibold text-[var(--win-text)]">{entry.message}</span>
-                      <span className="ml-auto text-[12px] text-[var(--text-secondary)]">
-                        {new Date(entry.createdAt).toLocaleString('id-ID')}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
-                      {entry.metadata && entry.metadata !== '{}'
-                        ? entry.metadata
-                        : t('system.noIncidentMetadata')}
-                    </p>
-                    <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--panel-primary-text)]">
-                      {t('system.openProjectsAttention')}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </InfoCard>
         </div>
       </div>
     </div>

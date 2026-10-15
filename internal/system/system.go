@@ -1,15 +1,16 @@
 package system
 
 import (
-	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -354,10 +355,16 @@ func parseNetDev(data []byte) NetworkIO {
 	return NetworkIO{BytesRecv: totalRx, BytesSent: totalTx}
 }
 
+var serviceNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._-]{0,63}$`)
+
 func ReadServiceLogs(service string, limit int) ([]LogEntry, error) {
 	service = strings.TrimSpace(service)
 	if service == "" {
 		service = runtimepath.Name
+	}
+	// only plain unit names: the value goes to journalctl -u
+	if !serviceNameRe.MatchString(service) {
+		return nil, fmt.Errorf("nama service tidak valid")
 	}
 	// "reneo" and "ypanel" both mean the panel unit, whichever name is installed
 	service = runtimepath.ResolveServiceAlias(service)

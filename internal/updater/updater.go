@@ -66,14 +66,16 @@ type release struct {
 
 // Checker caches the latest release lookup.
 type Checker struct {
-	repo   string
-	client *http.Client
-	apiURL string
+	repo        string
+	client      *http.Client
+	apiURL      string
+	releasesURL string // overridden in tests
 
 	mu     sync.Mutex
-	cached *release
-	at     time.Time
-	err    string
+	cached   *release
+	at       time.Time
+	err      string
+	releases *releasesCache
 }
 
 func New() *Checker {

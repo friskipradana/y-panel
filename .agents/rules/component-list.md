@@ -12,6 +12,7 @@ Inventaris komponen Reneo. Cek di sini sebelum membuat komponen atau class baru.
 | `DemoAccess` | `src/pages/landing/DemoAccess.tsx` | Kartu akun demo di landing; muncul hanya bila agent mengaktifkan demo (`RENEO_DEMO_PASSWORD`, lihat `docs/security-hardening.md`). Role demo di UI = `demo`, hanya window `apps`, `projects`, `system`, `widgets`, `docs`, `changelog`, `profile` |
 | `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik bermerek Reneo (filosofi: [FILOSOFI-RENEO.md](../../docs/FILOSOFI-RENEO.md)); versi dari `usePanelVersion` (`lib/version.ts`: versi agent, fallback versi bundle). Ikon merek di `public/` dan `public/brand/` dibuat oleh `scripts/make-brand-icons.py` (navy `#0B2A57`, R putih) |
 | `McpGuidePage` | `src/pages/McpGuidePage.tsx` + `mcp-guide/` | Panduan MCP: `ConnectPanel`, `ToolCatalog`; `toolsData.ts` dibuat dari registry agent |
+| `ArticlesPage`, `ArticlePage` | `src/pages/ArticlesPage.tsx` | Artikel publik `/articles` dan `/articles/:slug` (dari `GET /api/v1/public/docs`), tanpa login |
 | `LoginPage` | `src/pages/LoginPage.tsx` | Login + wizard first-run |
 | `DesktopPage` | `src/pages/DesktopPage.tsx` | Pembungkus `Desktop` |
 | `FrontendNotFoundPage` | `src/components/system/` | 404 frontend |
@@ -53,15 +54,15 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `tunnels` | `TunnelsWindow` | `tunnels/`: `useTunnelsWindow`, `TunnelsToolbar`, `CloudflareSetupNotice`, `TunnelsBody`, `TunnelRows`, `TunnelModals`, `TunnelModalHost`, `ProfileModalHost`, `TunnelsShared`, `tunnelForms` |
 | `host-terminal` | `HostTerminalWindow` | xterm, multi-pane, preset (belum dipecah) |
 | `terminal`, `portainer`, `trash` | placeholder | `Desktop.tsx` |
-| `system` | `SystemWindow` | belum dipecah |
-| `system-logs` | `SystemLogsWindow` | belum dipecah |
+| `system` | `SystemWindow` | Pemantauan host (CPU, RAM, disk, Docker, beban kerja). Isi internal Reneo (state path, Portainer, insiden reconcile) ada di Settings, tab `ReneoRuntimeTab`, hanya superadmin |
+| `system-logs` | `SystemLogsWindow` | Hanya superadmin (API juga). Filter level, sorot pencarian, jeda, salin, unduh |
 | `file-editor` | `FileEditorWindow` | Monaco (belum dipecah) |
 | `database` | `DatabaseWindow` | `database/`: `useDatabasesWindow`, `CreateDatabaseModal`, `ConnectionModal`. Database milik user (PostgreSQL, MySQL, MariaDB, MongoDB, Redis) sebagai container di 127.0.0.1 (`internal/userdb`). Info database Reneo sendiri ada di Settings, tab `ReneoDatabaseTab`, hanya superadmin |
 | `users` | `UsersWindow` | `users/`: `UserQuotaPanel` (kuota + pemakaian), `ResetPasswordModal`, `permissions` (cermin kebijakan agent: admin hanya mengelola user biasa, hanya superadmin memberi role admin) |
 | `profile` | `ProfileWindow` | `profile/AccountSecurityCard` (pemakaian sendiri + ganti password) |
 | `widgets` | `WidgetsWindow` | – |
-| `docs` | `DocsWindow` | – |
-| `changelog` | `ChangelogWindow` | – |
+| `docs` | `DocsWindow` | `docs/`: `useDocsWindow`, `DocEditorModal`. Markdown lewat `lib/markdown`; artikel berstatus terbit + `isPublic` tampil publik di `/articles` tanpa login |
+| `changelog` | `ChangelogWindow` | Mengikuti GitHub Releases lewat agent (cache 1 jam, fallback ke entri lokal); catatan rilis dirender oleh `lib/markdown` |
 
 ## 4. Widget Desktop
 

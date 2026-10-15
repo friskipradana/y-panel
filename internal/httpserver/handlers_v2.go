@@ -2223,7 +2223,10 @@ type docPayload struct {
 	Excerpt string `json:"excerpt"`
 	Content string `json:"content"`
 	Status  string `json:"status"`
+	IsPublic bool  `json:"isPublic"`
 }
+
+const maxDocContentBytes = 200 << 10
 
 func normalizeDocPayload(req *docPayload) error {
 	req.Title = strings.TrimSpace(req.Title)
@@ -2236,6 +2239,9 @@ func normalizeDocPayload(req *docPayload) error {
 	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
 	if req.Title == "" {
 		return fmt.Errorf("title is required")
+	}
+	if len(req.Content) > maxDocContentBytes {
+		return fmt.Errorf("content is too long (max %d KB)", maxDocContentBytes>>10)
 	}
 	if req.Slug == "" {
 		return fmt.Errorf("slug is required")
@@ -2308,8 +2314,12 @@ func (s *Server) handleCreateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	doc, err := s.database.CreateDoc(&u.ID, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -2330,8 +2340,12 @@ func (s *Server) handleUpdateDoc(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status)
+	doc, err := s.database.UpdateDoc(id, req.Title, req.Slug, req.Excerpt, req.Content, req.Status, req.IsPublic)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "an article with this slug already exists"})
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}

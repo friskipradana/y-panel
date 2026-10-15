@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Bot, Download, ExternalLink, GitBranch } from 'lucide-react'
+import { ArrowRight, BookOpen, Bot, Download, ExternalLink, GitBranch } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
 import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
@@ -48,6 +48,10 @@ export function PublicShell({ children }: PublicShellProps) {
           </div>
 
           <nav aria-label={t('public.navLabel')} className="flex items-center gap-1">
+            <button type="button" onClick={() => navigate('/articles')} className={navLink}>
+              <BookOpen size={14} />
+              <span className="hidden md:inline">{t('public.nav.articles')}</span>
+            </button>
             <button type="button" onClick={() => navigate('/docs/mcp')} className={navLink}>
               <Bot size={14} />
               <span className="hidden md:inline">{t('public.nav.mcp')}</span>

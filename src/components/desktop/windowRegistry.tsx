@@ -22,13 +22,16 @@ const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWind
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
 
 
-const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'system-logs'])
+const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings'])
+// service journals show every account's activity
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs'])
 
 // The public demo account only browses: no files, terminal, users, settings or cloud access
 const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'system', 'widgets', 'profile'])
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)
+  if (SUPERADMIN_ONLY_WINDOW_KINDS.has(kind)) return role === 'superadmin'
   if (role === 'admin' || role === 'superadmin') return true
   return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
 }
