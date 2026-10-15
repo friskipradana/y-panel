@@ -2,7 +2,7 @@
 
 > Pembaruan kendali. Kesini aja. (sebelumnya YPanel; filosofi di [docs/FILOSOFI-RENEO.md](docs/FILOSOFI-RENEO.md))
 
-![Reneo social preview](public/ChatGPT%20Image%20Apr%2027%2C%202026%2C%2011_04_38%20AM.png)
+![Halaman utama Reneo: hero, perintah pasang, dan pratinjau desktop](docs/images/landing-page.png)
 
 **Reneo** adalah panel kontrol server Linux dengan antarmuka bergaya desktop. Frontend React 19 dan agent Go menyatukan Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI (lewat MCP) dalam satu workspace visual, dengan tampilan desktop dan tampilan ponsel.
 
