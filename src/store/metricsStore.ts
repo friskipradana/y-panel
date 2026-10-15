@@ -13,7 +13,7 @@ export const SAMPLE_INTERVAL_MS = 5_000
 /** 1 hour of history at the sampling interval */
 export const MAX_POINTS = 720
 const MAX_AGE_MS = 60 * 60 * 1000 + 60_000
-const STORAGE_KEY = 'ypanel-metrics-v1'
+const STORAGE_KEY = 'reneo-metrics-v1'
 
 // Coalesce writes: the sampler ticks every few seconds, localStorage only needs the latest snapshot
 function createDebouncedStorage(delayMs: number): StateStorage {

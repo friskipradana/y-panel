@@ -14,13 +14,15 @@ import (
 )
 
 const (
-	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# RENEO_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# RENEO_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
 
 	// Legacy markers for backward compatibility with existing agent.env files
 	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	ypanelOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	ypanelOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 )
 
 // Config holds all runtime configuration for the panel agent.
@@ -228,11 +230,11 @@ func readAllowedOriginsFromManagedBlock() ([]string, bool) {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}

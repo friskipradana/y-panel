@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	managedResolvedConfigPath       = "/etc/systemd/resolved.conf.d/ypanel.conf"
-	legacyManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
+	managedResolvedConfigPath       = "/etc/systemd/resolved.conf.d/reneo.conf"
+	legacyManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ypanel.conf"
+	oldestManagedResolvedConfigPath = "/etc/systemd/resolved.conf.d/ui-panel.conf"
 )
 
 type SettingsSnapshot struct {
@@ -326,6 +327,7 @@ func writeManagedNameservers(nameservers []string) error {
 		return fmt.Errorf("gagal menulis konfigurasi dns terkelola")
 	}
 	_ = os.Remove(legacyManagedResolvedConfigPath)
+	_ = os.Remove(oldestManagedResolvedConfigPath)
 	if err := exec.Command("systemctl", "restart", "systemd-resolved").Run(); err != nil {
 		return fmt.Errorf("gagal me-restart systemd-resolved")
 	}
@@ -338,6 +340,9 @@ func managedResolvedPath() string {
 	}
 	if _, err := os.Stat(legacyManagedResolvedConfigPath); err == nil {
 		return legacyManagedResolvedConfigPath
+	}
+	if _, err := os.Stat(oldestManagedResolvedConfigPath); err == nil {
+		return oldestManagedResolvedConfigPath
 	}
 	return managedResolvedConfigPath
 }
@@ -418,13 +423,15 @@ func updatePanelAccessSettingsRaw(bindAddr string, allowedHosts []string, origin
 }
 
 const (
-	managedOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
-	managedOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
+	managedOriginsBlockBegin = "# RENEO_ALLOWED_ORIGINS_BEGIN"
+	managedOriginsBlockEnd   = "# RENEO_ALLOWED_ORIGINS_END"
 	managedOriginsLinePrefix = "#|"
 
 	// Legacy markers for backward compatibility with existing agent.env files
 	legacyOriginsBlockBegin = "# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
 	legacyOriginsBlockEnd   = "# UI_PANEL_ALLOWED_ORIGINS_END"
+	ypanelOriginsBlockBegin = "# YPANEL_ALLOWED_ORIGINS_BEGIN"
+	ypanelOriginsBlockEnd   = "# YPANEL_ALLOWED_ORIGINS_END"
 )
 
 func panelEnvPath() string {
@@ -591,11 +598,11 @@ func readManagedOriginsBlock(data string) string {
 	end := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}
@@ -631,11 +638,11 @@ func writeManagedOriginsBlock(data, rawValue string) string {
 	insertAt := len(lines)
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin {
+		if trimmed == managedOriginsBlockBegin || trimmed == legacyOriginsBlockBegin || trimmed == ypanelOriginsBlockBegin {
 			start = i
 			continue
 		}
-		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd) && start >= 0 {
+		if (trimmed == managedOriginsBlockEnd || trimmed == legacyOriginsBlockEnd || trimmed == ypanelOriginsBlockEnd) && start >= 0 {
 			end = i
 			break
 		}

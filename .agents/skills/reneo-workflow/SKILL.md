@@ -1,5 +1,5 @@
 ---
-name: ypanel-workflow
+name: reneo-workflow
 description: Standard operating procedure and engineering workflow for developing, refactoring, and maintaining the Reneo desktop Linux server control panel codebase.
 ---
 

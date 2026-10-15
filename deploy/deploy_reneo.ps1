@@ -2,7 +2,7 @@ param(
   [string]$HostName = 'node1-ubuntu.taile0346b.ts.net',
   [string]$SshUser = 'renaldi',
   [string]$SshPassword = '',
-  [string]$RemoteBaseDir = '~/ui-panel-deploy',
+  [string]$RemoteBaseDir = '~/reneo-deploy',
   [string]$BindAddress = '',
   [string]$AdminUsername = 'admin',
   [string]$AdminPassword = '',
@@ -113,7 +113,7 @@ function Initialize-UiTheme {
         Write-Host ''
         Write-Host '  Update ke PowerShell 7 lalu jalankan ulang dengan:' -ForegroundColor Yellow
         Write-Host '    winget install --id Microsoft.PowerShell --source winget' -ForegroundColor Cyan
-        Write-Host '    pwsh -File .\deploy_ui_panel.ps1 -HostName <host> -SshPassword <password>' -ForegroundColor Cyan
+        Write-Host '    pwsh -File .\deploy_reneo.ps1 -HostName <host> -SshPassword <password>' -ForegroundColor Cyan
         exit 1
       }
       $Script:UiTheme = $asciiTheme
@@ -207,7 +207,7 @@ function Build-ProgressPrefix {
 function Write-Banner {
   $line = $Script:UiTheme.LineChar * 60
   Write-Host "  $line" -ForegroundColor DarkGray
-  Write-Host "   UI-Panel Deploy " -NoNewline -ForegroundColor White
+  Write-Host "   Reneo Deploy " -NoNewline -ForegroundColor White
   Write-Host "v$(Get-Date -Format 'yyyyMMdd')" -ForegroundColor DarkGray
   Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray
   Write-Host "${SshUser}@${HostName}" -ForegroundColor Cyan
@@ -314,7 +314,7 @@ $ProdFrontendDir = Join-Path $ProductionsDir 'frontend'
 $ProdBackendDir = Join-Path $ProductionsDir 'backend'
 $ProdInstallerDir = Join-Path $ProductionsDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ui-panel-deploy.tar.gz'
+$ArchivePath = Join-Path $TmpDir 'reneo-deploy.tar.gz'
 $PanelPort = '8787'
 
 foreach ($d in @($ProductionsDir, $ProdFrontendDir, $ProdBackendDir, $ProdInstallerDir, $TmpDir)) {
@@ -449,13 +449,13 @@ try {
   if ([string]::IsNullOrWhiteSpace($ResolvedRemoteBaseDir)) {
     throw 'Gagal me-resolve path remote deploy directory.'
   }
-  $RemoteReleaseDir = "$ResolvedRemoteBaseDir/ui-panel"
-  $RemoteArchivePath = "$ResolvedRemoteBaseDir/ui-panel-deploy.tar.gz"
+  $RemoteReleaseDir = "$ResolvedRemoteBaseDir/reneo"
+  $RemoteArchivePath = "$ResolvedRemoteBaseDir/reneo-deploy.tar.gz"
   Write-StepDone $ResolvedRemoteBaseDir
 
   # ── [7] Baca konfigurasi lama ─────────────────────────────────
   Write-Step 'Membaca konfigurasi panel sebelumnya'
-  $ExistingEnvRaw = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/ui-panel/agent.env 2>/dev/null || true"
+  $ExistingEnvRaw = Invoke-Remote "printf '%s\n' '$escapedSudo' | sudo -S cat /etc/reneo/agent.env 2>/dev/null || true"
   $ExistingEnv = @{}
   foreach ($line in $ExistingEnvRaw) {
     if ($line -match '^(?<key>[A-Z0-9_]+)=(?<value>.*)$') {
@@ -564,7 +564,7 @@ find installer -type f \( -name '*.sh' -o -name '*.service.tpl' \) -exec sed -i 
 chmod +x installer/linux/install.sh
 chmod +x installer/linux/uninstall.sh
 
-ENV_FILE='/etc/ui-panel/agent.env'
+ENV_FILE='/etc/reneo/agent.env'
 
 printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -c "export PANEL_BIND_ADDR='`$DEFAULT_BIND'; export PANEL_ADMIN_USERNAME='`$DEFAULT_ADMIN'; export PANEL_ADMIN_PASSWORD='`$DEFAULT_PASSWORD'; bash installer/linux/install.sh"
 if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_HOSTS=' \"`$ENV_FILE\""; then
@@ -573,7 +573,7 @@ fi
 if ! printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "grep -q '^PANEL_ALLOWED_ORIGINS=' \"`$ENV_FILE\""; then
   printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' bash -lc "echo \"PANEL_ALLOWED_ORIGINS=`$DEFAULT_ALLOWED_ORIGINS\" >> \"`$ENV_FILE\""
 fi
-printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' systemctl restart ui-panel.service
+printf '%s\n' "`$SUDO_PASSWORD" | sudo -S -p '' systemctl restart reneo.service
 sleep 2
 curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
 "@
@@ -590,7 +590,7 @@ curl -fsS "http://127.0.0.1:`$PANEL_PORT/healthz"
 
     $installOut = Invoke-Remote "bash $ResolvedRemoteBaseDir/deploy_remote.sh"
     foreach ($ln in $installOut) {
-      $clean = $ln -replace '^\[ui-panel\]\s*', ''
+      $clean = $ln -replace '^\[reneo\]\s*', ''
       if ($clean -and $clean -notmatch '^{"') { Write-Info $clean }
     }
   }

@@ -8,7 +8,7 @@ import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
 import type { WidgetProps } from './types'
 
-const TAB_STORAGE_KEY = 'ypanel-widget-network-active-tab'
+const TAB_STORAGE_KEY = 'reneo-widget-network-active-tab'
 
 function formatSpeed(bytesPerSec: number): string {
   if (!bytesPerSec || bytesPerSec <= 0) return '0 B/s'

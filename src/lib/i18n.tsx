@@ -7,7 +7,7 @@ export type Language = 'id' | 'en'
 type TranslationParams = Record<string, string | number | undefined | null>
 type TranslationDictionary = Record<string, string>
 
-const STORAGE_KEY = 'ypanel-language'
+const STORAGE_KEY = 'reneo-language'
 
 const dictionaries: Record<Language, TranslationDictionary> = { id, en }
 

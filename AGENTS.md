@@ -1,4 +1,4 @@
-# YPanel
+# Reneo
 
 Panel server Linux bergaya desktop: React 19 + TypeScript + Vite (frontend), Go agent (backend). Aturan proyek umum ada di [.agents/AGENTS.md](.agents/AGENTS.md).
 

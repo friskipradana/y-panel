@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { sanitizeLayout, useWidgetStore, type MobileWidgetLayout } from '@/store/widgetStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 
-const OWNER_KEY = 'ypanel-widgets-owner'
+const OWNER_KEY = 'reneo-widgets-owner'
 const PUSH_DELAY_MS = 1_500
 const KNOWN_TYPES: WidgetType[] = ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping']
 

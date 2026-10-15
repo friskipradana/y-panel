@@ -15,7 +15,7 @@ interface ErrorBoundaryState {
 
 function getStoredLanguage(): Language {
   if (typeof window === 'undefined') return 'id'
-  const stored = window.localStorage.getItem('ypanel-language')
+  const stored = window.localStorage.getItem('reneo-language')
   return stored === 'en' ? 'en' : 'id'
 }
 

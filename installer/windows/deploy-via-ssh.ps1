@@ -32,7 +32,7 @@ if ($test -notmatch "OK") {
 
 # 2. Check server state
 Write-Host "`n[2/6] Checking server state..." -ForegroundColor Green
-Invoke-SSH "systemctl status ui-panel --no-pager -l | head -20 2>/dev/null || echo 'Service not found'"
+Invoke-SSH "systemctl status reneo --no-pager -l | head -20 2>/dev/null || echo 'Service not found'"
 Invoke-SSH "which go 2>/dev/null || ls /usr/local/go/bin/go 2>/dev/null || echo 'Go not installed'"
 Invoke-SSH "postgresql --version 2>/dev/null || pg_lsclusters 2>/dev/null | head -3 || echo 'PostgreSQL check'"
 
@@ -97,13 +97,13 @@ PANEL_ENCRYPTION_KEY=$encKey
 PANEL_BOOTSTRAP_USERNAME=admin
 PANEL_BOOTSTRAP_EMAIL=admin@panel.local
 PANEL_BOOTSTRAP_PASSWORD=Admin@Panel2024!
-PANEL_STATE_DIR=/var/lib/ui-panel
-PANEL_FRONTEND_DIR=/opt/ui-panel/frontend
+PANEL_STATE_DIR=/var/lib/reneo
+PANEL_FRONTEND_DIR=/opt/reneo/frontend
 PANEL_SESSION_TTL=12h
 "@
 
 # Write env via heredoc
-$envCmd = "sudo mkdir -p /opt/ui-panel /var/lib/ui-panel && cat > /tmp/panel.env << 'ENVEOF'`n$envContent`nENVEOF`nsudo mv /tmp/panel.env /etc/ui-panel.env && sudo chmod 600 /etc/ui-panel.env && echo 'Env written OK'"
+$envCmd = "sudo mkdir -p /opt/reneo /var/lib/reneo && cat > /tmp/panel.env << 'ENVEOF'`n$envContent`nENVEOF`nsudo mv /tmp/panel.env /etc/reneo.env && sudo chmod 600 /etc/reneo.env && echo 'Env written OK'"
 & $plink -batch -ssh -pw $pass "${user}@${server}" $envCmd
 
 # 6. Transfer and build
@@ -136,13 +136,13 @@ tar -xzf /tmp/panel-src.tar.gz
 
 echo "Building Go backend..."
 go mod download 2>/dev/null
-go build -o /tmp/ui-panel-agent . 2>&1 || go build -o /tmp/ui-panel-agent ./main.go 2>&1 || echo "BUILD FAILED"
+go build -o /tmp/reneo-agent . 2>&1 || go build -o /tmp/reneo-agent ./main.go 2>&1 || echo "BUILD FAILED"
 
-if [ -f /tmp/ui-panel-agent ]; then
+if [ -f /tmp/reneo-agent ]; then
   echo "Build success!"
-  sudo mv /tmp/ui-panel-agent /opt/ui-panel/ui-panel-agent
-  sudo chmod +x /opt/ui-panel/ui-panel-agent
-  sudo chown $(whoami):$(whoami) /opt/ui-panel/ui-panel-agent
+  sudo mv /tmp/reneo-agent /opt/reneo/reneo-agent
+  sudo chmod +x /opt/reneo/reneo-agent
+  sudo chown $(whoami):$(whoami) /opt/reneo/reneo-agent
 else
   echo "ERROR: Build failed"
 fi
@@ -153,39 +153,39 @@ cd /tmp && rm -rf panel-src panel-src.tar.gz
 
 # Update systemd service
 $serviceScript = @'
-sudo tee /etc/systemd/system/ui-panel.service > /dev/null << 'EOF'
+sudo tee /etc/systemd/system/reneo.service > /dev/null << 'EOF'
 [Unit]
 Description=ServerPanel Pro
 After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=ui-panel
-Group=ui-panel
-WorkingDirectory=/var/lib/ui-panel
-EnvironmentFile=/etc/ui-panel.env
-ExecStart=/opt/ui-panel/ui-panel-agent
+User=reneo
+Group=reneo
+WorkingDirectory=/var/lib/reneo
+EnvironmentFile=/etc/reneo.env
+ExecStart=/opt/reneo/reneo-agent
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ui-panel
+SyslogIdentifier=reneo
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 # Create panel user if missing
-id ui-panel 2>/dev/null || sudo useradd -r -s /bin/bash -m ui-panel
-sudo mkdir -p /opt/ui-panel /var/lib/ui-panel
-sudo chown -R ui-panel:ui-panel /opt/ui-panel /var/lib/ui-panel 2>/dev/null || true
-sudo chown ui-panel:ui-panel /opt/ui-panel/ui-panel-agent 2>/dev/null || true
+id reneo 2>/dev/null || sudo useradd -r -s /bin/bash -m reneo
+sudo mkdir -p /opt/reneo /var/lib/reneo
+sudo chown -R reneo:reneo /opt/reneo /var/lib/reneo 2>/dev/null || true
+sudo chown reneo:reneo /opt/reneo/reneo-agent 2>/dev/null || true
 
 sudo systemctl daemon-reload
-sudo systemctl enable ui-panel
-sudo systemctl restart ui-panel
+sudo systemctl enable reneo
+sudo systemctl restart reneo
 sleep 3
-sudo systemctl status ui-panel --no-pager | head -20
+sudo systemctl status reneo --no-pager | head -20
 echo "Service restart done. Healthcheck:"
 curl -s http://127.0.0.1:8787/healthz || echo "Healthcheck failed"
 '@

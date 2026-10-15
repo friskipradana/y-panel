@@ -233,7 +233,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       onDrop={(e) => {
         e.preventDefault()
         try {
-          const dataText = e.dataTransfer.getData('application/x-ui-panel-file')
+          const dataText = e.dataTransfer.getData('application/x-reneo-file')
           if (dataText) {
             const parsed = JSON.parse(dataText)
             if (parsed.path && parsed.name) {

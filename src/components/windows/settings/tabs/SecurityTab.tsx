@@ -83,7 +83,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             {t("settings.primaryPasswordSecurityNoteEnd")}
             {t("settings.linuxUserPasswordNote")}{" "}
             <code className="panel-mono text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] px-1.5 py-0.5 rounded border border-[var(--win-border)]">
-              ui-panel
+              reneo
             </code>{" "}
             {t("settings.notChanged")}.
           </div>

@@ -21,7 +21,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
     <div
       className={`flex-1 overflow-y-auto p-2 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-[var(--panel-primary-bg)]' : ''}`}
       onDragOver={(e) => {
-        const raw = e.dataTransfer.getData('application/x-ui-panel-file')
+        const raw = e.dataTransfer.getData('application/x-reneo-file')
         if (!raw) return
         e.preventDefault()
         e.dataTransfer.dropEffect = 'move'
@@ -31,7 +31,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
         if (dragOverPath === activeTab.currentPath) setDragOverPath(null)
       }}
       onDrop={async (e) => {
-        const raw = e.dataTransfer.getData('application/x-ui-panel-file') || e.dataTransfer.getData('text/plain')
+        const raw = e.dataTransfer.getData('application/x-reneo-file') || e.dataTransfer.getData('text/plain')
         setDragOverPath(null)
         if (!raw) return
         e.preventDefault()
@@ -82,7 +82,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
               isBulk: drags.length > 1,
               paths: drags
             })
-            e.dataTransfer.setData('application/x-ui-panel-file', payload)
+            e.dataTransfer.setData('application/x-reneo-file', payload)
             e.dataTransfer.setData('text/plain', payload)
             e.dataTransfer.effectAllowed = 'move'
 
@@ -107,7 +107,7 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           }}
           onDrop={async (e, it) => {
             if (!it.isDir) return
-            const raw = e.dataTransfer.getData('application/x-ui-panel-file') || e.dataTransfer.getData('text/plain')
+            const raw = e.dataTransfer.getData('application/x-reneo-file') || e.dataTransfer.getData('text/plain')
             setDragOverPath(null)
             if (!raw) return
             e.preventDefault()

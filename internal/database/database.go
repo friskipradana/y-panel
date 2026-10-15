@@ -1,4 +1,4 @@
-// Package database provides the PostgreSQL-backed persistence layer for YPanel.
+// Package database provides the PostgreSQL-backed persistence layer for Reneo.
 // It manages schema migrations, all entity CRUD operations, and connection lifecycle.
 package database
 
@@ -1655,8 +1655,8 @@ var defaultTerminalPresetCommands = []struct {
 	{"", "df -h", 4},
 	{"", "free -h", 5},
 	{"", "docker ps -a", 6},
-	{"", "systemctl status ypanel --no-pager", 7},
-	{"", "journalctl -u ypanel -n 50 --no-pager", 8},
+	{"", "systemctl status reneo --no-pager", 7},
+	{"", "journalctl -u reneo -n 50 --no-pager", 8},
 }
 
 func (m *Manager) seedDefaultTerminalPresets() error {

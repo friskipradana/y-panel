@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ypanel-pwa-v3'
+const CACHE_VERSION = 'reneo-pwa-v1'
 const APP_SHELL = [
   '/',
   '/index.html',

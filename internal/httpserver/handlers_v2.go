@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
@@ -130,7 +131,7 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 			return
 		}
 		// Fall back to session cookie
-		cookie, err := r.Cookie(sessionCookieName)
+		cookie, err := requestSessionCookie(r)
 		if err != nil {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 			return
@@ -206,6 +207,7 @@ func (s *Server) needsSetup() bool {
 }
 
 func (s *Server) issueSessionCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{Name: legacySessionCookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1, Expires: time.Unix(0, 0)})
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    token,
@@ -1574,7 +1576,7 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tempFile, err := os.CreateTemp("", "ypanel-static-upload-*.zip")
+	tempFile, err := os.CreateTemp("", "reneo-static-upload-*.zip")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1591,7 +1593,7 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tempDir, err := os.MkdirTemp("", "ypanel-static-build-*")
+	tempDir, err := os.MkdirTemp("", "reneo-static-build-*")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return

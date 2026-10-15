@@ -36,7 +36,7 @@ Dokumen ini menjadi aturan wajib dan acuan utama bagi AI Coding Assistant (Antig
 - **Konfigurasi Lingkungan**:
   - Dimuat di `internal/config/config.go` dengan pembacaan otomatis `.env` di lokal dan OS environment di Linux.
 - **Keamanan & RBAC**:
-  - Validasi sesi HttpOnly cookie (`ypanel_session`).
+  - Validasi sesi HttpOnly cookie (`reneo_session`).
   - Proteksi endpoint sensitif hanya untuk role `superadmin` / `admin`.
 
 ---
