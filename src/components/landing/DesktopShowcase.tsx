@@ -39,23 +39,13 @@ export function DesktopShowcase() {
   return (
     <div className="w-full max-w-5xl mx-auto select-none text-left font-sans">
       {/* Outer Desktop Canvas */}
-      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[#03060f] shadow-2xl shadow-black/80">
-        {/* Ambient Desktop Wallpaper Backdrop */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(14,165,233,0.1),transparent_50%),radial-gradient(circle_at_80%_80%,rgba(56,189,248,0.06),transparent_50%)] pointer-events-none" />
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)`,
-            backgroundSize: '20px 20px',
-          }}
-        />
-
+      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[var(--win-bg)] shadow-lg">
         {/* Top Desktop Taskbar */}
-        <div className="relative z-40 flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/[0.08] bg-[#040711]/90 backdrop-blur-md">
+        <div className="relative z-40 flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/[0.08] bg-[var(--panel-surface)]">
           {/* Left: Branding & Status */}
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-[12px] font-bold tracking-tight text-white">Reneo OS</span>
             </div>
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">|</span>
@@ -161,10 +151,10 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('docker')}
             style={{ zIndex: getZIndex('docker') }}
-            className={`relative z-10 w-full md:absolute md:top-7 md:left-24 md:w-[46%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`relative z-10 w-full md:absolute md:top-7 md:left-24 md:w-[46%] rounded-xl border transition-all duration-200 shadow-lg cursor-pointer ${
               activeWindow === 'docker'
-                ? 'border-cyan-500/50 bg-[#080d1a]/98 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
+                ? 'border-cyan-500/50 bg-[var(--win-bg)] scale-[1.01]'
+                : 'border-white/[0.08] bg-[var(--panel-surface)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -234,10 +224,10 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('cloudflare')}
             style={{ zIndex: getZIndex('cloudflare') }}
-            className={`hidden md:block md:absolute md:top-40 md:right-6 md:w-[36%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`hidden md:block md:absolute md:top-40 md:right-6 md:w-[36%] rounded-xl border transition-all duration-200 shadow-lg cursor-pointer ${
               activeWindow === 'cloudflare'
-                ? 'border-sky-500/50 bg-[#070b16]/98 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
+                ? 'border-sky-500/50 bg-[var(--win-bg)] scale-[1.01]'
+                : 'border-white/[0.08] bg-[var(--panel-surface)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -289,10 +279,10 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('terminal')}
             style={{ zIndex: getZIndex('terminal') }}
-            className={`relative w-full md:absolute md:bottom-16 md:left-32 md:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
+            className={`relative w-full md:absolute md:bottom-16 md:left-32 md:w-[48%] rounded-xl border transition-all duration-200 shadow-lg cursor-pointer ${
               activeWindow === 'terminal'
-                ? 'border-emerald-500/50 bg-[#03060c]/98 scale-[1.01]'
-                : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
+                ? 'border-emerald-500/50 bg-[var(--panel-surface-strong)] scale-[1.01]'
+                : 'border-white/[0.08] bg-[var(--panel-surface-strong)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -328,7 +318,7 @@ export function DesktopShowcase() {
                 <span className="text-slate-500">:</span>
                 <span className="text-cyan-400">~</span>
                 <span className="text-slate-500">$</span>
-                <span className="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse align-middle" />
+                <span className="inline-block w-1.5 h-3 bg-emerald-400 align-middle" />
               </div>
             </div>
           </div>
