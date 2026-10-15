@@ -21,3 +21,40 @@
   background: var(--win-border);
   border-radius: 9999px;
 }
+
+/* Boot / loading bar: a short block sliding across a track */
+@keyframes boot-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+.boot-bar {
+  position: relative;
+  height: 3px;
+  width: min(10rem, 50vw);
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.boot-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 32%;
+  border-radius: inherit;
+  background: currentColor;
+  animation: boot-slide 1.15s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-bar::after {
+    animation: none;
+    width: 100%;
+    opacity: 0.55;
+  }
+}

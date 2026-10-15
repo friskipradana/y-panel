@@ -16,8 +16,19 @@
     <meta name="apple-mobile-web-app-title" content="Reneo" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Reneo</title>
+    <style>
+      #boot-splash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;background:#0b2a57;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+      #boot-splash .b{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
+      #boot-splash img{width:64px;height:64px;border-radius:16px}
+      #boot-splash strong{display:block;font-size:18px;letter-spacing:-.01em}
+      #boot-splash .t{position:relative;height:3px;width:min(10rem,50vw);overflow:hidden;border-radius:9999px;background:rgba(255,255,255,.18)}
+      #boot-splash .t::after{content:"";position:absolute;inset:0 auto 0 0;width:32%;border-radius:inherit;background:#fff;animation:bs 1.15s ease-in-out infinite}
+      @keyframes bs{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+      @media (prefers-reduced-motion:reduce){#boot-splash .t::after{animation:none;width:100%;opacity:.55}}
+    </style>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true"><div class="b"><img src="/favicon.svg" alt="" width="64" height="64" /><strong>Reneo</strong><div class="t"></div></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
