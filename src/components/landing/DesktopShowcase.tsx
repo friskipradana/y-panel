@@ -259,14 +259,14 @@ export function DesktopShowcase() {
             {/* Content */}
             <div className="p-2.5 space-y-1.5">
               <div className="flex items-center justify-between p-1.5 rounded bg-white/[0.03] border border-white/[0.05] text-[10px]">
-                <span className="font-semibold text-slate-200 font-mono">aknalre.my.id</span>
+                <span className="font-semibold text-slate-200 font-mono">reneo.my.id</span>
                 <span className="text-emerald-400 font-mono text-[9px]">76 RECORDS</span>
               </div>
 
               <div className="space-y-1 font-mono text-[9.5px]">
                 {[
-                  { type: 'A', name: 'api.aknalre.my.id', target: '153.92.5.65' },
-                  { type: 'CNAME', name: 'panel.aknalre.my.id', target: 'tunnel-srv-01.cfargotunnel.com' },
+                  { type: 'A', name: 'api.reneo.my.id', target: '153.92.5.65' },
+                  { type: 'CNAME', name: 'panel.reneo.my.id', target: 'tunnel-srv-01.cfargotunnel.com' },
                 ].map((dns) => (
                   <div
                     key={dns.name}
