@@ -12,6 +12,9 @@ interface MobileHomeProps {
   onLaunch: (kind: WindowKind) => void
 }
 
+// Reachable from the desktop only through menus; the phone lists them here
+const EXTRA_APPS: WindowKind[] = ['system-logs', 'changelog']
+
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -56,7 +59,10 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
   const widgets = useWidgetStore((s) => s.placedWidgets)
-  const apps = useMemo(() => DESKTOP_SHORTCUTS.filter((a) => canAccessWindow(a.windowId, role)), [role])
+  const apps = useMemo(
+    () => [...DESKTOP_SHORTCUTS.map((a) => a.windowId), ...EXTRA_APPS].filter((kind) => canAccessWindow(kind, role)),
+    [role],
+  )
 
   const ramTotal = summary?.memory?.total ?? 0
   const diskTotal = summary?.storage?.total ?? 0
@@ -84,14 +90,14 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
         <h2 className="mb-2 text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">{t('mobile.apps')}</h2>
         <ul className="grid grid-cols-3 gap-2">
           {apps.map((app) => (
-            <li key={app.id}>
+            <li key={app}>
               <button
                 type="button"
-                onClick={() => onLaunch(app.windowId)}
+                onClick={() => onLaunch(app)}
                 className="flex min-h-[5.25rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-1 py-3 text-center transition-colors active:bg-[var(--panel-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
               >
-                <AppIcon kind={app.windowId} size={28} />
-                <span className="w-full truncate text-[0.75rem] font-medium">{t(windowTitleKey(app.windowId))}</span>
+                <AppIcon kind={app} size={28} />
+                <span className="w-full truncate text-[0.75rem] font-medium">{t(windowTitleKey(app))}</span>
               </button>
             </li>
           ))}

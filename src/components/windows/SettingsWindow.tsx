@@ -1,4 +1,9 @@
 import { useState } from "react";
+
+// Phone tab strip scrolls sideways: keep the active tab in view
+function keepVisibleOnPhone(el: HTMLButtonElement | null) {
+  if (el?.closest(".layout-mobile")) el.scrollIntoView({ inline: "center", block: "nearest" });
+}
 import {
   Clock,
   Cloud,
@@ -110,6 +115,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
+                aria-current={isActive ? "page" : undefined}
+                ref={isActive ? keepVisibleOnPhone : undefined}
                 className={`flex items-center gap-2 w-full mobile:w-auto mobile:shrink-0 mobile:whitespace-nowrap px-2.5 py-1.5 rounded-lg text-left text-[11.5px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
                   isActive
                     ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border-[var(--panel-primary-text)]/25 shadow-xs"

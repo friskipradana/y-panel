@@ -76,7 +76,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
     <div className="panel-window">
       {/* ── Compact Toolbar ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--win-border)] px-3 py-1.5 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-        <div className="flex items-center gap-2 flex-1 max-w-[540px]">
+        <div className="flex items-center gap-2 flex-1 max-w-[540px] mobile:max-w-none mobile:flex-wrap">
           <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[160px] h-[30px] py-0 text-xs panel-input--mono">
             {SERVICE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -89,7 +89,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
             ))}
           </select>
 
-          <label className="panel-search flex-1 max-w-[240px] h-[30px]">
+          <label className="panel-search flex-1 max-w-[240px] h-[30px] mobile:min-w-full mobile:max-w-none">
             <Search className="h-3.5 w-3.5" />
             <input
               id="system-logs-search"
