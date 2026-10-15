@@ -33,7 +33,7 @@ export const FileRow = memo(({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[30px_1fr_80px] @xl:grid-cols-[30px_1fr_80px_100px_130px] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
+      className={`grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr_80px] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
@@ -50,12 +50,12 @@ export const FileRow = memo(({
       <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight">
         {item.isDir ? '--' : formatSize(item.size)}
       </div>
-      <div className="hidden items-center @xl:flex">
+      <div className="flex items-center mobile:hidden">
         <div className="text-[12px] text-[var(--tb-clock)] bg-[var(--file-manager-mode-bg)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
           {item.mode}
         </div>
       </div>
-      <div className="hidden truncate p-1 text-[12px] font-medium text-[var(--text-secondary)] @xl:block">
+      <div className="text-[12px] text-[var(--text-secondary)] p-1 truncate font-medium mobile:hidden">
         {formatDate(item.modified)}
       </div>
     </div>

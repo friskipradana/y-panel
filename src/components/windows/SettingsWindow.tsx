@@ -94,12 +94,12 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   ];
 
   return (
-    <div className="@container panel-window flex flex-col h-full overflow-hidden">
+    <div className="panel-window flex flex-col h-full overflow-hidden">
       {/* ── Window Body: Desktop UI Sidebar + Content Area ── */}
-      <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0 @max-xl:flex-col">
+      <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0 mobile:flex-col">
         {/* ── Left Sidebar Navigation (Matching Applications Drawer Style) ── */}
-        <div className="w-[180px] lg:w-[190px] shrink-0 border-r border-[var(--win-border)] bg-[var(--panel-surface)] p-2 flex flex-col gap-0.5 overflow-y-auto select-none @max-xl:w-full @max-xl:flex-row @max-xl:gap-1 @max-xl:overflow-x-auto @max-xl:overflow-y-hidden @max-xl:border-b @max-xl:border-r-0">
-          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80 @max-xl:hidden">
+        <div className="w-[180px] lg:w-[190px] shrink-0 border-r border-[var(--win-border)] bg-[var(--panel-surface)] p-2 flex flex-col gap-0.5 overflow-y-auto select-none mobile:w-full mobile:flex-row mobile:gap-1 mobile:overflow-x-auto mobile:overflow-y-hidden mobile:border-b mobile:border-r-0">
+          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80 mobile:hidden">
             {t("settings.title")}
           </div>
           {SETTINGS_TABS.map((tab) => {
@@ -110,7 +110,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 w-full @max-xl:w-auto @max-xl:shrink-0 @max-xl:whitespace-nowrap px-2.5 py-1.5 rounded-lg text-left text-[11.5px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
+                className={`flex items-center gap-2 w-full mobile:w-auto mobile:shrink-0 mobile:whitespace-nowrap px-2.5 py-1.5 rounded-lg text-left text-[11.5px] font-medium border transition-colors duration-150 cursor-pointer outline-none focus:outline-none ${
                   isActive
                     ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold border-[var(--panel-primary-text)]/25 shadow-xs"
                     : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"

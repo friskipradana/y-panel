@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Phone layout only: applies inside MobileShell, never to desktop windows */
+@custom-variant mobile (&:where(.layout-mobile, .layout-mobile *));
+
 .custom-widget-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--win-border) transparent;

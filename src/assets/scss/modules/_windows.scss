@@ -504,7 +504,7 @@ button:focus-visible,
 }
 
 // Phones: two metrics per row instead of one tall card each
-@media (max-width: 767px) {
+.layout-mobile {
   .panel-kpi-grid--2,
   .panel-kpi-grid--4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -887,9 +887,18 @@ button:focus-visible,
 
 .panel-entity-row__main {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
+  gap: 14px;
+}
+
+// Phones: actions drop below the title instead of squeezing it
+.layout-mobile .panel-entity-row__main {
+  flex-wrap: wrap;
   gap: 10px 14px;
+}
+
+.layout-mobile .panel-entity-row__body {
+  flex: 1 1 12rem;
 }
 
 .panel-entity-row__main--center {
@@ -899,7 +908,7 @@ button:focus-visible,
 .panel-entity-row__body {
   display: flex;
   min-width: 0;
-  flex: 1 1 12rem;
+  flex: 1;
   flex-direction: column;
   gap: 5px;
 }
