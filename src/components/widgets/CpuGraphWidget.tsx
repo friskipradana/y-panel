@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Flame, History } from 'lucide-react'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
-import { asRange, useMetricSeries } from '@/store/metricsStore'
+import { asRange } from '@/store/metricsStore'
+import { useRangeSeries } from '@/store/liveStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
@@ -13,7 +14,7 @@ const pct = (v: number) => `${v.toFixed(0)}%`
 export function CpuGraphWidget({ widget }: WidgetProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
-  const points = useMetricSeries('cpu')
+  const points = useRangeSeries('cpu', asRange(widget.config?.range))
   const updateConfig = useWidgetStore((s) => s.updateWidgetConfig)
   const range = asRange(widget.config?.range)
 

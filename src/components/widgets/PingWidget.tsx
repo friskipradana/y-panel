@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Radar, Settings2, X } from 'lucide-react'
 import { pingHost, type PingResult } from '@/api/system'
+import { subscribeLivePing } from '@/lib/liveSocket'
+import { useLiveStore } from '@/store/liveStore'
 import { FAIL_VALUE, asRange, useMetricSeries, useMetricsStore } from '@/store/metricsStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
@@ -70,15 +72,27 @@ export function PingWidget({ widget }: WidgetProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, port, key])
 
+  // While the live socket is connected the agent probes on its own schedule and pushes each result
+  const liveConnected = useLiveStore((s) => s.connected)
   useEffect(() => {
-    if (editing) return
+    if (editing || !liveConnected) return
+    setLast(null)
+    setRequestError(null)
+    return subscribeLivePing(widget.id, { host, port, intervalSec }, (res) => {
+      setLast({ host, mode: res.mode === 'tcp' ? 'tcp' : 'icmp', ok: res.ok, latencyMs: res.latencyMs, resolved: res.resolved, error: res.error, checkedAt: res.at })
+      useMetricsStore.getState().push([[key, res.ok ? res.latencyMs : FAIL_VALUE]], res.at)
+    })
+  }, [editing, liveConnected, widget.id, host, port, intervalSec, key])
+
+  useEffect(() => {
+    if (editing || liveConnected) return
     setLast(null)
     void probe()
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') void probe()
     }, intervalSec * 1000)
     return () => window.clearInterval(timer)
-  }, [probe, intervalSec, editing])
+  }, [probe, intervalSec, editing, liveConnected])
 
   const stats = useMemo(() => summarize(points, range), [points, range])
   const total = stats.count + stats.failed

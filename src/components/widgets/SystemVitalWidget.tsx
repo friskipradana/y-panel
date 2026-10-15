@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { ChartLine, Cpu, HardDrive, MemoryStick, Rows3 } from 'lucide-react'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
-import { asRange, useMetricSeries } from '@/store/metricsStore'
+import { asRange } from '@/store/metricsStore'
+import { useRangeSeries } from '@/store/liveStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
@@ -61,9 +62,9 @@ export function SystemVitalWidget({ widget }: WidgetProps) {
   const mode = widget.config?.mode === 'graph' ? 'graph' : 'bars'
   const range = asRange(widget.config?.range)
 
-  const cpuPoints = useMetricSeries('cpu')
-  const ramPoints = useMetricSeries('ram')
-  const diskPoints = useMetricSeries('disk')
+  const cpuPoints = useRangeSeries('cpu', range)
+  const ramPoints = useRangeSeries('ram', range)
+  const diskPoints = useRangeSeries('disk', range)
 
   const cpu = summary?.cpuUsagePercent ?? 0
   const ramTotal = summary?.memory?.total ?? 0
