@@ -1,6 +1,6 @@
 # Design System Rules
 
-Aturan wajib saat menulis atau mengubah UI YPanel. Penjelasan lengkap ada di [DESIGN.md](../../DESIGN.md). Inventaris komponen ada di [component-list.md](component-list.md).
+Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DESIGN.md](../../DESIGN.md). Inventaris komponen ada di [component-list.md](component-list.md).
 
 ## 1. Sebelum Menulis UI
 

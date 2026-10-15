@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-  YPanel - Build & Deploy Script v2
+  Reneo - Build & Deploy Script v2
 
 .DESCRIPTION
   Melakukan build frontend (bun), bundle backend Go, lalu deploy ke server Linux
@@ -35,7 +35,7 @@ param(
   [string]$SshUsername = 'renaldi',
 
   [string]$SshPassword = '',
-  [string]$RemoteBaseDir = '~/ypanel-deploy',
+  [string]$RemoteBaseDir = '~/reneo-deploy',
   [string]$BindAddress = '0.0.0.0:8787',
   [string]$DatabaseDSN = '',
   [string]$EncryptionKey = '',
@@ -56,10 +56,10 @@ $WarningPreference = 'SilentlyContinue'
 #  CONSTANTS
 # ==================================================================
 $SCRIPT_VERSION = '2.1.0'
-$SVC_NAME = 'ypanel'
-$ENV_FILE = '/etc/ypanel/agent.env'
-$INSTALL_DIR = '/opt/ypanel'
-$STATE_DIR = '/var/lib/ypanel'
+$SVC_NAME = 'reneo'
+$ENV_FILE = '/etc/reneo/agent.env'
+$INSTALL_DIR = '/opt/reneo'
+$STATE_DIR = '/var/lib/reneo'
 $PANEL_USER = 'root'
 
 # ==================================================================
@@ -199,7 +199,7 @@ function err([string]$Msg) {
 function banner {
   $l = $Script:Theme.L * 62
   Write-Host "  $l" -ForegroundColor DarkGray
-  Write-Host "   YPanel " -NoNewline -ForegroundColor White
+  Write-Host "   Reneo " -NoNewline -ForegroundColor White
   Write-Host "v$SCRIPT_VERSION" -NoNewline -ForegroundColor Cyan
   Write-Host " — Deploy Script" -ForegroundColor DarkGray
   Write-Host "   Target  : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor Cyan
@@ -219,7 +219,7 @@ function summary([string]$Url, [bool]$NewInstall) {
   Write-Host "   $($Script:Theme.Ok)  Deploy Berhasil " -NoNewline -ForegroundColor Green
   Write-Host "($(elapsed))" -ForegroundColor DarkGray
   Write-Host "  $l" -ForegroundColor DarkGray
-  Write-Host "   YPanel URL      : " -NoNewline -ForegroundColor DarkGray; Write-Host $Url -ForegroundColor Cyan
+  Write-Host "   Reneo URL      : " -NoNewline -ForegroundColor DarkGray; Write-Host $Url -ForegroundColor Cyan
   Write-Host "   Server         : " -NoNewline -ForegroundColor DarkGray; Write-Host "${SshUsername}@${HostName}" -ForegroundColor White
   if ($NewInstall) {
     Write-Host "   Langkah awal   : " -NoNewline -ForegroundColor DarkGray; Write-Host 'Buka panel lalu buat Admin Pertama di first-run setup.' -ForegroundColor Yellow
@@ -325,8 +325,8 @@ $ProdFront = Join-Path $ProdsDir 'frontend'
 $ProdBack = Join-Path $ProdsDir 'backend'
 $ProdInst = Join-Path $ProdsDir 'installer'
 $TmpDir = Join-Path $DeployDir 'tmp'
-$ArchivePath = Join-Path $TmpDir 'ypanel-bundle.tar.gz'
-$RunPath = Join-Path $TmpDir 'ypanel-installer.run'
+$ArchivePath = Join-Path $TmpDir 'reneo-bundle.tar.gz'
+$RunPath = Join-Path $TmpDir 'reneo-installer.run'
 $PanelPort = Get-Port $BindAddress
 
 foreach ($d in @($ProdsDir, $ProdFront, $ProdBack, $ProdInst, $TmpDir, $LibDir)) {
@@ -405,7 +405,7 @@ try {
     $selfExtract = @'
 #!/usr/bin/env bash
 set -euo pipefail
-WORK=$(mktemp -d /tmp/ypanel.XXXXXX)
+WORK=$(mktemp -d /tmp/reneo.XXXXXX)
 trap 'rm -rf $WORK' EXIT
 awk 'found{print}/^__ARCHIVE__$/{found=1;next}' "$0" | base64 -d > "$WORK/payload.tar.gz"
 tar -xzf "$WORK/payload.tar.gz" -C "$WORK"
@@ -418,7 +418,7 @@ if [ -d installer ] && [ ! -f installer/linux/install.sh ]; then
 fi
 find installer -name '*.sh' -exec sed -i 's/\r$//' {} +
 chmod +x installer/linux/install.sh installer/linux/uninstall.sh 2>/dev/null||true
-export YPANEL_REPO_ROOT="$WORK"
+export RENEO_REPO_ROOT="$WORK"
 bash installer/linux/install.sh
 exit 0
 __ARCHIVE__
@@ -431,7 +431,7 @@ __ARCHIVE__
     if ($PackageOnly) {
       $ReleaseDir = Join-Path $ProjRoot 'dist-release'
       if (-not (Test-Path $ReleaseDir)) { New-Item -ItemType Directory -Path $ReleaseDir | Out-Null }
-      $ReleaseInstaller = Join-Path $ReleaseDir 'ypanel-installer.run'
+      $ReleaseInstaller = Join-Path $ReleaseDir 'reneo-installer.run'
       Copy-Item $RunPath $ReleaseInstaller -Force
       Write-Host "`n  Installer artifact: $ReleaseInstaller`n" -ForegroundColor Cyan
       return
@@ -549,14 +549,14 @@ __ARCHIVE__
     "PANEL_ALLOWED_ORIGINS=$($allOrigins -join ',')"
   )
 
-  $localEnvTmp = Join-Path $TmpDir 'ypanel_env_upload.txt'
+  $localEnvTmp = Join-Path $TmpDir 'reneo_env_upload.txt'
   # Write with LF-only line endings (Linux compatibility)
   $envContentLF = ($envContent -join "`n") + "`n"
   [System.IO.File]::WriteAllText($localEnvTmp, $envContentLF, (New-Object System.Text.UTF8Encoding($false)))
 
-  $remEnvTmp = "$RemBase/ypanel_env_content"
+  $remEnvTmp = "$RemBase/reneo_env_content"
   Upload-File $localEnvTmp $RemBase
-  Invoke-Remote "mv '$RemBase/ypanel_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
+  Invoke-Remote "mv '$RemBase/reneo_env_upload.txt' '$remEnvTmp' 2>/dev/null || true" -AllowFail | Out-Null
 
 
 
@@ -566,7 +566,7 @@ __ARCHIVE__
   ok 'upload OK'
 
   step 'Instalasi panel di server'
-  $remInstaller = "$RemBase/ypanel-installer.run"
+  $remInstaller = "$RemBase/reneo-installer.run"
   $remLog = "$RemBase/install.log"
   $instLib = Join-Path $LibDir 'remote_install.sh'
   if (-not (Test-Path $instLib)) { throw "lib/remote_install.sh tidak ditemukan." }
@@ -590,7 +590,7 @@ __ARCHIVE__
   ok 'Instalasi selesai'
 
   step 'Menjalankan migrasi database'
-  $migrationCmd = "env PANEL_ENV_FILE='$remEnvTmp' /usr/local/bin/ypanel-agent migrate up"
+  $migrationCmd = "env PANEL_ENV_FILE='$remEnvTmp' /usr/local/bin/reneo-agent migrate up"
   $migrationOut = Invoke-Remote $migrationCmd -AllowFail
   $migrationCombined = (@($migrationOut) + @($Script:LastErr) | Where-Object { $_ })
   $migrationText = ($migrationCombined -join "`n").Trim()
@@ -612,7 +612,7 @@ __ARCHIVE__
   }
   Remove-Item $localEnvTmp -Force -ErrorAction SilentlyContinue
 
-  if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u ypanel -n 50' }
+  if ($svcOut -contains 'SERVICE_FAIL') { warn 'Service gagal start — cek: journalctl -u reneo -n 50' }
   else { ok 'Service berjalan' }
 
   step 'Healthcheck'

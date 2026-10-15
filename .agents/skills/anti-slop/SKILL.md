@@ -1,12 +1,12 @@
 ---
 name: anti-slop
 description: >-
-  Gunakan setiap kali membuat atau mengubah UI, copy, komentar, atau mockup YPanel
+  Gunakan setiap kali membuat atau mengubah UI, copy, komentar, atau mockup Reneo
   (komponen React, SCSS, halaman landing/login, window baru). Melarang elemen macOS,
   dekorasi AI generik, dan kode berisik; memandu review dengan checklist yang bisa diperiksa.
 ---
 
-# Anti-Slop YPanel
+# Anti-Slop Reneo
 
 Slop adalah output yang terlihat "sudah jadi" tetapi tidak membawa informasi atau fungsi. Tujuan skill ini: setiap piksel dan baris kode punya alasan. Konteks desain lengkap: [DESIGN.md](../../../DESIGN.md). Aturan teknis: [design-system.md](../../rules/design-system.md).
 

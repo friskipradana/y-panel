@@ -7,7 +7,7 @@ import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
 import { Button } from '@/components/ui/Button'
 
 export const GITHUB_URL = 'https://github.com/friskipradana/y-panel'
-export const INSTALLER_URL = `${GITHUB_URL}/releases/latest/download/ypanel-installer.run`
+export const INSTALLER_URL = `${GITHUB_URL}/releases/latest/download/reneo-installer.run`
 
 interface PublicShellProps {
   children: ReactNode

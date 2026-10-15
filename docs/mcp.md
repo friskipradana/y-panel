@@ -1,14 +1,14 @@
-# Panduan Lengkap YPanel MCP Server & Akses Sistem
+# Panduan Lengkap Reneo MCP Server & Akses Sistem
 
-Dokumen ini menjelaskan secara menyeluruh cara kerja, arsitektur koneksi, hak akses, serta panduan konfigurasi integrasi **Model Context Protocol (MCP)** pada **YPanel**.
+Dokumen ini menjelaskan secara menyeluruh cara kerja, arsitektur koneksi, hak akses, serta panduan konfigurasi integrasi **Model Context Protocol (MCP)** pada **Reneo**.
 
 ---
 
-## 1. Apa Itu MCP YPanel & Ke Mana Saja Aksesnya?
+## 1. Apa Itu MCP Reneo & Ke Mana Saja Aksesnya?
 
 MCP (*Model Context Protocol*) adalah standar terbuka yang memungkinkan AI assistant (seperti Claude Desktop, Cursor, VS Code Cline/Roo Code, Windsurf) terhubung langsung ke sistem eksternal dengan aman.
 
-Di YPanel, MCP server berjalan sebagai **stdio subprocess** bawaan di dalam binary `panel-agent`. Ketika AI client memanggil tool, perintah dieksekusi secara lokal atau diteruskan ke agent runtime.
+Di Reneo, MCP server berjalan sebagai **stdio subprocess** bawaan di dalam binary `panel-agent`. Ketika AI client memanggil tool, perintah dieksekusi secara lokal atau diteruskan ke agent runtime.
 
 ```
  ┌────────────────────────────────────────────────────────┐
@@ -19,7 +19,7 @@ Di YPanel, MCP server berjalan sebagai **stdio subprocess** bawaan di dalam bina
                   Transport: stdio / SSH
                              │
  ┌───────────────────────────▼────────────────────────────┐
- │              YPanel Binary (panel-agent mcp)           │
+ │              Reneo Binary (panel-agent mcp)           │
  │       Otentikasi & Validasi Role (ypat_<token>)        │
  └──────┬────────────────────┬────────────────────┬───────┘
         │                    │                    │
@@ -41,18 +41,18 @@ Di YPanel, MCP server berjalan sebagai **stdio subprocess** bawaan di dalam bina
 | Komponen yang Diakses | Jalur / Endpoint | Kegunaan |
 |---|---|---|
 | **Host Operating System** | Direct Kernel / Syscall / `/proc`, `/sys` | Memantau penggunaan CPU, RAM, disk storage, IP addresses, dan uptime. |
-| **Systemd Services** | `journalctl -u <service> -n <limit>` | Membaca log layanan sistem (`ypanel`, `nginx`, `docker`, dsb). |
+| **Systemd Services** | `journalctl -u <service> -n <limit>` | Membaca log layanan sistem (`reneo`, `nginx`, `docker`, dsb). |
 | **Filesystem Server** | Path absolut di storage (contoh: `/home`, `/var/www`, `/opt`) | Membaca (`file_read`), menulis file (`file_write`), direktori (`file_list`), dan hapus file. Path sensitif seperti `/etc/shadow`, `/root/.ssh`, `/proc` diblokir otomatis. |
 | **Terminal Host PTY** | Exec shell `/bin/sh -c` | Eksekusi perintah command-line langsung sebagai user daemon dengan timeout 60 detik (*Khusus Admin*). |
 | **Docker Daemon** | `/var/run/docker.sock` via Docker Engine | Memeriksa seluruh container, start/stop/restart container, streaming log, dan inspect resource. |
-| **YPanel REST API** | `http://localhost:8787` (atau `PANEL_MCP_URL`) | Operasi tingkat tinggi: pembuatan dan lifecycle project web, routing DNS & tunnel Cloudflare, kuota akun, dan manajemen user. |
+| **Reneo REST API** | `http://localhost:8787` (atau `PANEL_MCP_URL`) | Operasi tingkat tinggi: pembuatan dan lifecycle project web, routing DNS & tunnel Cloudflare, kuota akun, dan manajemen user. |
 | **Cloudflare Daemon** | Cloudflare API via Panel Agent | Monitoring status tunnel cloudflared, daftar domain/zone aktif, dan sinkronisasi DNS records. |
 
 ---
 
 ## 2. Model Hak Akses Berbasis Akun (RBAC)
 
-MCP server YPanel **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan tools disesuaikan secara ketat dengan role akun pemilik token API (`ypat_...`):
+MCP server Reneo **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan tools disesuaikan secara ketat dengan role akun pemilik token API (`ypat_...`):
 
 | Role Akun | Jumlah Tools | Izin Akses | Risiko & Pembatasan |
 |---|:---:|---|---|
@@ -64,7 +64,7 @@ MCP server YPanel **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan t
 
 ## 3. Langkah Mendapatkan Token API
 
-1. Buka browser dan login ke web panel **YPanel**.
+1. Buka browser dan login ke web panel **Reneo**.
 2. Di layar desktop, buka aplikasi **Settings** (Pengaturan).
 3. Pilih menu samping **API & Token MCP** (ikon kunci).
 4. Masukkan nama deskripsi token (misal: `Claude Laptop`, `Cursor Workstation`).
@@ -76,7 +76,7 @@ MCP server YPanel **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan t
 
 ## 4. Metode Koneksi: Streamable HTTP vs Stdio / SSH
 
-YPanel mendukung dua arsitektur transport MCP:
+Reneo mendukung dua arsitektur transport MCP:
 
 ### 🌟 Metode 1: Streamable HTTP & SSE (Direkomendasikan ala Hermes Agent / IDCloudHost)
 Metode ini **paling praktis** karena Anda tidak memerlukan setup SSH key atau menjalankan binary lokal. Cukup gunakan URL endpoint langsung dari AI agent Anda:
@@ -91,16 +91,16 @@ Metode ini **paling praktis** karena Anda tidak memerlukan setup SSH key atau me
 #### A. Integrasi Hermes Agent (CLI)
 Hermes Agent mendukung MCP secara native. Cukup jalankan satu baris perintah di terminal Anda:
 ```bash
-hermes mcp add YPANEL --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
+hermes mcp add RENEO --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
 ```
 
 Setelah terhubung, Anda dapat langsung menginstruksikan Hermes:
-> *"Hermes, cek penggunaan CPU dan RAM server YPanel saya saat ini."*  
+> *"Hermes, cek penggunaan CPU dan RAM server Reneo saya saat ini."*  
 > *"Daftar container Docker dan restart container nginx jika memory melebihi batas."*
 
 #### B. Integrasi OpenClaw (CLI)
 ```bash
-openclaw mcp add YPANEL --transport streamable-http --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
+openclaw mcp add RENEO --transport streamable-http --url "https://panel.domainanda.com/mcp?key=ypat_PASTE_TOKEN_ANDA"
 ```
 
 ---
@@ -109,13 +109,13 @@ openclaw mcp add YPANEL --transport streamable-http --url "https://panel.domaina
 
 Gunakan metode ini jika AI client yang Anda gunakan hanya mendukung transport `stdio`:
 
-#### Skenario A: AI Client dan YPanel di Server yang Sama (Direct Stdio)
+#### Skenario A: AI Client dan Reneo di Server yang Sama (Direct Stdio)
 Gunakan perintah binary langsung:
 ```bash
-/opt/ypanel/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA
+/opt/reneo/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA
 ```
 
-#### Skenario B: AI Client di Laptop Pribadi (Windows / Mac), YPanel di VPS Remote (SSH Bridge)
+#### Skenario B: AI Client di Laptop Pribadi (Windows / Mac), Reneo di VPS Remote (SSH Bridge)
 Claude Desktop atau Cursor di komputer kerja terhubung ke binary di server VPS melalui jembatan SSH:
 
 #### Konfigurasi Claude Desktop via SSH Bridge:
@@ -127,13 +127,13 @@ File konfigurasi Claude Desktop:
 ```json
 {
   "mcpServers": {
-    "ypanel-remote": {
+    "reneo-remote": {
       "command": "ssh",
       "args": [
         "-o", "StrictHostKeyChecking=no",
         "-i", "C:\\Users\\Username\\.ssh\\id_rsa",
         "root@IP_SERVER_ANDA",
-        "/opt/ypanel/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA"
+        "/opt/reneo/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA"
       ]
     }
   }
@@ -150,8 +150,8 @@ File konfigurasi Claude Desktop:
 ```json
 {
   "mcpServers": {
-    "ypanel": {
-      "command": "/opt/ypanel/panel-agent",
+    "reneo": {
+      "command": "/opt/reneo/panel-agent",
       "args": [
         "mcp",
         "--token",
@@ -171,8 +171,8 @@ Buat atau edit file `.cursor/mcp.json` di root workspace atau melalui **Settings
 ```json
 {
   "mcpServers": {
-    "ypanel": {
-      "command": "/opt/ypanel/panel-agent",
+    "reneo": {
+      "command": "/opt/reneo/panel-agent",
       "args": [
         "mcp",
         "--token",
@@ -183,15 +183,15 @@ Buat atau edit file `.cursor/mcp.json` di root workspace atau melalui **Settings
 }
 ```
 
-Jika YPanel ada di VPS remote, gunakan SSH bridge:
+Jika Reneo ada di VPS remote, gunakan SSH bridge:
 ```json
 {
   "mcpServers": {
-    "ypanel-vps": {
+    "reneo-vps": {
       "command": "ssh",
       "args": [
         "root@IP_SERVER_ANDA",
-        "/opt/ypanel/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA"
+        "/opt/reneo/panel-agent mcp --token ypat_PASTE_TOKEN_ANDA"
       ]
     }
   }
@@ -203,8 +203,8 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 ```json
 {
   "mcpServers": {
-    "ypanel": {
-      "command": "/opt/ypanel/panel-agent",
+    "reneo": {
+      "command": "/opt/reneo/panel-agent",
       "args": ["mcp", "--token", "ypat_PASTE_TOKEN_ANDA"]
     }
   }
@@ -217,7 +217,7 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 
 ### Kategori 1: System Diagnostics
 1. **`system_info`**: Mengambil statistik hardware server: hostname, OS kernel, uptime, persentase CPU, RAM usage, penggunaan partisi disk, Docker daemon status, dan IP interface.
-2. **`system_logs`**: Membaca log journalctl service systemd (contoh argumen: `{"service": "ypanel", "limit": 100}`).
+2. **`system_logs`**: Membaca log journalctl service systemd (contoh argumen: `{"service": "reneo", "limit": 100}`).
 
 ### Kategori 2: Docker Management
 3. **`docker_list_containers`**: List seluruh container (status running, exited, ports yang dipublish, image, dan network).
@@ -229,7 +229,7 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 
 ### Kategori 3: File System
 9. **`file_list`**: Menampilkan daftar file dan folder di path tertentu (`{"path": "/var/www"}`).
-10. **`file_read`**: Membaca isi file teks hingga batas aman 512 KB (`{"path": "/opt/ypanel/.env"}`).
+10. **`file_read`**: Membaca isi file teks hingga batas aman 512 KB (`{"path": "/opt/reneo/.env"}`).
 11. **`file_write`**: Menulis atau mengedit file teks (`{"path": "/var/www/index.html", "content": "<h1>Hello</h1>"}`). *(Admin)*
 12. **`file_delete`**: Menghapus file atau folder kosong (`{"path": "/tmp/test.txt"}`). *(Admin)*
 13. **`file_mkdir`**: Membuat direktori baru secara rekursif (`{"path": "/var/www/new-app"}`). *(Admin)*
@@ -239,8 +239,8 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
     - Dilengkapi timeout otomatis (maksimal 60 detik).
     - Memiliki guardrail pengaman yang otomatis menolak perintah destruktif seperti `rm -rf /`, `mkfs`, `dd of=/dev/sd*`, atau fork bomb.
 
-### Kategori 5: YPanel Projects (Aplikasi Web)
-15. **`project_list`**: Menampilkan semua project aplikasi web yang dikelola YPanel (Node.js, PHP, Python, Static, Docker).
+### Kategori 5: Reneo Projects (Aplikasi Web)
+15. **`project_list`**: Menampilkan semua project aplikasi web yang dikelola Reneo (Node.js, PHP, Python, Static, Docker).
 16. **`project_get`**: Mengambil detail konfigurasi, status runtime, port, dan domain satu project (`{"id": "1"}`).
 17. **`project_start`**: Menjalankan service project (`{"id": "1"}`).
 18. **`project_stop`**: Menghentikan service project (`{"id": "1"}`).
@@ -252,7 +252,7 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 22. **`user_activate`**: Mengaktifkan kembali akun pengguna (`{"id": "2"}`).
 
 ### Kategori 7: Cloudflare Tunnels & Domains
-23. **`cloudflare_list_domains`**: Menampilkan daftar domain/zone Cloudflare yang terhubung ke YPanel.
+23. **`cloudflare_list_domains`**: Menampilkan daftar domain/zone Cloudflare yang terhubung ke Reneo.
 24. **`cloudflare_list_dns`**: Menampilkan DNS record pada zone tertentu (`{"zone_id": "<zone_id>"}`).
 25. **`cloudflare_list_tunnel_profiles`**: Menampilkan profil tunnel Cloudflared yang aktif untuk public ingress.
 26. **`cloudflare_verify_token`**: Memeriksa validitas token API Cloudflare dan menganalisis cakupan izin (`Zone:Read`, `DNS:Edit`, `Cloudflare Tunnel:Edit`).
@@ -264,12 +264,12 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 30. **`pm2_list`**: Menampilkan semua aplikasi dan proses Node.js / PM2 di server (status, memory, CPU, port, uptime).
 31. **`pm2_restart`**: Merestart proses PM2 berdasarkan nama atau ID (`{"name": "antrian-app"}`).
 32. **`pm2_logs`**: Mengambil baris log terbaru aplikasi PM2 (`{"name": "antrian-app", "lines": 50}`).
-33. **`service_manage`**: Mengontrol status service sistem (`cloudflared`, `docker`, `nginx`, `ypanel`).
+33. **`service_manage`**: Mengontrol status service sistem (`cloudflared`, `docker`, `nginx`, `reneo`).
 34. **`network_ports_list`**: Memeriksa port TCP yang sedang listening dan otomatis menemukan port bebas untuk aplikasi baru.
 
 ### Kategori 9: Katalog Tambahan (REST-backed)
 
-YPanel menyediakan hampir 100 tool. Tool di kategori ini memanggil REST API panel dengan token Anda sendiri, sehingga kepemilikan, kuota, dan pemeriksaan role tetap dijalankan di server. Setiap tool membawa **annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`) agar klien MCP dapat meminta konfirmasi sebelum aksi destruktif.
+Reneo menyediakan hampir 100 tool. Tool di kategori ini memanggil REST API panel dengan token Anda sendiri, sehingga kepemilikan, kuota, dan pemeriksaan role tetap dijalankan di server. Setiap tool membawa **annotations** (`readOnlyHint`, `destructiveHint`, `idempotentHint`) agar klien MCP dapat meminta konfirmasi sebelum aksi destruktif.
 
 | Area | Tool | Akses |
 | :--- | :--- | :--- |
@@ -299,7 +299,7 @@ Catatan:
 - Gunakan `server_overview` sebagai langkah pertama untuk mendiagnosis atau melaporkan status.
 - `widget_add` bekerja pada layout akun yang sudah pernah dibuka di panel (layout tersimpan di server). Sesi panel yang terbuka menampilkan perubahan setelah dimuat ulang.
 - Tool destruktif (`*_delete`, `*_remove`, `api_token_revoke`, `terminal_exec`) sebaiknya selalu dikonfirmasi ke pengguna.
-- Versi server MCP (`serverInfo.version`) mengikuti `/opt/ypanel/VERSION` yang ditulis installer.
+- Versi server MCP (`serverInfo.version`) mengikuti `/opt/reneo/VERSION` yang ditulis installer.
 
 ---
 
@@ -308,7 +308,7 @@ Catatan:
 Setelah MCP terhubung, Anda dapat langsung menginstruksikan AI di Claude Desktop atau Cursor dengan bahasa manusiawi biasa:
 
 ### Pemeriksaan Server:
-> *"Tolong periksa status kesehatan server YPanel saya saat ini. Apakah ada resource CPU, RAM, atau storage yang hampir penuh?"*
+> *"Tolong periksa status kesehatan server Reneo saya saat ini. Apakah ada resource CPU, RAM, atau storage yang hampir penuh?"*
 
 ### Troubleshooting Docker:
 > *"Cek semua container Docker di server. Jika ada container yang statusnya 'Exited' atau error, tolong bacakan 30 baris log terakhirnya lalu restart container tersebut."*
@@ -317,10 +317,10 @@ Setelah MCP terhubung, Anda dapat langsung menginstruksikan AI di Claude Desktop
 > *"Buka direktori `/var/www/my-api`, baca file `package.json`, lalu beri tahu saya dependensi apa saja yang digunakan."*
 
 ### Manajemen Project & Layanan:
-> *"Daftar semua project yang ada di YPanel, cek apakah project 'frontend-app' sedang berjalan, jika mati tolong nyalakan."*
+> *"Daftar semua project yang ada di Reneo, cek apakah project 'frontend-app' sedang berjalan, jika mati tolong nyalakan."*
 
 ### Eksekusi Perintah Administratif (Admin):
-> *"Jalankan perintah `uptime` dan `systemctl status ypanel` di server untuk memastikan daemon berjalan stabil."*
+> *"Jalankan perintah `uptime` dan `systemctl status reneo` di server untuk memastikan daemon berjalan stabil."*
 
 ---
 

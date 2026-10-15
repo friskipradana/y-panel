@@ -87,7 +87,7 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, closeCommandPalette])
 
-  // Uniform monochrome icon wrapper matching YPanel desktop icon aesthetics
+  // Uniform monochrome icon wrapper matching Reneo desktop icon aesthetics
   const renderIconBox = (IconComp: React.ComponentType<{ size?: number; className?: string }>) => (
     <IconBadge
       size="md"
@@ -396,7 +396,7 @@ export function CommandPalette() {
                           Dokumentasi Panel
                         </span>
                         <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Panduan lengkap penggunaan fitur dan API YPanel
+                          Panduan lengkap penggunaan fitur dan API Reneo
                         </span>
                       </div>
                     </div>
@@ -707,7 +707,7 @@ export function CommandPalette() {
                   </span>
                 </div>
                 <div className="text-[10px] font-mono opacity-70">
-                  YPanel Quick Command
+                  Reneo Quick Command
                 </div>
               </div>
             </Command>

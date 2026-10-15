@@ -2,7 +2,7 @@ type LogLevel = 'info' | 'warn' | 'error'
 
 function emit(level: LogLevel, scope: string, message: string, payload?: unknown) {
   const stamp = new Date().toISOString()
-  const prefix = `[ypanel][frontend][${scope}] ${stamp} ${message}`
+  const prefix = `[reneo][frontend][${scope}] ${stamp} ${message}`
 
   if (level === 'error') {
     console.error(prefix, payload ?? '')

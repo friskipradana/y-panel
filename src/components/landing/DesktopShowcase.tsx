@@ -56,7 +56,7 @@ export function DesktopShowcase() {
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[12px] font-bold tracking-tight text-white">YPanel OS</span>
+              <span className="text-[12px] font-bold tracking-tight text-white">Reneo OS</span>
             </div>
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">|</span>
             <span className="text-[10.5px] font-mono text-slate-400 hidden sm:inline">Workspace</span>
@@ -311,20 +311,20 @@ export function DesktopShowcase() {
             {/* Terminal Body */}
             <div className="p-2.5 font-mono text-[9.5px] leading-relaxed text-slate-300 bg-black/70 rounded-b-xl space-y-0.5">
               <div className="text-slate-400 flex items-center gap-1">
-                <span className="text-emerald-400">root@ypanel-node</span>
+                <span className="text-emerald-400">root@reneo-node</span>
                 <span className="text-slate-500">:</span>
                 <span className="text-cyan-400">~</span>
                 <span className="text-slate-500">$</span>
-                <span className="text-white font-semibold">ypanel status</span>
+                <span className="text-white font-semibold">reneo status</span>
               </div>
               <div className="text-emerald-400 text-[9px]">
-                [ok] ypanel-agent daemon active (PID 8787) · Port 8787
+                [ok] reneo-agent daemon active (PID 8787) · Port 8787
               </div>
               <div className="text-cyan-400 text-[9px]">
                 [ok] Docker engine connected (v26.1.1) · 3 containers up
               </div>
               <div className="text-slate-400 flex items-center gap-1 pt-0.5">
-                <span className="text-emerald-400">root@ypanel-node</span>
+                <span className="text-emerald-400">root@reneo-node</span>
                 <span className="text-slate-500">:</span>
                 <span className="text-cyan-400">~</span>
                 <span className="text-slate-500">$</span>

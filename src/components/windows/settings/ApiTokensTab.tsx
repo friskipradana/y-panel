@@ -161,14 +161,14 @@ export function ApiTokensTab() {
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8787";
   const tokenPlaceholder = newlyCreatedToken || "ypat_PASTE_TOKEN_ANDA";
   const mcpHttpUrl = `${origin}/mcp?key=${tokenPlaceholder}`;
-  const hermesCommand = `hermes mcp add YPANEL --url "${mcpHttpUrl}"`;
-  const openclawCommand = `openclaw mcp add YPANEL --transport streamable-http --url "${mcpHttpUrl}"`;
+  const hermesCommand = `hermes mcp add RENEO --url "${mcpHttpUrl}"`;
+  const openclawCommand = `openclaw mcp add RENEO --transport streamable-http --url "${mcpHttpUrl}"`;
 
   const claudeConfigSnippet = JSON.stringify(
     {
       mcpServers: {
-        ypanel: {
-          command: "/usr/local/bin/panel-agent",
+        reneo: {
+          command: "/usr/local/bin/reneo-agent",
           args: ["mcp", "--token", newlyCreatedToken || "ypat_YOUR_TOKEN_HERE"],
         },
       },
@@ -180,8 +180,8 @@ export function ApiTokensTab() {
   const cursorConfigSnippet = JSON.stringify(
     {
       mcpServers: {
-        ypanel: {
-          command: "/opt/ypanel/panel-agent",
+        reneo: {
+          command: "/usr/local/bin/reneo-agent",
           args: ["mcp", "--token", newlyCreatedToken || "ypat_YOUR_TOKEN_HERE"],
         },
       },
@@ -193,11 +193,11 @@ export function ApiTokensTab() {
   const remoteSshSnippet = JSON.stringify(
     {
       mcpServers: {
-        "ypanel-remote": {
+        "reneo-remote": {
           command: "ssh",
           args: [
             "root@IP_SERVER_ANDA",
-            `/opt/ypanel/panel-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN_HERE"}`,
+            `/usr/local/bin/reneo-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN_HERE"}`,
           ],
         },
       },
@@ -220,7 +220,7 @@ export function ApiTokensTab() {
                 API Key & Token MCP
               </h3>
               <p className="text-[11.5px] text-[var(--text-secondary)]">
-                Token otentikasi pribadi untuk MCP server (Claude Desktop, Cursor) & REST API YPanel.
+                Token otentikasi pribadi untuk MCP server (Claude Desktop, Cursor) & REST API Reneo.
               </p>
             </div>
           </div>
@@ -608,7 +608,7 @@ export function ApiTokensTab() {
               </div>
 
               <p className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed">
-                Hermes Agent mendukung MCP secara native melalui HTTP Streamable endpoint. Jalankan perintah ini di terminal Anda untuk menghubungkan YPanel:
+                Hermes Agent mendukung MCP secara native melalui HTTP Streamable endpoint. Jalankan perintah ini di terminal Anda untuk menghubungkan Reneo:
               </p>
 
               <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/40 border border-emerald-500/30 text-amber-300 overflow-x-auto leading-relaxed break-all">
@@ -639,7 +639,7 @@ export function ApiTokensTab() {
               {/* Example Prompts */}
               <div className="pt-2 border-t border-emerald-500/20 text-[11px] text-[var(--text-secondary)] space-y-1">
                 <span className="font-semibold text-emerald-300 block">Contoh Perintah Chat di Hermes Agent:</span>
-                <p>• <em>"Hermes, cek penggunaan CPU dan RAM server YPanel saya saat ini."</em></p>
+                <p>• <em>"Hermes, cek penggunaan CPU dan RAM server Reneo saya saat ini."</em></p>
                 <p>• <em>"Daftar semua container Docker, lalu carikan log container yang error."</em></p>
                 <p>• <em>"Buka file /var/www/my-project/config.json dan periksa isinya."</em></p>
               </div>
@@ -661,7 +661,7 @@ export function ApiTokensTab() {
                 </button>
               </div>
               <p className="text-[11px] text-[var(--text-secondary)] mb-1.5">
-                Gunakan ini jika Claude Desktop / Cursor terpasang di laptop Anda, sedangkan YPanel ada di server cloud/VPS:
+                Gunakan ini jika Claude Desktop / Cursor terpasang di laptop Anda, sedangkan Reneo ada di server cloud/VPS:
               </p>
               <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/30 border border-[var(--win-border)] text-amber-300 overflow-x-auto leading-relaxed">
                 {remoteSshSnippet}
@@ -718,7 +718,7 @@ export function ApiTokensTab() {
                   type="button"
                   onClick={() =>
                     handleCopy(
-                      `/opt/ypanel/panel-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN"}`,
+                      `/usr/local/bin/reneo-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN"}`,
                       "cliSnippet"
                     )
                   }
@@ -729,7 +729,7 @@ export function ApiTokensTab() {
                 </button>
               </div>
               <pre className="panel-mono text-[11px] p-3 rounded-xl bg-black/30 border border-[var(--win-border)] text-emerald-400 overflow-x-auto leading-relaxed">
-                {`/opt/ypanel/panel-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN"}`}
+                {`/usr/local/bin/reneo-agent mcp --token ${newlyCreatedToken || "ypat_YOUR_TOKEN"}`}
               </pre>
             </div>
 

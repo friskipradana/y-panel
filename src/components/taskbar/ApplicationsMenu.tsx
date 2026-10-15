@@ -97,7 +97,7 @@ const MENU_ITEMS: AppMenuItem[] = [
   },
   {
     kind: 'docs',
-    descId: 'Panduan lengkap dan dokumentasi fitur YPanel',
+    descId: 'Panduan lengkap dan dokumentasi fitur Reneo',
     descEn: 'Comprehensive guides and documentation',
     category: 'info',
   },

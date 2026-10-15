@@ -2,29 +2,36 @@
 set -euo pipefail
 
 # Error trap — print line number and failing command for diagnostics
-trap 'rc=$?; echo "[ypanel] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND} (log: /tmp/ypanel-install.log)" >&2; exit $rc' ERR
+trap 'rc=$?; echo "[reneo] FATAL (exit $rc) at line $BASH_LINENO: ${BASH_COMMAND} (log: /tmp/reneo-install.log)" >&2; exit $rc' ERR
 
-APP_NAME="ypanel"
+APP_NAME="reneo"
+LEGACY_NAME="ypanel"
+LEGACY_INSTALL_ROOT="/opt/ypanel"
+LEGACY_STATE_DIR="/var/lib/ypanel"
+LEGACY_CONFIG_DIR="/etc/ypanel"
+LEGACY_SERVICE_FILE="/etc/systemd/system/ypanel.service"
+LEGACY_BIN_PATH="/usr/local/bin/ypanel-agent"
+LEGACY_CLI_PATH="/usr/local/bin/ypanel"
 APP_USER="root"
-INSTALL_ROOT="/opt/ypanel"
-STATE_DIR="/var/lib/ypanel"
-CONFIG_DIR="/etc/ypanel"
+INSTALL_ROOT="/opt/reneo"
+STATE_DIR="/var/lib/reneo"
+CONFIG_DIR="/etc/reneo"
 ENV_FILE="$CONFIG_DIR/agent.env"
-SERVICE_FILE="/etc/systemd/system/ypanel.service"
-BIN_PATH="/usr/local/bin/ypanel-agent"
-CLI_PATH="/usr/local/bin/ypanel"
+SERVICE_FILE="/etc/systemd/system/reneo.service"
+BIN_PATH="/usr/local/bin/reneo-agent"
+CLI_PATH="/usr/local/bin/reneo"
 FRONTEND_DIR="$INSTALL_ROOT/frontend"
 PORTAINER_CONTAINER="ypanel-portainer"
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
 DEFAULT_DB_PORT="5432"
-DEFAULT_DB_NAME="ypanel"
-DEFAULT_DB_USER="ypanel"
+DEFAULT_DB_NAME="reneo"
+DEFAULT_DB_USER="reneo"
 DEFAULT_ALLOWED_HOSTS=""
 DEFAULT_ALLOWED_ORIGINS=""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${YPANEL_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+REPO_ROOT="${RENEO_REPO_ROOT:-${YPANEL_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}}"
 
 INSTALL_LOG_FILE="/tmp/${APP_NAME}-install.log"
 MANAGED_ORIGINS_BLOCK_BEGIN="# UI_PANEL_ALLOWED_ORIGINS_BEGIN"
@@ -63,9 +70,9 @@ warn() {
 
 usage() {
   cat <<USAGE
-YPanel installer
+Reneo installer
 
-Penggunaan: bash ypanel-installer.run [opsi]
+Penggunaan: bash reneo-installer.run [opsi]
 
 Opsi:
   --bind ADDR       Alamat bind panel (default: 0.0.0.0:8787 atau nilai terpasang)
@@ -74,7 +81,7 @@ Opsi:
   --no-color        Matikan warna output
   -h, --help        Tampilkan bantuan ini
 
-Variabel lingkungan: PANEL_BIND_ADDR, PANEL_DATABASE_DSN, PANEL_DB_PASSWORD,
+Variabel lingkungan (awalan RENEO_ atau PANEL_): PANEL_BIND_ADDR, PANEL_DATABASE_DSN, PANEL_DB_PASSWORD,
 PANEL_ALLOWED_HOSTS, PANEL_ALLOWED_ORIGINS, PANEL_SESSION_TTL.
 Log lengkap instalasi: ${INSTALL_LOG_FILE}
 USAGE
@@ -209,8 +216,8 @@ prebuilt_agent_path() {
   local arch name
   arch="$(uname -m)"
   case "$arch" in
-    x86_64) name="ypanel-agent-linux-amd64" ;;
-    aarch64|arm64) name="ypanel-agent-linux-arm64" ;;
+    x86_64) name="reneo-agent-linux-amd64" ;;
+    aarch64|arm64) name="reneo-agent-linux-arm64" ;;
     *) return 0 ;;
   esac
   if [[ -f "$REPO_ROOT/bin/$name" ]]; then
@@ -303,7 +310,7 @@ ensure_cloudflared() {
   ok "cloudflared terpasang ($(cloudflared -V 2>&1 | head -n 1))"
 }
 
-ypanel_config() {
+reneo_config() {
   local current_bind_addr=""
   local current_allowed_hosts=""
   local current_allowed_origins=""
@@ -320,6 +327,8 @@ ypanel_config() {
     current_bind_addr="$(grep '^PANEL_BIND_ADDR=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
     current_allowed_hosts="$(grep '^PANEL_ALLOWED_HOSTS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
     current_allowed_origins="$(grep '^PANEL_ALLOWED_ORIGINS=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)"
+    PANEL_DB_NAME="${PANEL_DB_NAME:-$(grep '^PANEL_DB_NAME=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
+    PANEL_DB_USER="${PANEL_DB_USER:-$(grep '^PANEL_DB_USER=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_DATABASE_DSN="${PANEL_DATABASE_DSN:-$(grep '^PANEL_DATABASE_DSN=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_ENCRYPTION_KEY="${PANEL_ENCRYPTION_KEY:-$(grep '^PANEL_ENCRYPTION_KEY=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
     PANEL_SESSION_SECRET="${PANEL_SESSION_SECRET:-$(grep '^PANEL_SESSION_SECRET=' "$ENV_FILE" | head -n 1 | cut -d= -f2- | tr -d '\r\n' || true)}"
@@ -495,7 +504,7 @@ migrate_legacy_runtime() {
   local legacy_install_root="/opt/ui-panel"
 
   if [[ -f "$legacy_env_file" && ! -f "$ENV_FILE" ]]; then
-    log "migrasi konfigurasi legacy ui-panel ke ypanel"
+    log "migrasi konfigurasi legacy ui-panel ke reneo"
     mkdir -p "$CONFIG_DIR"
     cp "$legacy_env_file" "$ENV_FILE"
     # Strip \r (Windows CRLF compatibility)
@@ -503,7 +512,7 @@ migrate_legacy_runtime() {
   fi
 
   if [[ -d "$legacy_state_dir" && ! -d "$STATE_DIR" ]]; then
-    log "migrasi state legacy ui-panel ke ypanel"
+    log "migrasi state legacy ui-panel ke reneo"
     mkdir -p "$STATE_DIR"
     cp -a "$legacy_state_dir/." "$STATE_DIR/" 2>/dev/null || true
   fi
@@ -511,6 +520,48 @@ migrate_legacy_runtime() {
   if [[ -d "$legacy_install_root" && ! -d "$INSTALL_ROOT" ]]; then
     mkdir -p "$INSTALL_ROOT"
   fi
+}
+
+# Moves an existing ypanel layout to reneo and leaves symlinks so old paths, scripts and
+# cloudflared configs that mention /var/lib/ypanel keep working.
+migrate_ypanel_layout() {
+  local moved=0
+  local pair legacy current
+
+  for pair in \
+    "$LEGACY_CONFIG_DIR:$CONFIG_DIR" \
+    "$LEGACY_STATE_DIR:$STATE_DIR" \
+    "$LEGACY_INSTALL_ROOT:$INSTALL_ROOT"; do
+    legacy="${pair%%:*}"
+    current="${pair##*:}"
+    if [[ -d "$legacy" && ! -L "$legacy" && ! -e "$current" ]]; then
+      if [[ "$moved" -eq 0 ]]; then
+        log "mengganti nama instalasi ypanel menjadi reneo"
+        systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+        moved=1
+      fi
+      mv "$legacy" "$current"
+      ln -sfn "$current" "$legacy"
+      log "dipindahkan: $legacy -> $current (symlink lama dipertahankan)"
+    fi
+  done
+
+  if [[ -e "$LEGACY_SERVICE_FILE" && -f "$ENV_FILE" ]]; then
+    sed -i "s#/etc/ypanel/#/etc/reneo/#g; s#/var/lib/ypanel#/var/lib/reneo#g; s#/opt/ypanel#/opt/reneo#g" "$ENV_FILE" 2>/dev/null || true
+  fi
+}
+
+# ypanel/ypanel-agent/ypanel.service keep working as aliases of the reneo names
+install_ypanel_compat_links() {
+  ln -sfn "$BIN_PATH" "$LEGACY_BIN_PATH"
+  ln -sfn "$CLI_PATH" "$LEGACY_CLI_PATH"
+  if [[ -f "$LEGACY_SERVICE_FILE" && ! -L "$LEGACY_SERVICE_FILE" ]]; then
+    systemctl disable ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    rm -f "$LEGACY_SERVICE_FILE"
+  fi
+  [[ -d "$LEGACY_CONFIG_DIR" || -L "$LEGACY_CONFIG_DIR" ]] || ln -sfn "$CONFIG_DIR" "$LEGACY_CONFIG_DIR"
+  [[ -d "$LEGACY_STATE_DIR" || -L "$LEGACY_STATE_DIR" ]] || ln -sfn "$STATE_DIR" "$LEGACY_STATE_DIR"
+  [[ -d "$LEGACY_INSTALL_ROOT" || -L "$LEGACY_INSTALL_ROOT" ]] || ln -sfn "$INSTALL_ROOT" "$LEGACY_INSTALL_ROOT"
 }
 
 install_legacy_aliases() {
@@ -556,10 +607,13 @@ install_agent() {
   prebuilt="$(prebuilt_agent_path)"
 
   # Stop the running agent first so the binary can be replaced safely
-  if systemctl is-active --quiet ypanel.service 2>/dev/null; then
-    log "menghentikan service ypanel untuk mengganti binary"
-    systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
-  fi
+  local unit
+  for unit in reneo.service ypanel.service; do
+    if systemctl is-active --quiet "$unit" 2>/dev/null; then
+      log "menghentikan service ${unit%.service} untuk mengganti binary"
+      systemctl stop "$unit" >>"$INSTALL_LOG_FILE" 2>&1 || true
+    fi
+  done
 
   if [[ -n "$prebuilt" ]]; then
     log "memasang binary agent bawaan paket ($(basename "$prebuilt"))"
@@ -647,13 +701,19 @@ prepare_frontend() {
 }
 
 install_service() {
-  log "memasang unit systemd ypanel.service"
+  log "memasang unit systemd reneo.service"
 
-  if [[ ! -f "$REPO_ROOT/installer/linux/ypanel.service.tpl" ]]; then
-    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/ypanel.service.tpl"
+  if [[ -f "$LEGACY_SERVICE_FILE" && ! -L "$LEGACY_SERVICE_FILE" ]]; then
+    systemctl stop ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    systemctl disable ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+    rm -f "$LEGACY_SERVICE_FILE"
   fi
 
-  cp "$REPO_ROOT/installer/linux/ypanel.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
+  if [[ ! -f "$REPO_ROOT/installer/linux/reneo.service.tpl" ]]; then
+    fail "template systemd tidak ditemukan: $REPO_ROOT/installer/linux/reneo.service.tpl"
+  fi
+
+  cp "$REPO_ROOT/installer/linux/reneo.service.tpl" "$SERVICE_FILE" || fail "gagal menyalin template service ke $SERVICE_FILE"
   chmod 644 "$SERVICE_FILE" || fail "gagal chmod service file $SERVICE_FILE"
 
   if ! command -v systemctl >/dev/null 2>&1; then
@@ -663,24 +723,24 @@ install_service() {
   run_quiet systemctl daemon-reload
   systemctl stop ui-panel.service >/dev/null 2>&1 || true
   systemctl disable ui-panel.service >/dev/null 2>&1 || true
-  run_quiet systemctl enable ypanel.service
+  run_quiet systemctl enable reneo.service
 }
 
 bind_port() {
   printf '%s' "${PANEL_BIND_ADDR##*:}"
 }
 
-# Is something other than ypanel already listening on the panel port?
+# Is something other than reneo already listening on the panel port?
 port_conflict() {
   local port
   port="$(bind_port)"
   command -v ss >/dev/null 2>&1 || return 1
-  ss -ltnpH "sport = :${port}" 2>/dev/null | grep -v 'ypanel-agent' | grep -q .
+  ss -ltnpH "sport = :${port}" 2>/dev/null | grep -Ev 'reneo-agent|ypanel-agent' | grep -q .
 }
 
 start_service() {
   if [[ "$SKIP_START" -eq 1 ]]; then
-    warn "--skip-start: service tidak dijalankan. Jalankan: systemctl restart ypanel"
+    warn "--skip-start: service tidak dijalankan. Jalankan: systemctl restart reneo"
     SERVICE_STATE="dilewati"
     return
   fi
@@ -689,8 +749,8 @@ start_service() {
     warn "port $(bind_port) sudah dipakai proses lain; service mungkin gagal start (cek: ss -ltnp | grep :$(bind_port))"
   fi
 
-  log "menjalankan service ypanel"
-  systemctl restart ypanel.service >>"$INSTALL_LOG_FILE" 2>&1 || true
+  log "menjalankan service reneo"
+  systemctl restart reneo.service >>"$INSTALL_LOG_FILE" 2>&1 || true
 
   local port tries=0 max=40
   port="$(bind_port)"
@@ -700,7 +760,7 @@ start_service() {
       ok "panel merespons di 127.0.0.1:${port} (/healthz)"
       return
     fi
-    if ! systemctl is-active --quiet ypanel.service; then
+    if ! systemctl is-active --quiet reneo.service; then
       break
     fi
     tries=$((tries + 1))
@@ -708,29 +768,29 @@ start_service() {
   done
 
   SERVICE_STATE="gagal"
-  printf '\n%s✗ Service ypanel tidak sehat setelah %ss.%s Log terakhir:\n' "$C_RED" "$tries" "$C_RESET" >&2
-  journalctl -u ypanel -n 25 --no-pager >&2 || true
-  fail "panel tidak merespons. Periksa: journalctl -u ypanel -n 100 --no-pager"
+  printf '\n%s✗ Service reneo tidak sehat setelah %ss.%s Log terakhir:\n' "$C_RED" "$tries" "$C_RESET" >&2
+  journalctl -u reneo -n 25 --no-pager >&2 || true
+  fail "panel tidak merespons. Periksa: journalctl -u reneo -n 100 --no-pager"
 }
 
 install_cli() {
-  log "memasang CLI /usr/local/bin/ypanel"
+  log "memasang CLI /usr/local/bin/reneo"
   cat > "$CLI_PATH" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 # Error trap — shows exact failing line and command for debugging
-trap 'echo "[ypanel] FATAL ERROR at line $BASH_LINENO: $(sed -n "${BASH_LINENO}p" "$0" 2>/dev/null || echo "?")" >&2' ERR
+trap 'echo "[reneo] FATAL ERROR at line $BASH_LINENO: $(sed -n "${BASH_LINENO}p" "$0" 2>/dev/null || echo "?")" >&2' ERR
 
-ENV_FILE="/etc/ypanel/agent.env"
-SERVICE_NAME="ypanel.service"
-PASSWORD_HISTORY_FILE="/var/lib/ypanel/password-history.log"
-AGENT_BIN="/usr/local/bin/ypanel-agent"
+ENV_FILE="/etc/reneo/agent.env"
+SERVICE_NAME="reneo.service"
+PASSWORD_HISTORY_FILE="/var/lib/reneo/password-history.log"
+AGENT_BIN="/usr/local/bin/reneo-agent"
 
 require_root_cli() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    printf '\nypanel harus dijalankan dengan sudo atau sebagai root.\n' >&2
-    printf 'Contoh: sudo ypanel\n\n' >&2
+    printf '\nreneo harus dijalankan dengan sudo atau sebagai root.\n' >&2
+    printf 'Contoh: sudo reneo\n\n' >&2
     exit 1
   fi
 }
@@ -784,7 +844,7 @@ show_panel_info() {
   hostname_value="$(hostname 2>/dev/null || true)"
   hostname_value="${hostname_value:-localhost}"
 
-  printf '\nYPanel Service Manager\n'
+  printf '\nReneo Service Manager\n'
   printf 'Panel bind    : %s\n' "$bind_addr"
   printf 'Panel local   : http://127.0.0.1:%s\n' "$bind_port"
   printf 'Panel network : http://%s:%s\n' "$host_ip" "$bind_port"
@@ -819,14 +879,14 @@ reset_password() {
   fi
 
   set +e
-  command_output="$(printf '%s\n' "$password" | /usr/local/bin/ypanel-agent reset-primary-password --password-stdin 2>&1)"
+  command_output="$(printf '%s\n' "$password" | /usr/local/bin/reneo-agent reset-primary-password --password-stdin 2>&1)"
   status=$?
   set -e
 
   printf '%s\n' "$command_output"
 
   if [[ "$status" -ne 0 ]]; then
-    printf '\nGagal mengubah password akun utama YPanel.\n' >&2
+    printf '\nGagal mengubah password akun utama Reneo.\n' >&2
     exit 1
   fi
 
@@ -834,7 +894,7 @@ reset_password() {
   touch "$PASSWORD_HISTORY_FILE"
   chmod 600 "$PASSWORD_HISTORY_FILE"
   timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
-  printf '[%s] primary YPanel password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
+  printf '[%s] primary Reneo password updated via runtime-cli by %s\n' "$timestamp" "$(whoami)" >> "$PASSWORD_HISTORY_FILE"
 }
 
 view_password_history() {
@@ -843,7 +903,7 @@ view_password_history() {
     return
   fi
 
-  printf '\nRiwayat Ganti Password YPanel\n'
+  printf '\nRiwayat Ganti Password Reneo\n'
   printf '%s\n' '----------------------------------------'
   cat "$PASSWORD_HISTORY_FILE"
 }
@@ -966,7 +1026,7 @@ change_panel_port() {
 }
 
 edit_panel_origins() {
-  local raw_file="/etc/ypanel/allowed-origins.raw"
+  local raw_file="/etc/reneo/allowed-origins.raw"
   local current_allowed_origins
   local temp_file
   local edited_origins
@@ -977,7 +1037,7 @@ edit_panel_origins() {
     exit 1
   fi
 
-  temp_file="$(mktemp /tmp/ypanel-origins.XXXXXX)"
+  temp_file="$(mktemp /tmp/reneo-origins.XXXXXX)"
 
   if [[ -f "$raw_file" ]]; then
     cat "$raw_file" > "$temp_file"
@@ -1022,11 +1082,11 @@ change_panel_access() {
 run_action() {
   case "$1" in
     restart)
-      systemctl restart ypanel.service
+      systemctl restart reneo.service
       printf '\nService berhasil direstart.\n'
       ;;
     stop)
-      systemctl stop ypanel.service
+      systemctl stop reneo.service
       printf '\nService berhasil dihentikan.\n'
       ;;
     reset-password)
@@ -1057,7 +1117,7 @@ run_action() {
       migration_status
       ;;
     uninstall)
-      bash /opt/ypanel/installer/uninstall.sh
+      bash /opt/reneo/installer/uninstall.sh
       ;;
     *)
       printf '\nAksi tidak dikenal: %s\n' "$1"
@@ -1138,15 +1198,15 @@ print_summary() {
 
   printf '\n%s%s=====================================================%s\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
   if [[ "$IS_UPGRADE" -eq 1 ]]; then
-    printf '%s%s YPanel diperbarui ke v%s%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+    printf '%s%s Reneo diperbarui ke v%s%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
   else
-    printf '%s%s YPanel v%s terpasang%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
+    printf '%s%s Reneo v%s terpasang%s  (%ss)\n' "$C_GREEN" "$C_BOLD" "${version#v}" "$C_RESET" "$elapsed"
   fi
   printf '%s%s=====================================================%s\n\n' "$C_GREEN" "$C_BOLD" "$C_RESET"
 
   printf '  %-14s %s\n' "Buka panel" "http://${host_ip}:${port}"
   printf '  %-14s %s\n' "Lokal" "http://127.0.0.1:${port}"
-  printf '  %-14s %s\n' "Service" "ypanel.service (${SERVICE_STATE})"
+  printf '  %-14s %s\n' "Service" "reneo.service (${SERVICE_STATE})"
   printf '  %-14s %s\n' "Konfigurasi" "$ENV_FILE"
   printf '  %-14s %s\n' "Data" "$STATE_DIR"
   printf '  %-14s %s\n' "Frontend" "$FRONTEND_DIR"
@@ -1163,20 +1223,28 @@ print_summary() {
   fi
 
   printf '\n%sPerintah berguna:%s\n' "$C_BOLD" "$C_RESET"
-  printf '  ypanel                          menu kelola panel (password, port, origins, migrasi)\n'
-  printf '  systemctl status ypanel         status service\n'
-  printf '  journalctl -u ypanel -f         log langsung\n'
-  printf '  bash %s --help        opsi installer\n\n' "ypanel-installer.run"
+  printf '  reneo                          menu kelola panel (password, port, origins, migrasi)\n'
+  printf '  systemctl status reneo         status service\n'
+  printf '  journalctl -u reneo -f         log langsung\n'
+  printf '  bash %s --help        opsi installer\n\n' "reneo-installer.run"
 }
 
 main() {
   parse_args "$@"
+  # RENEO_BIND_ADDR, RENEO_DATABASE_DSN, ... work like their PANEL_ counterparts
+  local _kv _key
+  while IFS='=' read -r _key _kv; do
+    case "$_key" in
+      RENEO_REPO_ROOT|RENEO_HOME|RENEO_CONFIG_DIR|RENEO_SERVICE_NAME) ;;
+      RENEO_*) export "PANEL_${_key#RENEO_}=${_kv}" ;;
+    esac
+  done < <(env | grep '^RENEO_' || true)
   require_root
   prepare_install_log
 
   # Upgrade when a previous configuration exists
   IS_UPGRADE=0
-  if [[ -f "$ENV_FILE" || -f /etc/ui-panel/agent.env ]]; then
+  if [[ -f "$ENV_FILE" || -f "$LEGACY_CONFIG_DIR/agent.env" || -f /etc/ui-panel/agent.env ]]; then
     IS_UPGRADE=1
   fi
   SERVICE_STATE="tidak dijalankan"
@@ -1184,7 +1252,7 @@ main() {
 
   local mode="pemasangan baru"
   [[ "$IS_UPGRADE" -eq 1 ]] && mode="pembaruan"
-  printf '%sYPanel installer%s  v%s  (%s)\n' "$C_BOLD" "$C_RESET" "$(read_bundle_version | sed 's/^v//')" "$mode"
+  printf '%sReneo installer%s  v%s  (%s)\n' "$C_BOLD" "$C_RESET" "$(read_bundle_version | sed 's/^v//')" "$mode"
 
   step "Prasyarat sistem"
   detect_pm
@@ -1193,7 +1261,8 @@ main() {
   ensure_cloudflared
 
   step "Konfigurasi"
-  ypanel_config
+  migrate_ypanel_layout
+  reneo_config
   migrate_legacy_runtime
   setup_directories
   ensure_hostname_resolution
@@ -1224,6 +1293,7 @@ main() {
   install_service
   install_cli
   install_legacy_aliases
+  install_ypanel_compat_links
   disable_portainer
   start_service
 

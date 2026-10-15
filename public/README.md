@@ -1,6 +1,6 @@
-# YPanel Public Assets
+# Reneo Public Assets
 
-Folder ini berisi aset visual publik untuk **YPanel**, termasuk logo, favicon,
+Folder ini berisi aset visual publik untuk **Reneo**, termasuk logo, favicon,
 brand preview, dan material social/marketing yang disajikan langsung oleh
 frontend Vite dari path `/`.
 
@@ -9,7 +9,7 @@ frontend Vite dari path `/`.
 
 ## Filosofi Brand
 
-**YPanel** adalah desktop-style Linux server control panel. Identitas visualnya
+**Reneo** adalah desktop-style Linux server control panel. Identitas visualnya
 menggabungkan tiga ide utama:
 
 1. **Y sebagai pusat kendali**  
@@ -18,7 +18,7 @@ menggabungkan tiga ide utama:
    Database, dan Logs.
 
 2. **Server workspace, bukan dashboard biasa**  
-   UI YPanel memakai konsep window, taskbar, dan workspace seperti desktop OS.
+   UI Reneo memakai konsep window, taskbar, dan workspace seperti desktop OS.
    Karena itu aset preview sebaiknya menampilkan window aplikasi asli, bukan
    dashboard generik buatan AI.
 
@@ -80,18 +80,18 @@ Saat aset sudah final, gunakan nama yang stabil dan mudah dipakai di kode:
 public/
 ├── favicon.svg
 ├── icons.svg
-├── ypanel-logo.png
-├── ypanel-logo-horizontal.png
-├── ypanel-brand-sheet.png
-├── ypanel-social-preview.png
-├── ypanel-hero-preview.png
-└── ypanel-app-preview.png
+├── reneo-logo.png
+├── reneo-logo-horizontal.png
+├── reneo-brand-sheet.png
+├── reneo-social-preview.png
+├── reneo-hero-preview.png
+└── reneo-app-preview.png
 ```
 
 Untuk Open Graph/social sharing, gunakan:
 
 ```txt
-ypanel-social-preview.png
+reneo-social-preview.png
 ```
 
 Target ukuran ideal:
@@ -103,8 +103,8 @@ Target ukuran ideal:
 Jika source lebih besar, simpan source high-res juga, misalnya:
 
 ```txt
-ypanel-social-preview@2x.png  # 2400x1260
-ypanel-social-preview.png     # 1200x630
+reneo-social-preview@2x.png  # 2400x1260
+reneo-social-preview.png     # 1200x630
 ```
 
 ## Penggunaan di HTML
@@ -118,22 +118,22 @@ Contoh penggunaan favicon:
 Contoh metadata social preview setelah aset final tersedia:
 
 ```html
-<meta property="og:title" content="YPanel" />
+<meta property="og:title" content="Reneo" />
 <meta property="og:description" content="Control your server like a desktop." />
-<meta property="og:image" content="/ypanel-social-preview.png" />
+<meta property="og:image" content="/reneo-social-preview.png" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="YPanel" />
+<meta name="twitter:title" content="Reneo" />
 <meta
   name="twitter:description"
   content="Control your server like a desktop."
 />
-<meta name="twitter:image" content="/ypanel-social-preview.png" />
+<meta name="twitter:image" content="/reneo-social-preview.png" />
 ```
 
 ## Panduan Social Preview
 
-Social preview YPanel sebaiknya memakai **screenshot UI asli** karena nilai
+Social preview Reneo sebaiknya memakai **screenshot UI asli** karena nilai
 utama produk adalah desktop workspace dengan multi-window.
 
 Komposisi yang direkomendasikan:
@@ -141,7 +141,7 @@ Komposisi yang direkomendasikan:
 - canvas final `1200x630`
 - screenshot UI asli sebagai background
 - gradient gelap tipis dari kiri ke kanan
-- logo YPanel di kiri atau center-left
+- logo Reneo di kiri atau center-left
 - tagline pendek di bawah logo
 - fitur ringkas opsional:
 
@@ -163,7 +163,7 @@ Hindari:
 Gunakan prompt ini jika ingin meningkatkan kualitas gambar tanpa mengubah UI:
 
 ```text
-Enhance this real YPanel product screenshot for a premium Open Graph social preview.
+Enhance this real Reneo product screenshot for a premium Open Graph social preview.
 
 Preserve the original UI exactly. Do not redesign, repaint, invent, or change
 any interface elements. Keep all text, windows, buttons, icons, and layout
@@ -243,11 +243,11 @@ Sebelum dipakai di production, idealnya tersedia:
 - [ ] `favicon.ico`
 - [ ] `favicon-16.png`
 - [ ] `favicon-32.png`
-- [ ] `ypanel-icon-192.png`
-- [ ] `ypanel-icon-512.png`
-- [ ] `ypanel-logo-horizontal.svg/png`
-- [ ] `ypanel-social-preview.png` ukuran `1200x630`
-- [ ] `ypanel-social-preview@2x.png` ukuran `2400x1260`
+- [ ] `reneo-icon-192.png`
+- [ ] `reneo-icon-512.png`
+- [ ] `reneo-logo-horizontal.svg/png`
+- [ ] `reneo-social-preview.png` ukuran `1200x630`
+- [ ] `reneo-social-preview@2x.png` ukuran `2400x1260`
 - [ ] varian monochrome putih/hitam/slate
 
 ## Status Saat Ini

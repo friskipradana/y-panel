@@ -47,8 +47,10 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ypanel-installer
-          path: dist-release/ypanel-installer.run
+          name: reneo-installer
+          path: |
+            dist-release/reneo-installer.run
+            dist-release/ypanel-installer.run
           if-no-files-found: error
 
       - name: Build release notes from CHANGELOG.md
@@ -68,7 +70,7 @@ jobs:
           }
           if (-not $notes) { $notes = "Release $tag" }
 
-          $url = "https://github.com/$($env:REPOSITORY)/releases/download/$tag/ypanel-installer.run"
+          $url = "https://github.com/$($env:REPOSITORY)/releases/download/$tag/reneo-installer.run"
           $fence = '```'
           $lines = @(
             $notes,
@@ -78,7 +80,7 @@ jobs:
             '## Instalasi',
             '',
             "${fence}bash",
-            "wget -O ypanel-installer.run $url && sudo bash ypanel-installer.run",
+            "wget -O reneo-installer.run $url && sudo bash reneo-installer.run",
             $fence,
             '',
             'Pasang ulang di server yang sudah ada diperlakukan sebagai pembaruan: konfigurasi dipertahankan dan service di-restart. Opsi: `--bind`, `--yes`, `--skip-start`, `--help`.'
@@ -93,6 +95,8 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           name: ${{ inputs.tag || github.ref_name }}
           body_path: release-notes.md
-          files: dist-release/ypanel-installer.run
+          files: |
+            dist-release/reneo-installer.run
+            dist-release/ypanel-installer.run
           fail_on_unmatched_files: true
           generate_release_notes: false

@@ -1,12 +1,12 @@
 # ──────────────────────────────────────────────
-# YPanel Local Development Stack
+# Reneo Local Development Stack
 # Usage: docker compose up -d
 # ──────────────────────────────────────────────
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ypanel-postgres
+    container_name: reneo-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ypanel
@@ -26,7 +26,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ypanel-agent
+    container_name: reneo-agent
     restart: unless-stopped
     depends_on:
       postgres:
@@ -45,7 +45,7 @@ services:
       PANEL_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
       PANEL_TERMINAL_ENABLED: "true"
     volumes:
-      - agent-state:/var/lib/ypanel
+      - agent-state:/var/lib/reneo
 
 volumes:
   pgdata:

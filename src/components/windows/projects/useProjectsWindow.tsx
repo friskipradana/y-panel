@@ -240,7 +240,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const openHighlightedProjectLogs = () => {
     if (!highlightedProject) return
     openWindow('system-logs', {
-      service: 'ypanel',
+      service: 'reneo',
       search: highlightedProject.name,
     })
   }
@@ -251,7 +251,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     const commandParts = [
       highlightedProject.workingDir ? `cd ${JSON.stringify(highlightedProject.workingDir)}` : '',
       `printf '\\n== docker ps ==\\n' && docker ps --format 'table {{.Names}}\\t{{.Status}}' | grep -i ${JSON.stringify(runtimeName)} || true`,
-      `printf '\\n== recent logs ==\\n' && journalctl -u ypanel -n 80 --no-pager | grep -i ${JSON.stringify(highlightedProject.name)} || journalctl -u ui-panel -n 80 --no-pager | grep -i ${JSON.stringify(highlightedProject.name)} || true`,
+      `printf '\\n== recent logs ==\\n' && journalctl -u reneo -n 80 --no-pager | grep -i ${JSON.stringify(highlightedProject.name)} || journalctl -u ui-panel -n 80 --no-pager | grep -i ${JSON.stringify(highlightedProject.name)} || true`,
     ].filter(Boolean)
     const command = commandParts.join(' && ')
     try {

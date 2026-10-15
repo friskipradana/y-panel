@@ -1,6 +1,6 @@
-# YPanel - Agent Customization & Project Rules
+# Reneo - Agent Customization & Project Rules
 
-Selamat datang di repository **YPanel** (Desktop-style Linux Server Control Panel).
+Selamat datang di repository **Reneo** (Desktop-style Linux Server Control Panel).
 Dokumen ini menjadi aturan wajib dan acuan utama bagi AI Coding Assistant (Antigravity/Gemini) dan tim pengembang.
 
 ---
@@ -107,7 +107,7 @@ Dokumen referensi visual utama: [DESIGN.md](DESIGN.md) dan inventaris [.agents/r
    - Pesan error wajib menjelaskan objek yang gagal dan solusi perbaikan konkret.
 4. **Anti-Code Slop**:
    - Dilarang membuat barrel `index.ts` kosong atau wrapper untuk satu pemakai.
-   - Dilarang `!important` dan dilarang membuat `z-index` acak di luar tangga z-index YPanel (normal 100, max 500, taskbar 60000, focus 50000, fullscreen 120000).
+   - Dilarang `!important` dan dilarang membuat `z-index` acak di luar tangga z-index Reneo (normal 100, max 500, taskbar 60000, focus 50000, fullscreen 120000).
    - Dilarang menyisakan `console.log` dan kode mati.
    - 100% Fidelity: Dilarang mengubah perilaku atau merusak fitur lama saat refactoring visual.
 

@@ -1,6 +1,6 @@
-# YPanel Design System (`DESIGN.md`)
+# Reneo Design System (`DESIGN.md`)
 
-Sumber kebenaran visual untuk **YPanel**, panel server Linux bergaya desktop (React 19 + Go agent).
+Sumber kebenaran visual untuk **Reneo**, panel server Linux bergaya desktop (React 19 + Go agent).
 Dokumen ini mencerminkan kode yang berjalan. Jika kode berubah, perbarui dokumen ini.
 
 Dokumen terkait:
