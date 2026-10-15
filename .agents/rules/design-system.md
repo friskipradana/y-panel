@@ -52,9 +52,17 @@ Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DES
 2. Tahan double-mount React 19 StrictMode: cleanup untuk socket, interval, listener.
 3. Remote data lewat TanStack Query, state UI lewat Zustand. Tidak ada `fetch` langsung di komponen.
 
-## 8. Selesai Berarti
+## 8. Desktop dan Mobile Selalu Bersama
+
+1. Permintaan memperbaiki, merapikan, atau menambah sesuatu di UI berlaku untuk **mode desktop dan mode mobile** (shell ponsel `MobileShell`, `?ui=mobile`), kecuali pengguna menyebut salah satunya saja.
+2. Aksi yang ada di desktop harus bisa dilakukan di mobile (buat, ubah, hapus, buka), dan sebaliknya. Memeriksa paritas aksi adalah bagian dari perbaikan.
+3. Penyesuaian khusus ponsel memakai varian `mobile:` atau komponen `components/mobile/`; jangan mengubah tampilan desktop untuk kebutuhan ponsel (lihat [component-list.md](component-list.md)).
+4. Sebelum selesai, lihat hasilnya di dua mode (ukuran ponsel 390px dan desktop) dan sebutkan keduanya di laporan.
+
+## 9. Selesai Berarti
 
 - `bun run build` exit 0 tanpa warning, `bun run lint` bersih, `bun run check:ui` 0 error.
 - Light + dark dicek, tidak ada teks tak terbaca.
+- Desktop dan mobile dicek (bagian 8), paritas aksi terpenuhi.
 - Tidak ada pelanggaran di [anti-slop](../skills/anti-slop/SKILL.md).
 - Perilaku lama tetap utuh (fidelity 100%) kecuali memang diminta berubah.

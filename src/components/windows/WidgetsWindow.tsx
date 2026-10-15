@@ -1,10 +1,17 @@
 import { useState } from 'react'
-import { Plus, Check, RotateCcw, Move, Clock, Gauge, Network, StickyNote, Activity, Puzzle, Radar } from 'lucide-react'
+import { Activity, Clock, Gauge, Move, Network, Plus, Puzzle, Radar, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { WIDGET_CATALOG, useWidgetStore, MULTI_INSTANCE_WIDGETS } from '@/store/widgetStore'
-import type { WidgetType } from '@/types'
-import { useI18n } from '@/lib/i18n'
+import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore } from '@/store/widgetStore'
+import type { PlacedWidget, WidgetType } from '@/types'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { EntityRow } from '@/components/ui/EntityRow'
+import { IconBadge } from '@/components/ui/IconBadge'
+import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState } from '@/components/ui/states'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { alertLib } from '@/lib/alert'
+import { useI18n } from '@/lib/i18n'
 
 const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
   'clock-uptime': Clock,
@@ -15,140 +22,171 @@ const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
   ping: Radar,
 }
 
+// One short line that tells two widgets of the same type apart
+function detail(widget: PlacedWidget): string {
+  const cfg = widget.config ?? {}
+  if (widget.type === 'ping') {
+    const host = String(cfg.host ?? '')
+    const port = Number(cfg.port ?? 0)
+    return host ? (port > 0 ? `${host}:${port}` : host) : ''
+  }
+  if (widget.type === 'quick-note') {
+    const text = String(cfg.text ?? '').replace(/\s+/g, ' ').trim()
+    return text.length > 48 ? `${text.slice(0, 48)}...` : text
+  }
+  return ''
+}
+
+// Installed widgets (with remove) and the gallery to add more. Same window on desktop and phone.
 export function WidgetsWindow() {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
-  const { placedWidgets, addWidget, resetLayout } = useWidgetStore()
+  const placedWidgets = useWidgetStore((s) => s.placedWidgets)
+  const mobileOrder = useWidgetStore((s) => s.mobile.order)
+  const addWidget = useWidgetStore((s) => s.addWidget)
+  const removeWidget = useWidgetStore((s) => s.removeWidget)
+  const resetLayout = useWidgetStore((s) => s.resetLayout)
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
-  const [justAdded, setJustAdded] = useState<string | null>(null)
 
-  const hasWidgets = placedWidgets.length > 0
+  // the host card on the phone home already shows CPU, RAM and disk
+  const visibleInstalled = (isMobile ? orderWidgetsForMobile(placedWidgets, mobileOrder) : placedWidgets).filter(
+    (w) => !(isMobile && w.type === 'system-vital'),
+  )
+  const catalog = WIDGET_CATALOG.filter((item) => !(isMobile && item.type === 'system-vital'))
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, type: WidgetType) => {
-    e.dataTransfer.setData('application/ypanel-widget', type)
-    e.dataTransfer.setData('text/plain', type)
-    e.dataTransfer.effectAllowed = 'copy'
-    setDraggedType(type)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedType(null)
-  }
-
-  const handleAddClick = (type: WidgetType) => {
-    addWidget(type)
-    setJustAdded(type)
-    setTimeout(() => setJustAdded(null), 1500)
+  const confirmRemove = async (widget: PlacedWidget) => {
+    const ok = await alertLib.confirm(
+      t('widgets.removeQuestion'),
+      t('widgets.removeMessage', { name: t(`widget.catalog.${widget.type}.title`) }),
+      t('widgets.removeConfirm'),
+      t('common.cancel'),
+      'warning',
+      'widgets',
+    )
+    if (ok) removeWidget(widget.id)
   }
 
   return (
-    <div className="flex h-full flex-col bg-[var(--win-content-bg)] text-[var(--win-text)] select-none overflow-y-auto">
-      {/* Top Banner */}
-      <div className="flex items-center justify-between border-b border-[var(--win-border)] bg-[var(--win-bar)] px-6 py-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Puzzle size={20} strokeWidth={1.75} className="text-[var(--panel-primary-text)]" />
-            <h2 className="text-base font-bold text-[var(--win-text)] tracking-tight">{t('widgets.gallery')}</h2>
-            <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-medium text-cyan-500">
-              {t('widgets.modules')}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            {isMobile ? t('widgets.galleryHintMobile') : t('widgets.galleryHint')}
-          </p>
+    <div className="panel-window flex h-full flex-col">
+      <div className="flex min-h-[40px] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <Puzzle className="h-4 w-4 shrink-0" />
+          <span className="font-semibold text-[var(--win-text)]">{t('widgets.gallery')}</span>
+          <span>•</span>
+          <span>{t('widgets.installedCount', { count: visibleInstalled.length })}</span>
         </div>
-
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          className="px-2.5 py-1 text-xs"
           onClick={resetLayout}
-          disabled={!hasWidgets}
-          title={hasWidgets ? (isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')) : t('widgets.noneActive')}
-          className={`flex items-center gap-1.5 rounded-lg border border-[var(--win-border)] px-3 py-1.5 text-xs font-medium transition ${
-            hasWidgets
-              ? 'bg-[var(--panel-surface-strong)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] cursor-pointer'
-              : 'opacity-40 text-[var(--text-secondary)] bg-[var(--panel-surface)] cursor-not-allowed'
-          }`}
+          disabled={placedWidgets.length === 0}
+          title={isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')}
         >
-          <RotateCcw size={12} className={hasWidgets ? 'text-[var(--text-secondary)]' : 'opacity-40'} />
+          <RotateCcw className="h-3.5 w-3.5" />
           {isMobile ? t('widgets.resetMobile') : t('widgets.reset')}
-        </button>
+        </Button>
       </div>
 
-      {/* Catalog Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-        {WIDGET_CATALOG.filter((item) => !(isMobile && item.type === 'system-vital')).map((item) => {
-          const isPlaced = !MULTI_INSTANCE_WIDGETS.includes(item.type) && placedWidgets.some((w) => w.type === item.type)
-          const isBeingDragged = draggedType === item.type
-          const wasJustAdded = justAdded === item.type
-
-          const Icon = WIDGET_ICONS[item.type]
-          return (
-            <div
-              key={item.type}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item.type)}
-              onDragEnd={handleDragEnd}
-              className={`group flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-grab active:cursor-grabbing ${
-                isBeingDragged
-                  ? 'opacity-40 border-cyan-500 scale-95'
-                  : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-cyan-500/50 hover:bg-[var(--panel-surface-hover)] shadow-xs'
-              }`}
-            >
-              <div>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-[var(--panel-primary-text)]"><Icon size={22} strokeWidth={1.75} /></span>
-                    <div>
-                      <h3 className="text-sm font-semibold text-[var(--win-text)]">{t(`widget.catalog.${item.type}.title`)}</h3>
-                      <span className="rounded bg-[var(--panel-surface-strong)] border border-[var(--win-border)] px-1.5 py-0.5 text-[9px] font-mono uppercase text-[var(--text-secondary)]">
-                        {item.badge}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="mt-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {t(`widget.catalog.${item.type}.subtitle`)}
-                </p>
-              </div>
-
-              {/* Bottom Actions */}
-              <div className="mt-5 flex items-center justify-between border-t border-[var(--win-border)] pt-3 text-xs">
-                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] group-hover:text-cyan-500 transition-colors mobile:invisible">
-                  <Move size={12} />
-                  <span>{t('widgets.dragHint')}</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => !isPlaced && handleAddClick(item.type)}
-                  disabled={isPlaced}
-                  title={isPlaced ? t('widgets.installedTitle') : t('widgets.installTitle')}
-                  className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                    isPlaced
-                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 opacity-70 cursor-default'
-                      : wasJustAdded
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                      : 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 hover:bg-cyan-500/25 border border-cyan-500/30 cursor-pointer'
-                  }`}
-                >
-                  {isPlaced || wasJustAdded ? (
-                    <>
-                      <Check size={12} /> {t('widgets.installed')}
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={12} /> {t('widgets.install')}
-                    </>
-                  )}
-                </button>
-              </div>
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-3 sm:p-4">
+        <section aria-labelledby="widgets-installed">
+          <h2 id="widgets-installed" className="panel-section-label mb-2">
+            {t('widgets.sectionInstalled')}
+          </h2>
+          {visibleInstalled.length === 0 ? (
+            <EmptyState icon={<Puzzle />}>{t('widgets.noneInstalled')}</EmptyState>
+          ) : (
+            <div className="panel-table-container">
+              {visibleInstalled.map((widget) => {
+                const Icon = WIDGET_ICONS[widget.type]
+                const extra = detail(widget)
+                return (
+                  <EntityRow
+                    key={widget.id}
+                    centered
+                    className="p-3"
+                    leading={
+                      <IconBadge size="md" tone="primary">
+                        <Icon />
+                      </IconBadge>
+                    }
+                    title={t(`widget.catalog.${widget.type}.title`)}
+                    badges={widget.isLocked && !isMobile ? <Badge tone="warning">{t('widgets.locked')}</Badge> : undefined}
+                    subtitle={extra ? <span className="panel-mono">{extra}</span> : undefined}
+                    actions={
+                      <IconButton label={t('mobile.widgetRemove')} tone="danger" onClick={() => void confirmRemove(widget)}>
+                        <Trash2 className="h-4 w-4" />
+                      </IconButton>
+                    }
+                  />
+                )
+              })}
             </div>
-          )
-        })}
+          )}
+        </section>
+
+        <section aria-labelledby="widgets-gallery">
+          <h2 id="widgets-gallery" className="panel-section-label mb-1">
+            {t('widgets.sectionGallery')}
+          </h2>
+          <p className="mb-2 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+            {isMobile ? t('widgets.galleryHintMobile') : t('widgets.galleryHint')}
+          </p>
+          <div className="panel-table-container">
+            {catalog.map((item) => {
+              const Icon = WIDGET_ICONS[item.type]
+              const multi = MULTI_INSTANCE_WIDGETS.includes(item.type)
+              const installed = !multi && placedWidgets.some((w) => w.type === item.type)
+              return (
+                <div
+                  key={item.type}
+                  draggable={!isMobile}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/ypanel-widget', item.type)
+                    e.dataTransfer.setData('text/plain', item.type)
+                    e.dataTransfer.effectAllowed = 'copy'
+                    setDraggedType(item.type)
+                  }}
+                  onDragEnd={() => setDraggedType(null)}
+                  className={draggedType === item.type ? 'opacity-50' : ''}
+                >
+                  <EntityRow
+                    centered
+                    className="p-3"
+                    leading={
+                      <IconBadge size="md">
+                        <Icon />
+                      </IconBadge>
+                    }
+                    title={t(`widget.catalog.${item.type}.title`)}
+                    badges={<Badge tone="neutral">{item.badge}</Badge>}
+                    subtitle={<span className="[word-break:normal]">{t(`widget.catalog.${item.type}.subtitle`)}</span>}
+                    meta={
+                      !isMobile ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Move size={12} />
+                          {t('widgets.dragHint')}
+                        </span>
+                      ) : undefined
+                    }
+                    actions={
+                      installed ? (
+                        <Badge tone="success" dot>
+                          {t('widgets.installed')}
+                        </Badge>
+                      ) : (
+                        <Button variant="primary-soft" onClick={() => addWidget(item.type)} title={t('widgets.installTitle')}>
+                          <Plus className="h-3.5 w-3.5" />
+                          {t('widgets.install')}
+                        </Button>
+                      )
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </section>
       </div>
     </div>
   )
 }
-
-export default WidgetsWindow
