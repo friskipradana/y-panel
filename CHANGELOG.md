@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.3.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.3.0** berisi 4 perubahan: 4 fitur. (46 files changed, 1741 insertions(+), 355 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **accounts:** Role hierarchy, safe quota patch, usage, password reset and change, suspend/delete stop workloads ([`a391740`](https://github.com/friskipradana/panel-desktop-ui/commit/a391740))
+- **demo:** Read-only demo account with landing page card; polish projects, database, system and logs windows ([`7d77f0f`](https://github.com/friskipradana/panel-desktop-ui/commit/7d77f0f))
+- **demo,landing:** Harden demo allowlist, seed sample projects, tidy mobile landing, drop owner line, split users window ([`5f6056d`](https://github.com/friskipradana/panel-desktop-ui/commit/5f6056d))
+- **mobile:** Per-phone widget order and lock, lock screen in account menu, translate widget gallery and window titles ([`13004dc`](https://github.com/friskipradana/panel-desktop-ui/commit/13004dc))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.2.0...v4.3.0
+
 ## [4.2.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
