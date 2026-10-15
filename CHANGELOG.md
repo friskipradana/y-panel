@@ -2,6 +2,42 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.5.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.5.0** berisi 16 perubahan: 6 fitur, 4 perbaikan, 1 dokumentasi, 5 pemeliharaan. (118 files changed, 2119 insertions(+), 279 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **db,mobile,landing:** Adminer sign-in from the Database window, empty-table browse fix, mobile keeps apps alive and returns home on close, demo button prefills login ([`9a70e2c`](https://github.com/friskipradana/panel-desktop-ui/commit/9a70e2c))
+- **docs:** Article editor toolbar with image upload, markdown images, screenshots in official articles ([`cfe6d58`](https://github.com/friskipradana/panel-desktop-ui/commit/cfe6d58))
+- **mcp:** Tools for user databases, terminal presets, own usage, update status/apply and official docs; regenerated catalog ([`33d1e8a`](https://github.com/friskipradana/panel-desktop-ui/commit/33d1e8a))
+- **public:** Landing, articles and MCP guide follow light/dark mode with a header toggle ([`ec14aca`](https://github.com/friskipradana/panel-desktop-ui/commit/ec14aca))
+- **update,alerts:** Live non-closable update log dialog, faster update check, accessible and safe alert dialogs on phone and desktop ([`b6c4a3e`](https://github.com/friskipradana/panel-desktop-ui/commit/b6c4a3e))
+- **widgets:** Live WebSocket stream for network, CPU and ping widgets (1s samples, server-driven ping probes) ([`8246be7`](https://github.com/friskipradana/panel-desktop-ui/commit/8246be7))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **terminal:** Copy/paste shortcuts, global shortcuts no longer steal Esc/Ctrl+K/Alt keys inside terminal and editor ([`f1d9792`](https://github.com/friskipradana/panel-desktop-ui/commit/f1d9792))
+- **ui:** Dialogs fit the phone viewport, deploy form single column, specific database versions instead of alpine tags ([`ce440ec`](https://github.com/friskipradana/panel-desktop-ui/commit/ce440ec))
+- **ui:** Docker, terminal, cloudflare, projects, file manager and users windows on phone; terminal key bar ([`3af3647`](https://github.com/friskipradana/panel-desktop-ui/commit/3af3647))
+- **widgets:** Lock survives reload before sync, locked widgets stay put when the layout is tidied or sanitized ([`11fc4fa`](https://github.com/friskipradana/panel-desktop-ui/commit/11fc4fa))
+
+### 📚 Dokumentasi (Documentation)
+- Component list for article editor toolbar and images ([`b5a1738`](https://github.com/friskipradana/panel-desktop-ui/commit/b5a1738))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- Contributors come from GitHub instead of hardcoded names; remove Y_Corp owner line from README ([`2f207c7`](https://github.com/friskipradana/panel-desktop-ui/commit/2f207c7))
+- **license:** Point to the GitHub contributors list ([`c771c09`](https://github.com/friskipradana/panel-desktop-ui/commit/c771c09))
+- **license:** Name the Reneo contributors as copyright holder, drop Y_Corp and the old product name ([`6bfb263`](https://github.com/friskipradana/panel-desktop-ui/commit/6bfb263))
+- **rename:** Finish ypanel/ui-panel -> reneo in cookie, env markers, DNS file, presets, storage keys, deploy scripts and docs ([`d3007f1`](https://github.com/friskipradana/panel-desktop-ui/commit/d3007f1))
+
+### 📦 Lainnya (Other)
+- Revert "chore(release): v4.5.0" ([`fb44ee3`](https://github.com/friskipradana/panel-desktop-ui/commit/fb44ee3))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.4.0...v4.5.0
+
 ## [4.4.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
