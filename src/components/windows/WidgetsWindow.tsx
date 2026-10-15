@@ -141,7 +141,7 @@ export function WidgetsWindow() {
                   key={item.type}
                   draggable={!isMobile}
                   onDragStart={(e) => {
-                    e.dataTransfer.setData('application/ypanel-widget', item.type)
+                    e.dataTransfer.setData('application/x-reneo-widget', item.type)
                     e.dataTransfer.setData('text/plain', item.type)
                     e.dataTransfer.effectAllowed = 'copy'
                     setDraggedType(item.type)

@@ -8,7 +8,7 @@ CLI_PATH="/usr/local/bin/reneo"
 INSTALL_ROOT="/opt/reneo"
 CONFIG_DIR="/etc/reneo"
 STATE_DIR="/var/lib/reneo"
-PORTAINER_CONTAINER="ypanel-portainer"
+PORTAINER_CONTAINERS=("reneo-portainer" "ypanel-portainer")
 PORTAINER_VOLUME="portainer_data"
 PG_DB_NAME="serverpanel"
 PG_DB_USER="panel_user"
@@ -83,7 +83,7 @@ remove_binary_and_data() {
 remove_portainer() {
   if command -v docker >/dev/null 2>&1; then
     log "menghapus container Portainer yang dikelola installer"
-    docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
+    docker rm -f "${PORTAINER_CONTAINERS[@]}" >/dev/null 2>&1 || true
     docker volume rm "$PORTAINER_VOLUME" >/dev/null 2>&1 || true
   fi
 }

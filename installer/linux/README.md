@@ -72,7 +72,7 @@ curl http://127.0.0.1:8787/api/v1/bootstrap/status
 
 Container Portainer dijalankan sebagai service pendukung internal:
 
-- nama container: `ypanel-portainer`
+- nama container: `reneo-portainer` (instalasi lama: `ypanel-portainer`)
 - bind: `127.0.0.1:9000`, `127.0.0.1:9443`
 - frontend **tidak** mengakses Portainer langsung
 - semua akses runtime seharusnya melewati Go agent
@@ -81,7 +81,7 @@ Cek status:
 
 ```bash
 docker ps
-docker logs -f ypanel-portainer
+docker logs -f reneo-portainer
 curl http://127.0.0.1:9000/api/status
 ```
 

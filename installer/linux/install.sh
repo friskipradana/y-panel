@@ -21,7 +21,7 @@ SERVICE_FILE="/etc/systemd/system/reneo.service"
 BIN_PATH="/usr/local/bin/reneo-agent"
 CLI_PATH="/usr/local/bin/reneo"
 FRONTEND_DIR="$INSTALL_ROOT/frontend"
-PORTAINER_CONTAINER="ypanel-portainer"
+PORTAINER_CONTAINERS=("reneo-portainer" "ypanel-portainer")
 DEFAULT_BIND_ADDR="0.0.0.0:8787"
 DEFAULT_PORTAINER_URL=""
 DEFAULT_DB_HOST="127.0.0.1"
@@ -1310,9 +1310,12 @@ EOF
 disable_portainer() {
   log "memastikan sidecar Portainer lama tidak berjalan"
 
-  if docker ps -a --format '{{.Names}}' | grep -q "^${PORTAINER_CONTAINER}$"; then
-    docker rm -f "$PORTAINER_CONTAINER" >/dev/null 2>&1 || true
-  fi
+  local name
+  for name in "${PORTAINER_CONTAINERS[@]}"; do
+    if docker ps -a --format '{{.Names}}' | grep -q "^${name}$"; then
+      docker rm -f "$name" >/dev/null 2>&1 || true
+    fi
+  done
   docker volume rm portainer_data >/dev/null 2>&1 || true
 }
 

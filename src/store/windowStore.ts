@@ -366,7 +366,7 @@ export const useWindowStore = create<WindowStore>()(
 
     })),
     {
-      name: "ui-panel-windows",
+      name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
     }
   )

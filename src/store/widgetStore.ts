@@ -550,7 +550,7 @@ export const useWidgetStore = create<WidgetState>()(
       },
     }),
     {
-      name: 'ypanel-desktop-widgets-v2',
+      name: 'reneo-desktop-widgets-v2',
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state && Array.isArray(state.placedWidgets)) {

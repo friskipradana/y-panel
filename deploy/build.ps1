@@ -458,7 +458,7 @@ __ARCHIVE__
   if (-not $RemBase) { throw 'Gagal resolve remote dir.' }
 
   $OldEnv = @{}
-  $envReadCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sh -c 'cat $ENV_FILE 2>/dev/null; cat /etc/ui-panel/agent.env 2>/dev/null; true'"
+  $envReadCmd = "printf '%s\n' '$escSudo' | sudo -S -p '' sh -c 'cat $ENV_FILE 2>/dev/null; cat /etc/reneo/agent.env 2>/dev/null; true'"
   $envLines = Invoke-Remote $envReadCmd -AllowFail
   foreach ($envLine in $envLines) {
     if ($envLine -match '^([A-Z0-9_]+)=(.*)$') { $OldEnv[$Matches[1]] = $Matches[2] }

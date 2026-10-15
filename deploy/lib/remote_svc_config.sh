@@ -21,8 +21,8 @@ sudo_exec "chmod 600 '$ENV_FILE'"
 sudo_exec "chown $PANEL_USER:$PANEL_USER '$ENV_FILE' 2>/dev/null || true"
 sudo_exec "systemctl daemon-reload"
 if [[ "$SERVICE_NAME" == "reneo" ]]; then
-  sudo_exec "systemctl stop ui-panel.service 2>/dev/null || true"
-  sudo_exec "systemctl disable ui-panel.service 2>/dev/null || true"
+  sudo_exec "systemctl stop reneo.service 2>/dev/null || true"
+  sudo_exec "systemctl disable reneo.service 2>/dev/null || true"
 fi
 sudo_exec "systemctl restart $SERVICE_NAME"
 sleep 3

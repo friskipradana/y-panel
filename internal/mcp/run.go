@@ -15,7 +15,7 @@ type Config struct {
 	// Defaults to http://localhost:8787 if empty.
 	PanelURL string
 
-	// SessionToken is a valid ypanel_session cookie value for API calls.
+	// SessionToken is a valid reneo_session cookie value for API calls.
 	// Required for API-backed tools (projects, users, cloudflare).
 	SessionToken string
 

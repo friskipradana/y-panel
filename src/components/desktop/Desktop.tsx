@@ -113,7 +113,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   }
 
   const handleDesktopDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (e.dataTransfer.types.includes('application/ypanel-widget') || e.dataTransfer.types.includes('text/plain')) {
+    if (e.dataTransfer.types.includes('application/x-reneo-widget') || e.dataTransfer.types.includes('text/plain')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
       setDropGhost(dropPosition(e.clientX, e.clientY))
@@ -126,7 +126,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   }
 
   const handleDesktopDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    const rawType = e.dataTransfer.getData('application/ypanel-widget') || e.dataTransfer.getData('text/plain')
+    const rawType = e.dataTransfer.getData('application/x-reneo-widget') || e.dataTransfer.getData('text/plain')
     if (rawType && ['clock-uptime', 'system-vital', 'network-traffic', 'quick-note', 'cpu-graph', 'ping'].includes(rawType)) {
       e.preventDefault()
       const drop = dropPosition(e.clientX, e.clientY)

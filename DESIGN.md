@@ -37,7 +37,7 @@ main.tsx -> App -> AppShell (cek sesi, shortcut global, revision sync)
 
 Alur data:
 
-- Remote state: TanStack Query lewat `src/api/*` (axios client, cookie sesi HttpOnly `ypanel_session`).
+- Remote state: TanStack Query lewat `src/api/*` (axios client, cookie sesi HttpOnly `reneo_session`).
 - UI state: Zustand (`windowStore`, `themeStore`, `authStore`, `widgetStore`, `commandStore`, `alertStore`, `editorStore`).
 - Window baru: `openWindow(kind)` di `windowStore`. Konten dipetakan lewat `WINDOW_CONTENT` di [Desktop.tsx](src/components/desktop/Desktop.tsx). Semua window singleton.
 - Polling hanya jalan saat window fokus (`useWindowPollingActive`).

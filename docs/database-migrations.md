@@ -1,6 +1,6 @@
 # Database Migrations
 
-YPanel sekarang memakai **versioned SQL migrations** untuk PostgreSQL.
+Reneo sekarang memakai **versioned SQL migrations** untuk PostgreSQL.
 
 ## Prinsip
 
@@ -31,36 +31,36 @@ Format file:
 ### Buat template migration baru
 
 ```bash
-ui-panel-agent migrate create add_example_table
+reneo-agent migrate create add_example_table
 ```
 
 ### Jalankan semua migration pending
 
 ```bash
-ui-panel-agent migrate up
+reneo-agent migrate up
 ```
 
 ### Lihat status migration
 
 ```bash
-ui-panel-agent migrate status
+reneo-agent migrate status
 ```
 
 ### Rollback 1 migration terakhir
 
 ```bash
-ui-panel-agent migrate rollback
+reneo-agent migrate rollback
 ```
 
 Alias yang didukung:
 
 ```bash
-ui-panel-agent migrate down
+reneo-agent migrate down
 ```
 
 ## Runtime Linux CLI
 
-Perintah `ui-panel` sekarang punya menu untuk:
+Perintah `reneo` sekarang punya menu untuk:
 
 - jalankan migrasi database
 - rollback migrasi terakhir
@@ -86,7 +86,7 @@ Perintah `ui-panel` sekarang punya menu untuk:
 Deploy script dan installer Linux sekarang akan menjalankan:
 
 ```bash
-ui-panel-agent migrate up
+reneo-agent migrate up
 ```
 
 sebelum service dianggap siap.
@@ -109,7 +109,7 @@ Itu normal.
 Karena SQL di migration split sudah dibuat idempotent (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... IF NOT EXISTS`, dan cleanup aman), server existing cukup menjalankan sekali:
 
 ```bash
-ui-panel-agent migrate up
+reneo-agent migrate up
 ```
 
 Tujuannya agar histori version di `goose_db_version` ikut mengejar layout migration terbaru tanpa merusak schema yang sudah ada.

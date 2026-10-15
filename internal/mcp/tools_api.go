@@ -52,7 +52,7 @@ func (c *apiClient) do(ctx context.Context, method, path string, body any) ([]by
 	if strings.HasPrefix(c.token, "ypat_") {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	} else if c.token != "" {
-		req.AddCookie(&http.Cookie{Name: "ypanel_session", Value: c.token})
+		req.AddCookie(&http.Cookie{Name: "reneo_session", Value: c.token})
 	}
 
 	resp, err := c.http.Do(req)

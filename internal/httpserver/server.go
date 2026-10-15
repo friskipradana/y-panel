@@ -26,7 +26,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const sessionCookieName = "ypanel_session"
+const (
+	sessionCookieName       = "reneo_session"
+	legacySessionCookieName = "ypanel_session"
+)
+
+// requestSessionCookie reads the session cookie, falling back to the name used before the rename
+// so people stay signed in across the update.
+func requestSessionCookie(r *http.Request) (*http.Cookie, error) {
+	if c, err := r.Cookie(sessionCookieName); err == nil && c.Value != "" {
+		return c, nil
+	}
+	return r.Cookie(legacySessionCookieName)
+}
 
 type wsConn struct {
 	conn      *websocket.Conn
@@ -354,22 +366,24 @@ func (s *Server) frontendRevision() string {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := requestSessionCookie(r)
 	if err == nil && cookie.Value != "" {
 		s.auth.Logout(cookie.Value)
 	}
 
 	username, _ := s.currentUser(r)
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
-		MaxAge:   -1,
-		Expires:  time.Unix(0, 0),
-	})
+	for _, name := range []string{sessionCookieName, legacySessionCookieName} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     name,
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   false,
+			MaxAge:   -1,
+			Expires:  time.Unix(0, 0),
+		})
+	}
 
 	log.Printf("[auth] logout user=%q remote=%s", username, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})

@@ -28,7 +28,7 @@ type fileRootAccessResponse struct {
 }
 
 func (s *Server) fileRootAccessKey(r *http.Request) string {
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := requestSessionCookie(r)
 	if err == nil && strings.TrimSpace(cookie.Value) != "" {
 		return cookie.Value
 	}

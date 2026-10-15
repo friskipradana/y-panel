@@ -33,7 +33,7 @@ Membangun produk panel server **Linux-first** yang dapat diinstal seperti aaPane
             |                              |
             v                              v
 +-------------------------+
-| ui-panel-agent          |      | Portainer              |
+| reneo-agent          |      | Portainer              |
 | (Go systemd service)    |      | (Docker container)     |
 |                         |      |                         |
 | - HTTP API              |      | - container insights    |
@@ -66,9 +66,9 @@ Tanggung jawab:
 - install Go jika belum ada atau versi terlalu lama
 - install MariaDB jika belum ada
 - meminta input credential awal panel
-- generate file konfigurasi `/etc/ui-panel/agent.env`
+- generate file konfigurasi `/etc/reneo/agent.env`
 - build binary Go agent dari source lokal
-- install binary ke `/usr/local/bin/ui-panel-agent`
+- install binary ke `/usr/local/bin/reneo-agent`
 - register dan start `systemd` service
 - deploy Portainer sebagai container Docker
 - membuat database/user MariaDB runtime untuk panel
@@ -96,13 +96,13 @@ Posisi Portainer:
 - **bukan core product**, tapi service pendukung
 - dipakai untuk observability dan operasi container tertentu
 - agent dapat melakukan health check Portainer
-- Reneo utama tetap login ke **ui-panel-agent**, bukan login langsung ke Portainer
+- Reneo utama tetap login ke **reneo-agent**, bukan login langsung ke Portainer
 
 ### 4. Web Panel
 
 Frontend React saat ini diposisikan sebagai:
 - panel UI utama
-- client untuk API `ui-panel-agent`
+- client untuk API `reneo-agent`
 - onboarding wizard
 - dashboard status host/container
 
@@ -125,7 +125,7 @@ internal/
 installer/
   linux/
     install.sh
-    ui-panel.service.tpl
+    reneo.service.tpl
 
 web/
   (opsional: frontend build output atau source terpisah)
@@ -139,10 +139,10 @@ docs/
 ## Kontrak Runtime Linux
 
 ### File System
-- Binary: `/usr/local/bin/ui-panel-agent`
-- Config: `/etc/ui-panel/agent.env`
-- State dir: `/var/lib/ui-panel`
-- Logs: via `journalctl -u ui-panel`
+- Binary: `/usr/local/bin/reneo-agent`
+- Config: `/etc/reneo/agent.env`
+- State dir: `/var/lib/reneo`
+- Logs: via `journalctl -u reneo`
 - MariaDB data: default service data directory milik distro (`/var/lib/mysql` atau setara)
 
 ### Network
@@ -151,7 +151,7 @@ docs/
 - Future reverse proxy: `80/443`
 
 ### Process Management
-- `ui-panel.service` via `systemd`
+- `reneo.service` via `systemd`
 - `docker.service` wajib aktif
 - Portainer dijalankan sebagai Docker container dengan restart policy `unless-stopped`
 
@@ -198,22 +198,22 @@ Nanti ditambahkan:
 
 ## Model Konfigurasi
 
-`/etc/ui-panel/agent.env`
+`/etc/reneo/agent.env`
 
 ```env
 PANEL_BIND_ADDR=0.0.0.0:8787
 PANEL_ADMIN_USERNAME=admin
 PANEL_ADMIN_PASSWORD=generated-secret
 PANEL_SESSION_SECRET=random-secret
-PANEL_STATE_DIR=/var/lib/ui-panel
+PANEL_STATE_DIR=/var/lib/reneo
 PANEL_PORTAINER_URL=http://127.0.0.1:9000
 PANEL_INSTALL_CHANNEL=stable
 PANEL_DB_ENABLED=true
 PANEL_DB_HOST=127.0.0.1
 PANEL_DB_PORT=3306
-PANEL_DB_USER=ui_panel
+PANEL_DB_USER=reneo
 PANEL_DB_PASSWORD=generated-db-secret
-PANEL_DB_NAME=ui_panel
+PANEL_DB_NAME=reneo
 ```
 
 > [!WARNING]

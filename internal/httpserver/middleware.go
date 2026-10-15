@@ -26,7 +26,7 @@ func (s *Server) currentUser(r *http.Request) (string, bool) {
 
 // currentUserRecord returns the full User record from the session cookie.
 func (s *Server) currentUserRecord(r *http.Request) *database.User {
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := requestSessionCookie(r)
 	if err != nil {
 		return nil
 	}
@@ -406,7 +406,7 @@ func (s *Server) recordRuntimeLog(level, message string, metadata map[string]any
 	if s.database == nil {
 		return
 	}
-	s.database.RecordRuntimeLog("ypanel", level, message, metadata)
+	s.database.RecordRuntimeLog("reneo", level, message, metadata)
 }
 
 func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, action, result string, metadata map[string]any) {

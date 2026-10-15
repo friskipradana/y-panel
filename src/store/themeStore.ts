@@ -207,7 +207,7 @@ interface ThemeStore {
 
 const loadStored = (): StoredTheme => {
   try {
-    return JSON.parse(localStorage.getItem('ui-panel-theme') ?? '{}')
+    return JSON.parse(localStorage.getItem('reneo-theme') ?? '{}')
   } catch {
     return {}
   }
@@ -216,7 +216,7 @@ const loadStored = (): StoredTheme => {
 const persist = (data: Partial<StoredTheme>) => {
   try {
     const existing = loadStored()
-    localStorage.setItem('ui-panel-theme', JSON.stringify({ ...existing, ...data }))
+    localStorage.setItem('reneo-theme', JSON.stringify({ ...existing, ...data }))
   } catch {}
 }
 
@@ -438,7 +438,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         if (res && res.data) {
            set({ customImageUrl: res.data })
            try {
-             const stored = JSON.parse(localStorage.getItem('ui-panel-theme') ?? '{}')
+             const stored = JSON.parse(localStorage.getItem('reneo-theme') ?? '{}')
              if (!stored.wallpaper) {
                set({ wallpaper: 'custom' })
                persist({ wallpaper: 'custom' })
@@ -488,7 +488,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       applyFontFamily('outfit')
       applyFontSize('medium')
       try {
-        localStorage.setItem('ui-panel-theme', JSON.stringify(defaults))
+        localStorage.setItem('reneo-theme', JSON.stringify(defaults))
       } catch {}
       set({
         ...defaults,
