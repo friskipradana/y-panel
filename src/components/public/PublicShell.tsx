@@ -25,7 +25,7 @@ export function PublicShell({ children }: PublicShellProps) {
     'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]'
 
   return (
-    <div data-theme="dark" className="relative min-h-full w-full bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
+    <div data-theme="dark" className="relative min-h-full w-full overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0"
@@ -44,7 +44,7 @@ export function PublicShell({ children }: PublicShellProps) {
               target="_blank"
               rel="noreferrer"
               title={t('public.versionTitle')}
-              className="panel-badge panel-badge--info panel-mono !text-[0.6875rem]"
+              className="panel-badge panel-badge--info panel-mono !text-[0.6875rem] max-[480px]:hidden"
             >
               v{version}
             </a>
@@ -60,7 +60,7 @@ export function PublicShell({ children }: PublicShellProps) {
               <span className="hidden md:inline">GitHub</span>
               <ExternalLink size={11} className="hidden opacity-60 md:inline" />
             </a>
-            <a href={INSTALLER_URL} className={navLink}>
+            <a href={INSTALLER_URL} className={`${navLink} max-sm:hidden`}>
               <Download size={14} />
               <span className="hidden md:inline">{t('public.nav.installer')}</span>
             </a>
