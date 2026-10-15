@@ -7,6 +7,9 @@ import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
 import { BootSplash } from '@/components/system/BootSplash'
+import { UpdateProgressModal } from '@/components/system/UpdateProgressModal'
+import { getUpdateStatus } from '@/api/system'
+import { useUpdateProgress } from '@/store/updateStore'
 import { isPublicRoute } from '@/lib/publicPaths'
 
 export function AppShell() {
@@ -22,6 +25,22 @@ export function AppShell() {
   useEffect(() => {
     void initSession()
   }, [initSession])
+
+  // An update started earlier (or from another tab) keeps its progress dialog after a reload
+  const userRole = useAuthStore((s) => s.user?.role)
+  const showUpdate = useUpdateProgress((s) => s.show)
+  useEffect(() => {
+    if (!authenticated || (userRole !== 'admin' && userRole !== 'superadmin')) return
+    let cancelled = false
+    getUpdateStatus()
+      .then((status) => {
+        if (!cancelled && status.state === 'running') showUpdate()
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [authenticated, userRole, showUpdate])
 
   // Session expired event listener
   useEffect(() => {
@@ -50,6 +69,7 @@ export function AppShell() {
     <div className="relative w-full h-screen overflow-hidden">
       <AppRouter />
       <DevOverlay authenticated={authenticated} />
+      <UpdateProgressModal />
     </div>
   )
 }

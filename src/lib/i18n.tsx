@@ -27,6 +27,11 @@ export function translate(language: Language, key: string, params?: TranslationP
   return interpolate(dictionaries[language][key] ?? dictionaries.id[key] ?? key, params)
 }
 
+// For non-component code: the current language is whatever the language switch stored
+export function translateNow(key: string, params?: TranslationParams) {
+  return translate(getInitialLanguage(), key, params)
+}
+
 export function windowTitleKey(kind: string) {
   return `window.${kind}`
 }
