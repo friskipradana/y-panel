@@ -23,9 +23,9 @@ export function InstallGuide({ installCommand, onNavigate }: InstallGuideProps) 
   const { t } = useI18n()
 
   return (
-    <section className="mt-20" aria-labelledby="landing-guide">
+    <section id="landing-guide" className="mt-16 scroll-mt-20 sm:mt-20" aria-labelledby="landing-guide-title">
       <div className="mx-auto mb-8 max-w-2xl text-center">
-        <h2 id="landing-guide" className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h2 id="landing-guide-title" className="text-2xl font-bold tracking-tight sm:text-3xl">
           {t('landing.guide.title')}
         </h2>
         <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">{t('landing.guide.subtitle')}</p>
@@ -33,7 +33,7 @@ export function InstallGuide({ installCommand, onNavigate }: InstallGuideProps) 
 
       <ol className="mx-auto max-w-3xl space-y-3">
         {/* 1. requirements */}
-        <li className="flex gap-4 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
+        <li className="flex gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 sm:gap-4 sm:p-5">
           <IconBadge tone="primary">1</IconBadge>
           <div className="min-w-0 flex-1">
             <h3 className="text-[0.9375rem] font-semibold">{t('landing.guide.prepare.title')}</h3>

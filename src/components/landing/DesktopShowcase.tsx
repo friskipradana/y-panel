@@ -74,19 +74,19 @@ export function DesktopShowcase() {
               }`}
             >
               <Box size={12} className={activeWindow === 'docker' ? 'text-cyan-400' : 'text-slate-400'} />
-              <span>Docker</span>
+              <span className="hidden sm:inline">Docker</span>
             </button>
             <button
               type="button"
               onClick={() => bringToFront('cloudflare')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
+              className={`max-md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition cursor-pointer ${
                 activeWindow === 'cloudflare'
                   ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30 shadow-xs'
                   : 'bg-white/[0.04] text-slate-400 hover:text-white border border-transparent'
               }`}
             >
               <Globe size={12} className={activeWindow === 'cloudflare' ? 'text-sky-400' : 'text-slate-400'} />
-              <span>Cloudflare</span>
+              <span className="hidden sm:inline">Cloudflare</span>
             </button>
             <button
               type="button"
@@ -98,7 +98,7 @@ export function DesktopShowcase() {
               }`}
             >
               <Terminal size={12} className={activeWindow === 'terminal' ? 'text-emerald-400' : 'text-slate-400'} />
-              <span>Terminal</span>
+              <span className="hidden sm:inline">Terminal</span>
             </button>
           </div>
 
@@ -119,9 +119,9 @@ export function DesktopShowcase() {
         </div>
 
         {/* Desktop Workspace Stage (Vertically Balanced) */}
-        <div className="relative h-[470px] sm:h-[490px] p-3 sm:p-5 overflow-hidden">
+        <div className="relative flex flex-col gap-3 p-3 md:block md:h-[490px] md:p-5 md:overflow-hidden">
           {/* Left Desktop Shortcuts Column */}
-          <div className="absolute top-6 left-3 sm:left-4 z-10 flex flex-col gap-1.5">
+          <div className="absolute top-6 left-4 z-10 hidden flex-col gap-1.5 md:flex">
             {[
               { id: 'docker', icon: Box, label: 'Docker', win: 'docker' as WindowId, isOpen: true },
               { id: 'cloudflare', icon: Globe, label: 'Cloudflare', win: 'cloudflare' as WindowId, isOpen: true },
@@ -161,7 +161,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('docker')}
             style={{ zIndex: getZIndex('docker') }}
-            className={`absolute top-6 sm:top-7 left-20 sm:left-24 w-[72%] sm:w-[46%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`relative z-10 w-full md:absolute md:top-7 md:left-24 md:w-[46%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'docker'
                 ? 'border-cyan-500/50 bg-[#080d1a]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#080d1a]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -234,7 +234,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('cloudflare')}
             style={{ zIndex: getZIndex('cloudflare') }}
-            className={`absolute top-36 sm:top-40 right-3 sm:right-6 w-[60%] sm:w-[36%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
+            className={`hidden md:block md:absolute md:top-40 md:right-6 md:w-[36%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/80 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'cloudflare'
                 ? 'border-sky-500/50 bg-[#070b16]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#070b16]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
@@ -289,7 +289,7 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('terminal')}
             style={{ zIndex: getZIndex('terminal') }}
-            className={`absolute bottom-12 sm:bottom-16 left-24 sm:left-32 w-[70%] sm:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
+            className={`relative w-full md:absolute md:bottom-16 md:left-32 md:w-[48%] rounded-xl border transition-all duration-200 shadow-2xl shadow-black/90 backdrop-blur-xl cursor-pointer ${
               activeWindow === 'terminal'
                 ? 'border-emerald-500/50 bg-[#03060c]/98 scale-[1.01]'
                 : 'border-white/[0.08] bg-[#03060c]/85 opacity-90 hover:opacity-100 hover:border-white/[0.18]'
