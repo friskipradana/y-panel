@@ -1,11 +1,13 @@
 import { useMemo, useRef, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, RefreshCcw, ScrollText, Search } from 'lucide-react'
+import { Activity, ArrowDownToLine, RefreshCcw, ScrollText, Search } from 'lucide-react'
 import { getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
+import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
-import { EmptyState, LoadingState } from '@/components/ui/states'
+import { Select } from '@/components/ui/Select'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 
 const SERVICE_OPTIONS = [
   { value: 'reneo', label: 'Reneo Agent' },
@@ -77,17 +79,23 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
       {/* ── Compact Toolbar ── */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--win-border)] px-3 py-1.5 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
         <div className="flex items-center gap-2 flex-1 max-w-[540px] mobile:max-w-none mobile:flex-wrap">
-          <select id="system-logs-service" value={service} onChange={(e) => setService(e.target.value)} className="panel-select max-w-[160px] h-[30px] py-0 text-xs panel-input--mono">
-            {SERVICE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+          <Select
+            id="system-logs-service"
+            value={service}
+            onChange={setService}
+            options={SERVICE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            className="min-w-[150px] max-w-[190px]"
+            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+          />
 
-          <select id="system-logs-limit" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="panel-select max-w-[90px] h-[30px] py-0 text-xs panel-input--mono">
-            {LIMIT_OPTIONS.map((value) => (
-              <option key={value} value={value}>{value} lines</option>
-            ))}
-          </select>
+          <Select
+            id="system-logs-limit"
+            value={String(limit)}
+            onChange={(value) => setLimit(Number(value))}
+            options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
+            className="min-w-[110px] max-w-[140px]"
+            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+          />
 
           <label className="panel-search flex-1 max-w-[240px] h-[30px] mobile:min-w-full mobile:max-w-none">
             <Search className="h-3.5 w-3.5" />
@@ -102,9 +110,10 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
         </div>
 
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setAutoScroll((value) => !value)} className={`panel-btn ${autoScroll ? 'panel-btn--primary-soft' : 'panel-btn--ghost'} text-xs py-1 px-2.5`}>
-            ↓ {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
-          </button>
+          <Button type="button" onClick={() => setAutoScroll((value) => !value)} variant={autoScroll ? 'primary-soft' : 'ghost'} className="text-xs py-1 px-2.5">
+            <ArrowDownToLine className="h-3.5 w-3.5" />
+            {autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
+          </Button>
           <IconButton id="system-logs-refresh" type="button" onClick={() => void query.refetch()} disabled={query.isFetching} label={t('systemLogs.refreshAria')}>
             <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
           </IconButton>
@@ -133,15 +142,16 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
             <div ref={logContainerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
               {query.isError ? (
                 <div className="flex h-full items-center justify-center p-6">
-                  <div className="panel-error-state max-w-sm">
-                    <AlertTriangle size={14} />
-                    <div>
-                      <p className="font-semibold">{t('systemLogs.loadFailed')}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed opacity-90">
-                        {(query.error as Error)?.message || t('systemLogs.loadFailedHint')}
-                      </p>
-                    </div>
-                  </div>
+                  <ErrorState
+                    className="max-w-sm"
+                    title={t('systemLogs.loadFailed')}
+                    hint={(query.error as Error)?.message || t('systemLogs.loadFailedHint')}
+                    action={
+                      <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
+                        {t('common.retry')}
+                      </Button>
+                    }
+                  />
                 </div>
               ) : query.isLoading ? (
                 <LoadingState className="min-h-[320px] border-none bg-transparent shadow-none">{t('systemLogs.loadingHostLogs')}</LoadingState>

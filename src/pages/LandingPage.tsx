@@ -20,6 +20,7 @@ import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
 import { CopyBlock } from '@/components/public/CopyBlock'
 import { InstallGuide } from '@/pages/landing/InstallGuide'
+import { DemoAccess } from '@/pages/landing/DemoAccess'
 import { Button } from '@/components/ui/Button'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 
@@ -94,6 +95,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
         </section>
 
         {/* Modules: one table instead of a grid of identical cards */}
+        <DemoAccess onNavigate={onNavigate} />
+
         <section className="mt-14" aria-labelledby="landing-modules">
           <h2 id="landing-modules" className="text-xl font-bold tracking-tight sm:text-2xl">
             {t('landing.modules.title')}

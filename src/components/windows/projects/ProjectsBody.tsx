@@ -15,7 +15,7 @@ import { ProjectCard } from './ProjectCard'
 import type { ProjectsWindowState } from './useProjectsWindow'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { EmptyState } from '@/components/ui/states'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 
 export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
   const {
@@ -28,6 +28,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
     attentionOnly,
     attentionFilter,
     isLoading,
+    isError,
     refetch,
     isFetching,
     total,
@@ -168,7 +169,17 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
           </div>
 
           {isLoading ? (
-            <div className="flex h-32 items-center justify-center text-sm text-[var(--text-secondary)]">{t('projects.loading')}</div>
+            <LoadingState>{t('projects.loading')}</LoadingState>
+          ) : isError ? (
+            <ErrorState
+              title={t('projects.loadFailed')}
+              hint={t('projects.loadFailedHint')}
+              action={
+                <Button variant="ghost" loading={isFetching} onClick={() => void refetch()}>
+                  {t('common.retry')}
+                </Button>
+              }
+            />
           ) : visibleProjects.length === 0 ? (
             <EmptyState icon={<FolderCode />}>
                   {attentionOnly

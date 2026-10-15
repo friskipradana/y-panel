@@ -121,6 +121,9 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 				s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
 				return
 			}
+			if !s.guardDemo(w, r, u) {
+				return
+			}
 			ctx := context.WithValue(r.Context(), ctxUser, u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
@@ -134,6 +137,9 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 		u, ok := s.auth.Validate(cookie.Value)
 		if !ok || u == nil {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+			return
+		}
+		if !s.guardDemo(w, r, u) {
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxUser, u)
@@ -329,11 +335,15 @@ func (s *Server) handleMeV2(w http.ResponseWriter, r *http.Request) {
 		cfStatus = cfCfg.Status
 	}
 
+	role := u.Role
+	if s.isDemoUser(u) {
+		role = "demo"
+	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"id":               u.ID,
 		"username":         u.Username,
 		"email":            u.Email,
-		"role":             u.Role,
+		"role":             role,
 		"status":           u.Status,
 		"displayName":      u.DisplayName,
 		"avatarUrl":        u.AvatarURL,

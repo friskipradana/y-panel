@@ -7,6 +7,7 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
+import { useAuthStore } from '@/store/authStore'
 
 const MIN_LENGTH = 8
 
@@ -27,6 +28,7 @@ function UsageLine({ label, used, limit, unit }: { label: string; used: number; 
 // Own usage against the quota and a self-service password change
 export function AccountSecurityCard() {
   const { t } = useI18n()
+  const isDemo = useAuthStore((s) => s.user?.role) === 'demo'
   const usage = useQuery({ queryKey: ['my-usage'], queryFn: getMyUsage, staleTime: 30_000 })
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -51,6 +53,14 @@ export function AccountSecurityCard() {
   const ready = current.length > 0 && next.length >= MIN_LENGTH && confirm === next
 
   const quota = usage.data?.quota
+
+  if (isDemo) {
+    return (
+      <div className="panel-shell-card p-5">
+        <SectionHeader icon={<KeyRound />} title={t('account.demoTitle')} subtitle={t('account.demoNotice')} size="sm" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

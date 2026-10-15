@@ -5,6 +5,7 @@ import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 import type { RuntimeDatabaseLog } from '@/types'
+import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 
@@ -178,7 +179,15 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <ErrorState title={t('system.summaryLoadFailed')} hint={t('system.summaryLoadFailedHint')} />
+          <ErrorState
+            title={t('system.summaryLoadFailed')}
+            hint={t('system.summaryLoadFailedHint')}
+            action={
+              <Button variant="ghost" loading={isFetching} onClick={() => void refetch()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
         </div>
       </div>
     )
@@ -224,7 +233,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
               <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
               <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
               <HealthPill ok={data.portainerReachable} label={data.portainerReachable ? t('system.portainerOnline') : t('system.portainerOffline')} />
-              <HealthPill ok={data.database.connected} label={data.database.connected ? t('system.mariadbConnected') : data.database.enabled ? t('system.mariadbUnavailable') : t('system.mariadbDisabled')} />
+              <HealthPill ok={data.database?.connected} label={data.database?.connected ? t('system.mariadbConnected') : data.database?.enabled ? t('system.mariadbUnavailable') : t('system.mariadbDisabled')} />
             </div>
           </section>
 
@@ -256,14 +265,14 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
             <InfoCard icon={<Database size={15} />} title={t('system.mariadbRuntime')}>
               <p className="panel-shell-card__title">
-                {data.database.connected
-                  ? `${data.database.user}@${data.database.host}:${data.database.port}`
-                  : data.database.enabled ? t('system.configuredNotConnected') : t('system.disabled')}
+                {data.database?.connected
+                  ? `${data.database?.user}@${data.database?.host}:${data.database?.port}`
+                  : data.database?.enabled ? t('system.configuredNotConnected') : t('system.disabled')}
               </p>
               <p className="panel-shell-card__meta">
-                {data.database.connected
-                  ? t('system.databaseCounts', { logs: data.database.runtimeLogCount, changelog: data.database.changelogCount, audit: data.database.settingsAuditCount })
-                  : data.database.lastError || t('system.persistenceInactive')}
+                {data.database?.connected
+                  ? t('system.databaseCounts', { logs: data.database?.runtimeLogCount, changelog: data.database?.changelogCount, audit: data.database?.settingsAuditCount })
+                  : data.database?.lastError || t('system.persistenceInactive')}
               </p>
             </InfoCard>
 

@@ -149,7 +149,15 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
           </div>
         </div>
         <div className="panel-window__body">
-          <ErrorState title={t('database.statusLoadFailed')} hint={t('database.statusLoadFailedHint')} />
+          <ErrorState
+            title={t('database.statusLoadFailed')}
+            hint={t('database.statusLoadFailedHint')}
+            action={
+              <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
+                {t('common.retry')}
+              </Button>
+            }
+          />
         </div>
       </div>
     )
@@ -232,9 +240,9 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                 )
               }
             />
-            <MetricCard icon={<HardDriveDownload size={16} />} label={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount)} description={t('database.runtimeLogsDescription')} />
-            <MetricCard icon={<ActivitySquare size={16} />} label={t('database.changelogRowsLabel')} value={String(status.changelogCount)} description={t('database.changelogRowsDescription')} />
-            <MetricCard icon={<Database size={16} />} label={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount)} description={t('database.settingsAuditDescription')} />
+            <MetricCard icon={<HardDriveDownload size={16} />} label={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount ?? 0)} description={t('database.runtimeLogsDescription')} />
+            <MetricCard icon={<ActivitySquare size={16} />} label={t('database.changelogRowsLabel')} value={String(status.changelogCount ?? 0)} description={t('database.changelogRowsDescription')} />
+            <MetricCard icon={<Database size={16} />} label={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount ?? 0)} description={t('database.settingsAuditDescription')} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
@@ -281,7 +289,7 @@ export function DatabaseWindow({ authenticated }: { authenticated?: boolean }) {
                     id="database-log-limit"
                     value={String(logLimit)}
                     onChange={(value) => setLogLimit(Number(value))}
-                    options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: `${option} rows` }))}
+                    options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: t('database.rowsOption', { count: option }) }))}
                     className="max-w-[120px]"
                     buttonClassName="h-9 px-3 text-[12px] panel-input--mono"
                     dropdownClassName="min-w-[120px]"

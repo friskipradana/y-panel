@@ -58,6 +58,7 @@ func main() {
 		}
 	}()
 
+	srv.EnsureDemoAccount()
 	srv.RestoreProjects()
 	srv.RestoreTunnels()
 

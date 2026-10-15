@@ -26,15 +26,15 @@ export function ProjectsToolbar({ pw }: { pw: ProjectsWindowState }) {
   } = pw
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-      <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+      <div className="flex flex-wrap items-center gap-x-2 text-xs text-[var(--text-secondary)]">
         <span className="font-semibold text-[var(--win-text)]">{summaryTotal} {t('projects.title')}</span>
         <span>•</span>
-        <span className="text-[var(--panel-success-text)] font-medium">{activeCount} active</span>
+        <span className="text-[var(--panel-success-text)] font-medium">{t('projects.activeCount', { count: activeCount })}</span>
         {attentionCount > 0 && (
           <>
             <span>•</span>
-            <span className="text-amber-400 font-medium">{attentionCount} attention</span>
+            <span className="text-amber-400 font-medium">{t('projects.attentionCount', { count: attentionCount })}</span>
           </>
         )}
       </div>

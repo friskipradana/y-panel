@@ -52,7 +52,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const [staticUpload, setStaticUpload] = useState<StaticUploadState | null>(null)
   const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null)
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['projects', { search, offset }],
     queryFn: () => listProjects({ q: search, limit: PAGE_SIZE, offset }),
     refetchInterval: pollingActive ? 10_000 : false,
@@ -329,6 +329,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     uploadDraft,
     setUploadDraft,
     isLoading,
+    isError,
     refetch,
     isFetching,
     refetchAttentionSummary,

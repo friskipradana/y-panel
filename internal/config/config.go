@@ -54,12 +54,14 @@ type Config struct {
 	// Panel identity
 	BaseDomain    string // e.g. "panel.example.com" — used for generated subdomains
 	EncryptionKey string // 32-byte hex key for encrypting CF tokens at rest
+
+	// Public read-only demo account (disabled when DemoPassword is empty)
+	DemoUsername string
+	DemoPassword string
 }
 
 func Load() (Config, error) {
 	loadDotEnv(".env")
-	// RENEO_* names are accepted wherever PANEL_* is
-	runtimepath.ApplyEnvAliases()
 	// RENEO_* names are accepted wherever PANEL_* is
 	runtimepath.ApplyEnvAliases()
 	cfg := Config{
@@ -79,6 +81,8 @@ func Load() (Config, error) {
 		InstallChannel:             getenv("PANEL_INSTALL_CHANNEL", "stable"),
 		BaseDomain:                 os.Getenv("PANEL_BASE_DOMAIN"),
 		EncryptionKey:              os.Getenv("PANEL_ENCRYPTION_KEY"),
+		DemoUsername:               getenv("PANEL_DEMO_USERNAME", "demo"),
+		DemoPassword:               os.Getenv("PANEL_DEMO_PASSWORD"),
 	}
 
 	if cfg.DatabaseEnable && cfg.DatabaseDSN == "" {

@@ -12,6 +12,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
 	s.mux.HandleFunc("GET /api/v1/mcp-catalog", s.handleMCPCatalog)
+	s.mux.HandleFunc("GET /api/v1/public/demo", s.handlePublicDemo)
 	s.mux.Handle("GET /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleGetWallpaper)))
 	s.mux.Handle("POST /api/v1/settings/wallpaper", s.requireAuthV2(http.HandlerFunc(s.handleUpdateWallpaper)))
 
