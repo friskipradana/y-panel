@@ -2,6 +2,21 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.4.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.4.0** berisi 3 perubahan: 3 fitur. (30 files changed, 567 insertions(+), 208 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **databases:** Version dropdown, Docker window badge, full page manager at /database/{id} ([`9acf6ab`](https://github.com/friskipradana/panel-desktop-ui/commit/9acf6ab))
+- **mobile:** Branded boot splash and a phone-friendly login ([`a4313e5`](https://github.com/friskipradana/panel-desktop-ui/commit/a4313e5))
+- **widgets:** Rebuilt Widgets window with installed list and remove, remove button on phone home, desktop+mobile rule ([`b2c022b`](https://github.com/friskipradana/panel-desktop-ui/commit/b2c022b))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.4...v4.4.0
+
 ## [4.3.4] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
