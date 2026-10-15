@@ -7,80 +7,44 @@ type StatusPageProps = {
   title: string
   description: string
   hint?: string
-  eyebrow?: string
-  badge?: string
   actions?: ReactNode
   showActions?: boolean
   details?: Array<{ label: string; value: string }>
 }
 
-export function StatusPage({
-  code,
-  title,
-  description,
-  hint,
-  eyebrow = 'Reneo Experience',
-  badge = 'Runtime Frontend',
-  actions,
-  showActions = true,
-  details = [],
-}: StatusPageProps) {
+// One card: what happened, where, and what to do next. Follows the saved light/dark mode.
+export function StatusPage({ code, title, description, hint, actions, showActions = true, details = [] }: StatusPageProps) {
   const { t } = useI18n()
 
   return (
-    <div className="status-page-shell login-shell">
-      <div className="login-noise absolute inset-0 pointer-events-none" aria-hidden="true" />
-      <main className="status-page-card glass-panel">
-        <section className="status-page-main">
-          <div className="status-page-badge">
-            <span className="status-page-badge-dot" />
-            {badge}
-          </div>
-          <p className="status-page-eyebrow">{eyebrow}</p>
-          <div className="status-page-code">{code}</div>
-          <h1 id="status-page-title" className="status-page-title">{title}</h1>
-          <p className="status-page-description">{description}</p>
+    <div className="status-page-shell">
+      <main className="status-page-card" aria-labelledby="status-page-title">
+        <div className="status-page-brand">
+          <img src="/favicon.svg" alt="" className="status-page-logo" />
+          <span>Reneo</span>
+        </div>
 
-          {details.length > 0 ? (
-            <div className="status-page-details" aria-label={t('status.detailsAria')}>
-              {details.map((detail) => (
-                <div key={detail.label} className="status-page-detail-card">
-                  <span className="status-page-detail-label">{detail.label}</span>
-                  <strong className="status-page-detail-value">{detail.value}</strong>
-                </div>
-              ))}
-            </div>
-          ) : null}
+        <p className="status-page-code panel-mono">HTTP {code}</p>
+        <h1 id="status-page-title" className="status-page-title">
+          {title}
+        </h1>
+        <p className="status-page-description">{description}</p>
 
-          {showActions && actions ? <div className="status-page-actions">{actions}</div> : null}
-        </section>
+        {details.length > 0 ? (
+          <dl className="status-page-details" aria-label={t('status.detailsAria')}>
+            {details.map((detail) => (
+              <div key={detail.label} className="status-page-detail">
+                <dt>{detail.label}</dt>
+                <dd className="panel-mono">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
 
-        <aside className="status-page-side">
-          <div className="status-page-tip-card">
-            <span className="status-page-tip-label">{t('status.diagnosticHint')}</span>
-            <p className="status-page-tip-copy">{hint || t('status.defaultHint')}</p>
-          </div>
+        {hint ? <p className="status-page-hint">{hint}</p> : null}
 
-          <div className="status-page-side-list">
-            <div className="status-page-side-item">
-              <strong>{t('status.routeAppTitle')}</strong>
-              <span>{t('status.routeAppDescription')}</span>
-            </div>
-            <div className="status-page-side-item">
-              <strong>{t('status.runtimeBlockedTitle')}</strong>
-              <span>{t('status.runtimeBlockedDescription')}</span>
-            </div>
-            <div className="status-page-side-item">
-              <strong>{t('status.spaFriendlyTitle')}</strong>
-              <span>{t('status.spaFriendlyDescription')}</span>
-            </div>
-          </div>
-        </aside>
+        {showActions && actions ? <div className="status-page-actions">{actions}</div> : null}
       </main>
     </div>
   )
 }
-
-
-
-

@@ -21,11 +21,8 @@ export function FrontendNotFoundPage({ authenticated }: FrontendNotFoundPageProp
       title={t('app.notFoundTitle')}
       description={t('app.notFoundDescription')}
       hint={t('app.notFoundHint')}
-      badge="Frontend Route"
-      eyebrow="App-level status page"
       details={[
         { label: t('app.activeRoute'), value: currentPath },
-        { label: t('app.shellMode'), value: 'Frontend-managed 404' },
       ]}
       actions={(
         <>

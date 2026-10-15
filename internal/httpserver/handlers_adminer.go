@@ -112,7 +112,8 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Referrer-Policy", "no-referrer")
+	// same-origin: with no-referrer the browser sends "Origin: null" and the panel would refuse the sign-in
+	w.Header().Set("Referrer-Policy", "same-origin")
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adminer</title></head>
 <body style="font-family:system-ui,sans-serif;padding:2rem">
 <form id="f" method="post" action="/adminer/">%s%s%s%s%s<noscript><button type="submit">Open Adminer</button></noscript></form>

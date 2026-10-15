@@ -474,6 +474,7 @@ func (s *Server) writeStatusPage(w http.ResponseWriter, r *http.Request, status 
 
 func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, description, hint string, showActions bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 
 	requestPath := "/"
@@ -487,12 +488,9 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
 		}
 	}
 
-	actionsHTML := ""
+	actions := `<a class="btn btn-primary" href="/">Kembali ke panel</a>`
 	if showActions {
-		actionsHTML = `<div class="status-actions">
-          <a class="status-btn status-btn-primary" href="/">Kembali ke panel</a>
-          <a class="status-btn status-btn-secondary" href="/healthz">Cek health runtime</a>
-        </div>`
+		actions += `<a class="btn" href="/healthz">Cek health runtime</a>`
 	}
 
 	_, _ = fmt.Fprintf(w, `<!doctype html>
@@ -500,276 +498,92 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>%d • %s</title>
-  <meta name="description" content="Halaman status Reneo untuk %s" />
+  <meta name="robots" content="noindex" />
+  <title>%d %s | Reneo</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bg0: #020617;
-      --bg1: #0f172a;
-      --bg2: rgba(15, 23, 42, 0.82);
-      --line: rgba(255,255,255,0.10);
-      --text: #e2e8f0;
-      --muted: rgba(226,232,240,0.68);
-      --accentA: #38bdf8;
-      --accentB: #8b5cf6;
-      --accentC: #f97316;
-      --shadow: 0 30px 80px rgba(2,6,23,0.55);
+      color-scheme: light dark;
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --line: #dbe2ec;
+      --text: #0f172a;
+      --muted: #52607a;
+      --primary: #1d4ed8;
+      --primary-text: #ffffff;
+      --mono-bg: #eef2f8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f19;
+        --card: #121826;
+        --line: #26304a;
+        --text: #e6ebf5;
+        --muted: #9aa7bf;
+        --primary: #3b82f6;
+        --primary-text: #07101f;
+        --mono-bg: #0b1220;
+      }
     }
     * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      width: 100%%;
-      min-height: 100vh;
-      font-family: Outfit, Inter, system-ui, sans-serif;
-      background:
-        radial-gradient(circle at 18%% 16%%, rgba(56,189,248,0.22), transparent 24%%),
-        radial-gradient(circle at 82%% 18%%, rgba(139,92,246,0.20), transparent 28%%),
-        radial-gradient(circle at 50%% 100%%, rgba(249,115,22,0.18), transparent 32%%),
-        linear-gradient(135deg, var(--bg0) 0%%, var(--bg1) 48%%, #111827 100%%);
-      color: var(--text);
-    }
+    html, body { margin: 0; min-height: 100%%; }
     body {
-      min-height: 100vh;
       display: grid;
       place-items: center;
-      align-content: center;
-      justify-items: center;
-      padding: 28px;
-      overflow: auto;
+      min-height: 100vh;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Outfit, Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow-y: auto;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      opacity: 0.12;
-      pointer-events: none;
-      background-image: radial-gradient(rgba(255,255,255,0.8) 0.6px, transparent 0.6px);
-      background-size: 18px 18px;
-      mask-image: linear-gradient(180deg, rgba(0,0,0,0.55), transparent 85%%);
-    }
-    .status-shell {
-      width: min(100%%, 1080px);
-      border-radius: 34px;
+    main {
+      width: min(100%%, 520px);
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
-      backdrop-filter: blur(28px);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      position: relative;
+      border-radius: 16px;
+      background: var(--card);
+      padding: 28px;
     }
-    .status-shell::after {
-      content: "";
-      position: absolute;
-      inset: auto -100px -120px auto;
-      width: 280px;
-      height: 280px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(249,115,22,0.24), transparent 64%%);
-      pointer-events: none;
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+    .mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: #0b2a57; color: #fff; display: grid; place-items: center;
+      font-size: 15px; font-weight: 800;
     }
-    .status-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 380px);
-      gap: 0;
+    .code { margin: 22px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    h1 { margin: 4px 0 0; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.02em; }
+    p { margin: 10px 0 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
+    dl {
+      margin: 20px 0 0; padding: 12px 14px; border-radius: 12px;
+      background: var(--mono-bg); border: 1px solid var(--line);
+      display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px;
     }
-    .status-hero {
-      padding: 42px;
-      position: relative;
+    dt { color: var(--muted); }
+    dd { margin: 0; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .hint { color: var(--text); }
+    .actions { margin-top: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 0 16px; border-radius: 10px;
+      border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600;
     }
-    .status-side {
-      padding: 42px 34px;
-      border-left: 1px solid var(--line);
-      background: rgba(2, 6, 23, 0.18);
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.06);
-      padding: 8px 12px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.78);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .brand-mark {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--accentA), var(--accentB), var(--accentC));
-      box-shadow: 0 0 20px rgba(56,189,248,0.42);
-    }
-    .code {
-      margin-top: 26px;
-      font-size: clamp(3.6rem, 10vw, 7rem);
-      line-height: 0.95;
-      letter-spacing: -0.08em;
-      font-weight: 700;
-      background: linear-gradient(135deg, #f8fafc 0%%, #7dd3fc 38%%, #c4b5fd 68%%, #fdba74 100%%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-    h1 {
-      margin: 14px 0 0;
-      font-size: clamp(2rem, 4vw, 3.1rem);
-      line-height: 1.02;
-      letter-spacing: -0.05em;
-    }
-    .lead {
-      margin-top: 18px;
-      max-width: 720px;
-      font-size: 15px;
-      line-height: 1.85;
-      color: var(--muted);
-    }
-    .meta-grid {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    .meta-card, .tip-card {
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.05);
-      padding: 16px 18px;
-    }
-    .meta-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: rgba(255,255,255,0.42);
-    }
-    .meta-value {
-      margin-top: 8px;
-      font-size: 14px;
-      line-height: 1.7;
-      color: #f8fafc;
-      word-break: break-word;
-      font-family: "JetBrains Mono", ui-monospace, monospace;
-    }
-    .tip-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.18em;
-      color: rgba(125,211,252,0.88);
-    }
-    .tip-copy {
-      margin-top: 10px;
-      font-size: 14px;
-      line-height: 1.8;
-      color: var(--muted);
-    }
-    .status-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 22px;
-    }
-    .status-item {
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
-      padding: 14px 15px;
-    }
-    .status-item strong {
-      display: block;
-      font-size: 13px;
-      color: #f8fafc;
-    }
-    .status-item span {
-      display: block;
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-    .status-actions {
-      margin-top: 24px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .status-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      padding: 0 18px;
-      border-radius: 14px;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
-    }
-    .status-btn-primary {
-      color: white;
-      background: linear-gradient(135deg, var(--accentC), #ec4899, var(--accentB));
-      box-shadow: 0 18px 36px rgba(249,115,22,0.24);
-    }
-    .status-btn-secondary {
-      color: #dbeafe;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.05);
-    }
-    .status-btn:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-    }
-    @media (max-width: 900px) {
-      .status-grid { grid-template-columns: 1fr; }
-      .status-side { border-left: none; border-top: 1px solid var(--line); }
-      .status-hero, .status-side { padding: 28px; }
-      .meta-grid { grid-template-columns: 1fr; }
-    }
+    .btn:hover { border-color: var(--primary); }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
   </style>
 </head>
 <body>
-  <main class="status-shell">
-    <section class="status-grid">
-      <div class="status-hero">
-        <div class="brand"><span class="brand-mark"></span> Reneo Runtime</div>
-        <div class="code">%d</div>
-        <h1>%s</h1>
-        <p class="lead">%s</p>
-        <div class="meta-grid">
-          <div class="meta-card">
-            <div class="meta-label">Host aktif</div>
-            <div class="meta-value">%s</div>
-          </div>
-          <div class="meta-card">
-            <div class="meta-label">Path request</div>
-            <div class="meta-value">%s</div>
-          </div>
-        </div>
-        %s
-      </div>
-      <aside class="status-side">
-        <div class="tip-card">
-          <div class="tip-title">Diagnostic hint</div>
-          <div class="tip-copy">%s</div>
-        </div>
-        <div class="status-list">
-          <div class="status-item">
-            <strong>404 • Halaman tidak ditemukan</strong>
-            <span>Dipakai untuk asset atau path frontend yang memang tidak tersedia di runtime aktif.</span>
-          </div>
-          <div class="status-item">
-            <strong>403 • Host tidak diizinkan</strong>
-            <span>Muncul saat host/IP yang dipakai belum masuk allowlist runtime panel.</span>
-          </div>
-          <div class="status-item">
-            <strong>403 • Origin tidak diizinkan</strong>
-            <span>Muncul saat browser mengirim origin yang belum cocok dengan konfigurasi allowed origins.</span>
-          </div>
-        </div>
-      </aside>
-    </section>
+  <main>
+    <div class="brand"><span class="mark" aria-hidden="true">R</span><span>Reneo</span></div>
+    <div class="code">HTTP %d</div>
+    <h1>%s</h1>
+    <p>%s</p>
+    <dl>
+      <dt>Host</dt><dd>%s</dd>
+      <dt>Path</dt><dd>%s</dd>
+    </dl>
+    <p class="hint">%s</p>
+    <div class="actions">%s</div>
   </main>
 </body>
-</html>`, status, html.EscapeString(title), html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), actionsHTML, html.EscapeString(hint))
+</html>`, status, html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), html.EscapeString(hint), actions)
 }
