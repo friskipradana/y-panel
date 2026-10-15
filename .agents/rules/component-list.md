@@ -61,7 +61,7 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `users` | `UsersWindow` | `users/`: `UserQuotaPanel` (kuota + pemakaian), `ResetPasswordModal`, `permissions` (cermin kebijakan agent: admin hanya mengelola user biasa, hanya superadmin memberi role admin) |
 | `profile` | `ProfileWindow` | `profile/AccountSecurityCard` (pemakaian sendiri + ganti password) |
 | `widgets` | `WidgetsWindow` | – |
-| `docs` | `DocsWindow` | `docs/`: `useDocsWindow`, `DocEditorModal`. Markdown lewat `lib/markdown`; artikel berstatus terbit + `isPublic` tampil publik di `/articles` tanpa login; artikel resmi (`docs/articles` di repo, `internal/docsync`) tersinkron ke semua panel dan read-only; SEO (`robots.txt`, `sitemap.xml`, `llms.txt`, meta + JSON-LD) di `internal/httpserver/seo.go` |
+| `docs` | `DocsWindow` | `docs/`: `useDocsWindow`, `DocEditorModal`, `MarkdownToolbar` (format + unggah gambar ke `POST /api/v1/docs/images`, dibaca publik di `/api/v1/public/doc-images/{hash}`). Markdown lewat `lib/markdown` (`![alt](url)`; artikel resmi memakai `img/<nama>.png` di `docs/articles/img/`); artikel berstatus terbit + `isPublic` tampil publik di `/articles` tanpa login; artikel resmi (`docs/articles` di repo, `internal/docsync`) tersinkron ke semua panel dan read-only; SEO (`robots.txt`, `sitemap.xml`, `llms.txt`, meta + JSON-LD) di `internal/httpserver/seo.go` |
 | `changelog` | `ChangelogWindow` | Mengikuti GitHub Releases lewat agent (cache 1 jam, fallback ke entri lokal); catatan rilis dirender oleh `lib/markdown` |
 
 ## 4. Widget Desktop
