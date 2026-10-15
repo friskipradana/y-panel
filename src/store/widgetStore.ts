@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { PlacedWidget, WidgetConfig, WidgetType } from '@/types'
 import { useMetricsStore } from '@/store/metricsStore'
+import { isMobileLayoutNow } from '@/hooks/useIsMobileLayout'
 
 export interface WidgetCatalogItem {
   type: WidgetType
@@ -302,6 +303,9 @@ export function resolveWidgetOverlap(
 // Non-destructive cleanup for stored layouts: keeps every widget where the user put it and
 // only pulls strays back into the viewport and out of overlaps.
 export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
+  // The phone viewport is far narrower than the desktop the layout was arranged on:
+  // clamping here would squeeze the stored positions and sync them back over the desktop layout
+  if (typeof window !== 'undefined' && isMobileLayoutNow()) return widgets
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
   const placed: PlacedWidget[] = []
