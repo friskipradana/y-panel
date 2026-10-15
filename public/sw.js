@@ -1,10 +1,12 @@
-const CACHE_VERSION = 'ypanel-pwa-v2'
+const CACHE_VERSION = 'ypanel-pwa-v3'
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.svg',
   '/pwa-maskable.svg',
+  '/brand/icon-192.png',
+  '/brand/icon-512.png',
 ]
 
 const API_PREFIXES = ['/api', '/agent', '/portainer']

@@ -48,6 +48,7 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number }> }> = [
 ]
 
 const STEPS = ['download', 'setup', 'open'] as const
+const PHILOSOPHY = [{ id: 'rein' }, { id: 'neo' }, { id: 'rene' }] as const
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { t } = useI18n()
@@ -82,12 +83,37 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <div className="mx-auto max-w-2xl text-left">
             <CopyBlock text={INSTALL_COMMAND} />
             <p className="mt-2 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.pasteTerminal')}</p>
+            <p className="mt-1 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.hero.name')}</p>
           </div>
         </section>
 
         {/* Live desktop preview */}
         <section className="mt-14" aria-label={t('landing.previewAria')}>
           <DesktopShowcase />
+        </section>
+
+        {/* Name and philosophy */}
+        <section className="mt-20" aria-labelledby="landing-philosophy">
+          <div className="mx-auto mb-8 max-w-2xl text-center">
+            <h2 id="landing-philosophy" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              {t('landing.philosophy.title')}
+            </h2>
+            <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--text-secondary)]">{t('landing.philosophy.subtitle')}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {PHILOSOPHY.map((item) => (
+              <article key={item.id} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5">
+                <p className="panel-mono text-[0.75rem] uppercase tracking-widest text-[var(--panel-info-text)]">{t(`landing.philosophy.${item.id}.tag`)}</p>
+                <h3 className="mt-2 text-xl font-bold tracking-tight">{t(`landing.philosophy.${item.id}.title`)}</h3>
+                <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`landing.philosophy.${item.id}.desc`)}</p>
+              </article>
+            ))}
+          </div>
+
+          <p className="mx-auto mt-6 max-w-2xl text-center text-[0.9375rem] font-medium leading-relaxed">
+            {t('landing.philosophy.summary')}
+          </p>
         </section>
 
         {/* Modules */}
