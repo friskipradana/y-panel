@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.0.1] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.0.1** berisi 1 perubahan: 1 perbaikan. (4 files changed, 18 insertions(+), 18 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **landing:** Responsive layout for phones and tablets ([`80f9565`](https://github.com/friskipradana/panel-desktop-ui/commit/80f9565))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.0...v4.0.1
+
 ## [4.0.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
