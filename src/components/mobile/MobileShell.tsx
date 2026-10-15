@@ -1,7 +1,7 @@
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Home, Layers, LogOut, Monitor, Search, X } from 'lucide-react'
+import { ChevronLeft, Home, Layers, LogOut, Monitor, Search, User, X } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
 import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
@@ -45,6 +45,13 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   // The desktop layer normally owns these background jobs
   useSystemSampler()
   useWidgetSync()
+
+  // A window opened from elsewhere (palette, another app) takes over the screen
+  const openCount = useRef(windows.length)
+  useEffect(() => {
+    if (windows.length > openCount.current) setView('app')
+    openCount.current = windows.length
+  }, [windows.length])
 
   const open = useMemo(() => windows.filter((w) => canAccessWindow(w.kind, role)), [windows, role])
   const current = view === 'app' ? open.find((w) => w.id === focusedId) ?? open[open.length - 1] : undefined
@@ -212,6 +219,10 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               ))}
             </div>
           </div>
+          <Button onClick={() => { setAccount(false); launch('profile') }} className="w-full">
+            <User size={14} />
+            <span>{t('window.profile')}</span>
+          </Button>
           <Button onClick={() => setUiMode('desktop')} className="w-full">
             <Monitor size={14} />
             <span>{t('mobile.desktopView')}</span>

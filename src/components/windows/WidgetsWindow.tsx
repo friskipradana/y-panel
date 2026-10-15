@@ -112,7 +112,7 @@ export function WidgetsWindow() {
 
               {/* Bottom Actions */}
               <div className="mt-5 flex items-center justify-between border-t border-[var(--win-border)] pt-3 text-xs">
-                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] group-hover:text-cyan-500 transition-colors">
+                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] group-hover:text-cyan-500 transition-colors mobile:invisible">
                   <Move size={12} />
                   <span>{t('widgets.dragHint')}</span>
                 </div>
