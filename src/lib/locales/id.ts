@@ -725,6 +725,8 @@ export const id: Record<string, string> = {
   'update.progress.logLabel': "Log pembaruan",
   'update.progress.noClose': "Dialog ini tidak dapat ditutup selama pembaruan berjalan.",
   'update.progress.reload': "Muat ulang sekarang",
+  'public.theme.toLight': "Ganti ke mode terang",
+  'public.theme.toDark': "Ganti ke mode gelap",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',
