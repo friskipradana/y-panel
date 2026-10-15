@@ -1,4 +1,4 @@
-import { Database, KeyRound, Play, Plus, RefreshCw, Settings2, Square, Trash2 } from 'lucide-react'
+import { Database, ExternalLink, KeyRound, Play, Plus, RefreshCw, Settings2, Square, Trash2 } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -97,6 +97,9 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                   }
                   actions={
                     <div className="flex items-center gap-1">
+                      <IconButton label={t('databases.admin.openTab')} disabled={pending || broken || !running} onClick={() => window.open(`/database/${item.id}`, '_blank', 'noopener')}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </IconButton>
                       <IconButton label={t('databases.admin.manage')} tone="primary" disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>
                         <Settings2 className="h-3.5 w-3.5" />
                       </IconButton>

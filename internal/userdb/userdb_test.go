@@ -39,7 +39,7 @@ func TestRunArgsBindLocalhostAndHideSecrets(t *testing.T) {
 	if strings.Contains(joined, "S3cretValue") {
 		t.Fatalf("password must not appear in docker arguments: %s", joined)
 	}
-	for _, want := range []string{"--name reneo-db-7", "reneo.owner=3", "--memory 512m", "postgres:16-alpine", "-e POSTGRES_PASSWORD"} {
+	for _, want := range []string{"--name reneo-db-7", "reneo.owner=3", "panel.owner_id=3", "panel.source=database", "--memory 512m", "postgres:16-alpine", "-e POSTGRES_PASSWORD"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("missing %q in %s", want, joined)
 		}

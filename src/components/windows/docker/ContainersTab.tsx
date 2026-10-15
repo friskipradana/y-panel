@@ -23,6 +23,7 @@ import {
   getContainerPorts,
 } from './constants'
 import { StatusBadge, MetaChip } from './DockerComponents'
+import { Badge } from '@/components/ui/Badge'
 import type { DockerWindowState } from './useDockerWindow'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -136,12 +137,18 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
               const { primaryPublished, internal, published } = getContainerPorts(container)
               const networks = container.Networks?.length ? container.Networks.join(', ') : 'bridge/default'
               const ipAddresses = container.IpAddresses?.length ? container.IpAddresses.join(', ') : t('docker.unavailable')
+              const isDatabase = container.Labels?.['reneo.kind'] === 'database'
 
               return (
                 <EntityRow
                   key={container.Id}
                   title={name}
-                  badges={<StatusBadge state={container.State} />}
+                  badges={
+                    <>
+                      <StatusBadge state={container.State} />
+                      {container.Labels?.['reneo.kind'] === 'database' ? <Badge tone="info">{t('docker.databaseBadge')}</Badge> : null}
+                    </>
+                  }
                   subtitle={container.Image}
                   meta={
                     <>
@@ -160,6 +167,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                   }
                   actions={
                     <>
+                      {!isDatabase ? (
                       <IconButton
                         type="button" label={t('docker.editRedeploy')}
                         disabled={editLoading}
@@ -200,6 +208,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </IconButton>
+                      ) : null}
                       <IconButton
                         type="button" label={t('docker.viewRealtimeLog')}
                         onClick={() => { setLogAutoScroll(true); setLogModal({ id: container.Id, name }) }}
@@ -222,6 +231,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                         <ActionIcon className="h-3.5 w-3.5" />
                         {stateStyle.btnText}
                       </button>
+                      {!isDatabase ? (
                       <IconButton
                         type="button" label={t('docker.deleteContainer')} className="text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-hover)]"
                         onClick={() => {
@@ -232,6 +242,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </IconButton>
+                      ) : null}
                     </>
                   }
                   description={

@@ -172,6 +172,14 @@ func (s *Server) handleContainerDelete(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusForbidden, err)
 		return
 	}
+	if containers, err := docker.ListContainers(); err == nil {
+		for _, c := range containers {
+			if (c.ID == id || strings.HasPrefix(c.ID, id)) && c.Labels["reneo.kind"] == "database" {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container is a database: delete it from the Database window"})
+				return
+			}
+		}
+	}
 	if err := docker.DeleteContainer(id, removeVolumes, removeImage); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
