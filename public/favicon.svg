@@ -1,14 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
-  <defs>
-    <linearGradient id="ypanel-solid-grad" x1="0%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="45%" stop-color="#0EA5E9" />
-      <stop offset="100%" stop-color="#6366F1" />
-    </linearGradient>
-  </defs>
-  <!-- Single Unified Solid Corporate Geometric Y -->
-  <path
-    d="M 6 8 H 17 L 24 19.5 L 31 8 H 42 L 28.5 24 V 40 H 19.5 V 24 L 6 8 Z"
-    fill="url(#ypanel-solid-grad)"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo">
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+  <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#FFFFFF"/>
+  <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#FFFFFF"/>
+  <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#FFFFFF"/>
+  <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#FFFFFF"/>
+  <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#FFFFFF"/>
+  <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#0B2A57"/>
+  <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#0B2A57"/>
+  <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#0B2A57"/>
+  <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#0B2A57"/>
 </svg>

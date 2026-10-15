@@ -1,29 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">YPanel maskable icon</title>
-  <desc id="desc">YPanel geometric Y logo on a dark infrastructure background.</desc>
-  <defs>
-    <radialGradient id="halo" cx="50%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.3"/>
-      <stop offset="60%" stop-color="#03060c" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#020408"/>
-    </radialGradient>
-    <linearGradient id="pwa-solid-grad" x1="0%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="45%" stop-color="#0EA5E9" />
-      <stop offset="100%" stop-color="#6366F1" />
-    </linearGradient>
-    <filter id="pwa-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-  </defs>
-  <rect width="512" height="512" rx="116" fill="#03060c"/>
-  <rect width="512" height="512" rx="116" fill="url(#halo)"/>
-  <g transform="translate(64, 64) scale(8)" filter="url(#pwa-glow)">
-    <!-- Single Unified Solid Corporate Geometric Y -->
-    <path
-      d="M 6 8 H 17 L 24 19.5 L 31 8 H 42 L 28.5 24 V 40 H 19.5 V 24 L 6 8 Z"
-      fill="url(#pwa-solid-grad)"
-    />
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo">
+  <rect width="512" height="512" fill="#0B2A57"/>
+  <rect x="170.2" y="173.32" width="171.6" height="118.56" rx="48.36" fill="#FFFFFF"/>
+  <rect x="170.2" y="173.32" width="48.36" height="48.36" fill="#FFFFFF"/>
+  <rect x="170.2" y="243.52" width="48.36" height="48.36" fill="#FFFFFF"/>
+  <rect x="170.2" y="173.32" width="46.8" height="168.48" fill="#FFFFFF"/>
+  <polygon points="241.96,287.2 290.32,287.2 351.16,341.8 298.12,341.8" fill="#FFFFFF"/>
+  <rect x="170.2" y="221.68" width="124.8" height="12.48" rx="6.24" fill="#0B2A57"/>
+  <rect x="170.2" y="221.68" width="6.24" height="6.24" fill="#0B2A57"/>
+  <rect x="170.2" y="227.92" width="6.24" height="6.24" fill="#0B2A57"/>
+  <polygon points="217.0,291.88 246.64,291.88 290.32,341.8 217.0,341.8" fill="#0B2A57"/>
 </svg>

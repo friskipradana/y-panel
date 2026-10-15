@@ -9,7 +9,7 @@ Inventaris komponen YPanel. Cek di sini sebelum membuat komponen atau class baru
 | `AppShell` | `src/shell/index.tsx` | Cek sesi, shortcut global, revision sync, host router |
 | `AppRouter` | `src/router/index.tsx` | Rute `/`, `/docs/mcp`, `/login`, `/home`, `*` dengan transisi |
 | `PublicShell`, `CopyBlock` | `src/components/public/` | Kerangka halaman publik (header, versi, footer; selalu tema gelap via `data-theme="dark"`) dan blok kode dengan tombol salin |
-| `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik; versi dari `usePanelVersion` (`lib/version.ts`: versi agent, fallback versi bundle) |
+| `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik bermerek Reneo (filosofi: [FILOSOFI-RENEO.md](../../docs/FILOSOFI-RENEO.md)); versi dari `usePanelVersion` (`lib/version.ts`: versi agent, fallback versi bundle). Ikon merek di `public/` dan `public/brand/` dibuat oleh `scripts/make-brand-icons.py` (navy `#0B2A57`, R putih) |
 | `McpGuidePage` | `src/pages/McpGuidePage.tsx` + `mcp-guide/` | Panduan MCP: `ConnectPanel`, `ToolCatalog`; `toolsData.ts` dibuat dari registry agent |
 | `LoginPage` | `src/pages/LoginPage.tsx` | Login + wizard first-run |
 | `DesktopPage` | `src/pages/DesktopPage.tsx` | Pembungkus `Desktop` |

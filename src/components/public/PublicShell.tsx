@@ -36,8 +36,8 @@ export function PublicShell({ children }: PublicShellProps) {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
-              <img src="/favicon.svg" alt="" className="h-7 w-7" />
-              <span className="text-sm font-semibold tracking-tight">YPanel</span>
+              <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-lg" />
+              <span className="text-[0.9375rem] font-bold tracking-tight">Reneo</span>
             </button>
             <a
               href={releaseUrl(version)}
@@ -85,6 +85,7 @@ export function PublicShell({ children }: PublicShellProps) {
               v{version}
             </a>
             <span>{t('public.footer.tagline')}</span>
+            <span className="hidden sm:inline">{t('public.footer.formerly')}</span>
           </span>
         </div>
       </footer>
