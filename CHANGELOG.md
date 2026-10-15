@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.2.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.2.0** berisi 1 perubahan: 1 perbaikan. (1 file changed, 13 insertions(+), 21 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **mobile:** Layout override from ?ui= lasts one page load, reload without it returns to auto ([`0c21f7e`](https://github.com/friskipradana/panel-desktop-ui/commit/0c21f7e))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.1.0...v4.2.0
+
 ## [4.1.0] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
