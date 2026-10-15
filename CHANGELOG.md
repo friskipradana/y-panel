@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.1.0] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.1.0** berisi 1 perubahan: 1 pemeliharaan. (1 file changed, 1 deletion(-))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- Stop tracking tsconfig.app.tsbuildinfo (already gitignored, dirtied the tree on every build) ([`4b85ef3`](https://github.com/friskipradana/panel-desktop-ui/commit/4b85ef3))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.4...v4.1.0
+
 ## [4.0.4] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
