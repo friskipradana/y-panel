@@ -21,7 +21,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
   return (
     <div
       ref={containerRef}
-      className="@container flex flex-col h-full bg-[var(--win-content-bg)] text-[var(--text-secondary)] relative select-none"
+      className="flex flex-col h-full bg-[var(--win-content-bg)] text-[var(--text-secondary)] relative select-none"
       style={{ background: 'var(--win-bg)' }}
       onClick={() => setMenu(null)}
       onContextMenu={(e) => {

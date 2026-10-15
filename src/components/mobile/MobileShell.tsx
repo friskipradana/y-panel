@@ -93,7 +93,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   )
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-[var(--win-content-bg)] text-[var(--win-text)]">
+    <div className="layout-mobile flex h-dvh w-full flex-col bg-[var(--win-content-bg)] text-[var(--win-text)]">
       {/* Top bar */}
       <header className="flex h-12 shrink-0 items-center gap-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-2">
         {showingApp && current ? (
