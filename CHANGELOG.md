@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.5.2] - 2026-10-15
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.5.2** berisi 1 perubahan: 1 dokumentasi. (1 file changed, 212 insertions(+), 94 deletions(-))
+
+### 📚 Dokumentasi (Documentation)
+- **mcp:** Regenerate tool list, counts and notes from the live registry ([`e45e4e7`](https://github.com/friskipradana/y-panel/commit/e45e4e7))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.1...v4.5.2
+
 ## [4.5.1] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
