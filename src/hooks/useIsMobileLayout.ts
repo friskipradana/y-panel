@@ -30,6 +30,13 @@ export function setUiMode(mode: Exclude<UiMode, null> | 'auto') {
   window.dispatchEvent(new Event('reneo:ui-mode'))
 }
 
+// Non-hook form for stores: true while the phone layout is the one on screen
+export function isMobileLayoutNow(): boolean {
+  const override = readOverride()
+  if (override) return override === 'mobile'
+  return window.matchMedia(QUERY).matches
+}
+
 // True on phones and narrow windows, where the floating-window desktop is not usable
 export function useIsMobileLayout(): boolean {
   const [narrow, setNarrow] = useState(() => window.matchMedia(QUERY).matches)
