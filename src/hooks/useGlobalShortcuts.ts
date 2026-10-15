@@ -10,6 +10,12 @@ export function useGlobalShortcuts(authenticated: boolean) {
     if (!authenticated) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Terminals and the code editor own their keys: Esc, Ctrl+K, Alt+letter belong to the program
+      // running inside them. Only Ctrl+Shift+K still reaches the command palette from there.
+      const target = e.target as HTMLElement
+      const ownsKeys = !!target.closest?.('.xterm, .monaco-editor')
+      if (ownsKeys && !((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'k')) return
+
       // Toggle Command Palette (Ctrl+K or Cmd+K)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
@@ -18,8 +24,7 @@ export function useGlobalShortcuts(authenticated: boolean) {
       }
 
       const isTyping =
-        ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) ||
-        (e.target as HTMLElement).isContentEditable
+        ['INPUT', 'TEXTAREA'].includes(target.tagName) || target.isContentEditable
       if (isTyping && e.key !== 'Escape') return
 
       const { openWindow, closeWindow, focusedId } = useWindowStore.getState()
