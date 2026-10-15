@@ -210,7 +210,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
       </div>
 
       {deployType === 'image' ? (
-        <div className="grid grid-cols-2 gap-6 mt-4">
+        <div className="mt-4 grid grid-cols-2 gap-6 mobile:grid-cols-1 mobile:gap-4">
           <div className="space-y-4">
             {/* Docker Image combobox */}
             <div>

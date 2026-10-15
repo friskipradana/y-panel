@@ -159,7 +159,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
       </header>
 
       {/* Content */}
-      <main className="relative min-h-0 flex-1 overflow-hidden">
+      <main className="relative min-h-0 flex-1 overflow-hidden [contain:layout]">
         {kept.map((win) => {
           const renderContent = WINDOW_CONTENT[win.kind]
           if (!renderContent) return null

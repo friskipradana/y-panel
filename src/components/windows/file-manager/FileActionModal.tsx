@@ -11,7 +11,7 @@ export function FileActionModal({ fm }: { fm: FileManagerState }) {
   return (
     <AnimatePresence>
       {modal && (
-        <div className="absolute inset-0 z-[50] flex items-center justify-center p-4">
+        <div className="absolute inset-0 z-[50] flex items-center justify-center p-4 mobile:fixed">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}

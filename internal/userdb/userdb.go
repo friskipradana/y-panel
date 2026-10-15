@@ -41,11 +41,11 @@ type Engine struct {
 }
 
 var engines = []Engine{
-	{ID: "postgres", Label: "PostgreSQL", Repository: "postgres", DefaultVersion: "16-alpine", Versions: []string{"17-alpine", "16-alpine", "15-alpine", "14-alpine", "13-alpine"}, InternalPort: 5432, DataDir: "/var/lib/postgresql/data", HasDatabaseName: true, HasUser: true},
-	{ID: "mysql", Label: "MySQL", Repository: "mysql", DefaultVersion: "8.4", Versions: []string{"9.0", "8.4", "8.0"}, InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
+	{ID: "postgres", Label: "PostgreSQL", Repository: "postgres", DefaultVersion: "16.9", Versions: []string{"17.5", "16.9", "15.13", "14.18", "13.21"}, InternalPort: 5432, DataDir: "/var/lib/postgresql/data", HasDatabaseName: true, HasUser: true},
+	{ID: "mysql", Label: "MySQL", Repository: "mysql", DefaultVersion: "8.4", Versions: []string{"9.3", "8.4", "8.0"}, InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
 	{ID: "mariadb", Label: "MariaDB", Repository: "mariadb", DefaultVersion: "11.4", Versions: []string{"11.4", "10.11", "10.6"}, InternalPort: 3306, DataDir: "/var/lib/mysql", HasDatabaseName: true, HasUser: true},
-	{ID: "mongodb", Label: "MongoDB", Repository: "mongo", DefaultVersion: "7", Versions: []string{"8", "7", "6"}, InternalPort: 27017, DataDir: "/data/db", HasDatabaseName: true, HasUser: true},
-	{ID: "redis", Label: "Redis", Repository: "redis", DefaultVersion: "7-alpine", Versions: []string{"8-alpine", "7-alpine", "6-alpine"}, InternalPort: 6379, DataDir: "/data"},
+	{ID: "mongodb", Label: "MongoDB", Repository: "mongo", DefaultVersion: "7.0", Versions: []string{"8.0", "7.0", "6.0"}, InternalPort: 27017, DataDir: "/data/db", HasDatabaseName: true, HasUser: true},
+	{ID: "redis", Label: "Redis", Repository: "redis", DefaultVersion: "7.4", Versions: []string{"8.0", "7.4", "6.2"}, InternalPort: 6379, DataDir: "/data"},
 }
 
 // Engines lists the supported products.
