@@ -33,6 +33,7 @@ func mcpToolGroup(name string) string {
 		{"files", []string{"file_"}},
 		{"projects", []string{"project_", "quick_deploy", "tunnel_"}},
 		{"cloudflare", []string{"cloudflare_"}},
+		{"databases", []string{"db_"}},
 		{"widgets", []string{"widget"}},
 		{"users", []string{"user_", "docs_"}},
 	}
