@@ -99,6 +99,27 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
     xterm.loadAddon(fit)
     xterm.open(host)
     xtermRef.current = xterm
+    // Copy and paste the way terminals do: Ctrl+C copies only while text is selected (otherwise it
+    // stays an interrupt), Ctrl+Shift+C/V always copy and paste, Ctrl+V pastes through xterm.
+    xterm.attachCustomKeyEventHandler((event) => {
+      if (event.type !== 'keydown') return true
+      const mod = event.ctrlKey || event.metaKey
+      const key = event.key.toLowerCase()
+      if (mod && key === 'c' && (event.shiftKey || xterm.hasSelection())) {
+        const text = xterm.getSelection()
+        if (text) {
+          void navigator.clipboard?.writeText(text).catch(() => undefined)
+          xterm.clearSelection()
+        }
+        return false
+      }
+      if (mod && event.shiftKey && key === 'v') {
+        event.preventDefault()
+        void navigator.clipboard?.readText().then((text) => text && xterm.paste(text)).catch(() => undefined)
+        return false
+      }
+      return true
+    })
     const syncSize = () => {
       if (!xtermRef.current || !fitRef.current || !viewportRef.current?.isConnected) return
       fitRef.current.fit()
