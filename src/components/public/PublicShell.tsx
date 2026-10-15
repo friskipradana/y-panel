@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { getPublicContributors } from '@/api/system'
 import { ArrowRight, BookOpen, Bot, Download, ExternalLink, GitBranch, Moon, Sun } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
@@ -22,6 +24,7 @@ export function PublicShell({ children }: PublicShellProps) {
   const authenticated = useAuthStore((s) => s.authenticated)
   const { version } = usePanelVersion()
   const primaryPath = authenticated ? '/home' : '/login'
+  const contributors = useQuery({ queryKey: ['public-contributors'], queryFn: getPublicContributors, staleTime: 60 * 60_000, retry: false })
   const themeMode = useThemeStore((s) => s.mode)
   const toggleMode = useThemeStore((s) => s.toggleMode)
 
@@ -86,7 +89,23 @@ export function PublicShell({ children }: PublicShellProps) {
       <footer className="relative z-10 border-t border-[var(--win-border)]">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-[0.75rem] text-[var(--text-secondary)] sm:flex-row sm:px-6">
           <span>
-            {t('public.footer.contributors')} <strong className="text-[var(--win-text)]">AknalRe · FriskiPradana</strong>
+            {contributors.data && contributors.data.items.length > 0 ? (
+              <>
+                {t('public.footer.contributors')}{' '}
+                {contributors.data.items.map((c, i) => (
+                  <span key={c.login}>
+                    {i > 0 ? ' · ' : ''}
+                    <a href={c.url} target="_blank" rel="noreferrer" className="font-semibold text-[var(--win-text)] hover:underline">
+                      {c.login}
+                    </a>
+                  </span>
+                ))}
+              </>
+            ) : (
+              <a href={`${GITHUB_URL}/graphs/contributors`} target="_blank" rel="noreferrer" className="hover:text-[var(--win-text)] hover:underline">
+                {t('public.footer.contributors')}
+              </a>
+            )}
           </span>
           <span className="flex items-center gap-3">
             <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="panel-mono hover:text-[var(--win-text)]">

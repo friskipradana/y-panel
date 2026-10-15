@@ -89,6 +89,14 @@ export interface DemoInfo {
   readOnly?: boolean
 }
 
+export interface PublicContributors {
+  items: Array<{ login: string; url: string }>
+  repo: string
+}
+
+export const getPublicContributors = () =>
+  agentApi.get<PublicContributors>('/api/v1/public/contributors').then((r) => r.data)
+
 export const getDemoInfo = () => agentApi.get<DemoInfo>('/api/v1/public/demo').then((r) => r.data)
 
 export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)

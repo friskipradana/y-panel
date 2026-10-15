@@ -13,6 +13,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/frontend/revision", s.handleFrontendRevision)
 	s.mux.HandleFunc("GET /api/v1/mcp-catalog", s.handleMCPCatalog)
 	s.mux.HandleFunc("GET /api/v1/public/demo", s.handlePublicDemo)
+	s.mux.HandleFunc("GET /api/v1/public/contributors", s.handlePublicContributors)
 	s.mux.HandleFunc("GET /api/v1/public/docs", s.handlePublicDocsList)
 	s.mux.HandleFunc("GET /api/v1/public/docs/{slug}", s.handlePublicDocGet)
 	s.mux.HandleFunc("GET /api/v1/public/doc-images/{name}", s.handlePublicDocImage)

@@ -228,8 +228,7 @@ Panduan lengkap: [Security Hardening](docs/security-hardening.md). Poin penting:
 
 Reneo menggunakan **Reneo Public Use License**.
 
-- **Owner:** Y_Corp
-- **Contributors:** AknalRe, FriskiPradana
+Daftar kontributor ada di [halaman contributors GitHub](https://github.com/friskipradana/y-panel/graphs/contributors).
 
 Semua orang boleh mengakses, mengunduh, memasang, menjalankan, dan memakai Reneo. Namun perubahan pada repository resmi, push commit, merge, release, atau tindakan maintainer hanya boleh dilakukan oleh owner atau contributor yang memiliki izin.
 
