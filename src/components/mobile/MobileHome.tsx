@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import { ArrowDown, ArrowUp, Lock, Unlock } from 'lucide-react'
+import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { IconButton } from '@/components/ui/IconButton'
 import { orderWidgetsForMobile, useWidgetStore } from '@/store/widgetStore'
+import { alertLib } from '@/lib/alert'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import type { WindowKind } from '@/types'
 
@@ -64,6 +65,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const mobile = useWidgetStore((s) => s.mobile)
   const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
   const toggleMobileLock = useWidgetStore((s) => s.toggleMobileLock)
+  const removeWidget = useWidgetStore((s) => s.removeWidget)
   // the host card above already shows CPU, RAM and disk, so the System Vitals widget is not repeated
   const widgets = useMemo(
     () => orderWidgetsForMobile(placed, mobile.order).filter((w) => w.type !== 'system-vital'),
@@ -137,6 +139,24 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
                     onClick={() => toggleMobileLock(widget.id)}
                   >
                     {locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  </IconButton>
+                  <IconButton
+                    label={t('mobile.widgetRemove')}
+                    tone="danger"
+                    onClick={async () => {
+                      const name = t(`widget.catalog.${widget.type}.title`)
+                      const ok = await alertLib.confirm(
+                        t('widgets.removeQuestion'),
+                        t('widgets.removeMessage', { name }),
+                        t('widgets.removeConfirm'),
+                        t('common.cancel'),
+                        'warning',
+                        'widgets',
+                      )
+                      if (ok) removeWidget(widget.id)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </IconButton>
                 </div>
                 <Component widget={widget} />

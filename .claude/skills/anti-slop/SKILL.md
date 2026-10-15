@@ -70,4 +70,5 @@ Centang semua sebelum menyatakan selesai:
 - [ ] Teks lewat `t()`, `id` dan `en` terisi.
 - [ ] Komponen yang sudah ada dipakai ulang; component-list diperbarui bila menambah.
 - [ ] Light dan dark dicek; `bun run build`, `bun run lint`, dan `bun run check:ui` bersih.
+- [ ] Desktop dan mobile dicek; setiap aksi (buat, ubah, hapus) tersedia di keduanya.
 - [ ] Copy konkret, tanpa kata kosong.

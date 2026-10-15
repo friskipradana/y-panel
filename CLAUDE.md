@@ -10,6 +10,8 @@ Setiap perubahan UI wajib mengikuti aturan berikut dan skill `anti-slop` (`.clau
 @.agents/rules/component-list.md
 @.agents/rules/ui-components.md
 
+Setiap perbaikan UI berlaku untuk **mode desktop dan mobile** sekaligus, termasuk paritas aksi (lihat bagian 8 di design-system.md).
+
 Referensi lengkap (baca saat mengerjakan visual): [DESIGN.md](DESIGN.md).
 
 ## Perintah
