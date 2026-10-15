@@ -25,12 +25,15 @@ import { TextInput } from "@/components/ui/Field";
 import { getUpdateInfo, getUpdateStatus, applyUpdate } from "@/api/system";
 import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
+import { toast } from "sonner";
+import { useUpdateProgress } from "@/store/updateStore";
 
 export function GeneralTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
   const { language, setLanguage, t } = useI18n();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const showUpdateProgress = useUpdateProgress((s) => s.show);
 
   const {
     hostname,
@@ -61,6 +64,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
     mutationFn: (targetVersion?: string) => applyUpdate(targetVersion),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["system-update-status"] });
+      showUpdateProgress();
     },
     onError: (err: unknown) => {
       const message =
@@ -78,12 +82,19 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
   });
 
   const handleCheckUpdate = async () => {
+    if (isRefreshing) return;
     setIsRefreshing(true);
     try {
-      await queryClient.fetchQuery({
+      const info = await queryClient.fetchQuery({
         queryKey: ["system-update"],
         queryFn: () => getUpdateInfo(true),
+        staleTime: 0,
       });
+      if (info.error) toast.error(t("settings.update.checkFailed"), { description: info.error });
+      else if (info.available) toast.info(t("settings.update.foundToast", { version: info.latest }));
+      else toast.success(t("settings.update.upToDateToast"));
+    } catch {
+      toast.error(t("settings.update.checkFailed"));
     } finally {
       setIsRefreshing(false);
     }
@@ -165,11 +176,11 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
             type="button"
             variant="ghost"
             onClick={handleCheckUpdate}
-            disabled={isRefreshing || updateQuery.isFetching}
-            className="flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-xl border border-[var(--win-border)]"
+            aria-busy={isRefreshing}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--win-border)] px-4 py-2 text-[13px] sm:min-h-9 sm:px-3.5"
           >
-            <RefreshCw size={12} className={isRefreshing || updateQuery.isFetching ? "animate-spin" : ""} />
-            <span>{t("settings.update.checkNow")}</span>
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+            <span>{isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}</span>
           </Button>
         </div>
 

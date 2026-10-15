@@ -1,7 +1,9 @@
+import { useEffect, useId, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, AlertTriangle, XCircle, Info, Loader2, HelpCircle } from 'lucide-react'
-import { useAlertStore, AlertType } from '@/store/alertStore'
+import { useAlertStore, type AlertType } from '@/store/alertStore'
 import { useI18n } from '@/lib/i18n'
+import { renderAlertText } from './alertText'
 
 const iconMap: Record<AlertType, React.ReactNode> = {
   success: <CheckCircle2 className="text-[var(--panel-success-text)]" size={32} />,
@@ -13,8 +15,46 @@ const iconMap: Record<AlertType, React.ReactNode> = {
   confirm: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
 }
 
-export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val: boolean) => void }) {
+interface AlertData {
+  type: AlertType
+  title: string
+  description: string
+  confirmText?: string
+  cancelText?: string
+}
+
+const BUTTON_BASE =
+  'min-h-11 flex-1 rounded-full border px-4 py-2 text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] sm:min-h-0 sm:text-[12px]'
+
+// One dialog for confirmations, results and busy states. Used by the global layer and,
+// inside a window (or the phone shell), scoped to that window.
+export function InnerAlert({ data, closeDialog }: { data: AlertData | null; closeDialog: (val: boolean) => void }) {
+  if (!data) return null
+  return <AlertBody data={data} closeDialog={closeDialog} />
+}
+
+function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: boolean) => void }) {
   const { t } = useI18n()
+  const titleId = useId()
+  const bodyId = useId()
+  const primaryRef = useRef<HTMLButtonElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const busy = data.type === 'loading'
+  const isConfirm = data.type === 'confirm'
+
+  // keyboard: Esc dismisses, focus starts on the safe choice (cancel for confirmations)
+  useEffect(() => {
+    const target = isConfirm ? cancelRef.current : primaryRef.current
+    target?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) {
+        event.stopPropagation()
+        closeDialog(false)
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [busy, closeDialog, isConfirm])
 
   return (
     <>
@@ -29,15 +69,20 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
           background: 'color-mix(in srgb, var(--win-text) 32%, transparent)',
         }}
         onClick={() => {
-          if (data.type !== 'loading') closeDialog(false)
+          if (!busy) closeDialog(false)
         }}
       />
       <motion.div
+        role={isConfirm ? 'alertdialog' : 'dialog'}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
+        aria-busy={busy || undefined}
         initial={{ opacity: 0, scale: 0.95, y: -15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: -15 }}
         transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        className="relative w-full max-w-[340px] overflow-hidden rounded-[20px] border p-6 text-center backdrop-blur-[48px] sm:max-w-[380px]"
+        className="relative mx-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[22rem] overflow-y-auto rounded-[20px] border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center backdrop-blur-[48px] sm:mx-0 sm:w-full sm:max-w-[24rem] sm:p-6"
         style={{
           zIndex: 999999,
           color: 'var(--win-text)',
@@ -48,43 +93,45 @@ export function InnerAlert({ data, closeDialog }: { data: any, closeDialog: (val
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-inner"
+          className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full"
           style={{
             background: 'color-mix(in srgb, var(--panel-primary-bg) 58%, transparent)',
             boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--win-border) 82%, transparent)',
           }}
         >
-          {iconMap[data.type as AlertType]}
+          {iconMap[data.type]}
         </div>
 
-        <h3 className="mb-2 text-[16px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
+        <h3 id={titleId} className="mb-2 text-[16px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
           {data.title}
         </h3>
-        
-        <div 
-          className="mb-6 text-[12.5px] leading-relaxed text-[var(--text-secondary)]"
-          dangerouslySetInnerHTML={{ __html: String(data.description) }}
-        />
 
-        {data.type !== 'loading' && (
-          <div className="flex w-full items-center justify-center gap-3">
-            {data.type === 'confirm' && (
+        <div id={bodyId} className="mb-6 break-words text-[13px] leading-relaxed text-[var(--text-secondary)] sm:text-[12.5px]">
+          {renderAlertText(data.description)}
+        </div>
+
+        {!busy && (
+          <div className="flex w-full flex-col-reverse items-stretch gap-2.5 sm:flex-row sm:gap-3">
+            {isConfirm && (
               <button
-                onMouseDown={(e) => { e.stopPropagation(); closeDialog(false) }}
-                className="flex-1 rounded-full border px-4 py-2 text-[12px] font-medium transition focus:outline-none focus:ring-2"
+                ref={cancelRef}
+                type="button"
+                onClick={() => closeDialog(false)}
+                className={`${BUTTON_BASE} font-medium`}
                 style={{
                   borderColor: 'var(--win-border)',
                   background: 'var(--panel-surface)',
                   color: 'var(--win-text)',
-                  ['--tw-ring-color' as string]: 'color-mix(in srgb, var(--win-text) 24%, transparent)',
                 }}
               >
                 {data.cancelText || t('common.cancel')}
               </button>
             )}
             <button
-              onMouseDown={(e) => { e.stopPropagation(); closeDialog(true) }}
-              className="flex-1 rounded-full border px-4 py-2 text-[12px] font-semibold text-[var(--win-text)] shadow-[var(--global-alert-confirm-shadow)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
+              ref={primaryRef}
+              type="button"
+              onClick={() => closeDialog(true)}
+              className={`${BUTTON_BASE} font-semibold text-[var(--win-text)] shadow-[var(--global-alert-confirm-shadow)] hover:brightness-110`}
               style={{
                 borderColor: 'color-mix(in srgb, var(--panel-primary-solid) 75%, var(--win-border))',
                 background: 'var(--global-alert-confirm-bg)',
@@ -112,7 +159,3 @@ export function GlobalAlert() {
     </AnimatePresence>
   )
 }
-
-
-
-

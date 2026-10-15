@@ -85,7 +85,7 @@ func New() *Checker {
 	}
 	return &Checker{
 		repo:   repo,
-		client: &http.Client{Timeout: 10 * time.Second},
+		client: &http.Client{Timeout: 6 * time.Second},
 		apiURL: "https://api.github.com/repos/" + repo + "/releases/latest",
 	}
 }
