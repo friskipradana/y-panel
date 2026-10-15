@@ -91,7 +91,9 @@ curl http://127.0.0.1:9000/api/status
 
 Setelah install, kamu bisa jalankan:
 
-```bash`r`nreneo`r`n```
+```bash
+sudo reneo
+```
 
 Menu akan menampilkan info akses panel aktif di bagian atas, termasuk:
 - bind address panel
@@ -117,7 +119,9 @@ sudo bash installer/linux/uninstall.sh
 
 Atau dari menu:
 
-```bash`r`nreneo`r`n```
+```bash
+sudo reneo
+```
 
 > [!WARNING]
 > Script uninstall akan menghapus binary agent, frontend bundle, CLI helper, service, config, state, dan container Portainer yang dipasang oleh installer ini.
