@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Bell, CheckCheck, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Database } from 'lucide-react'
+import { ArrowUpCircle, Bell, CheckCheck, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Database } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
+import { getUpdateInfo } from '@/api/system'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -54,6 +55,15 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     enabled: authenticated,
     retry: 1,
   })
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
+
+  const { data: updateInfo } = useQuery({
+    queryKey: ['system-update'],
+    queryFn: () => getUpdateInfo(false),
+    enabled: Boolean(authenticated && isAdmin),
+    staleTime: 10 * 60 * 1000,
+  })
+
   const [notifications, setNotifications] = useState<PanelNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const latestNotifications = useMemo(() => notifications.slice(0, 8), [notifications])
@@ -205,8 +215,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     }
   }
 
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
-
   return (
     <div className={`taskbar ${!isDark ? 'taskbar--light' : ''}`}>
       <div className="taskbar-left flex items-center">
@@ -323,6 +331,17 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             </span>
           )}
         </button>
+
+        {isAdmin && updateInfo?.available && (
+          <button
+            id="taskbar-update-available"
+            title={t('taskbar.updateAvailable', { version: updateInfo.latest })}
+            className="taskbar-icon-btn text-amber-500 hover:text-amber-400 relative"
+            onClick={() => openWindow('settings')}
+          >
+            <ArrowUpCircle size={14} className="animate-pulse" />
+          </button>
+        )}
 
         <button id="taskbar-monitor" title={t('window.system')} className="taskbar-icon-btn" onClick={() => openWindow('system')}>
           <Monitor size={14} />

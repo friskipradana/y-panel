@@ -20,6 +20,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
+	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
 )
@@ -45,6 +46,7 @@ type Server struct {
 	database                     *database.Manager
 	projectManager               *projects.Manager
 	metrics                      *metrics.Recorder
+	updates                      *updater.Checker
 	cfDaemon                     *cloudflareapi.Daemon
 	notificationMu               sync.RWMutex
 	notificationWSConns          map[int64][]*wsConn
@@ -130,6 +132,7 @@ func New(cfg config.Config) *Server {
 		return values, map[string]uint64{"net-rx": sm.BytesRecv, "net-tx": sm.BytesSent}
 	})
 	go s.metrics.Run()
+	s.updates = updater.New()
 
 	s.routes()
 	go s.runProjectReconcileLoop(25 * time.Second)
