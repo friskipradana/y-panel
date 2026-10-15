@@ -1,4 +1,4 @@
-import { Lock, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { AudioLines, Lock, LockOpen, Volume2, VolumeX } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { soundManager } from "@/lib/sound";
 import { useThemeStore } from "@/store/themeStore";
@@ -64,7 +64,7 @@ export function SoundTab() {
       {soundEnabled && (
         <div className="panel-shell-card p-4.5 flex flex-col gap-4">
           <SectionHeader
-            icon={<Sparkles />}
+            icon={<AudioLines />}
             title={t("settings.sound.previewTitle")}
             subtitle={t("settings.sound.previewSubtitle")}
           />
@@ -100,7 +100,7 @@ export function SoundTab() {
               className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] text-left flex flex-col gap-1 cursor-pointer transition-all"
             >
               <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
-                <Sparkles size={14} className="text-emerald-400" />
+                <LockOpen size={14} className="text-emerald-400" />
                 <span>{t("settings.sound.unlockChime")}</span>
               </div>
               <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.sound.unlockChimeDesc")}</span>

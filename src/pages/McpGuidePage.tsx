@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowLeft, Bot, Box, HardDrive, Shield, Sparkles, Terminal } from 'lucide-react'
+import { Activity, ArrowLeft, Bot, Box, HardDrive, MessageSquareText, Shield, Terminal } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n'
 import { PublicShell } from '@/components/public/PublicShell'
@@ -72,7 +72,7 @@ export function McpGuidePage() {
 
         {/* Prompts */}
         <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
-          <SectionHeader icon={<Sparkles />} tone="warning" title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
+          <SectionHeader icon={<MessageSquareText />} tone="warning" title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
           <ul className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
             {PROMPTS.map((item) => (
               <li key={item.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">

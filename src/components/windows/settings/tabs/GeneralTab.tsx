@@ -9,7 +9,8 @@ import {
   RefreshCw,
   Save,
   Server,
-  Sparkles,
+  CircleArrowUp,
+  CircleCheck,
   Terminal,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -170,7 +171,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
         <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 rounded-xl bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
           <div className="flex items-center gap-3">
             <IconBadge size="md" tone={updateInfo?.available ? "warning" : "success"}>
-              <Sparkles />
+              {updateInfo?.available ? <CircleArrowUp /> : <CircleCheck />}
             </IconBadge>
             <div>
               <div className="flex items-center gap-2">
