@@ -28,8 +28,9 @@ const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
 // service journals show every account's activity
 const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs'])
 
-// The public demo account only browses: no files, terminal, users, settings or cloud access
-const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'system', 'widgets', 'profile'])
+// The public demo account only looks: the windows below work read-only on its own (empty) data.
+// No terminal, files, users, settings or logs: they would need a shell or reach shared data.
+const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'database', 'tunnels', 'system', 'widgets', 'profile'])
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)

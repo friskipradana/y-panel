@@ -140,16 +140,16 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-lg" />
               <span className="text-[0.9375rem] font-bold tracking-tight">Reneo</span>
             </span>
+            <IconButton label={t('mobile.search')} onClick={openPalette}>
+              <Search className="h-5 w-5" />
+            </IconButton>
+            {authenticated ? <MobileNotifications /> : null}
             <IconButton
               label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
               onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
             >
               {themeMode === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </IconButton>
-            <IconButton label={t('mobile.search')} onClick={openPalette}>
-              <Search className="h-5 w-5" />
-            </IconButton>
-            {authenticated ? <MobileNotifications /> : null}
             <button
               type="button"
               onClick={() => setAccount(true)}
