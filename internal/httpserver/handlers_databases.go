@@ -25,13 +25,15 @@ type managedDatabaseView struct {
 	EngineLabel string `json:"engineLabel"`
 	Host        string `json:"host"`
 	State       string `json:"state"`
+	// AccessKey is the opaque key used in public addresses (full-page manager, Adminer)
+	AccessKey string `json:"accessKey"`
 }
 
 func (s *Server) viewManagedDatabases(list []database.ManagedDatabase) []managedDatabaseView {
 	states := userdb.States()
 	out := make([]managedDatabaseView, 0, len(list))
 	for _, item := range list {
-		view := managedDatabaseView{ManagedDatabase: item, Host: userDatabaseHost}
+		view := managedDatabaseView{ManagedDatabase: item, Host: userDatabaseHost, AccessKey: s.databaseAccessKey(item.ID)}
 		if engine, ok := userdb.Lookup(item.Engine); ok {
 			view.EngineLabel = engine.Label
 		}

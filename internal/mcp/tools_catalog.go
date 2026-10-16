@@ -80,7 +80,7 @@ func catalogSpecs() []apiSpec {
 			Params: []apiParam{queryParam("since", "integer", "Only return points newer than this epoch-ms timestamp.")}},
 		{Name: "system_changelog", Title: "Panel changelog", Method: "GET", Path: "/api/v1/system/changelog",
 			Desc: "Release notes of the installed Reneo versions."},
-		{Name: "ping_host", Title: "Ping a host", Method: "POST", Path: "/api/v1/tools/ping", AdminOnly: true, Hint: "read",
+		{Name: "ping_host", Title: "Ping a host", Method: "POST", Path: "/api/v1/tools/ping", Hint: "read",
 			Desc: "Measure reachability and latency from the server. Without `port` it sends an ICMP echo; with `port` it times a TCP connect. Returns {ok, latencyMs, resolved, error}.",
 			Params: []apiParam{
 				strParam("host", "IP address or hostname (no URL, no flags).", true),

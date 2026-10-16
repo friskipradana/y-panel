@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 )
 
 const (
@@ -141,6 +143,13 @@ func (s *Server) handlePing(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	res := pingResult{Host: host, CheckedAt: time.Now().UnixMilli()}
+	caller := userFromCtx(r)
+	probeHost, policyErr := pingTarget(ctx, host, caller != nil && auth.IsSuperAdmin(caller.Role))
+	if policyErr != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": policyErr.Error()})
+		return
+	}
+	host = probeHost
 	if req.Port > 0 {
 		res.Mode = "tcp"
 		latency, resolved, perr := tcpPing(ctx, host, req.Port)

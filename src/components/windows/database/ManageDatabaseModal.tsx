@@ -3,7 +3,7 @@ import { Modal } from '@/components/ui/Modal'
 import { ManageDatabaseContent } from './ManageDatabaseContent'
 import type { DatabasesWindowState } from './useDatabasesWindow'
 
-// One place to look inside and administer a database. The same view opens full page at /database/{id}.
+// One place to look inside and administer a database. The same view opens full page at /database/{accessKey}.
 export function ManageDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
   const { t, manageTarget, setManageTarget } = dbw
   const target = manageTarget
@@ -19,7 +19,7 @@ export function ManageDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
       width={1040}
       footer={
         target ? (
-          <IconButtonLink id={target.id} label={t('databases.admin.openTab')} />
+          <IconButtonLink accessKey={target.accessKey} label={t('databases.admin.openTab')} />
         ) : undefined
       }
     >
@@ -28,10 +28,10 @@ export function ManageDatabaseModal({ dbw }: { dbw: DatabasesWindowState }) {
   )
 }
 
-function IconButtonLink({ id, label }: { id: number; label: string }) {
+function IconButtonLink({ accessKey, label }: { accessKey: string; label: string }) {
   return (
     <a
-      href={`/database/${id}`}
+      href={`/database/${accessKey}`}
       target="_blank"
       rel="noopener"
       className="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--panel-primary-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"

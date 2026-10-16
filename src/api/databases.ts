@@ -28,6 +28,8 @@ export interface UserDatabase {
   status: 'creating' | 'ready' | 'error'
   lastError?: string
   state: DatabaseState
+  /** opaque key for public addresses (full page manager, Adminer) */
+  accessKey: string
   createdAt: string
 }
 

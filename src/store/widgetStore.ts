@@ -12,11 +12,11 @@ export interface WidgetCatalogItem {
   category: 'system' | 'network' | 'utility'
 }
 
-// The network widget shows the host's network card and ping probes from the server: both are
-// for administrators; an account's CPU, RAM and storage widgets show its own quota instead.
+// The network widget shows the host's own network card, so it is for the superadmin. Ping is open
+// to every account; the agent only lets non-superadmins probe public addresses.
 export function widgetAllowedFor(type: WidgetType, role?: string | null): boolean {
   if (type === 'network-traffic') return role === 'superadmin'
-  if (type === 'ping') return role === 'superadmin' || role === 'admin'
+  if (type === 'ping') return role !== 'demo'
   return true
 }
 

@@ -101,7 +101,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                         label={['postgres', 'mysql', 'mariadb'].includes(item.engine) ? t('databases.admin.openAdminer') : t('databases.admin.openTab')}
                         disabled={pending || broken || !running}
                         onClick={() =>
-                          window.open(['postgres', 'mysql', 'mariadb'].includes(item.engine) ? `/api/v1/databases/${item.id}/adminer` : `/database/${item.id}`, '_blank', 'noopener')
+                          window.open(['postgres', 'mysql', 'mariadb'].includes(item.engine) ? `/api/v1/db-open/${item.accessKey}` : `/database/${item.accessKey}`, '_blank', 'noopener')
                         }
                       >
                         <ExternalLink className="h-3.5 w-3.5" />

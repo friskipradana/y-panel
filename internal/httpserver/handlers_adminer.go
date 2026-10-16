@@ -93,6 +93,14 @@ func firstOutputLine(s string) string {
 
 // handleDatabaseAdminer answers with a page that signs the owner in to Adminer.
 func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
+	// the address carries an opaque key, never the numeric ID
+	owner := userFromCtx(r)
+	found := s.databaseByAccessKey(owner, r.PathValue("key"))
+	if found == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "database not found"})
+		return
+	}
+	r.SetPathValue("id", strconv.FormatInt(found.ID, 10))
 	conn, item, u, ok := s.databaseConn(w, r)
 	if !ok || !requireSQL(s, w, conn) {
 		return
@@ -116,9 +124,10 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "same-origin")
 	_, _ = fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adminer</title></head>
 <body style="font-family:system-ui,sans-serif;padding:2rem">
-<form id="f" method="post" action="/adminer/">%s%s%s%s%s<noscript><button type="submit">Open Adminer</button></noscript></form>
+<form id="f" method="post" action="/adminer/%s/">%s%s%s%s%s<noscript><button type="submit">Open Adminer</button></noscript></form>
 <script>document.getElementById('f').submit()</script>
 </body></html>`,
+		html.EscapeString(s.databaseAccessKey(item.ID)),
 		field("auth[driver]", driver),
 		field("auth[server]", net.JoinHostPort(userDatabaseHost, strconv.Itoa(item.HostPort))),
 		field("auth[username]", conn.User),
@@ -127,8 +136,9 @@ func (s *Server) handleDatabaseAdminer(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
-// adminerProxy forwards /adminer/ to the sidecar. A sign-in may only name a database server
-// the caller owns, so Adminer cannot be pointed at other services on the host.
+// adminerProxy forwards /adminer/<key>/ to the sidecar. The key selects one of the caller's own
+// databases and a sign-in may only name exactly that database's server, so Adminer cannot be
+// pointed at anything else on the host.
 func (s *Server) adminerProxy() http.Handler {
 	target := &url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(adminerPort()))}
 	proxy := &httputil.ReverseProxy{
@@ -136,7 +146,7 @@ func (s *Server) adminerProxy() http.Handler {
 			pr.Out.URL.Scheme = target.Scheme
 			pr.Out.URL.Host = target.Host
 			pr.Out.Host = target.Host
-			pr.Out.URL.Path = "/" + strings.TrimPrefix(pr.In.URL.Path, "/adminer/")
+			pr.Out.URL.Path = "/" + adminerRestPath(pr.In.URL.Path)
 			pr.Out.URL.RawPath = ""
 			pr.Out.Header.Del("Authorization")
 		},
@@ -150,6 +160,16 @@ func (s *Server) adminerProxy() http.Handler {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+		key, _ := adminerSplitPath(r.URL.Path)
+		bound := s.databaseByAccessKey(u, key)
+		if bound == nil {
+			http.NotFound(w, r)
+			return
+		}
+		if r.URL.Path == "/adminer/"+key {
+			http.Redirect(w, r, "/adminer/"+key+"/", http.StatusPermanentRedirect)
+			return
+		}
 		if r.Method == http.MethodPost {
 			raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
@@ -158,17 +178,8 @@ func (s *Server) adminerProxy() http.Handler {
 			}
 			form, _ := url.ParseQuery(string(raw))
 			if server := form.Get("auth[server]"); server != "" {
-				allowed := false
-				if items, listErr := s.database.ListManagedDatabases(u.ID, false); listErr == nil {
-					for _, item := range items {
-						if server == net.JoinHostPort(userDatabaseHost, strconv.Itoa(item.HostPort)) {
-							allowed = true
-							break
-						}
-					}
-				}
-				if !allowed {
-					http.Error(w, "this database server is not yours", http.StatusForbidden)
+				if server != net.JoinHostPort(userDatabaseHost, strconv.Itoa(bound.HostPort)) {
+					http.Error(w, "this address belongs to another database", http.StatusForbidden)
 					return
 				}
 			}
@@ -177,4 +188,16 @@ func (s *Server) adminerProxy() http.Handler {
 		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+// adminerSplitPath turns /adminer/<key>/rest into (key, rest).
+func adminerSplitPath(p string) (key, rest string) {
+	trimmed := strings.TrimPrefix(p, "/adminer/")
+	key, rest, _ = strings.Cut(trimmed, "/")
+	return key, rest
+}
+
+func adminerRestPath(p string) string {
+	_, rest := adminerSplitPath(p)
+	return rest
 }

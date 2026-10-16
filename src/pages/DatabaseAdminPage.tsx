@@ -10,14 +10,14 @@ import { ErrorState, LoadingState } from '@/components/ui/states'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useI18n } from '@/lib/i18n'
 
-// Full page database manager at /database/{id}: opens in its own tab, on the panel's own domain,
+// Full page database manager at /database/{accessKey} (an opaque key, not the numeric ID): opens in its own tab, on the panel's own domain,
 // behind the same login as the panel.
 export function DatabaseAdminPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { id = '' } = useParams()
+  const { key = '' } = useParams()
   const query = useQuery({ queryKey: ['user-databases'], queryFn: listUserDatabases, refetchInterval: 15_000 })
-  const target = query.data?.find((item) => String(item.id) === id)
+  const target = query.data?.find((item) => item.accessKey === key)
   usePageMeta(target ? `${target.name} | ${t('databases.admin.title')}` : t('databases.admin.title'))
 
   return (

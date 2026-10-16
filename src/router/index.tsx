@@ -108,7 +108,7 @@ export function AppRouter() {
           }
         />
         <Route
-          path="/database/:id"
+          path="/database/:key"
           element={
             !authenticated ? (
               <Navigate to={`${LOGIN_PATH}?next=${encodeURIComponent(location.pathname)}`} replace />

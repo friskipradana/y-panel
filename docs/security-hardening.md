@@ -201,3 +201,9 @@ Aturan yang diterapkan agent:
 - Batas CPU dan memori dari kuota dipaksa pada container dan pada shell: terminal dan `POST /api/v1/terminal/exec` berjalan di dalam slice systemd `reneo-<akun>.slice` dengan `CPUQuota`, `MemoryMax`, dan `TasksMax`. Tanpa systemd (atau bukan Linux) batas shell tidak dapat dipaksa dan perintah berjalan tanpa slice; angka pemakaian tetap tampil.
 - Tool MCP mengikuti matriks yang sama: tool yang menyentuh mesin langsung (terminal root, file seluruh server, Docker penuh, firewall, disk, PostgreSQL panel, log sistem, pengaturan) hanya untuk superadmin. Admin dan user mendapat tool setara yang memanggil REST API dengan token mereka (`terminal_exec` sebagai akun OS sendiri, file di home dan project, container milik sendiri).
 - Superadmin memindahkan akun ke admin lain lewat window Users (ikon jaringan) atau `PATCH /api/v1/users/{id}` dengan `parentId`; siklus ditolak.
+
+## Alamat database dan probe jaringan
+
+- Alamat publik sebuah database (halaman penuh `/database/<kunci>`, pintu masuk Adminer `/api/v1/db-open/<kunci>`, dan proxy `/adminer/<kunci>/`) memakai kunci buram, bukan ID numerik. Kunci adalah HMAC-SHA256 dari ID dengan `PANEL_ENCRYPTION_KEY`, tidak bisa ditebak atau dihitung dari ID tanpa rahasia itu. Setiap pemakaian tetap diperiksa terhadap pemilik yang sedang login.
+- Proxy Adminer hanya menerima login ke server database yang terikat pada kunci itu, tidak ke database lain milik akun yang sama.
+- Widget dan alat ping terbuka untuk semua akun kecuali demo. Selain superadmin, target di-resolve dan hanya alamat publik yang diizinkan (bukan loopback, privat, link-local, CGNAT, atau alamat khusus); probe dikirim ke alamat yang sudah diperiksa, sehingga jawaban DNS tidak dapat berubah di antara pemeriksaan dan pemakaian.

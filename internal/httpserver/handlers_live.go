@@ -67,7 +67,9 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	hostView := auth.IsSuperAdmin(user.Role)
-	canPing := auth.HasRole(user.Role, auth.AdminRole)
+	// probes are open to every account except the public demo; non-superadmins reach public hosts only
+	canPing := !s.isDemoUser(user)
+	superadmin := auth.IsSuperAdmin(user.Role)
 
 	conn, err := s.terminalUpgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -201,19 +203,25 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			subCtx, stop := context.WithCancel(ctx)
 			subs[cmd.ID] = stop
-			go s.runLivePing(subCtx, send, cmd.ID, host, cmd.Port, every)
+			go s.runLivePing(subCtx, send, cmd.ID, host, cmd.Port, every, superadmin)
 		}
 	}
 }
 
 // runLivePing probes the target on its own schedule until the subscription ends.
-func (s *Server) runLivePing(ctx context.Context, send func(any) error, id, host string, port int, every time.Duration) {
+func (s *Server) runLivePing(ctx context.Context, send func(any) error, id, host string, port int, every time.Duration, superadmin bool) {
 	for {
 		probeCtx, cancel := context.WithTimeout(ctx, pingTimeout)
 		msg := livePingMessage{Type: "ping", ID: id, At: time.Now().UnixMilli()}
+		target, policyErr := pingTarget(probeCtx, host, superadmin)
+		if policyErr != nil {
+			cancel()
+			_ = send(livePingMessage{Type: "ping", ID: id, Error: policyErr.Error(), At: msg.At})
+			return
+		}
 		if port > 0 {
 			msg.Mode = "tcp"
-			latency, resolved, err := tcpPing(probeCtx, host, port)
+			latency, resolved, err := tcpPing(probeCtx, target, port)
 			if err != nil {
 				msg.Error = err.Error()
 			} else {
@@ -221,7 +229,7 @@ func (s *Server) runLivePing(ctx context.Context, send func(any) error, id, host
 			}
 		} else {
 			msg.Mode = "icmp"
-			latency, err := icmpPing(probeCtx, host)
+			latency, err := icmpPing(probeCtx, target)
 			if err != nil {
 				msg.Error = err.Error()
 			} else {

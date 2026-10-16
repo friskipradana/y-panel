@@ -142,10 +142,11 @@ func TestAdminOnlyToolsHiddenFromUsers(t *testing.T) {
 		}
 		return false
 	}
-	if has(user, "ping_host") || has(user, "user_create") {
+	if has(user, "user_create") {
 		t.Error("admin-only tools leaked to a normal user")
 	}
-	if !has(admin, "ping_host") || !has(admin, "user_create") {
+	// probing is open to every account (the agent limits non-superadmins to public hosts)
+	if !has(user, "ping_host") || !has(admin, "user_create") {
 		t.Error("admin tools missing")
 	}
 	if !has(user, "docker_list_images") {
