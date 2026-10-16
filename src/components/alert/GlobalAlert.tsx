@@ -1,18 +1,31 @@
 import { useEffect, useId, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import type { ReactNode } from 'react'
 import { CheckCircle2, AlertTriangle, XCircle, Info, Loader2, HelpCircle } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { IconBadge, type UiTone } from '@/components/ui/IconBadge'
 import { useAlertStore, type AlertType } from '@/store/alertStore'
 import { useI18n } from '@/lib/i18n'
 import { renderAlertText } from './alertText'
 
-const iconMap: Record<AlertType, React.ReactNode> = {
-  success: <CheckCircle2 className="text-[var(--panel-success-text)]" size={32} />,
-  warning: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
-  error: <XCircle className="text-[var(--panel-danger-text)]" size={32} />,
-  info: <Info className="text-[var(--panel-primary-text)]" size={32} />,
-  question: <HelpCircle className="text-[var(--global-alert-question-text)]" size={32} />,
-  loading: <Loader2 className="text-[var(--panel-primary-text)] animate-spin" size={32} />,
-  confirm: <AlertTriangle className="text-[var(--panel-warning-text)]" size={32} />,
+const ICON: Record<AlertType, ReactNode> = {
+  success: <CheckCircle2 />,
+  warning: <AlertTriangle />,
+  error: <XCircle />,
+  info: <Info />,
+  question: <HelpCircle />,
+  loading: <Loader2 className="animate-spin" />,
+  confirm: <AlertTriangle />,
+}
+
+const TONE: Record<AlertType, UiTone> = {
+  success: 'success',
+  warning: 'warning',
+  error: 'danger',
+  info: 'info',
+  question: 'primary',
+  loading: 'primary',
+  confirm: 'warning',
 }
 
 interface AlertData {
@@ -21,10 +34,8 @@ interface AlertData {
   description: string
   confirmText?: string
   cancelText?: string
+  icon?: 'warning' | 'question'
 }
-
-const BUTTON_BASE =
-  'min-h-11 flex-1 rounded-full border px-4 py-2 text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] sm:min-h-0 sm:text-[12px]'
 
 // One dialog for confirmations, results and busy states. Used by the global layer and,
 // inside a window (or the phone shell), scoped to that window.
@@ -41,6 +52,9 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
   const cancelRef = useRef<HTMLButtonElement>(null)
   const busy = data.type === 'loading'
   const isConfirm = data.type === 'confirm'
+  // a confirmation that asks the user to accept a risk is red; a plain question is the primary colour
+  const asksQuestion = isConfirm && data.icon === 'question'
+  const tone: UiTone = asksQuestion ? 'primary' : TONE[data.type]
 
   // keyboard: Esc dismisses, focus starts on the safe choice (cancel for confirmations)
   useEffect(() => {
@@ -63,11 +77,8 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
-        className="absolute inset-0 backdrop-blur-[5px]"
-        style={{
-          zIndex: 999998,
-          background: 'color-mix(in srgb, var(--win-text) 32%, transparent)',
-        }}
+        className="absolute inset-0 bg-[var(--panel-overlay)] backdrop-blur-[4px]"
+        style={{ zIndex: 999998 }}
         onClick={() => {
           if (!busy) closeDialog(false)
         }}
@@ -78,69 +89,45 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         aria-busy={busy || undefined}
-        initial={{ opacity: 0, scale: 0.95, y: -15 }}
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: -15 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 32 }}
-        className="relative mx-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[22rem] overflow-y-auto rounded-[20px] border p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center backdrop-blur-[48px] sm:mx-0 sm:w-full sm:max-w-[24rem] sm:p-6"
-        style={{
-          zIndex: 999999,
-          color: 'var(--win-text)',
-          borderColor: 'var(--win-border)',
-          background: 'var(--global-alert-card-bg)',
-          boxShadow: 'var(--global-alert-card-highlight), var(--win-shadow-focus)',
-        }}
+        exit={{ opacity: 0, scale: 0.97, y: 8 }}
+        transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
+        className="relative mx-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[25rem] overflow-y-auto rounded-2xl border border-[var(--win-border)] bg-[var(--win-bg)] p-5 text-[var(--win-text)] shadow-[var(--panel-card-shadow)] sm:mx-0 sm:w-full"
+        style={{ zIndex: 999999 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full"
-          style={{
-            background: 'color-mix(in srgb, var(--panel-primary-bg) 58%, transparent)',
-            boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--win-border) 82%, transparent)',
-          }}
-        >
-          {iconMap[data.type]}
+        <div className="flex items-start gap-3.5">
+          <IconBadge size="lg" tone={tone}>
+            {ICON[data.type]}
+          </IconBadge>
+          <div className="min-w-0 flex-1">
+            <h3 id={titleId} className="text-[15px] font-bold leading-[22px]">
+              {data.title}
+            </h3>
+            <div id={bodyId} className="mt-1 break-words text-[13px] leading-relaxed text-[var(--text-secondary)]">
+              {renderAlertText(data.description)}
+            </div>
+          </div>
         </div>
 
-        <h3 id={titleId} className="mb-2 text-[16px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
-          {data.title}
-        </h3>
-
-        <div id={bodyId} className="mb-6 break-words text-[13px] leading-relaxed text-[var(--text-secondary)] sm:text-[12.5px]">
-          {renderAlertText(data.description)}
-        </div>
-
-        {!busy && (
-          <div className="flex w-full flex-col-reverse items-stretch gap-2.5 sm:flex-row sm:gap-3">
-            {isConfirm && (
-              <button
-                ref={cancelRef}
-                type="button"
-                onClick={() => closeDialog(false)}
-                className={`${BUTTON_BASE} font-medium`}
-                style={{
-                  borderColor: 'var(--win-border)',
-                  background: 'var(--panel-surface)',
-                  color: 'var(--win-text)',
-                }}
-              >
+        {!busy ? (
+          <div className="mt-5 flex flex-col-reverse gap-2 pb-[env(safe-area-inset-bottom)] sm:flex-row sm:justify-end">
+            {isConfirm ? (
+              <Button ref={cancelRef} onClick={() => closeDialog(false)} className="min-h-11 w-full sm:min-h-0 sm:w-auto">
                 {data.cancelText || t('common.cancel')}
-              </button>
-            )}
-            <button
+              </Button>
+            ) : null}
+            <Button
               ref={primaryRef}
-              type="button"
+              variant={isConfirm && !asksQuestion ? 'danger' : 'primary'}
               onClick={() => closeDialog(true)}
-              className={`${BUTTON_BASE} font-semibold text-[var(--win-text)] shadow-[var(--global-alert-confirm-shadow)] hover:brightness-110`}
-              style={{
-                borderColor: 'color-mix(in srgb, var(--panel-primary-solid) 75%, var(--win-border))',
-                background: 'var(--global-alert-confirm-bg)',
-              }}
+              className="min-h-11 w-full sm:min-h-0 sm:w-auto"
             >
               {data.confirmText || t('common.close')}
-            </button>
+            </Button>
           </div>
-        )}
+        ) : null}
       </motion.div>
     </>
   )

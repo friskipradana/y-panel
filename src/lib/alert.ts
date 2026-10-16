@@ -18,13 +18,14 @@ export const alertLib = {
   /**
    * Tampilkan dialog konfirmasi dengan 2 tombol
    */
-  confirm: async (title: string, html: string, confirmText = translateNow('alert.continue'), cancelText = translateNow('common.cancel'), _icon: 'warning' | 'question' = 'warning', windowId?: string) => {
+  confirm: async (title: string, html: string, confirmText = translateNow('alert.continue'), cancelText = translateNow('common.cancel'), icon: 'warning' | 'question' = 'warning', windowId?: string) => {
     return useAlertStore.getState().openDialog({
       type: 'confirm',
       title,
       description: html,
       confirmText,
       cancelText,
+      icon,
       windowId,
     })
   },
