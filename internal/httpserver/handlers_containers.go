@@ -58,13 +58,17 @@ func validateRegistryAuthPayload(auth *docker.RegistryAuth) error {
 	return nil
 }
 
-func filterContainersForUser(actor *database.User, containers []docker.Container) []docker.Container {
-	if actor == nil || auth.IsAdmin(actor.Role) {
+func (s *Server) filterContainersForUser(actor *database.User, containers []docker.Container) []docker.Container {
+	if actor == nil {
+		return containers
+	}
+	scope := s.ownerScopeFor(actor)
+	if scope.all {
 		return containers
 	}
 	filtered := make([]docker.Container, 0, len(containers))
 	for _, container := range containers {
-		if container.OwnerUserID == actor.ID {
+		if scope.has(container.OwnerUserID) {
 			filtered = append(filtered, container)
 		}
 	}
@@ -76,7 +80,8 @@ func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.Us
 	if actor == nil {
 		return nil, errors.New("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	scope := s.ownerScopeFor(actor)
+	if scope.all {
 		return actor, nil
 	}
 	containers, err := docker.ListContainers()
@@ -84,7 +89,7 @@ func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.Us
 		return nil, err
 	}
 	for _, container := range containers {
-		if (container.ID == id || strings.HasPrefix(container.ID, id)) && container.OwnerUserID == actor.ID {
+		if (container.ID == id || strings.HasPrefix(container.ID, id)) && scope.has(container.OwnerUserID) {
 			return actor, nil
 		}
 	}
@@ -102,7 +107,7 @@ func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, []docker.Container{})
 		return
 	}
-	containers = filterContainersForUser(actor, containers)
+	containers = s.filterContainersForUser(actor, containers)
 	if containers == nil {
 		containers = []docker.Container{}
 	}
@@ -376,7 +381,15 @@ func (s *Server) handleContainerOwners(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		users, total, err := s.database.ListUsersFiltered(querySearch(r), limit, offset)
+		var (
+			users []database.User
+			total int64
+		)
+		if scope := s.ownerScopeFor(actor); scope.all {
+			users, total, err = s.database.ListUsersFiltered(querySearch(r), limit, offset)
+		} else {
+			users, total, err = s.database.ListUsersByIDs(scope.list(), querySearch(r), limit, offset)
+		}
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, err)
 			return
@@ -435,7 +448,7 @@ func (s *Server) resolveDockerOwnerContext(actor *database.User, ownerUserID int
 	if ownerID <= 0 {
 		ownerID = actor.ID
 	}
-	if !auth.IsAdmin(actor.Role) && ownerID != actor.ID {
+	if !s.ownerScopeFor(actor).has(ownerID) {
 		return docker.OwnerContext{}, errors.New("forbidden: owner user is not allowed")
 	}
 	owner, err := s.database.GetUserByID(ownerID)

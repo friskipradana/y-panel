@@ -66,6 +66,7 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+	hostView := auth.IsSuperAdmin(user.Role)
 	canPing := auth.HasRole(user.Role, auth.AdminRole)
 
 	conn, err := s.terminalUpgrader.Upgrade(w, r, nil)
@@ -93,20 +94,33 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		var prevRx, prevTx uint64
 		var prevAt time.Time
 		for {
-			sm := system.TakeSample(s.cfg.StateDir)
 			now := time.Now()
-			msg := liveStatsMessage{Type: "stats", T: now.UnixMilli(), CPU: sm.CPUPercent, RAM: sm.RAMPercent, Disk: sm.DiskPercent, RxSum: sm.BytesRecv, TxSum: sm.BytesSent}
-			if sm.CPUTemp > 0 {
-				temp := sm.CPUTemp
-				msg.Temp = &temp
-			}
-			if !prevAt.IsZero() && sm.BytesRecv >= prevRx && sm.BytesSent >= prevTx {
-				if secs := now.Sub(prevAt).Seconds(); secs > 0.2 {
-					msg.NetRx = float64(sm.BytesRecv-prevRx) / secs
-					msg.NetTx = float64(sm.BytesSent-prevTx) / secs
+			var msg liveStatsMessage
+			if hostView {
+				sm := system.TakeSample(s.cfg.StateDir)
+				msg = liveStatsMessage{Type: "stats", T: now.UnixMilli(), CPU: sm.CPUPercent, RAM: sm.RAMPercent, Disk: sm.DiskPercent, RxSum: sm.BytesRecv, TxSum: sm.BytesSent}
+				if sm.CPUTemp > 0 {
+					temp := sm.CPUTemp
+					msg.Temp = &temp
+				}
+				if !prevAt.IsZero() && sm.BytesRecv >= prevRx && sm.BytesSent >= prevTx {
+					if secs := now.Sub(prevAt).Seconds(); secs > 0.2 {
+						msg.NetRx = float64(sm.BytesRecv-prevRx) / secs
+						msg.NetTx = float64(sm.BytesSent-prevTx) / secs
+					}
+				}
+				prevRx, prevTx, prevAt = sm.BytesRecv, sm.BytesSent, now
+			} else {
+				// the account's own share: processes of its OS account plus its containers
+				res := s.accountResources(user, true)
+				msg = liveStatsMessage{Type: "stats", T: now.UnixMilli(), CPU: res.CPUPercent}
+				if res.MemLimit > 0 {
+					msg.RAM = float64(res.MemUsed) / float64(res.MemLimit) * 100
+				}
+				if res.DiskLimit > 0 {
+					msg.Disk = float64(res.DiskUsed) / float64(res.DiskLimit) * 100
 				}
 			}
-			prevRx, prevTx, prevAt = sm.BytesRecv, sm.BytesSent, now
 			if send(msg) != nil {
 				cancel()
 				return

@@ -194,7 +194,10 @@ func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 	}
 
 	appendRoot(panelosuser.ResolveHomeDir(u.Username))
-	appendRoot(s.cfg.StateDir)
+	// the panel state directory holds every account's credentials: superadmin only
+	if auth.IsSuperAdmin(u.Role) {
+		appendRoot(s.cfg.StateDir)
+	}
 
 	projects, err := s.database.ListProjects(u.ID)
 	if err != nil {
@@ -204,16 +207,30 @@ func (s *Server) allowedFileManagerRoots(r *http.Request) ([]string, error) {
 		appendRoot(p.WorkingDir)
 	}
 
-	if auth.IsAdmin(u.Role) {
+	scope := s.ownerScopeFor(u)
+	if scope.all {
 		allProjects, _, err := s.database.ListAllProjects(1000, 0)
 		if err == nil {
 			for _, p := range allProjects {
 				appendRoot(p.WorkingDir)
 			}
 		}
-		if auth.IsSuperAdmin(u.Role) {
-			if elevated, _ := s.fileRootAccessStatus(r); elevated {
-				appendRoot(string(filepath.Separator))
+		if elevated, _ := s.fileRootAccessStatus(r); elevated {
+			appendRoot(string(filepath.Separator))
+		}
+	} else {
+		// an admin also reaches the accounts created below it; nobody else
+		for id := range scope.ids {
+			if id == u.ID {
+				continue
+			}
+			if owner, err := s.database.GetUserByID(id); err == nil && owner != nil {
+				appendRoot(panelosuser.ResolveHomeDir(owner.Username))
+			}
+			if list, err := s.database.ListProjects(id); err == nil {
+				for _, p := range list {
+					appendRoot(p.WorkingDir)
+				}
 			}
 		}
 	}

@@ -46,17 +46,17 @@ func (s *Server) routes() {
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
 	s.mux.Handle("POST /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateUser)))
-	s.mux.Handle("GET /api/v1/users/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUser)))
-	s.mux.Handle("PATCH /api/v1/users/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateUser)))
+	s.mux.Handle("GET /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUser))))
+	s.mux.Handle("PATCH /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleUpdateUser))))
 	s.mux.Handle("DELETE /api/v1/users/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteUser)))
-	s.mux.Handle("POST /api/v1/users/{id}/suspend", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleSuspendUser)))
-	s.mux.Handle("POST /api/v1/users/{id}/activate", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleActivateUser)))
-	s.mux.Handle("GET /api/v1/users/{id}/usage", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUserUsage)))
-	s.mux.Handle("POST /api/v1/users/{id}/password", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleResetUserPassword)))
+	s.mux.Handle("POST /api/v1/users/{id}/suspend", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleSuspendUser))))
+	s.mux.Handle("POST /api/v1/users/{id}/activate", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleActivateUser))))
+	s.mux.Handle("GET /api/v1/users/{id}/usage", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUserUsage))))
+	s.mux.Handle("POST /api/v1/users/{id}/password", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleResetUserPassword))))
 	s.mux.Handle("GET /api/v1/me/usage", s.requireAuthV2(http.HandlerFunc(s.handleGetMyUsage)))
 	s.mux.Handle("POST /api/v1/me/password", s.requireAuthV2(http.HandlerFunc(s.handleChangeMyPassword)))
-	s.mux.Handle("GET /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetUserQuota)))
-	s.mux.Handle("PATCH /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateUserQuota)))
+	s.mux.Handle("GET /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUserQuota))))
+	s.mux.Handle("PATCH /api/v1/users/{id}/quota", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleUpdateUserQuota))))
 
 	// ── Cloudflare (per-user) ─────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/me/cloudflare", s.requireAuthV2(http.HandlerFunc(s.handleGetCFConfig)))
@@ -115,11 +115,11 @@ func (s *Server) routes() {
 
 	// ── System / Settings ─────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/system/summary", s.requireAuthV2(http.HandlerFunc(s.handleSystemSummary)))
-	s.mux.Handle("GET /api/v1/system/history", s.requireAuthV2(http.HandlerFunc(s.handleSystemHistory)))
+	s.mux.Handle("GET /api/v1/system/history", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSystemHistory)))
 	s.mux.Handle("GET /api/v1/me/widgets", s.requireAuthV2(http.HandlerFunc(s.handleGetMyWidgets)))
 	s.mux.Handle("PUT /api/v1/me/widgets", s.requireAuthV2(http.HandlerFunc(s.handlePutMyWidgets)))
-	s.mux.Handle("GET /api/v1/system/update", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateInfo)))
-	s.mux.Handle("GET /api/v1/system/update/status", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateStatus)))
+	s.mux.Handle("GET /api/v1/system/update", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdateInfo)))
+	s.mux.Handle("GET /api/v1/system/update/status", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdateStatus)))
 	s.mux.Handle("POST /api/v1/system/update/apply", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdateApply)))
 	// service journals show every account's activity: superadmin only
 	s.mux.Handle("GET /api/v1/system/logs", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSystemLogs)))
@@ -149,15 +149,15 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/databases/{id}/users", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseCreateUser)))
 	s.mux.Handle("DELETE /api/v1/databases/{id}/users/{name}", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseDeleteUser)))
 	s.mux.Handle("POST /api/v1/databases/{id}/password", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseSetPassword)))
-	s.mux.Handle("GET /api/v1/settings/system", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetSystemSettings)))
-	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdateSystemSettings))))
-	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelPort))))
-	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelOrigins))))
+	s.mux.Handle("GET /api/v1/settings/system", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetSystemSettings)))
+	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdateSystemSettings))))
+	s.mux.Handle("POST /api/v1/settings/panel-port", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelPort))))
+	s.mux.Handle("POST /api/v1/settings/panel-origins", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePanelOrigins))))
 
 	// ── Payment Gateway Settings ─────────────────────────────────────────────
-	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleGetPaymentSettings)))
-	s.mux.Handle("POST /api/v1/settings/payment", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePaymentSettings))))
-	s.mux.Handle("POST /api/v1/settings/payment/test", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleTestPaymentGateway)))
+	s.mux.Handle("GET /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetPaymentSettings)))
+	s.mux.Handle("POST /api/v1/settings/payment", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdatePaymentSettings))))
+	s.mux.Handle("POST /api/v1/settings/payment/test", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleTestPaymentGateway)))
 
 	// ── Notification Listener (Android) ──────────────────────────────────────
 	s.mux.Handle("GET /api/v1/notification-devices", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListNotificationDevices)))
@@ -213,10 +213,10 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/docker/templates/{id}", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateDelete)))
 
 	// ── Terminal ──────────────────────────────────────────────────────────────
-	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionStart))))
-	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionWebSocket))))
-	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireRole(auth.AdminRole, s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionClose))))
-	s.mux.Handle("GET /api/v1/system/stats/ws", s.requireAuthV2(http.HandlerFunc(s.handleSystemStatsWebSocket)))
+	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionStart)))
+	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
+	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionClose)))
+	s.mux.Handle("GET /api/v1/system/stats/ws", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSystemStatsWebSocket)))
 	s.mux.Handle("GET /api/v1/system/live/ws", s.requireAuthV2(http.HandlerFunc(s.handleLiveWebSocket)))
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))
 	s.mux.Handle("POST /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleCreateTerminalPreset)))

@@ -70,11 +70,24 @@ type truncateDataRequest struct {
 }
 
 func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
-	summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
 	dbStatus := s.database.Status()
 	viewer := userFromCtx(r)
 	demo := s.isDemoUser(viewer)
 	isSuperadmin := viewer != nil && viewer.Role == auth.SuperadminRole
+	// the machine is only measured for the superadmin; everyone else gets figures for their own account
+	var summary system.Summary
+	if isSuperadmin {
+		summary = system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
+	}
+	var scoped *accountResources
+	if !isSuperadmin && viewer != nil {
+		res := s.accountResources(viewer, true)
+		scoped = &res
+		summary.Hostname = viewer.Username
+		summary.CPUUsagePercent = res.CPUPercent
+		summary.Memory = system.UsageStat{Total: res.MemLimit, Used: res.MemUsed}
+		summary.Storage = system.UsageStat{Total: res.DiskLimit, Used: res.DiskUsed}
+	}
 
 	projectSummary := map[string]any{
 		"total":          0,
@@ -90,11 +103,13 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 			total       int64
 		)
 		var err error
-		if viewer != nil && auth.IsAdmin(viewer.Role) {
-			projectList, total, err = s.database.ListAllProjects(250, 0)
-		} else if viewer != nil {
-			// a regular account sees workload counts of its own projects only
-			projectList, total, err = s.database.ListProjectsFiltered(viewer.ID, false, "", 250, 0)
+		if viewer != nil {
+			if scope := s.ownerScopeFor(viewer); scope.all {
+				projectList, total, err = s.database.ListAllProjects(250, 0)
+			} else {
+				// workload counts cover the account itself and the accounts below it, nothing else
+				projectList, total, err = s.database.ListProjectsForOwners(scope.list(), "", 250, 0)
+			}
 		}
 		if err != nil {
 			log.Printf("[system] failed to summarize projects: %v", err)
@@ -130,11 +145,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if demo {
-		// live load figures stay; anything that identifies or locates the host is hidden
-		summary.Hostname = "demo-server"
-		summary.Kernel = ""
-	}
+	_ = demo
 	// the panel's own database (host, user, port, counts) is for the superadmin only
 	if !isSuperadmin {
 		dbStatus = database.Status{Enabled: dbStatus.Enabled, Connected: dbStatus.Connected}
@@ -161,6 +172,8 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		"stateDir":           stateDir,
 		"database":           dbStatus,
 		"projects":           projectSummary,
+		"scoped":             scoped != nil,
+		"account":            scoped,
 	})
 }
 

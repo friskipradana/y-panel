@@ -270,10 +270,22 @@ func CapabilitiesForRole(role string) map[string]struct{} {
 			CapabilityDockerNetworkManage,
 			CapabilityDockerImageManage,
 			CapabilityDockerTemplateManage,
-			CapabilitySystemSettingsWrite,
 		)
 	case UserRole:
-		// intentionally minimal for now
+		// A hosting-style account works in its own area: shell as its own OS account (no sudo),
+		// its own files, containers, images and networks. Host settings stay with the superadmin.
+		grant(
+			CapabilityTerminalAccess,
+			CapabilityFilesWrite,
+			CapabilityFilesDelete,
+			CapabilityFilesChmod,
+			CapabilityFilesExtract,
+			CapabilityDockerDeploy,
+			CapabilityDockerLifecycle,
+			CapabilityDockerNetworkManage,
+			CapabilityDockerImageManage,
+			CapabilityDockerTemplateManage,
+		)
 	}
 	return capabilities
 }

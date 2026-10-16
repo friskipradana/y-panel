@@ -373,7 +373,15 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query := querySearch(r)
-	userList, total, err := s.database.ListUsersFiltered(query, limit, offset)
+	var (
+		userList []database.User
+		total    int64
+	)
+	if scope := s.ownerScopeFor(userFromCtx(r)); scope.all {
+		userList, total, err = s.database.ListUsersFiltered(query, limit, offset)
+	} else {
+		userList, total, err = s.database.ListUsersByIDs(scope.list(), query, limit, offset)
+	}
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -413,6 +421,10 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
+	}
+	if creator := userFromCtx(r); creator != nil {
+		// the account is managed by whoever created it
+		_ = s.database.SetUserParent(u.ID, creator.ID)
 	}
 	actor := userFromCtx(r)
 	actorName := "system"
@@ -1173,7 +1185,7 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	query := querySearch(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
 
-	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, limit, offset)
+	projectList, total, err := s.listProjectsScoped(u, includeAll, query, limit, offset)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1195,7 +1207,7 @@ func (s *Server) handleProjectAttentionSummary(w http.ResponseWriter, r *http.Re
 	query := querySearch(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
 
-	projectList, total, err := s.database.ListProjectsFiltered(u.ID, includeAll, query, 250, 0)
+	projectList, total, err := s.listProjectsScoped(u, includeAll, query, 250, 0)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return

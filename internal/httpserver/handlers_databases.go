@@ -57,7 +57,23 @@ func (s *Server) handleListDatabaseEngines(w http.ResponseWriter, _ *http.Reques
 func (s *Server) handleListUserDatabases(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
-	list, err := s.database.ListManagedDatabases(u.ID, includeAll)
+	var (
+		list []database.ManagedDatabase
+		err  error
+	)
+	if scope := s.ownerScopeFor(u); includeAll && !scope.all {
+		// an admin sees its own databases and those of the accounts below it
+		for id := range scope.ids {
+			part, partErr := s.database.ListManagedDatabases(id, false)
+			if partErr != nil {
+				err = partErr
+				break
+			}
+			list = append(list, part...)
+		}
+	} else {
+		list, err = s.database.ListManagedDatabases(u.ID, includeAll)
+	}
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return

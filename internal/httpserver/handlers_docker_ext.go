@@ -22,10 +22,10 @@ func (s *Server) handleDockerNetworksList(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]docker.Network, 0, len(networks))
 		for _, network := range networks {
-			if network.OwnerUserID == actor.ID {
+			if s.ownerScopeFor(actor).has(network.OwnerUserID) {
 				filtered = append(filtered, network)
 			}
 		}
@@ -85,10 +85,10 @@ func (s *Server) handleDockerImagesList(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]docker.Image, 0, len(images))
 		for _, image := range images {
-			if imageOwnedBy(image, actor.ID) {
+			if s.imageVisibleTo(actor, image) {
 				filtered = append(filtered, image)
 			}
 		}
@@ -140,10 +140,10 @@ func (s *Server) handleDockerTemplatesList(w http.ResponseWriter, r *http.Reques
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if !auth.IsAdmin(actor.Role) {
+	if !auth.IsSuperAdmin(actor.Role) {
 		filtered := make([]database.DockerComposeTemplate, 0, len(templates))
 		for _, tmpl := range templates {
-			if tmpl.OwnerUserID == actor.ID {
+			if s.ownerScopeFor(actor).has(tmpl.OwnerUserID) {
 				filtered = append(filtered, tmpl)
 			}
 		}
@@ -195,7 +195,7 @@ func (s *Server) handleDockerTemplateUpdate(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	ownerID := user.ID
-	if auth.IsAdmin(user.Role) {
+	if auth.IsSuperAdmin(user.Role) {
 		ownerID = 0
 	}
 	if err := s.database.UpdateComposeTemplate(id, ownerID, payload.Name, payload.Description, payload.YAMLContent); err != nil {
@@ -214,7 +214,7 @@ func (s *Server) handleDockerTemplateDelete(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	ownerID := user.ID
-	if auth.IsAdmin(user.Role) {
+	if auth.IsSuperAdmin(user.Role) {
 		ownerID = 0
 	}
 	if err := s.database.DeleteComposeTemplateForOwner(id, ownerID); err != nil {
@@ -237,7 +237,7 @@ func (s *Server) ensureImageAccess(r *http.Request, id string) error {
 	if actor == nil {
 		return fmt.Errorf("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	if auth.IsSuperAdmin(actor.Role) {
 		return nil
 	}
 	images, err := docker.ListImages()
@@ -245,7 +245,7 @@ func (s *Server) ensureImageAccess(r *http.Request, id string) error {
 		return err
 	}
 	for _, image := range images {
-		if imageOwnedBy(image, actor.ID) && (image.ID == id || image.Repository == id || image.Repository+":"+image.Tag == id) {
+		if s.imageVisibleTo(actor, image) && (image.ID == id || image.Repository == id || image.Repository+":"+image.Tag == id) {
 			return nil
 		}
 	}
@@ -257,7 +257,7 @@ func (s *Server) ensureNetworkAccess(r *http.Request, id string) error {
 	if actor == nil {
 		return fmt.Errorf("unauthorized")
 	}
-	if auth.IsAdmin(actor.Role) {
+	if auth.IsSuperAdmin(actor.Role) {
 		return nil
 	}
 	networks, err := docker.ListNetworks()
@@ -265,9 +265,20 @@ func (s *Server) ensureNetworkAccess(r *http.Request, id string) error {
 		return err
 	}
 	for _, network := range networks {
-		if network.OwnerUserID == actor.ID && (network.ID == id || network.Name == id) {
+		if s.ownerScopeFor(actor).has(network.OwnerUserID) && (network.ID == id || network.Name == id) {
 			return nil
 		}
 	}
 	return fmt.Errorf("forbidden: network bukan milik user ini")
+}
+
+// imageVisibleTo reports whether any owner of the image is the caller or below it.
+func (s *Server) imageVisibleTo(actor *database.User, image docker.Image) bool {
+	scope := s.ownerScopeFor(actor)
+	for _, ownerID := range image.OwnerUserIDs {
+		if scope.has(ownerID) {
+			return true
+		}
+	}
+	return false
 }

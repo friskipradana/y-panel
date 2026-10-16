@@ -32,6 +32,7 @@ var demoReadOnlyRoutes = map[string]bool{
 	"GET /api/v1/notifications/ws":           true,
 	"GET /api/v1/system/summary":             true,
 	"GET /api/v1/system/history":             true,
+	"GET /api/v1/system/live/ws":             true,
 	"GET /api/v1/settings/wallpaper":         true,
 	"GET /api/v1/frontend/revision":          true,
 	"GET /api/v1/mcp-catalog":                true,
