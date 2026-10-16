@@ -190,14 +190,19 @@ async function main() {
     console.log(`remote: ${c.b(remote)}`)
   } else {
     tmp = mkdtempSync(join(tmpdir(), 'declaude-'))
+    // the temporary clone is removed on every exit path, including failures
+    process.on('exit', () => cleanup(tmp))
     repo = join(tmp, 'repo')
     console.log(c.dim(`cloning into ${repo}`))
     gh(['repo', 'clone', slug, repo, '--', '--no-single-branch'])
     remote = 'origin'
     // every remote branch becomes a local branch so the rewrite covers all of them
-    for (const ref of git(repo, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin/']).split('\n')) {
-      const name = ref.replace(/^origin\//, '')
-      if (name && name !== 'HEAD') git(repo, ['branch', '--track', name, ref], true)
+    // full ref names: the short form of origin/HEAD is just "origin" and used to become a branch
+    const prefix = 'refs/remotes/origin/'
+    for (const ref of git(repo, ['for-each-ref', '--format=%(refname)', prefix]).split('\n')) {
+      const name = ref.slice(prefix.length)
+      if (!ref.startsWith(prefix) || !name || name === 'HEAD') continue
+      git(repo, ['branch', '--track', name, ref], true)
     }
   }
 
@@ -210,7 +215,7 @@ async function main() {
   for (const a of authors) console.log(c.yellow(`author/committer identity "${a}" is not changed (use git filter-repo --mailmap for that)`))
 
   const tags = git(repo, ['tag', '--list']).split('\n').filter((t) => t && !t.startsWith('backup/'))
-  const branches = git(repo, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/']).split('\n').filter(Boolean)
+  const branches = git(repo, ['for-each-ref', '--format=%(refname:lstrip=2)', 'refs/heads/']).split('\n').filter(Boolean)
   console.log(`\nrefs to push: ${branches.length} branch(es), ${tags.length} tag(s)`)
   console.log(c.dim('plan: backup → rewrite messages → verify → force-push → ' + (o.refresh ? 'refresh contributors' : 'no refresh')))
   if (o.dryRun) {
