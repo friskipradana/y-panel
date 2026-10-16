@@ -4,11 +4,15 @@ import { deleteNotificationDevice, getCapturedNotifications, getNotificationDevi
 import { useCapturedNotificationsSocket } from "@/hooks/useCapturedNotificationsSocket";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
+import { useAuthStore } from "@/store/authStore";
 import { type CapturedNotification, type RegisterNotificationDevicePayload, type UpdateNotificationDevicePayload } from "@/types";
 
 export function useNotificationSettings({ authenticated }: { authenticated?: boolean }) {
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  // devices and captured notifications are admin+ only on the agent
+  const role = useAuthStore((s) => s.user?.role);
+  const canManage = role === "admin" || role === "superadmin";
 
   // ── Notification Devices ─────────────────────────────────────────────
   const [listenerDeviceId, setListenerDeviceId] =
@@ -22,12 +26,14 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
     queryKey: ["notification-devices"],
     queryFn: getNotificationDevices,
     retry: 1,
+    enabled: canManage,
   });
 
   const capturedNotificationsQuery = useQuery({
     queryKey: ["captured-notifications"],
     queryFn: getCapturedNotifications,
     retry: 1,
+    enabled: canManage,
   });
 
   const notificationDevices = notificationDevicesQuery.data?.devices ?? [];
@@ -200,7 +206,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
 
   // ── Real-time captured notification WebSocket ────────────────────────
   const capturedWS = useCapturedNotificationsSocket({
-    enabled: !!authenticated,
+    enabled: !!authenticated && canManage,
     onCaptured: (notification: CapturedNotification) => {
       queryClient.setQueryData(["captured-notifications"], (old: any) => {
         const existingNotifications = old?.notifications ?? [];

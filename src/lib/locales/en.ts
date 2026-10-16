@@ -784,6 +784,7 @@ export const en: Record<string, string> = {
   'projects.spaFallback': "SPA fallback to index.html",
   'projects.spaFallbackHint': "Turn on for React Router, Vue Router or any BrowserRouter frontend so refreshing or opening a direct URL does not return 404.",
   'projects.cleanBeforeExtract': "Clear the working directory before extracting",
+  'settings.titleAccount': "Account settings",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',

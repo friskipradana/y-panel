@@ -784,6 +784,7 @@ export const id: Record<string, string> = {
   'projects.spaFallback': "SPA fallback ke index.html",
   'projects.spaFallbackHint': "Aktifkan untuk React Router, Vue Router, atau frontend BrowserRouter agar refresh/direct URL tidak 404.",
   'projects.cleanBeforeExtract': "Bersihkan isi working directory sebelum extract",
+  'settings.titleAccount': "Pengaturan akun",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',

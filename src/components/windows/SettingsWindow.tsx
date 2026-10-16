@@ -43,6 +43,7 @@ import { AuditTab } from "./settings/tabs/AuditTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
 import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
+import { AccountSecurityCard } from "./profile/AccountSecurityCard";
 import { LoadingState } from "@/components/ui/states"
 
 export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
@@ -117,6 +118,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     if (role === "admin") own.push("notifications");
     return own.includes(tab.key);
   });
+  // the role can arrive after the first render: never sit on a tab the account cannot see
+  const shownTab = SETTINGS_TABS.some((tab) => tab.key === activeTab) ? activeTab : SETTINGS_TABS[0]?.key;
 
   return (
     <div className="panel-window flex flex-col h-full overflow-hidden">
@@ -125,10 +128,10 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         {/* ── Left Sidebar Navigation (Matching Applications Drawer Style) ── */}
         <div className="w-[180px] lg:w-[190px] shrink-0 border-r border-[var(--win-border)] bg-[var(--panel-surface)] p-2 flex flex-col gap-0.5 overflow-y-auto select-none mobile:w-full mobile:flex-row mobile:gap-1 mobile:overflow-x-auto mobile:overflow-y-hidden mobile:border-b mobile:border-r-0">
           <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-80 mobile:hidden">
-            {t("settings.title")}
+            {isSuperadmin ? t("settings.title") : t("settings.titleAccount")}
           </div>
           {SETTINGS_TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
+            const isActive = shownTab === tab.key;
             const Icon = tab.icon;
             return (
               <button
@@ -179,35 +182,35 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
           {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
             <>
-              {activeTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
+              {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
 
-              {activeTab === "appearance" && <AppearanceTab />}
+              {shownTab === "appearance" && <AppearanceTab />}
 
-              {activeTab === "wallpaper" && <WallpaperTab />}
+              {shownTab === "wallpaper" && <WallpaperTab />}
 
-              {activeTab === "desktop" && <DesktopTab />}
+              {shownTab === "desktop" && <DesktopTab />}
 
-              {activeTab === "screensaver" && <ScreensaverTab />}
+              {shownTab === "screensaver" && <ScreensaverTab />}
 
-              {activeTab === "sound" && <SoundTab />}
+              {shownTab === "sound" && <SoundTab />}
 
-              {activeTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
+              {shownTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
 
-              {activeTab === "network" && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
+              {shownTab === "network" && isSuperadmin && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
 
-              {activeTab === "security" && <SecurityTab host={host} setActiveTab={setActiveTab} />}
+              {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 
-              {activeTab === "payment" && <PaymentTab payment={payment} />}
+              {shownTab === "payment" && isSuperadmin && <PaymentTab payment={payment} />}
 
-              {activeTab === "notifications" && <NotificationsTab listener={listener} setActiveTab={setActiveTab} />}
+              {shownTab === "notifications" && <NotificationsTab listener={listener} setActiveTab={setActiveTab} />}
 
-              {activeTab === "audit" && <AuditTab host={host} />}
+              {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 
-              {activeTab === "api_tokens" && <ApiTokensTab />}
+              {shownTab === "api_tokens" && <ApiTokensTab />}
 
-              {activeTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
+              {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
 
-              {activeTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
+              {shownTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
             </>
           )}
         </div>

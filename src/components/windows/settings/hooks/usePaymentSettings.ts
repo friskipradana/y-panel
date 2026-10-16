@@ -4,9 +4,12 @@ import { getPaymentSettings, testPaymentGateway, updatePaymentSettings } from "@
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
 import { type UpdatePaymentSettingsPayload } from "@/types";
+import { useAuthStore } from "@/store/authStore";
 
 export function usePaymentSettings({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
+  // the payment gateway belongs to the superadmin; other roles never call it
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
 
   // ── Payment Gateway Settings ─────────────────────────────────────────
   const [paymentSettings, setPaymentSettings] = useState<
@@ -21,6 +24,7 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
     queryKey: ["payment-settings"],
     queryFn: getPaymentSettings,
     retry: 1,
+    enabled: isSuperadmin,
   });
 
   const paymentSettingsList = paymentQuery.data?.settings ?? [];
