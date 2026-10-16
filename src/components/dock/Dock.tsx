@@ -4,6 +4,7 @@ import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { AppIcon } from '@/components/common/AppIcon'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind, WindowState } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 
@@ -25,8 +26,6 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'changelog', label: 'Changelog' },
 ]
 
-const NON_ADMIN_HIDDEN_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings', 'database', 'system-logs'])
-
 type DockMenuState = {
   x: number
   y: number
@@ -46,7 +45,7 @@ export function Dock() {
   const desktopIconStyle = useThemeStore((state) => state.desktopIconStyle)
   const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
   const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
-  const isAdmin = me?.role === 'admin' || me?.role === 'superadmin'
+  const role = me?.role
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -82,9 +81,9 @@ export function Dock() {
 
   const visibleDockItems = useMemo(
     () => DOCK_ITEMS
-      .filter((item) => isAdmin || !NON_ADMIN_HIDDEN_KINDS.has(item.kind))
+      .filter((item) => canAccessWindow(item.kind, role))
       .filter((item) => groupedWindows[item.kind].length > 0),
-    [groupedWindows, isAdmin],
+    [groupedWindows, role],
   )
   const openKinds = useMemo(() => [...new Set(windows.map((windowItem) => windowItem.kind))], [windows])
   const hasMaximizedWindow = useMemo(

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { AppIcon } from '@/components/common/AppIcon'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind } from '@/types'
 
 type CategoryKey = 'all' | 'system' | 'dev' | 'network' | 'info'
@@ -14,7 +15,6 @@ interface AppMenuItem {
   descId: string
   descEn: string
   category: CategoryKey
-  adminOnly?: boolean
 }
 
 const MENU_ITEMS: AppMenuItem[] = [
@@ -29,7 +29,6 @@ const MENU_ITEMS: AppMenuItem[] = [
     descId: 'Terminal Linux host interaktif dengan akses root',
     descEn: 'Interactive Linux host PTY terminal with root shell',
     category: 'system',
-    adminOnly: true,
   },
   {
     kind: 'system',
@@ -42,7 +41,6 @@ const MENU_ITEMS: AppMenuItem[] = [
     descId: 'Log streaming journald, syslog, dan error server',
     descEn: 'Live journald log streaming and system event logs',
     category: 'system',
-    adminOnly: true,
   },
   {
     kind: 'widgets',
@@ -55,7 +53,6 @@ const MENU_ITEMS: AppMenuItem[] = [
     descId: 'Kelola database PostgreSQL, MySQL, dan backup',
     descEn: 'Manage PostgreSQL/MySQL databases and backups',
     category: 'dev',
-    adminOnly: true,
   },
   {
     kind: 'file-manager',
@@ -86,14 +83,12 @@ const MENU_ITEMS: AppMenuItem[] = [
     descId: 'Kelola akun panel dan kontrol hak akses RBAC',
     descEn: 'Manage panel users and role-based permissions',
     category: 'network',
-    adminOnly: true,
   },
   {
     kind: 'settings',
     descId: 'Preferensi sistem, port daemon, dan keamanan',
     descEn: 'System preferences, agent ports, and security',
     category: 'info',
-    adminOnly: true,
   },
   {
     kind: 'docs',
@@ -118,10 +113,10 @@ const CATEGORIES: { key: CategoryKey; labelId: string; labelEn: string }[] = [
 ]
 
 interface ApplicationsMenuProps {
-  isAdmin: boolean
+  role?: string | null
 }
 
-export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
+export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
   const { t, language } = useI18n()
   const { openWindow } = useWindowStore()
   const [isOpen, setIsOpen] = useState(false)
@@ -155,8 +150,9 @@ export function ApplicationsMenu({ isAdmin }: ApplicationsMenuProps) {
   }, [isOpen])
 
   const accessibleItems = useMemo(() => {
-    return MENU_ITEMS.filter((item) => (isAdmin ? true : !item.adminOnly))
-  }, [isAdmin])
+    // the same access rules as the desktop icons, the dock and the palette
+    return MENU_ITEMS.filter((item) => canAccessWindow(item.kind, role))
+  }, [role])
 
   const filteredItems = useMemo(() => {
     return accessibleItems.filter((item) => {

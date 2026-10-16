@@ -55,12 +55,13 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     enabled: authenticated,
     retry: 1,
   })
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin'
+  // panel updates belong to the superadmin
+  const isSuperadmin = currentUser?.role === 'superadmin'
 
   const { data: updateInfo } = useQuery({
     queryKey: ['system-update'],
     queryFn: () => getUpdateInfo(false),
-    enabled: Boolean(authenticated && isAdmin),
+    enabled: Boolean(authenticated && isSuperadmin),
     staleTime: 10 * 60 * 1000,
   })
 
@@ -218,7 +219,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   return (
     <div className={`taskbar ${!isDark ? 'taskbar--light' : ''}`}>
       <div className="taskbar-left flex items-center">
-        <ApplicationsMenu isAdmin={isAdmin} />
+        <ApplicationsMenu role={currentUser?.role} />
       </div>
 
       <div className="taskbar-actions">
@@ -332,7 +333,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
           )}
         </button>
 
-        {isAdmin && updateInfo?.available && (
+        {isSuperadmin && updateInfo?.available && (
           <button
             id="taskbar-update-available"
             title={t('taskbar.updateAvailable', { version: updateInfo.latest })}
