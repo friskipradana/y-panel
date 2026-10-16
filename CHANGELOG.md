@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.2] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.2** berisi 1 perubahan: 1 fitur. (1 file changed, 16 insertions(+), 4 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **widgets:** Widget content scales with the card width (zoom factor, live while resizing) ([`40a58b0`](https://github.com/friskipradana/y-panel/commit/40a58b0))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.1...v4.6.2
+
 ## [4.6.1] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
