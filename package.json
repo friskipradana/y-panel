@@ -21,6 +21,7 @@
     "preview": "vite preview",
     "release": "bun run ./scripts/release.ts",
     "release:patch": "bun run ./scripts/release.ts patch",
+    "declaude": "bun run ./scripts/declaude.ts",
     "release:minor": "bun run ./scripts/release.ts minor",
     "release:major": "bun run ./scripts/release.ts major",
     "release:dry-run": "bun run ./scripts/release.ts patch --dry-run",
