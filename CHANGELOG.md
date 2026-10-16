@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.4] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.4** berisi 1 perubahan: 1 fitur. (14 files changed, 247 insertions(+), 271 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **public:** One login action in the hero, install guide on its own page, philosophy section, article cards with covers, themed page transitions, clean login card ([`6e7871b`](https://github.com/friskipradana/y-panel/commit/6e7871b))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.3...v4.6.4
+
 ## [4.6.3] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
