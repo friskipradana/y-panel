@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.9] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.9** berisi 1 perubahan: 1 fitur. (36 files changed, 372 insertions(+), 159 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **ui-kit:** Checkbox component, Button sizes and block, interactive Badge; migrate raw badges, checkboxes and textarea to the kit; check:ui flags raw checkboxes ([`472c4b2`](https://github.com/friskipradana/y-panel/commit/472c4b2))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.8...v4.6.9
+
 ## [4.6.8] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
