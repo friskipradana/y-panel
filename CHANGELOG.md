@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.13] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.13** berisi 1 perubahan: 1 fitur. (23 files changed, 892 insertions(+), 4 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **speedtest:** Speed Test window (device to panel from the browser, panel to internet by the agent), phone top bar language switch, landing language switch, mobile home widget delete confirm shows ([`3db64d9`](https://github.com/friskipradana/y-panel/commit/3db64d9))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.12...v4.6.13
+
 ## [4.6.12] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
