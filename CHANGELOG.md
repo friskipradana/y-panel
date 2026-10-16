@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.12] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.12** berisi 1 perubahan: 1 perbaikan. (5 files changed, 33 insertions(+), 18 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **settings:** Non-superadmin sees own security (usage + password) instead of host reset forms; payment and notification queries only run for allowed roles; never sit on a hidden tab ([`9a7d2c9`](https://github.com/friskipradana/y-panel/commit/9a7d2c9))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.11...v4.6.12
+
 ## [4.6.11] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
