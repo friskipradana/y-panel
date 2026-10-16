@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.7] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.7** berisi 1 perubahan: 1 fitur. (4 files changed, 14 insertions(+), 10 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **demo:** Database and Cloudflare windows read-only for the demo account; phone top bar order search, notifications, theme, profile ([`fcbcb53`](https://github.com/friskipradana/y-panel/commit/fcbcb53))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.6...v4.6.7
+
 ## [4.6.6] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
