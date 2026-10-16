@@ -2,6 +2,25 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.1] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.1** berisi 3 perubahan: 1 fitur, 1 perbaikan, 1 pemeliharaan. (7 files changed, 625 insertions(+), 21 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **widgets:** Resize handles like windows; predictable drop placement (no jumps), memo list stays in config ([`a553cb2`](https://github.com/friskipradana/y-panel/commit/a553cb2))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **declaude:** Full ref names when creating local branches (origin/HEAD became a bogus branch), clean the temp clone on every exit ([`bc43f9e`](https://github.com/friskipradana/y-panel/commit/bc43f9e))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **tooling:** Declaude script to strip AI attribution, force-push and refresh GitHub contributors ([`cf905c1`](https://github.com/friskipradana/y-panel/commit/cf905c1))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.0...v4.6.1
+
 ## [4.6.0] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
