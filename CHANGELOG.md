@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.5.3] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.5.3** berisi 2 perubahan: 1 fitur, 1 peningkatan. (13 files changed, 409 insertions(+), 79 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **demo:** Switch the public demo account on/off from Settings > General (superadmin), env stays as default ([`8baacc0`](https://github.com/friskipradana/y-panel/commit/8baacc0))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **alerts:** Confirmation and alert dialogs use the UI kit (icon badge, left-aligned text, right-aligned buttons, red confirm for risky actions) ([`1940e6b`](https://github.com/friskipradana/y-panel/commit/1940e6b))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.2...v4.5.3
+
 ## [4.5.2] - 2026-10-15
 
 ### 🌟 Ringkasan Rilis (Release Overview)
