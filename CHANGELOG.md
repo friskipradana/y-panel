@@ -2,6 +2,29 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.0] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.0** berisi 7 perubahan: 4 fitur, 2 perbaikan, 1 peningkatan. (82 files changed, 2130 insertions(+), 285 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- Ping for every account with a public-address policy; opaque HMAC keys in database public URLs and the Adminer path ([`2a12dab`](https://github.com/friskipradana/y-panel/commit/2a12dab))
+- **isolation:** Cgroup slice for account shells, terminal exec endpoint, account-scoped MCP tools, move account between admins ([`2556b5f`](https://github.com/friskipradana/y-panel/commit/2556b5f))
+- **isolation:** Window and settings matrix per role, account resource view, widgets per role, docs ([`17c3518`](https://github.com/friskipradana/y-panel/commit/17c3518))
+- **isolation:** Hosting-style accounts - parent hierarchy, per-account resource view, user-role capabilities, host settings and system info superadmin-only ([`560e27e`](https://github.com/friskipradana/y-panel/commit/560e27e))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **public:** 404 for unknown addresses without a session, public manifest and icons, trusted client IP for rate limits, per-account login throttle; calmer MCP page and matching hero buttons ([`3a35fb1`](https://github.com/friskipradana/y-panel/commit/3a35fb1))
+- **widgets:** Window size no longer pulls stored positions up, overlaps move down only, tighter vertical snap; memo widget holds a list of memos ([`2aa7e38`](https://github.com/friskipradana/y-panel/commit/2aa7e38))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **alerts:** Solid card, outlined cancel, no glow on the danger button, blank lines become paragraphs; Button outline variant ([`2262687`](https://github.com/friskipradana/y-panel/commit/2262687))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.3...v4.6.0
+
 ## [4.5.3] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
