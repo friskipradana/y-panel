@@ -38,7 +38,7 @@ export function McpGuidePage() {
             <ArrowLeft size={13} />
             <span>{t('mcpGuide.back')}</span>
           </Button>
-          <Badge tone="success">
+          <Badge tone="neutral">
             <Bot size={13} />
             {t('mcpGuide.badge')}
           </Badge>
@@ -72,11 +72,11 @@ export function McpGuidePage() {
 
         {/* Prompts */}
         <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
-          <SectionHeader icon={<MessageSquareText />} tone="warning" title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
+          <SectionHeader icon={<MessageSquareText />} title={t('mcpGuide.prompts.title')} subtitle={t('mcpGuide.prompts.subtitle')} />
           <ul className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
             {PROMPTS.map((item) => (
               <li key={item.key} className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
-                <span className="flex items-center gap-1.5 text-[0.8125rem] font-semibold text-[var(--panel-info-text)]">
+                <span className="flex items-center gap-1.5 text-[0.8125rem] font-semibold text-[var(--win-text)]">
                   {item.icon}
                   {t(`mcpGuide.prompts.${item.key}.title`)}
                 </span>
@@ -88,17 +88,17 @@ export function McpGuidePage() {
 
         {/* Roles */}
         <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6">
-          <SectionHeader icon={<Shield />} tone="success" title={t('mcpGuide.roles.title')} subtitle={t('mcpGuide.roles.subtitle')} />
+          <SectionHeader icon={<Shield />} title={t('mcpGuide.roles.title')} subtitle={t('mcpGuide.roles.subtitle')} />
           <dl className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
             {ROLES.map((item) => (
               <div key={item.role} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 px-4 py-3 sm:grid-cols-[9rem_1fr_auto] sm:gap-x-4">
                 <dt>
-                  <Badge tone={item.tone}>{t(`mcpGuide.access.${item.role}`)}</Badge>
+                  <Badge tone="neutral">{t(`mcpGuide.access.${item.role}`)}</Badge>
                 </dt>
                 <dd className="panel-mono text-right text-[0.9375rem] font-bold sm:order-last">{item.count}</dd>
                 <dd className="col-span-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)] sm:col-span-1">
                   {t(`mcpGuide.roles.${item.role}.desc`)}
-                  <span className="mt-0.5 block text-[var(--panel-success-text)]">{t(`mcpGuide.roles.${item.role}.guard`)}</span>
+                  <span className="mt-0.5 block text-[var(--text-secondary)]">{t(`mcpGuide.roles.${item.role}.guard`)}</span>
                 </dd>
               </div>
             ))}

@@ -6,14 +6,14 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { Badge } from '@/components/ui/Badge'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { EmptyState } from '@/components/ui/states'
-import type { ToolAccess, ToolKind } from './toolsData'
+import type { ToolKind } from './toolsData'
 import { useMcpCatalog } from './useMcpCatalog'
 
 const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'databases', 'cloudflare', 'widgets', 'users'] as const
 type GroupKey = 'all' | (typeof TOOL_GROUPS)[number]
 
-const KIND_TONE: Record<ToolKind, 'success' | 'warning' | 'danger'> = { read: 'success', write: 'warning', destroy: 'danger' }
-const ACCESS_TONE: Record<ToolAccess, 'neutral' | 'info' | 'primary'> = { anonymous: 'neutral', user: 'info', admin: 'primary' }
+// One accent only: destructive tools stand out, everything else stays neutral
+const KIND_TONE: Record<ToolKind, 'neutral' | 'danger'> = { read: 'neutral', write: 'neutral', destroy: 'danger' }
 
 // Searchable catalog of every tool the agent can call, generated from the real registry
 export function ToolCatalog() {
@@ -42,7 +42,6 @@ export function ToolCatalog() {
     <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6" aria-labelledby="mcp-tools">
       <SectionHeader
         icon={<Wrench />}
-        tone="info"
         title={t('mcpGuide.tools.title')}
         subtitle={t('mcpGuide.tools.subtitle', { count: counts.admin })}
       />
@@ -53,11 +52,11 @@ export function ToolCatalog() {
 
         <div className="mt-1 flex flex-wrap items-center gap-3 text-[0.75rem] text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
-            <Badge tone="success">read</Badge>
+            <Badge tone="neutral">read</Badge>
             {t('mcpGuide.tools.legendRead')}
           </span>
           <span className="flex items-center gap-1.5">
-            <Badge tone="warning">write</Badge>
+            <Badge tone="neutral">write</Badge>
             {t('mcpGuide.tools.legendWrite')}
           </span>
           <span className="flex items-center gap-1.5">
@@ -73,12 +72,12 @@ export function ToolCatalog() {
             {rows.map((tool) => (
               <li key={tool.name} className="flex flex-col gap-1.5 px-3.5 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
-                  <code className="panel-mono text-[0.8125rem] font-semibold text-[var(--panel-info-text)]">{tool.name}</code>
+                  <code className="panel-mono text-[0.8125rem] font-semibold text-[var(--win-text)]">{tool.name}</code>
                   <p className="mt-0.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{tool.desc}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <Badge tone={KIND_TONE[tool.kind]}>{tool.kind}</Badge>
-                  <Badge tone={ACCESS_TONE[tool.access]}>{t(`mcpGuide.access.${tool.access}`)}</Badge>
+                  <Badge tone="neutral">{t(`mcpGuide.access.${tool.access}`)}</Badge>
                 </div>
               </li>
             ))}

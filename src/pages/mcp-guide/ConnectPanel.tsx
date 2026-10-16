@@ -63,7 +63,6 @@ export function ConnectPanel() {
     <section className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6" aria-labelledby="mcp-connect">
       <SectionHeader
         icon={<KeyRound />}
-        tone="warning"
         title={t('mcpGuide.connect.title')}
         subtitle={t('mcpGuide.connect.subtitle')}
       />
@@ -97,8 +96,8 @@ export function ConnectPanel() {
           <CopyBlock text={active.text} wrap={active.wrap} />
         </div>
 
-        <div className="flex items-start gap-2.5 rounded-xl border border-[var(--panel-warning-text)]/30 bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem]">
-          <ShieldAlert size={16} className="mt-0.5 shrink-0 text-[var(--panel-warning-text)]" />
+        <div className="flex items-start gap-2.5 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] p-3 text-[0.8125rem]">
+          <ShieldAlert size={16} className="mt-0.5 shrink-0 text-[var(--text-secondary)]" />
           <p className="leading-relaxed text-[var(--win-text)]">{t('mcpGuide.connect.security')}</p>
         </div>
       </div>

@@ -1,7 +1,10 @@
-// Pages that must stay reachable without a session. A 401 on them is expected
-// and must not bounce the visitor to the login page.
-const PUBLIC_PATHS = ['/', '/docs/mcp', '/mcp/guide']
+// Only the application's own pages (the desktop and the full-page database manager) send a visitor
+// to the login form. Everything else, including addresses that do not exist, is reachable without
+// a session: a 401 there is expected and the visitor sees the page, or its 404.
+export function isProtectedRoute(pathname: string) {
+  return pathname === '/home' || pathname.startsWith('/home/') || pathname.startsWith('/database/')
+}
 
-export function isPublicRoute(pathname: string, loginPath = import.meta.env.VITE_LOGIN_PATH || '/login') {
-  return pathname === loginPath || PUBLIC_PATHS.includes(pathname) || pathname === '/articles' || pathname.startsWith('/articles/')
+export function isPublicRoute(pathname: string) {
+  return !isProtectedRoute(pathname)
 }

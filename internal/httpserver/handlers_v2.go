@@ -298,13 +298,23 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// repeated failures for one account name stop here, whatever address they come from
+	if blocked, wait := loginFailures.blocked(req.Username); blocked {
+		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many failed sign-ins for this account, try again later"})
+		return
+	}
+
 	token, u, err := s.auth.Login(
 		strings.TrimSpace(req.Username),
 		req.Password,
-		remoteAddr(r),
+		clientIP(r),
 		r.UserAgent(),
 	)
 	if err != nil {
+		if !errors.Is(err, auth.ErrUserSuspended) {
+			loginFailures.fail(req.Username)
+		}
 		switch {
 		case errors.Is(err, auth.ErrUserSuspended):
 			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "account suspended"})
@@ -315,6 +325,7 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	loginFailures.clear(req.Username)
 	s.issueSessionCookie(w, token)
 
 	log.Printf("[auth] login success user=%q role=%q remote=%s", u.Username, u.Role, remoteAddr(r))

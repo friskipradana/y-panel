@@ -57,13 +57,29 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			path == "/articles" || strings.HasPrefix(path, "/articles/") ||
 			path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 
+		// Files the login and landing pages need before any session exists
+		if isPublicStaticFile(path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		_, authed := s.currentUser(r)
 		if !authed && !isPublicPage {
-			if acceptsHTML(r) {
-				http.Redirect(w, r, "/login", http.StatusFound)
+			// Only the application's own pages send a visitor to the login form. Any other
+			// address does not exist for them: a plain 404, the same as for a signed-in user.
+			if isProtectedPagePath(path) {
+				if acceptsHTML(r) {
+					http.Redirect(w, r, "/login", http.StatusFound)
+					return
+				}
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			if acceptsHTML(r) {
+				s.writeStatusPage(w, r, http.StatusNotFound, "Halaman tidak ditemukan", "Alamat yang Anda buka tidak tersedia.", "Periksa kembali alamatnya, atau kembali ke halaman utama.", false)
+				return
+			}
+			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
 		if authed && path == "/login" {
@@ -342,7 +358,7 @@ func (s *Server) withRateLimit(next http.Handler) http.Handler {
 
 func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string, bool) {
 	path := r.URL.Path
-	remote := remoteAddr(r)
+	remote := clientIP(r)
 	if remote == "" {
 		remote = "unknown"
 	}
@@ -441,4 +457,20 @@ func (s *Server) auditSensitiveAction(r *http.Request, user *database.User, acti
 
 func (s *Server) auditFileAction(r *http.Request, action, result string, metadata map[string]any) {
 	s.auditSensitiveAction(r, s.currentUserRecord(r), action, result, metadata)
+}
+
+// isProtectedPagePath lists the application's pages that need a session.
+func isProtectedPagePath(path string) bool {
+	return path == "/home" || strings.HasPrefix(path, "/home/") || strings.HasPrefix(path, "/database/") || strings.HasPrefix(path, "/adminer/")
+}
+
+// isPublicStaticFile reports files served without a session (PWA manifest, service worker,
+// icons, brand and wallpaper images).
+func isPublicStaticFile(path string) bool {
+	switch path {
+	case "/manifest.webmanifest", "/sw.js", "/apple-touch-icon.png", "/favicon-16x16.png", "/favicon-32x32.png",
+		"/favicon-48x48.png", "/pwa-maskable.svg":
+		return true
+	}
+	return strings.HasPrefix(path, "/brand/") || strings.HasPrefix(path, "/wallpapers/")
 }

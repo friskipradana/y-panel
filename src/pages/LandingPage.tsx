@@ -52,6 +52,9 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
+// Both secondary hero actions share one look: outlined, same height, same icon colour
+const HERO_SECONDARY = '!h-10 !px-4 border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]'
+
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
   const { t } = useI18n()
@@ -75,12 +78,12 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               <ArrowRight size={15} />
             </Button>
             {!authenticated && demo?.enabled ? (
-              <Button onClick={() => onNavigate('/login?demo=1')} className="!h-10 !px-4">
+              <Button onClick={() => onNavigate('/login?demo=1')} className={HERO_SECONDARY}>
                 <Eye size={15} />
                 <span>{t('landing.demo.heroCta')}</span>
               </Button>
             ) : null}
-            <a href={INSTALLER_URL} className="panel-btn !h-10 !px-4">
+            <a href={INSTALLER_URL} className={`panel-btn ${HERO_SECONDARY}`}>
               <Download size={15} />
               <span>{t('landing.downloadInstaller')}</span>
             </a>

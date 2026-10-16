@@ -89,7 +89,7 @@ export function PublicShell({ children }: PublicShellProps) {
       <footer className="relative z-10 border-t border-[var(--win-border)]">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-[0.75rem] text-[var(--text-secondary)] sm:flex-row sm:px-6">
           <span>
-            {contributors.data && contributors.data.items.length > 0 ? (
+            {contributors.data?.items?.length ? (
               <>
                 {t('public.footer.contributors')}{' '}
                 {contributors.data.items.map((c, i) => (
