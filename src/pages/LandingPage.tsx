@@ -20,7 +20,6 @@ import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
 import { CopyBlock } from '@/components/public/CopyBlock'
-import { InstallGuide } from '@/pages/landing/InstallGuide'
 import { DemoAccess } from '@/pages/landing/DemoAccess'
 import { Button } from '@/components/ui/Button'
 import { useQuery } from '@tanstack/react-query'
@@ -53,7 +52,8 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
 // Both secondary hero actions share one look: outlined, same height, same icon colour
-const HERO_SECONDARY = '!h-10 !px-4 border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]'
+const HERO_ACTION = '!h-11 w-full justify-center !px-4'
+const HERO_SECONDARY = 'border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]'
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
@@ -72,18 +72,22 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </h1>
           <p className="mx-auto mb-6 max-w-2xl text-[0.9375rem] leading-relaxed text-[var(--text-secondary)] sm:text-base">{t('landing.description')}</p>
 
-          <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-            <Button variant="primary" onClick={() => onNavigate(primaryPath)} className="!h-10 !px-5">
+          {/* Two actions side by side, the installer under them across the full width */}
+          <div className="mx-auto mb-6 grid max-w-md grid-cols-2 gap-3">
+            <Button variant="primary" onClick={() => onNavigate(primaryPath)} className={HERO_ACTION}>
               <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={15} />
             </Button>
             {!authenticated && demo?.enabled ? (
-              <Button onClick={() => onNavigate('/login?demo=1')} className={HERO_SECONDARY}>
+              <Button onClick={() => onNavigate('/login?demo=1')} className={`${HERO_ACTION} ${HERO_SECONDARY}`}>
                 <Eye size={15} />
                 <span>{t('landing.demo.heroCta')}</span>
               </Button>
             ) : null}
-            <a href={INSTALLER_URL} className={`panel-btn ${HERO_SECONDARY}`}>
+            <a
+              href={INSTALLER_URL}
+              className={`panel-btn ${HERO_ACTION} ${HERO_SECONDARY} ${!authenticated && demo?.enabled ? 'col-span-2' : ''}`}
+            >
               <Download size={15} />
               <span>{t('landing.downloadInstaller')}</span>
             </a>
@@ -94,7 +98,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <p className="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[0.75rem] text-[var(--text-secondary)]">
               <span>{t('landing.pasteTerminal')}</span>
               <span aria-hidden="true">·</span>
-              <a href="#landing-guide" className="text-[var(--panel-info-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">
+              <a
+                href="/install"
+                onClick={(e) => {
+                  e.preventDefault()
+                  onNavigate('/install')
+                }}
+                className="text-[var(--panel-info-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              >
                 {t('landing.hero.guideLink')}
               </a>
             </p>
@@ -166,7 +177,6 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           </dl>
         </section>
 
-        <InstallGuide installCommand={INSTALL_COMMAND} onNavigate={onNavigate} />
       </main>
     </PublicShell>
   )

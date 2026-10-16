@@ -475,7 +475,8 @@ body,
 
 body {
   font-family: var(--font-sans);
-  background: #020617;
+  // follows the theme: page changes fade through the page colour, not through black
+  background: var(--win-content-bg);
   font-size: 1rem;
   line-height: 1.5;
   text-rendering: optimizeLegibility;

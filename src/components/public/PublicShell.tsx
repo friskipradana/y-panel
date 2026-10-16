@@ -2,11 +2,9 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getPublicContributors } from '@/api/system'
-import { ArrowRight, BookOpen, Bot, Download, ExternalLink, GitBranch, Moon, Sun } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { BookOpen, Bot, Download, ExternalLink, GitBranch, Moon, Sun } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
-import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { useThemeStore } from '@/store/themeStore'
 
@@ -21,9 +19,7 @@ interface PublicShellProps {
 export function PublicShell({ children }: PublicShellProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const authenticated = useAuthStore((s) => s.authenticated)
   const { version } = usePanelVersion()
-  const primaryPath = authenticated ? '/home' : '/login'
   const contributors = useQuery({ queryKey: ['public-contributors'], queryFn: getPublicContributors, staleTime: 60 * 60_000, retry: false })
   const themeMode = useThemeStore((s) => s.mode)
   const toggleMode = useThemeStore((s) => s.toggleMode)
@@ -75,11 +71,6 @@ export function PublicShell({ children }: PublicShellProps) {
             <IconButton label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')} onClick={toggleMode}>
               {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </IconButton>
-            <Button variant="primary" onClick={() => navigate(primaryPath)} className="ml-1 !h-8">
-              <span className="sm:hidden">{authenticated ? t('landing.dashboardShort') : t('landing.loginShort')}</span>
-              <span className="max-sm:hidden">{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
-              <ArrowRight size={13} />
-            </Button>
           </nav>
         </div>
       </header>

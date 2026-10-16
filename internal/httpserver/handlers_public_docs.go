@@ -16,14 +16,25 @@ type publicDocSummary struct {
 	Title     string    `json:"title"`
 	Slug      string    `json:"slug"`
 	Excerpt   string    `json:"excerpt"`
+	// Cover is the first image of the article (a store URL, an https URL or img/<file>)
+	Cover     string    `json:"cover,omitempty"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+var firstImageRe = regexp.MustCompile(`!\[[^\]\n]*\]\(([^)\s]+)\)`)
+
+func firstImageURL(content string) string {
+	if m := firstImageRe.FindStringSubmatch(content); len(m) == 2 {
+		return m[1]
+	}
+	return ""
 }
 
 func (s *Server) handlePublicDocsList(w http.ResponseWriter, _ *http.Request) {
 	docs := s.publicArticles()
 	items := make([]publicDocSummary, 0, len(docs))
 	for _, d := range docs {
-		items = append(items, publicDocSummary{Title: d.Title, Slug: d.Slug, Excerpt: d.Excerpt, UpdatedAt: d.UpdatedAt})
+		items = append(items, publicDocSummary{Title: d.Title, Slug: d.Slug, Excerpt: d.Excerpt, Cover: firstImageURL(d.Content), UpdatedAt: d.UpdatedAt})
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"items": items})

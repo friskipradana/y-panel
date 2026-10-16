@@ -8,12 +8,13 @@ Inventaris komponen Reneo. Cek di sini sebelum membuat komponen atau class baru.
 | :--- | :--- | :--- |
 | `AppShell` | `src/shell/index.tsx` | Cek sesi, shortcut global, revision sync, host router |
 | `AppRouter` | `src/router/index.tsx` | Rute `/`, `/docs/mcp`, `/login`, `/home`, `*` dengan transisi |
-| `PublicShell`, `CopyBlock` | `src/components/public/` | Kerangka halaman publik (header, versi, footer; selalu tema gelap via `data-theme="dark"`) dan blok kode dengan tombol salin |
+| `PublicShell`, `CopyBlock` | `src/components/public/` | Kerangka halaman publik (header tanpa tombol login, versi, footer; mengikuti mode terang/gelap tersimpan dengan tombol tema) dan blok kode dengan tombol salin |
 | `DemoAccess` | `src/pages/landing/DemoAccess.tsx` | Kartu akun demo di landing; muncul hanya bila agent mengaktifkan demo (`RENEO_DEMO_PASSWORD`, lihat `docs/security-hardening.md`). Role demo di UI = `demo`, hanya window `apps`, `projects`, `system`, `widgets`, `docs`, `changelog`, `profile` |
 | `LandingPage` | `src/pages/LandingPage.tsx` | Halaman publik bermerek Reneo (filosofi: [FILOSOFI-RENEO.md](../../docs/FILOSOFI-RENEO.md)); versi dari `usePanelVersion` (`lib/version.ts`: versi agent, fallback versi bundle). Ikon merek di `public/` dan `public/brand/` dibuat oleh `scripts/make-brand-icons.py` (navy `#0B2A57`, R putih) |
 | `McpGuidePage` | `src/pages/McpGuidePage.tsx` + `mcp-guide/` | Panduan MCP: `ConnectPanel`, `ToolCatalog`; `toolsData.ts` dibuat dari registry agent |
-| `ArticlesPage`, `ArticlePage` | `src/pages/ArticlesPage.tsx` | Artikel publik `/articles` dan `/articles/:slug` (dari `GET /api/v1/public/docs`), tanpa login |
-| `LoginPage` | `src/pages/LoginPage.tsx` | Login + wizard first-run |
+| `ArticlesPage`, `ArticlePage` | `src/pages/ArticlesPage.tsx` | Artikel publik `/articles` (kartu dengan gambar sampul = gambar pertama artikel, field `cover`) dan `/articles/:slug` (dari `GET /api/v1/public/docs`), tanpa login |
+| `InstallPage` | `src/pages/InstallPage.tsx` | Langkah pemasangan lengkap (`InstallGuide`) di `/install`, dibuka dari tautan "Opsi dan langkah lengkap" di landing |
+| `LoginPage` | `src/pages/LoginPage.tsx` | Login + wizard first-run: satu kartu bersih (`Field`, `TextInput`, `Button`) di atas warna halaman tema |
 | `DesktopPage` | `src/pages/DesktopPage.tsx` | Pembungkus `Desktop` |
 | `FrontendNotFoundPage` | `src/components/system/` | 404 frontend |
 | `StatusPage` | `src/components/system/` | Halaman status/error sistem |

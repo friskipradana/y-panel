@@ -20,6 +20,8 @@ export interface PublicDocSummary {
   title: string
   slug: string
   excerpt: string
+  /** first image of the article, when it has one */
+  cover?: string
   updatedAt: string
 }
 

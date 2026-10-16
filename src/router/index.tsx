@@ -5,6 +5,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { DesktopPage } from '@/pages/DesktopPage'
 import { McpGuidePage } from '@/pages/McpGuidePage'
 import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
+import { InstallPage } from '@/pages/InstallPage'
 import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
@@ -43,8 +44,8 @@ export function AppRouter() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
               className="w-full h-full overflow-y-auto"
             >
               <LandingPage authenticated={authenticated} onNavigate={(path) => navigate(path)} />
@@ -58,7 +59,7 @@ export function AppRouter() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.14 }}
               className="w-full h-full overflow-y-auto"
             >
               <McpGuidePage />
@@ -66,6 +67,7 @@ export function AppRouter() {
           }
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
+        <Route path="/install" element={<div className="h-full w-full overflow-y-auto"><InstallPage /></div>} />
         <Route path="/articles" element={<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>} />
         <Route path="/articles/:slug" element={<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>} />
         <Route
@@ -75,10 +77,10 @@ export function AppRouter() {
               <Navigate to={HOME_PATH} replace />
             ) : (
               <motion.div
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
                 className="absolute inset-0 z-[10000] overflow-hidden"
               >
                 <LoginPage
@@ -96,10 +98,10 @@ export function AppRouter() {
               <Navigate to={LOGIN_PATH} replace />
             ) : (
               <motion.div
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: [0.25, 1, 0.5, 1] }}
+                transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
                 className="absolute inset-0 z-0"
               >
                 <DesktopPage onLogout={handleLogout} />

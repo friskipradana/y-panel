@@ -4,8 +4,9 @@
   min-height: 100vh;
   min-height: 100dvh;
   position: relative;
-  overflow: hidden;
-  color: white;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: var(--win-text);
   transition: background 300ms ease;
   display: flex;
   align-items: center;

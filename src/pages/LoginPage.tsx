@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  LoaderCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Sun, Moon
-} from 'lucide-react'
+import { LoaderCircle, ArrowLeft, Eye, EyeOff, Sun, Moon } from 'lucide-react'
 import { getDemoInfo, getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 import { useThemeStore } from '@/store/themeStore'
+import { Button } from '@/components/ui/Button'
+import { Field, TextInput } from '@/components/ui/Field'
+import { IconButton } from '@/components/ui/IconButton'
 
 export interface LoginPageProps {
   onLoginSuccess: (user?: { username: string; role?: string }) => void
@@ -15,11 +16,6 @@ export interface LoginPageProps {
 }
 
 type ScreenMode = 'login' | 'setup'
-
-const pillStyle = {
-  background: 'var(--login-panel-bg)',
-  backdropFilter: 'blur(30px)',
-} as const
 
 // A touch device should not open the keyboard (and hide the form) the moment the page loads
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
@@ -30,24 +26,8 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const { t } = useI18n()
-  const {
-    mode: themeMode,
-    toggleMode,
-    getBackgroundStyle,
-    wallpaper,
-    wallpaperFit,
-    customImageUrl,
-    syncCustomImage,
-  } = useThemeStore()
-
-  useEffect(() => {
-    void syncCustomImage()
-  }, [syncCustomImage])
-
-  const backgroundStyle = useMemo(
-    () => getBackgroundStyle(),
-    [getBackgroundStyle, themeMode, wallpaper, wallpaperFit, customImageUrl],
-  )
+  const themeMode = useThemeStore((s) => s.mode)
+  const toggleMode = useThemeStore((s) => s.toggleMode)
 
   const [setupUsername, setSetupUsername] = useState('')
   const [setupEmail, setSetupEmail] = useState('')
@@ -131,204 +111,132 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     return t('login.loginStatus')
   }, [mode, setupStatusQuery.isLoading, t])
 
-  return (
-    <main className="login-page relative w-full h-full min-h-dvh overflow-hidden" id="panel-login-screen">
-      {/* Dynamic wallpaper background layer */}
-      <div className="absolute inset-0 z-0" style={backgroundStyle} />
-      {/* Ambient background contrast overlay */}
-      <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px] z-[1] pointer-events-none" />
-      {onBack ? (
-        <button
-          id="login-back-button"
-          type="button"
-          onClick={onBack}
-          title={t('login.back')}
-          style={pillStyle}
-          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] left-6 z-30 flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer"
-        >
-          <ArrowLeft size={16} />
-        </button>
-      ) : null}
+  const heading = mode === 'setup' ? t('login.firstRunSetup') : t('login.welcomeBack')
 
-      {/* Floating Theme Toggle (Top Right) */}
-      <div className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-6 z-30 flex items-center gap-2">
-        <button
-          id="login-theme-toggle"
-          type="button"
-          onClick={toggleMode}
-          title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          style={pillStyle}
-          className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer transition-all duration-150"
-        >
-          {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
+  const toggle = (shown: boolean, set: (v: boolean) => void) => (
+    <IconButton
+      label={shown ? t('login.hidePassword') : t('login.showPassword')}
+      onClick={() => set(!shown)}
+      className="absolute right-1 top-1/2 -translate-y-1/2"
+    >
+      {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </IconButton>
+  )
+
+  return (
+    <main
+      className="login-page relative flex min-h-dvh w-full flex-col items-center justify-center overflow-y-auto bg-[var(--win-content-bg)] px-4 py-16 text-[var(--win-text)]"
+      id="panel-login-screen"
+    >
+      <div className="absolute left-4 right-4 top-[max(1rem,env(safe-area-inset-top))] flex items-center justify-between">
+        {onBack ? (
+          <IconButton id="login-back-button" label={t('login.back')} onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </IconButton>
+        ) : (
+          <span />
+        )}
+        <IconButton id="login-theme-toggle" label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')} onClick={toggleMode}>
+          {themeMode === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </IconButton>
       </div>
 
-      <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 px-6 pb-20 z-10 max-sm:pb-12">
-        <img src="/favicon.svg" alt="Reneo" className="mb-4 h-20 w-20 rounded-[1.375rem] shadow-2xl ring-1 ring-white/25" />
-
-        <div className="mb-3 text-center px-4">
-          <p className="text-base font-bold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">
-            {mode === 'setup' ? t('login.firstRunSetup') : t('login.welcomeBack')}
-          </p>
-          <p className="mt-1 text-[12.5px] font-medium text-slate-200 drop-shadow-[0_1px_6px_rgba(0,0,0,0.75)]">
-            {statusMessage}
-          </p>
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <img src="/favicon.svg" alt="Reneo" className="h-14 w-14 rounded-2xl" />
+          <h1 className="mt-4 text-xl font-bold tracking-tight">{heading}</h1>
+          <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{statusMessage}</p>
         </div>
 
-        {setupStatusQuery.isLoading ? (
-          <div className="mt-2 flex items-center gap-2 rounded-full border px-4 py-2 text-sm login-pill" style={pillStyle}>
-            <LoaderCircle size={14} className="animate-spin" />
-            <span>{t('login.checkingInitialConfig')}</span>
-          </div>
-        ) : mode === 'setup' ? (
-          <form
-            className="w-[min(22rem,calc(100vw-3rem))] flex flex-col gap-2.5"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setupMutation.mutate()
-            }}
-          >
-            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-setup-username"
-                type="text"
-                value={setupUsername}
-                onChange={(e) => setSetupUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
-                placeholder={t('login.usernamePlaceholder')}
-                autoComplete="username"
-              />
+        <div className="rounded-2xl border border-[var(--win-border)] bg-[var(--win-bg)] p-5 shadow-[var(--panel-card-shadow)] sm:p-6">
+          {setupStatusQuery.isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-[0.875rem] text-[var(--text-secondary)]">
+              <LoaderCircle size={15} className="animate-spin" />
+              <span>{t('login.checkingInitialConfig')}</span>
             </div>
-
-            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-setup-display-name"
-                type="text"
-                value={setupDisplayName}
-                onChange={(e) => setSetupDisplayName(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
-                placeholder={t('login.displayNamePlaceholder')}
-                autoComplete="name"
-              />
-            </div>
-
-            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-setup-email"
-                type="email"
-                value={setupEmail}
-                onChange={(e) => setSetupEmail(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
-                placeholder={t('login.adminEmailPlaceholder')}
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-setup-password"
-                type={showSetupPassword ? 'text' : 'password'}
-                value={setupPassword}
-                onChange={(e) => setSetupPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-12 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
-                placeholder={t('login.passwordPlaceholder')}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="absolute right-3 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:h-auto sm:w-auto"
-                onClick={() => setShowSetupPassword(!showSetupPassword)}
-                title={showSetupPassword ? t('login.hidePassword') : t('login.showPassword')}
-              >
-                {showSetupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-
-            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-setup-confirm-password"
-                type={showSetupConfirmPassword ? 'text' : 'password'}
-                value={setupConfirmPassword}
-                onChange={(e) => setSetupConfirmPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-12 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
-                placeholder={t('login.confirmPasswordPlaceholder')}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="absolute right-3 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:h-auto sm:w-auto"
-                onClick={() => setShowSetupConfirmPassword(!showSetupConfirmPassword)}
-                title={showSetupConfirmPassword ? t('login.hidePassword') : t('login.showPassword')}
-              >
-                {showSetupConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-
-            <button
-              id="panel-setup-submit"
-              type="submit"
-              className="mt-1 rounded-full border px-4 py-3 text-base font-medium transition-all sm:py-2 sm:text-sm disabled:cursor-not-allowed disabled:opacity-70 login-submit-wide login-pill-shadow"
-              disabled={activePending}
+          ) : mode === 'setup' ? (
+            <form
+              className="flex flex-col gap-3.5"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setupMutation.mutate()
+              }}
             >
-              {activePending ? t('login.processing') : t('login.createAdminAndLogin')}
-            </button>
-          </form>
-        ) : (
-          <form
-            className="w-[min(20rem,calc(100vw-3rem))] flex flex-col gap-2.5"
-            onSubmit={(e) => {
-              e.preventDefault()
-              loginMutation.mutate()
-            }}
-          >
-            {demoFilled ? (
-              <p className="px-2 text-center text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('login.demoFilled')}</p>
-            ) : null}
-            <div className="relative overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-login-username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
-                placeholder={t('login.usernamePlaceholder')}
-                autoComplete="username"
-              />
-            </div>
-
-            <div className="relative flex items-center overflow-hidden rounded-full border login-pill login-pill-shadow" style={pillStyle}>
-              <input
-                id="panel-login-password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-24 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-16 sm:py-2 sm:text-sm"
-                placeholder={t('login.passwordPlaceholder')}
-                autoComplete="current-password"
-                autoFocus={FINE_POINTER}
-              />
-
-              <button
-                type="button"
-                className="absolute right-12 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:right-8 sm:h-auto sm:w-auto"
-                onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-              >
-                {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-
-              <button
-                id="panel-login-submit"
-                type="submit"
-                className="absolute right-1.5 flex h-[2.25rem] w-[2.25rem] items-center justify-center rounded-full border shadow-sm transition-all login-submit-round sm:right-1 sm:h-6 sm:w-6"
-                disabled={activePending}
-              >
-                {activePending ? <LoaderCircle size={14} className="animate-spin" /> : <ArrowRight size={14} strokeWidth={2.5} />}
-              </button>
-            </div>
-          </form>
-        )}
+              <Field label={t('login.usernamePlaceholder')} htmlFor="panel-setup-username">
+                <TextInput id="panel-setup-username" value={setupUsername} onChange={(e) => setSetupUsername(e.target.value)} autoComplete="username" />
+              </Field>
+              <Field label={t('login.displayNamePlaceholder')} htmlFor="panel-setup-display-name">
+                <TextInput id="panel-setup-display-name" value={setupDisplayName} onChange={(e) => setSetupDisplayName(e.target.value)} autoComplete="name" />
+              </Field>
+              <Field label={t('login.adminEmailPlaceholder')} htmlFor="panel-setup-email">
+                <TextInput id="panel-setup-email" type="email" value={setupEmail} onChange={(e) => setSetupEmail(e.target.value)} autoComplete="email" />
+              </Field>
+              <Field label={t('login.passwordPlaceholder')} htmlFor="panel-setup-password">
+                <div className="relative">
+                  <TextInput
+                    id="panel-setup-password"
+                    type={showSetupPassword ? 'text' : 'password'}
+                    value={setupPassword}
+                    onChange={(e) => setSetupPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-11"
+                  />
+                  {toggle(showSetupPassword, setShowSetupPassword)}
+                </div>
+              </Field>
+              <Field label={t('login.confirmPasswordPlaceholder')} htmlFor="panel-setup-confirm-password">
+                <div className="relative">
+                  <TextInput
+                    id="panel-setup-confirm-password"
+                    type={showSetupConfirmPassword ? 'text' : 'password'}
+                    value={setupConfirmPassword}
+                    onChange={(e) => setSetupConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-11"
+                  />
+                  {toggle(showSetupConfirmPassword, setShowSetupConfirmPassword)}
+                </div>
+              </Field>
+              <Button id="panel-setup-submit" type="submit" variant="primary" loading={activePending} className="mt-1 !h-11 w-full">
+                {t('login.createAdminAndLogin')}
+              </Button>
+            </form>
+          ) : (
+            <form
+              className="flex flex-col gap-3.5"
+              onSubmit={(e) => {
+                e.preventDefault()
+                loginMutation.mutate()
+              }}
+            >
+              {demoFilled ? (
+                <p className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                  {t('login.demoFilled')}
+                </p>
+              ) : null}
+              <Field label={t('login.usernamePlaceholder')} htmlFor="panel-login-username">
+                <TextInput id="panel-login-username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+              </Field>
+              <Field label={t('login.passwordPlaceholder')} htmlFor="panel-login-password">
+                <div className="relative">
+                  <TextInput
+                    id="panel-login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    autoFocus={FINE_POINTER}
+                    className="pr-11"
+                  />
+                  {toggle(showPassword, setShowPassword)}
+                </div>
+              </Field>
+              <Button id="panel-login-submit" type="submit" variant="primary" loading={activePending} className="mt-1 !h-11 w-full">
+                {t('login.signIn')}
+              </Button>
+            </form>
+          )}
+        </div>
       </div>
     </main>
   )

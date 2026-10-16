@@ -54,7 +54,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 
 		// Public pages: Landing (/), Login (/login), and Public MCP Tutorial (/docs/mcp, /mcp/guide)
 		isPublicPage := path == "/" || path == "/login" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
-			path == "/articles" || strings.HasPrefix(path, "/articles/") ||
+			path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" ||
 			path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 
 		// Files the login and landing pages need before any session exists
