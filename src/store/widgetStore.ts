@@ -87,7 +87,7 @@ export const COLUMN_WIDTH = WIDGET_WIDTH + WIDGET_GAP // 295px
 export const WIDGET_HEIGHTS: Record<WidgetType, number> = {
   'clock-uptime': 120,
   'system-vital': 162,
-  'quick-note': 140,
+  'quick-note': 168,
   'network-traffic': 208,
   'cpu-graph': 156,
   ping: 190,
@@ -193,6 +193,8 @@ export function snapWidgetPosition(
   const screenW = isBrowser ? window.innerWidth : 1280
   const defaultColX = Math.max(200, screenW - 308)
   const SNAP_DISTANCE = 32
+  // vertical snaps are tighter: the widget stays where it was dropped unless it is almost aligned
+  const SNAP_Y_DISTANCE = 12
 
   let snappedX = rawX
   let snappedY = rawY
@@ -227,14 +229,14 @@ export function snapWidgetPosition(
 
     // Gap 15px below 'other'
     const targetBelowY = other.y + otherH + WIDGET_GAP
-    if (Math.abs(rawY - targetBelowY) < SNAP_DISTANCE) {
+    if (Math.abs(rawY - targetBelowY) < SNAP_Y_DISTANCE) {
       snappedY = targetBelowY
       break
     }
 
     // Gap 15px above 'other'
     const targetAboveY = other.y - thisH - WIDGET_GAP
-    if (Math.abs(rawY - targetAboveY) < SNAP_DISTANCE && targetAboveY >= WIDGET_TOP - 14) {
+    if (Math.abs(rawY - targetAboveY) < SNAP_Y_DISTANCE && targetAboveY >= WIDGET_TOP - 14) {
       snappedY = targetAboveY
       break
     }
@@ -320,8 +322,6 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
   // The phone viewport is far narrower than the desktop the layout was arranged on:
   // clamping here would squeeze the stored positions and sync them back over the desktop layout
   if (typeof window !== 'undefined' && isMobileLayoutNow()) return widgets
-  const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
-  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
   const placed: PlacedWidget[] = []
 
   // locked widgets keep their coordinates; the others are fitted around them
@@ -332,10 +332,17 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
       continue
     }
     const height = widgetHeightOf(w)
-    const x = Math.min(Math.max(w.x, 12), Math.max(12, screenW - WIDGET_WIDTH - 12))
-    const y = Math.min(Math.max(w.y, WIDGET_TOP), Math.max(WIDGET_TOP, screenH - height - 24))
-    const spot = resolveWidgetOverlap(w.id, w.type, x, y, placed)
-    placed.push({ ...w, x: spot.x, y: spot.y })
+    // The window size is never written back into the layout: shrinking the window or opening
+    // devtools used to pull widgets up and the sync made that permanent. Only a negative or
+    // off-canvas start is corrected, and overlaps are resolved by moving the lower widget down.
+    const x = Math.max(w.x, 12)
+    let y = Math.max(w.y, WIDGET_TOP)
+    for (let guard = 0; guard < 20; guard++) {
+      const blocker = placed.find((o) => overlapsWidget(x, y, height, o))
+      if (!blocker) break
+      y = blocker.y + widgetHeightOf(blocker) + WIDGET_GAP
+    }
+    placed.push({ ...w, x: Math.round(x), y: Math.round(y) })
   }
   const byId = new Map(placed.map((w) => [w.id, w]))
   return widgets.map((w) => byId.get(w.id) ?? w)
