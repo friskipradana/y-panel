@@ -51,8 +51,8 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
 const HERO_ACTION = '!h-11 w-full justify-center !px-4'
-// Login is solid blue, the demo is a tinted blue with its own edge, the installer is a neutral outline
-const HERO_TINT = 'border border-[color-mix(in_srgb,var(--panel-primary-text)_32%,transparent)]'
+// Login is solid blue, the demo is outlined in the same blue, the installer is a neutral outline
+const HERO_TINT = '!border-[var(--panel-primary-solid)] !bg-transparent !text-[var(--panel-primary-solid)] hover:!bg-[var(--panel-primary-bg)]'
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
