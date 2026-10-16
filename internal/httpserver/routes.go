@@ -227,5 +227,11 @@ func (s *Server) routes() {
 	// ── Network tools (widgets) ───────────────────────────────────────────────
 	s.mux.Handle("POST /api/v1/tools/ping", s.requireAuthV2(http.HandlerFunc(s.handlePing)))
 
+	// ── Speed test ────────────────────────────────────────────────────────────
+	s.mux.Handle("GET /api/v1/speedtest/download", s.requireAuthV2(http.HandlerFunc(s.handleSpeedtestDownload)))
+	s.mux.Handle("POST /api/v1/speedtest/upload", s.requireAuthV2(http.HandlerFunc(s.handleSpeedtestUpload)))
+	s.mux.Handle("GET /api/v1/speedtest/ping", s.requireAuthV2(http.HandlerFunc(s.handleSpeedtestPing)))
+	s.mux.Handle("POST /api/v1/speedtest/server", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSpeedtestServer)))
+
 	s.mux.Handle("/", s.authedFrontend)
 }

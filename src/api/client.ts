@@ -15,6 +15,9 @@ let unauthorizedEventArmed = true
 agentApi.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    // a request the caller aborted on purpose (end of a speed test phase) is not a failure
+    if (axios.isCancel(error)) return Promise.reject(error)
+
     const isPublicPath = isPublicRoute(window.location.pathname)
     const isUnauthorized = error.response?.status === 401
     const isRevisionCheck = error.config?.url?.includes('/api/v1/frontend/revision')

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getPublicContributors } from '@/api/system'
-import { BookOpen, Bot, Download, ExternalLink, GitBranch, Moon, Sun } from 'lucide-react'
+import { BookOpen, Bot, Download, ExternalLink, GitBranch, Languages, Moon, Sun } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
 import { IconButton } from '@/components/ui/IconButton'
@@ -17,7 +17,7 @@ interface PublicShellProps {
 
 // Shared frame of the public pages (landing, MCP guide, articles). Follows the saved light/dark mode.
 export function PublicShell({ children }: PublicShellProps) {
-  const { t } = useI18n()
+  const { t, language, setLanguage } = useI18n()
   const navigate = useNavigate()
   const { version } = usePanelVersion()
   const contributors = useQuery({ queryKey: ['public-contributors'], queryFn: getPublicContributors, staleTime: 60 * 60_000, retry: false })
@@ -68,6 +68,16 @@ export function PublicShell({ children }: PublicShellProps) {
               <Download size={14} />
               <span className="hidden md:inline">{t('public.nav.installer')}</span>
             </a>
+            <button
+              type="button"
+              onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
+              title={`${t('language.label')}: ${language === 'id' ? t('language.english') : t('language.indonesian')}`}
+              aria-label={`${t('language.label')}: ${language === 'id' ? t('language.english') : t('language.indonesian')}`}
+              className={navLink}
+            >
+              <Languages size={14} />
+              <span className="text-[0.75rem] font-semibold uppercase">{language}</span>
+            </button>
             <IconButton label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')} onClick={toggleMode}>
               {themeMode === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </IconButton>

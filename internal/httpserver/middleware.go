@@ -366,6 +366,9 @@ func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string
 	switch {
 	case path == "/healthz" || strings.HasPrefix(path, "/assets/") || path == "/favicon.ico":
 		return rateLimitRule{}, "", false
+	case isSpeedtestPath(path):
+		// a test opens a few dozen short requests in seconds
+		return rateLimitRule{Window: time.Minute, Limit: 600}, "speedtest:" + remote, true
 	case path == "/api/v1/auth/login" || path == "/api/v1/setup/initialize":
 		return rateLimitRule{Window: time.Minute, Limit: 12}, "auth:" + remote, true
 	case websocket.IsWebSocketUpgrade(r):
@@ -410,6 +413,10 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(recorder, r)
+		if isSpeedtestPath(r.URL.Path) {
+			// each test is dozens of requests; they would flood the runtime log
+			return
+		}
 		duration := time.Since(started).Round(time.Millisecond)
 		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, duration, remoteAddr(r))
 		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": duration.String(), "remote": remoteAddr(r)})

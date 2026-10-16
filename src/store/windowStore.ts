@@ -27,6 +27,7 @@ const DEFAULTS: Record<
   tunnels: { title: "Cloudflare", width: 960, height: 600, singleton: true },
   profile: { title: "Profile & Integrasi", width: 500, height: 560, singleton: true },
   widgets: { title: "Widgets", width: 720, height: 480, singleton: true },
+  speedtest: { title: "Speed Test", width: 760, height: 440, singleton: true },
 };
 
 // Z-index tiers

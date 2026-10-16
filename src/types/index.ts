@@ -18,6 +18,7 @@ export type WindowKind =
   | 'tunnels'
   | 'profile'
   | 'widgets'
+  | 'speedtest'
 
 export type WindowId = WindowKind
 

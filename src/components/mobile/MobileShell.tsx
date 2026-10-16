@@ -145,6 +145,12 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
             </IconButton>
             {authenticated ? <MobileNotifications /> : null}
             <IconButton
+              label={`${t('language.label')}: ${language === 'id' ? t('language.english') : t('language.indonesian')}`}
+              onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
+            >
+              <span className="text-[0.75rem] font-bold uppercase">{language}</span>
+            </IconButton>
+            <IconButton
               label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
               onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
             >

@@ -20,6 +20,7 @@ const ProjectsWindow = lazyDefault(() => import('@/components/windows/ProjectsWi
 const TunnelsWindow = lazyDefault(() => import('@/components/windows/TunnelsWindow'))
 const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWindow'))
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
+const SpeedtestWindow = lazyNamed(() => import('@/components/windows/SpeedtestWindow'), 'SpeedtestWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
@@ -109,6 +110,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   tunnels: (win) => <TunnelsWindow win={win} />,
   profile: () => <ProfileWindow />,
   widgets: () => <WidgetsWindow />,
+  speedtest: () => <SpeedtestWindow />,
 }
 
 

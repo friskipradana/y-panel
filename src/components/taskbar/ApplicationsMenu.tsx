@@ -85,6 +85,12 @@ const MENU_ITEMS: AppMenuItem[] = [
     category: 'network',
   },
   {
+    kind: 'speedtest',
+    descId: 'Ukur kecepatan unduh, unggah, dan latensi ke panel serta ke internet',
+    descEn: 'Measure download, upload and latency to the panel and to the internet',
+    category: 'network',
+  },
+  {
     kind: 'settings',
     descId: 'Preferensi sistem, port daemon, dan keamanan',
     descEn: 'System preferences, agent ports, and security',
