@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.6] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.6** berisi 1 perubahan: 1 peningkatan. (4 files changed, 56 insertions(+), 45 deletions(-))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- Distinct hero buttons, lighter desktop taskbar, theme switch in the phone top bar, profile menu follows the access matrix ([`7327de5`](https://github.com/friskipradana/y-panel/commit/7327de5))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.5...v4.6.6
+
 ## [4.6.5] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
