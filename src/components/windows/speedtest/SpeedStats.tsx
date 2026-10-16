@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Activity, ArrowDown, ArrowUp, Timer } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { useI18n } from '@/lib/i18n'
 import type { SpeedLive } from '@/api/speedtest'
@@ -19,40 +20,84 @@ function Trace({ samples }: { samples: number[] }) {
   )
 }
 
+// Change against the previous test of the same kind, in percent
+function Delta({ percent }: { percent: number | null }) {
+  const { t } = useI18n()
+  if (percent === null || Math.abs(percent) < 1) return null
+  const up = percent > 0
+  return (
+    <Badge tone={up ? 'success' : 'warning'} title={t('speedtest.deltaHint')}>
+      {up ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
+      {Math.abs(percent).toFixed(0)}%
+    </Badge>
+  )
+}
+
 interface StatProps {
   icon: ReactNode
   label: string
   value: number | null
   unit: string
   active: boolean
+  tone?: 'upload'
   samples?: number[]
+  delta?: number | null
+  /** Teks pengganti angka, mis. server hanya melayani unduhan */
+  unavailable?: string
+  large?: boolean
 }
 
-function Stat({ icon, label, value, unit, active, samples }: StatProps) {
+function Stat({ icon, label, value, unit, active, tone, samples, delta, unavailable, large }: StatProps) {
   const shown = useAnimatedNumber(value ?? 0)
+  const classes = ['speed-stat', large ? 'speed-stat--large' : '', tone === 'upload' ? 'speed-stat--upload' : '', active ? 'speed-stat--active' : '']
   return (
-    <div className={`speed-stat ${active ? 'speed-stat--active' : ''}`}>
+    <div className={classes.filter(Boolean).join(' ')}>
       <IconBadge size="sm" tone={active ? 'primary' : 'neutral'}>{icon}</IconBadge>
       <div className="min-w-0">
         <div className="speed-stat__label">{label}</div>
-        <div className="speed-stat__value">
-          {value === null ? '-' : shown.toFixed(shown >= 100 ? 0 : 1)} <span className="speed-stat__unit">{unit}</span>
-        </div>
+        {unavailable ? (
+          <div className="speed-stat__hint">{unavailable}</div>
+        ) : (
+          <div className="speed-stat__value">
+            {value === null ? '-' : shown.toFixed(shown >= 100 ? 0 : 1)} <span className="speed-stat__unit">{unit}</span>
+          </div>
+        )}
       </div>
+      {delta !== undefined ? <Delta percent={delta} /> : null}
       {samples ? <Trace samples={samples} /> : null}
     </div>
   )
 }
 
+interface SpeedStatsProps {
+  live: SpeedLive
+  /** Perubahan unduh/unggah dibanding tes sebelumnya (persen) */
+  delta: { download: number | null; upload: number | null }
+  uploadAvailable: boolean
+}
+
 // The figures fill in as the test measures them; the active one is highlighted
-export function SpeedStats({ live }: { live: SpeedLive }) {
+export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
   const { t } = useI18n()
   return (
     <div className="flex flex-col gap-2">
-      <Stat icon={<ArrowDown />} label={t('speedtest.download')} value={live.downloadMbps} unit="Mbps" active={live.phase === 'download'} samples={live.downSamples} />
-      <Stat icon={<ArrowUp />} label={t('speedtest.upload')} value={live.uploadMbps} unit="Mbps" active={live.phase === 'upload'} samples={live.upSamples} />
-      <Stat icon={<Timer />} label={t('speedtest.latency')} value={live.latencyMs} unit="ms" active={live.phase === 'ping'} />
-      <Stat icon={<Activity />} label={t('speedtest.jitter')} value={live.jitterMs} unit="ms" active={false} />
+      <Stat large icon={<ArrowDown />} label={t('speedtest.download')} value={live.downloadMbps} unit="Mbps" active={live.phase === 'download'} samples={live.downSamples} delta={delta.download} />
+      <Stat
+        large
+        tone="upload"
+        icon={<ArrowUp />}
+        label={t('speedtest.upload')}
+        value={live.uploadMbps}
+        unit="Mbps"
+        active={live.phase === 'upload'}
+        samples={uploadAvailable ? live.upSamples : undefined}
+        delta={uploadAvailable ? delta.upload : undefined}
+        unavailable={uploadAvailable ? undefined : t('speedtest.downloadOnly')}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <Stat icon={<Timer />} label={t('speedtest.latency')} value={live.latencyMs} unit="ms" active={live.phase === 'ping'} />
+        <Stat icon={<Activity />} label={t('speedtest.jitter')} value={live.jitterMs} unit="ms" active={false} />
+      </div>
     </div>
   )
 }

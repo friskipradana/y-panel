@@ -11,6 +11,11 @@ export interface SpeedResult {
   at: number
   /** Hanya tes panel ke internet */
   server?: string
+  serverId?: string
+  /** Nama dan lokasi server yang dipakai */
+  serverName?: string
+  /** False bila server hanya melayani unduhan */
+  canUpload?: boolean
   durationMs?: number
   /** Tempat unduhan diukur bila bukan `server` */
   downloadServer?: string
@@ -232,7 +237,7 @@ interface ServerEvent {
 }
 
 // Panel <-> internet: the agent measures and streams one JSON line per update (superadmin only)
-export async function runServerSpeedtest(onLive: (live: SpeedLive) => void, signal: AbortSignal): Promise<SpeedResult> {
+export async function runServerSpeedtest(serverId: string, onLive: (live: SpeedLive) => void, signal: AbortSignal): Promise<SpeedResult> {
   let live: SpeedLive = { ...IDLE_LIVE, phase: 'ping' }
   const emit = (event: Parameters<typeof applyLive>[1]) => {
     live = applyLive(live, event)
@@ -241,7 +246,7 @@ export async function runServerSpeedtest(onLive: (live: SpeedLive) => void, sign
   emit({})
 
   const base = (import.meta.env.VITE_AGENT_BASE as string | undefined) ?? ''
-  const response = await fetch(`${base}/api/v1/speedtest/server`, { method: 'POST', credentials: 'include', signal })
+  const response = await fetch(`${base}/api/v1/speedtest/server?server=${encodeURIComponent(serverId)}`, { method: 'POST', credentials: 'include', signal })
   if (!response.ok || !response.body) {
     const body = await response.json().catch(() => null)
     throw new Error(body?.error ?? `HTTP ${response.status}`)
@@ -294,3 +299,14 @@ export async function runServerSpeedtest(onLive: (live: SpeedLive) => void, sign
   if (!result) throw new Error('the speed test ended without a result')
   return result
 }
+
+export interface SpeedServer {
+  id: string
+  name: string
+  location: string
+  host: string
+  canUpload: boolean
+}
+
+export const getSpeedServers = () =>
+  agentApi.get<{ servers: SpeedServer[] }>('/api/v1/speedtest/servers').then((r) => r.data.servers)

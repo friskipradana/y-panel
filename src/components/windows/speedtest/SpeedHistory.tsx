@@ -18,8 +18,9 @@ export function SpeedHistory({ items }: { items: HistoryItem[] }) {
             <Badge tone={item.kind === 'server' ? 'info' : 'neutral'}>
               {item.kind === 'server' ? t('speedtest.tab.server') : t('speedtest.tab.browser')}
             </Badge>
+            {item.kind === 'server' && item.server ? <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{item.server}</span> : null}
             <span className="panel-mono">
-              {t('speedtest.historyLine', { down: item.downloadMbps, up: item.uploadMbps, ping: item.latencyMs })}
+              {t('speedtest.historyLine', { down: item.downloadMbps, up: item.canUpload === false ? '-' : item.uploadMbps, ping: item.latencyMs })}
             </span>
             <span className="ml-auto text-[0.75rem] text-[var(--text-secondary)]">{formatDateTimeID(new Date(item.at))}</span>
           </li>

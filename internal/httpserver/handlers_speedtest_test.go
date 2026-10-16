@@ -79,3 +79,22 @@ func TestMeasureSpeedDownloadReportsRefusal(t *testing.T) {
 		t.Fatalf("a refused download must report 0 and the status, got %v %q", mbps, note)
 	}
 }
+
+func TestResolveSpeedServers(t *testing.T) {
+	all, ok := resolveSpeedServers("")
+	if !ok || len(all) < 2 || all[0].ID != "cloudflare" {
+		t.Fatalf("auto must list every server, Cloudflare first: %v %v", ok, all)
+	}
+	one, ok := resolveSpeedServers("tele2")
+	if !ok || len(one) != 1 || !one[0].canUpload() {
+		t.Fatalf("tele2 must resolve alone and accept uploads: %v %+v", ok, one)
+	}
+	if _, ok := resolveSpeedServers("http://169.254.169.254/"); ok {
+		t.Fatal("an arbitrary address must not resolve to a server")
+	}
+	for _, server := range speedCatalog() {
+		if server.canUpload() == false && server.Host == "" {
+			t.Fatalf("server %s has no host", server.ID)
+		}
+	}
+}

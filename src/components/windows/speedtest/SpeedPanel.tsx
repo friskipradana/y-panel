@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Gauge, Play, Square, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
@@ -10,21 +11,31 @@ import { SpeedSteps } from './SpeedSteps'
 interface SpeedPanelProps {
   title: string
   subtitle: string
+  /** Pemilih server atau keterangan server, tampil di atas meter */
+  toolbar?: ReactNode
   live: SpeedLive
   result: SpeedResult | null
+  /** Hasil sebelumnya untuk perbandingan persen */
+  previous: SpeedResult | null
   running: boolean
+  /** False bila server yang dipilih hanya melayani unduhan */
+  uploadAvailable: boolean
   onStart: () => void
   onStop: () => void
 }
 
-// One test: meter and steps on the left, the four figures on the right, all live
-export function SpeedPanel({ title, subtitle, live, result, running, onStart, onStop }: SpeedPanelProps) {
+const change = (now: number | undefined, before: number | undefined) =>
+  now !== undefined && before !== undefined && before > 0 ? ((now - before) / before) * 100 : null
+
+// One test: meter and steps on the left, the figures on the right, all live
+export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, running, uploadAvailable, onStart, onStop }: SpeedPanelProps) {
   const { t } = useI18n()
   const measuring = live.phase === 'download' || live.phase === 'upload'
   const gaugeValue = measuring ? live.mbps : running ? 0 : (result?.downloadMbps ?? 0)
   const gaugeLabel = running ? t(`speedtest.phase.${live.phase}`) : result ? t('speedtest.phase.done') : t('speedtest.phase.idle')
   // after a run the figures stay on screen; before the first run they are empty
   const shown: SpeedLive = running || !result ? live : { ...live, phase: 'done', downloadMbps: result.downloadMbps, uploadMbps: result.uploadMbps, latencyMs: result.latencyMs, jitterMs: result.jitterMs }
+  const delta = running || !result ? { download: null, upload: null } : { download: change(result.downloadMbps, previous?.downloadMbps), upload: change(result.uploadMbps, previous?.uploadMbps) }
 
   return (
     <div className="panel-shell-card space-y-4 p-4">
@@ -45,12 +56,20 @@ export function SpeedPanel({ title, subtitle, live, result, running, onStart, on
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]" aria-live="off">
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
-          <SpeedGauge value={gaugeValue} label={gaugeLabel} active={running && measuring} scaleKey={live.phase} />
-          <SpeedSteps phase={shown.phase} />
+      {toolbar}
+
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]" aria-live="off">
+        <div className="speed-hero">
+          <SpeedGauge value={gaugeValue} label={gaugeLabel} active={running && measuring} scaleKey={live.phase} tone={live.phase === 'upload' ? 'upload' : 'download'} />
+          <SpeedSteps phase={shown.phase} upload={uploadAvailable} />
+          {result?.serverName && !running ? (
+            <p className="speed-hero__server">
+              {result.serverName}
+              <span className="panel-mono">{result.server}</span>
+            </p>
+          ) : null}
         </div>
-        <SpeedStats live={shown} />
+        <SpeedStats live={shown} delta={delta} uploadAvailable={uploadAvailable} />
       </div>
 
       {!running && (result?.notes?.length || result?.downloadServer) ? (

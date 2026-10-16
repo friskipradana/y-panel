@@ -1,8 +1,16 @@
 // Speed test
 .speed-gauge {
+  --speed-accent: var(--panel-primary-solid);
   position: relative;
   width: 100%;
-  max-width: 240px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.speed-gauge--upload {
+  --speed-accent: var(--panel-info-text);
 }
 
 .speed-gauge__svg {
@@ -23,12 +31,20 @@
 }
 
 .speed-gauge__value {
-  stroke: var(--panel-primary-solid);
-  transition: stroke-dashoffset 180ms linear;
+  stroke: var(--speed-accent);
+  transition: stroke-dashoffset 180ms linear, stroke 200ms ease;
 }
 
-.speed-gauge__value--live {
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--panel-primary-solid) 45%, transparent));
+.speed-gauge__marker {
+  fill: var(--win-content-bg);
+  stroke: var(--speed-accent);
+  stroke-width: 3;
+}
+
+.speed-gauge__tick-line {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  opacity: 0.6;
 }
 
 .speed-gauge__tick {
@@ -41,35 +57,82 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 14px;
+  top: 52%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 .speed-gauge__number {
   font-family: var(--font-mono);
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .speed-gauge__unit {
+  margin-top: 2px;
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
 .speed-gauge__label {
-  margin-top: 4px;
+  margin-top: -6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--speed-accent);
+  text-align: center;
+}
+
+.speed-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+}
+
+.speed-hero__server {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding-top: 10px;
+  width: 100%;
+  border-top: 1px solid var(--win-border);
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--panel-primary-text);
+  text-align: center;
+}
+
+.speed-hero__server .panel-mono {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.speed-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.speed-picker__host {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .speed-steps {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -116,6 +179,7 @@
 }
 
 .speed-stat {
+  --speed-accent: var(--panel-primary-solid);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -127,22 +191,41 @@
   transition: border-color 160ms ease, background 160ms ease;
 }
 
+.speed-stat--upload {
+  --speed-accent: var(--panel-info-text);
+}
+
+.speed-stat--large {
+  min-height: 72px;
+  padding: 10px 14px;
+}
+
 .speed-stat--active {
-  border-color: var(--panel-primary-text);
-  background: var(--panel-primary-bg);
+  border-color: var(--speed-accent);
+  background: color-mix(in srgb, var(--speed-accent) 8%, var(--panel-surface));
 }
 
 .speed-stat__label {
   font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-secondary);
 }
 
 .speed-stat__value {
   font-family: var(--font-mono);
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
+}
+
+.speed-stat--large .speed-stat__value {
+  font-size: 1.5rem;
+}
+
+.speed-stat__hint {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
 }
 
 .speed-stat__unit {
@@ -155,18 +238,18 @@
   display: block;
   flex: 1;
   min-width: 48px;
-  max-width: 160px;
-  height: 30px;
+  max-width: 180px;
+  height: 36px;
   margin-left: auto;
 }
 
 .speed-stat__area {
-  fill: color-mix(in srgb, var(--panel-primary-solid) 18%, transparent);
+  fill: color-mix(in srgb, var(--speed-accent) 16%, transparent);
 }
 
 .speed-stat__line {
   fill: none;
-  stroke: var(--panel-primary-solid);
+  stroke: var(--speed-accent);
   stroke-width: 1.5;
   stroke-linejoin: round;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IDLE_LIVE, runBrowserSpeedtest, runServerSpeedtest, type SpeedLive, type SpeedResult } from '@/api/speedtest'
+import { useQuery } from '@tanstack/react-query'
+import { getSpeedServers, IDLE_LIVE, runBrowserSpeedtest, runServerSpeedtest, type SpeedLive, type SpeedResult } from '@/api/speedtest'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
@@ -18,6 +19,8 @@ export interface SpeedRunState {
   stop: () => void
 }
 
+const SERVER_KEY = 'reneo-speedtest-server'
+const DEFAULT_SERVER = 'auto'
 const HISTORY_KEY = 'reneo-speedtest-history'
 const HISTORY_MAX = 8
 
@@ -27,6 +30,14 @@ function loadHistory(): HistoryItem[] {
     return Array.isArray(parsed) ? parsed.slice(0, HISTORY_MAX) : []
   } catch {
     return []
+  }
+}
+
+function loadServer(): string {
+  try {
+    return window.localStorage.getItem(SERVER_KEY) || DEFAULT_SERVER
+  } catch {
+    return DEFAULT_SERVER
   }
 }
 
@@ -87,6 +98,19 @@ export function useSpeedtestWindow() {
   const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
   const [tab, setTab] = useState<SpeedTab>('browser')
   const [history, setHistory] = useState<HistoryItem[]>(loadHistory)
+  const [serverId, setServerIdState] = useState(loadServer)
+
+  const servers = useQuery({ queryKey: ['speedtest-servers'], queryFn: getSpeedServers, enabled: isSuperadmin, staleTime: Infinity })
+  const selected = servers.data?.find((item) => item.id === serverId) ?? servers.data?.[0] ?? null
+
+  const setServerId = useCallback((id: string) => {
+    setServerIdState(id)
+    try {
+      window.localStorage.setItem(SERVER_KEY, id)
+    } catch {
+      // the choice is only remembered for next time
+    }
+  }, [])
 
   const remember = useCallback((item: HistoryItem) => {
     setHistory((current) => {
@@ -97,9 +121,10 @@ export function useSpeedtestWindow() {
   }, [])
 
   const browser = useRunner('browser', runBrowserSpeedtest, remember, t('speedtest.failedBrowser'))
-  const server = useRunner('server', runServerSpeedtest, remember, t('speedtest.failedServer'))
+  const runServer = useCallback((onLive: (live: SpeedLive) => void, signal: AbortSignal) => runServerSpeedtest(selected?.id ?? serverId, onLive, signal), [selected?.id, serverId])
+  const server = useRunner('server', runServer, remember, t('speedtest.failedServer'))
 
-  return { isSuperadmin, tab, setTab, browser, server, history }
+  return { isSuperadmin, tab, setTab, browser, server, history, servers, selected, setServerId }
 }
 
 export type SpeedtestWindowState = ReturnType<typeof useSpeedtestWindow>
