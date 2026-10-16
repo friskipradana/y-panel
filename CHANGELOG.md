@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.16] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.16** berisi 1 perubahan: 1 fitur. (18 files changed, 542 insertions(+), 99 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **speedtest:** Choose the measurement server, browser style User-Agent for speed hosts, redesigned meter with ticks and marker, big download and upload tiles with change against the previous test ([`eda9711`](https://github.com/friskipradana/y-panel/commit/eda9711))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.15...v4.6.16
+
 ## [4.6.15] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
