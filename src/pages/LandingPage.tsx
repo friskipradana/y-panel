@@ -20,7 +20,6 @@ import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
 import { CopyBlock } from '@/components/public/CopyBlock'
-import { DemoAccess } from '@/pages/landing/DemoAccess'
 import { Button } from '@/components/ui/Button'
 import { useQuery } from '@tanstack/react-query'
 import { getDemoInfo } from '@/api/agent'
@@ -117,9 +116,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <DesktopShowcase />
           <p className="mt-2 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.preview.caption')}</p>
         </section>
-
         {/* Modules: one table instead of a grid of identical cards */}
-        <DemoAccess onNavigate={onNavigate} />
 
         <section className="mt-14" aria-labelledby="landing-modules">
           <h2 id="landing-modules" className="text-xl font-bold tracking-tight sm:text-2xl">
