@@ -112,9 +112,20 @@ export function forgetWidgetHeight(id: string) {
   measuredHeights.delete(id)
 }
 
-export function widgetHeightOf(w: { id: string; type: WidgetType }): number {
+// A size the user set wins; otherwise the measured resting height, then the nominal one
+export function widgetHeightOf(w: { id: string; type: WidgetType; h?: number }): number {
+  if (w.h && w.h > 0) return w.h
   return measuredHeights.get(w.id) ?? WIDGET_HEIGHTS[w.type] ?? 165
 }
+
+export function widgetWidthOf(w: { w?: number }): number {
+  return w.w && w.w > 0 ? w.w : WIDGET_WIDTH
+}
+
+export const WIDGET_MIN_WIDTH = 200
+export const WIDGET_MIN_HEIGHT = 96
+export const WIDGET_MAX_WIDTH = 720
+export const WIDGET_MAX_HEIGHT = 760
 
 // Re-run the overlap cleanup shortly after sizes settle (many widgets report at once)
 export function scheduleLayoutSettle() {
@@ -225,7 +236,7 @@ export function snapWidgetPosition(
 
   for (const other of sameColWidgets) {
     const otherH = widgetHeightOf(other)
-    const thisH = widgetHeightOf({ id: draggedId, type: draggedType })
+    const thisH = widgetHeightOf(allWidgets.find((w) => w.id === draggedId) ?? { id: draggedId, type: draggedType })
 
     // Gap 15px below 'other'
     const targetBelowY = other.y + otherH + WIDGET_GAP
@@ -246,10 +257,10 @@ export function snapWidgetPosition(
 }
 
 
-function overlapsWidget(x: number, y: number, height: number, other: PlacedWidget) {
+function overlapsWidget(x: number, y: number, width: number, height: number, other: PlacedWidget) {
   return (
-    x < other.x + WIDGET_WIDTH + 2 &&
-    x + WIDGET_WIDTH + 2 > other.x &&
+    x < other.x + widgetWidthOf(other) + 2 &&
+    x + width + 2 > other.x &&
     y < other.y + widgetHeightOf(other) + 2 &&
     y + height + 2 > other.y
   )
@@ -267,16 +278,18 @@ export function resolveWidgetOverlap(
 ): { x: number; y: number } {
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
-  const height = widgetHeightOf({ id, type })
+  const self = all.find((w) => w.id === id)
+  const height = widgetHeightOf(self ?? { id, type })
+  const width = widgetWidthOf(self ?? {})
   const minX = 12
-  const maxX = Math.max(minX, screenW - WIDGET_WIDTH - 12)
+  const maxX = Math.max(minX, screenW - width - 12)
   const minY = WIDGET_TOP
   const maxY = Math.max(minY, screenH - height - 24)
 
   const clampX = (v: number) => Math.min(Math.max(v, minX), maxX)
   const clampY = (v: number) => Math.min(Math.max(v, minY), maxY)
   const others = all.filter((w) => w.id !== id)
-  const free = (cx: number, cy: number) => !others.some((w) => overlapsWidget(cx, cy, height, w))
+  const free = (cx: number, cy: number) => !others.some((w) => overlapsWidget(cx, cy, width, height, w))
 
   const wantedX = clampX(x)
   const wantedY = clampY(y)
@@ -292,10 +305,10 @@ export function resolveWidgetOverlap(
       { x: wantedX, y: above },
       { x: w.x, y: below },
       { x: w.x, y: above },
-      { x: w.x - WIDGET_WIDTH - WIDGET_GAP, y: wantedY },
-      { x: w.x + WIDGET_WIDTH + WIDGET_GAP, y: wantedY },
-      { x: w.x - WIDGET_WIDTH - WIDGET_GAP, y: w.y },
-      { x: w.x + WIDGET_WIDTH + WIDGET_GAP, y: w.y }
+      { x: w.x - width - WIDGET_GAP, y: wantedY },
+      { x: w.x + widgetWidthOf(w) + WIDGET_GAP, y: wantedY },
+      { x: w.x - width - WIDGET_GAP, y: w.y },
+      { x: w.x + widgetWidthOf(w) + WIDGET_GAP, y: w.y }
     )
   }
 
@@ -314,6 +327,80 @@ export function resolveWidgetOverlap(
   // No free spot on this screen: keep the wanted position instead of jumping elsewhere
   const spot = best ?? { x: wantedX, y: wantedY }
   return { x: Math.round(spot.x), y: Math.round(spot.y) }
+}
+
+// Where a dragged widget lands. Deliberately plain so it never surprises:
+//  1. a light alignment to a neighbour's edge, but only if that spot is free;
+//  2. if the drop overlaps something, move the smallest distance that clears every widget;
+//  3. if nothing nearby is free, the widget goes back to where it was picked up.
+export function placeDroppedWidget(
+  id: string,
+  type: WidgetType,
+  rawX: number,
+  rawY: number,
+  all: PlacedWidget[],
+  original: { x: number; y: number },
+): { x: number; y: number } {
+  const screenW = typeof window !== 'undefined' ? window.innerWidth : 1280
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800
+  const self = all.find((w) => w.id === id)
+  const width = widgetWidthOf(self ?? {})
+  const height = widgetHeightOf(self ?? { id, type })
+  const others = all.filter((w) => w.id !== id)
+  const minX = 12
+  const maxX = Math.max(minX, screenW - width - 12)
+  const minY = WIDGET_TOP
+  const maxY = Math.max(minY, screenH - height - 24)
+  const inside = (x: number, y: number) => x >= minX && x <= maxX && y >= minY && y <= maxY
+  const free = (x: number, y: number) => !others.some((w) => overlapsWidget(x, y, width, height, w))
+  const clampX = (v: number) => Math.min(Math.max(v, minX), maxX)
+  const clampY = (v: number) => Math.min(Math.max(v, minY), maxY)
+
+  let x = clampX(rawX)
+  let y = clampY(rawY)
+
+  // 1. alignment: within a few pixels only, and never into an occupied spot
+  const ALIGN = 8
+  let ax = x
+  let ay = y
+  for (const o of others) {
+    if (Math.abs(x - o.x) <= ALIGN) ax = o.x
+    const belowY = o.y + widgetHeightOf(o) + WIDGET_GAP
+    if (Math.abs(y - belowY) <= ALIGN) ay = belowY
+    if (Math.abs(y - o.y) <= ALIGN) ay = o.y
+  }
+  if (free(ax, ay) && inside(ax, ay)) {
+    x = ax
+    y = ay
+  }
+
+  if (free(x, y)) return { x: Math.round(x), y: Math.round(y) }
+
+  // 2. the smallest move that clears the widgets in the way
+  const candidates: Array<{ x: number; y: number }> = []
+  for (const o of others) {
+    if (!overlapsWidget(x, y, width, height, o)) continue
+    candidates.push(
+      { x, y: o.y + widgetHeightOf(o) + WIDGET_GAP },
+      { x, y: o.y - height - WIDGET_GAP },
+      { x: o.x + widgetWidthOf(o) + WIDGET_GAP, y },
+      { x: o.x - width - WIDGET_GAP, y },
+    )
+  }
+  let best: { x: number; y: number } | null = null
+  let bestDist = Infinity
+  for (const c of candidates) {
+    if (!inside(c.x, c.y) || !free(c.x, c.y)) continue
+    const dist = (c.x - x) ** 2 + (c.y - y) ** 2
+    if (dist < bestDist) {
+      bestDist = dist
+      best = c
+    }
+  }
+  if (best) return { x: Math.round(best.x), y: Math.round(best.y) }
+
+  // 3. nothing close is free: back where it came from
+  return { x: Math.round(original.x), y: Math.round(original.y) }
 }
 
 // Non-destructive cleanup for stored layouts: keeps every widget where the user put it and
@@ -338,7 +425,7 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
     const x = Math.max(w.x, 12)
     let y = Math.max(w.y, WIDGET_TOP)
     for (let guard = 0; guard < 20; guard++) {
-      const blocker = placed.find((o) => overlapsWidget(x, y, height, o))
+      const blocker = placed.find((o) => overlapsWidget(x, y, widgetWidthOf(w), height, o))
       if (!blocker) break
       y = blocker.y + widgetHeightOf(blocker) + WIDGET_GAP
     }
@@ -412,6 +499,7 @@ interface WidgetState {
   addWidget: (type: WidgetType, pos?: { x: number; y: number }) => string
   removeWidget: (id: string) => void
   updateWidgetPosition: (id: string, x: number, y: number) => void
+  resizeWidget: (id: string, rect: { x: number; y: number; w: number; h: number }) => void
   toggleWidgetLock: (id: string) => void
   resetToDefault: () => void
   resetLayout: () => void
@@ -511,6 +599,22 @@ export const useWidgetStore = create<WidgetState>()(
         set((state) => ({
           placedWidgets: state.placedWidgets.map((w) =>
             w.id === id ? { ...w, x: Math.round(x), y: Math.round(y) } : w
+          ),
+        }))
+      },
+
+      resizeWidget: (id, rect) => {
+        set((state) => ({
+          placedWidgets: state.placedWidgets.map((w) =>
+            w.id === id && !w.isLocked
+              ? {
+                  ...w,
+                  x: Math.round(rect.x),
+                  y: Math.round(rect.y),
+                  w: Math.round(Math.min(WIDGET_MAX_WIDTH, Math.max(WIDGET_MIN_WIDTH, rect.w))),
+                  h: Math.round(Math.min(WIDGET_MAX_HEIGHT, Math.max(WIDGET_MIN_HEIGHT, rect.h))),
+                }
+              : w,
           ),
         }))
       },

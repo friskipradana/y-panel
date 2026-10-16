@@ -85,6 +85,8 @@ Pendukung: `LineChart` + `RangeSwitch` (grafik garis dengan tooltip dan celah da
 
 Chrome widget (judul, grip, kunci, tutup) hanya muncul saat hover/fokus dan melayang di tepi atas, tidak menggeser isi. Isi widget memakai container query (`@[260px]:`) karena lebar widget mengikuti viewport (maks 280px).
 
+Ukuran: widget desktop dapat diubah lebar dan tingginya lewat delapan pegangan tepi/sudut seperti window (`w`, `h` pada `PlacedWidget`; batas 200x96 sampai 720x760, tidak untuk widget terkunci; ukuran yang menimpa widget lain ditolak). Penempatan setelah geser memakai `placeDroppedWidget`: perataan ringan 8px, geser minimum keluar dari tumpang tindih, atau kembali ke posisi semula; tidak pernah melompat ke kolom lain. `widget.config.notes` pada `quick-note` berisi daftar memo (JSON).
+
 Utilitas scrollbar: `.custom-widget-scrollbar` (`tailwind.css`).
 
 ## 5. Class Bersama (`.panel-*`)

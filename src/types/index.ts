@@ -33,6 +33,9 @@ export interface PlacedWidget {
   x: number
   y: number
   isLocked?: boolean
+  /** Ukuran yang diatur pengguna (px); kosong = ukuran bawaan widget */
+  w?: number
+  h?: number
   /** Pengaturan per-widget (host ping, rentang grafik, mode tampilan) */
   config?: WidgetConfig
 }

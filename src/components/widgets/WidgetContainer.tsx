@@ -4,15 +4,18 @@ import { GripVertical, Lock, Unlock, X } from 'lucide-react'
 import type { PlacedWidget } from '@/types'
 import {
   forgetWidgetHeight,
+  placeDroppedWidget,
   reportWidgetHeight,
-  resolveWidgetOverlap,
   scheduleLayoutSettle,
-  snapWidgetPosition,
   useWidgetStore,
   widgetHeightOf,
+  widgetWidthOf,
   WIDGET_HEIGHTS,
+  WIDGET_MAX_HEIGHT,
+  WIDGET_MAX_WIDTH,
+  WIDGET_MIN_HEIGHT,
+  WIDGET_MIN_WIDTH,
   WIDGET_TOP,
-  WIDGET_WIDTH,
 } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
@@ -43,6 +46,19 @@ export const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType
 
 const EDGE = 12
 const TOP_MIN = WIDGET_TOP // below the taskbar
+
+// Resize handles, like the window frame: edges and corners
+type HandleDir = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+const HANDLES: Array<{ dir: HandleDir; className: string }> = [
+  { dir: 'n', className: 'left-2 right-2 top-0 h-1.5 cursor-ns-resize' },
+  { dir: 's', className: 'bottom-0 left-2 right-2 h-1.5 cursor-ns-resize' },
+  { dir: 'e', className: 'bottom-2 right-0 top-2 w-1.5 cursor-ew-resize' },
+  { dir: 'w', className: 'bottom-2 left-0 top-2 w-1.5 cursor-ew-resize' },
+  { dir: 'ne', className: 'right-0 top-0 h-3 w-3 cursor-nesw-resize' },
+  { dir: 'nw', className: 'left-0 top-0 h-3 w-3 cursor-nwse-resize' },
+  { dir: 'se', className: 'bottom-0 right-0 h-3 w-3 cursor-nwse-resize' },
+  { dir: 'sw', className: 'bottom-0 left-0 h-3 w-3 cursor-nesw-resize' },
+]
 
 function useViewport() {
   const [size, setSize] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }))
@@ -84,8 +100,9 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   }, [widget.id])
 
   // Width follows the viewport on narrow screens; position is kept inside it
-  const width = Math.min(WIDGET_WIDTH, viewport.w - EDGE * 2)
+  const width = Math.min(widgetWidthOf(widget), viewport.w - EDGE * 2)
   const height = widgetHeightOf(widget)
+  const resizeWidget = useWidgetStore((s) => s.resizeWidget)
   const left = Math.max(EDGE, Math.min(widget.x, viewport.w - width - EDGE))
   const top = Math.max(TOP_MIN, Math.min(widget.y, viewport.h - height - 24))
 
@@ -144,9 +161,9 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
 
+      // light alignment, the smallest move out of an overlap, or back to where it was picked up
       const allWidgets = useWidgetStore.getState().placedWidgets
-      const wanted = snapWidgetPosition(widget.id, widget.type, latestX, latestY, allWidgets)
-      const snapped = resolveWidgetOverlap(widget.id, widget.type, wanted.x, wanted.y, allWidgets)
+      const snapped = placeDroppedWidget(widget.id, widget.type, latestX, latestY, allWidgets, { x: widget.x, y: widget.y })
 
       if (containerRef.current) {
         containerRef.current.style.left = `${snapped.x}px`
@@ -161,6 +178,75 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     window.addEventListener('pointercancel', onPointerUp)
   }
 
+  const handleResizeStart = (dir: HandleDir, e: React.PointerEvent<HTMLDivElement>) => {
+    if (widget.isLocked || e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const card = containerRef.current
+    if (!card) return
+
+    const start = { x: e.clientX, y: e.clientY, left, top, w: width, h: height }
+    const others = useWidgetStore.getState().placedWidgets.filter((w) => w.id !== widget.id)
+    let rect = { x: left, y: top, w: width, h: height }
+    setIsDragging(true)
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - start.x
+      const dy = ev.clientY - start.y
+      let { left: nx, top: ny, w: nw, h: nh } = start
+      if (dir.includes('e')) nw = start.w + dx
+      if (dir.includes('s')) nh = start.h + dy
+      if (dir.includes('w')) {
+        nw = start.w - dx
+        nx = start.left + dx
+      }
+      if (dir.includes('n')) {
+        nh = start.h - dy
+        ny = start.top + dy
+      }
+      // sizes stay inside the limits; the edge opposite the handle holds still
+      const cw = Math.min(WIDGET_MAX_WIDTH, Math.max(WIDGET_MIN_WIDTH, nw))
+      const ch = Math.min(WIDGET_MAX_HEIGHT, Math.max(WIDGET_MIN_HEIGHT, nh))
+      if (dir.includes('w')) nx = start.left + (start.w - cw)
+      if (dir.includes('n')) ny = start.top + (start.h - ch)
+      nx = Math.max(EDGE, Math.min(nx, viewport.w - cw - EDGE))
+      ny = Math.max(TOP_MIN, ny)
+      rect = { x: nx, y: ny, w: cw, h: ch }
+      card.style.left = `${nx}px`
+      card.style.top = `${ny}px`
+      card.style.width = `${cw}px`
+      card.style.height = `${ch}px`
+    }
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+      setIsDragging(false)
+      // a size that would land on another widget is refused: the card returns to its old size
+      const overlaps = others.some(
+        (o) =>
+          rect.x < o.x + widgetWidthOf(o) + 2 &&
+          rect.x + rect.w + 2 > o.x &&
+          rect.y < o.y + widgetHeightOf(o) + 2 &&
+          rect.y + rect.h + 2 > o.y,
+      )
+      if (overlaps) {
+        card.style.left = `${start.left}px`
+        card.style.top = `${start.top}px`
+        card.style.width = `${start.w}px`
+        card.style.height = `${start.h}px`
+        return
+      }
+      resizeWidget(widget.id, rect)
+      scheduleLayoutSettle()
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+  }
+
   if (!Component) return null
 
   return (
@@ -172,7 +258,8 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         left,
         top,
         width,
-        minHeight: WIDGET_HEIGHTS[widget.type] || 165,
+        // a size set by the user is exact; otherwise the card is as tall as its content needs
+        ...(widget.h ? { height: widget.h, minHeight: WIDGET_MIN_HEIGHT } : { minHeight: WIDGET_HEIGHTS[widget.type] || 165 }),
         background,
         color: 'var(--win-text)',
         boxShadow: isDragging ? 'var(--widget-shadow-hover)' : 'var(--widget-shadow)',
@@ -229,9 +316,20 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className={`flex min-h-0 flex-1 flex-col ${widget.h ? 'overflow-hidden' : ''}`}>
         <Component widget={widget} />
       </div>
+
+      {!widget.isLocked
+        ? HANDLES.map((h) => (
+            <div
+              key={h.dir}
+              aria-hidden="true"
+              onPointerDown={(e) => handleResizeStart(h.dir, e)}
+              className={`absolute z-10 ${h.className}`}
+            />
+          ))
+        : null}
     </motion.div>
   )
 }
