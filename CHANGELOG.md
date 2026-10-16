@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.17] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.17** berisi 1 perubahan: 1 perbaikan. (6 files changed, 147 insertions(+), 30 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **speedtest:** Download keeps trying the next host when one measures nothing, retries dropped connections, real dial/handshake timeouts and proxy support, explains HTTP 429 rate limits ([`d4d1eb1`](https://github.com/friskipradana/y-panel/commit/d4d1eb1))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.16...v4.6.17
+
 ## [4.6.16] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
