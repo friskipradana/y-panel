@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.3] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.3** berisi 1 perubahan: 1 perbaikan. (3 files changed, 15 insertions(+), 19 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **ui:** Applications menu, dock and update check follow the account access matrix instead of the old admin-only flags ([`a2cc655`](https://github.com/friskipradana/y-panel/commit/a2cc655))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.2...v4.6.3
+
 ## [4.6.2] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
