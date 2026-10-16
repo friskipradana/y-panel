@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { ArrowUpCircle, Bell, CheckCheck, Monitor, Moon, RotateCcw, ScrollText, Search, Sun, Database } from 'lucide-react'
+import { ArrowUpCircle, Bell, CheckCheck, Moon, Search, Sun } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMeV2, listNotifications, logoutAgent, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
@@ -44,7 +44,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
   const queryClient = useQueryClient()
   const { toggleCommandPalette } = useCommandStore()
 
-  const { openWindow, resetWindows } = useWindowStore()
+  const { openWindow } = useWindowStore()
   const [time, setTime] = useState('')
   const [loggingOut, setLoggingOut] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -343,22 +343,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             <ArrowUpCircle size={14} className="animate-pulse" />
           </button>
         )}
-
-        <button id="taskbar-monitor" title={t('window.system')} className="taskbar-icon-btn" onClick={() => openWindow('system')}>
-          <Monitor size={14} />
-        </button>
-
-        <button id="taskbar-database" title={t('window.database')} className="taskbar-icon-btn" onClick={() => openWindow('database')}>
-          <Database size={14} />
-        </button>
-
-        <button id="taskbar-system-log" title={t('window.system-logs')} className="taskbar-icon-btn" onClick={() => openWindow('system-logs')}>
-          <ScrollText size={14} />
-        </button>
-
-        <button id="taskbar-reset-windows" title={t('taskbar.resetWindows')} className="taskbar-icon-btn" onClick={resetWindows}>
-          <RotateCcw size={12} />
-        </button>
 
         <button
           id="taskbar-theme-toggle"

@@ -6,11 +6,13 @@ import {
   FileText,
   Lock,
   LogOut,
+  RotateCcw,
   Settings,
   User,
   Users,
   HelpCircle,
 } from 'lucide-react'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import { getMeV2 } from '@/api/agent'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
@@ -29,6 +31,7 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const openWindow = useWindowStore((s) => s.openWindow)
+  const resetWindows = useWindowStore((s) => s.resetWindows)
   const setIsLocked = useThemeStore((s) => s.setIsLocked)
   const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
 
@@ -108,22 +111,24 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <span className="flex-1 font-medium">{t('profile.accountProfile')}</span>
             </button>
 
-            <button
-              type="button"
-              className="profile-menu-btn"
-              onClick={() => {
-                setOpen(false)
-                openWindow('users')
-              }}
-            >
-              <span className="w-4 h-4 flex items-center justify-center shrink-0 text-[var(--panel-primary-text)] opacity-90">
-                <Users size={15} />
-              </span>
-              <span className="flex-1 font-medium">{t('profile.manageUsers')}</span>
-              <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-[var(--panel-surface-hover)] border border-[var(--win-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]">
-                {isSuperadmin ? 'Superadmin' : 'Admin'}
-              </span>
-            </button>
+            {canAccessWindow('users', me?.role) ? (
+              <button
+                type="button"
+                className="profile-menu-btn"
+                onClick={() => {
+                  setOpen(false)
+                  openWindow('users')
+                }}
+              >
+                <span className="w-4 h-4 flex items-center justify-center shrink-0 text-[var(--panel-primary-text)] opacity-90">
+                  <Users size={15} />
+                </span>
+                <span className="flex-1 font-medium">{t('profile.manageUsers')}</span>
+                <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-[var(--panel-surface-hover)] border border-[var(--win-border)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]">
+                  {isSuperadmin ? 'Superadmin' : 'Admin'}
+                </span>
+              </button>
+            ) : null}
           </div>
 
           {/* ── Section 2: Settings & Preferences, Activity Logs ── */}
@@ -142,23 +147,39 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
               <span className="flex-1 font-medium">{t('profile.settingsPreferences')}</span>
             </button>
 
+            {canAccessWindow('system-logs', me?.role) ? (
+              <button
+                type="button"
+                className="profile-menu-btn"
+                onClick={() => {
+                  setOpen(false)
+                  openWindow('system-logs')
+                }}
+              >
+                <span className="w-4 h-4 flex items-center justify-center shrink-0 opacity-80">
+                  <FileText size={15} />
+                </span>
+                <span className="flex-1 font-medium">{t('profile.activityLogs')}</span>
+              </button>
+            ) : null}
+          </div>
+
+          {/* ── Section 3: Lock Screen & Logout ── */}
+          <div className="profile-menu-section space-y-1">
             <button
               type="button"
               className="profile-menu-btn"
               onClick={() => {
                 setOpen(false)
-                openWindow('system-logs')
+                resetWindows()
               }}
             >
               <span className="w-4 h-4 flex items-center justify-center shrink-0 opacity-80">
-                <FileText size={15} />
+                <RotateCcw size={14} />
               </span>
-              <span className="flex-1 font-medium">{t('profile.activityLogs')}</span>
+              <span className="flex-1 font-medium">{t('taskbar.resetWindows')}</span>
             </button>
-          </div>
 
-          {/* ── Section 3: Lock Screen & Logout ── */}
-          <div className="profile-menu-section space-y-1">
             <button
               type="button"
               className="profile-menu-btn"

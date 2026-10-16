@@ -50,9 +50,9 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
-// Both secondary hero actions share one look: outlined, same height, same icon colour
 const HERO_ACTION = '!h-11 w-full justify-center !px-4'
-const HERO_SECONDARY = 'border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)]'
+// Login is solid blue, the demo is a tinted blue with its own edge, the installer is a neutral outline
+const HERO_TINT = 'border border-[color-mix(in_srgb,var(--panel-primary-text)_32%,transparent)]'
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
@@ -78,14 +78,14 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               <ArrowRight size={15} />
             </Button>
             {!authenticated && demo?.enabled ? (
-              <Button onClick={() => onNavigate('/login?demo=1')} className={`${HERO_ACTION} ${HERO_SECONDARY}`}>
+              <Button variant="primary-soft" onClick={() => onNavigate('/login?demo=1')} className={`${HERO_ACTION} ${HERO_TINT}`}>
                 <Eye size={15} />
                 <span>{t('landing.demo.heroCta')}</span>
               </Button>
             ) : null}
             <a
               href={INSTALLER_URL}
-              className={`panel-btn ${HERO_ACTION} ${HERO_SECONDARY} ${!authenticated && demo?.enabled ? 'col-span-2' : ''}`}
+              className={`panel-btn panel-btn--outline ${HERO_ACTION} ${!authenticated && demo?.enabled ? 'col-span-2' : ''}`}
             >
               <Download size={15} />
               <span>{t('landing.downloadInstaller')}</span>

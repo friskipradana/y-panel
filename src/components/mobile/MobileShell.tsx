@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { ChevronLeft, Home, Layers, Lock, LogOut, Monitor, Search, User, X } from 'lucide-react'
+import { ChevronLeft, Home, Layers, Lock, LogOut, Monitor, Moon, Search, Sun, User, X } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { InnerAlert } from '@/components/alert/GlobalAlert'
 import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
@@ -140,6 +140,12 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-lg" />
               <span className="text-[0.9375rem] font-bold tracking-tight">Reneo</span>
             </span>
+            <IconButton
+              label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
+              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+            >
+              {themeMode === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </IconButton>
             <IconButton label={t('mobile.search')} onClick={openPalette}>
               <Search className="h-5 w-5" />
             </IconButton>
