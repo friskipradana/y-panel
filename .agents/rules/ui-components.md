@@ -23,7 +23,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `IconBadge` | `IconBadge.tsx` | Satu-satunya kotak ikon | `children`, `size` sm/md/lg, `tone` |
 | `SectionHeader` | `SectionHeader.tsx` | Ikon + judul + subjudul (+ aksi) | `icon`, `title`, `subtitle?`, `tone?`, `size?`, `actions?` |
 | `SettingRow` | `SettingRow.tsx` | Baris pengaturan | `title`, `description?`, `control`, `icon?`, `children?` |
-| `Button` | `Button.tsx` | Tombol teks | `variant` default/primary/primary-soft/ghost/danger/danger-soft, `loading`, `icon` |
+| `Button` | `Button.tsx` | Tombol teks | `variant` default/primary/primary-soft/ghost/outline/danger/danger-soft, `loading`, `icon` |
 | `IconButton` | `IconButton.tsx` | Tombol hanya ikon | `label` (wajib), `tone` |
 | `Badge` | `Badge.tsx` | Status singkat | `tone`, `dot` |
 | `ToggleSwitch` | `ToggleSwitch.tsx` | Saklar on/off | `checked`, `onChange`, `label?`, `disabled?` |

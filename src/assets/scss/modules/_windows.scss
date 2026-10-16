@@ -250,6 +250,17 @@ button:focus-visible,
   color: var(--win-text);
 }
 
+// Outlined secondary action: dialogs, hero rows, anywhere a plain button must still read as a button
+.panel-btn--outline {
+  border-color: var(--win-border);
+  background: var(--panel-surface);
+  color: var(--win-text);
+}
+
+.panel-btn--outline:hover:not(:disabled) {
+  background: var(--panel-surface-hover);
+}
+
 .panel-btn--primary-soft {
   background: var(--panel-primary-bg);
   color: var(--panel-primary-text);
@@ -281,7 +292,6 @@ button:focus-visible,
 .panel-btn--danger {
   background: var(--panel-danger-solid);
   color: #ffffff;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--panel-danger-solid) 32%, transparent);
   border: none;
 }
 

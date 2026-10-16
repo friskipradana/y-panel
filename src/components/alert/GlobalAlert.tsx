@@ -93,7 +93,7 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.97, y: 8 }}
         transition={{ duration: 0.16, ease: [0.25, 1, 0.5, 1] }}
-        className="relative mx-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[25rem] overflow-y-auto rounded-2xl border border-[var(--win-border)] bg-[var(--win-bg)] p-5 text-[var(--win-text)] shadow-[var(--panel-card-shadow)] sm:mx-0 sm:w-full"
+        className="relative mx-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[26rem] overflow-y-auto rounded-2xl border border-[var(--win-border)] bg-[var(--win-content-bg)] p-5 text-[var(--win-text)] shadow-[var(--panel-card-shadow)] sm:mx-0 sm:w-full sm:p-6"
         style={{ zIndex: 999999 }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -105,7 +105,7 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
             <h3 id={titleId} className="text-[15px] font-bold leading-[22px]">
               {data.title}
             </h3>
-            <div id={bodyId} className="mt-1 break-words text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            <div id={bodyId} className="mt-1.5 space-y-2 break-words text-[13px] leading-relaxed text-[var(--text-secondary)]">
               {renderAlertText(data.description)}
             </div>
           </div>
@@ -114,7 +114,7 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
         {!busy ? (
           <div className="mt-5 flex flex-col-reverse gap-2 pb-[env(safe-area-inset-bottom)] sm:flex-row sm:justify-end">
             {isConfirm ? (
-              <Button ref={cancelRef} onClick={() => closeDialog(false)} className="min-h-11 w-full sm:min-h-0 sm:w-auto">
+              <Button ref={cancelRef} variant="outline" onClick={() => closeDialog(false)} className="min-h-11 w-full sm:min-h-9 sm:w-auto sm:px-4">
                 {data.cancelText || t('common.cancel')}
               </Button>
             ) : null}
@@ -122,7 +122,7 @@ function AlertBody({ data, closeDialog }: { data: AlertData; closeDialog: (val: 
               ref={primaryRef}
               variant={isConfirm && !asksQuestion ? 'danger' : 'primary'}
               onClick={() => closeDialog(true)}
-              className="min-h-11 w-full sm:min-h-0 sm:w-auto"
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto sm:px-4"
             >
               {data.confirmText || t('common.close')}
             </Button>
