@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getSystemHistory, getSystemSummary } from '@/api/system'
 import { acquireLiveSocket } from '@/lib/liveSocket'
+import { useAuthStore } from '@/store/authStore'
 import { SAMPLE_INTERVAL_MS, useMetricsStore } from '@/store/metricsStore'
 
 // One shared poll for every system widget (CPU, RAM, disk, network)
@@ -33,6 +34,8 @@ export function useSystemSampler() {
   useEffect(() => acquireLiveSocket(), [])
   const { data, dataUpdatedAt } = useSystemSummary()
   const prevNet = useRef<{ rx: number; tx: number; t: number } | null>(null)
+  // the recorded host history is the superadmin's; other accounts build their own series from the summary
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
 
   const history = useQuery({
     queryKey: ['system', 'history'],
@@ -45,6 +48,7 @@ export function useSystemSampler() {
     },
     refetchInterval: SAMPLE_INTERVAL_MS,
     retry: false,
+    enabled: isSuperadmin,
   })
   const serverHistory = history.isSuccess
 
