@@ -7,7 +7,7 @@ import type { DockerWindowState } from './useDockerWindow'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { TextInput } from '@/components/ui/Field'
+import { Textarea, TextInput } from '@/components/ui/Field'
 import { ListRow } from '@/components/ui/ListRow'
 import { Modal } from '@/components/ui/Modal'
 
@@ -69,7 +69,7 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
             </div>
             <div className="panel-field">
               <label className="panel-label">{t('docker.composeYaml')}</label>
-              <textarea className="panel-input docker-modal__yaml" rows={10} value={tplForm.yamlContent} onChange={(e) => setTplForm((f) => ({ ...f, yamlContent: e.target.value }))} />
+              <Textarea mono className="docker-modal__yaml" rows={10} value={tplForm.yamlContent} onChange={(e) => setTplForm((f) => ({ ...f, yamlContent: e.target.value }))} />
             </div>
         </Modal>
 

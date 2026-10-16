@@ -34,7 +34,7 @@ export function ProjectCard({
 }) {
   const { t } = useI18n()
   const runtimeLabel = p.runtime?.drift ? t('projects.runtimeDrift') : p.runtime?.known ? (p.runtime.running ? t('projects.runtimeActive') : t('projects.runtimeStopped')) : t('projects.runtimeUnknown')
-  const runtimeBadgeClass = p.runtime?.drift ? 'panel-badge--warning' : p.runtime?.running ? 'panel-badge--success' : 'panel-badge--neutral'
+  const runtimeTone = p.runtime?.drift ? 'warning' : p.runtime?.running ? 'success' : 'neutral'
   return (
     <div
       id={`project-card-${p.id}`}
@@ -52,9 +52,9 @@ export function ProjectCard({
         title={p.name}
         badges={
           <>
-        <span className={`panel-badge ${STATUS_PILL[p.status] ?? 'panel-badge--neutral'}`}>{p.status}</span>
+        <Badge tone={STATUS_PILL[p.status] ?? 'neutral'}>{p.status}</Badge>
         {p.spaFallback ? <Badge tone="info">SPA</Badge> : null}
-        <span className={`panel-badge ${runtimeBadgeClass}`}>{runtimeLabel}</span>
+        <Badge tone={runtimeTone}>{runtimeLabel}</Badge>
           </>
         }
         meta={

@@ -11,6 +11,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { TextInput } from '@/components/ui/Field'
 import { ListRow } from '@/components/ui/ListRow'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function ImagesTab({ docker }: { docker: DockerWindowState }) {
   const {
@@ -102,10 +103,11 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
                 <TextInput placeholder={t('docker.pullImagePlaceholder')} value={pullImageForm.image} onChange={(e) => setPullImageForm((c) => ({ ...c, image: e.target.value }))} />
               </div>
               <div className="docker-auth-block">
-                <label className="docker-save-tpl-check">
-                  <input type="checkbox" checked={pullImageForm.registryAuth.enabled} onChange={(e) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, enabled: e.target.checked } }))} />
-                  <span>{t('docker.useRegistryAuth')}</span>
-                </label>
+                <Checkbox
+                  checked={pullImageForm.registryAuth.enabled}
+                  onChange={(checked) => setPullImageForm((c) => ({ ...c, registryAuth: { ...c.registryAuth, enabled: checked } }))}
+                  label={t('docker.useRegistryAuth')}
+                />
                 {pullImageForm.registryAuth.enabled && (
                   <div className="docker-auth-grid">
                     <div className="panel-field">

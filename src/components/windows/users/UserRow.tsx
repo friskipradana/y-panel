@@ -12,7 +12,7 @@ import { alertLib } from '@/lib/alert'
 import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
-import { ROLE_SELECT_OPTIONS, ROLE_TONES, ROLE_VARIANTS, STATUS_VARIANTS } from '@/components/windows/users/constants'
+import { ROLE_SELECT_OPTIONS, ROLE_TONES, STATUS_TONES } from '@/components/windows/users/constants'
 
 const ROLE_ICON: Record<string, ReactElement> = {
   superadmin: <Crown className="h-3 w-3" />,
@@ -133,16 +133,16 @@ export function UserRow({
               {ROLE_ICON[user.role]} {user.role}
             </Badge>
           ) : (
-            <button
+            <Badge
+              tone={ROLE_TONES[user.role] ?? 'neutral'}
               onClick={() => { setEditingRole(true); setSelectedRole(user.role) }}
-              className={`panel-badge ${ROLE_VARIANTS[user.role] ?? 'panel-badge--neutral'} cursor-pointer transition-opacity hover:opacity-75`}
               title={t('users.clickChangeRole')}
             >
               {ROLE_ICON[user.role]} {user.role}
               <Pencil className="h-2.5 w-2.5 opacity-60" />
-            </button>
+            </Badge>
           )}
-          <span className={`panel-badge ${STATUS_VARIANTS[user.status] ?? 'panel-badge--neutral'}`}>{user.status}</span>
+          <Badge tone={STATUS_TONES[user.status] ?? 'neutral'}>{user.status}</Badge>
         </>
       }
       subtitle={user.email}

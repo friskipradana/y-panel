@@ -42,7 +42,7 @@ export function DomainRow({ domain, active, onClick, onDelete, deleting }: { dom
 
 export function ProfileRow({ profile, active, onClick, onDelete, deleting }: { profile: CloudflareTunnelProfile; active: boolean; onClick: () => void; onDelete: () => void; deleting: boolean }) {
   const { t } = useI18n()
-  const sc = STATUS_CONFIG[profile.status] ?? { variant: 'panel-status--neutral', labelKey: 'tunnels.status.unknown' }
+  const sc = STATUS_CONFIG[profile.status] ?? { tone: 'neutral' as const, labelKey: 'tunnels.status.unknown' }
   return (
     <div className={`cloudflare-row cloudflare-row--with-action cloudflare-profile-row ${active ? 'is-active' : ''}`}>
       <button type="button" onClick={onClick} className="cloudflare-row__select cloudflare-profile-row__select">
@@ -50,7 +50,7 @@ export function ProfileRow({ profile, active, onClick, onDelete, deleting }: { p
         <div className="cloudflare-row__body">
           <div className="cloudflare-profile-row__title-line">
             <span className="cloudflare-row__title">{profile.name}</span>
-            <span className={`panel-badge ${sc.variant}`}>{t(sc.labelKey)}</span>
+            <Badge tone={sc.tone}>{t(sc.labelKey)}</Badge>
           </div>
           <div className="cloudflare-profile-row__meta-grid">
             <span>{profile.routeCount === 1 ? t('tunnels.routeCount', { count: profile.routeCount }) : t('tunnels.routesCount', { count: profile.routeCount })}</span>
@@ -101,7 +101,7 @@ export function TunnelCard({ tunnel: t, onEdit, onDelete, onSync, isSyncing }: {
       <div className="cloudflare-detail-row__main">
         <div className="cloudflare-detail-row__title">
           <span className="tunnel-flat-row__name">{t.name}</span>
-          <span className={`panel-badge ${sc.variant}`}><span className="panel-status-dot" />{translate(sc.labelKey)}</span>
+          <Badge tone={sc.tone} dot>{translate(sc.labelKey)}</Badge>
           {t.status === 'active' && <Badge tone="success"><CheckCircle2 className="h-3 w-3" />{translate('tunnels.live')}</Badge>}
           {t.status === 'creating' && <Badge tone="warning"><Clock className="h-3 w-3 animate-spin" />{translate('tunnels.provisioning')}</Badge>}
         </div>

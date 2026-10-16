@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react'
 import type { DockerWindowState } from './useDockerWindow'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function DeleteContainerModal({ docker }: { docker: DockerWindowState }) {
   const {
@@ -41,16 +42,16 @@ export function DeleteContainerModal({ docker }: { docker: DockerWindowState }) 
         {t('docker.deleteContainerDescription', { name: deleteConfirm.name })}
       </p>
       <div className="space-y-3 mb-5">
-        <label className="docker-save-tpl-check">
-          <input type="checkbox" checked={deleteOpts.removeVolumes} onChange={(e) => setDeleteOpts((v) => ({ ...v, removeVolumes: e.target.checked }))} />
-          <span>{t('docker.deleteVolumesData')}</span>
-          <span className="docker-save-tpl-check__name text-[var(--panel-danger-text)]">(-v)</span>
-        </label>
-        <label className="docker-save-tpl-check">
-          <input type="checkbox" checked={deleteOpts.removeImage} onChange={(e) => setDeleteOpts((v) => ({ ...v, removeImage: e.target.checked }))} />
-          <span>{t('docker.removeImage')}</span>
-          <span className="docker-save-tpl-check__name font-mono text-[12px]">{deleteConfirm.image}</span>
-        </label>
+        <Checkbox
+          checked={deleteOpts.removeVolumes}
+          onChange={(checked) => setDeleteOpts((v) => ({ ...v, removeVolumes: checked }))}
+          label={<>{t('docker.deleteVolumesData')} <span className="panel-mono text-[var(--panel-danger-text)]">(-v)</span></>}
+        />
+        <Checkbox
+          checked={deleteOpts.removeImage}
+          onChange={(checked) => setDeleteOpts((v) => ({ ...v, removeImage: checked }))}
+          label={<>{t('docker.removeImage')} <span className="panel-mono">{deleteConfirm.image}</span></>}
+        />
         {deleteOpts.removeImage && (
           <p className="text-[12px] text-[var(--panel-warning-text)] pl-5 leading-relaxed">
             {t('docker.removeImageWarning')}

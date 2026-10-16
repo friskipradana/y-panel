@@ -63,7 +63,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
                 <div className="panel-section-label">{t('projects.focusedTarget')}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold text-[var(--win-text)]">{highlightedProject.name}</span>
-                  <span className={`panel-badge ${STATUS_PILL[highlightedProject.status] ?? 'panel-badge--neutral'}`}>{highlightedProject.status}</span>
+                  <Badge tone={STATUS_PILL[highlightedProject.status] ?? 'neutral'}>{highlightedProject.status}</Badge>
                   {highlightedProject.spaFallback ? <Badge tone="info">SPA</Badge> : null}
                   {highlightedProject.runtime?.drift ? <Badge tone="warning">drift</Badge> : null}
                 </div>

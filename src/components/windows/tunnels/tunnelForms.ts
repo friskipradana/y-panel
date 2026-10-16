@@ -1,14 +1,15 @@
 import { createTunnel, type Tunnel } from '@/api/agent'
+import type { UiTone } from '@/components/ui/IconBadge'
 
-export const STATUS_CONFIG: Record<string, { variant: string; labelKey: string }> = {
-  active: { variant: 'panel-status--success', labelKey: 'tunnels.status.active' },
-  healthy: { variant: 'panel-status--success', labelKey: 'tunnels.status.healthy' },
-  down: { variant: 'panel-status--danger', labelKey: 'tunnels.status.down' },
-  degraded: { variant: 'panel-status--warning', labelKey: 'tunnels.status.degraded' },
-  creating: { variant: 'panel-status--warning', labelKey: 'tunnels.status.creating' },
-  pending: { variant: 'panel-status--warning', labelKey: 'tunnels.status.pending' },
-  error: { variant: 'panel-status--danger', labelKey: 'tunnels.status.error' },
-  inactive: { variant: 'panel-status--neutral', labelKey: 'tunnels.status.inactive' },
+export const STATUS_CONFIG: Record<string, { tone: UiTone; labelKey: string }> = {
+  active: { tone: 'success', labelKey: 'tunnels.status.active' },
+  healthy: { tone: 'success', labelKey: 'tunnels.status.healthy' },
+  down: { tone: 'danger', labelKey: 'tunnels.status.down' },
+  degraded: { tone: 'warning', labelKey: 'tunnels.status.degraded' },
+  creating: { tone: 'warning', labelKey: 'tunnels.status.creating' },
+  pending: { tone: 'warning', labelKey: 'tunnels.status.pending' },
+  error: { tone: 'danger', labelKey: 'tunnels.status.error' },
+  inactive: { tone: 'neutral', labelKey: 'tunnels.status.inactive' },
 }
 
 export const DNS_TYPES = ['A', 'AAAA', 'CNAME', 'TXT', 'MX', 'SRV', 'NS', 'CAA']

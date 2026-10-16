@@ -38,7 +38,7 @@ Inventaris komponen Reneo. Cek di sini sebelum membuat komponen atau class baru.
 | `GlobalAlert` / `InnerAlert` | `components/alert/` | Konfirmasi & notifikasi, global dan in-window |
 | `AppIcon` | `components/common/` | Satu-satunya pemetaan ikon aplikasi |
 | `DateTimeText` | `components/common/` | Format tanggal/waktu konsisten |
-| `IconBadge`, `SectionHeader`, `SettingRow`, `Button`, `IconButton`, `Badge`, `ToggleSwitch`, `SelectableCard`, `Field`/`TextInput`/`Textarea`, `Select`, `SearchInput`, `Tabs`, `DataTable`, `ListRow`, `EntityRow`, `Pagination`, `Modal` (dialog dan sheet), `KpiCard`, `EmptyState`/`LoadingState`/`ErrorState` | `components/ui/` | UI kit umum. Aturan dan contoh di [ui-components.md](ui-components.md) |
+| `IconBadge`, `SectionHeader`, `SettingRow`, `Button`, `IconButton`, `Badge`, `ToggleSwitch`, `Checkbox`, `SelectableCard`, `Field`/`TextInput`/`Textarea`, `Select`, `SearchInput`, `Tabs`, `DataTable`, `ListRow`, `EntityRow`, `Pagination`, `Modal` (dialog dan sheet), `KpiCard`, `EmptyState`/`LoadingState`/`ErrorState` | `components/ui/` | UI kit umum. Aturan dan contoh di [ui-components.md](ui-components.md) |
 | `DevOverlay`, `DebugPanel`, `DebugGrid` | `components/debug/` | Hanya mode dev |
 
 ## 3. Window Aplikasi (`WindowKind`)

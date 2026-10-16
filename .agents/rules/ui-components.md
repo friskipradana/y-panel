@@ -23,10 +23,11 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `IconBadge` | `IconBadge.tsx` | Satu-satunya kotak ikon | `children`, `size` sm/md/lg, `tone` |
 | `SectionHeader` | `SectionHeader.tsx` | Ikon + judul + subjudul (+ aksi) | `icon`, `title`, `subtitle?`, `tone?`, `size?`, `actions?` |
 | `SettingRow` | `SettingRow.tsx` | Baris pengaturan | `title`, `description?`, `control`, `icon?`, `children?` |
-| `Button` | `Button.tsx` | Tombol teks | `variant` default/primary/primary-soft/ghost/outline/danger/danger-soft, `loading`, `icon` |
+| `Button` | `Button.tsx` | Tombol teks | `variant` default/primary/primary-soft/ghost/outline/danger/danger-soft, `size` sm/md/lg, `block`, `loading`, `icon` |
 | `IconButton` | `IconButton.tsx` | Tombol hanya ikon | `label` (wajib), `tone` |
 | `Badge` | `Badge.tsx` | Status singkat | `tone`, `dot` |
 | `ToggleSwitch` | `ToggleSwitch.tsx` | Saklar on/off | `checked`, `onChange`, `label?`, `disabled?` |
+| `Checkbox` | `Checkbox.tsx` | Kotak centang (opsi form, pilih baris) | `checked`, `onChange(checked)`, `label?`, `description?`, `tone?`, `indeterminate?` |
 | `SelectableCard` | `SelectableCard.tsx` | Pilihan tunggal berbentuk kartu | `selected`, `onClick`, `className` |
 | `Field`, `TextInput`, `Textarea` | `Field.tsx` | Label + kontrol + hint/error | `label`, `hint?`, `error?`; `mono`, `invalid` |
 | `Select` | `Select.tsx` | Dropdown (pencarian opsional) | `value`, `onChange`, `options`, `searchable`, `clearable` |
@@ -54,6 +55,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | Proses panjang di dalam modal (deploy, pull) | `Modal busyOverlay={...}` |
 | Konfirmasi singkat ya/tidak | `alertLib.confirm` (bukan Modal) |
 | Pengaturan on/off | `SettingRow` + `ToggleSwitch` |
+| Opsi centang dalam form atau pilih baris | `Checkbox` (bukan `<input type="checkbox">`) |
 | Pilih satu dari beberapa kartu | `SelectableCard` |
 | Pilih dari daftar panjang | `Select searchable` |
 

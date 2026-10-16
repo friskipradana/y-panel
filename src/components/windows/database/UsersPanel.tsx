@@ -57,7 +57,7 @@ export function UsersPanel({ databaseId, supported }: { databaseId: number; supp
         <h3 className="text-[0.8125rem] font-semibold">{t('databases.admin.addUser')}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('databases.username')}>
-            <TextInput mono value={username} onChange={(e) => setUsername(e.target.value)} placeholder="reporter" autoComplete="off" />
+            <TextInput mono value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t('databases.usernamePlaceholder')} autoComplete="off" />
           </Field>
           <Field label={t('databases.admin.accessLevel')}>
             <Select

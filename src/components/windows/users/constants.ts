@@ -1,20 +1,14 @@
 
-export const ROLE_VARIANTS: Record<string, string> = {
-  superadmin: 'panel-badge--warning',
-  admin: 'panel-badge--info',
-  user: 'panel-badge--neutral',
-}
-
 export const ROLE_TONES: Record<string, 'warning' | 'info' | 'neutral'> = {
   superadmin: 'warning',
   admin: 'info',
   user: 'neutral',
 }
 
-export const STATUS_VARIANTS: Record<string, string> = {
-  active: 'panel-badge--success',
-  suspended: 'panel-badge--danger',
-  pending: 'panel-badge--warning',
+export const STATUS_TONES: Record<string, 'success' | 'danger' | 'warning'> = {
+  active: 'success',
+  suspended: 'danger',
+  pending: 'warning',
 }
 
 const ROLE_OPTIONS = [

@@ -3,16 +3,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, CheckCircle2, Cpu, HardDriveDownload, MemoryStick, Network, RefreshCw, ShieldAlert, TimerReset } from 'lucide-react'
 import { getSystemSummary } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <div className={`panel-badge ${ok ? 'panel-badge--success' : 'panel-badge--danger'}`}>
+    <Badge tone={ok ? 'success' : 'danger'}>
       {ok ? <CheckCircle2 size={13} /> : <ShieldAlert size={13} />}
       {label}
-    </div>
+    </Badge>
   )
 }
 

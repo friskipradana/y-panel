@@ -376,6 +376,141 @@ button:focus-visible,
   line-height: 1.2;
 }
 
+// Kotak centang
+.panel-check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--win-text);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.panel-check--bare {
+  align-items: center;
+}
+
+.panel-check__box {
+  appearance: none;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 55%, var(--win-border));
+  background: var(--panel-field-bg);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.panel-check--bare .panel-check__box {
+  margin: 0;
+}
+
+.panel-check__box::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  background: #fff;
+  clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 20%, 86% 6%, 40% 70%);
+  transform: scale(0);
+  transition: transform 120ms ease;
+}
+
+.panel-check__box:hover:not(:disabled) {
+  border-color: var(--panel-primary-text);
+}
+
+.panel-check__box:checked,
+.panel-check__box:indeterminate {
+  background: var(--panel-primary-solid);
+  border-color: var(--panel-primary-solid);
+}
+
+.panel-check__box:checked::after {
+  transform: scale(1);
+}
+
+.panel-check__box:indeterminate::after {
+  clip-path: none;
+  height: 2px;
+  transform: scale(1);
+}
+
+.panel-check__box:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 25%, transparent);
+}
+
+.panel-check__box:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.panel-check--warning .panel-check__box:checked {
+  background: var(--panel-warning-text);
+  border-color: var(--panel-warning-text);
+}
+
+.panel-check--warning {
+  color: var(--panel-warning-text);
+}
+
+.panel-check__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-check__label {
+  font-weight: 500;
+}
+
+.panel-check__desc {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+// Ukuran tombol
+.panel-btn--sm {
+  min-height: 28px;
+  padding: 3px 9px;
+  font-size: 0.75rem;
+}
+
+.panel-btn--lg {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  border-radius: 10px;
+}
+
+.panel-btn--block {
+  width: 100%;
+}
+
+// Badge yang bisa diklik (mis. ubah role)
+.panel-badge--action {
+  border: 0;
+  cursor: pointer;
+  transition: filter 140ms ease;
+}
+
+.panel-badge--action:hover {
+  filter: brightness(0.95);
+}
+
+.panel-badge--action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .panel-badge--primary,
 .panel-status--primary {
   background: var(--panel-primary-bg);

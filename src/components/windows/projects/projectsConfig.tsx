@@ -1,5 +1,6 @@
 import { type ReactElement } from 'react'
 import { type Project } from '@/api/agent'
+import type { UiTone } from '@/components/ui/IconBadge'
 import { FolderCode, Globe, Server, Code, Box } from 'lucide-react'
 
 export const TYPE_ICON: Record<string, ReactElement> = {
@@ -12,13 +13,13 @@ export const TYPE_ICON: Record<string, ReactElement> = {
   custom: <FolderCode className="h-3.5 w-3.5" />,
 }
 
-export const STATUS_PILL: Record<string, string> = {
-  active: 'panel-badge--success',
-  stopped: 'panel-badge--neutral',
-  building: 'panel-badge--warning',
-  error: 'panel-badge--danger',
-  draft: 'panel-badge--info',
-  degraded: 'panel-badge--warning',
+export const STATUS_PILL: Record<string, UiTone> = {
+  active: 'success',
+  stopped: 'neutral',
+  building: 'warning',
+  error: 'danger',
+  draft: 'info',
+  degraded: 'warning',
 }
 
 // docker and proxy rows from older versions still render; new projects can only be runnable types

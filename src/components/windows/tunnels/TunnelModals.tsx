@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function DNSModal({ form, setForm, editing, onClose, onSubmit, pending }: { form: DnsForm; setForm: React.Dispatch<React.SetStateAction<DnsForm>>; editing: boolean; onClose: () => void; onSubmit: () => void; pending: boolean }) {
   const { t } = useI18n()
@@ -41,7 +42,7 @@ export function DNSModal({ form, setForm, editing, onClose, onSubmit, pending }:
         <div><label className="panel-section-label">{t('tunnels.content')}</label><TextInput value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} placeholder={t('tunnels.dnsContentPlaceholder')} /></div>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="panel-section-label">{t('tunnels.priority')}</label><TextInput value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} placeholder={t('tunnels.priorityPlaceholder')} /></div>
-          <label className="cloudflare-checkbox"><input type="checkbox" checked={form.proxied} onChange={(e) => setForm((f) => ({ ...f, proxied: e.target.checked }))} /> {t('tunnels.proxied')}</label>
+          <Checkbox checked={form.proxied} onChange={(checked) => setForm((f) => ({ ...f, proxied: checked }))} label={t('tunnels.proxied')} />
         </div>
         <div><label className="panel-section-label">{t('tunnels.comment')}</label><TextInput value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} placeholder={t('tunnels.optional')} /></div>
       </div>

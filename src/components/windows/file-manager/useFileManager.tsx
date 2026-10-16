@@ -15,6 +15,7 @@ import {
 } from './fileManagerConfig'
 
 import type { WindowState } from '@/types'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 let nextFileManagerTabId = 1
 
@@ -528,15 +529,11 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
                     <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] rounded backdrop-blur border border-[var(--win-border)]">
                       {titleMap[pos]}
                     </label>
-                    <label className="flex items-center gap-2 mt-3 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.read')}
-                    </label>
-                    <label className="flex items-center gap-2 mb-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.write')}
-                    </label>
-                    <label className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] cursor-pointer hover:text-[var(--win-text)] transition">
-                      <input type="checkbox" checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} className="accent-[var(--focus-ring)] w-3.5 h-3.5" /> {t('fileManager.execute')}
-                    </label>
+                    <div className="mt-3 flex flex-col gap-2">
+                      <Checkbox checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} label={t('fileManager.read')} />
+                      <Checkbox checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} label={t('fileManager.write')} />
+                      <Checkbox checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} label={t('fileManager.execute')} />
+                    </div>
                   </div>
                 )
               })}
@@ -553,10 +550,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
                 />
               </div>
               {modal.item.isDir && (
-                <label className="flex items-center gap-2 text-[11.5px] font-medium text-[var(--panel-warning-text)] dark:text-[var(--panel-warning-text)]/80 cursor-pointer hover:text-[var(--panel-warning-text)] transition">
-                  <input type="checkbox" checked={chmodRecursive} onChange={(e) => setChmodRecursive(e.target.checked)} className="accent-[var(--panel-warning-text)] w-3.5 h-3.5 cursor-pointer" />
-                  {t('fileManager.applyRecursive')}
-                </label>
+                <Checkbox tone="warning" checked={chmodRecursive} onChange={setChmodRecursive} label={t('fileManager.applyRecursive')} />
               )}
             </div>
           </div>

@@ -159,9 +159,9 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       <span className="docker-inline-dot" />
                       <span>{container.Status}</span>
                       {runtimeIssues.map((issue) => (
-                        <span key={`${container.Id}-${issue.key}`} className={`panel-badge ${issue.tone === 'danger' ? 'panel-badge--danger' : 'panel-badge--warning'}`}>
+                        <Badge key={`${container.Id}-${issue.key}`} tone={issue.tone === 'danger' ? 'danger' : 'warning'}>
                           {issue.label}
-                        </span>
+                        </Badge>
                       ))}
                     </>
                   }

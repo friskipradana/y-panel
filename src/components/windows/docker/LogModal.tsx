@@ -4,6 +4,7 @@ import type { DockerWindowState } from './useDockerWindow'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function LogModal({ docker }: { docker: DockerWindowState }) {
   const {
@@ -34,10 +35,7 @@ export function LogModal({ docker }: { docker: DockerWindowState }) {
           {logsQuery.isFetching && <Badge tone="info">{t('docker.syncing')}</Badge>}
         </div>
         <div className="docker-log-toolbar__right">
-          <label className="docker-log-autoscroll">
-            <input type="checkbox" checked={logAutoScroll} onChange={(e) => setLogAutoScroll(e.target.checked)} />
-            <span>{t('docker.autoScroll')}</span>
-          </label>
+          <Checkbox checked={logAutoScroll} onChange={setLogAutoScroll} label={t('docker.autoScroll')} />
           <Select
             id="docker-log-tail-select"
             value={String(logTail)}

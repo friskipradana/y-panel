@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 const KEYS: Array<{ label: string; seq: string; aria: string }> = [
   { label: 'Esc', seq: '\x1b', aria: 'Escape' },
   { label: 'Tab', seq: '\t', aria: 'Tab' },
@@ -15,8 +16,9 @@ const KEYS: Array<{ label: string; seq: string; aria: string }> = [
 
 // Phone only (the parent hides it elsewhere): keys the on-screen keyboard does not offer.
 export function TerminalKeyBar({ disabled, onKey }: { disabled: boolean; onKey: (sequence: string) => void }) {
+  const { t } = useI18n()
   return (
-    <div className="ht-keybar" role="toolbar" aria-label="Terminal keys">
+    <div className="ht-keybar" role="toolbar" aria-label={t('terminal.keys')}>
       {KEYS.map((key) => (
         <button key={key.aria} type="button" className="ht-keybar__key" aria-label={key.aria} disabled={disabled} onClick={() => onKey(key.seq)}>
           {key.label}

@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import type { Container } from '@/types'
 import { STATE_STYLES } from './constants'
+import { Badge } from '@/components/ui/Badge'
 
 // ── StatusBadge ───────────────────────────────────────────────
 export function StatusBadge({ state }: { state: Container['State'] }) {
   const stateStyle = STATE_STYLES[state] ?? STATE_STYLES.dead
   return (
-    <span className={`panel-badge ${stateStyle.badge}`}>
-      <span className="panel-status-dot" />
+    <Badge tone={stateStyle.badge} dot>
       {state}
-    </span>
+    </Badge>
   )
 }
 

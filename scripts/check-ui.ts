@@ -32,6 +32,7 @@ const ALLOW: Record<string, string[]> = {
   'emoji': ['src/components/debug/', 'src/lib/locales/'],
   'raw-ui-class': ['src/components/ui/'],
   'raw-modal': ['src/components/ui/'],
+  'raw-checkbox': ['src/components/ui/', 'src/components/debug/'],
   'raw-row': ['src/components/ui/'],
   toggle: ['src/components/ui/'],
   selectable: ['src/components/ui/'],
@@ -115,6 +116,9 @@ for (const abs of walk(SRC)) {
     }
     if (isTsx && /<(button|span|div|select|input|textarea)\b[^>]*(panel-btn\b|panel-icon-btn\b|panel-badge\b|panel-input\b|panel-select\b|panel-textarea\b)/.test(raw)) {
       add('raw-ui-class', 'warn', file, n, 'use Button/IconButton/Badge/TextInput/Select from components/ui')
+    }
+    if (isTsx && /<input\b[^>]*type=["']checkbox["']/.test(raw)) {
+      add('raw-checkbox', 'warn', file, n, 'use Checkbox from components/ui')
     }
     if (isTsx && /(?<![\w-])#[0-9a-fA-F]{6}\b/.test(raw) && !/^\s*(\/\/|\{\/\*)/.test(raw)) {
       add('hex-in-tsx', 'warn', file, n, raw)

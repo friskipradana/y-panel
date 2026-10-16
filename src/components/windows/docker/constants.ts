@@ -1,13 +1,14 @@
 import { Play, Square } from 'lucide-react'
+import type { UiTone } from '@/components/ui/IconBadge'
 import type { Container, DockerEnvMode, EnvVarInput } from '@/types'
 
 // ── State Styles ──────────────────────────────────────────────
-export const STATE_STYLES: Record<Container['State'], { badge: string; btn: string; btnText: string; actionIcon: typeof Play }> = {
-  running: { badge: 'panel-badge--success', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  exited: { badge: 'panel-badge--danger', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  paused: { badge: 'panel-badge--warning', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
-  restarting: { badge: 'panel-badge--info', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
-  dead: { badge: 'panel-badge--neutral', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+export const STATE_STYLES: Record<Container['State'], { badge: UiTone; btn: string; btnText: string; actionIcon: typeof Play }> = {
+  running: { badge: 'success', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
+  exited: { badge: 'danger', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+  paused: { badge: 'warning', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
+  restarting: { badge: 'info', btn: 'panel-btn--ghost', btnText: 'Stop', actionIcon: Square },
+  dead: { badge: 'neutral', btn: 'panel-btn--primary-soft', btnText: 'Start', actionIcon: Play },
 }
 
 export const EMPTY_ENV_ROW: EnvVarInput = { key: '', value: '' }

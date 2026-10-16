@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { TextInput } from '@/components/ui/Field'
 import { Tabs } from '@/components/ui/Tabs'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function DeployModal({ docker }: { docker: DockerWindowState }) {
   const {
@@ -260,17 +261,14 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
 
             {/* Registry Authentication */}
             <div className="docker-auth-block">
-              <label className="docker-save-tpl-check">
-                <input
-                  type="checkbox"
-                  checked={deployForm.registryAuth.enabled}
-                  onChange={(e) => setDeployForm((current) => ({
-                    ...current,
-                    registryAuth: { ...current.registryAuth, enabled: e.target.checked },
-                  }))}
-                />
-                <span>{t('docker.useRegistryAuth')}</span>
-              </label>
+              <Checkbox
+                checked={deployForm.registryAuth.enabled}
+                onChange={(checked) => setDeployForm((current) => ({
+                  ...current,
+                  registryAuth: { ...current.registryAuth, enabled: checked },
+                }))}
+                label={t('docker.useRegistryAuth')}
+              />
               {deployForm.registryAuth.enabled && (
                 <div className="docker-auth-grid">
                   <div className="panel-field">
@@ -569,17 +567,14 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
               onChange={(e) => setDeployForm({ ...deployForm, composeYaml: e.target.value })}
             />
           </div>
-          <label className="docker-save-tpl-check">
-            <input
-              type="checkbox"
-              checked={showSaveAsTpl}
-              onChange={(e) => {
-                setShowSaveAsTpl(e.target.checked)
-                if (e.target.checked && !saveTemplateName) setSaveTemplateName(deployForm.name)
-              }}
-            />
-            <span>{t('docker.saveAsTemplate')}</span>
-          </label>
+          <Checkbox
+            checked={showSaveAsTpl}
+            onChange={(checked) => {
+              setShowSaveAsTpl(checked)
+              if (checked && !saveTemplateName) setSaveTemplateName(deployForm.name)
+            }}
+            label={t('docker.saveAsTemplate')}
+          />
           {showSaveAsTpl && (
             <div className="panel-field">
               <label className="panel-label">{t('docker.templateName')}</label>

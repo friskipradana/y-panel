@@ -79,7 +79,7 @@ export function CreateTableModal({ databaseId, open, columnTypes, onClose, onCre
     >
       <div className="space-y-4">
         <Field label={t('databases.admin.tableName')} error={nameInvalid ? t('databases.admin.identifierInvalid') : undefined}>
-          <TextInput mono value={name} invalid={nameInvalid} onChange={(e) => setName(e.target.value)} placeholder="orders" />
+          <TextInput mono value={name} invalid={nameInvalid} onChange={(e) => setName(e.target.value)} placeholder={t('databases.admin.tableNamePlaceholder')} />
         </Field>
 
         <div className="space-y-2">

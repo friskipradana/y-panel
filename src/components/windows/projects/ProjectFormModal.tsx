@@ -4,6 +4,7 @@ import type { ProjectsWindowState } from './useProjectsWindow'
 import { Button } from '@/components/ui/Button'
 import { TextInput, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
   const {
@@ -68,20 +69,12 @@ export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
             ))}
           </div>
         </div>
-        <label className="panel-muted-block flex items-start gap-3 rounded-[14px] px-3 py-3 text-[12px] text-[var(--win-text)]">
-          <input
-            type="checkbox"
-            checked={form.spaFallback}
-            onChange={(event) => setForm((f) => ({ ...f, spaFallback: event.target.checked }))}
-            className="mt-0.5"
-          />
-          <span>
-            <span className="block font-semibold">SPA fallback ke index.html</span>
-            <span className="mt-0.5 block leading-5 text-[var(--text-secondary)]">
-              Aktifkan untuk React Router, Vue Router, atau frontend BrowserRouter agar refresh/direct URL tidak 404.
-            </span>
-          </span>
-        </label>
+        <Checkbox
+          checked={form.spaFallback}
+          onChange={(checked) => setForm((f) => ({ ...f, spaFallback: checked }))}
+          label={t('projects.spaFallback')}
+          description={t('projects.spaFallbackHint')}
+        />
         <div>
           <label className="panel-section-label">{t('projects.repoUrl')}</label>
           <TextInput

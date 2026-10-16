@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { Folder, File as FileIcon } from 'lucide-react'
 import type { FileNode } from './fileManagerConfig'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export const FileRow = memo(({
   item,
@@ -41,7 +42,7 @@ export const FileRow = memo(({
       onDoubleClick={() => onDoubleClick(item)}
     >
       <div className="flex items-center justify-center">
-        <input type="checkbox" checked={isSelected} onChange={(e) => onToggleSelect(item.path, e.target.checked)} className="cursor-pointer accent-[var(--focus-ring)] w-3.5 h-3.5 transition-all" onClick={(e) => e.stopPropagation()} />
+        <Checkbox aria-label={item.name} checked={isSelected} onChange={(checked) => onToggleSelect(item.path, checked)} onClick={(e) => e.stopPropagation()} />
       </div>
       <div className="flex items-center gap-3 overflow-hidden">
         {item.isDir ? <Folder size={17} className="text-[var(--panel-primary-text)] fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />}

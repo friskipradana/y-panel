@@ -3,6 +3,7 @@ import type { ProjectsWindowState } from './useProjectsWindow'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { Checkbox } from '@/components/ui/Checkbox'
 
 export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
   const {
@@ -52,14 +53,11 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
           />
           <p className="mt-1 text-[12px] text-[var(--text-secondary)]">Kosongkan untuk auto-detect. Isi manual seperti `dist`, `build`, `out`, atau `public` jika perlu.</p>
         </div>
-        <label className="cloudflare-checkbox !mt-0">
-          <input
-            type="checkbox"
-            checked={uploadDraft.clean}
-            onChange={(event) => setUploadDraft((current) => current ? { ...current, clean: event.target.checked } : current)}
-          />
-          Bersihkan isi working directory sebelum extract
-        </label>
+        <Checkbox
+          checked={uploadDraft.clean}
+          onChange={(checked) => setUploadDraft((current) => current ? { ...current, clean: checked } : current)}
+          label={t('projects.cleanBeforeExtract')}
+        />
         <p className="mt-[-10px] text-[11px] leading-5 text-[var(--text-secondary)]">
           Jika folder root diisi, struktur ZIP tetap dipertahankan dan project akan diarahkan ke folder itu.
         </p>

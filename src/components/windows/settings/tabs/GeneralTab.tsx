@@ -22,6 +22,7 @@ import type { HostSettings } from "../hooks/useHostSettings";
 import { FieldLabel, TimezoneSelect, DnsEditor } from "../SettingsPrimitives";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconBadge } from "@/components/ui/IconBadge";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Field";
 import { getUpdateInfo, getUpdateStatus, applyUpdate } from "@/api/system";
@@ -197,10 +198,9 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
                 <span className="text-[13px] font-semibold text-[var(--win-text)]">
                   Reneo <span className="font-mono text-[var(--panel-primary-text)] font-bold">v{updateInfo?.current || "..."}</span>
                 </span>
-                <span className={`panel-badge ${updateInfo?.available ? "panel-badge--warning" : "panel-badge--success"}`}>
-                  <span className="panel-status-dot" />
+                <Badge tone={updateInfo?.available ? "warning" : "success"} dot>
                   {updateInfo?.available ? t("settings.update.updateAvailable") : t("settings.update.upToDate")}
-                </span>
+                </Badge>
               </div>
               <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                 {updateInfo?.latest ? `${t("settings.update.latestVersion")}: v${updateInfo.latest}` : t("settings.update.checking")}

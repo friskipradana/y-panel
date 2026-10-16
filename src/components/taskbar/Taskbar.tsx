@@ -14,7 +14,9 @@ import { ApplicationsMenu } from './ApplicationsMenu'
 import { formatDateTimeID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
 import { soundManager } from '@/lib/sound'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import type { UiTone } from '@/components/ui/IconBadge'
 
 interface TaskbarProps {
   onLogout: () => void
@@ -24,16 +26,16 @@ interface TaskbarProps {
 
 
 
-function getNotificationTone(type: PanelNotification['type']) {
+function getNotificationTone(type: PanelNotification['type']): UiTone {
   switch (type) {
     case 'success':
-      return 'panel-badge--success'
+      return 'success'
     case 'warning':
-      return 'panel-badge--warning'
+      return 'warning'
     case 'error':
-      return 'panel-badge--danger'
+      return 'danger'
     default:
-      return 'panel-badge--info'
+      return 'info'
   }
 }
 
@@ -258,10 +260,9 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
             </div>
 
             <div className="taskbar-notifications__meta">
-              <span className={`panel-badge ${unreadCount ? 'panel-badge--primary' : 'panel-badge--neutral'}`}>
-                <span className="panel-status-dot" />
+              <Badge tone={unreadCount ? 'primary' : 'neutral'} dot>
                 {t('taskbar.unreadCount', { count: unreadCount })}
-              </span>
+              </Badge>
               <span className="taskbar-notifications__count">
                 {t('taskbar.totalNotifications', { count: notifications.length })}
               </span>
@@ -285,10 +286,9 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
                   >
                     <div className="taskbar-notification-card__header">
                       <div className="taskbar-notification-card__title-wrap">
-                        <span className={`panel-badge ${getNotificationTone(item.type)}`}>
-                          <span className="panel-status-dot" />
+                        <Badge tone={getNotificationTone(item.type)} dot>
                           {item.type}
-                        </span>
+                        </Badge>
                         <span className="taskbar-notification-card__title">{item.title}</span>
                       </div>
                       {!item.isRead ? <span className="taskbar-notification-card__unread-dot" /> : null}
