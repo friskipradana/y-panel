@@ -198,4 +198,6 @@ Aturan yang diterapkan agent:
 - Info host (hostname, OS, kernel, uptime, IP, NIC, riwayat metrik, Docker/Portainer) hanya untuk superadmin. Akun lain melihat CPU, RAM, dan storage miliknya sendiri terhadap kuota yang ditetapkan (`GET /api/v1/system/summary` dengan `scoped: true`, juga di live socket).
 - Pengaturan host (hostname, DNS, port, origin, update, payment), log sistem, dan database runtime hanya untuk superadmin.
 - Akun yang sudah ada sebelum migrasi `000014` menjadi turunan superadmin; superadmin dapat memindahkannya.
-- Batas CPU dan memori dari kuota diterapkan pada container. Proses shell di akun OS belum dibatasi cgroup; batasnya tampil sebagai angka, belum dipaksa.
+- Batas CPU dan memori dari kuota dipaksa pada container dan pada shell: terminal dan `POST /api/v1/terminal/exec` berjalan di dalam slice systemd `reneo-<akun>.slice` dengan `CPUQuota`, `MemoryMax`, dan `TasksMax`. Tanpa systemd (atau bukan Linux) batas shell tidak dapat dipaksa dan perintah berjalan tanpa slice; angka pemakaian tetap tampil.
+- Tool MCP mengikuti matriks yang sama: tool yang menyentuh mesin langsung (terminal root, file seluruh server, Docker penuh, firewall, disk, PostgreSQL panel, log sistem, pengaturan) hanya untuk superadmin. Admin dan user mendapat tool setara yang memanggil REST API dengan token mereka (`terminal_exec` sebagai akun OS sendiri, file di home dan project, container milik sendiri).
+- Superadmin memindahkan akun ke admin lain lewat window Users (ikon jaringan) atau `PATCH /api/v1/users/{id}` dengan `parentId`; siklus ditolak.

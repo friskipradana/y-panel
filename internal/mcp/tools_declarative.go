@@ -47,6 +47,8 @@ type apiSpec struct {
 	Path      string // may contain {param} placeholders matching path params
 	Params    []apiParam
 	AdminOnly bool
+	// SuperOnly tools act on the host or the panel itself: superadmin only
+	SuperOnly bool
 	// Hint: "read" (default for GET), "write", or "destroy"
 	Hint string
 }
@@ -201,6 +203,9 @@ func (sp apiSpec) handler(client *apiClient) ToolHandler {
 func registerSpecs(s *Server, client *apiClient, isAdmin bool, specs []apiSpec) {
 	for _, sp := range specs {
 		if sp.AdminOnly && !isAdmin {
+			continue
+		}
+		if sp.SuperOnly && !s.superadmin {
 			continue
 		}
 		s.Register(sp.tool(), sp.handler(client))

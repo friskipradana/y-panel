@@ -82,9 +82,9 @@ func extraSpecs() []apiSpec {
 			Desc: "What this account consumes against its quota: projects, tunnels, databases and disk."},
 
 		// ── Panel updates ────────────────────────────────────────────────
-		{Name: "update_status", Title: "Update progress", Method: "GET", Path: "/api/v1/system/update/status", AdminOnly: true,
+		{Name: "update_status", SuperOnly: true, Title: "Update progress", Method: "GET", Path: "/api/v1/system/update/status", AdminOnly: true,
 			Desc: "State of a running or finished panel update: running, done, failed, with the installer log lines."},
-		{Name: "update_apply", Title: "Apply panel update", Method: "POST", Path: "/api/v1/system/update/apply", AdminOnly: true, Hint: "write",
+		{Name: "update_apply", SuperOnly: true, Title: "Apply panel update", Method: "POST", Path: "/api/v1/system/update/apply", AdminOnly: true, Hint: "write",
 			Desc: "Start the panel update (superadmin only). The service restarts for a moment; follow progress with update_status. Requires confirm=true.",
 			Params: []apiParam{
 				boolParam("confirm", "Must be true: the update restarts the panel."),

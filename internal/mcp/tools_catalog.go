@@ -75,7 +75,7 @@ func catalogSpecs() []apiSpec {
 			Params: []apiParam{pathParam("id", "API token ID (from api_token_list).")}},
 
 		// ── System ────────────────────────────────────────────────────────
-		{Name: "system_history", Title: "Metrics history", Method: "GET", Path: "/api/v1/system/history",
+		{Name: "system_history", SuperOnly: true, Title: "Metrics history", Method: "GET", Path: "/api/v1/system/history",
 			Desc:   "Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s). Each point is {t: epoch ms, v: value}. Use `since` for incremental reads.",
 			Params: []apiParam{queryParam("since", "integer", "Only return points newer than this epoch-ms timestamp.")}},
 		{Name: "system_changelog", Title: "Panel changelog", Method: "GET", Path: "/api/v1/system/changelog",
@@ -86,11 +86,11 @@ func catalogSpecs() []apiSpec {
 				strParam("host", "IP address or hostname (no URL, no flags).", true),
 				intParam("port", "TCP port (1-65535). Omit for ICMP.", false),
 			}},
-		{Name: "database_status", Title: "Database status", Method: "GET", Path: "/api/v1/database/status", AdminOnly: true,
+		{Name: "database_status", SuperOnly: true, Title: "Database status", Method: "GET", Path: "/api/v1/database/status", AdminOnly: true,
 			Desc: "Connection state and basic statistics of the panel PostgreSQL database."},
-		{Name: "settings_get", Title: "System settings", Method: "GET", Path: "/api/v1/settings/system", AdminOnly: true,
+		{Name: "settings_get", SuperOnly: true, Title: "System settings", Method: "GET", Path: "/api/v1/settings/system", AdminOnly: true,
 			Desc: "Read host settings the panel manages: hostname, timezone, nameservers."},
-		{Name: "settings_update", Title: "Update system settings", Method: "POST", Path: "/api/v1/settings/system", AdminOnly: true, Hint: "write",
+		{Name: "settings_update", SuperOnly: true, Title: "Update system settings", Method: "POST", Path: "/api/v1/settings/system", AdminOnly: true, Hint: "write",
 			Desc: "Change hostname, timezone or nameservers. Send all three fields (read them first with settings_get).",
 			Params: []apiParam{
 				strParam("hostname", "New hostname.", true),

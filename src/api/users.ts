@@ -12,6 +12,8 @@ export interface PanelUser {
   createdAt: string
   updatedAt: string
   lastLoginAt: string | null
+  /** account that manages this one (superadmin or an admin) */
+  parentId?: number | null
 }
 
 export interface UserQuota {

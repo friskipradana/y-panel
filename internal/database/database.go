@@ -716,6 +716,7 @@ func (m *Manager) UpdateUser(id int64, fields map[string]any) error {
 		"role":         "role",
 		"status":       "status",
 		"avatar_url":   "avatar_url",
+		"parent_id":    "parent_id",
 	}
 	setParts := []string{"updated_at = NOW()"}
 	args := []any{}

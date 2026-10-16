@@ -386,7 +386,26 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": userList, "total": total, "limit": limit, "offset": offset})
+	// each account carries the account that manages it, so the UI can show and change the hierarchy
+	ids := make([]int64, 0, len(userList))
+	for _, u := range userList {
+		ids = append(ids, u.ID)
+	}
+	parents, _ := s.database.UserParentIDs(ids)
+	type userWithParent struct {
+		database.User
+		ParentID *int64 `json:"parentId"`
+	}
+	items := make([]userWithParent, 0, len(userList))
+	for _, u := range userList {
+		item := userWithParent{User: u}
+		if p, ok := parents[u.ID]; ok {
+			parent := p
+			item.ParentID = &parent
+		}
+		items = append(items, item)
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"items": items, "total": total, "limit": limit, "offset": offset})
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {

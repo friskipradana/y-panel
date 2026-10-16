@@ -28,6 +28,7 @@ func (s *Server) vetUserFields(actor, target *database.User, in map[string]any) 
 		"displayName": "display_name", "display_name": "display_name",
 		"avatarUrl": "avatar_url", "avatar_url": "avatar_url",
 		"email": "email", "role": "role", "status": "status",
+		"parentId": "parent_id", "parent_id": "parent_id",
 	}
 	out := map[string]any{}
 	for key, value := range in {
@@ -38,9 +39,46 @@ func (s *Server) vetUserFields(actor, target *database.User, in map[string]any) 
 		out[col] = value
 	}
 
+	// moving an account under another admin is a superadmin decision
+	if raw, ok := out["parent_id"]; ok {
+		if actor.Role != "superadmin" {
+			return nil, errors.New("only the superadmin can move an account under another admin")
+		}
+		var parentID int64
+		switch v := raw.(type) {
+		case float64:
+			parentID = int64(v)
+		case int64:
+			parentID = v
+		default:
+			return nil, errors.New("parentId must be a number")
+		}
+		if target.Role == "superadmin" {
+			return nil, errors.New("the superadmin has no parent")
+		}
+		parent, err := s.database.GetUserByID(parentID)
+		if err != nil || parent == nil {
+			return nil, errors.New("parent account not found")
+		}
+		if parent.Role != "admin" && parent.Role != "superadmin" {
+			return nil, errors.New("an account can only be placed under an admin or the superadmin")
+		}
+		below, err := s.database.UserSubtreeIDs(target.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range below {
+			if id == parent.ID {
+				return nil, errors.New("an account cannot be placed under itself or its own accounts")
+			}
+		}
+		out["parent_id"] = parent.ID
+	}
+
 	_, wantsRole := out["role"]
 	_, wantsStatus := out["status"]
-	selfOnly := !wantsRole && !wantsStatus
+	_, wantsParent := out["parent_id"]
+	selfOnly := !wantsRole && !wantsStatus && !wantsParent
 	if err := users.CanManage(actor.ID, actor.Role, target, selfOnly); err != nil {
 		return nil, err
 	}

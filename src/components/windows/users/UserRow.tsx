@@ -2,7 +2,7 @@ import { apiError } from '@/components/windows/users/apiError'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CircleUser, Crown, KeyRound, Pencil, Settings2, Shield, ShieldOff, Trash2, X } from 'lucide-react'
+import { Check, CircleUser, Crown, KeyRound, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, X } from 'lucide-react'
 import { updateUser, getUserQuota, updateUserQuota, type PanelUser, type UserQuota } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
@@ -30,6 +30,7 @@ export function UserRow({
   canManage,
   assignableRoles,
   onResetPassword,
+  onMove,
 }: {
   user: PanelUser
   onSuspend: () => void
@@ -40,6 +41,8 @@ export function UserRow({
   canManage: boolean
   assignableRoles: string[]
   onResetPassword: () => void
+  /** superadmin only: place the account under another admin */
+  onMove?: () => void
 }) {
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -151,6 +154,11 @@ export function UserRow({
           {canManage ? (
             <IconButton onClick={onResetPassword} label={t('users.resetPassword')}>
               <KeyRound className="h-3.5 w-3.5" />
+            </IconButton>
+          ) : null}
+          {onMove ? (
+            <IconButton onClick={onMove} label={t('users.moveTitle')}>
+              <Network className="h-3.5 w-3.5" />
             </IconButton>
           ) : null}
           {!canManage ? null : user.status === 'active' ? (

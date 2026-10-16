@@ -52,13 +52,14 @@ Di Reneo, MCP server tersedia lewat dua transport: **Streamable HTTP** di endpoi
 
 ## 2. Model Hak Akses Berbasis Akun (RBAC)
 
-MCP server Reneo **tidak memberikan akses bebas tanpa kontrol**. Ketersediaan tools disesuaikan secara ketat dengan role akun pemilik token API (`ypat_...`):
+MCP server Reneo **tidak memberikan akses bebas tanpa kontrol**. Tool disesuaikan dengan role akun pemilik token API (`ypat_...`), dan tool yang menyentuh server dijalankan lewat REST API dengan token Anda sendiri, sehingga isolasi akun berlaku sama seperti di UI:
 
-| Role Akun | Jumlah Tools | Izin Akses | Risiko & Pembatasan |
+| Role Akun | Jumlah Tools | Cakupan | Pembatasan |
 |---|:---:|---|---|
-| **`superadmin` / `admin`** | **133 Tools** | Akses Penuh: Terminal root host, Docker full lifecycle (start/stop/restart/delete), File Read/Write/Delete, Project Management, User Accounts, Cloudflare. | Digunakan oleh pemilik server atau lead sysadmin. |
-| **`user` (Developer Biasa)** | **91 Tools** | Kelola miliknya sendiri: project, tunnel dan DNS Cloudflare, database, container dan image Docker, file (aturan root-access berlaku), widget, notifikasi, dan token API. | ❌ `terminal_exec`, operasi host (firewall, disk, PostgreSQL panel), dan pengaturan sistem dinonaktifkan.<br>❌ Manajemen user dan dokumentasi tulis dinonaktifkan. |
-| **Tanpa Token (Anonim)** | **7 Tools** | Diagnostik: `system_info`, `system_logs`, `docker_list_containers`, `docker_container_logs`, `file_list`, `file_read`, `update_check`. | Hanya pembacaan aman tanpa modifikasi apa pun. |
+| **`superadmin`** | **133 Tools** | Seluruh mesin dan semua akun: terminal host (dengan sudo), file seluruh server, Docker penuh, operasi host (firewall, disk, PostgreSQL panel), log sistem, pengaturan sistem, update panel. | Satu akun pemilik server. |
+| **`admin`** | sama dengan `user` ditambah pengelolaan user turunan | Area sendiri dan akun yang ia buat: `terminal_exec` sebagai akun OS miliknya (tanpa sudo, dalam batas kuota), file di home dan folder project, container, database, project, Cloudflare, widget, user dan kuota turunannya. | Tanpa info host, log sistem, operasi host, pengaturan sistem. |
+| **`user` (+ akun demo)** | **97 Tools** | Area sendiri saja: terminal sebagai akun OS miliknya, file di home dan project, container, database, project, Cloudflare dengan token pribadi, widget, notifikasi, dan token API. | Hanya miliknya; `system_info` menampilkan CPU, RAM, dan storage akun terhadap kuota, bukan mesin. Demo tetap hanya-baca. |
+| **Tanpa Token (Anonim, stdio lokal)** | **7 Tools** | Diagnostik operator lokal: `system_info`, `system_logs`, `docker_list_containers`, `docker_container_logs`, `file_list`, `file_read`, `update_check`. | Hanya baca; endpoint HTTP `/mcp` selalu butuh token. |
 
 ---
 
@@ -81,6 +82,7 @@ Reneo mendukung dua arsitektur transport MCP:
 ### 🌟 Metode 1: Streamable HTTP & SSE (Direkomendasikan ala Hermes Agent / IDCloudHost)
 Metode ini **paling praktis** karena Anda tidak memerlukan setup SSH key atau menjalankan binary lokal. Cukup gunakan URL endpoint langsung dari AI agent Anda:
 
+- Token dapat dikirim lewat header `Authorization: Bearer ypat_...` (disarankan, tidak masuk log akses) atau query `?key=` / `?token=`.
 - Token dapat dikirim lewat header `Authorization: Bearer ypat_...` (disarankan, tidak masuk log akses) atau query `?key=` / `?token=`.
 - **Format URL Endpoint:**
   ```text
@@ -216,7 +218,7 @@ Di ekstensi Cline / Roo Code, buka tab **MCP Servers** dan tambahkan:
 
 ## 6. Daftar Tool MCP yang Tersedia
 
-Daftar ini dibuat dari registry agent yang sedang berjalan (`BuildServer` per role), jadi sama dengan halaman [Panduan MCP](/docs/mcp). Total **133 tool** untuk admin, **91** untuk user, dan **7** tanpa token. Katalog hidup juga tersedia publik di `GET /api/v1/mcp-catalog`.
+Daftar ini dibuat dari registry agent yang sedang berjalan (`BuildServer` per role), jadi sama dengan halaman [Panduan MCP](/docs/mcp). Total **133 tool** untuk admin, **97** untuk user, dan **7** tanpa token. Katalog hidup juga tersedia publik di `GET /api/v1/mcp-catalog`.
 
 Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempotentHint`) agar klien MCP dapat meminta konfirmasi sebelum aksi yang mengubah atau menghapus. Kolom **Jenis**: baca, ubah, hapus.
 
@@ -246,7 +248,7 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `ping_host` | Admin ke atas | baca | Measure reachability and latency from the server. |
 | `pm2_list` | Admin ke atas | baca | List all PM2 managed processes and web applications on the server with runtime metrics (status, memory, CPU, port, uptime). |
 | `pm2_logs` | Admin ke atas | baca | Retrieve recent stdout and stderr logs for a PM2 application. |
-| `pm2_restart` | Admin ke atas | ubah | Restart a PM2 managed process or application by name or ID |
+| `pm2_restart` | Admin ke atas | ubah | Restart a PM2 managed process or application by name or ID (e.g. |
 | `postgres_hba_allow` | Admin ke atas | hapus | Allow one role to reach one database from a network over TCP with scram-sha-256 by appending a pg_hba.conf rule and reloading. |
 | `postgres_listen_set` | Admin ke atas | hapus | Change PostgreSQL listen_addresses (ALTER SYSTEM) and restart the service so remote clients can connect, e.g. |
 | `postgres_listen_status` | Admin ke atas | baca | Inspect how PostgreSQL is exposed: listen_addresses, port, hba file, non-local pg_hba rules and whether the port is listening. |
@@ -254,10 +256,10 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `settings_get` | Admin ke atas | baca | Read host settings the panel manages: hostname, timezone, nameservers. |
 | `settings_update` | Admin ke atas | ubah | Change hostname, timezone or nameservers. |
 | `system_changelog` | User ke atas | baca | Release notes of the installed Reneo versions. |
-| `system_history` | User ke atas | baca | Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s). |
+| `system_history` | Admin ke atas | baca | Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s). |
 | `system_info` | Tanpa token | baca | Get server system information: hostname, OS, kernel, uptime, CPU usage, memory, storage, network I/O, Docker status, and IP addresses. |
 | `system_logs` | Tanpa token | baca | Read systemd service logs via journalctl. |
-| `terminal_exec` | Admin ke atas | hapus | Execute a shell command on the server and return its output. |
+| `terminal_exec` | User ke atas | hapus | Execute a shell command on the server and return its output. |
 | `terminal_preset_create` | User ke atas | ubah | Save a command as a terminal preset button for this account. |
 | `terminal_preset_delete` | User ke atas | hapus | Delete one of the account's terminal presets. |
 | `terminal_presets_list` | User ke atas | baca | List saved terminal command presets of the account. |
@@ -273,7 +275,7 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `docker_container_logs` | Tanpa token | baca | Fetch recent log output from a Docker container. |
 | `docker_create_network` | User ke atas | ubah | Create a bridge network, optionally with subnet and gateway. |
 | `docker_create_template` | User ke atas | ubah | Save a Docker Compose template for later reuse. |
-| `docker_delete_container` | Admin ke atas | hapus | Force-remove a Docker container. |
+| `docker_delete_container` | User ke atas | hapus | Force-remove a Docker container. |
 | `docker_delete_template` | User ke atas | hapus | Delete a saved template. |
 | `docker_deploy_compose` | User ke atas | ubah | Deploy a Docker Compose stack from YAML content. |
 | `docker_deploy_image` | User ke atas | ubah | Pull and run a Docker image as a new container (compose-managed). |
@@ -285,9 +287,9 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `docker_pull_image` | User ke atas | ubah | Pull an image from a registry. |
 | `docker_remove_image` | User ke atas | hapus | Remove a local image. |
 | `docker_remove_network` | User ke atas | hapus | Remove a Docker network. |
-| `docker_restart_container` | Admin ke atas | ubah | Restart a Docker container by its ID or name. |
-| `docker_start_container` | Admin ke atas | ubah | Start a stopped Docker container by its ID or name. |
-| `docker_stop_container` | Admin ke atas | ubah | Stop a running Docker container by its ID or name. |
+| `docker_restart_container` | User ke atas | ubah | Restart a Docker container by its ID or name. |
+| `docker_start_container` | User ke atas | ubah | Start a stopped Docker container by its ID or name. |
+| `docker_stop_container` | User ke atas | ubah | Stop a running Docker container by its ID or name. |
 
 ### File (12)
 
@@ -296,15 +298,15 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `file_chmod` | User ke atas | ubah | Change file mode. |
 | `file_compress` | User ke atas | ubah | Compress a file or directory into an archive next to it. |
 | `file_copy` | User ke atas | ubah | Copy a file or directory. |
-| `file_delete` | Admin ke atas | hapus | Delete a file or empty directory on the server. |
+| `file_delete` | User ke atas | hapus | Delete a file or empty directory on the server. |
 | `file_extract` | User ke atas | ubah | Extract an archive into a directory. |
 | `file_list` | Tanpa token | baca | List files and directories at the given path on the server. |
-| `file_mkdir` | Admin ke atas | ubah | Create a directory (and all parent directories) on the server. |
+| `file_mkdir` | User ke atas | ubah | Create a directory (and all parent directories) on the server. |
 | `file_move` | User ke atas | ubah | Move a file or directory to another location. |
 | `file_read` | Tanpa token | baca | Read the text content of a file on the server. |
 | `file_rename` | User ke atas | ubah | Rename a file or directory. |
 | `file_touch` | User ke atas | ubah | Create an empty file or update its timestamp. |
-| `file_write` | Admin ke atas | ubah | Write or overwrite a file with the given text content. |
+| `file_write` | User ke atas | ubah | Write or overwrite a file with the given text content. |
 
 ### Project dan tunnel (14)
 
@@ -357,7 +359,7 @@ Setiap tool membawa *annotations* (`readOnlyHint`, `destructiveHint`, `idempoten
 | `cloudflare_delete_dns` | User ke atas | hapus | Delete a DNS record from a Cloudflare zone. |
 | `cloudflare_delete_redirect_rule` | User ke atas | hapus | Delete a redirect rule by ID (from cloudflare_list_redirect_rules). |
 | `cloudflare_delete_tunnel_profile` | User ke atas | hapus | Delete a tunnel profile. |
-| `cloudflare_ensure_dns_cname` | User ke atas | ubah | Automatically create or update a Cloudflare DNS CNAME pointing an ingress hostname |
+| `cloudflare_ensure_dns_cname` | User ke atas | ubah | Automatically create or update a Cloudflare DNS CNAME pointing an ingress hostname (e.g. |
 | `cloudflare_get_config` | User ke atas | baca | Show whether a Cloudflare API token is configured for the account, its status and base domain (the token itself is never returned). |
 | `cloudflare_list_dns` | User ke atas | baca | List DNS records for a Cloudflare zone managed by Reneo. |
 | `cloudflare_list_domains` | User ke atas | baca | List all Cloudflare domains (zones) connected to Reneo. |

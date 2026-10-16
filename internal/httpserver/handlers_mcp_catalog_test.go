@@ -23,8 +23,9 @@ func TestBuildMCPCatalogCoversRoles(t *testing.T) {
 			t.Errorf("%s missing group/description", tl.Name)
 		}
 	}
-	if seen["terminal_exec"].Access != "admin" || seen["system_info"].Access != "anonymous" {
-		t.Errorf("access levels wrong: terminal_exec=%s system_info=%s", seen["terminal_exec"].Access, seen["system_info"].Access)
+	// every account can run commands, but only as itself; the host journal stays with the superadmin
+	if seen["terminal_exec"].Access != "user" || seen["system_info"].Access != "anonymous" || seen["firewall_status"].Access != "admin" {
+		t.Errorf("access levels wrong: terminal_exec=%s system_info=%s firewall_status=%s", seen["terminal_exec"].Access, seen["system_info"].Access, seen["firewall_status"].Access)
 	}
 	if seen["disk_cleanup"].Kind != "destroy" || seen["firewall_status"].Kind != "read" {
 		t.Errorf("kinds wrong: %+v %+v", seen["disk_cleanup"], seen["firewall_status"])

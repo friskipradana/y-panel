@@ -78,6 +78,9 @@ var blockedPatterns = []string{
 	"chown -R",
 }
 
+// ValidateCommand is the shared guard for one-shot commands (MCP and the REST exec endpoint).
+func ValidateCommand(cmd string) error { return validateCommand(cmd) }
+
 func validateCommand(cmd string) error {
 	lower := strings.ToLower(cmd)
 	for _, pattern := range blockedPatterns {

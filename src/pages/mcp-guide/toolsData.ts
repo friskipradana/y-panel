@@ -10,7 +10,7 @@ export interface McpToolInfo {
   desc: string
 }
 
-export const MCP_TOOL_COUNTS = {"admin":133,"anonymous":7,"user":91} as const
+export const MCP_TOOL_COUNTS = {"admin":133,"anonymous":7,"user":97} as const
 
 export const MCP_TOOLS: McpToolInfo[] = [
   { name: "api_token_list", group: "overview", access: "user", kind: "read", desc: "List the account's API tokens (prefix, name, expiry, last use)." },
@@ -54,7 +54,7 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "docker_container_logs", group: "docker", access: "anonymous", kind: "read", desc: "Fetch recent log output from a Docker container." },
   { name: "docker_create_network", group: "docker", access: "user", kind: "write", desc: "Create a bridge network, optionally with subnet and gateway." },
   { name: "docker_create_template", group: "docker", access: "user", kind: "write", desc: "Save a Docker Compose template for later reuse." },
-  { name: "docker_delete_container", group: "docker", access: "admin", kind: "destroy", desc: "Force-remove a Docker container." },
+  { name: "docker_delete_container", group: "docker", access: "user", kind: "destroy", desc: "Force-remove a Docker container." },
   { name: "docker_delete_template", group: "docker", access: "user", kind: "destroy", desc: "Delete a saved template." },
   { name: "docker_deploy_compose", group: "docker", access: "user", kind: "write", desc: "Deploy a Docker Compose stack from YAML content." },
   { name: "docker_deploy_image", group: "docker", access: "user", kind: "write", desc: "Pull and run a Docker image as a new container (compose-managed)." },
@@ -66,9 +66,9 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "docker_pull_image", group: "docker", access: "user", kind: "write", desc: "Pull an image from a registry." },
   { name: "docker_remove_image", group: "docker", access: "user", kind: "destroy", desc: "Remove a local image." },
   { name: "docker_remove_network", group: "docker", access: "user", kind: "destroy", desc: "Remove a Docker network." },
-  { name: "docker_restart_container", group: "docker", access: "admin", kind: "write", desc: "Restart a Docker container by its ID or name." },
-  { name: "docker_start_container", group: "docker", access: "admin", kind: "write", desc: "Start a stopped Docker container by its ID or name." },
-  { name: "docker_stop_container", group: "docker", access: "admin", kind: "write", desc: "Stop a running Docker container by its ID or name." },
+  { name: "docker_restart_container", group: "docker", access: "user", kind: "write", desc: "Restart a Docker container by its ID or name." },
+  { name: "docker_start_container", group: "docker", access: "user", kind: "write", desc: "Start a stopped Docker container by its ID or name." },
+  { name: "docker_stop_container", group: "docker", access: "user", kind: "write", desc: "Stop a running Docker container by its ID or name." },
   { name: "docs_create", group: "users", access: "admin", kind: "write", desc: "Create a documentation page (Markdown content)." },
   { name: "docs_delete", group: "users", access: "admin", kind: "destroy", desc: "Delete a documentation page." },
   { name: "docs_get", group: "users", access: "user", kind: "read", desc: "Read one documentation page." },
@@ -78,15 +78,15 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "file_chmod", group: "files", access: "user", kind: "write", desc: "Change file mode." },
   { name: "file_compress", group: "files", access: "user", kind: "write", desc: "Compress a file or directory into an archive next to it." },
   { name: "file_copy", group: "files", access: "user", kind: "write", desc: "Copy a file or directory." },
-  { name: "file_delete", group: "files", access: "admin", kind: "destroy", desc: "Delete a file or empty directory on the server." },
+  { name: "file_delete", group: "files", access: "user", kind: "destroy", desc: "Delete a file or empty directory on the server." },
   { name: "file_extract", group: "files", access: "user", kind: "write", desc: "Extract an archive into a directory." },
   { name: "file_list", group: "files", access: "anonymous", kind: "read", desc: "List files and directories at the given path on the server." },
-  { name: "file_mkdir", group: "files", access: "admin", kind: "write", desc: "Create a directory (and all parent directories) on the server." },
+  { name: "file_mkdir", group: "files", access: "user", kind: "write", desc: "Create a directory (and all parent directories) on the server." },
   { name: "file_move", group: "files", access: "user", kind: "write", desc: "Move a file or directory to another location." },
   { name: "file_read", group: "files", access: "anonymous", kind: "read", desc: "Read the text content of a file on the server." },
   { name: "file_rename", group: "files", access: "user", kind: "write", desc: "Rename a file or directory." },
   { name: "file_touch", group: "files", access: "user", kind: "write", desc: "Create an empty file or update its timestamp." },
-  { name: "file_write", group: "files", access: "admin", kind: "write", desc: "Write or overwrite a file with the given text content." },
+  { name: "file_write", group: "files", access: "user", kind: "write", desc: "Write or overwrite a file with the given text content." },
   { name: "firewall_allow", group: "system", access: "admin", kind: "write", desc: "Open a port in UFW, preferably only for a trusted source (`from` IP or CIDR)." },
   { name: "firewall_remove", group: "system", access: "admin", kind: "destroy", desc: "Delete a UFW rule by its number from firewall_status." },
   { name: "firewall_status", group: "system", access: "admin", kind: "read", desc: "Show UFW status and numbered rules (use the numbers with firewall_remove)." },
@@ -115,10 +115,10 @@ export const MCP_TOOLS: McpToolInfo[] = [
   { name: "settings_get", group: "system", access: "admin", kind: "read", desc: "Read host settings the panel manages: hostname, timezone, nameservers." },
   { name: "settings_update", group: "system", access: "admin", kind: "write", desc: "Change hostname, timezone or nameservers." },
   { name: "system_changelog", group: "system", access: "user", kind: "read", desc: "Release notes of the installed Reneo versions." },
-  { name: "system_history", group: "system", access: "user", kind: "read", desc: "Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s)." },
+  { name: "system_history", group: "system", access: "admin", kind: "read", desc: "Recorded host metric series for the last hour at 5s resolution: cpu, ram, disk (percent), temp (C), net-rx and net-tx (bytes/s)." },
   { name: "system_info", group: "system", access: "anonymous", kind: "read", desc: "Get server system information: hostname, OS, kernel, uptime, CPU usage, memory, storage, network I/O, Docker status, and IP addresses." },
   { name: "system_logs", group: "system", access: "anonymous", kind: "read", desc: "Read systemd service logs via journalctl." },
-  { name: "terminal_exec", group: "system", access: "admin", kind: "destroy", desc: "Execute a shell command on the server and return its output." },
+  { name: "terminal_exec", group: "system", access: "user", kind: "destroy", desc: "Execute a shell command on the server and return its output." },
   { name: "terminal_preset_create", group: "system", access: "user", kind: "write", desc: "Save a command as a terminal preset button for this account." },
   { name: "terminal_preset_delete", group: "system", access: "user", kind: "destroy", desc: "Delete one of the account's terminal presets." },
   { name: "terminal_presets_list", group: "system", access: "user", kind: "read", desc: "List saved terminal command presets of the account." },

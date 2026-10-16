@@ -85,27 +85,31 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 		cfg.StateDir = runtimepath.StateDir()
 	}
 
+	isSuper := userRole == "superadmin"
 	isAdmin := userRole == "superadmin" || userRole == "admin"
 	isUser := userRole == "user"
+	// A token without a role is the local stdio operator, who is already on the machine
+	isLocal := userRole == "anonymous"
 
 	srv := NewServer()
+	srv.superadmin = isSuper
 
-	// 1. System tools
-	registerSystemTools(srv, systemConfig{
-		PortainerURL: cfg.PortainerURL,
-		StateDir:     cfg.StateDir,
-	})
-
-	// 2. Docker tools (write/management only for admins; read-only for user/anon)
-	registerDockerTools(srv, isAdmin)
-
-	// 3. File tools (write only for admins; read-only for user/anon)
-	registerFileTools(srv, isAdmin)
-
-	// 4. Terminal tools (root/shell exec only for superadmin/admin)
-	if isAdmin {
-		registerTerminalTools(srv)
-		registerOpsTools(srv)
+	// 1-4. Tools that act on the machine itself: the superadmin (and the local stdio operator).
+	// Every other account gets the REST-backed equivalents below, which keep it inside its own
+	// home, containers and quota.
+	if isSuper || isLocal {
+		registerSystemTools(srv, systemConfig{
+			PortainerURL: cfg.PortainerURL,
+			StateDir:     cfg.StateDir,
+		})
+		registerDockerTools(srv, isAdmin)
+		registerFileTools(srv, isAdmin)
+		if isAdmin {
+			registerTerminalTools(srv)
+			registerOpsTools(srv)
+		}
+	} else {
+		registerUpdateCheck(srv)
 	}
 
 	// 5. API-backed tools (requires valid account token)
@@ -115,10 +119,16 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 	}
 	if effectiveToken != "" && (isAdmin || isUser) {
 		client := newAPIClient(cfg.PanelURL, effectiveToken)
+		if !isSuper {
+			registerSpecs(srv, client, isAdmin, scopedSpecs())
+		}
 		registerProjectTools(srv, client)
 		registerCloudflareTools(srv, client)
 		if isAdmin {
 			registerUserTools(srv, client)
+		}
+		if isSuper {
+			// deploys by writing into the host and driving PM2 / systemd directly
 			registerWorkflowTools(srv, client, cfg)
 		}
 		// Catalog of REST-backed tools (docker, files, tunnels, docs, notifications, ...)

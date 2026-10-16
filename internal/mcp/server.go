@@ -14,6 +14,8 @@ import (
 
 // Server is the MCP stdio server.
 type Server struct {
+	// superadmin: the caller may reach the machine itself (direct host tools, host-wide specs)
+	superadmin bool
 	tools    []Tool
 	handlers map[string]ToolHandler
 	mu       sync.Mutex

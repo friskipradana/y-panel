@@ -216,6 +216,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionStart)))
 	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
 	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionClose)))
+	s.mux.Handle("POST /api/v1/terminal/exec", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalExec)))
 	s.mux.Handle("GET /api/v1/system/stats/ws", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSystemStatsWebSocket)))
 	s.mux.Handle("GET /api/v1/system/live/ws", s.requireAuthV2(http.HandlerFunc(s.handleLiveWebSocket)))
 	s.mux.Handle("GET /api/v1/terminal/presets", s.requireAuthV2(http.HandlerFunc(s.handleListTerminalPresets)))

@@ -55,6 +55,11 @@ func registerSystemTools(s *Server, cfg systemConfig) {
 		return fmt.Sprintf("=== Logs: %s (last %d lines) ===\n%s", service, len(lines), strings.Join(lines, "\n")), nil
 	})
 
+	registerUpdateCheck(s)
+}
+
+// registerUpdateCheck is public release information, so every role may use it.
+func registerUpdateCheck(s *Server) {
 	s.Register(Tool{
 		Name:        "update_check",
 		Description: "Check GitHub Releases to see if a newer Reneo version is available.",

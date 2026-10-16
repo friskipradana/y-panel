@@ -63,13 +63,19 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	startResult, err := s.terminalManager.Start(terminal.StartRequest{
+	startReq := terminal.StartRequest{
 		PanelUsername: currentUser.Username,
 		DisplayName:   currentUser.DisplayName,
 		Role:          currentUser.Role,
 		Target:        target,
 		Cwd:           cwd,
-	})
+	}
+	if !auth.IsSuperAdmin(currentUser.Role) {
+		if quota, qerr := s.database.GetUserQuota(currentUser.ID); qerr == nil && quota != nil {
+			startReq.CPULimitPct, startReq.MemoryLimitMB = quota.CPULimitPct, quota.MemoryLimitMB
+		}
+	}
+	startResult, err := s.terminalManager.Start(startReq)
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.auditSensitiveAction(r, currentUser, "terminal.start", "failed", map[string]any{"target": target, "cwd": cwd, "error": err.Error()})

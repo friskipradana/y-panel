@@ -59,6 +59,9 @@ type StartRequest struct {
 	Role          string
 	Target        string
 	Cwd           string
+	// quota of the account: 0 = unlimited (the superadmin)
+	CPULimitPct   int
+	MemoryLimitMB int
 }
 
 type StartResult struct {
@@ -125,6 +128,10 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 		cmd, err = osuser.WrapCommand(cmd, osUsername)
 		if err != nil {
 			return nil, err
+		}
+		// the shell lives in a systemd slice that carries the account's CPU and memory quota
+		if slice := osuser.SliceFor(osUsername, osuser.Limits{CPUPercent: req.CPULimitPct, MemoryMB: req.MemoryLimitMB}); slice != "" {
+			cmd = osuser.InSlice(cmd, slice)
 		}
 		if cwd != "" {
 			cmd.Dir = cwd

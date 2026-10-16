@@ -135,3 +135,28 @@ func (m *Manager) ListProjectsForOwners(ownerIDs []int64, query string, limit, o
 	}
 	return out, total, rows.Err()
 }
+
+// UserParentIDs maps account IDs to the account that manages them (accounts without a parent are
+// left out).
+func (m *Manager) UserParentIDs(ids []int64) (map[int64]int64, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	out := map[int64]int64{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := m.db.Query(`SELECT id, parent_id FROM users WHERE id = ANY($1) AND parent_id IS NOT NULL`, pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, parent int64
+		if err := rows.Scan(&id, &parent); err != nil {
+			return nil, err
+		}
+		out[id] = parent
+	}
+	return out, rows.Err()
+}

@@ -12,6 +12,7 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { alertLib } from '@/lib/alert'
 import { useAuthStore } from '@/store/authStore'
 import { ResetPasswordModal } from '@/components/windows/users/ResetPasswordModal'
+import { MoveAccountModal } from '@/components/windows/users/MoveAccountModal'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
@@ -29,6 +30,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
   const [showCreate, setShowCreate] = useState(false)
   const [showQuota, setShowQuota] = useState<number | null>(null)
   const [resetTarget, setResetTarget] = useState<PanelUser | null>(null)
+  const [moveTarget, setMoveTarget] = useState<PanelUser | null>(null)
   const actor = useAuthStore((s) => s.user)
   const assignable = grantableRoles(actor?.role)
   const [showPwd, setShowPwd] = useState(false)
@@ -264,6 +266,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
                     canManage={canManageUser(actor, u)}
                     assignableRoles={assignable}
                     onResetPassword={() => setResetTarget(u)}
+                    onMove={actor?.role === 'superadmin' && u.role !== 'superadmin' ? () => setMoveTarget(u) : undefined}
                   />
                 ))}
               </>
@@ -283,6 +286,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
         </div>
       </div>
       <ResetPasswordModal user={resetTarget} onClose={() => setResetTarget(null)} />
+      <MoveAccountModal user={moveTarget} onClose={() => setMoveTarget(null)} />
     </div>
   )
 }
