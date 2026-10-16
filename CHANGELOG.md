@@ -2,6 +2,20 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.5] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.5** berisi 2 perubahan: 2 pemeliharaan. (5 files changed, 220 insertions(+), 179 deletions(-))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **landing:** Remove the demo credentials card; the hero button remains ([`793d494`](https://github.com/friskipradana/y-panel/commit/793d494))
+- **login:** Back to the previous login page design (glass pills over the wallpaper) ([`594aab3`](https://github.com/friskipradana/y-panel/commit/594aab3))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.4...v4.6.5
+
 ## [4.6.4] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
