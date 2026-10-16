@@ -8,9 +8,11 @@ import { useSpeedtestWindow } from './speedtest/useSpeedtestWindow'
 // Speed test: this device to the panel (everyone) and the panel to the internet (superadmin)
 export function SpeedtestWindow() {
   const { t } = useI18n()
-  const state = useSpeedtestWindow()
-  const { tab, setTab, isSuperadmin, serverMutation } = state
+  const { tab, setTab, isSuperadmin, browser, server, history } = useSpeedtestWindow()
   const active = isSuperadmin ? tab : 'browser'
+  const run = active === 'browser' ? browser : server
+  // switching tabs mid-test would hide the one that is running
+  const locked = browser.running || server.running
 
   return (
     <div className="panel-window flex h-full flex-col overflow-hidden">
@@ -19,7 +21,9 @@ export function SpeedtestWindow() {
           <Tabs
             label={t('speedtest.tabs')}
             value={active}
-            onChange={setTab}
+            onChange={(key) => {
+              if (!locked) setTab(key)
+            }}
             items={[
               { key: 'browser', label: t('speedtest.tab.browser'), icon: <Smartphone size={14} /> },
               { key: 'server', label: t('speedtest.tab.server'), icon: <Server size={14} /> },
@@ -27,28 +31,18 @@ export function SpeedtestWindow() {
           />
         ) : null}
 
-        {active === 'browser' ? (
-          <SpeedPanel
-            title={t('speedtest.browser.title')}
-            subtitle={t('speedtest.browser.subtitle')}
-            result={state.browserResult}
-            progress={state.progress}
-            running={state.runningBrowser}
-            onStart={() => void state.startBrowser()}
-            onStop={state.stopBrowser}
-          />
-        ) : (
-          <SpeedPanel
-            title={t('speedtest.server.title')}
-            subtitle={t('speedtest.server.subtitle')}
-            result={serverMutation.data ?? null}
-            running={serverMutation.isPending}
-            onStart={() => serverMutation.mutate()}
-            busyHint={t('speedtest.server.busy')}
-          />
-        )}
+        <SpeedPanel
+          key={active}
+          title={t(`speedtest.${active}.title`)}
+          subtitle={t(`speedtest.${active}.subtitle`)}
+          live={run.live}
+          result={run.result}
+          running={run.running}
+          onStart={run.start}
+          onStop={run.stop}
+        />
 
-        <SpeedHistory items={state.history.filter((item) => isSuperadmin || item.kind === 'browser')} />
+        <SpeedHistory items={history.filter((item) => isSuperadmin || item.kind === 'browser')} />
       </div>
     </div>
   )
