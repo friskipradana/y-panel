@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.14] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.14** berisi 1 perubahan: 1 fitur. (17 files changed, 935 insertions(+), 368 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **speedtest:** Live meter, steps and per-figure traces; server test streams NDJSON so values fill in realtime ([`3302ecb`](https://github.com/friskipradana/y-panel/commit/3302ecb))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.13...v4.6.14
+
 ## [4.6.13] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
