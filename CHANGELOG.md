@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.10] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.10** berisi 1 perubahan: 1 peningkatan. (1 file changed, 2 insertions(+), 2 deletions(-))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **landing:** Demo button outlined in the login blue ([`5c97e67`](https://github.com/friskipradana/y-panel/commit/5c97e67))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.9...v4.6.10
+
 ## [4.6.9] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
