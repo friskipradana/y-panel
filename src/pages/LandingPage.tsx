@@ -51,8 +51,8 @@ const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; classNam
 const NAME_PARTS = ['rein', 'neo', 'rene'] as const
 
 const HERO_ACTION = '!h-11 w-full justify-center !px-4'
-// Login is solid blue, the demo is outlined in the same blue, the installer is a neutral outline
-const HERO_TINT = '!border-[var(--panel-primary-solid)] !bg-transparent !text-[var(--panel-primary-solid)] hover:!bg-[var(--panel-primary-bg)]'
+// Login is solid blue, the demo is the same soft outline as the installer with a blue edge and label, the installer is a neutral outline
+const HERO_TINT = '!border-[color-mix(in_srgb,var(--panel-primary-text)_35%,var(--win-border))] !text-[var(--panel-primary-text)]'
 
 export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
@@ -78,7 +78,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
               <ArrowRight size={15} />
             </Button>
             {!authenticated && demo?.enabled ? (
-              <Button variant="primary-soft" onClick={() => onNavigate('/login?demo=1')} className={`${HERO_ACTION} ${HERO_TINT}`}>
+              <Button variant="outline" onClick={() => onNavigate('/login?demo=1')} className={`${HERO_ACTION} ${HERO_TINT}`}>
                 <Eye size={15} />
                 <span>{t('landing.demo.heroCta')}</span>
               </Button>
