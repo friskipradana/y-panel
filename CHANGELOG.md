@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.15] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.15** berisi 1 perubahan: 1 perbaikan. (6 files changed, 158 insertions(+), 11 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **speedtest:** Server test checks HTTP status, falls back to other download hosts and reports why a figure is missing ([`cb7eeb4`](https://github.com/friskipradana/y-panel/commit/cb7eeb4))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.14...v4.6.15
+
 ## [4.6.14] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
