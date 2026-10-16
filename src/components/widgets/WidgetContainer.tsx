@@ -16,6 +16,7 @@ import {
   WIDGET_MIN_HEIGHT,
   WIDGET_MIN_WIDTH,
   WIDGET_TOP,
+  WIDGET_WIDTH,
 } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
@@ -42,6 +43,11 @@ export const WIDGET_COMPONENTS: Record<PlacedWidget['type'], React.ComponentType
   'quick-note': QuickNoteWidget,
   'cpu-graph': CpuGraphWidget,
   ping: PingWidget,
+}
+
+// Text and charts grow and shrink with the width of the card (1 = the design width)
+function contentScale(width: number) {
+  return Math.round(Math.min(2.6, Math.max(0.7, width / WIDGET_WIDTH)) * 1000) / 1000
 }
 
 const EDGE = 12
@@ -216,6 +222,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       card.style.top = `${ny}px`
       card.style.width = `${cw}px`
       card.style.height = `${ch}px`
+      card.style.setProperty('--ws', String(contentScale(cw)))
     }
 
     const onUp = () => {
@@ -232,6 +239,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
           rect.y + rect.h + 2 > o.y,
       )
       if (overlaps) {
+        card.style.setProperty('--ws', String(contentScale(widget.w ? start.w : WIDGET_WIDTH)))
         card.style.left = `${start.left}px`
         card.style.top = `${start.top}px`
         card.style.width = `${start.w}px`
@@ -263,12 +271,14 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         background,
         color: 'var(--win-text)',
         boxShadow: isDragging ? 'var(--widget-shadow-hover)' : 'var(--widget-shadow)',
-      }}
+        // the content is laid out at the design width and zoomed by this factor
+        ['--ws' as string]: contentScale(widget.w ? width : WIDGET_WIDTH),
+      } as React.CSSProperties}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
-      className={`group @container pointer-events-auto z-0 hover:z-20 focus-within:z-20 flex select-none flex-col rounded-xl border backdrop-blur-md transition-[border-color,box-shadow] duration-200 hover:border-[var(--widget-border)] ${
+      className={`group pointer-events-auto z-0 hover:z-20 focus-within:z-20 flex select-none flex-col rounded-xl border backdrop-blur-md transition-[border-color,box-shadow] duration-200 hover:border-[var(--widget-border)] ${
         isDragging ? 'cursor-grabbing border-[var(--widget-border)]' : 'border-transparent'
       } ${widget.isLocked ? 'cursor-default' : isDragging ? '' : 'cursor-grab'}`}
     >
@@ -316,8 +326,10 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         </div>
       </div>
 
-      <div className={`flex min-h-0 flex-1 flex-col ${widget.h ? 'overflow-hidden' : ''}`}>
-        <Component widget={widget} />
+      <div className={`flex min-h-0 flex-1 flex-col ${widget.h ? 'overflow-hidden' : ''}`} style={{ zoom: 'var(--ws)' }}>
+        <div className="@container flex min-h-0 flex-1 flex-col">
+          <Component widget={widget} />
+        </div>
       </div>
 
       {!widget.isLocked
