@@ -48,14 +48,16 @@ import { LoadingState } from "@/components/ui/states"
 export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
-  const [activeTab, setActiveTab] = useState<SettingsTabKey>("general");
+  const role = useAuthStore((s) => s.user?.role);
+  // host settings (hostname, DNS, ports, updates, payment, audit) belong to the superadmin
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>(role === "superadmin" ? "general" : "appearance");
 
   const host = useHostSettings({ authenticated });
   const cloudflare = useCloudflareSettings();
   const payment = usePaymentSettings({ authenticated });
   const listener = useNotificationSettings({ authenticated });
 
-  const SETTINGS_TABS: {
+  const ALL_TABS: {
     key: SettingsTabKey;
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -109,6 +111,12 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         ]
       : []),
   ];
+  const SETTINGS_TABS = ALL_TABS.filter((tab) => {
+    if (isSuperadmin) return true;
+    const own: SettingsTabKey[] = ["appearance", "wallpaper", "desktop", "screensaver", "sound", "cloudflare", "security", "api_tokens"];
+    if (role === "admin") own.push("notifications");
+    return own.includes(tab.key);
+  });
 
   return (
     <div className="panel-window flex flex-col h-full overflow-hidden">
@@ -147,13 +155,13 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
         {/* ── Right Content Area ── */}
         <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4">
-          {host.query.isLoading && (
+          {isSuperadmin && host.query.isLoading && (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
               <LoadingState>{t("settings.loadingHostSettings")}</LoadingState>
             </div>
           )}
 
-          {!host.query.isLoading && (host.query.isError || !host.query.data) && (
+          {isSuperadmin && !host.query.isLoading && (host.query.isError || !host.query.data) && (
             <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
               <div className="panel-error-state">
                 <Database className="h-5 w-5" />
@@ -169,9 +177,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </div>
           )}
 
-          {!host.query.isLoading && host.query.data && (
+          {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
             <>
-              {activeTab === "general" && <GeneralTab host={host} systemSettings={host.query.data} />}
+              {activeTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
 
               {activeTab === "appearance" && <AppearanceTab />}
 
@@ -185,7 +193,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {activeTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
 
-              {activeTab === "network" && <NetworkTab host={host} systemSettings={host.query.data} />}
+              {activeTab === "network" && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
 
               {activeTab === "security" && <SecurityTab host={host} setActiveTab={setActiveTab} />}
 

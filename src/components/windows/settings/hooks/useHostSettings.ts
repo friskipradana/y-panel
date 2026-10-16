@@ -18,14 +18,14 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
   const queryClient = useQueryClient();
   const { t } = useI18n();
 
+  // host settings (hostname, DNS, ports) and the panel's own database are the superadmin's
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const query = useQuery({
     queryKey: ["editable-system-settings"],
     queryFn: getEditableSystemSettings,
     retry: 1,
+    enabled: isSuperadmin,
   });
-
-  // the panel's own database is readable by the superadmin only
-  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const databaseQuery = useQuery({
     queryKey: ["database-status"],
     queryFn: getDatabaseStatus,

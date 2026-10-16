@@ -179,3 +179,23 @@ Perilaku:
 - Terminal, file, pengaturan, user, database, log sistem, Cloudflare, token API, dan semua aksi tulis ditolak, termasuk menyimpan tata letak widget (tata letak demo hanya tersimpan di peramban pengunjung, jadi satu pengunjung tidak meninggalkan isi untuk pengunjung lain).
 - Ringkasan sistem menyembunyikan hostname, kernel, path state, dan detail database.
 - Username dan password tampil di landing page (`GET /api/v1/public/demo`). Pakai password yang tidak dipakai di tempat lain.
+
+## Isolasi Akun (gaya hosting)
+
+Setiap akun bekerja di areanya sendiri. Yang membedakan hanya cakupannya:
+
+| Peran | Cakupan | Jendela |
+| :--- | :--- | :--- |
+| `superadmin` | Seluruh mesin dan semua akun | Semua, termasuk log sistem, info host, database runtime, pengaturan host |
+| `admin` | Dirinya dan akun yang ia buat (kolom `users.parent_id`, turunan bertingkat) | Semua kecuali yang khusus superadmin; mengelola user turunannya |
+| `user` / demo | Hanya dirinya | Docker, terminal, file, database, project, Cloudflare, widget, pengaturan pribadi |
+
+Aturan yang diterapkan agent:
+
+- Terminal berjalan sebagai akun OS milik akun itu (`runuser`), tanpa sudo. Sudo hanya untuk superadmin.
+- File manager dibatasi ke home dan folder project akun. Folder state panel (kredensial semua akun) hanya untuk superadmin.
+- Container, image, network, template, project, database, dan token Cloudflare dipisah per pemilik; admin juga melihat milik turunannya.
+- Info host (hostname, OS, kernel, uptime, IP, NIC, riwayat metrik, Docker/Portainer) hanya untuk superadmin. Akun lain melihat CPU, RAM, dan storage miliknya sendiri terhadap kuota yang ditetapkan (`GET /api/v1/system/summary` dengan `scoped: true`, juga di live socket).
+- Pengaturan host (hostname, DNS, port, origin, update, payment), log sistem, dan database runtime hanya untuk superadmin.
+- Akun yang sudah ada sebelum migrasi `000014` menjadi turunan superadmin; superadmin dapat memindahkannya.
+- Batas CPU dan memori dari kuota diterapkan pada container. Proses shell di akun OS belum dibatasi cgroup; batasnya tampil sebagai angka, belum dipaksa.

@@ -22,7 +22,9 @@ const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWind
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
 
 
-const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['host-terminal', 'users', 'settings'])
+// Every account works in its own area (terminal as its own OS account, own files, containers,
+// databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
+const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
 // service journals show every account's activity
 const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs'])
 

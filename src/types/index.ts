@@ -56,7 +56,20 @@ export interface WindowState {
 }
 
 // ── Docker / Portainer ───────────────────────────────────────────
+export interface AccountResources {
+  cpuPercent: number
+  cpuCores: number
+  memUsed: number
+  memLimit: number
+  diskUsed: number
+  diskLimit: number
+  cpuLimitPct: number
+}
+
 export interface SystemSummary {
+  /** true when the figures describe the signed-in account, not the machine */
+  scoped?: boolean
+  account?: AccountResources | null
   osName: string
   hostname: string
   kernel: string

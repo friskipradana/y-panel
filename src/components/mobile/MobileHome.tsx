@@ -5,7 +5,7 @@ import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { IconButton } from '@/components/ui/IconButton'
-import { orderWidgetsForMobile, useWidgetStore } from '@/store/widgetStore'
+import { orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import type { WindowKind } from '@/types'
@@ -68,8 +68,8 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const removeWidget = useWidgetStore((s) => s.removeWidget)
   // the host card above already shows CPU, RAM and disk, so the System Vitals widget is not repeated
   const widgets = useMemo(
-    () => orderWidgetsForMobile(placed, mobile.order).filter((w) => w.type !== 'system-vital'),
-    [placed, mobile.order],
+    () => orderWidgetsForMobile(placed, mobile.order).filter((w) => w.type !== 'system-vital' && widgetAllowedFor(w.type, role)),
+    [placed, mobile.order, role],
   )
   const apps = useMemo(
     () => [...DESKTOP_SHORTCUTS.map((a) => a.windowId), ...EXTRA_APPS].filter((kind) => canAccessWindow(kind, role)),
@@ -84,7 +84,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
       <section aria-label={t('mobile.host')} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="panel-mono truncate text-[0.9375rem] font-semibold">{summary?.hostname || '-'}</h2>
-          {summary ? (
+          {summary && !summary.scoped ? (
             <span className="panel-mono shrink-0 text-[0.75rem] text-[var(--text-secondary)]">
               {t('mobile.uptime', { value: formatUptime(summary.uptimeSeconds) })}
             </span>

@@ -136,6 +136,36 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     )
   }
 
+  if (data.scoped && data.account) {
+    const a = data.account
+    const memPct = a.memLimit ? (a.memUsed / a.memLimit) * 100 : 0
+    const diskPct = a.diskLimit ? (a.diskUsed / a.diskLimit) * 100 : 0
+    const unlimited = t('system.account.unlimited')
+    return (
+      <div className="panel-window">
+        <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
+          <div className="text-xs text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--win-text)]">{data.hostname}</span> · {t('system.account.scope')}
+          </div>
+          <IconButton type="button" onClick={() => void refetch()} label={t('system.refreshSummary')}>
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          </IconButton>
+        </div>
+        <div className="panel-window__body">
+          <div className="panel-window__stack">
+            <div className="panel-kpi-grid panel-kpi-grid--4">
+              <MetricCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={a.cpuLimitPct ? `${a.cpuPercent.toFixed(1)}%` : `${a.cpuCores.toFixed(2)} core`} subtitle={a.cpuLimitPct ? t('system.account.cpuOf', { cores: (a.cpuLimitPct / 100).toFixed(2) }) : unlimited} percent={a.cpuLimitPct ? a.cpuPercent : undefined} />
+              <MetricCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={a.memLimit ? `${formatBytes(a.memUsed)} / ${formatBytes(a.memLimit)}` : formatBytes(a.memUsed)} subtitle={a.memLimit ? t('system.account.ofQuota') : unlimited} percent={a.memLimit ? memPct : undefined} />
+              <MetricCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={a.diskLimit ? `${formatBytes(a.diskUsed)} / ${formatBytes(a.diskLimit)}` : formatBytes(a.diskUsed)} subtitle={a.diskLimit ? t('system.account.ofQuota') : unlimited} percent={a.diskLimit ? diskPct : undefined} />
+              <MetricCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsActiveCount', { count: data.projects?.active ?? 0 })} />
+            </div>
+            <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('system.account.note')}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const memoryPercent = data.memory.total ? (data.memory.used / data.memory.total) * 100 : 0
   const storagePercent = data.storage.total ? (data.storage.used / data.storage.total) * 100 : 0
 

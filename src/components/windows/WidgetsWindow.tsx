@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Activity, Clock, Gauge, Move, Network, Plus, Puzzle, Radar, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore } from '@/store/widgetStore'
+import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
+import { useAuthStore } from '@/store/authStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -49,10 +50,11 @@ export function WidgetsWindow() {
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
 
   // the host card on the phone home already shows CPU, RAM and disk
+  const role = useAuthStore((s) => s.user?.role)
   const visibleInstalled = (isMobile ? orderWidgetsForMobile(placedWidgets, mobileOrder) : placedWidgets).filter(
-    (w) => !(isMobile && w.type === 'system-vital'),
+    (w) => !(isMobile && w.type === 'system-vital') && widgetAllowedFor(w.type, role),
   )
-  const catalog = WIDGET_CATALOG.filter((item) => !(isMobile && item.type === 'system-vital'))
+  const catalog = WIDGET_CATALOG.filter((item) => !(isMobile && item.type === 'system-vital') && widgetAllowedFor(item.type, role))
 
   const confirmRemove = async (widget: PlacedWidget) => {
     const ok = await alertLib.confirm(

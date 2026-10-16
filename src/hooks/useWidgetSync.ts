@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMyWidgets, putMyWidgets } from '@/api/system'
 import { useAuthStore } from '@/store/authStore'
+import { useMetricsStore } from '@/store/metricsStore'
 import { sanitizeLayout, useWidgetStore, type MobileWidgetLayout } from '@/store/widgetStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 
@@ -123,8 +124,10 @@ export function useWidgetSync(): boolean {
         store.setLayout(sanitizeLayout(remote))
         if (remoteMobile) store.setMobileLayout(remoteMobile)
       } else if (owner && owner !== username) {
-        // Another account used this browser: start clean instead of inheriting its widgets
+        // Another account used this browser: start clean instead of inheriting its widgets,
+        // and drop the metric history so host figures never carry over to a limited account
         store.resetToDefault()
+        useMetricsStore.setState({ series: {} })
       }
       writeOwner(username)
 
