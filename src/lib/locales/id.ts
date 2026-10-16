@@ -823,6 +823,8 @@ export const id: Record<string, string> = {
   'speedtest.downloadOnly': "Hanya unduh",
   'speedtest.deltaHint': "Dibanding tes sebelumnya",
   'speedtest.browser.target': "Server: panel ini ({host})",
+  'speedtest.unmeasured': "Tidak terukur",
+  'speedtest.rateLimited': "Server tujuan membatasi jumlah tes dari IP ini. Tunggu beberapa menit atau pilih server lain.",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',

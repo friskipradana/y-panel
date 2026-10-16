@@ -81,7 +81,17 @@ export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
   const { t } = useI18n()
   return (
     <div className="flex flex-col gap-2">
-      <Stat large icon={<ArrowDown />} label={t('speedtest.download')} value={live.downloadMbps} unit="Mbps" active={live.phase === 'download'} samples={live.downSamples} delta={delta.download} />
+      <Stat
+        large
+        icon={<ArrowDown />}
+        label={t('speedtest.download')}
+        value={live.downloadMbps}
+        unit="Mbps"
+        active={live.phase === 'download'}
+        samples={live.downSamples}
+        delta={delta.download}
+        unavailable={live.phase === 'done' && live.downloadMbps === 0 ? t('speedtest.unmeasured') : undefined}
+      />
       <Stat
         large
         tone="upload"
@@ -92,7 +102,7 @@ export function SpeedStats({ live, delta, uploadAvailable }: SpeedStatsProps) {
         active={live.phase === 'upload'}
         samples={uploadAvailable ? live.upSamples : undefined}
         delta={uploadAvailable ? delta.upload : undefined}
-        unavailable={uploadAvailable ? undefined : t('speedtest.downloadOnly')}
+        unavailable={!uploadAvailable ? t('speedtest.downloadOnly') : live.phase === 'done' && live.uploadMbps === 0 ? t('speedtest.unmeasured') : undefined}
       />
       <div className="grid grid-cols-2 gap-2">
         <Stat icon={<Timer />} label={t('speedtest.latency')} value={live.latencyMs} unit="ms" active={live.phase === 'ping'} />

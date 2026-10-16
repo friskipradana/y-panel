@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -96,5 +97,35 @@ func TestResolveSpeedServers(t *testing.T) {
 		if server.canUpload() == false && server.Host == "" {
 			t.Fatalf("server %s has no host", server.ID)
 		}
+	}
+}
+
+func TestMeasureSpeedDownloadSurvivesADroppedConnection(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// the first request of every stream dies mid-handshake, the retry is served
+		if hits.Add(1) <= 2 {
+			hj, _ := w.(http.Hijacker)
+			conn, _, _ := hj.Hijack()
+			_ = conn.Close()
+			return
+		}
+		w.Header().Set("Content-Length", "65536")
+		_, _ = w.Write(make([]byte, 65536))
+	}))
+	defer srv.Close()
+	mbps, note := measureSpeedDownload(context.Background(), http.DefaultClient, speedSource{"flaky.example", srv.URL}, func(float64, float64) {})
+	if mbps <= 0 || note != "" {
+		t.Fatalf("a dropped connection must be retried, got %v %q", mbps, note)
+	}
+}
+
+func TestMeasureSpeedDownloadExplainsAnUnreachableHost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	url := srv.URL
+	srv.Close() // nothing listens any more
+	mbps, note := measureSpeedDownload(context.Background(), http.DefaultClient, speedSource{"gone.example", url}, func(float64, float64) {})
+	if mbps != 0 || !strings.Contains(note, "gone.example") {
+		t.Fatalf("an unreachable host must report 0 and say why, got %v %q", mbps, note)
 	}
 }

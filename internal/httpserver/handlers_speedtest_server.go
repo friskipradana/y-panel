@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -85,8 +86,18 @@ func (t speedAgentTransport) RoundTrip(req *http.Request) (*http.Response, error
 	return t.base.RoundTrip(req)
 }
 
+// The zero http.Transport has no dial or handshake timeout and ignores HTTP(S)_PROXY, so a blackholed
+// address (often IPv6) or a proxy-only network stalled a stream until the test time was over
 func newSpeedClient() *http.Client {
-	base := &http.Transport{DisableCompression: true, MaxIdleConnsPerHost: speedStreams * 2}
+	dialer := &net.Dialer{Timeout: 6 * time.Second, KeepAlive: 15 * time.Second, FallbackDelay: 250 * time.Millisecond}
+	base := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		TLSHandshakeTimeout:   8 * time.Second,
+		ResponseHeaderTimeout: 12 * time.Second,
+		DisableCompression:    true,
+		MaxIdleConnsPerHost:   speedStreams * 2,
+	}
 	return &http.Client{Transport: speedAgentTransport{base: base}}
 }
 
@@ -110,7 +121,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 	out := &speedStream{w: w, f: flusher}
 
 	started := time.Now()
-	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
 	client := newSpeedClient()
 	defer client.CloseIdleConnections()
@@ -149,17 +160,34 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 			sources = append(sources, speedSource{name: candidate.Host, url: candidate.down})
 		}
 	}
-	source, failures := pickSpeedSource(ctx, client, sources)
-	notes = append(notes, failures...)
+	var source *speedSource
 	down := 0.0
-	if source != nil {
+	for remaining := sources; len(remaining) > 0 && down == 0; {
+		picked, failures := pickSpeedSource(ctx, client, remaining)
+		notes = append(notes, failures...)
+		if picked == nil {
+			break
+		}
+		source = picked
 		var note string
-		down, note = measureSpeedDownload(ctx, client, *source, func(mbps, fraction float64) {
+		down, note = measureSpeedDownload(ctx, client, *picked, func(mbps, fraction float64) {
 			out.send(speedEvent{Type: "download", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
 		})
 		if note != "" {
 			notes = append(notes, note)
 		}
+		// whatever happened, the next attempt starts after the source that was just used
+		next := remaining[:0:0]
+		seen := false
+		for _, candidate := range remaining {
+			if seen {
+				next = append(next, candidate)
+			}
+			if candidate.name == picked.name {
+				seen = true
+			}
+		}
+		remaining = next
 	}
 
 	up := 0.0
@@ -290,7 +318,7 @@ type speedSource struct {
 func pickSpeedSource(ctx context.Context, client *http.Client, sources []speedSource) (*speedSource, []string) {
 	var failures []string
 	for _, src := range sources {
-		probeCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+		probeCtx, cancel := context.WithTimeout(ctx, 9*time.Second)
 		req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, src.url, nil)
 		if err != nil {
 			cancel()
@@ -303,7 +331,7 @@ func pickSpeedSource(ctx context.Context, client *http.Client, sources []speedSo
 			continue
 		}
 		buf := make([]byte, 4096)
-		n, _ := io.ReadFull(resp.Body, buf)
+		n, _ := resp.Body.Read(buf)
 		_ = resp.Body.Close()
 		cancel()
 		if resp.StatusCode/100 != 2 {
@@ -324,7 +352,7 @@ func measureSpeedDownload(ctx context.Context, client *http.Client, src speedSou
 	runCtx, cancel := context.WithTimeout(ctx, speedDownloadFor)
 	defer cancel()
 	var total atomic.Int64
-	var refused atomic.Int64
+	var lastErr atomic.Value
 	var wg sync.WaitGroup
 	started := time.Now()
 	reported := make(chan struct{})
@@ -334,41 +362,84 @@ func measureSpeedDownload(ctx context.Context, client *http.Client, src speedSou
 	}()
 	for i := 0; i < speedStreams; i++ {
 		wg.Add(1)
-		go func() {
+		go func(index int) {
 			defer wg.Done()
-			buf := make([]byte, speedChunk)
-			for runCtx.Err() == nil {
-				req, err := http.NewRequestWithContext(runCtx, http.MethodGet, src.url, nil)
-				if err != nil {
-					return
-				}
-				resp, err := client.Do(req)
-				if err != nil {
-					return
-				}
-				if resp.StatusCode/100 != 2 {
-					_ = resp.Body.Close()
-					refused.Store(int64(resp.StatusCode))
-					return
-				}
-				for {
-					n, readErr := resp.Body.Read(buf)
-					total.Add(int64(n))
-					if readErr != nil {
-						break
-					}
-				}
-				_ = resp.Body.Close()
+			// opening every connection in the same instant looks like a flood to some hosts
+			if !sleepCtx(runCtx, time.Duration(index)*120*time.Millisecond) {
+				return
 			}
-		}()
+			buf := make([]byte, speedChunk)
+			failures := 0
+			for runCtx.Err() == nil {
+				err := func() error {
+					req, err := http.NewRequestWithContext(runCtx, http.MethodGet, src.url, nil)
+					if err != nil {
+						return err
+					}
+					resp, err := client.Do(req)
+					if err != nil {
+						return err
+					}
+					defer resp.Body.Close()
+					if resp.StatusCode/100 != 2 {
+						return fmt.Errorf("HTTP %d", resp.StatusCode)
+					}
+					for {
+						n, readErr := resp.Body.Read(buf)
+						total.Add(int64(n))
+						if readErr != nil {
+							if errors.Is(readErr, io.EOF) || runCtx.Err() != nil {
+								return nil
+							}
+							return readErr
+						}
+					}
+				}()
+				if err == nil {
+					failures = 0
+					continue
+				}
+				if runCtx.Err() != nil {
+					return
+				}
+				lastErr.Store(err.Error())
+				failures++
+				// a refusal will not change in a second; a dropped connection might
+				if failures >= 2 || strings.HasPrefix(err.Error(), "HTTP 4") {
+					return
+				}
+				if !sleepCtx(runCtx, 400*time.Millisecond) {
+					return
+				}
+			}
+		}(i)
 	}
 	wg.Wait()
 	cancel()
 	<-reported
-	if total.Load() == 0 && refused.Load() != 0 {
-		return 0, fmt.Sprintf("download from %s: HTTP %d", src.name, refused.Load())
+	if total.Load() == 0 {
+		reason, _ := lastErr.Load().(string)
+		if reason == "" {
+			reason = "no data received"
+		}
+		return 0, fmt.Sprintf("download from %s: %s", src.name, reason)
 	}
 	return mbps(total.Load(), time.Since(started)), ""
+}
+
+// sleepCtx waits for d; false means the context ended first
+func sleepCtx(ctx context.Context, d time.Duration) bool {
+	if d <= 0 {
+		return ctx.Err() == nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 // A reader that serves random bytes up to a limit and counts what the transport consumed

@@ -77,6 +77,7 @@ export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, r
           <TriangleAlert size={16} className="mt-0.5 shrink-0" />
           <div className="min-w-0 space-y-1">
             {result.downloadServer ? <p>{t('speedtest.downloadFrom', { server: result.downloadServer })}</p> : null}
+            {result.notes?.some((note) => note.includes('HTTP 429')) ? <p>{t('speedtest.rateLimited')}</p> : null}
             {result.notes?.map((note) => (
               <p key={note} className="panel-mono break-words text-[0.75rem]">{note}</p>
             ))}

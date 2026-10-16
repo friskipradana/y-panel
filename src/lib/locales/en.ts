@@ -823,6 +823,8 @@ export const en: Record<string, string> = {
   'speedtest.downloadOnly': "Download only",
   'speedtest.deltaHint': "Compared with the previous test",
   'speedtest.browser.target': "Server: this panel ({host})",
+  'speedtest.unmeasured': "Not measured",
+  'speedtest.rateLimited': "The target limits how many tests this IP can run. Wait a few minutes or choose another server.",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',
