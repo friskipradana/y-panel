@@ -89,6 +89,19 @@ export interface DemoInfo {
   readOnly?: boolean
 }
 
+export interface DemoSettings {
+  enabled: boolean
+  username: string
+  password?: string
+  /** env = set by PANEL_DEMO_PASSWORD, panel = chosen in Settings */
+  source: 'env' | 'panel' | 'default'
+}
+
+export const getDemoSettings = () => agentApi.get<DemoSettings>('/api/v1/settings/demo').then((r) => r.data)
+
+export const setDemoSettings = (enabled: boolean) =>
+  agentApi.put<DemoSettings>('/api/v1/settings/demo', { enabled }).then((r) => r.data)
+
 export interface PublicContributors {
   items: Array<{ login: string; url: string }>
   repo: string

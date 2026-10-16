@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuthStore } from "@/store/authStore";
+import { DemoAccountCard } from "../DemoAccountCard";
 import {
   ArrowUpCircle,
   Check,
@@ -31,6 +33,7 @@ import { useUpdateProgress } from "@/store/updateStore";
 export function GeneralTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
   const { language, setLanguage, t } = useI18n();
   const queryClient = useQueryClient();
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const showUpdateProgress = useUpdateProgress((s) => s.show);
@@ -417,6 +420,8 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
           />
         </div>
       </div>
+
+      {isSuperadmin ? <DemoAccountCard /> : null}
     </div>
   );
 }

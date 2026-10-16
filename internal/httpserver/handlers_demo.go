@@ -39,19 +39,39 @@ var demoReadOnlyRoutes = map[string]bool{
 	"GET /api/v1/me/usage":                   true,
 }
 
+// demoUsername is the demo account name while the demo is switched on, "" otherwise.
 func (s *Server) demoUsername() string {
-	if strings.TrimSpace(s.cfg.DemoPassword) == "" {
+	settings, _ := s.loadDemoSettings()
+	if !settings.Enabled || strings.TrimSpace(settings.Password) == "" {
 		return ""
 	}
-	name := strings.ToLower(strings.TrimSpace(s.cfg.DemoUsername))
-	if name == "" {
-		name = defaultDemoUsername
+	return strings.ToLower(strings.TrimSpace(settings.Username))
+}
+
+// demoLockedName is the account that stays locked to the read-only allowlist: the demo user
+// while it is on, and also after the demo was switched off (its sessions must not widen).
+func (s *Server) demoLockedName() string {
+	settings, _ := s.loadDemoSettings()
+	if !settings.Enabled && !settings.Provisioned {
+		return ""
 	}
-	return name
+	return strings.ToLower(strings.TrimSpace(settings.Username))
+}
+
+// suspendDemoAccount blocks the demo user when the demo is switched off.
+func (s *Server) suspendDemoAccount(name string) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	existing, _ := s.database.GetUserByUsername(strings.ToLower(strings.TrimSpace(name)))
+	if existing == nil || existing.Role != auth.UserRole {
+		return
+	}
+	_ = s.database.UpdateUser(existing.ID, map[string]any{"status": "suspended"})
 }
 
 func (s *Server) isDemoUser(u *database.User) bool {
-	name := s.demoUsername()
+	name := s.demoLockedName()
 	// only a plain "user" row can be the demo account; an admin that happens to share the name is not locked
 	return u != nil && name != "" && u.Role == auth.UserRole && strings.EqualFold(u.Username, name)
 }
@@ -85,11 +105,12 @@ func (s *Server) EnsureDemoAccount() {
 		log.Printf("[demo] skipped: invalid demo username %q: %v", name, err)
 		return
 	}
-	if err := users.ValidatePassword(s.cfg.DemoPassword); err != nil {
+	password := s.demoPassword()
+	if err := users.ValidatePassword(password); err != nil {
 		log.Printf("[demo] skipped: %v", err)
 		return
 	}
-	hash, err := auth.HashPassword(s.cfg.DemoPassword)
+	hash, err := auth.HashPassword(password)
 	if err != nil {
 		log.Printf("[demo] skipped: %v", err)
 		return
@@ -151,7 +172,7 @@ func (s *Server) handlePublicDemo(w http.ResponseWriter, _ *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"enabled":  true,
 		"username": name,
-		"password": s.cfg.DemoPassword,
+		"password": s.demoPassword(),
 		"readOnly": true,
 	})
 }
