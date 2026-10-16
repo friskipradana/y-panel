@@ -1,4 +1,4 @@
-import { Gauge, Play, Square } from 'lucide-react'
+import { Gauge, Play, Square, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useI18n } from '@/lib/i18n'
@@ -52,6 +52,18 @@ export function SpeedPanel({ title, subtitle, live, result, running, onStart, on
         </div>
         <SpeedStats live={shown} />
       </div>
+
+      {!running && (result?.notes?.length || result?.downloadServer) ? (
+        <div className="flex items-start gap-2 rounded-xl border border-[var(--panel-warning-text)]/40 bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem] text-[var(--panel-warning-text)]">
+          <TriangleAlert size={16} className="mt-0.5 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            {result.downloadServer ? <p>{t('speedtest.downloadFrom', { server: result.downloadServer })}</p> : null}
+            {result.notes?.map((note) => (
+              <p key={note} className="panel-mono break-words text-[0.75rem]">{note}</p>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <p className="sr-only" aria-live="polite">
         {running ? gaugeLabel : result ? t('speedtest.phase.done') : ''}

@@ -2,8 +2,10 @@ package httpserver
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -43,5 +45,37 @@ func TestSpeedtestUploadCountsAndLimits(t *testing.T) {
 func TestSpeedtestPathsAreExemptFromLogs(t *testing.T) {
 	if !isSpeedtestPath("/api/v1/speedtest/ping") || isSpeedtestPath("/api/v1/system/info") {
 		t.Fatal("isSpeedtestPath misclassifies paths")
+	}
+}
+
+func TestPickSpeedSourceSkipsRefusedHosts(t *testing.T) {
+	refuse := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusForbidden) }))
+	defer refuse.Close()
+	serve := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(make([]byte, 8192))
+	}))
+	defer serve.Close()
+
+	sources := []speedSource{{"refusing.example", refuse.URL}, {"serving.example", serve.URL}}
+	picked, failures := pickSpeedSource(context.Background(), http.DefaultClient, sources)
+	if picked == nil || picked.name != "serving.example" {
+		t.Fatalf("expected the serving source, got %+v", picked)
+	}
+	if len(failures) != 1 || !strings.Contains(failures[0], "HTTP 403") {
+		t.Fatalf("expected the 403 to be reported, got %v", failures)
+	}
+
+	none, failures := pickSpeedSource(context.Background(), http.DefaultClient, sources[:1])
+	if none != nil || len(failures) != 1 {
+		t.Fatalf("a refusing source must not be picked: %+v %v", none, failures)
+	}
+}
+
+func TestMeasureSpeedDownloadReportsRefusal(t *testing.T) {
+	refuse := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusForbidden) }))
+	defer refuse.Close()
+	mbps, note := measureSpeedDownload(context.Background(), http.DefaultClient, speedSource{"refusing.example", refuse.URL}, func(float64, float64) {})
+	if mbps != 0 || !strings.Contains(note, "HTTP 403") {
+		t.Fatalf("a refused download must report 0 and the status, got %v %q", mbps, note)
 	}
 }

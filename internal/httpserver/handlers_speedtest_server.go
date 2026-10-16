@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,10 @@ type speedInternetResult struct {
 	Server       string  `json:"server"`
 	DurationMs   int64   `json:"durationMs"`
 	At           int64   `json:"at"`
+	// DownloadServer is where the download was measured when it is not Server
+	DownloadServer string `json:"downloadServer,omitempty"`
+	// Notes explain a figure that is missing or measured elsewhere (host and HTTP status)
+	Notes []string `json:"notes,omitempty"`
 }
 
 type speedEvent struct {
@@ -93,20 +98,37 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 	}
 	out.send(speedEvent{Type: "latency", LatencyMs: fptr(latency), JitterMs: fptr(jitter)})
 
+	var notes []string
 	out.send(speedEvent{Type: "phase", Phase: "download"})
-	down := measureSpeedDownload(ctx, client, func(mbps, fraction float64) {
-		out.send(speedEvent{Type: "download", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
-	})
+	source, failures := pickSpeedSource(ctx, client, speedDownloadSources())
+	notes = append(notes, failures...)
+	down := 0.0
+	if source != nil {
+		var note string
+		down, note = measureSpeedDownload(ctx, client, *source, func(mbps, fraction float64) {
+			out.send(speedEvent{Type: "download", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
+		})
+		if note != "" {
+			notes = append(notes, note)
+		}
+	}
 	out.send(speedEvent{Type: "phase", Phase: "upload"})
-	up := measureSpeedUpload(ctx, client, func(mbps, fraction float64) {
+	up, upNote := measureSpeedUpload(ctx, client, func(mbps, fraction float64) {
 		out.send(speedEvent{Type: "upload", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
 	})
+	if upNote != "" {
+		notes = append(notes, upNote)
+	}
 	if ctx.Err() != nil && r.Context().Err() != nil {
 		return
 	}
 	if down == 0 && up == 0 {
-		out.send(speedEvent{Type: "error", Error: fmt.Sprintf("no data moved to or from %s; check the server's internet connection", speedInternetName)})
+		out.send(speedEvent{Type: "error", Error: "no data moved to or from the internet: " + strings.Join(notes, "; ")})
 		return
+	}
+	downloadServer := ""
+	if source != nil && source.name != speedInternetName {
+		downloadServer = source.name
 	}
 	out.send(speedEvent{Type: "done", Result: &speedInternetResult{
 		DownloadMbps: down,
@@ -116,6 +138,9 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 		Server:       speedInternetName,
 		DurationMs:   time.Since(started).Milliseconds(),
 		At:           time.Now().UnixMilli(),
+
+		DownloadServer: downloadServer,
+		Notes:          notes,
 	}})
 }
 
@@ -136,6 +161,9 @@ func measureSpeedLatency(ctx context.Context, client *http.Client, onSample func
 		}
 		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
+		if resp.StatusCode/100 != 2 {
+			return 0, 0, fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
 		// the first request pays for DNS and TLS, so it is not a latency sample
 		if i > 0 {
 			ms := round1(float64(time.Since(t0).Microseconds()) / 1000)
@@ -193,10 +221,59 @@ func reportRate(ctx context.Context, total *atomic.Int64, duration time.Duration
 	}
 }
 
-func measureSpeedDownload(ctx context.Context, client *http.Client, onTick func(mbps, fraction float64)) float64 {
+type speedSource struct {
+	name string
+	url  string
+}
+
+// Cloudflare first (it is also the latency and upload peer); the others only when it refuses this server
+func speedDownloadSources() []speedSource {
+	return []speedSource{
+		{speedInternetName, fmt.Sprintf("%s/__down?bytes=%d", speedInternetHost, speedDownloadBytes)},
+		{"proof.ovh.net", "https://proof.ovh.net/files/100Mb.dat"},
+		{"speed.hetzner.de", "https://speed.hetzner.de/100MB.bin"},
+	}
+}
+
+// pickSpeedSource returns the first source that answers 200 with data, and why the earlier ones did not
+func pickSpeedSource(ctx context.Context, client *http.Client, sources []speedSource) (*speedSource, []string) {
+	var failures []string
+	for _, src := range sources {
+		probeCtx, cancel := context.WithTimeout(ctx, 6*time.Second)
+		req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, src.url, nil)
+		if err != nil {
+			cancel()
+			continue
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			cancel()
+			failures = append(failures, fmt.Sprintf("download from %s: %v", src.name, err))
+			continue
+		}
+		buf := make([]byte, 4096)
+		n, _ := io.ReadFull(resp.Body, buf)
+		_ = resp.Body.Close()
+		cancel()
+		if resp.StatusCode/100 != 2 {
+			failures = append(failures, fmt.Sprintf("download from %s: HTTP %d", src.name, resp.StatusCode))
+			continue
+		}
+		if n == 0 {
+			failures = append(failures, fmt.Sprintf("download from %s: empty reply", src.name))
+			continue
+		}
+		picked := src
+		return &picked, failures
+	}
+	return nil, failures
+}
+
+func measureSpeedDownload(ctx context.Context, client *http.Client, src speedSource, onTick func(mbps, fraction float64)) (float64, string) {
 	runCtx, cancel := context.WithTimeout(ctx, speedDownloadFor)
 	defer cancel()
 	var total atomic.Int64
+	var refused atomic.Int64
 	var wg sync.WaitGroup
 	started := time.Now()
 	reported := make(chan struct{})
@@ -210,12 +287,17 @@ func measureSpeedDownload(ctx context.Context, client *http.Client, onTick func(
 			defer wg.Done()
 			buf := make([]byte, speedChunk)
 			for runCtx.Err() == nil {
-				req, err := http.NewRequestWithContext(runCtx, http.MethodGet, fmt.Sprintf("%s/__down?bytes=%d", speedInternetHost, speedDownloadBytes), nil)
+				req, err := http.NewRequestWithContext(runCtx, http.MethodGet, src.url, nil)
 				if err != nil {
 					return
 				}
 				resp, err := client.Do(req)
 				if err != nil {
+					return
+				}
+				if resp.StatusCode/100 != 2 {
+					_ = resp.Body.Close()
+					refused.Store(int64(resp.StatusCode))
 					return
 				}
 				for {
@@ -232,7 +314,10 @@ func measureSpeedDownload(ctx context.Context, client *http.Client, onTick func(
 	wg.Wait()
 	cancel()
 	<-reported
-	return mbps(total.Load(), time.Since(started))
+	if total.Load() == 0 && refused.Load() != 0 {
+		return 0, fmt.Sprintf("download from %s: HTTP %d", src.name, refused.Load())
+	}
+	return mbps(total.Load(), time.Since(started)), ""
 }
 
 // A reader that serves random bytes up to a limit and counts what the transport consumed
@@ -259,10 +344,11 @@ func (c *countingSource) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-func measureSpeedUpload(ctx context.Context, client *http.Client, onTick func(mbps, fraction float64)) float64 {
+func measureSpeedUpload(ctx context.Context, client *http.Client, onTick func(mbps, fraction float64)) (float64, string) {
 	runCtx, cancel := context.WithTimeout(ctx, speedUploadFor)
 	defer cancel()
 	var total atomic.Int64
+	var refused, accepted atomic.Int64
 	var wg sync.WaitGroup
 	started := time.Now()
 	reported := make(chan struct{})
@@ -288,13 +374,22 @@ func measureSpeedUpload(ctx context.Context, client *http.Client, onTick func(mb
 				}
 				_, _ = io.Copy(io.Discard, resp.Body)
 				_ = resp.Body.Close()
+				if resp.StatusCode/100 != 2 {
+					refused.Store(int64(resp.StatusCode))
+					return
+				}
+				accepted.Add(1)
 			}
 		}()
 	}
 	wg.Wait()
 	cancel()
 	<-reported
-	return mbps(total.Load(), time.Since(started))
+	// bytes handed to a peer that answered with an error were not delivered
+	if accepted.Load() == 0 && refused.Load() != 0 {
+		return 0, fmt.Sprintf("upload to %s: HTTP %d", speedInternetName, refused.Load())
+	}
+	return mbps(total.Load(), time.Since(started)), ""
 }
 
 func mbps(bytes int64, elapsed time.Duration) float64 {

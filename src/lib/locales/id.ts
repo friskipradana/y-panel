@@ -816,6 +816,7 @@ export const id: Record<string, string> = {
   'speedtest.step.upload': "Unggah",
   'speedtest.phase.idle': "Siap diuji",
   'speedtest.phase.done': "Selesai",
+  'speedtest.downloadFrom': "Unduh diukur ke {server} karena speed.cloudflare.com menolak server ini.",
   'widget.remove': 'Hapus widget dari desktop',
   'widgets.gallery': 'Galeri Widget',
   'widgets.modules': 'Modul Desktop',

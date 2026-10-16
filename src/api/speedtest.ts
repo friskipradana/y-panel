@@ -12,6 +12,10 @@ export interface SpeedResult {
   /** Hanya tes panel ke internet */
   server?: string
   durationMs?: number
+  /** Tempat unduhan diukur bila bukan `server` */
+  downloadServer?: string
+  /** Alasan angka yang kosong atau diukur di tempat lain (host dan status HTTP) */
+  notes?: string[]
 }
 
 // Everything the screen shows while a test runs; numbers are filled in as they are measured

@@ -816,6 +816,7 @@ export const en: Record<string, string> = {
   'speedtest.step.upload': "Upload",
   'speedtest.phase.idle': "Ready",
   'speedtest.phase.done': "Done",
+  'speedtest.downloadFrom': "Download was measured against {server} because speed.cloudflare.com refused this server.",
   'widget.remove': 'Remove widget from desktop',
   'widgets.gallery': 'Widget Gallery',
   'widgets.modules': 'Desktop Modules',
