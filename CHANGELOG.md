@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.6.8] - 2026-10-16
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.6.8** berisi 2 perubahan: 1 perbaikan, 1 peningkatan. (3 files changed, 64 insertions(+), 35 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **widgets:** Only the superadmin polls the host metric history (others got a 403 every 5s) ([`2cee2cc`](https://github.com/friskipradana/y-panel/commit/2cee2cc))
+
+### ♻️ Refaktor & Peningkatan (Changed)
+- **ui-kit:** Calmer fields with hover and one focus state, default button is a real secondary button, cleaner dropdown panel ([`6ecd653`](https://github.com/friskipradana/y-panel/commit/6ecd653))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.7...v4.6.8
+
 ## [4.6.7] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
