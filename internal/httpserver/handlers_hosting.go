@@ -245,11 +245,7 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 			return
 		}
-		if err := s.database.UpdateUserQuota(planQuota(*plan, userID)); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		if err := s.database.SetUserPlan(userID, plan.ID, expires); err != nil {
+		if err := s.applyUserPlan(userID, plan, expires); err != nil {
 			s.writeError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -265,6 +261,48 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeJSON(w, http.StatusOK, view)
+}
+
+// applyUserPlan gives an account its plan: the quota follows the plan, and the end date is stored
+func (s *Server) applyUserPlan(userID int64, plan *database.HostingPlan, expires *time.Time) error {
+	if err := s.database.UpdateUserQuota(planQuota(*plan, userID)); err != nil {
+		return err
+	}
+	return s.database.SetUserPlan(userID, plan.ID, expires)
+}
+
+// userHostingView is the plan of an account as the account list shows it
+type userHostingView struct {
+	PlanID        *int64     `json:"planId"`
+	PlanName      string     `json:"planName"`
+	ExpiresAt     *time.Time `json:"expiresAt"`
+	State         string     `json:"state"`
+	GraceEndsAt   *time.Time `json:"graceEndsAt"`
+	Subdomains    int        `json:"subdomains"`
+	MaxSubdomains int        `json:"maxSubdomains"`
+}
+
+func hostingViewFor(info database.UserHosting, graceDays int, now time.Time) userHostingView {
+	view := userHostingView{State: planStateNone, Subdomains: info.Subdomains, MaxSubdomains: info.MaxSubdomains}
+	if info.PlanID == nil {
+		return view
+	}
+	view.PlanID, view.PlanName, view.ExpiresAt = info.PlanID, info.PlanName, info.ExpiresAt
+	view.State, view.GraceEndsAt = planState(info.ExpiresAt, graceDays, now)
+	return view
+}
+
+// releaseUserSubdomains removes the DNS records of an account that is being deleted
+func (s *Server) releaseUserSubdomains(userID int64) {
+	rows, err := s.database.ListHostingSubdomains(userID)
+	if err != nil || len(rows) == 0 {
+		return
+	}
+	for _, row := range rows {
+		if err := s.removeHostingDNS(row); err != nil {
+			log.Printf("[hosting] release %s: %v", row.Hostname, err)
+		}
+	}
 }
 
 // planEnd decides when the plan ends: an explicit date, a number of months, or the plan's own

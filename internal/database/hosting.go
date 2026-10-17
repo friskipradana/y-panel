@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // ─── Hosting plans ────────────────────────────────────────────────────────────
@@ -421,4 +424,214 @@ func (m *Manager) GetSuperadminID() (int64, error) {
 	var id int64
 	err := m.db.QueryRow(`SELECT id FROM users WHERE role = 'superadmin' ORDER BY id LIMIT 1`).Scan(&id)
 	return id, err
+}
+
+// ─── Accounts with their plan: filters, page info, summary ────────────────────
+
+// UserListOptions narrows the account list. IDs nil means every account.
+type UserListOptions struct {
+	IDs    []int64
+	Query  string
+	Status string // active | suspended
+	Role   string
+	// Plan is "none" for accounts without a plan, or a plan id; PlanState is one of
+	// none, active, grace, expired, expiring (ends within 7 days)
+	Plan      string
+	PlanState string
+	GraceDays int
+	Limit     int
+	Offset    int
+}
+
+const userPlanJoin = ` FROM users u LEFT JOIN user_plans up ON up.user_id = u.id`
+
+// userListWhere builds the WHERE clause and its arguments; the time is passed in so it is testable
+func userListWhere(o UserListOptions, now time.Time) (string, []any) {
+	var conds []string
+	var args []any
+	add := func(cond string, value any) {
+		args = append(args, value)
+		conds = append(conds, strings.ReplaceAll(cond, "?", fmt.Sprintf("$%d", len(args))))
+	}
+	if o.IDs != nil {
+		add("u.id = ANY(?)", pq.Array(o.IDs))
+	}
+	if q := strings.ToLower(strings.TrimSpace(o.Query)); q != "" {
+		args = append(args, "%"+q+"%")
+		n := len(args)
+		conds = append(conds, fmt.Sprintf("(LOWER(u.username) LIKE $%d OR LOWER(u.email) LIKE $%d OR LOWER(COALESCE(u.display_name,'')) LIKE $%d)", n, n, n))
+	}
+	if o.Status == "active" || o.Status == "suspended" {
+		add("u.status = ?", o.Status)
+	}
+	if o.Role != "" {
+		add("u.role = ?", o.Role)
+	}
+	switch {
+	case o.Plan == "none":
+		conds = append(conds, "up.plan_id IS NULL")
+	case o.Plan != "":
+		if id, err := strconv.ParseInt(o.Plan, 10, 64); err == nil {
+			add("up.plan_id = ?", id)
+		}
+	}
+	grace := o.GraceDays
+	if grace < 0 {
+		grace = 0
+	}
+	switch o.PlanState {
+	case "none":
+		conds = append(conds, "up.plan_id IS NULL")
+	case "active":
+		args = append(args, now)
+		conds = append(conds, fmt.Sprintf("(up.plan_id IS NOT NULL AND (up.expires_at IS NULL OR up.expires_at > $%d))", len(args)))
+	case "grace":
+		args = append(args, now, grace)
+		conds = append(conds, fmt.Sprintf("(up.plan_id IS NOT NULL AND up.expires_at <= $%d AND up.expires_at + ($%d * INTERVAL '1 day') > $%d)", len(args)-1, len(args), len(args)-1))
+	case "expired":
+		args = append(args, now, grace)
+		conds = append(conds, fmt.Sprintf("(up.plan_id IS NOT NULL AND up.expires_at + ($%d * INTERVAL '1 day') <= $%d)", len(args), len(args)-1))
+	case "expiring":
+		args = append(args, now)
+		conds = append(conds, fmt.Sprintf("(up.plan_id IS NOT NULL AND up.expires_at > $%d AND up.expires_at <= $%d + INTERVAL '7 days')", len(args), len(args)))
+	}
+	if len(conds) == 0 {
+		return "", args
+	}
+	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+func (m *Manager) ListUsersAdvanced(o UserListOptions) ([]User, int64, error) {
+	if !m.IsConnected() {
+		return nil, 0, fmt.Errorf("database not connected")
+	}
+	if o.Limit <= 0 {
+		o.Limit = 50
+	}
+	if o.Limit > 200 {
+		o.Limit = 200
+	}
+	if o.Offset < 0 {
+		o.Offset = 0
+	}
+	where, args := userListWhere(o, time.Now())
+	var total int64
+	if err := m.db.QueryRow(`SELECT COUNT(*)`+userPlanJoin+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	limitArg, offsetArg := len(args)+1, len(args)+2
+	rows, err := m.db.Query(`SELECT u.id, u.username, u.email, u.role, u.status, COALESCE(u.display_name,''), COALESCE(u.avatar_url,''), u.created_at, u.updated_at, u.last_login_at`+
+		userPlanJoin+where+fmt.Sprintf(` ORDER BY u.created_at DESC LIMIT $%d OFFSET $%d`, limitArg, offsetArg), append(args, o.Limit, o.Offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	out := make([]User, 0)
+	for rows.Next() {
+		u, err := scanUserFromRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, *u)
+	}
+	return out, total, rows.Err()
+}
+
+// UserHosting is what the account list shows per account in hosting mode
+type UserHosting struct {
+	PlanID             *int64
+	PlanName           string
+	ExpiresAt          *time.Time
+	SuspendedForExpiry bool
+	Subdomains         int
+	MaxSubdomains      int
+}
+
+func (m *Manager) UserHostingInfo(ids []int64) (map[int64]UserHosting, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	out := map[int64]UserHosting{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := m.db.Query(`
+		SELECT up.user_id, up.plan_id, COALESCE(p.name,''), up.expires_at, up.suspended_for_expiry, COALESCE(p.max_subdomains,0)
+		FROM user_plans up LEFT JOIN hosting_plans p ON p.id = up.plan_id
+		WHERE up.user_id = ANY($1)
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var id int64
+		var h UserHosting
+		if err := rows.Scan(&id, &h.PlanID, &h.PlanName, &h.ExpiresAt, &h.SuspendedForExpiry, &h.MaxSubdomains); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out[id] = h
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	counts, err := m.db.Query(`SELECT user_id, COUNT(*) FROM hosting_subdomains WHERE user_id = ANY($1) GROUP BY user_id`, pq.Array(ids))
+	if err != nil {
+		return nil, err
+	}
+	defer counts.Close()
+	for counts.Next() {
+		var id int64
+		var n int
+		if err := counts.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		h := out[id]
+		h.Subdomains = n
+		out[id] = h
+	}
+	return out, counts.Err()
+}
+
+// UserSummary counts accounts for the strip above the account list
+type UserSummary struct {
+	Total      int `json:"total"`
+	Active     int `json:"active"`
+	Suspended  int `json:"suspended"`
+	NoPlan     int `json:"noPlan"`
+	PlanActive int `json:"planActive"`
+	Grace      int `json:"grace"`
+	Expired    int `json:"expired"`
+	Expiring   int `json:"expiring"`
+}
+
+// UserSummaryFor counts the given accounts (nil: all). The superadmin takes no plan and is not counted as "no plan".
+func (m *Manager) UserSummaryFor(ids []int64, graceDays int, now time.Time) (UserSummary, error) {
+	var s UserSummary
+	if !m.IsConnected() {
+		return s, fmt.Errorf("database not connected")
+	}
+	if graceDays < 0 {
+		graceDays = 0
+	}
+	var idsArg any
+	if ids != nil {
+		idsArg = pq.Array(ids)
+	}
+	err := m.db.QueryRow(`
+		SELECT COUNT(*),
+			COUNT(*) FILTER (WHERE u.status = 'active'),
+			COUNT(*) FILTER (WHERE u.status = 'suspended'),
+			COUNT(*) FILTER (WHERE u.role <> 'superadmin' AND up.plan_id IS NULL),
+			COUNT(*) FILTER (WHERE up.plan_id IS NOT NULL AND (up.expires_at IS NULL OR up.expires_at > $2)),
+			COUNT(*) FILTER (WHERE up.plan_id IS NOT NULL AND up.expires_at <= $2 AND up.expires_at + ($3 * INTERVAL '1 day') > $2),
+			COUNT(*) FILTER (WHERE up.plan_id IS NOT NULL AND up.expires_at + ($3 * INTERVAL '1 day') <= $2),
+			COUNT(*) FILTER (WHERE up.plan_id IS NOT NULL AND up.expires_at > $2 AND up.expires_at <= $2 + INTERVAL '7 days')
+		FROM users u LEFT JOIN user_plans up ON up.user_id = u.id
+		WHERE ($1::bigint[] IS NULL OR u.id = ANY($1::bigint[]))
+	`, idsArg, now, graceDays).Scan(&s.Total, &s.Active, &s.Suspended, &s.NoPlan, &s.PlanActive, &s.Grace, &s.Expired, &s.Expiring)
+	return s, err
 }

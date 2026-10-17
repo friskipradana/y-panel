@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
 import { formatDateID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
+import { UserSubdomainsList } from '@/components/windows/users/UserSubdomainsList'
 
 const NONE = ''
 const TONE: Record<PlanState, 'neutral' | 'success' | 'warning' | 'danger'> = { none: 'neutral', active: 'success', grace: 'warning', expired: 'danger' }
@@ -37,6 +38,7 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
       // the plan sets the quota and may reactivate the account
       void qc.invalidateQueries({ queryKey: ['quota', userId] })
       void qc.invalidateQueries({ queryKey: ['users'] })
+      void qc.invalidateQueries({ queryKey: ['users-summary'] })
       void qc.invalidateQueries({ queryKey: ['hosting', 'plans'] })
       setPlanId(null)
       setMonths('')
@@ -89,6 +91,8 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
           <TextInput mono type="number" min={1} max={60} value={months} disabled={selected === NONE} onChange={(e) => setMonths(e.target.value)} />
         </Field>
       </div>
+
+      <UserSubdomainsList userId={userId} />
 
       <Button variant="primary-soft" className="w-full" disabled={!dirty || !monthsValid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
         {selected === NONE ? t('hosting.userPlan.remove') : view.plan && sameAsCurrent ? t('hosting.userPlan.renew') : t('hosting.userPlan.apply')}

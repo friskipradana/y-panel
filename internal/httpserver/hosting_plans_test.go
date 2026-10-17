@@ -179,3 +179,28 @@ func TestSiteSettingsRejectBadTerms(t *testing.T) {
 		t.Fatalf("terms not stored: %+v", got)
 	}
 }
+
+func TestHostingViewFor(t *testing.T) {
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-24 * time.Hour)
+	future := now.Add(30 * 24 * time.Hour)
+	planID := int64(3)
+
+	if view := hostingViewFor(database.UserHosting{}, 7, now); view.State != planStateNone || view.PlanID != nil {
+		t.Fatalf("an account without a plan has state none: %+v", view)
+	}
+	active := hostingViewFor(database.UserHosting{PlanID: &planID, PlanName: "Pro", ExpiresAt: &future, Subdomains: 2, MaxSubdomains: 5}, 7, now)
+	if active.State != planStateActive || active.PlanName != "Pro" || active.Subdomains != 2 || active.MaxSubdomains != 5 {
+		t.Fatalf("unexpected active view: %+v", active)
+	}
+	if view := hostingViewFor(database.UserHosting{PlanID: &planID, ExpiresAt: &past}, 7, now); view.State != planStateGrace || view.GraceEndsAt == nil {
+		t.Fatalf("one day after the end with 7 days grace is grace: %+v", view)
+	}
+	if view := hostingViewFor(database.UserHosting{PlanID: &planID, ExpiresAt: &past}, 0, now); view.State != planStateExpired {
+		t.Fatalf("no grace: expired at once: %+v", view)
+	}
+	// subdomains held without a plan are still reported
+	if view := hostingViewFor(database.UserHosting{Subdomains: 1}, 0, now); view.Subdomains != 1 || view.State != planStateNone {
+		t.Fatalf("subdomains must show even without a plan: %+v", view)
+	}
+}

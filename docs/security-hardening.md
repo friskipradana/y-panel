@@ -204,6 +204,12 @@ Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `
 - Tunnel `reneo-hosting` dipisah dari tunnel superadmin sendiri; token Cloudflare superadmin tidak pernah dikirim ke pembeli. Pengecekan nama dibatasi 30 permintaan per menit per akun agar jatah API Cloudflare tidak habis.
 - Akun yang ditangguhkan (paket berakhir setelah masa tenggang, atau manual), subdomain yang ditangguhkan superadmin, dan mode hosting mati menghentikan penyajian dan menghapus record DNS-nya; semuanya kembali saat akun diaktifkan lagi. Sinkronisasi berjalan ulang tiap 15 menit untuk memperbaiki panggilan yang gagal.
 
+## Manajemen Akun dan Paket
+
+- Data paket pada daftar akun (`hosting` per akun, hitungan di `/api/v1/users/summary`, dan filter `plan`/`planState`) hanya diberikan kepada superadmin dengan mode hosting aktif; admin hanya melihat akun di bawahnya tanpa data paket. Nilai filter yang tidak dikenal diabaikan dan tidak pernah sampai ke SQL (semuanya parameter).
+- Memberi paket saat membuat akun hanya boleh superadmin dan diperiksa sebelum akunnya dibuat, sehingga paket yang salah tidak meninggalkan akun setengah jadi.
+- Menghapus akun melepas DNS subdomainnya lebih dulu; menangguhkan, mengaktifkan, atau menghapus akun menjalankan sinkronisasi subdomain segera, tidak menunggu pemeriksa 15 menit.
+
 ## Isolasi Akun (gaya hosting)
 
 Setiap akun bekerja di areanya sendiri. Yang membedakan hanya cakupannya:

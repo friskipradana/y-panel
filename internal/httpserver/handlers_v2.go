@@ -375,6 +375,9 @@ type createUserRequest struct {
 	Password    string `json:"password"`
 	Role        string `json:"role"`
 	DisplayName string `json:"displayName"`
+	// PlanID and Months put the new account on a plan right away (superadmin, hosting mode on)
+	PlanID *int64 `json:"planId"`
+	Months *int   `json:"months"`
 }
 
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
@@ -383,16 +386,30 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	query := querySearch(r)
-	var (
-		userList []database.User
-		total    int64
-	)
-	if scope := s.ownerScopeFor(userFromCtx(r)); scope.all {
-		userList, total, err = s.database.ListUsersFiltered(query, limit, offset)
-	} else {
-		userList, total, err = s.database.ListUsersByIDs(scope.list(), query, limit, offset)
+	actor := userFromCtx(r)
+	// plans belong to the superadmin and only exist while hosting mode is on
+	hosting := actor != nil && actor.Role == auth.SuperadminRole && s.hostingEnabled()
+	site := s.loadSiteSettings()
+	q := r.URL.Query()
+	opts := database.UserListOptions{
+		Query:     querySearch(r),
+		Status:    q.Get("status"),
+		Limit:     limit,
+		Offset:    offset,
+		GraceDays: site.GraceDays,
 	}
+	switch role := q.Get("role"); role {
+	case auth.SuperadminRole, auth.AdminRole, auth.UserRole:
+		opts.Role = role
+	}
+	if hosting {
+		opts.Plan = q.Get("plan")
+		opts.PlanState = q.Get("planState")
+	}
+	if scope := s.ownerScopeFor(actor); !scope.all {
+		opts.IDs = scope.list()
+	}
+	userList, total, err := s.database.ListUsersAdvanced(opts)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -403,20 +420,50 @@ func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, u.ID)
 	}
 	parents, _ := s.database.UserParentIDs(ids)
-	type userWithParent struct {
-		database.User
-		ParentID *int64 `json:"parentId"`
+	var info map[int64]database.UserHosting
+	if hosting {
+		info, _ = s.database.UserHostingInfo(ids)
 	}
-	items := make([]userWithParent, 0, len(userList))
+	type userRow struct {
+		database.User
+		ParentID *int64           `json:"parentId"`
+		Hosting  *userHostingView `json:"hosting,omitempty"`
+	}
+	now := time.Now()
+	items := make([]userRow, 0, len(userList))
 	for _, u := range userList {
-		item := userWithParent{User: u}
+		item := userRow{User: u}
 		if p, ok := parents[u.ID]; ok {
 			parent := p
 			item.ParentID = &parent
 		}
+		if hosting && u.Role != auth.SuperadminRole {
+			view := hostingViewFor(info[u.ID], site.GraceDays, now)
+			item.Hosting = &view
+		}
 		items = append(items, item)
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"items": items, "total": total, "limit": limit, "offset": offset})
+}
+
+// handleUsersSummary counts the accounts of the caller's scope for the strip above the list
+func (s *Server) handleUsersSummary(w http.ResponseWriter, r *http.Request) {
+	actor := userFromCtx(r)
+	hosting := actor != nil && actor.Role == auth.SuperadminRole && s.hostingEnabled()
+	var ids []int64
+	if scope := s.ownerScopeFor(actor); !scope.all {
+		ids = scope.list()
+	}
+	summary, err := s.database.UserSummaryFor(ids, s.loadSiteSettings().GraceDays, time.Now())
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if !hosting {
+		// without hosting mode (or for an admin) there are no plans to count
+		summary.NoPlan, summary.PlanActive, summary.Grace, summary.Expired, summary.Expiring = 0, 0, 0, 0, 0
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"summary": summary, "hosting": hosting})
 }
 
 func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -447,10 +494,43 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// a plan is checked before the account exists, so a bad plan never leaves a half-made account
+	var plan *database.HostingPlan
+	var planEndsAt *time.Time
+	if req.PlanID != nil {
+		actor := userFromCtx(r)
+		if actor == nil || actor.Role != auth.SuperadminRole {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "only the superadmin can give a plan"})
+			return
+		}
+		if !s.requireHostingMode(w) {
+			return
+		}
+		if req.Role == auth.SuperadminRole {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "the superadmin account does not take a plan"})
+			return
+		}
+		plan, _ = s.database.GetHostingPlan(*req.PlanID)
+		if plan == nil {
+			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "plan not found"})
+			return
+		}
+		ends, planErr := planEnd(plan, nil, nil, req.Months, time.Now())
+		if planErr != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": planErr.Error()})
+			return
+		}
+		planEndsAt = ends
+	}
 	u, err := s.auth.CreateUser(req.Username, req.Email, req.Password, req.Role, req.DisplayName)
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
+	}
+	if plan != nil {
+		if err := s.applyUserPlan(u.ID, plan, planEndsAt); err != nil {
+			log.Printf("[hosting] new account %q created but the plan was not applied: %v", u.Username, err)
+		}
 	}
 	if creator := userFromCtx(r); creator != nil {
 		// the account is managed by whoever created it
@@ -529,10 +609,13 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	s.stopUserWorkloads(targetUser.ID)
 	s.stopUserDatabases(targetUser.ID, true)
 	_ = s.database.DeleteUserSessions(targetUser.ID)
+	// the DNS records of their subdomains must go before the rows do
+	s.releaseUserSubdomains(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	go s.syncHostingRoutes()
 	if actor != nil {
 		s.auditSensitiveAction(r, actor, "user.delete", "ok", map[string]any{"target": targetUser.Username})
 		s.notifyUserAction(actor.ID, "User dihapus 🗑️", fmt.Sprintf("User '%s' berhasil dihapus.", targetUser.Username), "warning")
@@ -561,6 +644,7 @@ func (s *Server) handleSuspendUser(w http.ResponseWriter, r *http.Request) {
 	// A suspended account must stop serving: sign it out and halt its projects and tunnels
 	_ = s.database.DeleteUserSessions(id)
 	s.stopUserWorkloads(id)
+	go s.syncHostingRoutes()
 	s.notifyCurrentUserAction(r, "User disuspend ⛔", fmt.Sprintf("User '%s' berhasil disuspend.", targetUser.Username), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
@@ -576,6 +660,7 @@ func (s *Server) handleActivateUser(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	go s.syncHostingRoutes()
 	s.notifyCurrentUserAction(r, "User diaktifkan kembali ✅", fmt.Sprintf("User '%s' berhasil diaktifkan.", targetUser.Username), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }

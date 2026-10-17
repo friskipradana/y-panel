@@ -44,7 +44,7 @@ export function Tabs<K extends string>({ items, value, onChange, label, classNam
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(item.key)}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${
+            className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${
               active
                 ? 'border-[var(--panel-primary-text)]/25 bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
                 : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]'

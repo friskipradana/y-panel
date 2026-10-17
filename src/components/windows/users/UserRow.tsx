@@ -2,8 +2,8 @@ import { apiError } from '@/components/windows/users/apiError'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CircleUser, Crown, KeyRound, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, X } from 'lucide-react'
-import { updateUser, getUserQuota, updateUserQuota, type PanelUser, type UserQuota } from '@/api/agent'
+import { CalendarPlus, Check, CircleUser, Crown, KeyRound, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, X } from 'lucide-react'
+import { updateUser, getUserQuota, updateUserQuota, type PanelUser, type UserHosting, type UserPlanState, type UserQuota } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
@@ -11,6 +11,8 @@ import { EntityRow } from '@/components/ui/EntityRow'
 import { alertLib } from '@/lib/alert'
 import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
 import { toast } from 'sonner'
+import { setUserPlan } from '@/api/hosting'
+import { formatDateID } from '@/lib/datetime'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
 import { useI18n } from '@/lib/i18n'
@@ -20,6 +22,23 @@ const ROLE_ICON: Record<string, ReactElement> = {
   superadmin: <Crown className="h-3 w-3" />,
   admin: <Shield className="h-3 w-3" />,
   user: <CircleUser className="h-3 w-3" />,
+}
+
+const PLAN_TONES: Record<UserPlanState, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', grace: 'warning', expired: 'danger', none: 'neutral' }
+
+// The line under an account in hosting mode: when the plan ends and how many subdomains are used
+function HostingMeta({ hosting }: { hosting: UserHosting }) {
+  const { t } = useI18n()
+  const parts: string[] = []
+  if (hosting.planId) {
+    if (!hosting.expiresAt) parts.push(t('hosting.userPlan.noEnd'))
+    else if (hosting.state === 'grace' && hosting.graceEndsAt) parts.push(t('hosting.users.graceUntil', { end: formatDateID(hosting.graceEndsAt) }))
+    else if (hosting.state === 'expired') parts.push(t('hosting.users.endedOn', { date: formatDateID(hosting.expiresAt) }))
+    else parts.push(t('hosting.users.until', { date: formatDateID(hosting.expiresAt) }))
+  }
+  if (hosting.maxSubdomains > 0 || hosting.subdomains > 0) parts.push(t('hosting.users.subdomains', { used: hosting.subdomains, limit: hosting.maxSubdomains }))
+  if (parts.length === 0) return null
+  return <span className="text-[11.5px] text-[var(--text-secondary)]">{parts.join(' · ')}</span>
 }
 
 export function UserRow({
@@ -80,6 +99,31 @@ export function UserRow({
       setEditingRole(false)
     },
   })
+
+  // renewing the plan of an account for one more period of that plan
+  const renewMut = useMutation({
+    mutationFn: (planId: number) => setUserPlan(user.id, { planId }),
+    onSuccess: () => {
+      alertLib.fire(t('hosting.userPlan.savedTitle'), t('hosting.userPlan.savedMessage', { username: user.username }), 'success', 'users')
+      qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['users-summary'] })
+      qc.invalidateQueries({ queryKey: ['user-plan', user.id] })
+    },
+    onError: (e: unknown) => alertLib.fire(t('hosting.userPlan.failedTitle'), apiError(e, t('hosting.userPlan.failedMessage')), 'error', 'users'),
+  })
+  const plan = user.hosting
+  const confirmRenew = async () => {
+    if (!plan?.planId) return
+    const ok = await alertLib.confirm(
+      t('hosting.users.renewQuestion'),
+      t('hosting.users.renewMessage', { username: user.username, plan: plan.planName }),
+      t('hosting.userPlan.renew'),
+      t('common.cancel'),
+      'question',
+      'users',
+    )
+    if (ok) renewMut.mutate(plan.planId)
+  }
 
   const [editingRole, setEditingRole] = useState(false)
   const [selectedRole, setSelectedRole] = useState(user.role)
@@ -148,12 +192,28 @@ export function UserRow({
             </Badge>
           )}
           <Badge tone={STATUS_TONES[user.status] ?? 'neutral'}>{user.status}</Badge>
+          {plan ? (
+            plan.planId ? (
+              <Badge tone={PLAN_TONES[plan.state]} dot>
+                {plan.planName}
+                {plan.state !== 'active' ? ` · ${t(`hosting.userPlan.state.${plan.state}`)}` : ''}
+              </Badge>
+            ) : (
+              <Badge tone="neutral">{t('hosting.userPlan.none')}</Badge>
+            )
+          ) : null}
         </>
       }
       subtitle={user.email}
+      meta={plan ? <HostingMeta hosting={plan} /> : undefined}
       actions={
         <div className="flex items-center gap-1">
-          <IconButton onClick={onQuota} tone="primary" label={t('users.manageQuota')}>
+          {plan?.planId ? (
+            <IconButton onClick={() => void confirmRenew()} tone="success" disabled={renewMut.isPending} label={t('hosting.users.renewOne')}>
+              <CalendarPlus className="h-3.5 w-3.5" />
+            </IconButton>
+          ) : null}
+          <IconButton onClick={onQuota} tone="primary" label={plan ? t('hosting.users.planAndQuota') : t('users.manageQuota')}>
             <Settings2 className="h-3.5 w-3.5" />
           </IconButton>
           {canManage ? (

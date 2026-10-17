@@ -14,6 +14,39 @@ export interface PanelUser {
   lastLoginAt: string | null
   /** account that manages this one (superadmin or an admin) */
   parentId?: number | null
+  /** plan and subdomains; only for the superadmin while hosting mode is on, not for the superadmin account itself */
+  hosting?: UserHosting
+}
+
+export type UserPlanState = 'none' | 'active' | 'grace' | 'expired'
+
+export interface UserHosting {
+  planId: number | null
+  planName: string
+  expiresAt: string | null
+  state: UserPlanState
+  graceEndsAt: string | null
+  subdomains: number
+  maxSubdomains: number
+}
+
+export interface UserListParams extends PaginationParams {
+  status?: 'active' | 'suspended'
+  role?: string
+  /** a plan id, or "none" */
+  plan?: string
+  planState?: UserPlanState | 'expiring'
+}
+
+export interface UsersSummary {
+  total: number
+  active: number
+  suspended: number
+  noPlan: number
+  planActive: number
+  grace: number
+  expired: number
+  expiring: number
 }
 
 export interface UserQuota {
@@ -26,8 +59,21 @@ export interface UserQuota {
   memoryLimitMb: number
 }
 
-export const listUsers = (params?: PaginationParams) =>
-  agentApi.get<PaginatedResponse<PanelUser>>('/api/v1/users', withPagination(params)).then((r) => r.data)
+export const listUsers = (params?: UserListParams) =>
+  agentApi
+    .get<PaginatedResponse<PanelUser>>('/api/v1/users', {
+      params: {
+        ...withPagination(params).params,
+        status: params?.status || undefined,
+        role: params?.role || undefined,
+        plan: params?.plan || undefined,
+        planState: params?.planState || undefined,
+      },
+    })
+    .then((r) => r.data)
+
+export const getUsersSummary = () =>
+  agentApi.get<{ summary: UsersSummary; hosting: boolean }>('/api/v1/users/summary').then((r) => r.data)
 
 export const createUser = (payload: {
   username: string
@@ -35,6 +81,9 @@ export const createUser = (payload: {
   password: string
   role?: string
   displayName?: string
+  /** superadmin with hosting mode on: put the new account on a plan (months: how long) */
+  planId?: number
+  months?: number
 }) => agentApi.post<PanelUser>('/api/v1/users', payload).then((r) => r.data)
 
 export const getUserByID = (id: number) =>

@@ -51,6 +51,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUser))))
 	s.mux.Handle("PATCH /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleUpdateUser))))
 	s.mux.Handle("DELETE /api/v1/users/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteUser)))
+	s.mux.Handle("GET /api/v1/users/summary", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUsersSummary)))
 	s.mux.Handle("POST /api/v1/users/{id}/suspend", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleSuspendUser))))
 	s.mux.Handle("POST /api/v1/users/{id}/activate", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleActivateUser))))
 	s.mux.Handle("GET /api/v1/users/{id}/usage", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUserUsage))))
