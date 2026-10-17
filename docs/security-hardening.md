@@ -188,6 +188,13 @@ Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `
 - **Indeksing mati:** `robots.txt` berisi `Disallow: /`, sitemap dan llms.txt 404, setiap halaman berheader `X-Robots-Tag: noindex, nofollow`.
 - **Mode hosting mati:** tidak ada akun demo (dimatikan dan ditangguhkan saat saklar dimatikan; menyalakan demo lebih dulu ditolak 409). Instalasi lama yang demonya sudah menyala otomatis memakai mode hosting aktif.
 
+## Paket Hosting
+
+- Hanya superadmin yang mengelola paket dan menetapkannya ke akun; semua endpoint ubah menjawab 409 selama mode hosting mati. Superadmin sendiri tidak bisa diberi paket.
+- Data publik (`/api/v1/public/hosting`) hanya memuat isi paket yang tampil (tanpa id, jumlah akun, atau batas CPU) dan kosong bila mode hosting atau landing page mati.
+- Tautan pemesanan hanya menerima `https://`, `http://`, dan `mailto:`; skema lain (`javascript:`, `data:`) ditolak.
+- Penangguhan karena masa berlaku ditandai (`suspended_for_expiry`): perpanjangan hanya mengaktifkan akun yang ditangguhkan oleh pemeriksa, tidak yang ditangguhkan manual. Pemeriksa tidak berjalan saat mode hosting mati.
+
 ## Isolasi Akun (gaya hosting)
 
 Setiap akun bekerja di areanya sendiri. Yang membedakan hanya cakupannya:

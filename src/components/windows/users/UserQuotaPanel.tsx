@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
+import { UserPlanPanel } from '@/components/windows/users/UserPlanPanel'
 
 interface UserQuotaPanelProps {
   user: PanelUser
   quota: UserQuota
   saving: boolean
+  /** Hosting mode is on and the viewer is the superadmin: the plan of the account can be set */
+  showPlan?: boolean
   onSave: (patch: Partial<UserQuota>) => void
 }
 
@@ -53,7 +56,7 @@ function UsageMeter({ label, used, limit, unit }: { label: string; used: number;
 }
 
 // Quota editor with live usage next to the limits
-export function UserQuotaPanel({ user, quota, saving, onSave }: UserQuotaPanelProps) {
+export function UserQuotaPanel({ user, quota, saving, showPlan = false, onSave }: UserQuotaPanelProps) {
   const { t } = useI18n()
   const [edit, setEdit] = useState<Partial<UserQuota>>({})
   const usage = useQuery({ queryKey: ['usage', user.id], queryFn: () => getUserUsage(user.id), staleTime: 15_000 })
@@ -61,6 +64,8 @@ export function UserQuotaPanel({ user, quota, saving, onSave }: UserQuotaPanelPr
 
   return (
     <div className="space-y-4 border-t border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3.5">
+      {showPlan ? <UserPlanPanel userId={user.id} username={user.username} /> : null}
+
       <section aria-label={t('users.usage')}>
         <p className="mb-2 text-[12px] font-medium text-[var(--text-secondary)]">{t('users.usage')}</p>
         {usage.isLoading ? (

@@ -11,6 +11,8 @@ import { EntityRow } from '@/components/ui/EntityRow'
 import { alertLib } from '@/lib/alert'
 import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/store/authStore'
+import { usePublicSite } from '@/hooks/usePublicSite'
 import { useI18n } from '@/lib/i18n'
 import { ROLE_SELECT_OPTIONS, ROLE_TONES, STATUS_TONES } from '@/components/windows/users/constants'
 
@@ -46,6 +48,9 @@ export function UserRow({
 }) {
   const { t } = useI18n()
   const qc = useQueryClient()
+  // plans are the superadmin's, and only exist while hosting mode is on
+  const viewerIsSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
+  const { hosting } = usePublicSite()
   const { data: quota } = useQuery({
     queryKey: ['quota', user.id],
     queryFn: () => getUserQuota(user.id),
@@ -179,7 +184,7 @@ export function UserRow({
       }
       expanded={
         showQuota && quota ? (
-          <UserQuotaPanel user={user} quota={quota} saving={updateQuotaMut.isPending} onSave={(patch) => updateQuotaMut.mutate(patch)} />
+          <UserQuotaPanel user={user} quota={quota} saving={updateQuotaMut.isPending} showPlan={viewerIsSuperadmin && hosting && user.role !== 'superadmin'} onSave={(patch) => updateQuotaMut.mutate(patch)} />
         ) : null
       }
     />

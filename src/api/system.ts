@@ -114,6 +114,10 @@ export interface SiteSettings {
   landingEnabled: boolean
   indexingEnabled: boolean
   hostingEnabled: boolean
+  /** Days an account keeps working after its plan ended; 0 suspends at once */
+  graceDays: number
+  /** Where the order buttons of the landing page lead */
+  orderUrl: string
 }
 
 export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)

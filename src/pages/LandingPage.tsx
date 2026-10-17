@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button'
 import { useQuery } from '@tanstack/react-query'
 import { getDemoInfo } from '@/api/agent'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
+import { Pricing } from '@/pages/landing/Pricing'
 
 export type LandingPageProps = {
   authenticated: boolean
@@ -136,6 +137,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             ))}
           </ul>
         </section>
+
+        <Pricing />
 
         {/* AI agents */}
         <section className="mt-14" aria-labelledby="landing-agent">

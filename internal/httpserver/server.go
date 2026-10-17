@@ -153,6 +153,7 @@ func New(cfg config.Config) *Server {
 
 	s.routes()
 	go s.runProjectReconcileLoop(25 * time.Second)
+	go s.runPlanExpiryLoop(15 * time.Minute)
 	return s
 }
 

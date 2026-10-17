@@ -3,9 +3,11 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,6 +24,10 @@ type siteSettings struct {
 	LandingEnabled  bool `json:"landingEnabled"`
 	IndexingEnabled bool `json:"indexingEnabled"`
 	HostingEnabled  bool `json:"hostingEnabled"`
+	// GraceDays is how long an account keeps working after its plan ended; 0 suspends it at once
+	GraceDays int `json:"graceDays"`
+	// OrderURL is where the "order" button of a plan leads (web page, wa.me link or mailto:)
+	OrderURL string `json:"orderUrl"`
 }
 
 var (
@@ -115,7 +121,9 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		LandingEnabled  *bool `json:"landingEnabled"`
 		IndexingEnabled *bool `json:"indexingEnabled"`
-		HostingEnabled  *bool `json:"hostingEnabled"`
+		HostingEnabled  *bool   `json:"hostingEnabled"`
+		GraceDays       *int    `json:"graceDays"`
+		OrderURL        *string `json:"orderUrl"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -131,6 +139,21 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.HostingEnabled != nil {
 		next.HostingEnabled = *req.HostingEnabled
+	}
+	if req.GraceDays != nil {
+		if *req.GraceDays < 0 || *req.GraceDays > planMaxGraceDays {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("grace period must be between 0 and %d days", planMaxGraceDays)})
+			return
+		}
+		next.GraceDays = *req.GraceDays
+	}
+	if req.OrderURL != nil {
+		link := strings.TrimSpace(*req.OrderURL)
+		if err := validateOrderURL(link); err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		next.OrderURL = link
 	}
 	if err := s.saveSiteSettings(next); err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("could not save the site settings"))
@@ -150,6 +173,12 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if next.HostingEnabled != current.HostingEnabled {
 			changes["hosting"] = next.HostingEnabled
+		}
+		if next.GraceDays != current.GraceDays {
+			changes["graceDays"] = next.GraceDays
+		}
+		if next.OrderURL != current.OrderURL {
+			changes["orderUrlChanged"] = true
 		}
 		s.auditSensitiveAction(r, u, "settings.site", "ok", changes)
 	}
