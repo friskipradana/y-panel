@@ -29,6 +29,45 @@ var planSlugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 var planPeriods = map[string]bool{"monthly": true, "yearly": true, "once": true}
 
+// exampleHostingPlans are the plans a fresh hosting mode starts with, so the landing page has
+// something to show. The numbers are examples to be changed to the real offer. The features say only
+// what the panel really does.
+func exampleHostingPlans() []database.HostingPlan {
+	return []database.HostingPlan{
+		{
+			Slug: "starter", Name: "Starter", Tagline: "Untuk satu situs atau aplikasi kecil", PriceAmount: 25000, Period: "monthly",
+			Features: []string{
+				"Proyek statis, Node.js, Python, dan PHP",
+				"Database PostgreSQL, MySQL, MariaDB, MongoDB, atau Redis",
+				"Subdomain dengan HTTPS lewat Cloudflare",
+				"Terminal dan File Manager di panel",
+			},
+			MaxProjects: 2, MaxTunnels: 2, MaxDatabases: 1, DiskQuotaMB: 2048, CPULimitPct: 100, MemoryLimitMB: 512, MaxSubdomains: 1,
+			Visible: true, SortOrder: 0,
+		},
+		{
+			Slug: "pro", Name: "Pro", Tagline: "Untuk beberapa aplikasi dan database", PriceAmount: 75000, Period: "monthly",
+			Features: []string{
+				"Semua fitur Starter",
+				"Beberapa proyek dan database sekaligus",
+				"Ruang disk dan RAM yang lebih besar",
+			},
+			MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 10240, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3,
+			Highlighted: true, Visible: true, SortOrder: 1,
+		},
+		{
+			Slug: "bisnis", Name: "Bisnis", Tagline: "Untuk layanan yang lebih ramai", PriceAmount: 150000, Period: "monthly",
+			Features: []string{
+				"Semua fitur Pro",
+				"Batas proyek, database, dan subdomain tertinggi",
+				"CPU dan RAM terbesar",
+			},
+			MaxProjects: 15, MaxTunnels: 15, MaxDatabases: 10, DiskQuotaMB: 51200, CPULimitPct: 400, MemoryLimitMB: 4096, MaxSubdomains: 10,
+			Visible: true, SortOrder: 2,
+		},
+	}
+}
+
 // cleanPlan trims text and drops empty feature lines
 func cleanPlan(p *database.HostingPlan) {
 	p.Slug = strings.ToLower(strings.TrimSpace(p.Slug))

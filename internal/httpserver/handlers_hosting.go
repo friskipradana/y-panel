@@ -263,6 +263,35 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, view)
 }
 
+// seedExamplePlans offers the example plans once: only when there are no plans yet, and never again
+// after that, even if the superadmin deletes them
+func (s *Server) seedExamplePlans() {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	settings := s.loadSiteSettings()
+	if settings.ExamplePlansSeeded {
+		return
+	}
+	existing, err := s.database.ListHostingPlans(false)
+	if err != nil {
+		log.Printf("[hosting] cannot check the plans before seeding: %v", err)
+		return
+	}
+	if len(existing) == 0 {
+		for _, plan := range exampleHostingPlans() {
+			if _, err := s.database.CreateHostingPlan(plan); err != nil {
+				log.Printf("[hosting] cannot add the example plan %s: %v", plan.Slug, err)
+				return
+			}
+		}
+	}
+	settings.ExamplePlansSeeded = true
+	if err := s.saveSiteSettings(settings); err != nil {
+		log.Printf("[hosting] cannot remember the example plans: %v", err)
+	}
+}
+
 // applyUserPlan gives an account its plan: the quota follows the plan, and the end date is stored
 func (s *Server) applyUserPlan(userID int64, plan *database.HostingPlan, expires *time.Time) error {
 	if err := s.database.UpdateUserQuota(planQuota(*plan, userID)); err != nil {
@@ -398,6 +427,10 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	s.expirePlans(time.Now())
+	if s.hostingEnabled() {
+		// an install that had hosting mode on before the example plans existed gets them too
+		s.seedExamplePlans()
+	}
 	s.syncHostingRoutesIfOn()
 	for {
 		select {

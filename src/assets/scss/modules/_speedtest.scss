@@ -32,7 +32,7 @@
 
 .speed-gauge__value {
   stroke: var(--speed-accent);
-  transition: stroke-dashoffset 180ms linear, stroke 200ms ease;
+  transition: stroke 200ms ease;
 }
 
 .speed-gauge__marker {

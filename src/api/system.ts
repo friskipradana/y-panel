@@ -120,6 +120,8 @@ export interface SiteSettings {
   orderUrl: string
   /** The superadmin accepted Ookla's licence for its command line client */
   ooklaLicenseAccepted: boolean
+  /** The example plans were offered once */
+  examplePlansSeeded: boolean
 }
 
 export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)

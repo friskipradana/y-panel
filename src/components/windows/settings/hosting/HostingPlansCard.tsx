@@ -11,6 +11,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
+import { getSiteSettings } from '@/api/system'
 import { useI18n } from '@/lib/i18n'
 import { PlanFormModal } from './PlanFormModal'
 
@@ -22,6 +23,7 @@ export function HostingPlansCard() {
   const { t } = useI18n()
   const qc = useQueryClient()
   const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0 })
+  const site = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
   const [target, setTarget] = useState<HostingPlan | 'new' | null>(null)
   const [formError, setFormError] = useState('')
 
@@ -77,6 +79,10 @@ export function HostingPlansCard() {
           </Button>
         }
       />
+
+      {site.data?.examplePlansSeeded && plans.data?.some((plan) => ['starter', 'pro', 'bisnis'].includes(plan.slug)) ? (
+        <p className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12px] text-[var(--text-secondary)]">{t('hosting.plans.exampleHint')}</p>
+      ) : null}
 
       {plans.isLoading ? (
         <LoadingState>{t('hosting.plans.loading')}</LoadingState>

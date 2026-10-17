@@ -31,6 +31,9 @@ type siteSettings struct {
 	// OoklaLicenseAccepted: the superadmin accepted Ookla's licence for its client, which the agent
 	// would otherwise have to accept on its own
 	OoklaLicenseAccepted bool `json:"ooklaLicenseAccepted"`
+	// ExamplePlansSeeded: the three example plans were offered once (or plans already existed), so they
+	// are not put back after the superadmin deletes them
+	ExamplePlansSeeded bool `json:"examplePlansSeeded"`
 }
 
 var (
@@ -173,6 +176,11 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if current.HostingEnabled != next.HostingEnabled {
 		go s.syncHostingRoutes()
+	}
+	// the first time hosting mode is on there is something to show on the landing page
+	if next.HostingEnabled {
+		s.seedExamplePlans()
+		next = s.loadSiteSettings()
 	}
 	if u := userFromCtx(r); u != nil {
 		changes := map[string]any{}

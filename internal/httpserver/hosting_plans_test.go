@@ -204,3 +204,45 @@ func TestHostingViewFor(t *testing.T) {
 		t.Fatalf("subdomains must show even without a plan: %+v", view)
 	}
 }
+
+func TestExampleHostingPlansAreValidAndAscending(t *testing.T) {
+	plans := exampleHostingPlans()
+	if len(plans) != 3 {
+		t.Fatalf("three example plans expected, got %d", len(plans))
+	}
+	seen := map[string]bool{}
+	highlighted := 0
+	var lastPrice int64 = -1
+	for i, plan := range plans {
+		cleaned := plan
+		cleanPlan(&cleaned)
+		if err := validatePlan(cleaned); err != nil {
+			t.Errorf("example plan %s must pass the plan rules: %v", plan.Slug, err)
+		}
+		if seen[plan.Slug] {
+			t.Errorf("slug %s is used twice", plan.Slug)
+		}
+		seen[plan.Slug] = true
+		if plan.Highlighted {
+			highlighted++
+		}
+		if !plan.Visible || plan.PriceAmount <= lastPrice || plan.SortOrder != i {
+			t.Errorf("plan %s must be visible, dearer than the one before, and in order: %+v", plan.Slug, plan)
+		}
+		lastPrice = plan.PriceAmount
+		if plan.MaxSubdomains < 1 || plan.MaxProjects < 1 {
+			t.Errorf("plan %s must include at least a project and a subdomain", plan.Slug)
+		}
+	}
+	if highlighted != 1 {
+		t.Fatalf("exactly one example plan is highlighted, got %d", highlighted)
+	}
+}
+
+func TestSeedExamplePlansDoesNothingWithoutADatabase(t *testing.T) {
+	s := newSiteTestServer(t, config.Config{})
+	s.seedExamplePlans()
+	if s.loadSiteSettings().ExamplePlansSeeded {
+		t.Fatal("without a database nothing is seeded and nothing is remembered")
+	}
+}

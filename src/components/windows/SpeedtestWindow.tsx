@@ -9,7 +9,7 @@ import { useSpeedtestWindow, type SpeedTab } from './speedtest/useSpeedtestWindo
 // Speed test: this device to the panel (everyone) and the panel to the internet (superadmin)
 export function SpeedtestWindow() {
   const { t } = useI18n()
-  const { tab, setTab, isSuperadmin, browser, server, history, servers, selected, setServerId } = useSpeedtestWindow()
+  const { tab, setTab, isSuperadmin, browser, server, history, clearHistory, servers, selected, setServerId } = useSpeedtestWindow()
   const active: SpeedTab = isSuperadmin ? tab : 'browser'
   const run = active === 'browser' ? browser : server
   // switching tabs mid-test would hide the one that is running
@@ -23,22 +23,23 @@ export function SpeedtestWindow() {
   return (
     <div className="panel-window flex h-full flex-col overflow-hidden">
       <div className="panel-window__body min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5">
-        {isSuperadmin ? (
-          <Tabs
-            label={t('speedtest.tabs')}
-            value={active}
-            onChange={(key) => {
-              if (!locked) setTab(key)
-            }}
-            items={[
-              { key: 'browser', label: t('speedtest.tab.browser'), icon: <Smartphone size={14} /> },
-              { key: 'server', label: t('speedtest.tab.server'), icon: <Server size={14} /> },
-            ]}
-          />
-        ) : null}
-
         <SpeedPanel
           key={active}
+          tabs={
+            isSuperadmin ? (
+              <Tabs
+                label={t('speedtest.tabs')}
+                value={active}
+                onChange={(key) => {
+                  if (!locked) setTab(key)
+                }}
+                items={[
+                  { key: 'browser', label: t('speedtest.tab.browser'), icon: <Smartphone size={14} /> },
+                  { key: 'server', label: t('speedtest.tab.server'), icon: <Server size={14} /> },
+                ]}
+              />
+            ) : undefined
+          }
           title={t(`speedtest.${active}.title`)}
           subtitle={t(`speedtest.${active}.subtitle`)}
           toolbar={
@@ -58,7 +59,7 @@ export function SpeedtestWindow() {
           onStop={run.stop}
         />
 
-        <SpeedHistory items={history.filter((item) => isSuperadmin || item.kind === 'browser')} />
+        <SpeedHistory items={history.filter((item) => isSuperadmin || item.kind === 'browser')} onClear={clearHistory} />
       </div>
     </div>
   )

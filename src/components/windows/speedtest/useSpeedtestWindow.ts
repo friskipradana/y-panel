@@ -120,11 +120,16 @@ export function useSpeedtestWindow() {
     })
   }, [])
 
+  const clearHistory = useCallback(() => {
+    setHistory([])
+    saveHistory([])
+  }, [])
+
   const browser = useRunner('browser', runBrowserSpeedtest, remember, t('speedtest.failedBrowser'))
   const runServer = useCallback((onLive: (live: SpeedLive) => void, signal: AbortSignal) => runServerSpeedtest(selected?.id ?? serverId, onLive, signal), [selected?.id, serverId])
   const server = useRunner('server', runServer, remember, t('speedtest.failedServer'))
 
-  return { isSuperadmin, tab, setTab, browser, server, history, servers, selected, setServerId }
+  return { isSuperadmin, tab, setTab, browser, server, history, clearHistory, servers, selected, setServerId }
 }
 
 export type SpeedtestWindowState = ReturnType<typeof useSpeedtestWindow>

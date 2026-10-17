@@ -11,6 +11,8 @@ import { SpeedSteps } from './SpeedSteps'
 interface SpeedPanelProps {
   title: string
   subtitle: string
+  /** Tab jenis tes, di dalam kartu paling atas */
+  tabs?: ReactNode
   /** Pemilih server atau keterangan server, tampil di atas meter */
   toolbar?: ReactNode
   live: SpeedLive
@@ -30,7 +32,7 @@ const change = (now: number | undefined, before: number | undefined) =>
   now !== undefined && before !== undefined && before > 0 ? ((now - before) / before) * 100 : null
 
 // One test: meter and steps on the left, the figures on the right, all live
-export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, running, uploadAvailable, startDisabled = false, onStart, onStop }: SpeedPanelProps) {
+export function SpeedPanel({ title, subtitle, tabs, toolbar, live, result, previous, running, uploadAvailable, startDisabled = false, onStart, onStop }: SpeedPanelProps) {
   const { t } = useI18n()
   const measuring = live.phase === 'download' || live.phase === 'upload'
   const gaugeValue = measuring ? live.mbps : running ? 0 : (result?.downloadMbps ?? 0)
@@ -41,6 +43,8 @@ export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, r
 
   return (
     <div className="panel-shell-card space-y-4 p-4">
+      {tabs ? <div className="-mx-1 overflow-x-auto px-1">{tabs}</div> : null}
+
       <SectionHeader
         icon={<Gauge />}
         title={title}
