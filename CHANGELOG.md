@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.5] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.5** berisi 1 perubahan: 1 perbaikan. (3 files changed, 47 insertions(+), 7 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **osuser:** Give the home to its account before closing it to others, so a root-owned home no longer locks the shell out of .bashrc ([`b3f2166`](https://github.com/friskipradana/y-panel/commit/b3f2166))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.4...v4.7.5
+
 ## [4.7.4] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
