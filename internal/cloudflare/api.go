@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -313,6 +314,23 @@ type DNSRecordPayload struct {
 
 func (c *Client) ListDNSRecords(zoneID string) ([]DNSRecord, error) {
 	resp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?per_page=200", zoneID))
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("list DNS records failed: %v", resp.Errors)
+	}
+	var records []DNSRecord
+	if err := mapResult(resp.Result, &records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// DNSRecordsByName lists every record, of any type, with exactly this name. A name that already
+// holds a record (an A, MX or TXT as well as a CNAME) is not free to give away.
+func (c *Client) DNSRecordsByName(zoneID, hostname string) ([]DNSRecord, error) {
+	resp, err := c.get(fmt.Sprintf("/zones/%s/dns_records?name=%s&per_page=100", zoneID, url.QueryEscape(hostname)))
 	if err != nil {
 		return nil, err
 	}

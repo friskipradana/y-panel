@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -229,4 +230,195 @@ func (m *Manager) ListExpiredUserPlans(cutoff time.Time) ([]UserPlan, error) {
 		out = append(out, up)
 	}
 	return out, rows.Err()
+}
+
+// ─── Domains and subdomains ───────────────────────────────────────────────────
+
+type HostingDomain struct {
+	ZoneID  string `json:"zoneId"`
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}
+
+func (m *Manager) ListHostingDomains() ([]HostingDomain, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`SELECT zone_id, name, enabled FROM hosting_domains ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []HostingDomain{}
+	for rows.Next() {
+		var d HostingDomain
+		if err := rows.Scan(&d.ZoneID, &d.Name, &d.Enabled); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (m *Manager) SetHostingDomain(zoneID, name string, enabled bool) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`
+		INSERT INTO hosting_domains (zone_id, name, enabled) VALUES ($1, $2, $3)
+		ON CONFLICT (zone_id) DO UPDATE SET name = EXCLUDED.name, enabled = EXCLUDED.enabled, updated_at = NOW()
+	`, zoneID, name, enabled)
+	return err
+}
+
+type HostingSubdomain struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"userId"`
+	Username  string    `json:"username,omitempty"`
+	Label     string    `json:"label"`
+	ZoneID    string    `json:"zoneId"`
+	Domain    string    `json:"domain"`
+	Hostname  string    `json:"hostname"`
+	ProjectID *int64    `json:"projectId"`
+	Status    string    `json:"status"`
+	Note      string    `json:"note"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ErrHostnameTaken is returned when a hostname is already held by someone
+var ErrHostnameTaken = errors.New("hostname is already taken")
+
+const subdomainColumns = `s.id, s.user_id, COALESCE(u.username,''), s.label, s.zone_id, s.domain, s.hostname, s.project_id, s.status, s.note, s.created_at, s.updated_at`
+
+func scanSubdomain(row rowScanner) (*HostingSubdomain, error) {
+	var s HostingSubdomain
+	if err := row.Scan(&s.ID, &s.UserID, &s.Username, &s.Label, &s.ZoneID, &s.Domain, &s.Hostname, &s.ProjectID, &s.Status, &s.Note, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+// ListHostingSubdomains returns every subdomain (userID 0) or those of one account
+func (m *Manager) ListHostingSubdomains(userID int64) ([]HostingSubdomain, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	query := `SELECT ` + subdomainColumns + ` FROM hosting_subdomains s JOIN users u ON u.id = s.user_id`
+	args := []any{}
+	if userID != 0 {
+		query += ` WHERE s.user_id = $1`
+		args = append(args, userID)
+	}
+	query += ` ORDER BY s.hostname`
+	rows, err := m.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []HostingSubdomain{}
+	for rows.Next() {
+		s, err := scanSubdomain(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *s)
+	}
+	return out, rows.Err()
+}
+
+func (m *Manager) GetHostingSubdomain(id int64) (*HostingSubdomain, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	s, err := scanSubdomain(m.db.QueryRow(`SELECT `+subdomainColumns+` FROM hosting_subdomains s JOIN users u ON u.id = s.user_id WHERE s.id = $1`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return s, err
+}
+
+func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, hostname string, projectID *int64) (*HostingSubdomain, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var id int64
+	err := m.db.QueryRow(`
+		INSERT INTO hosting_subdomains (user_id, label, zone_id, domain, hostname, project_id, status)
+		VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id
+	`, userID, label, zoneID, domain, hostname, projectID).Scan(&id)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate key") {
+			return nil, ErrHostnameTaken
+		}
+		return nil, err
+	}
+	return m.GetHostingSubdomain(id)
+}
+
+func (m *Manager) SetHostingSubdomainProject(id int64, projectID *int64) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE hosting_subdomains SET project_id = $2, updated_at = NOW() WHERE id = $1`, id, projectID)
+	return err
+}
+
+func (m *Manager) SetHostingSubdomainStatus(id int64, status, note string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE hosting_subdomains SET status = $2, note = $3, updated_at = NOW() WHERE id = $1`, id, status, note)
+	return err
+}
+
+func (m *Manager) DeleteHostingSubdomain(id int64) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`DELETE FROM hosting_subdomains WHERE id = $1`, id)
+	return err
+}
+
+func (m *Manager) CountHostingSubdomains(userID int64) (int, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	var n int
+	err := m.db.QueryRow(`SELECT COUNT(*) FROM hosting_subdomains WHERE user_id = $1`, userID).Scan(&n)
+	return n, err
+}
+
+// GetHostingState and SetHostingState hold small operational values (the carrier tunnel id)
+func (m *Manager) GetHostingState(key string) (string, error) {
+	if !m.IsConnected() {
+		return "", fmt.Errorf("database not connected")
+	}
+	var value string
+	err := m.db.QueryRow(`SELECT value FROM hosting_state WHERE key = $1`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return value, err
+}
+
+func (m *Manager) SetHostingState(key, value string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`
+		INSERT INTO hosting_state (key, value) VALUES ($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+	`, key, value)
+	return err
+}
+
+// GetSuperadminID is the account whose Cloudflare credentials carry the subdomains
+func (m *Manager) GetSuperadminID() (int64, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	var id int64
+	err := m.db.QueryRow(`SELECT id FROM users WHERE role = 'superadmin' ORDER BY id LIMIT 1`).Scan(&id)
+	return id, err
 }

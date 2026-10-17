@@ -159,9 +159,12 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, errors.New("could not save the site settings"))
 		return
 	}
-	// without hosting mode there is no demo account
+	// without hosting mode there is no demo account and no sold subdomain is served
 	if current.HostingEnabled && !next.HostingEnabled {
 		s.disableDemoAccount()
+	}
+	if current.HostingEnabled != next.HostingEnabled {
+		go s.syncHostingRoutes()
 	}
 	if u := userFromCtx(r); u != nil {
 		changes := map[string]any{}

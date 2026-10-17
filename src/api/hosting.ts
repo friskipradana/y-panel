@@ -69,3 +69,70 @@ export const getPublicHosting = () => agentApi.get<PublicHosting>('/api/v1/publi
 
 export const formatRupiah = (amount: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount)
+
+// ─── Domains and subdomains ───────────────────────────────────────────────────
+
+export interface HostingDomain {
+  zoneId: string
+  name: string
+  /** Cloudflare's own status for the zone (superadmin list only) */
+  status?: string
+  enabled: boolean
+}
+
+export const listHostingDomains = () =>
+  agentApi.get<{ domains: HostingDomain[] }>('/api/v1/hosting/domains').then((r) => r.data.domains)
+
+export const setHostingDomain = (zoneId: string, enabled: boolean) =>
+  agentApi.put<HostingDomain>(`/api/v1/hosting/domains/${encodeURIComponent(zoneId)}`, { enabled }).then((r) => r.data)
+
+export type SubdomainStatus = 'pending' | 'active' | 'suspended' | 'error'
+
+export interface Subdomain {
+  id: number
+  userId: number
+  /** Only in the superadmin list */
+  username?: string
+  label: string
+  zoneId: string
+  domain: string
+  hostname: string
+  projectId: number | null
+  status: SubdomainStatus
+  /** Why a subdomain waits or failed */
+  note: string
+  createdAt: string
+}
+
+export const listAllSubdomains = () =>
+  agentApi.get<{ items: Subdomain[] }>('/api/v1/hosting/subdomains').then((r) => r.data.items)
+
+export const setSubdomainStatus = (id: number, status: 'active' | 'suspended') =>
+  agentApi.patch<Subdomain>(`/api/v1/hosting/subdomains/${id}`, { status }).then((r) => r.data)
+
+export const deleteSubdomainAsAdmin = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/hosting/subdomains/${id}`).then((r) => r.data)
+
+export interface MySubdomains {
+  enabled: boolean
+  limit: number
+  used: number
+  domains: HostingDomain[]
+  items: Subdomain[]
+}
+
+export const getMySubdomains = () => agentApi.get<MySubdomains>('/api/v1/me/subdomains').then((r) => r.data)
+
+export const checkSubdomain = (label: string, zoneId: string) =>
+  agentApi
+    .get<{ available: boolean; reason: string }>('/api/v1/me/subdomains/check', { params: { label, zoneId } })
+    .then((r) => r.data)
+
+export const createMySubdomain = (body: { label: string; zoneId: string; projectId: number }) =>
+  agentApi.post<Subdomain>('/api/v1/me/subdomains', body).then((r) => r.data)
+
+export const retargetMySubdomain = (id: number, projectId: number) =>
+  agentApi.patch<Subdomain>(`/api/v1/me/subdomains/${id}`, { projectId }).then((r) => r.data)
+
+export const deleteMySubdomain = (id: number) =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/me/subdomains/${id}`).then((r) => r.data)

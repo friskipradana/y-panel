@@ -8,7 +8,9 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { DemoAccountCard } from '../DemoAccountCard'
+import { HostingDomainsCard } from '../hosting/HostingDomainsCard'
 import { HostingPlansCard } from '../hosting/HostingPlansCard'
+import { HostingSubdomainsCard } from '../hosting/HostingSubdomainsCard'
 import { HostingTermsCard } from '../hosting/HostingTermsCard'
 
 // Hosting mode: the switch, and what it unlocks. Everything below the switch only shows while it is on.
@@ -70,6 +72,8 @@ export function HostingTab() {
       {enabled ? (
         <>
           <HostingPlansCard />
+          <HostingDomainsCard />
+          <HostingSubdomainsCard />
           <HostingTermsCard />
           <DemoAccountCard />
         </>

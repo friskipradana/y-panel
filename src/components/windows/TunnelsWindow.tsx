@@ -3,6 +3,7 @@ import { DNSModal, DomainModal } from './tunnels/TunnelModals'
 import { useTunnelsWindow } from './tunnels/useTunnelsWindow'
 import { TunnelsToolbar } from './tunnels/TunnelsToolbar'
 import { CloudflareSetupNotice } from './tunnels/CloudflareSetupNotice'
+import { HostingSubdomainsPanel } from './tunnels/HostingSubdomainsPanel'
 import { TunnelsBody } from './tunnels/TunnelsBody'
 import { TunnelModalHost } from './tunnels/TunnelModalHost'
 import { ProfileModalHost } from './tunnels/ProfileModalHost'
@@ -28,6 +29,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
 
   return (
     <div className="panel-window cloudflare-window">
+      <HostingSubdomainsPanel />
       <TunnelsToolbar tw={tw} />
       <CloudflareSetupNotice tw={tw} />
       <TunnelsBody tw={tw} />

@@ -306,7 +306,10 @@ func (s *Server) liftExpirySuspension(target *database.User, previous *database.
 	}
 	if err := s.database.UpdateUser(target.ID, map[string]any{"status": "active"}); err != nil {
 		log.Printf("[hosting] could not reactivate %s: %v", target.Username, err)
+		return
 	}
+	// their subdomains come back with the account
+	go s.syncHostingRoutes()
 }
 
 // expirePlans suspends accounts whose plan ended and whose grace period is over. Accounts the
@@ -321,6 +324,7 @@ func (s *Server) expirePlans(now time.Time) {
 		log.Printf("[hosting] expiry check failed: %v", err)
 		return
 	}
+	suspendedAny := false
 	for _, up := range expired {
 		user, _ := s.database.GetUserByID(up.UserID)
 		if user == nil || user.Role == auth.SuperadminRole {
@@ -332,10 +336,22 @@ func (s *Server) expirePlans(now time.Time) {
 				continue
 			}
 			s.recordRuntimeLog("warning", "account suspended: plan ended", map[string]any{"user": user.Username})
+			suspendedAny = true
 		}
 		if err := s.database.SetPlanSuspendedForExpiry(user.ID, true); err != nil {
 			log.Printf("[hosting] could not mark %s: %v", user.Username, err)
 		}
+	}
+	// their subdomains stop with the account
+	if suspendedAny {
+		s.syncHostingRoutes()
+	}
+}
+
+// syncHostingRoutesIfOn repairs the subdomain routes (a restart, a failed call, a project that got its port)
+func (s *Server) syncHostingRoutesIfOn() {
+	if s.hostingEnabled() {
+		s.syncHostingRoutes()
 	}
 }
 
@@ -344,12 +360,14 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	s.expirePlans(time.Now())
+	s.syncHostingRoutesIfOn()
 	for {
 		select {
 		case <-stop:
 			return
 		case <-ticker.C:
 			s.expirePlans(time.Now())
+			s.syncHostingRoutesIfOn()
 		}
 	}
 }
