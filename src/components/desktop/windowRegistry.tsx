@@ -123,6 +123,7 @@ export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKin
   { id: 'database', label: 'Database', windowId: 'database' },
   { id: 'file-manager', label: 'Files', windowId: 'file-manager' },
   { id: 'system', label: 'System', windowId: 'system' },
+  { id: 'speedtest', label: 'Speed Test', windowId: 'speedtest' },
   { id: 'users', label: 'Users', windowId: 'users' },
   { id: 'settings', label: 'Settings', windowId: 'settings' },
   { id: 'docs', label: 'Docs', windowId: 'docs' },

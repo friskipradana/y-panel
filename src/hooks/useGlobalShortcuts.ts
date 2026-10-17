@@ -5,6 +5,21 @@ import { useCommandStore } from '@/store/commandStore'
 import { canAccessWindow } from '@/components/desktop/Desktop'
 import type { WindowKind } from '@/types'
 
+// Alt + letter opens an app; the quick search shows the same keys next to the apps
+export const WINDOW_SHORTCUTS: Array<{ key: string; kind: WindowKind }> = [
+  { key: 't', kind: 'host-terminal' },
+  { key: 'f', kind: 'file-manager' },
+  { key: 's', kind: 'settings' },
+  { key: 'u', kind: 'users' },
+  { key: 'p', kind: 'projects' },
+  { key: 'n', kind: 'changelog' },
+]
+
+export function shortcutHint(kind: WindowKind): string | undefined {
+  const found = WINDOW_SHORTCUTS.find((item) => item.kind === kind)
+  return found ? `Alt + ${found.key.toUpperCase()}` : undefined
+}
+
 export function useGlobalShortcuts(authenticated: boolean) {
   useEffect(() => {
     if (!authenticated) return
@@ -34,29 +49,12 @@ export function useGlobalShortcuts(authenticated: boolean) {
         openWindow(kind)
       }
 
-      if (userRole && e.altKey && e.key.toLowerCase() === 't') {
-        e.preventDefault()
-        tryOpenWindow('host-terminal')
-      }
-      if (e.altKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        tryOpenWindow('file-manager')
-      }
-      if (e.altKey && e.key.toLowerCase() === 's') {
-        e.preventDefault()
-        tryOpenWindow('settings')
-      }
-      if (e.altKey && e.key.toLowerCase() === 'u') {
-        e.preventDefault()
-        tryOpenWindow('users')
-      }
-      if (e.altKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault()
-        tryOpenWindow('projects')
-      }
-      if (e.altKey && e.key.toLowerCase() === 'n') {
-        e.preventDefault()
-        tryOpenWindow('changelog')
+      if (e.altKey) {
+        const shortcut = WINDOW_SHORTCUTS.find((item) => item.key === e.key.toLowerCase())
+        if (shortcut) {
+          e.preventDefault()
+          tryOpenWindow(shortcut.kind)
+        }
       }
       if (e.altKey && e.key.toLowerCase() === 'w') {
         e.preventDefault()

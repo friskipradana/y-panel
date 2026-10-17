@@ -76,3 +76,33 @@ export type SettingsTabKey =
   | "api_tokens"
   | "reneo_database"
   | "reneo_runtime";
+
+// The tabs an account may open: the superadmin all of them, everyone else only their own area
+// (host settings, payment, audit, the panel's database and the hosting tab stay with the superadmin)
+const OWN_TABS: SettingsTabKey[] = ["appearance", "wallpaper", "desktop", "screensaver", "sound", "cloudflare", "security", "api_tokens"];
+
+export function settingsTabAllowed(key: SettingsTabKey, role?: string | null): boolean {
+  if (role === "superadmin") return true;
+  if (key === "notifications") return role === "admin";
+  return OWN_TABS.includes(key);
+}
+
+// i18n key of the title of a tab
+export const SETTINGS_TAB_TITLE: Record<SettingsTabKey, string> = {
+  general: "settings.tabs.general",
+  hosting: "settings.tabs.hosting",
+  appearance: "settings.tabs.appearance",
+  wallpaper: "settings.tabs.wallpaper",
+  desktop: "settings.tabs.desktop",
+  screensaver: "settings.tabs.screensaver",
+  sound: "settings.tabs.sound",
+  cloudflare: "settings.tabs.cloudflare",
+  network: "settings.tabs.network",
+  security: "settings.tabs.security",
+  payment: "settings.tabs.payment",
+  notifications: "settings.tabs.notifications",
+  audit: "settings.tabs.audit",
+  api_tokens: "settings.tabs.apiTokens",
+  reneo_database: "settings.tabs.reneoDatabase",
+  reneo_runtime: "settings.tabs.reneoRuntime",
+};

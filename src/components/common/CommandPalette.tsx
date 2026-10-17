@@ -1,719 +1,137 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Command } from 'cmdk'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Search, X } from 'lucide-react'
 import { Z } from '@/lib/zLayers'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Terminal,
-  FolderOpen,
-  Settings,
-  Users,
-  Layers,
-  ScrollText,
-  RotateCcw,
-  Sun,
-  Moon,
-  Lock,
-  Search,
-  Database,
-  Radio,
-  BookOpen,
-  Clock,
-  Cpu,
-  Globe,
-  StickyNote,
-  Activity,
-  Puzzle,
-  CornerDownLeft,
-  X, Radar } from 'lucide-react'
 import { useCommandStore } from '@/store/commandStore'
-import { useWindowStore } from '@/store/windowStore'
-import { useWidgetStore } from '@/store/widgetStore'
-import { useThemeStore } from '@/store/themeStore'
-import { useAuthStore } from '@/store/authStore'
-import { canAccessWindow } from '@/components/desktop/Desktop'
-import type { WindowKind, WidgetType } from '@/types'
 import { useI18n } from '@/lib/i18n'
-import { IconBadge } from '@/components/ui/IconBadge'
+import { PaletteRow } from './palette/PaletteRow'
+import { paletteScore } from './palette/score'
+import { loadRecent, rememberRecent, usePaletteEntries, type PaletteEntry, type PaletteGroup } from './palette/usePaletteEntries'
 
+const GROUP_ORDER: PaletteGroup[] = ['open', 'apps', 'account', 'settings', 'widgets', 'actions']
+
+const GROUP_CLASS =
+  'px-1 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-items]]:space-y-0.5'
+
+function Kbd({ children }: { children: string }) {
+  return <kbd className="rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-1.5 py-0.5 font-semibold text-[var(--win-text)]">{children}</kbd>
+}
+
+// Quick search (Ctrl+K, the magnifier of the taskbar and of the phone): apps, settings tabs, widgets
+// and actions, limited to what the signed-in account may use. It is rendered only while open, so
+// every opening starts with an empty search.
 export function CommandPalette() {
-  const { t } = useI18n()
-  const { isOpen, closeCommandPalette } = useCommandStore()
-  const { openWindow, resetWindows } = useWindowStore()
-  const { addWidget, resetLayout, hasWidget } = useWidgetStore()
-  const { mode, toggleMode } = useThemeStore()
-  const { user } = useAuthStore()
-
-  const userRole = user?.role ?? null
-
-  const handleSelectWindow = useCallback(
-    (kind: WindowKind) => {
-      if (!canAccessWindow(kind, userRole)) return
-      openWindow(kind)
-      closeCommandPalette()
-    },
-    [userRole, openWindow, closeCommandPalette]
-  )
-
-  const handleAddWidget = useCallback(
-    (type: WidgetType) => {
-      addWidget(type)
-      closeCommandPalette()
-    },
-    [addWidget, closeCommandPalette]
-  )
-
-  const handleResetWidgets = useCallback(() => {
-    resetLayout()
-    closeCommandPalette()
-  }, [resetLayout, closeCommandPalette])
-
-  const handleToggleTheme = useCallback(() => {
-    toggleMode()
-    closeCommandPalette()
-  }, [toggleMode, closeCommandPalette])
-
-  const handleLockScreen = useCallback(() => {
-    useThemeStore.getState().setIsLocked(true)
-    closeCommandPalette()
-  }, [closeCommandPalette])
+  const isOpen = useCommandStore((s) => s.isOpen)
+  const close = useCommandStore((s) => s.closeCommandPalette)
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        closeCommandPalette()
-      }
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close()
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, closeCommandPalette])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, close])
 
-  // Uniform monochrome icon wrapper matching Reneo desktop icon aesthetics
-  const renderIconBox = (IconComp: React.ComponentType<{ size?: number; className?: string }>) => (
-    <IconBadge
-      size="md"
-      className="group-data-[selected=true]:border-cyan-500/40 group-data-[selected=true]:bg-cyan-500/10 group-data-[selected=true]:text-cyan-500 dark:group-data-[selected=true]:text-cyan-400 transition-colors"
-    >
-      <IconComp />
-    </IconBadge>
-  )
+  return <AnimatePresence>{isOpen ? <PaletteDialog close={close} /> : null}</AnimatePresence>
+}
+
+function PaletteDialog({ close }: { close: () => void }) {
+  const { t } = useI18n()
+  const [search, setSearch] = useState('')
+  const [recent] = useState(loadRecent)
+  const entries = usePaletteEntries(close, true)
+
+  const run = (entry: PaletteEntry) => {
+    if (entry.disabled) return
+    if (entry.recordable) rememberRecent(entry.id)
+    entry.run()
+  }
+
+  const byGroup = useMemo(() => {
+    const map = new Map<PaletteGroup, PaletteEntry[]>()
+    for (const entry of entries) map.set(entry.group, [...(map.get(entry.group) ?? []), entry])
+    return map
+  }, [entries])
+  const recents = useMemo(() => recent.map((id) => entries.find((entry) => entry.id === id)).filter((entry): entry is PaletteEntry => !!entry && !entry.disabled), [entries, recent])
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 select-none" style={{ zIndex: Z.commandPalette }}>
-          {/* Backdrop Blur Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={closeCommandPalette}
-            className="fixed inset-0 bg-black/65 backdrop-blur-md"
-          />
+    <div className="fixed inset-0 flex select-none items-start justify-center p-4 pt-[12dvh]" style={{ zIndex: Z.commandPalette }}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.16 }}
+        onClick={close}
+        className="fixed inset-0 bg-black/55 backdrop-blur-sm"
+      />
 
-          {/* Modal Container: Perfect Center & Sleek Monochromatic Shell */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: -6 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 360 }}
-            className="relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col z-10 -translate-y-4"
-            style={{
-              backgroundColor: 'var(--win-bg)',
-              borderColor: 'var(--win-border)',
-              color: 'var(--win-text)',
-              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--win-border)',
-            }}
-          >
-            <Command
-              loop
-              label="Command Palette"
-              className="w-full flex flex-col focus:outline-none"
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('commandPalette.label')}
+        initial={{ opacity: 0, scale: 0.97, y: -6 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97, y: -6 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+        className="relative z-10 flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--win-text)] shadow-2xl"
+      >
+        <Command loop filter={paletteScore} label={t('commandPalette.label')} className="flex w-full flex-col focus:outline-none">
+          <div className="flex items-center gap-3 border-b border-[var(--win-border)] px-4 py-3.5">
+            <Search size={18} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" />
+            <Command.Input
+              autoFocus
+              value={search}
+              onValueChange={setSearch}
+              placeholder={t('commandPalette.placeholder')}
+              className="w-full bg-transparent text-[14px] text-[var(--win-text)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={close}
+              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--win-border)] bg-[var(--panel-surface-strong)] text-[var(--text-secondary)] transition-colors hover:text-[var(--win-text)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+              title={t('commandPalette.closeHint')}
+              aria-label={t('common.close')}
             >
-              {/* Search Bar Header */}
-              <div
-                className="flex items-center gap-3.5 px-5 py-4 border-b"
-                style={{ borderColor: 'var(--win-border)' }}
-              >
-                <Search size={18} className="text-cyan-500 shrink-0 opacity-90" />
-                <Command.Input
-                  autoFocus
-                  placeholder={t('commandPalette.placeholder')}
-                  className="w-full bg-transparent text-[14px] text-[var(--win-text)] placeholder-[var(--text-secondary)]/60 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={closeCommandPalette}
-                  className="h-6 w-6 rounded-md border flex items-center justify-center cursor-pointer text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
-                  style={{
-                    backgroundColor: 'var(--panel-surface-strong)',
-                    borderColor: 'var(--win-border)',
-                  }}
-                  title={t('commandPalette.closeHint')}
-                  aria-label={t('common.close')}
-                >
-                  <X size={13} />
-                </button>
-              </div>
+              <X size={13} />
+            </button>
+          </div>
 
-              {/* Scrollable Command List */}
-              <Command.List
-                className="max-h-[380px] overflow-y-auto p-2.5 focus:outline-none custom-widget-scrollbar space-y-1"
-                style={{ color: 'var(--win-text)' }}
-              >
-                <Command.Empty className="py-12 text-center text-xs text-[var(--text-secondary)]">
-                  Tidak ada perintah atau aplikasi yang sesuai.
-                </Command.Empty>
+          <Command.List className="custom-widget-scrollbar max-h-[min(55dvh,420px)] overflow-y-auto p-2 focus:outline-none">
+            <Command.Empty className="py-10 text-center text-xs text-[var(--text-secondary)]">{t('commandPalette.empty')}</Command.Empty>
 
-                {/* Group 1: Aplikasi & Window */}
-                <Command.Group
-                  heading="Aplikasi & Alat Server"
-                  className="px-1 pt-1 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
-                >
-                  {canAccessWindow('host-terminal', userRole) && (
-                    <Command.Item
-                      onSelect={() => handleSelectWindow('host-terminal')}
-                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {renderIconBox(Terminal)}
-                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                            Host Terminal
-                          </span>
-                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                            Terminal interaktif Linux PTY dengan akses shell host
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                          Alt + T
-                        </kbd>
-                        <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                      </div>
-                    </Command.Item>
-                  )}
+            {search === '' && recents.length > 0 ? (
+              <Command.Group heading={t('palette.group.recent')} className={GROUP_CLASS}>
+                {recents.map((entry) => (
+                  <PaletteRow key={entry.id} entry={entry} scope="recent" onRun={run} />
+                ))}
+              </Command.Group>
+            ) : null}
 
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('apps')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Layers)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Docker Containers
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Manajemen container, image, log, dan status runtime
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        App
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('file-manager')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(FolderOpen)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          File Manager
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Eksplorasi folder, upload, edit, dan permission file server
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Alt + F
-                      </kbd>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  {canAccessWindow('database', userRole) && (
-                    <Command.Item
-                      onSelect={() => handleSelectWindow('database')}
-                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {renderIconBox(Database)}
-                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                            Database Manager
-                          </span>
-                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                            Monitoring koneksi database PostgreSQL, MySQL, dan backup
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                          Database
-                        </span>
-                        <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                      </div>
-                    </Command.Item>
-                  )}
-
-                  {canAccessWindow('system-logs', userRole) && (
-                    <Command.Item
-                      onSelect={() => handleSelectWindow('system-logs')}
-                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {renderIconBox(ScrollText)}
-                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                            System Logs
-                          </span>
-                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                            Streaming log live dari journald dan service server
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                          Logs
-                        </span>
-                        <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                      </div>
-                    </Command.Item>
-                  )}
-
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('tunnels')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Radio)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Cloudflare Tunnels
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Publikasi port lokal ke domain publik aman tanpa buka router
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Network
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('projects')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Layers)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Projects
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Katalog aplikasi web dan direktori proyek server
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Alt + P
-                      </kbd>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('settings')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Settings)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pengaturan Sistem
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Wallpaper, preferensi desktop, screensaver, dan agent
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Alt + S
-                      </kbd>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  {canAccessWindow('users', userRole) && (
-                    <Command.Item
-                      onSelect={() => handleSelectWindow('users')}
-                      className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {renderIconBox(Users)}
-                        <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                          <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                            Manajemen Pengguna
-                          </span>
-                          <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                            Tambah user panel, atur role, dan hak akses
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <kbd className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                          Alt + U
-                        </kbd>
-                        <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                      </div>
-                    </Command.Item>
-                  )}
-
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('docs')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(BookOpen)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Dokumentasi Panel
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Panduan lengkap penggunaan fitur dan API Reneo
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Docs
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
+            {GROUP_ORDER.map((group) => {
+              const items = byGroup.get(group)
+              if (!items?.length) return null
+              return (
+                <Command.Group key={group} heading={t(`palette.group.${group}`)} className={GROUP_CLASS}>
+                  {items.map((entry) => (
+                    <PaletteRow key={entry.id} entry={entry} scope={group} onRun={run} />
+                  ))}
                 </Command.Group>
+              )
+            })}
+          </Command.List>
 
-                {/* Group 2: Modul Widget Desktop */}
-                <Command.Group
-                  heading="Modul Widget Desktop"
-                  className="px-1 pt-3 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
-                >
-                  <Command.Item
-                    onSelect={() => handleSelectWindow('widgets')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Puzzle)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Galeri Widget Desktop
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Katalog lengkap modul floating info untuk desktop
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Gallery
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('clock-uptime')}
-                    disabled={hasWidget('clock-uptime')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Clock)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pasang Clock & Uptime
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Jam digital presisi, tanggal lokal, dan durasi aktif server
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {hasWidget('clock-uptime') ? 'Terpasang' : 'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('system-vital')}
-                    disabled={hasWidget('system-vital')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Cpu)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pasang System Vitals
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Bar meter realtime CPU, RAM memori, dan storage disk
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {hasWidget('system-vital') ? 'Terpasang' : 'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('network-traffic')}
-                    disabled={hasWidget('network-traffic')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Globe)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pasang Network Traffic
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Grafik transfer rate RX/TX dan interface IP host
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {hasWidget('network-traffic') ? 'Terpasang' : 'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('quick-note')}
-                    disabled={hasWidget('quick-note')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(StickyNote)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Tambah Sticky Note
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Catatan tempel berwarna, bisa dibuat banyak
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {hasWidget('quick-note') ? 'Terpasang' : 'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('cpu-graph')}
-                    disabled={hasWidget('cpu-graph')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Activity)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Pasang CPU History
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Grafik tren sparkline beban prosesor 60 detik
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {hasWidget('cpu-graph') ? 'Terpasang' : 'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => handleAddWidget('ping')}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25 aria-disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Radar)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          {t('widget.ping.paletteTitle')}
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          {t('widget.ping.paletteDesc')}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {'Widget'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={handleResetWidgets}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(RotateCcw)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Reset Tata Letak Widget
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Rapikan widget desktop ke susunan rak susun jarak selaras 15px
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Action
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-                </Command.Group>
-
-                {/* Group 3: Sistem & Tampilan */}
-                <Command.Group
-                  heading="Sistem & Tampilan"
-                  className="px-1 pt-3 pb-2 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pt-1.5 [&_[cmdk-group-heading]]:pb-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-[var(--text-secondary)] [&_[cmdk-group-heading]]:opacity-80 [&_[cmdk-group-items]]:space-y-1"
-                >
-                  <Command.Item
-                    onSelect={handleToggleTheme}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(mode === 'dark' ? Sun : Moon)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Ganti Tema ke {mode === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Alihkan skema visual tampilan kontrol panel
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        {mode === 'dark' ? 'Dark' : 'Light'}
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={() => {
-                      resetWindows()
-                      closeCommandPalette()
-                    }}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(RotateCcw)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Reset Semua Jendela
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Tutup semua window dan bersihkan workspace desktop
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Window
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-
-                  <Command.Item
-                    onSelect={handleLockScreen}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs cursor-pointer border border-transparent transition-all data-[selected=true]:bg-cyan-500/12 data-[selected=true]:border-cyan-500/25"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {renderIconBox(Lock)}
-                      <div className="flex flex-col min-w-0 gap-1.5 justify-center">
-                        <span className="font-semibold text-[13px] leading-snug text-[var(--win-text)] truncate">
-                          Kunci Layar (Lock Screen)
-                        </span>
-                        <span className="text-[11px] leading-normal text-[var(--text-secondary)] truncate">
-                          Kunci sesi workstation untuk keamanan
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]">
-                        Security
-                      </span>
-                      <CornerDownLeft size={13} className="text-cyan-400 opacity-0 group-data-[selected=true]:opacity-100 transition-opacity" />
-                    </div>
-                  </Command.Item>
-                </Command.Group>
-              </Command.List>
-
-              {/* Footer Tip Bar */}
-              <div
-                className="flex items-center justify-between px-5 py-2.5 text-[11px] border-t"
-                style={{
-                  backgroundColor: 'var(--panel-surface)',
-                  borderColor: 'var(--win-border)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <div className="flex items-center gap-3 font-mono text-[10px]">
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)] font-semibold text-[var(--win-text)]">↑↓</kbd>
-                    Navigasi
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)] font-semibold text-[var(--win-text)]">↵</kbd>
-                    Pilih
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="px-1.5 py-0.5 rounded border border-[var(--win-border)] bg-[var(--panel-surface-strong)] font-semibold text-[var(--win-text)]">ESC</kbd>
-                    Tutup
-                  </span>
-                </div>
-                <div className="text-[10px] font-mono opacity-70">
-                  Reneo Quick Command
-                </div>
-              </div>
-            </Command>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+          <div className="flex items-center justify-between border-t border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-2 text-[11px] text-[var(--text-secondary)]">
+            <div className="flex items-center gap-3 font-mono text-[10px]">
+              <span className="flex items-center gap-1"><Kbd>↑↓</Kbd>{t('commandPalette.navigate')}</span>
+              <span className="flex items-center gap-1"><Kbd>↵</Kbd>{t('commandPalette.select')}</span>
+              <span className="flex items-center gap-1"><Kbd>Esc</Kbd>{t('commandPalette.close')}</span>
+            </div>
+            <span className="font-mono text-[10px] opacity-70 max-sm:hidden">Ctrl + K</span>
+          </div>
+        </Command>
+      </motion.div>
+    </div>
   )
 }

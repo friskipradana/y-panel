@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Phone tab strip scrolls sideways: keep the active tab in view
 function keepVisibleOnPhone(el: HTMLButtonElement | null) {
@@ -28,7 +28,7 @@ import { useHostSettings } from "./settings/hooks/useHostSettings";
 import { useCloudflareSettings } from "./settings/hooks/useCloudflareSettings";
 import { usePaymentSettings } from "./settings/hooks/usePaymentSettings";
 import { useNotificationSettings } from "./settings/hooks/useNotificationSettings";
-import type { SettingsTabKey } from "./settings/constants";
+import { settingsTabAllowed, type SettingsTabKey } from "./settings/constants";
 import { GeneralTab } from "./settings/tabs/GeneralTab";
 import { HostingTab } from "./settings/tabs/HostingTab";
 import { AppearanceTab } from "./settings/tabs/AppearanceTab";
@@ -45,6 +45,7 @@ import { AuditTab } from "./settings/tabs/AuditTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
 import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsNavStore } from "@/store/settingsNavStore";
 import { AccountSecurityCard } from "./profile/AccountSecurityCard";
 import { LoadingState } from "@/components/ui/states"
 
@@ -115,12 +116,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         ]
       : []),
   ];
-  const SETTINGS_TABS = ALL_TABS.filter((tab) => {
-    if (isSuperadmin) return true;
-    const own: SettingsTabKey[] = ["appearance", "wallpaper", "desktop", "screensaver", "sound", "cloudflare", "security", "api_tokens"];
-    if (role === "admin") own.push("notifications");
-    return own.includes(tab.key);
-  });
+  const SETTINGS_TABS = ALL_TABS.filter((tab) => settingsTabAllowed(tab.key, role));
+  // the quick search can ask for a tab; take it when the account may see it
+  const requestedTab = useSettingsNavStore((s) => s.tab);
+  const clearRequestedTab = useSettingsNavStore((s) => s.clear);
+  useEffect(() => {
+    if (!requestedTab) return;
+    if (settingsTabAllowed(requestedTab, role)) setActiveTab(requestedTab);
+    clearRequestedTab();
+  }, [requestedTab, role, clearRequestedTab]);
   // the role can arrive after the first render: never sit on a tab the account cannot see
   const shownTab = SETTINGS_TABS.some((tab) => tab.key === activeTab) ? activeTab : SETTINGS_TABS[0]?.key;
 

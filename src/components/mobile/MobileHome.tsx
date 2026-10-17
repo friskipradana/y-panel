@@ -16,7 +16,7 @@ interface MobileHomeProps {
 }
 
 // Reachable from the desktop only through menus; the phone lists them here
-const EXTRA_APPS: WindowKind[] = ['speedtest', 'system-logs', 'changelog']
+const EXTRA_APPS: WindowKind[] = ['system-logs', 'changelog']
 
 function formatBytes(bytes: number) {
   if (!bytes) return '0 B'
