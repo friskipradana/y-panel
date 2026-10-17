@@ -572,6 +572,58 @@ install_legacy_aliases() {
   ln -sfn "$ENV_FILE" /etc/ui-panel/agent.env
 }
 
+# Ookla's speedtest client for the Speedtest window. Installed from Ookla's official archive into
+# the panel's own folder (not apt: that package is also called `speedtest` and collides with the
+# Python speedtest-cli on /usr/bin/speedtest). Never fatal: the panel works without it, and the
+# Speedtest window can install it later. Accepting Ookla's licence stays a manual step in the panel.
+ensure_speedtest_cli() {
+  local dest="$STATE_DIR/bin/speedtest"
+  local version="1.2.0"
+  local name sum
+
+  if [[ -x "$dest" ]] && "$dest" --version 2>/dev/null | grep -qi 'by ookla'; then
+    ok "klien Speedtest Ookla sudah tersedia"
+    return 0
+  fi
+
+  case "$(uname -m)" in
+    x86_64)        name="x86_64";  sum="5690596c54ff9bed63fa3732f818a05dbc2db19ad36ed68f21ca5f64d5cfeeb7" ;;
+    aarch64|arm64) name="aarch64"; sum="3953d231da3783e2bf8904b6dd72767c5c6e533e163d3742fd0437affa431bd3" ;;
+    armv7l|armv7)  name="armhf";   sum="e45fcdebbd8a185553535533dd032d6b10bc8c64eee4139b1147b9c09835d08d" ;;
+    i386|i686)     name="i386";    sum="9ff7e18dbae7ee0e03c66108445a2fb6ceea6c86f66482e1392f55881b772fe8" ;;
+    *)
+      warn "klien Speedtest Ookla dilewati: arsitektur $(uname -m) tidak didukung"
+      return 0
+      ;;
+  esac
+
+  log "memasang klien Speedtest Ookla"
+  local work archive
+  work="$(mktemp -d)"
+  archive="$work/speedtest.tgz"
+  if ! curl --fail --silent --show-error --location --retry 3 --max-filesize 8388608 \
+    "https://install.speedtest.net/app/cli/ookla-speedtest-${version}-linux-${name}.tgz" -o "$archive" >>"$INSTALL_LOG_FILE" 2>&1; then
+    warn "klien Speedtest Ookla dilewati: unduhan gagal (bisa dipasang nanti dari jendela Speedtest)"
+    rm -rf "$work"
+    return 0
+  fi
+  if [[ "$(sha256sum "$archive" | cut -d' ' -f1)" != "$sum" ]]; then
+    warn "klien Speedtest Ookla dilewati: checksum arsip tidak cocok"
+    rm -rf "$work"
+    return 0
+  fi
+  # only the client is unpacked, into a folder of its own
+  if ! tar -xzf "$archive" -C "$work" speedtest >>"$INSTALL_LOG_FILE" 2>&1 || ! "$work/speedtest" --version 2>/dev/null | grep -qi 'by ookla'; then
+    warn "klien Speedtest Ookla dilewati: arsip tidak berisi klien yang bisa dijalankan"
+    rm -rf "$work"
+    return 0
+  fi
+  mkdir -p "$STATE_DIR/bin"
+  install -m 755 "$work/speedtest" "$dest"
+  rm -rf "$work"
+  ok "klien Speedtest Ookla terpasang (lisensi disetujui manual di jendela Speedtest)"
+}
+
 setup_directories() {
   log "menyiapkan direktori runtime"
   mkdir -p "$INSTALL_ROOT" "$STATE_DIR" "$CONFIG_DIR" "$FRONTEND_DIR"
@@ -1396,6 +1448,7 @@ main() {
   reneo_config
   migrate_legacy_runtime
   setup_directories
+  ensure_speedtest_cli
   ensure_hostname_resolution
 
   step "Database"

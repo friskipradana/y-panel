@@ -39,7 +39,7 @@ const (
 
 // ooklaStatus says whether Ookla's client can run: where it is, and the reason when it cannot
 func (s *Server) ooklaStatus() (bin, reason string) {
-	bin = ooklaBinary()
+	bin = ooklaBinary(ooklaPrivateBin(s.cfg.StateDir))
 	switch {
 	case bin == "":
 		return "", reasonNoCLI

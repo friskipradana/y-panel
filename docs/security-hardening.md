@@ -214,7 +214,7 @@ Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `
 
 - **Google (M-Lab NDT7):** agent memakai protokol terbuka NDT7 langsung (Locate API M-Lab memberi server dan token bertanda tangan). Hasil tes dipublikasikan M-Lab secara terbuka beserta alamat IP server; antarmuka menyebutnya sebelum dipilih.
 - **Speedtest.net dan CBN (Ookla):** hanya lewat klien resmi `speedtest` (bukan skrip tidak resmi, yang diblokir Ookla). Lisensi klien itu untuk pemakaian pribadi nonkomersial, jadi agent tidak menyetujuinya sendiri: flag `--accept-license` baru dipakai setelah superadmin menekan persetujuan (`ooklaLicenseAccepted` di `site-settings.json`, tercatat di audit). Ookla menyimpan hasil dan membuat tautan publik.
-- Klien dicari lewat `RENEO_SPEEDTEST_BIN` atau `speedtest` di PATH dan harus menyebut "by Ookla" di `--version` (klien Python `speedtest-cli` ditolak). Id server hanya angka (1 sampai 9 digit) dan dipassing sebagai argumen tanpa shell. Satu tes berjalan sekali waktu; proses dihentikan bila permintaan ditutup.
+- Klien dicari berurutan: `RENEO_SPEEDTEST_BIN`, salinan milik agent di `<state>/bin/speedtest`, lalu `speedtest` di PATH. Yang dipakai hanya yang menyebut "by Ookla" di `--version` (klien Python `speedtest-cli` ditolak). Installer dan tombol "Pasang klien Ookla" (hanya superadmin, `POST /api/v1/speedtest/cli/install`) memasang dari arsip resmi `install.speedtest.net` ke folder state, bukan lewat paket apt `speedtest` yang bentrok dengan `speedtest-cli` di `/usr/bin/speedtest`. Arsip dicek terhadap sha256 yang dipatok per arsitektur sebelum dibuka, hanya berkas `speedtest` yang diekstrak, dan hasilnya harus berjalan sebagai klien Ookla sebelum dipindahkan ke tempatnya. Memasang klien tidak menyetujui lisensinya. Id server hanya angka (1 sampai 9 digit) dan dipassing sebagai argumen tanpa shell. Satu tes berjalan sekali waktu; proses dihentikan bila permintaan ditutup.
 
 ## Isolasi Akun (gaya hosting)
 
@@ -229,6 +229,10 @@ Setiap akun bekerja di areanya sendiri. Yang membedakan hanya cakupannya:
 Aturan yang diterapkan agent:
 
 - Terminal berjalan sebagai akun OS milik akun itu (`runuser`), tanpa sudo. Sudo hanya untuk superadmin.
+- Lingkungan shell bersih: tidak mewarisi apa pun dari agent (session secret, DSN database, kunci enkripsi). Hanya `PATH` sistem, `LANG`, `SHELL`, `TERM`, `COLORTERM`, serta `HOME`, `USER`, `LOGNAME` akun itu. Hal yang sama berlaku untuk `POST /api/v1/terminal/exec` dan proses project.
+- Sesi terminal milik akun yang membuatnya: WebSocket dan penutupan sesi memeriksa pemilik, dan id milik orang lain dijawab sama dengan id yang tidak ada (404). Sesi ditutup saat akun disuspend (manual atau karena paket berakhir), dihapus, atau role/statusnya diubah. Batas 8 sesi per akun dan 64 sesi total (429 bila terlampaui); ukuran jendela dibatasi 500x200.
+- Target SSH remote hanya `[user@]host` (huruf, angka, titik, minus, garis bawah; tidak boleh diawali minus) dan diberikan setelah `--`, sehingga tidak bisa dibaca sebagai opsi ssh (`-oProxyCommand=...`). ssh berjalan sebagai akun OS pemakai, bukan sebagai agent, jadi kunci SSH root tidak terpakai.
+- Folder awal terminal adalah home akun. Selain superadmin, folder yang diminta harus ada di dalam home setelah symlink diselesaikan. Home akun diberi mode 0700 agar akun lain tidak bisa membaca berkasnya. Menutup sesi membunuh seluruh grup proses shell, bukan hanya shell-nya.
 - File manager dibatasi ke home dan folder project akun. Folder state panel (kredensial semua akun) hanya untuk superadmin.
 - Container, image, network, template, project, database, dan token Cloudflare dipisah per pemilik; admin juga melihat milik turunannya.
 - Info host (hostname, OS, kernel, uptime, IP, NIC, riwayat metrik, Docker/Portainer) hanya untuk superadmin. Akun lain melihat CPU, RAM, dan storage miliknya sendiri terhadap kuota yang ditetapkan (`GET /api/v1/system/summary` dengan `scoped: true`, juga di live socket).

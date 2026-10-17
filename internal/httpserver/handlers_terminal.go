@@ -64,6 +64,7 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	}
 
 	startReq := terminal.StartRequest{
+		OwnerID:       currentUser.ID,
 		PanelUsername: currentUser.Username,
 		DisplayName:   currentUser.DisplayName,
 		Role:          currentUser.Role,
@@ -79,7 +80,14 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.auditSensitiveAction(r, currentUser, "terminal.start", "failed", map[string]any{"target": target, "cwd": cwd, "error": err.Error()})
-		s.writeError(w, http.StatusBadGateway, err)
+		status := http.StatusBadGateway
+		switch {
+		case errors.Is(err, terminal.ErrTooManySessions):
+			status = http.StatusTooManyRequests
+		case errors.Is(err, terminal.ErrInvalid):
+			status = http.StatusBadRequest
+		}
+		s.writeError(w, status, err)
 		return
 	}
 
@@ -100,6 +108,13 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 	id := r.PathValue("id")
 	if id == "" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "missing session id"})
+		return
+	}
+
+	// only the account that started a session may attach to it; a foreign id looks like an unknown one
+	owner := s.currentUserRecord(r)
+	if owner == nil || s.terminalManager.Authorize(id, owner.ID) != nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "terminal session not found"})
 		return
 	}
 
@@ -234,15 +249,17 @@ func (s *Server) handleTerminalSessionClose(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil || s.terminalManager.Authorize(id, currentUser.ID) != nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "terminal session not found"})
+		return
+	}
 	meta, _ := s.terminalManager.SessionMeta(id)
 	if err := s.terminalManager.Close(id); err != nil {
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
-	if currentUser := s.currentUserRecord(r); currentUser != nil {
-		s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
-	}
-
+	s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

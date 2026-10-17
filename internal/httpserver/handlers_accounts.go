@@ -113,6 +113,8 @@ func (s *Server) vetUserFields(actor, target *database.User, in map[string]any) 
 // stopUserWorkloads halts everything a user runs through the panel so a suspended
 // or deleted account does not keep serving traffic.
 func (s *Server) stopUserWorkloads(userID int64) {
+	// open shells end with the account
+	s.terminalManager.CloseOwned(userID)
 	if s.database == nil {
 		return
 	}

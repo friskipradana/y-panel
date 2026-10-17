@@ -580,6 +580,12 @@ func (s *Server) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, _ := s.database.GetUserByID(id)
+	// a changed role or status must not leave a shell open that the new one would not allow
+	if _, roleChanged := fields["role"]; roleChanged {
+		s.terminalManager.CloseOwned(id)
+	} else if status, ok := fields["status"].(string); ok && status != "active" {
+		s.terminalManager.CloseOwned(id)
+	}
 	if u != nil {
 		s.notifyCurrentUserAction(r, "User diperbarui ✏️", fmt.Sprintf("Perubahan pada user '%s' berhasil disimpan.", u.Username), "info")
 	}

@@ -6,7 +6,7 @@ Reneo dipasang dengan satu perintah. Jalankan di terminal server (Ubuntu, Debian
 curl -fsSL https://install.reneo.my.id | sudo bash
 ```
 
-Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared), memasang agent, membuat service `reneo`, lalu menunggu panel sehat.
+Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared, klien Speedtest Ookla untuk jendela Speedtest), memasang agent, membuat service `reneo`, lalu menunggu panel sehat.
 
 ![Halaman depan Reneo setelah terpasang](img/landing.png)
 

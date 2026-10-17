@@ -45,7 +45,8 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 	if runtime.GOOS != "linux" {
 		return mapped, nil
 	}
-	if _, err := osuser.Lookup(mapped); err == nil {
+	if account, err := osuser.Lookup(mapped); err == nil {
+		lockHome(account.HomeDir)
 		return mapped, nil
 	}
 	comment := strings.TrimSpace(displayName)
@@ -56,7 +57,32 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("create os user %q: %w (%s)", mapped, err, strings.TrimSpace(string(output)))
 	}
+	if account, err := osuser.Lookup(mapped); err == nil {
+		lockHome(account.HomeDir)
+	}
 	return mapped, nil
+}
+
+// lockHome keeps one account's files unreadable to the other accounts: distro defaults
+// leave a new home world-readable (0755), which would expose every user's projects.
+func lockHome(home string) {
+	home = filepath.Clean(strings.TrimSpace(home))
+	if home == "" || home == "." || !strings.HasPrefix(home, "/home/") {
+		return
+	}
+	if info, err := os.Stat(home); err == nil && info.IsDir() && info.Mode().Perm()&0o077 != 0 {
+		_ = os.Chmod(home, 0o700)
+	}
+}
+
+// safePath is the PATH of a user shell: the system directories, never the agent's own.
+const safePath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+// BaseEnv is the environment of a command run for an account: nothing is inherited from
+// the agent, whose environment holds the session secret, the database DSN and the
+// encryption key. extra entries (TERM and so on) are added after the fixed ones.
+func BaseEnv(extra ...string) []string {
+	return append([]string{"PATH=" + safePath, "LANG=C.UTF-8", "SHELL=/bin/bash"}, extra...)
 }
 
 // EnsureUserForRole creates/syncs the mapped OS account and applies host sudo policy
@@ -100,7 +126,12 @@ func WrapCommand(cmd *exec.Cmd, osUsername string) (*exec.Cmd, error) {
 	}
 	wrapped := exec.Command("runuser", append([]string{"-u", osUsername, "--", cmd.Path}, cmd.Args[1:]...)...)
 	wrapped.Dir = cmd.Dir
-	wrapped.Env = append([]string(nil), cmd.Env...)
+	// a command without its own environment must not fall back to the agent's
+	if cmd.Env == nil {
+		wrapped.Env = BaseEnv()
+	} else {
+		wrapped.Env = append([]string(nil), cmd.Env...)
+	}
 	wrapped.Stdin = cmd.Stdin
 	wrapped.Stdout = cmd.Stdout
 	wrapped.Stderr = cmd.Stderr

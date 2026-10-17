@@ -315,5 +315,9 @@ export interface SpeedServer {
   note?: 'mlab-public' | 'ookla-public'
 }
 
+// Installs Ookla's client from its official archive into the agent's own folder
+export const installSpeedtestCli = () =>
+  agentApi.post<{ ok: boolean; version: string }>('/api/v1/speedtest/cli/install').then((r) => r.data)
+
 export const getSpeedServers = () =>
   agentApi.get<{ servers: SpeedServer[] }>('/api/v1/speedtest/servers').then((r) => r.data.servers)

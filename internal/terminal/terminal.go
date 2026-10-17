@@ -3,6 +3,7 @@ package terminal
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,7 @@ type Session struct {
 	pty    *os.File
 	closed bool
 	meta   SessionMeta
+	owner  int64
 
 	mu         sync.RWMutex
 	onChunk    func(string) error
@@ -54,6 +56,8 @@ type SessionMeta struct {
 }
 
 type StartRequest struct {
+	// OwnerID is the panel account that may use the session
+	OwnerID       int64
 	PanelUsername string
 	DisplayName   string
 	Role          string
@@ -108,6 +112,12 @@ func (m *Manager) reapLoop() {
 }
 
 func (m *Manager) Start(req StartRequest) (*StartResult, error) {
+	if req.OwnerID <= 0 {
+		return nil, errors.New("terminal session needs an owner")
+	}
+	if err := m.checkCapacity(req.OwnerID); err != nil {
+		return nil, err
+	}
 	id, err := randomID(12)
 	if err != nil {
 		return nil, err
@@ -118,36 +128,38 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	mode := "local-user"
 	osUsername := ""
 
-	var cmd *exec.Cmd
-	if target == "" || target == "local" {
-		cmd = exec.Command("/bin/bash", "-i")
-		osUsername, err = osuser.EnsureUserForRole(req.PanelUsername, req.DisplayName, req.Role)
-		if err != nil {
-			return nil, err
-		}
-		cmd, err = osuser.WrapCommand(cmd, osUsername)
-		if err != nil {
-			return nil, err
-		}
-		// the shell lives in a systemd slice that carries the account's CPU and memory quota
-		if slice := osuser.SliceFor(osUsername, osuser.Limits{CPUPercent: req.CPULimitPct, MemoryMB: req.MemoryLimitMB}); slice != "" {
-			cmd = osuser.InSlice(cmd, slice)
-		}
-		if cwd != "" {
-			cmd.Dir = cwd
-		}
-	} else {
-		mode = "remote-ssh"
-		cmd = exec.Command("ssh", "-t", target)
-		if cwd != "" {
-			cmd.Dir = cwd
-		}
+	remote := target != "" && target != "local"
+	if remote && !validSSHTarget(target) {
+		return nil, invalidError("invalid ssh target: use user@host")
+	}
+	osUsername, err = osuser.EnsureUserForRole(req.PanelUsername, req.DisplayName, req.Role)
+	if err != nil {
+		return nil, err
+	}
+	if cwd, err = resolveCwd(osuser.ResolveHomeDir(req.PanelUsername), cwd, req.Role == "superadmin"); err != nil {
+		return nil, err
 	}
 
-	cmd.Env = append(os.Environ(),
-		"TERM=xterm-256color",
-		"COLORTERM=truecolor",
-	)
+	var cmd *exec.Cmd
+	if remote {
+		mode = "remote-ssh"
+		// -- ends the options, so the target can never be read as one
+		cmd = exec.Command("ssh", "-t", "--", target)
+	} else {
+		cmd = exec.Command("/bin/bash", "-i")
+	}
+	// nothing is inherited from the agent: its environment holds the session secret and the database DSN
+	cmd.Env = osuser.BaseEnv("TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Dir = cwd
+	// the shell (and ssh with it) runs as the account, never as the agent, so it sees only that account's files and keys
+	cmd, err = osuser.WrapCommand(cmd, osUsername)
+	if err != nil {
+		return nil, err
+	}
+	// the shell lives in a systemd slice that carries the account's CPU and memory quota
+	if slice := osuser.SliceFor(osUsername, osuser.Limits{CPUPercent: req.CPULimitPct, MemoryMB: req.MemoryLimitMB}); slice != "" {
+		cmd = osuser.InSlice(cmd, slice)
+	}
 
 	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})
 	if err != nil {
@@ -157,6 +169,7 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	session := &Session{
 		id:         id,
 		cmd:        cmd,
+		owner:      req.OwnerID,
 		pty:        ptyFile,
 		detachedAt: time.Now(),
 		meta: SessionMeta{
@@ -282,12 +295,7 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 		return err
 	}
 
-	if cols < 20 {
-		cols = 20
-	}
-	if rows < 8 {
-		rows = 8
-	}
+	cols, rows = clampSize(cols, rows)
 
 	if err := pty.Setsize(session.pty, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)}); err != nil {
 		return fmt.Errorf("resize terminal: %w", err)
@@ -348,9 +356,7 @@ func (m *Manager) closeSession(session *Session) {
 		if session.pty != nil {
 			_ = session.pty.Close()
 		}
-		if session.cmd.Process != nil {
-			_ = session.cmd.Process.Kill()
-		}
+		killTree(session.cmd)
 
 		session.callbackMu.RLock()
 		onClose := session.onClose
@@ -368,9 +374,50 @@ func (m *Manager) get(id string) (*Session, error) {
 	defer m.mu.RUnlock()
 	session, ok := m.sessions[id]
 	if !ok {
-		return nil, fmt.Errorf("terminal session not found")
+		return nil, errNotFound
 	}
 	return session, nil
+}
+
+// Authorize says whether the account owns the session. A foreign or unknown id gets the same
+// answer, so ids cannot be probed.
+func (m *Manager) Authorize(id string, ownerID int64) error {
+	session, err := m.get(id)
+	if err != nil || ownerID <= 0 || session.owner != ownerID {
+		return errNotFound
+	}
+	return nil
+}
+
+// CloseOwned ends every session of an account (suspended, deleted, or no longer allowed a terminal).
+func (m *Manager) CloseOwned(ownerID int64) int {
+	m.mu.RLock()
+	var owned []*Session
+	for _, s := range m.sessions {
+		if s.owner == ownerID {
+			owned = append(owned, s)
+		}
+	}
+	m.mu.RUnlock()
+	for _, s := range owned {
+		m.closeSession(s)
+	}
+	return len(owned)
+}
+
+func (m *Manager) checkCapacity(ownerID int64) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	own := 0
+	for _, s := range m.sessions {
+		if s.owner == ownerID {
+			own++
+		}
+	}
+	if own >= maxSessionsPerOwner || len(m.sessions) >= maxSessionsTotal {
+		return ErrTooManySessions
+	}
+	return nil
 }
 
 func (m *Manager) remove(id string) {

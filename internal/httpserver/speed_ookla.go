@@ -37,6 +37,7 @@ var (
 	ooklaBinMu      sync.Mutex
 	ooklaBinChecked time.Time
 	ooklaBinPath    string
+	ooklaBinKey     string
 
 	ooklaNearestMu      sync.Mutex
 	ooklaNearestFetched time.Time
@@ -44,32 +45,45 @@ var (
 	ooklaNearestDone    chan struct{}
 )
 
-// ooklaBinary finds Ookla's client: RENEO_SPEEDTEST_BIN, or `speedtest` in PATH. The Python
-// "speedtest-cli" has the same name but speaks something else, so the version text is checked.
-func ooklaBinary() string {
+// ooklaBinary finds Ookla's client: RENEO_SPEEDTEST_BIN, then the agent's own copy (private, in its
+// state directory), then `speedtest` in PATH. The Python "speedtest-cli" has the same name but speaks
+// something else, so each candidate's version text is checked and the first real one wins.
+func ooklaBinary(private string) string {
 	ooklaBinMu.Lock()
 	defer ooklaBinMu.Unlock()
-	if time.Since(ooklaBinChecked) < time.Minute {
+	if ooklaBinKey == private && time.Since(ooklaBinChecked) < time.Minute {
 		return ooklaBinPath
 	}
 	ooklaBinChecked = time.Now()
+	ooklaBinKey = private
 	ooklaBinPath = ""
-	candidate := strings.TrimSpace(os.Getenv("RENEO_SPEEDTEST_BIN"))
-	if candidate == "" {
-		if found, err := exec.LookPath("speedtest"); err == nil {
-			candidate = found
+	var candidates []string
+	if fromEnv := strings.TrimSpace(os.Getenv("RENEO_SPEEDTEST_BIN")); fromEnv != "" {
+		candidates = append(candidates, fromEnv)
+	}
+	if private != "" {
+		candidates = append(candidates, private)
+	}
+	if found, err := exec.LookPath("speedtest"); err == nil {
+		candidates = append(candidates, found)
+	}
+	for _, candidate := range candidates {
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+		version, err := exec.CommandContext(ctx, candidate, "--version").Output()
+		cancel()
+		if err == nil && isOoklaVersion(string(version)) {
+			ooklaBinPath = candidate
+			break
 		}
 	}
-	if candidate == "" {
-		return ""
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-	defer cancel()
-	version, err := exec.CommandContext(ctx, candidate, "--version").Output()
-	if err == nil && isOoklaVersion(string(version)) {
-		ooklaBinPath = candidate
-	}
 	return ooklaBinPath
+}
+
+// forgetOoklaBinary makes the next lookup look again (after the client was installed)
+func forgetOoklaBinary() {
+	ooklaBinMu.Lock()
+	ooklaBinChecked = time.Time{}
+	ooklaBinMu.Unlock()
 }
 
 func isOoklaVersion(text string) bool {
