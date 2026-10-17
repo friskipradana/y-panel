@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.4] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.4** berisi 1 perubahan: 1 perbaikan. (24 files changed, 796 insertions(+), 81 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **terminal:** Clean shell environment, session ownership, ssh target and cwd validation, session caps, process-group kill, 0700 homes; feat(speedtest): install Ookla client privately from the official archive (installer and panel button) ([`3f1d298`](https://github.com/friskipradana/y-panel/commit/3f1d298))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.3...v4.7.4
+
 ## [4.7.3] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
