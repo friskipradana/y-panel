@@ -306,6 +306,13 @@ export interface SpeedServer {
   location: string
   host: string
   canUpload: boolean
+  /** http (plain hosts), ndt7 (M-Lab, the engine of Google's speed test) or ookla (speedtest.net, CBN) */
+  engine: 'http' | 'ndt7' | 'ookla'
+  /** False when it cannot run yet; `reason` says what is missing */
+  available: boolean
+  reason?: 'no-cli' | 'license'
+  /** Something to know before choosing it */
+  note?: 'mlab-public' | 'ookla-public'
 }
 
 export const getSpeedServers = () =>

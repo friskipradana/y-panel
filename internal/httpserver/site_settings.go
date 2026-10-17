@@ -28,6 +28,9 @@ type siteSettings struct {
 	GraceDays int `json:"graceDays"`
 	// OrderURL is where the "order" button of a plan leads (web page, wa.me link or mailto:)
 	OrderURL string `json:"orderUrl"`
+	// OoklaLicenseAccepted: the superadmin accepted Ookla's licence for its client, which the agent
+	// would otherwise have to accept on its own
+	OoklaLicenseAccepted bool `json:"ooklaLicenseAccepted"`
 }
 
 var (
@@ -124,6 +127,8 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		HostingEnabled  *bool   `json:"hostingEnabled"`
 		GraceDays       *int    `json:"graceDays"`
 		OrderURL        *string `json:"orderUrl"`
+		// OoklaLicenseAccepted can be given and taken back
+		OoklaLicenseAccepted *bool `json:"ooklaLicenseAccepted"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -155,6 +160,9 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		next.OrderURL = link
 	}
+	if req.OoklaLicenseAccepted != nil {
+		next.OoklaLicenseAccepted = *req.OoklaLicenseAccepted
+	}
 	if err := s.saveSiteSettings(next); err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("could not save the site settings"))
 		return
@@ -182,6 +190,9 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if next.OrderURL != current.OrderURL {
 			changes["orderUrlChanged"] = true
+		}
+		if next.OoklaLicenseAccepted != current.OoklaLicenseAccepted {
+			changes["ooklaLicense"] = next.OoklaLicenseAccepted
 		}
 		s.auditSensitiveAction(r, u, "settings.site", "ok", changes)
 	}

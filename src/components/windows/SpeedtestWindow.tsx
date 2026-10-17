@@ -53,6 +53,7 @@ export function SpeedtestWindow() {
           previous={previous}
           running={run.running}
           uploadAvailable={uploadAvailable}
+          startDisabled={active === 'server' && selected !== null && !selected.available}
           onStart={run.start}
           onStop={run.stop}
         />

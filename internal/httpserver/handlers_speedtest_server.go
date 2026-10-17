@@ -102,7 +102,12 @@ func newSpeedClient() *http.Client {
 }
 
 func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
-	candidates, ok := resolveSpeedServers(r.URL.Query().Get("server"))
+	id := strings.TrimSpace(r.URL.Query().Get("server"))
+	if engine := speedEngineOf(id); engine != engineHTTP {
+		s.handleSpeedtestEngine(w, r, id, engine)
+		return
+	}
+	candidates, ok := resolveSpeedServers(id)
 	if !ok {
 		s.writeError(w, http.StatusBadRequest, errors.New("unknown speed test server"))
 		return
@@ -113,12 +118,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 	}
 	defer speedInternetMu.Unlock()
 
-	w.Header().Set("Content-Type", "application/x-ndjson")
-	w.Header().Set("Cache-Control", "no-store")
-	// stop nginx style proxies from holding the stream back
-	w.Header().Set("X-Accel-Buffering", "no")
-	flusher, _ := w.(http.Flusher)
-	out := &speedStream{w: w, f: flusher}
+	out := newSpeedStream(w)
 
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)

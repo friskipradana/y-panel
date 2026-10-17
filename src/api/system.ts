@@ -118,6 +118,8 @@ export interface SiteSettings {
   graceDays: number
   /** Where the order buttons of the landing page lead */
   orderUrl: string
+  /** The superadmin accepted Ookla's licence for its command line client */
+  ooklaLicenseAccepted: boolean
 }
 
 export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)

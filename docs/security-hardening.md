@@ -210,6 +210,12 @@ Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `
 - Memberi paket saat membuat akun hanya boleh superadmin dan diperiksa sebelum akunnya dibuat, sehingga paket yang salah tidak meninggalkan akun setengah jadi.
 - Menghapus akun melepas DNS subdomainnya lebih dulu; menangguhkan, mengaktifkan, atau menghapus akun menjalankan sinkronisasi subdomain segera, tidak menunggu pemeriksa 15 menit.
 
+## Mesin Speed Test
+
+- **Google (M-Lab NDT7):** agent memakai protokol terbuka NDT7 langsung (Locate API M-Lab memberi server dan token bertanda tangan). Hasil tes dipublikasikan M-Lab secara terbuka beserta alamat IP server; antarmuka menyebutnya sebelum dipilih.
+- **Speedtest.net dan CBN (Ookla):** hanya lewat klien resmi `speedtest` (bukan skrip tidak resmi, yang diblokir Ookla). Lisensi klien itu untuk pemakaian pribadi nonkomersial, jadi agent tidak menyetujuinya sendiri: flag `--accept-license` baru dipakai setelah superadmin menekan persetujuan (`ooklaLicenseAccepted` di `site-settings.json`, tercatat di audit). Ookla menyimpan hasil dan membuat tautan publik.
+- Klien dicari lewat `RENEO_SPEEDTEST_BIN` atau `speedtest` di PATH dan harus menyebut "by Ookla" di `--version` (klien Python `speedtest-cli` ditolak). Id server hanya angka (1 sampai 9 digit) dan dipassing sebagai argumen tanpa shell. Satu tes berjalan sekali waktu; proses dihentikan bila permintaan ditutup.
+
 ## Isolasi Akun (gaya hosting)
 
 Setiap akun bekerja di areanya sendiri. Yang membedakan hanya cakupannya:

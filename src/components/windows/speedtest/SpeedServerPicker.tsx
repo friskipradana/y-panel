@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
 import type { SpeedServer } from '@/api/speedtest'
+import { SpeedServerNotice } from './SpeedServerNotice'
 
 interface SpeedServerPickerProps {
   servers: SpeedServer[]
@@ -30,12 +31,13 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
             value: server.id,
             label: server.id === 'auto' ? t('speedtest.serverAuto') : `${server.name}, ${server.location}`,
             description: server.id === 'auto' ? t('speedtest.serverAutoHint') : server.host,
-            badge: server.canUpload ? undefined : t('speedtest.downloadOnly'),
+            badge: !server.available ? t('speedtest.needsSetup') : server.engine !== 'http' ? t(`speedtest.engine.${server.engine}`) : server.canUpload ? undefined : t('speedtest.downloadOnly'),
           }))}
         />
         {selected && !selected.canUpload ? <Badge tone="warning">{t('speedtest.downloadOnly')}</Badge> : null}
       </div>
       {selected ? <p className="speed-picker__host">{selected.host}</p> : null}
+      {selected ? <SpeedServerNotice server={selected} /> : null}
     </div>
   )
 }

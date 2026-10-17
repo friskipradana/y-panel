@@ -79,12 +79,24 @@ type speedServerInfo struct {
 	Location  string `json:"location"`
 	Host      string `json:"host"`
 	CanUpload bool   `json:"canUpload"`
+	// Engine is http, ndt7 or ookla
+	Engine string `json:"engine"`
+	// Available false means it cannot run yet; Reason says what is missing (no-cli, license)
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+	// Note is a code for something the superadmin should know before choosing it
+	Note string `json:"note,omitempty"`
 }
 
-func (s *Server) handleSpeedtestServers(w http.ResponseWriter, _ *http.Request) {
-	list := []speedServerInfo{{ID: speedAutoID, Name: "Auto", Location: "Cloudflare, other hosts as fallback", Host: speedInternetName, CanUpload: true}}
+func (s *Server) handleSpeedtestServers(w http.ResponseWriter, r *http.Request) {
+	list := []speedServerInfo{{ID: speedAutoID, Name: "Auto", Location: "Cloudflare, other hosts as fallback", Host: speedInternetName, CanUpload: true, Engine: engineHTTP, Available: true}}
 	for _, server := range speedCatalog() {
-		list = append(list, speedServerInfo{ID: server.ID, Name: server.Name, Location: server.Location, Host: server.Host, CanUpload: server.canUpload()})
+		list = append(list, speedServerInfo{ID: server.ID, Name: server.Name, Location: server.Location, Host: server.Host, CanUpload: server.canUpload(), Engine: engineHTTP, Available: true})
 	}
+	list = append(list, speedServerInfo{
+		ID: speedMLabID, Name: "Google (M-Lab NDT7)", Location: "Nearest M-Lab server", Host: "measurementlab.net",
+		CanUpload: true, Engine: engineNDT7, Available: true, Note: "mlab-public",
+	})
+	list = append(list, s.ooklaServerInfos(r.Context())...)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"servers": list})
 }

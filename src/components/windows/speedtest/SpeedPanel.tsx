@@ -20,6 +20,8 @@ interface SpeedPanelProps {
   running: boolean
   /** False bila server yang dipilih hanya melayani unduhan */
   uploadAvailable: boolean
+  /** Server yang dipilih belum bisa dipakai (klien belum terpasang, lisensi belum disetujui) */
+  startDisabled?: boolean
   onStart: () => void
   onStop: () => void
 }
@@ -28,7 +30,7 @@ const change = (now: number | undefined, before: number | undefined) =>
   now !== undefined && before !== undefined && before > 0 ? ((now - before) / before) * 100 : null
 
 // One test: meter and steps on the left, the figures on the right, all live
-export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, running, uploadAvailable, onStart, onStop }: SpeedPanelProps) {
+export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, running, uploadAvailable, startDisabled = false, onStart, onStop }: SpeedPanelProps) {
   const { t } = useI18n()
   const measuring = live.phase === 'download' || live.phase === 'upload'
   const gaugeValue = measuring ? live.mbps : running ? 0 : (result?.downloadMbps ?? 0)
@@ -49,7 +51,7 @@ export function SpeedPanel({ title, subtitle, toolbar, live, result, previous, r
               {t('speedtest.stop')}
             </Button>
           ) : (
-            <Button variant="primary" icon={<Play className="h-3.5 w-3.5" />} onClick={onStart}>
+            <Button variant="primary" icon={<Play className="h-3.5 w-3.5" />} disabled={startDisabled} onClick={onStart}>
               {result ? t('speedtest.again') : t('speedtest.start')}
             </Button>
           )
