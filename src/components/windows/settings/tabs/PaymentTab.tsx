@@ -44,7 +44,7 @@ export function PaymentTab({ payment }: { payment: PaymentSettings }) {
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
               {paymentSettingsList.length}{" "}
-              {t("settings.parameters") || "Parameters"}
+              {t("settings.parameters")}
             </span>
           </div>
         </div>

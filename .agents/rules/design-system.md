@@ -39,6 +39,13 @@ Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DES
 6. Teks UI selalu lewat `t()`. Tidak ada string Indonesia/Inggris langsung di JSX.
 7. Ikon aplikasi lewat `<AppIcon kind=... />`. Kotak ikon lewat `IconBadge`. Tidak ada emoji sebagai ikon.
 8. Dilarang memakai ikon lucide `Sparkles`, `Sparkle`, dan `WandSparkles` di mana pun (hiasan "AI" tanpa arti). Pilih ikon yang menamai benda atau aksinya: `CircleCheck` untuk status sehat, `CircleArrowUp` untuk pembaruan, `MessageSquareText` untuk prompt. `bun run check:ui` menggagalkan pelanggaran ini.
+9. **Ukuran dan simetri.** Kontrol yang sebaris (toolbar, baris tombol, strip tab) memakai satu tinggi, satu radius, dan satu ukuran teks. Skala tinggi: 26 (aksi baris), 28 (tombol kecil), 32 (toolbar), 40 (form). Tombol hanya-ikon berbentuk persegi dengan sisi sama dengan tinggi kontrol sebarisnya. Jangan mencampur tinggi dalam satu baris; kontrol tanpa border diberi border transparan agar setinggi yang berborder.
+10. Aksi yang tidak berlaku di satu baris (mis. hapus pada database) tidak ditampilkan dan tidak meninggalkan celah: tombol yang tersisa tetap berurutan dan rapat ke tepi kanan.
+11. Hover, fokus, atau ukuran kotak yang berubah tidak boleh menggeser tetangganya: lebar kotak cari tidak berubah saat fokus.
+12. Tombol hanya-ikon wajib `aria-label` (dan `title` bila perlu tooltip). `title` saja tidak cukup.
+13. Aksi async memberi umpan balik per objek, bukan global: hanya baris yang diproses yang menampilkan spinner dan terkunci, dan tombol yang tidak berlaku pada status itu disembunyikan (container berhenti tidak punya Stop).
+14. Data dari server tidak ditebak. Error asli ditampilkan (jangan ubah kegagalan jadi daftar kosong), dan angka, versi, atau nama bawaan karangan dilarang; nilai yang tidak terbaca ditulis `-`.
+15. Setiap kunci `t('...')` yang tertulis langsung harus ada di `id.ts` dan `en.ts`. `bun run check:ui` menggagalkan kunci yang hilang.
 
 ## 6. Layout & Scroll
 
@@ -61,7 +68,8 @@ Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DES
 
 ## 9. Selesai Berarti
 
-- `bun run build` exit 0 tanpa warning, `bun run lint` bersih, `bun run check:ui` 0 error.
+- `bun run build` exit 0 tanpa warning, `bun run lint` bersih, `bun run check:ui` 0 error (termasuk kunci i18n yang hilang).
+- Kontrol sebaris setinggi dan sebentuk (bagian 5, butir 9 sampai 12), dilihat di desktop dan di ponsel.
 - Light + dark dicek, tidak ada teks tak terbaca.
 - Desktop dan mobile dicek (bagian 8), paritas aksi terpenuhi.
 - Tidak ada pelanggaran di [anti-slop](../skills/anti-slop/SKILL.md).

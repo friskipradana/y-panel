@@ -67,7 +67,9 @@ Centang semua sebelum menyatakan selesai:
 - [ ] Data teknis memakai font mono.
 - [ ] Kotak ikon, header seksi, toggle, kartu terpilih memakai `components/ui/` (bukan className salinan).
 - [ ] State lengkap: hover, fokus, disabled, loading, empty, error.
-- [ ] Teks lewat `t()`, `id` dan `en` terisi.
+- [ ] Teks lewat `t()`, `id` dan `en` terisi (`check:ui` menggagalkan kunci yang hilang).
+- [ ] Kontrol sebaris satu tinggi dan satu radius; tombol hanya-ikon persegi dan ber-`aria-label`; aksi yang tidak berlaku disembunyikan tanpa celah, sisanya rapat ke kanan.
+- [ ] Tidak ada nilai karangan (versi, angka, nama bawaan) dan tidak ada error yang disembunyikan jadi daftar kosong.
 - [ ] Komponen yang sudah ada dipakai ulang; component-list diperbarui bila menambah.
 - [ ] Light dan dark dicek; `bun run build`, `bun run lint`, dan `bun run check:ui` bersih.
 - [ ] Desktop dan mobile dicek; setiap aksi (buat, ubah, hapus) tersedia di keduanya.

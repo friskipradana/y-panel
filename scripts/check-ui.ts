@@ -79,6 +79,12 @@ const add = (rule: string, severity: Severity, file: string, line: number, text:
   findings.push({ rule, severity, file, line, text: text.trim().slice(0, 140) })
 }
 
+// Keys of the two dictionaries: a t('key') that one of them lacks shows the raw key on screen
+const localeKeys = (lang: string) =>
+  new Set([...readFileSync(join(SRC, 'lib/locales', `${lang}.ts`), 'utf8').matchAll(/^\s*'([^']+)':/gm)].map((m) => m[1]))
+const LOCALES: Record<string, Set<string>> = { id: localeKeys('id'), en: localeKeys('en') }
+const T_KEY = /\bt\(\s*['"]([A-Za-z][\w]*(?:\.[\w]+)+)['"]/g
+
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}]/u
 const ICON_BOX = /\bh-(7|8|9|10|11|12) w-(7|8|9|10|11|12)\b/
 const MAC_DOTS = /#ff5f5[67]|#ffbd2e|#27c93f|#28c840|#febc2e|traffic-?light/i
@@ -93,8 +99,30 @@ for (const abs of walk(SRC)) {
     add('file-size', 'warn', file, lines.length, `${lines.length} lines (max ${MAX_LINES})`)
   }
 
+  // an icon-only button names itself with aria-label; a title alone is not read by every screen reader
+  if (isTsx) {
+    for (const m of text.matchAll(/<button\b(?:=>|[^>])*>/g)) {
+      const tag = m[0]
+      const inner = text.slice((m.index ?? 0) + tag.length).split('</button>')[0].replace(/<[^>]*>/g, '')
+      // a button that shows text already has a name
+      if (/\btitle=/.test(tag) && !/aria-label=/.test(tag) && !/[A-Za-z]/.test(inner)) {
+        const line = text.slice(0, m.index).split(/\r?\n/).length
+        add('icon-button-label', 'warn', file, line, 'button with title but no aria-label')
+      }
+    }
+  }
+
   lines.forEach((raw, i) => {
     const n = i + 1
+    if (isTsx && !file.startsWith('src/lib/locales/')) {
+      for (const m of raw.matchAll(T_KEY)) {
+        const missing = Object.entries(LOCALES).filter(([, keys]) => !keys.has(m[1])).map(([lang]) => lang)
+        if (missing.length) add('missing-i18n', 'error', file, n, `${m[1]} is missing in: ${missing.join(', ')}`)
+      }
+    }
+    if (file.endsWith('.scss') && !file.endsWith('_variables.scss') && /(?<![\w-])#[0-9a-fA-F]{3,8}\b/.test(raw) && !/var\([^)]*#/.test(raw) && !/^\s*\/\//.test(raw)) {
+      add('scss-hex', 'warn', file, n, 'colour not from a token')
+    }
     if (MAC_DOTS.test(raw)) add('mac-dots', 'error', file, n, raw)
     if (isTsx && /console\.log\(/.test(raw)) add('console-log', 'error', file, n, raw)
     if (isTsx && EMOJI.test(raw) && !/^\s*(\/\/|\{\/\*)/.test(raw)) add('emoji', 'error', file, n, raw)

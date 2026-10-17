@@ -30,14 +30,14 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `Checkbox` | `Checkbox.tsx` | Kotak centang (opsi form, pilih baris) | `checked`, `onChange(checked)`, `label?`, `description?`, `tone?`, `indeterminate?` |
 | `SelectableCard` | `SelectableCard.tsx` | Pilihan tunggal berbentuk kartu | `selected`, `onClick`, `className` |
 | `Field`, `TextInput`, `Textarea` | `Field.tsx` | Label + kontrol + hint/error | `label`, `hint?`, `error?`; `mono`, `invalid` |
-| `Select` | `Select.tsx` | Dropdown (pencarian opsional) | `value`, `onChange`, `options`, `searchable`, `clearable` |
+| `Select` | `Select.tsx` | Dropdown (pencarian opsional); daftarnya digambar lewat portal di atas halaman, jadi tidak terpotong dialog atau window, dan berpindah ke atas tombol bila ruang di bawah sempit; tampilannya sama dengan menu dropdown tab Docker | `value`, `onChange`, `options`, `searchable`, `clearable` |
 | `SearchInput` | `SearchInput.tsx` | Kolom pencarian | `value`, `onChange`, `onSubmit?`, `placeholder`, `action?` |
 | `Tabs` | `Tabs.tsx` | Tab horizontal | `items`, `value`, `onChange`, `label` |
 | `DataTable` | `DataTable.tsx` | Data berkolom | `columns`, `rows`, `getRowKey`, `label`, `loading`, `emptyText` |
 | `ListRow` | `ListRow.tsx` | Daftar dua tingkat ringkas | `title`, `tag?`, `actions?`, `details?` |
 | `EntityRow` | `EntityRow.tsx` | Baris entitas kaya (user, project, container) | `leading?`, `title`, `badges?`, `subtitle?`, `meta?`, `actions?`, `description?`, `expanded?` |
 | `Pagination` | `Pagination.tsx` | Sebelumnya / berikutnya | `page`, `totalPages`, `onChange` |
-| `Modal` | `Modal.tsx` | Semua dialog dan sheet | `open`, `onClose`, `title`, `subtitle?`, `icon?`, `size`, `footer?`, `busyOverlay?` |
+| `Modal` | `Modal.tsx` | Semua dialog dan sheet | `open`, `onClose`, `title`, `subtitle?`, `icon?`, `size`, `footer?`, `busyOverlay?`, `className?` (lapisan luar; window bertema sendiri seperti terminal menimpa token warna lewat kelas ini, mis. `.ht-modal`) |
 | `KpiCard` | `KpiCard.tsx` | Kartu metrik + progres | `title`, `value`, `subtitle?`, `percent?`, `icon?` |
 | `EmptyState`, `LoadingState`, `ErrorState` | `states.tsx` | Tiga state standar | `icon?`/`children`; `title` + `hint?` |
 
@@ -153,7 +153,7 @@ bun run check:ui              # error = gagal, warning = informasi
 bun run check:ui --warnings   # daftar lengkap
 ```
 
-**Error**: bulatan macOS, `console.log`, emoji di TSX, ikon `Sparkles`/`Sparkle`/`WandSparkles`, kotak ikon/toggle/kartu terpilih tulisan sendiri, overlay modal tulisan sendiri, baris daftar tulisan sendiri (`panel-table-row` di luar `ui/`).
-**Warning**: class mentah `panel-btn`/`panel-badge`/`panel-input`, ukuran file di atas 400 baris, hex di TSX, atribut teks hardcoded, `outline: none` tanpa gaya fokus.
+**Error**: bulatan macOS, `console.log`, emoji di TSX, ikon `Sparkles`/`Sparkle`/`WandSparkles`, kotak ikon/toggle/kartu terpilih tulisan sendiri, overlay modal tulisan sendiri, baris daftar tulisan sendiri (`panel-table-row` di luar `ui/`), kunci `t('...')` yang tidak ada di `id.ts` atau `en.ts` (`missing-i18n`).
+**Warning**: class mentah `panel-btn`/`panel-badge`/`panel-input`, ukuran file di atas 400 baris, hex di TSX, hex di SCSS selain `_variables.scss` (`scss-hex`), atribut teks hardcoded, `<button>` ber-`title` tanpa `aria-label` (`icon-button-label`), `outline: none` tanpa gaya fokus.
 
 Daftar pengecualian bangunan khusus (ikon desktop, dock, lock screen, logo merek) ada di `ALLOW` dalam [scripts/check-ui.ts](../../scripts/check-ui.ts); entri baru butuh alasan di PR.
