@@ -2,6 +2,22 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.0] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.0** berisi 4 perubahan: 4 fitur. (54 files changed, 5212 insertions(+), 146 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **hosting:** Sellable subdomains (offered Cloudflare domains, buyer subdomain panel, carrier tunnel, DNS sync, suspend with the account, plan quota) ([`80b1abb`](https://github.com/friskipradana/y-panel/commit/80b1abb))
+- **hosting:** Service plans (database, API, plan manager, landing pricing, per-account plan with expiry and grace period) ([`4f8114d`](https://github.com/friskipradana/y-panel/commit/4f8114d))
+- **hosting:** Hosting settings tab (hosting mode switch, demo account moved there), General gets landing page and indexing switches, public pages and crawler rules follow them ([`4ce0a17`](https://github.com/friskipradana/y-panel/commit/4ce0a17))
+- **users:** Account management for hosting (plan state tabs and filters with counts, plan and subdomains per account, create with a plan, renew in one click, subdomains follow suspend/delete) ([`0a50dec`](https://github.com/friskipradana/y-panel/commit/0a50dec))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.17...v4.7.0
+
 ## [4.6.17] - 2026-10-16
 
 ### 🌟 Ringkasan Rilis (Release Overview)
