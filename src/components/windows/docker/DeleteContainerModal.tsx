@@ -1,4 +1,6 @@
 import { Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { alertLib } from '@/lib/alert'
 import type { DockerWindowState } from './useDockerWindow'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -26,14 +28,25 @@ export function DeleteContainerModal({ docker }: { docker: DockerWindowState }) 
         <>
           <Button onClick={() => setDeleteConfirm(null)} variant="ghost">{t('common.cancel')}</Button>
           <Button
-            onClick={() => {
-              deleteMutation.mutate({ id: deleteConfirm.id, opts: deleteOpts })
-              setDeleteConfirm(null)
-            }}
-            disabled={deleteMutation.isPending} variant="danger"
+            // the dialog stays until Docker answers, so a refusal (a volume still in use, say) is not lost
+            onClick={() =>
+              deleteMutation.mutate(
+                { id: deleteConfirm.id, opts: deleteOpts },
+                {
+                  onSuccess: () => {
+                    toast.success(t('docker.containerDeleted', { name: deleteConfirm.name }))
+                    setDeleteConfirm(null)
+                  },
+                  onError: (e) =>
+                    alertLib.fire(t('docker.deleteContainerFailed'), (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('docker.unknownError'), 'error', 'apps'),
+                },
+              )
+            }
+            loading={deleteMutation.isPending}
+            variant="danger"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            {deleteMutation.isPending ? t('docker.deleting') : t('common.delete')}
+            {t('common.delete')}
           </Button>
         </>
       }

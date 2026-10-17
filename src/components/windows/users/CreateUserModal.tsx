@@ -171,7 +171,7 @@ function CreateUserForm({ open, onClose, assignable, canGivePlan, onCreated }: C
               <TextInput mono value={form.label} maxLength={32} autoComplete="off" placeholder={t('hosting.sub.namePlaceholder')} invalid={form.label !== '' && !labelValid} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value.toLowerCase().trim() }))} />
             </Field>
             <Field label={t('hosting.sub.domain')}>
-              <Select value={zoneId} onChange={(next) => setForm((f) => ({ ...f, zoneId: next }))} options={offered.map((domain) => ({ value: domain.zoneId, label: domain.name }))} searchable={offered.length > 8} />
+              <Select value={zoneId} onChange={(next) => setForm((f) => ({ ...f, zoneId: next }))} options={offered.map((domain) => ({ value: domain.zoneId, label: domain.name }))} searchable />
             </Field>
           </div>
         ) : null}

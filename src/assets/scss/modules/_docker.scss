@@ -269,4 +269,549 @@
   50% { opacity: 1; }
 }
 
+// Docker Workstation Layout
+.docker-window-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--win-content-bg);
+}
 
+.docker-window__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.docker-topbar {
+  // every control of the bar shares this height, radius and text size, so the row reads as one line
+  --docker-control-h: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--win-border);
+  background: var(--win-bar);
+  min-height: 48px;
+  flex-shrink: 0;
+}
+
+.docker-topbar__left,
+.docker-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.docker-dropdown-wrap {
+  position: relative;
+}
+
+.docker-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--docker-control-h);
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 2px;
+  }
+}
+
+.docker-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 148px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.docker-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--win-text);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+  }
+
+  &--active {
+    color: var(--panel-primary-text);
+    font-weight: 600;
+    background: var(--panel-primary-bg);
+  }
+}
+
+.docker-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.docker-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.docker-search-input {
+  box-sizing: border-box;
+  width: 200px;
+  height: var(--docker-control-h);
+  padding-left: 32px;
+  padding-right: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+  font-size: 0.75rem;
+  transition: border-color 0.15s, background 0.15s;
+
+  // the box keeps its width on focus: a neighbour must never move
+  &:focus {
+    outline: none;
+    border-color: var(--focus-ring);
+    background: var(--win-bar);
+  }
+
+  &::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+}
+
+.docker-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--docker-control-h);
+  height: var(--docker-control-h);
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 2px;
+  }
+}
+
+.docker-badge-running {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--docker-control-h);
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.docker-col-header {
+  display: grid;
+  grid-template-columns: var(--docker-cols, 48px minmax(0, 1fr) 110px 120px 140px);
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--win-border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  user-select: none;
+  background: var(--win-bar);
+  flex-shrink: 0;
+}
+
+.docker-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.docker-row {
+  display: grid;
+  grid-template-columns: var(--docker-cols, 48px minmax(0, 1fr) 110px 120px 140px);
+  align-items: center;
+  padding: 7px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--win-border) 20%, transparent);
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--panel-surface-hover);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.docker-row__num {
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary);
+  padding-left: 4px;
+}
+
+.docker-row__app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 12px;
+}
+
+.docker-app-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: var(--panel-info-bg);
+  border: 1px solid color-mix(in srgb, var(--panel-info-text) 25%, transparent);
+  color: var(--panel-info-text);
+}
+
+.docker-app-name {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--win-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: all;
+}
+
+.docker-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid;
+
+  &--running {
+    background: color-mix(in srgb, var(--panel-success, #22c55e) 10%, transparent);
+    border-color: color-mix(in srgb, var(--panel-success, #22c55e) 25%, transparent);
+    color: var(--panel-success-text, #22c55e);
+  }
+
+  &--exited {
+    background: var(--panel-surface-strong);
+    border-color: var(--win-border);
+    color: var(--text-secondary);
+  }
+
+  &--paused {
+    background: color-mix(in srgb, var(--panel-warning, #eab308) 10%, transparent);
+    border-color: color-mix(in srgb, var(--panel-warning, #eab308) 25%, transparent);
+    color: var(--panel-warning-text, #eab308);
+  }
+
+  &--restarting {
+    background: color-mix(in srgb, var(--accent, #f97316) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent, #f97316) 25%, transparent);
+    color: var(--accent, #f97316);
+  }
+
+  &--dead {
+    background: color-mix(in srgb, var(--panel-danger, #ef4444) 10%, transparent);
+    border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 25%, transparent);
+    color: var(--panel-danger-text, #ef4444);
+  }
+
+  .docker-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+}
+
+.docker-port-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--win-text);
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+.docker-action-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.docker-act-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+    color: var(--win-text);
+  }
+
+  &--start:hover {
+    color: var(--panel-success-text, #22c55e);
+    background: color-mix(in srgb, var(--panel-success, #22c55e) 12%, transparent);
+  }
+
+  &--stop:hover {
+    color: var(--panel-danger-text, #ef4444);
+    background: color-mix(in srgb, var(--panel-danger, #ef4444) 12%, transparent);
+  }
+
+  &--restart:hover {
+    color: var(--panel-warning-text, #f59e0b);
+    background: color-mix(in srgb, var(--panel-warning, #f59e0b) 12%, transparent);
+  }
+
+  &--danger:hover {
+    color: var(--panel-danger-text, #ef4444);
+    background: color-mix(in srgb, var(--panel-danger, #ef4444) 12%, transparent);
+  }
+}
+
+
+
+
+// Tables of the Images, Networks, Volumes and Templates tabs: the container list's anatomy with its own columns
+.docker-table {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+
+  &--images {
+    --docker-cols: 48px minmax(0, 2fr) minmax(96px, 1fr) minmax(80px, 0.8fr) minmax(130px, 1.2fr) 84px;
+  }
+
+  &--networks {
+    --docker-cols: 48px minmax(0, 2fr) minmax(96px, 1fr) minmax(0, 1.6fr) minmax(90px, 1fr) 60px;
+  }
+
+  &--volumes {
+    --docker-cols: 48px minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr) 110px 60px;
+  }
+
+  &--templates {
+    --docker-cols: 48px minmax(0, 2fr) minmax(130px, 1fr) 84px;
+  }
+}
+
+.docker-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--docker-control-h);
+  padding: 0 12px;
+  border-radius: 8px;
+  // the border is there (transparent) so this button is exactly as tall as the bordered ones
+  border: 1px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--panel-primary-text);
+  background: var(--panel-primary-bg);
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--panel-primary-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 2px;
+  }
+}
+
+.docker-dropdown-item__count {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.docker-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.docker-row__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+// A one-line summary of the columns hidden on a phone
+.docker-row__meta {
+  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.docker-app-name--mono {
+  font-family: var(--font-mono, monospace);
+}
+
+.docker-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+
+  &--mono {
+    font-family: var(--font-mono, monospace);
+    color: var(--win-text);
+  }
+}
+
+.docker-cell__strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--win-text);
+}
+
+.docker-act-btn:focus-visible {
+  outline: 2px solid var(--panel-primary-text);
+  outline-offset: 1px;
+}
+
+.docker-act-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+// Phones: no header, the secondary columns fold into the meta line under the name
+.layout-mobile {
+  .docker-col-header {
+    display: none;
+  }
+
+  .docker-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .docker-row__num,
+  .docker-port-text,
+  .docker-cell:not(.docker-cell--keep),
+  .docker-row__sub {
+    display: none;
+  }
+
+  .docker-row__meta {
+    display: block;
+  }
+
+  .docker-row .docker-cell--keep {
+    padding-right: 0;
+  }
+}
+
+// Name of a container with the badge that says what it is (a database made in the Database window)
+.docker-row__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  // small: it sits next to the name and must not outweigh it
+  .panel-badge {
+    flex-shrink: 0;
+    min-height: 0;
+    padding: 1px 7px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+}
+
+// An empty list is a short message, not a dashed box the width of the window
+.docker-table .p-8:has(> .panel-empty) {
+  padding: 40px 16px;
+}
+
+.docker-table .panel-empty {
+  border: none;
+  background: transparent;
+}

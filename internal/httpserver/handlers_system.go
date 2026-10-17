@@ -54,10 +54,6 @@ type systemLogResponse struct {
 	Lines   []system.LogEntry `json:"lines"`
 }
 
-type changelogResponse struct {
-	Items []database.ChangelogEntry `json:"items"`
-}
-
 type databaseStatusResponse struct {
 	Status        database.Status               `json:"status"`
 	RuntimeLogs   []database.RuntimeLog         `json:"runtimeLogs"`

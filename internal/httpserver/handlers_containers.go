@@ -104,7 +104,8 @@ func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
 	}
 	containers, err := docker.ListContainers()
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, []docker.Container{})
+		// an empty list would pass for "no containers"; the window shows the real reason instead
+		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
 	containers = s.filterContainersForUser(actor, containers)
@@ -112,6 +113,38 @@ func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
 		containers = []docker.Container{}
 	}
 	s.writeJSON(w, http.StatusOK, containers)
+}
+
+// handleDockerVolumes lists what the running containers of the caller have mounted
+func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	mounts, err := docker.ListRunningMounts(s.filterContainersForUser(actor, containers))
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	// the folder behind a named volume sits in Docker's own directory, which only the superadmin needs to see
+	if !auth.IsSuperAdmin(actor.Role) {
+		for i := range mounts {
+			if mounts[i].Type == "volume" {
+				mounts[i].Source = ""
+			}
+		}
+	}
+	s.writeJSON(w, http.StatusOK, map[string]any{"items": mounts})
+}
+
+func (s *Server) handleDockerVersion(w http.ResponseWriter, r *http.Request) {
+	s.writeJSON(w, http.StatusOK, docker.GetDockerVersions())
 }
 
 func (s *Server) handleContainerStart(w http.ResponseWriter, r *http.Request) {
@@ -179,8 +212,8 @@ func (s *Server) handleContainerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	if containers, err := docker.ListContainers(); err == nil {
 		for _, c := range containers {
-			if (c.ID == id || strings.HasPrefix(c.ID, id)) && c.Labels["reneo.kind"] == "database" {
-				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container is a database: delete it from the Database window"})
+			if (c.ID == id || strings.HasPrefix(c.ID, id)) && docker.ManagedKind(c) != "" {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to the Database window: manage or delete it there"})
 				return
 			}
 		}

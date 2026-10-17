@@ -26,6 +26,8 @@ export interface ModalProps {
   closeOnOverlay?: boolean
   /** Tambahan class pada area isi */
   bodyClassName?: string
+  /** Class pada lapisan luar; untuk window bertema sendiri (mis. terminal) yang menimpa token warna */
+  className?: string
   children: ReactNode
 }
 
@@ -42,6 +44,7 @@ export function Modal({
   busyOverlay,
   closeOnOverlay = true,
   bodyClassName = '',
+  className = '',
   children,
 }: ModalProps) {
   const { t } = useI18n()
@@ -64,7 +67,7 @@ export function Modal({
       {open ? (
         <motion.div
           key="overlay"
-          className={`ui-modal-overlay ${sheet ? 'ui-modal-overlay--sheet' : ''}`}
+          className={`ui-modal-overlay ${sheet ? 'ui-modal-overlay--sheet' : ''} ${className}`.trim()}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

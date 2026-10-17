@@ -8,6 +8,7 @@ import {
   useDeployImageContainer,
   useDeployComposeProject,
   useDockerNetworks,
+  useDockerVolumes,
   useDockerImages,
   useDockerTemplates,
   useCreateDockerNetwork,
@@ -17,37 +18,41 @@ import {
   useDeleteDockerTemplate,
   useCreateDockerTemplate,
 } from '@/hooks/useContainers'
-import { fetchContainerLogs } from '@/api/agent'
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
-import { DEFAULT_COMPOSE_YAML, createDefaultDeployForm, createDefaultPullImageForm } from './constants'
+import type { Container } from '@/types'
+import { useDockerLists } from './useDockerLists'
+import { DEFAULT_COMPOSE_YAML, createDefaultDeployForm, createDefaultPullImageForm, type DockerTab } from './constants'
 
 export function useDockerWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const pollingActive = useWindowPollingActive(win)
   const { t } = useI18n()
-  const [activeTab, setActiveTab] = useState<'containers' | 'images' | 'networks' | 'templates'>('containers')
+  const [activeTab, setActiveTabState] = useState<DockerTab>('containers')
   const { data, isLoading, isError, error, refetch, isFetching } = useContainers(pollingActive)
-  const { data: networksData, refetch: refetchNetworks } = useDockerNetworks(pollingActive)
-  const { data: imagesData, refetch: refetchImages } = useDockerImages(pollingActive)
-  const { data: templatesData, refetch: refetchTemplates } = useDockerTemplates()
+  // only the tab on screen is polled
+  const networksQuery = useDockerNetworks(pollingActive && activeTab === 'networks')
+  const imagesQuery = useDockerImages(pollingActive && activeTab === 'images')
+  const volumesQuery = useDockerVolumes(pollingActive && activeTab === 'volumes')
+  const templatesQuery = useDockerTemplates()
+  const { data: networksData, refetch: refetchNetworks } = networksQuery
+  const { data: imagesData, refetch: refetchImages } = imagesQuery
+  const { data: volumesData, refetch: refetchVolumes } = volumesQuery
+  const { data: templatesData, refetch: refetchTemplates } = templatesQuery
 
+  // One search box in the toolbar filters whichever tab is open; changing tab clears it
   const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
-
-  // Images tab state
-  const [imgSearch, setImgSearch] = useState('')
-  const [imgPage, setImgPage] = useState(1)
-  const IMG_PAGE_SIZE = 10
+  const search = query.trim().toLowerCase()
+  const setActiveTab = (tab: DockerTab) => {
+    setActiveTabState(tab)
+    setQuery('')
+  }
 
   // Networks tab state
-  const [netSearch, setNetSearch] = useState('')
   const [showCreateNet, setShowCreateNet] = useState(false)
   const [netForm, setNetForm] = useState({ name: '', subnet: '', gateway: '' })
 
   // Templates tab state
-  const [tplSearch, setTplSearch] = useState('')
   const [showCreateTpl, setShowCreateTpl] = useState(false)
   const [tplForm, setTplForm] = useState({
     name: '',
@@ -66,6 +71,8 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   const [netInputValue, setNetInputValue] = useState('')
   const [pullImageForm, setPullImageForm] = useState(createDefaultPullImageForm)
 
+  const [tabDropdownOpen, setTabDropdownOpen] = useState(false)
+  const tabDropdownRef = useRef<HTMLDivElement>(null)
   // Refs for click-outside to close dropdowns
   const imgComboRef = useRef<HTMLDivElement>(null)
   const nameComboRef = useRef<HTMLDivElement>(null)
@@ -73,6 +80,7 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (tabDropdownRef.current && !tabDropdownRef.current.contains(e.target as Node)) setTabDropdownOpen(false)
       if (imgComboRef.current && !imgComboRef.current.contains(e.target as Node)) setImgDropdownOpen(false)
       if (nameComboRef.current && !nameComboRef.current.contains(e.target as Node)) setNameDropdownOpen(false)
       if (netComboRef.current && !netComboRef.current.contains(e.target as Node)) setNetDropdownOpen(false)
@@ -83,12 +91,11 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; image: string } | null>(null)
   const [logModal, setLogModal] = useState<{ id: string; name: string } | null>(null)
-  const [logTail, setLogTail] = useState(200)
-  const [logAutoScroll, setLogAutoScroll] = useState(true)
-  const logViewerRef = useRef<HTMLPreElement>(null)
   const [deleteOpts, setDeleteOpts] = useState({ removeVolumes: false, removeImage: false })
   const [editContainer, setEditContainer] = useState<{ id: string } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
+  // the container whose domain is being pointed through a Cloudflare tunnel
+  const [domainContainer, setDomainContainer] = useState<Container | null>(null)
   const [deployType, setDeployType] = useState<'image' | 'compose'>('image')
   const [deployForm, setDeployForm] = useState(createDefaultDeployForm)
 
@@ -136,29 +143,16 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   const deleteTemplateMut = useDeleteDockerTemplate()
   const createTemplateMut = useCreateDockerTemplate()
 
-  const logsQuery = useQuery({
-    queryKey: ['docker-container-logs', logModal?.id, logTail],
-    queryFn: () => fetchContainerLogs(logModal!.id, logTail),
-    enabled: !!logModal,
-    refetchInterval: logModal ? 2_000 : false,
-    refetchIntervalInBackground: false,
-  })
-
-  useEffect(() => {
-    if (!logAutoScroll || !logViewerRef.current) return
-    logViewerRef.current.scrollTop = logViewerRef.current.scrollHeight
-  }, [logAutoScroll, logsQuery.data?.lines])
-
-  const rawContainers = Array.isArray(data) ? data : []
   const containers = useMemo(() => {
+    const rawContainers = Array.isArray(data) ? data : []
     return rawContainers.filter((container) => {
       const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
       return !name.toLowerCase().includes('portainer') && !container.Image.toLowerCase().includes('portainer')
     })
-  }, [rawContainers])
+  }, [data])
 
   const filteredContainers = useMemo(() => {
-    const needle = search.trim().toLowerCase()
+    const needle = search
     if (!needle) return containers
     return containers.filter((container) => {
       const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
@@ -173,10 +167,43 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
 
   const stats = useMemo(() => {
     const running = containers.filter((c) => c.State === 'running').length
-    const withPublishedPorts = containers.filter((c) => (c.Ports ?? []).some((p) => p.PublicPort)).length
-    const withIPs = containers.filter((c) => (c.IpAddresses ?? []).length > 0).length
-    return { running, withPublishedPorts, withIPs }
+    return { running }
   }, [containers])
+
+  const { imagesInUse, networkUsage, filteredImages, filteredNetworks, filteredMounts, filteredTemplates } = useDockerLists({
+    containers,
+    search,
+    images: imagesData?.items,
+    networks: networksData?.items,
+    mounts: volumesData?.items,
+    templates: templatesData?.items,
+  })
+
+  // A tab opened after a while shows fresh data at once instead of waiting for the next poll
+  useEffect(() => {
+    if (!pollingActive) return
+    if (activeTab === 'images') void refetchImages()
+    else if (activeTab === 'networks') void refetchNetworks()
+    else if (activeTab === 'volumes') void refetchVolumes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  // Opens the deploy form with an image from the list already filled in
+  const deployFromImage = (image: string) => {
+    resetDeployModal()
+    setDeployType('image')
+    setImgInputValue(image)
+    setDeployForm((f) => ({ ...f, image }))
+    setShowDeploy(true)
+  }
+
+  const refreshAll = () => {
+    void refetch()
+    void refetchNetworks()
+    void refetchImages()
+    void refetchVolumes()
+    void refetchTemplates()
+  }
 
   const deployReady =
     deployType === 'image'
@@ -196,24 +223,29 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     refetchNetworks,
     imagesData,
     refetchImages,
+    volumesData,
+    refetchVolumes,
+    volumesQuery,
+    networksQuery,
+    imagesQuery,
+    templatesQuery,
     templatesData,
     refetchTemplates,
     query,
     setQuery,
-    setSearch,
-    imgSearch,
-    setImgSearch,
-    imgPage,
-    setImgPage,
-    IMG_PAGE_SIZE,
-    netSearch,
-    setNetSearch,
+    search,
+    imagesInUse,
+    networkUsage,
+    filteredImages,
+    filteredNetworks,
+    filteredMounts,
+    filteredTemplates,
+    refreshAll,
+    deployFromImage,
     showCreateNet,
     setShowCreateNet,
     netForm,
     setNetForm,
-    tplSearch,
-    setTplSearch,
     showCreateTpl,
     setShowCreateTpl,
     tplForm,
@@ -245,17 +277,14 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     setDeleteConfirm,
     logModal,
     setLogModal,
-    logTail,
-    setLogTail,
-    logAutoScroll,
-    setLogAutoScroll,
-    logViewerRef,
     deleteOpts,
     setDeleteOpts,
     editContainer,
     setEditContainer,
     editLoading,
     setEditLoading,
+    domainContainer,
+    setDomainContainer,
     deployType,
     setDeployType,
     deployForm,
@@ -275,11 +304,13 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     deleteImageMut,
     deleteTemplateMut,
     createTemplateMut,
-    logsQuery,
     containers,
     filteredContainers,
     stats,
     deployReady,
+    tabDropdownOpen,
+    setTabDropdownOpen,
+    tabDropdownRef,
   }
 }
 

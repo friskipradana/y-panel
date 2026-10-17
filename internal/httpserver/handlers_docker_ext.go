@@ -223,14 +223,6 @@ func (s *Server) handleDockerTemplateDelete(w http.ResponseWriter, r *http.Reque
 	}
 	s.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
-func imageOwnedBy(image docker.Image, userID int64) bool {
-	for _, ownerID := range image.OwnerUserIDs {
-		if ownerID == userID {
-			return true
-		}
-	}
-	return false
-}
 
 func (s *Server) ensureImageAccess(r *http.Request, id string) error {
 	actor := s.currentUserRecord(r)

@@ -1,122 +1,140 @@
-import { alertLib } from '@/lib/alert'
 import { toast } from 'sonner'
-import { Search, Plus, Trash2, Activity } from 'lucide-react'
-import type { DockerWindowState } from './useDockerWindow'
+import { Network, Trash2 } from 'lucide-react'
+import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { IconButton } from '@/components/ui/IconButton'
-import { TextInput } from '@/components/ui/Field'
-import { ListRow } from '@/components/ui/ListRow'
+import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { DockerListState, DockerRowIcon, DockerTable } from './DockerTable'
+import { BUILTIN_NETWORKS } from './constants'
+import type { DockerWindowState } from './useDockerWindow'
+
+const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 export function NetworksTab({ docker }: { docker: DockerWindowState }) {
-  const {
-    t,
-    networksData,
-    netSearch,
-    setNetSearch,
-    showCreateNet,
-    setShowCreateNet,
-    netForm,
-    setNetForm,
-    createNetworkMut,
-    deleteNetworkMut,
-  } = docker
+  const { t, networksQuery, filteredNetworks, networkUsage, search, showCreateNet, setShowCreateNet, netForm, setNetForm, createNetworkMut, deleteNetworkMut } = docker
 
-    const allNets = networksData?.items ?? []
-    const filteredNets = allNets.filter((net) => {
-      const q = netSearch.toLowerCase()
-      return !q || net.Name.toLowerCase().includes(q) || net.Driver.toLowerCase().includes(q) || net.Id.toLowerCase().includes(q)
-    })
+  const close = () => {
+    setShowCreateNet(false)
+    setNetForm({ name: '', subnet: '', gateway: '' })
+  }
 
-    return (
-      <div className="panel-window__stack">
-        <Modal
-          open={showCreateNet}
-          onClose={() => setShowCreateNet(false)}
-          title={t('docker.createNetworkTitle')}
-          size="md"
-          footer={
-            <>
-            <Button type="button" variant="ghost" onClick={() => setShowCreateNet(false)}>{t('common.cancel')}</Button>
-            <Button
-              type="button" variant="primary"
-              disabled={createNetworkMut.isPending || !netForm.name.trim()}
-              onClick={async () => {
-                await createNetworkMut.mutateAsync({ name: netForm.name.trim(), subnet: netForm.subnet.trim() || undefined, gateway: netForm.gateway.trim() || undefined })
-                toast.success(t('docker.networkCreated', { name: netForm.name }))
-                setShowCreateNet(false)
-                setNetForm({ name: '', subnet: '', gateway: '' })
-              }}
-            >
-              {createNetworkMut.isPending ? t('common.creating') : t('docker.createNetwork')}
-            </Button>
-            </>
-          }
-        >
-            <div className="panel-field">
-              <label className="panel-label">{t('docker.networkNameRequired')}</label>
-              <TextInput placeholder={t('docker.networkNamePlaceholder')} value={netForm.name} onChange={(e) => setNetForm((f) => ({ ...f, name: e.target.value }))} />
-            </div>
-            <div className="panel-field">
-              <label className="panel-label">{t('docker.subnetCidr')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
-              <TextInput placeholder={t('docker.subnetPlaceholder')} value={netForm.subnet} onChange={(e) => setNetForm((f) => ({ ...f, subnet: e.target.value }))} />
-              <p className="panel-hint">{t('docker.ipRangeHint')} <code>172.20.0.0/16</code></p>
-            </div>
-            <div className="panel-field">
-              <label className="panel-label">{t('docker.gateway')} <span className="docker-field-optional">{t('docker.optional')}</span></label>
-              <TextInput placeholder={t('docker.gatewayPlaceholder')} value={netForm.gateway} onChange={(e) => setNetForm((f) => ({ ...f, gateway: e.target.value }))} />
-              <p className="panel-hint">{t('docker.gatewayHint')} <code>172.20.0.1</code></p>
-            </div>
-        </Modal>
-
-        <div className="panel-table-container">
-          <div className="docker-tab-toolbar">
-            <div className="docker-tab-toolbar__left">
-              <span className="docker-tab-toolbar__title">{t('docker.dockerNetworks')}</span>
-              <Badge>{allNets.length}</Badge>
-            </div>
-            <div className="docker-tab-toolbar__right">
-              <form className="panel-search docker-tab-toolbar__search" onSubmit={(e) => e.preventDefault()}>
-                <Search className="h-3.5 w-3.5" />
-                <input className="panel-search__input" placeholder={t('docker.searchNetworkShort')} value={netSearch} onChange={(e) => setNetSearch(e.target.value)} />
-              </form>
-              <Button type="button" variant="primary-soft" onClick={() => setShowCreateNet(true)} disabled={createNetworkMut.isPending}>
-                <Plus className="h-3.5 w-3.5" /> {t('docker.createNetwork')}
-              </Button>
-            </div>
-          </div>
-          {filteredNets.length === 0 ? (
-            <div className="panel-empty panel-empty--wide">
-              <Activity className="h-8 w-8" />
-              <div className="text-sm font-medium text-[var(--win-text)]">{netSearch ? t('docker.noResults') : t('docker.noNetworks')}</div>
-            </div>
-          ) : (
-            <>
-              {filteredNets.map((net) => (
-                <ListRow
-                  key={net.Id}
-                  title={net.Name}
-                  tag={<Badge>{net.Driver}</Badge>}
-                  actions={<><IconButton
-                      type="button" label={t('docker.deleteNetwork')} tone="danger"
-                      onClick={async () => {
-                        const ok = await alertLib.confirm(t('docker.deleteNetwork'), t('docker.deleteNetworkConfirm', { name: net.Name }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
-                        if (ok) deleteNetworkMut.mutate(net.Id)
-                      }}
-                      disabled={deleteNetworkMut.isPending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </IconButton></>}
-                  details={<>{t('docker.scope')} : {net.Scope}<br />
-                      {t('docker.subnet')} : {net.Subnet}<br />
-                      {t('docker.gateway')} : {net.Gateway}<br />
-                      ID : {net.Id.slice(0, 12)}</>}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      </div>
+  const create = () => {
+    const name = netForm.name.trim()
+    createNetworkMut.mutate(
+      { name, subnet: netForm.subnet.trim() || undefined, gateway: netForm.gateway.trim() || undefined },
+      {
+        onSuccess: () => {
+          toast.success(t('docker.networkCreated', { name }))
+          close()
+        },
+        onError: (e) => alertLib.fire(t('docker.networkCreateFailed'), apiError(e, t('docker.unknownError')), 'error', 'apps'),
+      },
     )
+  }
+
+  const remove = async (id: string, name: string) => {
+    const ok = await alertLib.confirm(t('docker.deleteNetwork'), t('docker.deleteNetworkConfirm', { name }), t('docker.delete'), t('common.cancel'), 'warning', 'apps')
+    if (!ok) return
+    deleteNetworkMut.mutate(id, {
+      onSuccess: () => toast.success(t('docker.networkDeleted', { name })),
+      onError: (e) => alertLib.fire(t('docker.networkDeleteFailed'), apiError(e, t('docker.unknownError')), 'error', 'apps'),
+    })
+  }
+
+  return (
+    <>
+      <Modal
+        open={showCreateNet}
+        onClose={close}
+        title={t('docker.createNetworkTitle')}
+        size="md"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={close}>{t('common.cancel')}</Button>
+            <Button type="button" variant="primary" loading={createNetworkMut.isPending} disabled={!netForm.name.trim()} onClick={create}>
+              {t('docker.createNetwork')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label={t('docker.networkNameRequired')}>
+            <TextInput mono placeholder={t('docker.networkNamePlaceholder')} value={netForm.name} onChange={(e) => setNetForm((f) => ({ ...f, name: e.target.value }))} />
+          </Field>
+          <Field label={`${t('docker.subnetCidr')} ${t('docker.optional')}`} hint={`${t('docker.ipRangeHint')} 172.20.0.0/16`}>
+            <TextInput mono placeholder={t('docker.subnetPlaceholder')} value={netForm.subnet} onChange={(e) => setNetForm((f) => ({ ...f, subnet: e.target.value }))} />
+          </Field>
+          <Field label={`${t('docker.gateway')} ${t('docker.optional')}`} hint={`${t('docker.gatewayHint')} 172.20.0.1`}>
+            <TextInput mono placeholder={t('docker.gatewayPlaceholder')} value={netForm.gateway} onChange={(e) => setNetForm((f) => ({ ...f, gateway: e.target.value }))} />
+          </Field>
+        </div>
+      </Modal>
+
+      <DockerTable
+        variant="networks"
+        empty={networksQuery.isLoading || networksQuery.isError || filteredNetworks.length === 0}
+        columns={[
+          { label: t('docker.colIndex') },
+          { label: t('docker.col.network') },
+          { label: t('docker.col.driver') },
+          { label: t('docker.col.subnet') },
+          { label: t('docker.col.containers') },
+          { label: t('docker.colActions'), actions: true },
+        ]}
+      >
+        <DockerListState
+          loading={networksQuery.isLoading}
+          error={networksQuery.isError}
+          errorTitle={t('docker.networksLoadFailed')}
+          errorHint={t('docker.agentAccessHint')}
+          loadingText={t('docker.loadingList')}
+          empty={filteredNetworks.length === 0}
+          emptyIcon={<Network />}
+          emptyTitle={search ? t('docker.noResults') : t('docker.noNetworks')}
+          emptyHint={search ? undefined : t('docker.noNetworksHint')}
+        >
+          {filteredNetworks.map((net, idx) => {
+            const builtin = BUILTIN_NETWORKS.includes(net.Name)
+            const used = networkUsage[net.Name] ?? 0
+            const lockHint = builtin ? t('docker.networkBuiltinHint') : used > 0 ? t('docker.networkInUseHint') : t('docker.deleteNetwork')
+            return (
+              <div key={net.Id} className="docker-row">
+                <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
+                <div className="docker-row__app">
+                  <DockerRowIcon><Network className="h-3.5 w-3.5" strokeWidth={1.75} /></DockerRowIcon>
+                  <div className="docker-row__text">
+                    <span className="docker-app-name" title={net.Name}>{net.Name}</span>
+                    <span className="docker-row__sub">{net.Scope} · {net.Id.slice(0, 12)}</span>
+                  </div>
+                </div>
+                <div className="docker-cell docker-cell--keep">
+                  <span className={`docker-status-pill ${builtin ? 'docker-status-pill--exited' : 'docker-status-pill--running'}`}>
+                    <span className="docker-status-dot" />
+                    <span>{builtin ? t('docker.builtin') : net.Driver}</span>
+                  </span>
+                </div>
+                <div className="docker-cell docker-cell--mono">
+                  {net.Subnet || '-'}
+                  {net.Gateway ? <span className="docker-row__sub"> gw {net.Gateway}</span> : null}
+                </div>
+                <div className="docker-cell">{t('docker.networkContainers', { count: used })}</div>
+                <div className="docker-action-btns">
+                  <button
+                    type="button"
+                    className="docker-act-btn docker-act-btn--danger"
+                    title={lockHint}
+                    aria-label={t('docker.deleteNetwork')}
+                    disabled={deleteNetworkMut.isPending || builtin || used > 0}
+                    onClick={() => void remove(net.Id, net.Name)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </DockerListState>
+      </DockerTable>
+    </>
+  )
 }

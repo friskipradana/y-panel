@@ -130,13 +130,11 @@
 
 .docker-log-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 14px;
-  background: rgba(148, 163, 184, 0.06);
+  gap: 8px 12px;
+  flex-shrink: 0;
 }
 
 .docker-log-toolbar__left,
@@ -148,48 +146,198 @@
 }
 
 .docker-log-toolbar__right {
-  flex-wrap: wrap;
+  flex: 1;
   justify-content: flex-end;
 }
 
-.docker-log-autoscroll {
+// status: a dot and a word, no pill
+.docker-log-status {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--win-border);
-  border-radius: 10px;
-  background: var(--panel-surface);
-  color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
-  cursor: pointer;
-  user-select: none;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-.docker-log-autoscroll input {
-  width: 13px;
-  height: 13px;
-  accent-color: var(--accent);
+.docker-log-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-offline);
 }
 
+.docker-log-status--live .docker-log-status__dot {
+  background: var(--status-online);
+}
+
+.docker-log-status--connecting .docker-log-status__dot {
+  background: var(--panel-warning-text);
+  animation: ht-dot-pulse 1.1s ease-in-out infinite;
+}
+
+.docker-log-status--error .docker-log-status__dot {
+  background: var(--status-error);
+}
+
+.docker-log-count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.docker-log-search {
+  flex: 0 1 16rem;
+  min-width: 8rem;
+}
+
+.docker-log-menu {
+  position: relative;
+}
+
+.docker-log-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 15rem;
+  max-width: calc(100vw - 3rem);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.docker-log-menu__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+// The log surface follows the terminal palette, so a line reads the same here and in the terminal
 .docker-log-viewer {
   flex: 1;
   min-height: 0;
   overflow: auto;
   margin: 0;
-  padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 16px;
-  background: rgba(2, 6, 23, 0.94);
-  color: #d1fae5;
-  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  padding: 8px 0;
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  background: var(--terminal-bg);
+  color: var(--terminal-fg);
+  font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  word-break: break-word;
+  line-height: 1.55;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-scroll) transparent;
 }
+
+.docker-log-line {
+  display: flex;
+  gap: 12px;
+  padding: 0 14px;
+  white-space: pre;
+
+  &:hover {
+    background: color-mix(in srgb, var(--terminal-chrome-fg-strong) 6%, transparent);
+  }
+
+  &--wrap {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.docker-log-time {
+  flex-shrink: 0;
+  color: var(--terminal-chrome-dim);
+  user-select: none;
+}
+
+.docker-log-msg {
+  min-width: 0;
+}
+
+.docker-log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 14px;
+  text-align: center;
+  color: var(--terminal-chrome-dim);
+
+  p {
+    margin: 0;
+  }
+}
+
+// after the last line of a stream that is over
+.docker-log-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 8px 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--win-border);
+  color: var(--terminal-chrome-dim);
+  font-size: 0.75rem;
+}
+
+.docker-log-mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--terminal-yellow) 45%, transparent);
+  color: inherit;
+}
+
+// Colors a program wrote with ANSI codes: the 16 colors come from the terminal palette
+.ansi-fg-0 { color: var(--terminal-chrome-dim); }
+.ansi-fg-1 { color: var(--terminal-red); }
+.ansi-fg-2 { color: var(--terminal-green); }
+.ansi-fg-3 { color: var(--terminal-yellow); }
+.ansi-fg-4 { color: var(--terminal-blue); }
+.ansi-fg-5 { color: var(--terminal-magenta); }
+.ansi-fg-6 { color: var(--terminal-cyan); }
+.ansi-fg-7 { color: var(--terminal-white); }
+.ansi-fg-8 { color: var(--terminal-bright-black); }
+.ansi-fg-9 { color: var(--terminal-bright-red); }
+.ansi-fg-10 { color: var(--terminal-bright-green); }
+.ansi-fg-11 { color: var(--terminal-bright-yellow); }
+.ansi-fg-12 { color: var(--terminal-bright-blue); }
+.ansi-fg-13 { color: var(--terminal-bright-magenta); }
+.ansi-fg-14 { color: var(--terminal-bright-cyan); }
+.ansi-fg-15 { color: var(--terminal-bright-white); }
+.ansi-bg-0 { background: color-mix(in srgb, var(--terminal-chrome-dim) 40%, transparent); }
+.ansi-bg-1 { background: color-mix(in srgb, var(--terminal-red) 35%, transparent); }
+.ansi-bg-2 { background: color-mix(in srgb, var(--terminal-green) 35%, transparent); }
+.ansi-bg-3 { background: color-mix(in srgb, var(--terminal-yellow) 35%, transparent); }
+.ansi-bg-4 { background: color-mix(in srgb, var(--terminal-blue) 35%, transparent); }
+.ansi-bg-5 { background: color-mix(in srgb, var(--terminal-magenta) 35%, transparent); }
+.ansi-bg-6 { background: color-mix(in srgb, var(--terminal-cyan) 35%, transparent); }
+.ansi-bg-7 { background: color-mix(in srgb, var(--terminal-white) 35%, transparent); }
+.ansi-bg-8 { background: color-mix(in srgb, var(--terminal-bright-black) 40%, transparent); }
+.ansi-bg-9 { background: color-mix(in srgb, var(--terminal-bright-red) 35%, transparent); }
+.ansi-bg-10 { background: color-mix(in srgb, var(--terminal-bright-green) 35%, transparent); }
+.ansi-bg-11 { background: color-mix(in srgb, var(--terminal-bright-yellow) 35%, transparent); }
+.ansi-bg-12 { background: color-mix(in srgb, var(--terminal-bright-blue) 35%, transparent); }
+.ansi-bg-13 { background: color-mix(in srgb, var(--terminal-bright-magenta) 35%, transparent); }
+.ansi-bg-14 { background: color-mix(in srgb, var(--terminal-bright-cyan) 35%, transparent); }
+.ansi-bg-15 { background: color-mix(in srgb, var(--terminal-bright-white) 35%, transparent); }
+.ansi-bold { font-weight: 700; }
+.ansi-dim { opacity: 0.7; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
 
 .docker-deploy-modal__title {
   margin: 0 0 18px;
@@ -246,8 +394,13 @@
 }
 
 .docker-image-combobox__input {
-  padding-right: 82px !important;
+  padding-right: 44px !important;
   width: 100%;
+}
+
+// room for the clear button as well as the arrow
+.docker-image-combobox__input--clearable {
+  padding-right: 82px !important;
 }
 
 .docker-image-combobox__button {
@@ -332,12 +485,23 @@
   gap: 2px;
   max-height: 280px;
   overflow-y: auto;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--win-border);
-  background: var(--win-content-bg);
-  box-shadow: var(--panel-card-shadow);
-  padding: 6px;
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+  padding: 4px;
   animation: combobox-in 120ms ease-out;
+}
+
+// A select's list is placed against the page by Select.tsx (portal), above windows and dialogs but under the taskbar
+.docker-image-combobox__dropdown--floating {
+  top: auto;
+  left: auto;
+  right: auto;
+  min-width: 10rem;
+  z-index: 59000;
+  box-sizing: border-box;
 }
 
 @keyframes combobox-in {
@@ -351,8 +515,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  padding-bottom: 6px;
-  background: var(--win-content-bg);
+  padding-bottom: 4px;
+  background: var(--menu-bg);
 }
 
 .docker-image-combobox__search-input {
@@ -365,11 +529,11 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 36px;
-  border-radius: 8px;
+  min-height: 32px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
-  padding: 7px 10px;
+  padding: 6px 10px;
   text-align: left;
   cursor: pointer;
   transition: background 0.12s;
@@ -378,7 +542,7 @@
 
 .docker-image-combobox__item:hover,
 .docker-image-combobox__item--highlighted {
-  background: var(--panel-surface-hover);
+  background: var(--tb-hover);
 }
 
 .docker-image-combobox__item:focus-visible {
@@ -389,11 +553,12 @@
 .docker-image-combobox__item--selected {
   background: var(--panel-primary-bg);
   color: var(--panel-primary-text);
+  font-weight: 600;
 }
 
 .docker-image-combobox__item-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: inherit;
   flex-shrink: 0;
 }
 

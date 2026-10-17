@@ -59,7 +59,7 @@ func ensureAdminer(ctx context.Context) error {
 	switch {
 	case err != nil:
 		port := strconv.Itoa(adminerPort())
-		if out, runErr := dockerOutput(ctx, "run", "-d", "--name", adminerContainer, "--restart", "unless-stopped",
+		if out, runErr := dockerOutput(ctx, "run", "-d", "--name", adminerContainer, "--label", "reneo.kind=database-control", "--restart", "unless-stopped",
 			"--network", "host", adminerImage, "php", "-S", "127.0.0.1:"+port, "-t", "/var/www/html"); runErr != nil {
 			return fmt.Errorf("could not start Adminer: %s", firstOutputLine(out))
 		}

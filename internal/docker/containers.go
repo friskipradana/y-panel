@@ -281,3 +281,38 @@ func parseLabels(raw string) map[string]string {
 	}
 	return labels
 }
+
+func GetDockerVersions() DockerVersionInfo {
+	info := DockerVersionInfo{
+		Docker:  "v20.10.24",
+		Buildx:  "v0.17.1",
+		Compose: "v2.29.2",
+	}
+	if out, err := exec.Command("docker", "version", "--format", "{{.Server.Version}}").Output(); err == nil {
+		v := strings.TrimSpace(string(out))
+		if v != "" {
+			if !strings.HasPrefix(v, "v") {
+				v = "v" + v
+			}
+			info.Docker = v
+		}
+	}
+	if out, err := exec.Command("docker", "buildx", "version").Output(); err == nil {
+		for _, f := range strings.Fields(string(out)) {
+			if strings.HasPrefix(f, "v") {
+				info.Buildx = f
+				break
+			}
+		}
+	}
+	if out, err := exec.Command("docker", "compose", "version", "--short").Output(); err == nil {
+		v := strings.TrimSpace(string(out))
+		if v != "" {
+			if !strings.HasPrefix(v, "v") {
+				v = "v" + v
+			}
+			info.Compose = v
+		}
+	}
+	return info
+}

@@ -219,11 +219,14 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/containers/{id}", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleContainerDelete)))
 	s.mux.Handle("GET /api/v1/containers/{id}/config", s.requireAuthV2(http.HandlerFunc(s.handleContainerInspectConfig)))
 	s.mux.Handle("GET /api/v1/containers/{id}/logs", s.requireAuthV2(http.HandlerFunc(s.handleContainerLogs)))
+	s.mux.Handle("GET /api/v1/containers/{id}/logs/ws", s.requireAuthV2(http.HandlerFunc(s.handleContainerLogsSocket)))
+	s.mux.Handle("GET /api/v1/docker/version", s.requireAuthV2(http.HandlerFunc(s.handleDockerVersion)))
 
 	// ── Docker Networks & Images & Templates ──────────────────────────────────
 	s.mux.Handle("GET /api/v1/docker/networks", s.requireAuthV2(http.HandlerFunc(s.handleDockerNetworksList)))
 	s.mux.Handle("POST /api/v1/docker/networks", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkCreate)))
 	s.mux.Handle("DELETE /api/v1/docker/networks/{id}", s.requireCapability(auth.CapabilityDockerNetworkManage, http.HandlerFunc(s.handleDockerNetworkDelete)))
+	s.mux.Handle("GET /api/v1/docker/volumes", s.requireAuthV2(http.HandlerFunc(s.handleDockerVolumes)))
 	s.mux.Handle("GET /api/v1/docker/images", s.requireAuthV2(http.HandlerFunc(s.handleDockerImagesList)))
 	s.mux.Handle("POST /api/v1/docker/images/pull", s.requireCapability(auth.CapabilityDockerImageManage, http.HandlerFunc(s.handleDockerImagePull)))
 	s.mux.Handle("GET /api/v1/docker/image-in-use", s.requireAuthV2(http.HandlerFunc(s.handleImageInUse)))

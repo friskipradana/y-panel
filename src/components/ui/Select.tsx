@@ -1,5 +1,6 @@
 import { Check, ChevronDown, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useI18n } from '@/lib/i18n'
 
 type SelectOption = {
@@ -50,7 +51,40 @@ export function Select({
   const [search, setSearch] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
   const rootRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const [panelStyle, setPanelStyle] = useState<CSSProperties>({})
+
+  // The list is drawn on the page, not inside the dialog or window that holds the select, so nothing
+  // clips it; it sits under the button, or above it when there is more room there
+  const placePanel = useCallback(() => {
+    const el = buttonRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const below = window.innerHeight - rect.bottom - 12
+    const above = rect.top - 12
+    const wanted = 280
+    const up = below < Math.min(wanted, 180) && above > below
+    setPanelStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: rect.width,
+      maxHeight: Math.max(120, Math.min(wanted, up ? above : below)),
+      ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    placePanel()
+    window.addEventListener('resize', placePanel)
+    window.addEventListener('scroll', placePanel, true)
+    return () => {
+      window.removeEventListener('resize', placePanel)
+      window.removeEventListener('scroll', placePanel, true)
+    }
+  }, [open, placePanel])
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -75,7 +109,8 @@ export function Select({
     }
 
     const handler = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (rootRef.current && !rootRef.current.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false)
       }
     }
@@ -157,11 +192,12 @@ export function Select({
       <div className="docker-image-combobox__input-wrap">
         <button
           id={id}
+          ref={buttonRef}
           type="button"
           disabled={disabled}
           onClick={() => !disabled && setOpen((current) => !current)}
           onKeyDown={handleKeyDown}
-          className={`panel-input docker-image-combobox__input docker-image-combobox__button ${buttonClassName}`.trim()}
+          className={`panel-input docker-image-combobox__input docker-image-combobox__button${clearable ? ' docker-image-combobox__input--clearable' : ''} ${buttonClassName}`.trim()}
           aria-haspopup="listbox"
           aria-expanded={open}
         >
@@ -197,8 +233,9 @@ export function Select({
         </button>
       </div>
 
-      {open ? (
-        <div className={`docker-image-combobox__dropdown ${dropdownClassName}`.trim()} role="listbox">
+      {open
+        ? createPortal(
+        <div ref={panelRef} style={panelStyle} className={`docker-image-combobox__dropdown docker-image-combobox__dropdown--floating ${dropdownClassName}`.trim()} role="listbox">
           {searchable ? (
             <div className="docker-image-combobox__search-wrap">
               <input
@@ -236,8 +273,10 @@ export function Select({
               )
             })
           )}
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+        : null}
     </div>
   )
 }

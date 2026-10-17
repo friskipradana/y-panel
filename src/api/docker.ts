@@ -9,11 +9,16 @@ import type {
   DockerPullImagePayload,
   DockerNetwork,
   DockerImage,
+  DockerMount,
   DockerTemplate,
   DockerContainerConfig,
+  DockerVersionInfo,
   PaginatedResponse,
   PaginationParams,
 } from '@/types'
+
+export const fetchDockerVersion = () =>
+  agentApi.get<DockerVersionInfo>('/api/v1/docker/version').then((r) => r.data)
 
 export const listContainers = () =>
   agentApi.get<Container[]>('/api/v1/containers').then((r) => r.data)
@@ -49,6 +54,9 @@ export const fetchContainerConfig = (id: string) =>
 
 export const fetchContainerLogs = (id: string, tail = 200) =>
   agentApi.get<{ id: string; tail: number; lines: string[] }>(`/api/v1/containers/${id}/logs`, { params: { tail } }).then((r) => r.data)
+
+export const listDockerVolumes = () =>
+  agentApi.get<{ items: DockerMount[] }>('/api/v1/docker/volumes').then((r) => r.data)
 
 export const listDockerNetworks = () =>
   agentApi.get<{ items: DockerNetwork[] }>('/api/v1/docker/networks').then((r) => r.data)

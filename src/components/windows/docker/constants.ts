@@ -19,6 +19,39 @@ export function createEmptyRegistryAuth() {
   return { enabled: false, registry: '', usernameOrEmail: '', password: '' }
 }
 
+// Order of the tabs in the Docker window
+export const DOCKER_TABS = ['containers', 'images', 'networks', 'volumes', 'templates'] as const
+export type DockerTab = (typeof DOCKER_TABS)[number]
+
+// A container the Database window runs for its own sake: the web client of the databases (Adminer).
+// Older ones have no label, so the name counts too.
+export function isDatabaseControl(container: { Names?: string[]; Labels?: Record<string, string> }): boolean {
+  return container.Labels?.['reneo.kind'] === 'database-control' || (container.Names ?? []).some((n) => n.replace(/^\//, '') === 'reneo-adminer')
+}
+
+// "2026-10-13 03:12:57 +0700 WIB" (how docker writes a date) as "13 Okt 2026, 03.12"; anything else as it came
+export function formatDockerDate(raw: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(raw)
+  if (!m) return raw
+  const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]))
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+// An image counts as in use when a container names it as repo:tag, as a bare repo (latest), or by id
+export function isImageInUse(image: { Id: string; Repository: string; Tag: string }, used: Set<string>): boolean {
+  if (used.has(`${image.Repository}:${image.Tag}`)) return true
+  if (image.Tag === 'latest' && used.has(image.Repository)) return true
+  const id = image.Id.replace('sha256:', '')
+  for (const name of used) {
+    const wanted = name.replace('sha256:', '')
+    if (wanted.length >= 8 && /^[0-9a-f]+$/.test(wanted) && id.startsWith(wanted)) return true
+  }
+  return false
+}
+
+// Networks Docker makes itself; they cannot be removed
+export const BUILTIN_NETWORKS = ['bridge', 'host', 'none']
+
 export function createDefaultDeployForm() {
   return {
     ownerUserId: 0,

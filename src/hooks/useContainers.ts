@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   deleteContainer,
   deployComposeProject,
@@ -9,6 +9,7 @@ import {
   startContainer,
   stopContainer,
   listDockerNetworks,
+  listDockerVolumes,
   createDockerNetwork,
   deleteDockerNetwork,
   listDockerImages,
@@ -27,6 +28,12 @@ import type {
   PaginatedResponse,
   PaginationParams,
 } from '@/types'
+
+// After a start, stop or restart the list shows the new state at once; the invalidation then fetches the real one
+function setContainerState(qc: QueryClient, containerId: string, state: Container['State']) {
+  qc.setQueryData<Container[]>(['containers'], (prev) => prev?.map((c) => (c.Id === containerId || c.Id.startsWith(containerId) ? { ...c, State: state } : c)))
+  return qc.invalidateQueries({ queryKey: ['containers'] })
+}
 
 export function useContainers(active = true) {
   return useQuery<Container[]>({
@@ -51,7 +58,7 @@ export function useStartContainer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (containerId: string) => startContainer(containerId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: (_data, containerId) => setContainerState(qc, containerId, 'running'),
   })
 }
 
@@ -59,7 +66,7 @@ export function useStopContainer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (containerId: string) => stopContainer(containerId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: (_data, containerId) => setContainerState(qc, containerId, 'exited'),
   })
 }
 
@@ -67,7 +74,7 @@ export function useRestartContainer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (containerId: string) => restartContainer(containerId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['containers'] }),
+    onSuccess: (_data, containerId) => setContainerState(qc, containerId, 'running'),
   })
 }
 
@@ -93,6 +100,15 @@ export function useDeployComposeProject() {
   return useMutation({
     mutationFn: (payload: DockerDeployComposePayload) => deployComposeProject(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['containers'] }),
+  })
+}
+
+export function useDockerVolumes(active = true) {
+  return useQuery({
+    queryKey: ['docker-volumes'],
+    queryFn: listDockerVolumes,
+    refetchInterval: active ? 15_000 : false,
+    refetchIntervalInBackground: false,
   })
 }
 

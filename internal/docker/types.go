@@ -46,6 +46,12 @@ type ContainerPort struct {
 	Type        string `json:"Type"`
 }
 
+type DockerVersionInfo struct {
+	Docker  string `json:"docker"`
+	Buildx  string `json:"buildx"`
+	Compose string `json:"compose"`
+}
+
 type OwnerContext struct {
 	UserID        int64
 	Username      string

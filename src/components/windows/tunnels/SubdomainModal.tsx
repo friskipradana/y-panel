@@ -90,7 +90,7 @@ function SubdomainForm({ open, domains, saving, error, onClose, onCreate }: Subd
               value={zoneId}
               onChange={setZoneId}
               options={domains.map((d) => ({ value: d.zoneId, label: d.name }))}
-              searchable={domains.length > 8}
+              searchable
             />
           </Field>
         </div>

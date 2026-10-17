@@ -150,6 +150,12 @@ export interface Container {
   Metadata?: Record<string, unknown>
 }
 
+export interface DockerVersionInfo {
+  docker: string
+  buildx: string
+  compose: string
+}
+
 export interface DockerOwnerPreview {
   id: number
   username: string
@@ -270,6 +276,22 @@ export interface DockerImage {
   CreatedAt: string
   OwnerUserIds?: number[]
   OwnerNames?: string[]
+}
+
+// A volume, bind mount or tmpfs of a running container
+export interface DockerMount {
+  containerId: string
+  containerName: string
+  projectName?: string
+  ownerUserId?: number
+  ownerName?: string
+  type: 'bind' | 'volume' | 'tmpfs' | string
+  /** Only for named volumes */
+  name?: string
+  source?: string
+  destination: string
+  readOnly: boolean
+  driver?: string
 }
 
 export interface DockerTemplate {
