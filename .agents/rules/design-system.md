@@ -44,6 +44,7 @@ Aturan wajib saat menulis atau mengubah UI Reneo. Penjelasan lengkap ada di [DES
 11. Hover, fokus, atau ukuran kotak yang berubah tidak boleh menggeser tetangganya: lebar kotak cari tidak berubah saat fokus.
 12. Tombol hanya-ikon wajib `aria-label` (dan `title` bila perlu tooltip). `title` saja tidak cukup.
 13. Aksi async memberi umpan balik per objek, bukan global: hanya baris yang diproses yang menampilkan spinner dan terkunci, dan tombol yang tidak berlaku pada status itu disembunyikan (container berhenti tidak punya Stop).
+16. Satu proses, satu penanda loading. Tombol memakai `loading` (spinner menggantikan ikon, bukan menambah), baris yang diproses mengganti tombol yang ditekan dengan spinner dan mengunci aksi lain di barisnya, dan ikon segarkan di toolbar hanya berputar untuk muat ulang, bukan saat memuat pertama (state memuat daftar sudah menjadi penandanya). Overlay progres tidak tampil bersamaan dengan dialog yang sudah menampilkan progres yang sama.
 14. Data dari server tidak ditebak. Error asli ditampilkan (jangan ubah kegagalan jadi daftar kosong), dan angka, versi, atau nama bawaan karangan dilarang; nilai yang tidak terbaca ditulis `-`.
 15. Setiap kunci `t('...')` yang tertulis langsung harus ada di `id.ts` dan `en.ts`. `bun run check:ui` menggagalkan kunci yang hilang.
 

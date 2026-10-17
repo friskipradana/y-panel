@@ -695,6 +695,10 @@
     --docker-cols: minmax(0, 1.4fr) minmax(0, 1.4fr) 104px 56px;
   }
 
+  &--tokens {
+    --docker-cols: minmax(0, 2fr) minmax(104px, 0.9fr) minmax(104px, 0.9fr) minmax(104px, 0.9fr) 84px;
+  }
+
   &--speed {
     --docker-cols: minmax(0, 2fr) 72px 72px 72px 150px;
   }

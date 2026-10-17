@@ -224,11 +224,6 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
         )}
 
         <div className="docker-action-btns">
-          {busy ? (
-            <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('users.working')} aria-label={t('users.working')}>
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-            </button>
-          ) : null}
           {plan?.planId ? (
             <button type="button" className="docker-act-btn docker-act-btn--start" title={t('hosting.users.renewOne')} aria-label={t('hosting.users.renewOne')} disabled={renewMut.isPending} onClick={() => void confirmRenew()}>
               <CalendarPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -248,16 +243,16 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
             </button>
           ) : null}
           {!canManage ? null : user.status === 'active' ? (
-            <button type="button" className="docker-act-btn docker-act-btn--stop" title={t('users.suspend')} aria-label={t('users.suspend')} onClick={onSuspend}>
-              <ShieldOff className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <button type="button" className="docker-act-btn docker-act-btn--stop" title={t('users.suspend')} aria-label={t('users.suspend')} disabled={busy} aria-busy={busy || undefined} onClick={onSuspend}>
+              {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <ShieldOff className="h-3.5 w-3.5" strokeWidth={1.75} />}
             </button>
           ) : (
-            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('users.activate')} aria-label={t('users.activate')} onClick={onActivate}>
-              <Shield className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('users.activate')} aria-label={t('users.activate')} disabled={busy} aria-busy={busy || undefined} onClick={onActivate}>
+              {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Shield className="h-3.5 w-3.5" strokeWidth={1.75} />}
             </button>
           )}
           {canManage ? (
-            <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} onClick={onDelete}>
+            <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={busy} onClick={onDelete}>
               <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           ) : null}

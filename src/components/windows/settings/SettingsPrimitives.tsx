@@ -88,7 +88,7 @@ export function DnsEditor({
           <Globe2 size={15} className="opacity-50 shrink-0" />
           <span className="flex-1">{t("settings.noNameservers")}</span>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)] opacity-75 shrink-0">
-            system-default
+            {t("settings.systemDefault")}
           </span>
         </div>
       ) : (
@@ -109,7 +109,7 @@ export function DnsEditor({
               </div>
               <IconButton
                 type="button"
-                onClick={() => removeEntry(index)} label={t("settings.removeNameserverAria", { nameserver })} className="h-7 w-7 rounded-lg text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 cursor-pointer transition-colors"
+                tone="danger" onClick={() => removeEntry(index)} label={t("settings.removeNameserverAria", { nameserver })}
               >
                 <Trash2 size={13} />
               </IconButton>
@@ -144,18 +144,18 @@ export function DnsEditor({
         <Button
           type="button"
           onClick={addEntry}
-          disabled={!newEntry.trim()} variant="primary" className="h-[38px] px-3.5 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+          disabled={!newEntry.trim()} variant="primary" className="shrink-0"
           aria-label={t("settings.addNameserverAria")}
         >
           <Plus size={14} />
-          <span>{t("common.add") || "Add"}</span>
+          <span>{t("common.add")}</span>
         </Button>
       </div>
 
       {/* Quick DNS Presets */}
       <div>
         <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5 opacity-80">
-          Quick Presets
+          {t("settings.dnsPresets")}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           {PRESET_DNS.map((preset) => {
@@ -168,13 +168,13 @@ export function DnsEditor({
                 disabled={active}
                 className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
                   active
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 opacity-60 cursor-default"
+                    ? "border-[var(--panel-success-text)]/30 bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] opacity-60 cursor-default"
                     : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40 cursor-pointer"
                 }`}
               >
                 <div className="flex items-center gap-1.5 truncate">
                   {active ? (
-                    <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
+                    <CheckCircle2 size={11} className="text-[var(--panel-success-text)] shrink-0" />
                   ) : (
                     <Plus size={11} className="opacity-60 shrink-0" />
                   )}

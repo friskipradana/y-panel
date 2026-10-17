@@ -11,6 +11,7 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
     uploadDraft,
     setUploadDraft,
     uploadStaticMut,
+    staticUpload,
     submitStaticUpload,
   } = pw
   if (!(uploadDraft)) return null
@@ -25,14 +26,14 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
       footer={
         <>
           <Button type="button" onClick={() => setUploadDraft(null)} variant="ghost">{t('common.cancel')}</Button>
-          <Button type="button" onClick={submitStaticUpload} disabled={uploadStaticMut.isPending || !uploadDraft.file} variant="primary">
-            {uploadStaticMut.isPending ? 'Mengupload...' : 'Upload & Extract'}
+          <Button type="button" onClick={submitStaticUpload} loading={uploadStaticMut.isPending} disabled={!uploadDraft.file} variant="primary">
+            {uploadStaticMut.isPending ? t(`projects.upload.${staticUpload?.phase ?? 'uploading'}`) + (staticUpload ? ` ${staticUpload.percent}%` : '') : t('projects.uploadAndExtract')}
           </Button>
         </>
       }
     >
       <p className="mb-4 text-[12px] text-[var(--text-secondary)]">
-        {uploadDraft.project.name} • target {uploadDraft.project.workingDir || 'working directory project'}
+        {uploadDraft.project.name} • {t('projects.uploadTarget')} {uploadDraft.project.workingDir || t('projects.uploadTargetFallback')}
       </p>
       <div className="space-y-4">
         <div>

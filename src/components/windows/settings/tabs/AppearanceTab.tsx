@@ -1,246 +1,116 @@
-import { CheckCircle2, Moon, Palette, RefreshCcw, Sun, Type } from "lucide-react";
+import { CircleCheck, Globe2, Moon, Palette, RefreshCcw, Sun, Type } from "lucide-react";
 import { alertLib } from "@/lib/alert";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Language } from "@/lib/i18n";
 import { useThemeStore } from "@/store/themeStore";
+import { Button } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SelectableCard } from "@/components/ui/SelectableCard";
-import { IconBadge } from "@/components/ui/IconBadge";
-import { Button } from "@/components/ui/Button"
+import { Select } from "@/components/ui/Select";
+import { OptionCards } from "../OptionCards";
 
+const FONTS = [
+  { key: "outfit", name: "Outfit", css: "'Outfit', system-ui, sans-serif", desc: "settings.fonts.outfitDesc" },
+  { key: "inter", name: "Inter", css: "'Inter', system-ui, sans-serif", desc: "settings.fonts.interDesc" },
+  { key: "plus-jakarta-sans", name: "Plus Jakarta Sans", css: "'Plus Jakarta Sans', system-ui, sans-serif", desc: "settings.fonts.plusJakartaSansDesc" },
+  { key: "geist", name: "Geist", css: "'Geist', system-ui, sans-serif", desc: "settings.fonts.geistDesc" },
+  { key: "roboto", name: "Roboto", css: "'Roboto', system-ui, sans-serif", desc: "settings.fonts.robotoDesc" },
+] as const;
+
+// Language, light or dark, the typeface and its size
 export function AppearanceTab() {
-  const { t } = useI18n();
-  const {
-    mode,
-    setMode,
-    fontFamily,
-    setFontFamily,
-    fontSize,
-    setFontSize,
-    resetToDefaults,
-  } = useThemeStore();
-  const handleResetAllUIDefaults = async () => {
-    const isConfirmed = await alertLib.confirm(
-      t("settings.appearance.resetConfirmTitle"),
-      t("settings.appearance.resetConfirmMessage"),
-      t("settings.appearance.resetConfirmAction"),
-      t("common.cancel"),
-      "warning",
-      "settings",
-    );
-    if (isConfirmed) {
+  const { t, language, setLanguage } = useI18n();
+  const { mode, setMode, fontFamily, setFontFamily, fontSize, setFontSize, resetToDefaults } = useThemeStore();
+
+  const reset = async () => {
+    const confirmed = await alertLib.confirm(t("settings.appearance.resetConfirmTitle"), t("settings.appearance.resetConfirmMessage"), t("settings.appearance.resetConfirmAction"), t("common.cancel"), "warning", "settings");
+    if (confirmed) {
       resetToDefaults();
-      alertLib.fire(
-        t("settings.appearance.resetSuccessTitle"),
-        t("settings.appearance.resetSuccessMessage"),
-        "success",
-        "settings",
-      );
+      alertLib.fire(t("settings.appearance.resetSuccessTitle"), t("settings.appearance.resetSuccessMessage"), "success", "settings");
     }
   };
 
   return (
     <div className="space-y-3.5">
-      {/* Theme Mode Card */}
-      <div className="panel-shell-card p-3.5 flex flex-col gap-3">
-        <SectionHeader
-          icon={<Palette />}
-          title={t("settings.appearance.themeTitle")}
-          subtitle={t("settings.appearance.themeSubtitle")}
-        />
-
-        <div className="grid grid-cols-2 gap-3 max-w-[440px]">
-          {/* Light Mode Option */}
-          <SelectableCard selected={mode === "light"} onClick={() => setMode("light")} className="flex flex-col items-center gap-2 p-3 rounded-xl border text-center">
-            <IconBadge size="md" tone="warning">
-              <Sun />
-            </IconBadge>
-            <div>
-              <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                {t("settings.appearance.lightMode")}
-              </div>
-              <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5">
-                {t("settings.appearance.lightModeDesc")}
-              </div>
-            </div>
-            {mode === "light" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white">
-                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
-              </span>
-            )}
-          </SelectableCard>
-
-          {/* Dark Mode Option */}
-          <SelectableCard selected={mode === "dark"} onClick={() => setMode("dark")} className="flex flex-col items-center gap-2 p-3 rounded-xl border text-center">
-            <IconBadge size="md" tone="info">
-              <Moon />
-            </IconBadge>
-            <div>
-              <div className="text-[12.5px] font-semibold text-[var(--win-text)]">
-                {t("settings.appearance.darkMode")}
-              </div>
-              <div className="text-[10.5px] text-[var(--text-secondary)] mt-0.5">
-                {t("settings.appearance.darkModeDesc")}
-              </div>
-            </div>
-            {mode === "dark" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-solid)] px-2 py-0.5 text-[10px] font-bold text-white">
-                <CheckCircle2 size={10} /> {t("settings.appearance.active")}
-              </span>
-            )}
-          </SelectableCard>
+      <section className="panel-shell-card settings-card sm:flex-row sm:items-center sm:justify-between">
+        <SectionHeader icon={<Globe2 />} title={t("settings.language.title")} subtitle={t("settings.language.subtitle")} />
+        <div className="w-full shrink-0 sm:w-[220px]">
+          <Select
+            id="settings-language-select"
+            value={language}
+            onChange={(value) => setLanguage(value as Language)}
+            options={[
+              { value: "id", label: t("language.indonesian") },
+              { value: "en", label: t("language.english") },
+            ]}
+          />
         </div>
-      </div>
+      </section>
 
-      {/* UI Fonts & Typography Card */}
-      <div className="panel-shell-card p-3.5 flex flex-col gap-4">
-        <SectionHeader
-          icon={<Type />}
-          title={t("settings.fonts.title")}
-          subtitle={t("settings.fonts.subtitle")}
+      <section className="panel-shell-card settings-card">
+        <SectionHeader icon={<Palette />} title={t("settings.appearance.themeTitle")} subtitle={t("settings.appearance.themeSubtitle")} />
+        <OptionCards
+          label={t("settings.appearance.themeTitle")}
+          value={mode}
+          onChange={setMode}
+          options={[
+            { key: "light", label: t("settings.appearance.lightMode"), description: t("settings.appearance.lightModeDesc"), icon: <Sun /> },
+            { key: "dark", label: t("settings.appearance.darkMode"), description: t("settings.appearance.darkModeDesc"), icon: <Moon /> },
+          ]}
         />
+      </section>
 
-        {/* Font Family Selection */}
-        <div>
-          <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
-            {t("settings.fonts.family")}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {[
-              {
-                key: "outfit" as const,
-                name: "Outfit",
-                desc: t("settings.fonts.outfitDesc"),
-                fontCss: "'Outfit', system-ui, sans-serif",
-              },
-              {
-                key: "inter" as const,
-                name: "Inter",
-                desc: t("settings.fonts.interDesc"),
-                fontCss: "'Inter', system-ui, sans-serif",
-              },
-              {
-                key: "plus-jakarta-sans" as const,
-                name: "Plus Jakarta Sans",
-                desc: t("settings.fonts.plusJakartaSansDesc"),
-                fontCss: "'Plus Jakarta Sans', system-ui, sans-serif",
-              },
-              {
-                key: "geist" as const,
-                name: "Geist",
-                desc: t("settings.fonts.geistDesc"),
-                fontCss: "'Geist', system-ui, sans-serif",
-              },
-              {
-                key: "roboto" as const,
-                name: "Roboto",
-                desc: t("settings.fonts.robotoDesc"),
-                fontCss: "'Roboto', system-ui, sans-serif",
-              },
-            ].map((item) => {
-              const isActive = fontFamily === item.key;
-              return (
-                <SelectableCard key={item.key} selected={isActive} onClick={() => setFontFamily(item.key)} className="flex flex-col p-3 rounded-xl border text-left">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="text-[13px] font-bold text-[var(--win-text)]"
-                      style={{ fontFamily: item.fontCss }}
-                    >
-                      {item.name}
-                    </span>
-                    {isActive && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--panel-primary-solid)] px-1.5 py-0.2 text-[9px] font-bold text-white shrink-0">
-                        <CheckCircle2 size={8} /> {t("settings.appearance.active")}
-                      </span>
-                    )}
-                  </div>
-                  <p
-                    className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2 leading-relaxed"
-                    style={{ fontFamily: item.fontCss }}
-                  >
-                    {item.desc}
-                  </p>
-                  <div
-                    className="mt-2 text-[12px] font-medium text-[var(--win-text)] border-t border-[var(--win-border)]/60 pt-1.5 opacity-90 truncate"
-                    style={{ fontFamily: item.fontCss }}
-                  >
-                    Aa Bb Gg 123
-                  </div>
-                </SelectableCard>
-              );
-            })}
-          </div>
-        </div>
+      <section className="panel-shell-card settings-card">
+        <SectionHeader icon={<Type />} title={t("settings.fonts.title")} subtitle={t("settings.fonts.subtitle")} />
 
-        {/* Font Scaling & Size Selection */}
-        <div className="pt-2 border-t border-[var(--win-border)]">
-          <div className="text-[12px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
-            {t("settings.fonts.size")}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-[560px]">
-            {[
-              {
-                key: "small" as const,
-                label: t("settings.fonts.sizeSmall"),
-                desc: t("settings.fonts.sizeSmallDesc"),
-                scaleLabel: "14.5px (90%)",
-              },
-              {
-                key: "medium" as const,
-                label: t("settings.fonts.sizeMedium"),
-                desc: t("settings.fonts.sizeMediumDesc"),
-                scaleLabel: "16px (100%)",
-              },
-              {
-                key: "large" as const,
-                label: t("settings.fonts.sizeLarge"),
-                desc: t("settings.fonts.sizeLargeDesc"),
-                scaleLabel: "17.5px (110%)",
-              },
-            ].map((item) => {
-              const isActive = fontSize === item.key;
+        <div className="space-y-2">
+          <p className="panel-section-label">{t("settings.fonts.family")}</p>
+          <div role="group" aria-label={t("settings.fonts.family")} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+            {FONTS.map((font) => {
+              const selected = fontFamily === font.key;
               return (
-                <SelectableCard key={item.key} selected={isActive} onClick={() => setFontSize(item.key)} className="flex flex-col p-2.5 rounded-xl border text-left">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[12px] font-bold text-[var(--win-text)]">
-                      {item.label}
+                <SelectableCard key={font.key} selected={selected} onClick={() => setFontFamily(font.key)} className="flex flex-col rounded-xl p-3 text-left">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-bold text-[var(--win-text)]" style={{ fontFamily: font.css }}>
+                      {font.name}
                     </span>
-                    {isActive && (
-                      <CheckCircle2 size={10} className="text-[var(--panel-primary-solid)] shrink-0" />
-                    )}
-                  </div>
-                  <span className="text-[10px] text-[var(--panel-primary-text)] font-mono mt-0.5">
-                    {item.scaleLabel}
+                    {selected ? <CircleCheck size={15} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
                   </span>
-                  <p className="text-[10.5px] text-[var(--text-secondary)] mt-1 leading-snug">
-                    {item.desc}
-                  </p>
+                  <span className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[var(--text-secondary)]" style={{ fontFamily: font.css }}>
+                    {t(font.desc)}
+                  </span>
+                  <span className="mt-2 truncate border-t border-[var(--win-border)] pt-1.5 text-[12px] font-medium text-[var(--win-text)]" style={{ fontFamily: font.css }}>
+                    Aa Bb Gg 123
+                  </span>
                 </SelectableCard>
               );
             })}
           </div>
         </div>
 
+        <div className="space-y-2 border-t border-[var(--win-border)] pt-3.5">
+          <p className="panel-section-label">{t("settings.fonts.size")}</p>
+          <OptionCards
+            label={t("settings.fonts.size")}
+            value={fontSize}
+            onChange={setFontSize}
+            options={[
+              { key: "small", label: `${t("settings.fonts.sizeSmall")} · 90%`, description: t("settings.fonts.sizeSmallDesc") },
+              { key: "medium", label: `${t("settings.fonts.sizeMedium")} · 100%`, description: t("settings.fonts.sizeMediumDesc") },
+              { key: "large", label: `${t("settings.fonts.sizeLarge")} · 110%`, description: t("settings.fonts.sizeLargeDesc") },
+            ]}
+          />
+        </div>
 
-        {/* Reset All UI & Appearance to Default Card */}
-        <div className="pt-2 border-t border-[var(--win-border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <div className="text-[12.5px] font-bold text-[var(--win-text)]">
-              {t("settings.appearance.resetTitle")}
-            </div>
-            <div className="text-[11px] text-[var(--text-secondary)] mt-0.5 max-w-[520px] leading-relaxed">
-              {t("settings.appearance.resetSubtitle")}
-            </div>
+        <div className="flex flex-col items-start justify-between gap-3 border-t border-[var(--win-border)] pt-3.5 sm:flex-row sm:items-center">
+          <div className="min-w-0">
+            <div className="text-[12.5px] font-bold text-[var(--win-text)]">{t("settings.appearance.resetTitle")}</div>
+            <div className="mt-0.5 max-w-[520px] text-[11px] leading-relaxed text-[var(--text-secondary)]">{t("settings.appearance.resetSubtitle")}</div>
           </div>
-
-          <Button
-            type="button"
-            onClick={handleResetAllUIDefaults} className="rounded-xl px-3.5 py-2 text-[12px] font-semibold flex items-center gap-1.5 shrink-0 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 cursor-pointer transition-colors"
-          >
-            <RefreshCcw size={13} />
+          <Button type="button" variant="ghost" className="shrink-0" icon={<RefreshCcw className="h-3.5 w-3.5" />} onClick={() => void reset()}>
             {t("settings.appearance.resetBtn")}
           </Button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

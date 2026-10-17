@@ -33,7 +33,7 @@ export function DemoAccountCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader icon={<Eye />} title={t('settings.demo.title')} subtitle={t('settings.demo.subtitle')} />
 
       <SettingRow

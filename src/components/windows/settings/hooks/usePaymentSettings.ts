@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getPaymentSettings, testPaymentGateway, updatePaymentSettings } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
@@ -27,7 +27,8 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
     enabled: isSuperadmin,
   });
 
-  const paymentSettingsList = paymentQuery.data?.settings ?? [];
+  // memoized: a fresh [] on every render would re-run the effect below on every render
+  const paymentSettingsList = useMemo(() => paymentQuery.data?.settings ?? [], [paymentQuery.data]);
 
   useEffect(() => {
     const mapped: Record<string, string> = {};
@@ -89,6 +90,11 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
     },
   });
 
+  const changedKeys = useMemo(
+    () => paymentSettingsList.map((s) => s.key).filter((key) => (paymentSettings[key] ?? "") !== (originalPaymentSettings[key] ?? "")),
+    [paymentSettingsList, paymentSettings, originalPaymentSettings],
+  );
+
   const handleSavePaymentSettings = async () => {
     const isConfirmed = await alertLib.confirm(
       t("settings.payment.confirmTitle"),
@@ -114,6 +120,7 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
     paymentSettings,
     setPaymentSettings,
     originalPaymentSettings,
+    changedKeys,
     showSecrets,
     setShowSecrets,
     paymentQuery,

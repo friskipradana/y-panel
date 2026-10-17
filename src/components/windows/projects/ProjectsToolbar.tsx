@@ -3,7 +3,7 @@ import type { ProjectsWindowState } from './useProjectsWindow'
 
 // The bar of the Docker window: what is shown, the main action, search, refresh, and a count
 export function ProjectsToolbar({ pw }: { pw: ProjectsWindowState }) {
-  const { t, list, refetch, isFetching, openCreate, stats } = pw
+  const { t, list, refetch, isFetching, isLoading, openCreate, stats } = pw
 
   return (
     <div className="docker-topbar">
@@ -29,7 +29,7 @@ export function ProjectsToolbar({ pw }: { pw: ProjectsWindowState }) {
         </div>
 
         <button type="button" className="docker-icon-btn" title={t('projects.refresh')} aria-label={t('projects.refresh')} onClick={() => void refetch()}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>
 
         <div className="docker-badge-running">{t('projects.activeBadge', { active: stats.running, total: stats.all })}</div>

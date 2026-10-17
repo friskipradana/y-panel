@@ -41,7 +41,7 @@ export function HostingDomainsCard() {
   const addable = all.filter((domain) => !domain.enabled)
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader icon={<Globe2 />} title={t('hosting.domains.title')} subtitle={t('hosting.domains.subtitle')} />
 
       {domains.isLoading ? (

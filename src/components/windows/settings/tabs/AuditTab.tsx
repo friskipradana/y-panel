@@ -12,7 +12,7 @@ export function AuditTab({ host }: { host: HostSettings }) {
   } = host;
 
   return (
-    <div className="panel-shell-card p-5">
+    <div className="panel-shell-card settings-card">
       <div className="mb-3.5 flex items-center justify-between gap-3">
         <SectionHeader
           icon={<Clock />}

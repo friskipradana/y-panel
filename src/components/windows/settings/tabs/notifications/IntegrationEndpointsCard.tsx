@@ -15,7 +15,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
   } = listener;
 
   return (
-    <div className="panel-shell-card p-4.5 flex flex-col gap-3.5">
+    <div className="panel-shell-card settings-card flex flex-col gap-3.5">
       <SectionHeader
         icon={<Wifi />}
         title={t("settings.listener.endpointsTitle")}
@@ -39,7 +39,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
             </code>
           </div>
           <Button
-            type="button" variant="ghost" className="w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
+            type="button" variant="ghost" size="sm" block
             onClick={() =>
               void copyTextToClipboard(listenerRegisterUrl)
             }
@@ -64,7 +64,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
             </code>
           </div>
           <Button
-            type="button" variant="ghost" className="w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
+            type="button" variant="ghost" size="sm" block
             onClick={() =>
               void copyTextToClipboard(listenerWebhookUrl)
             }
@@ -89,7 +89,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
             </code>
           </div>
           <Button
-            type="button" variant="ghost" className="w-full justify-center rounded-lg py-1.5 text-[11.5px] font-semibold flex items-center gap-1.5"
+            type="button" variant="ghost" size="sm" block
             onClick={() =>
               void copyTextToClipboard(listenerSocketUrl)
             }

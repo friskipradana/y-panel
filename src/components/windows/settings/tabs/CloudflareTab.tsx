@@ -1,9 +1,12 @@
-import { AlertTriangle, BadgeCheck, CheckCircle2, Cloud, Eye, EyeOff, LoaderCircle, Save, Trash2 } from "lucide-react";
+import { BadgeCheck, Cloud, Eye, EyeOff, LoaderCircle, Save, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { CloudflareSettings } from "../hooks/useCloudflareSettings";
 import { FieldLabel } from "../SettingsPrimitives";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
+import { IconButton } from "@/components/ui/IconButton"
+import { ErrorState } from "@/components/ui/states"
 import { TextInput } from "@/components/ui/Field"
 
 export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }) {
@@ -23,14 +26,24 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
 
   return (
     <div className="space-y-4">
-      <div className="panel-shell-card p-5">
+      <div className="panel-shell-card settings-card">
         <SectionHeader
           icon={<Cloud />}
           title={t("settings.cloudflare.cardTitle")}
           subtitle={t("settings.cloudflare.cardSubtitle")}
         />
 
-        {cfQuery.isLoading ? (
+        {cfQuery.isError ? (
+          <ErrorState
+            title={t("settings.cloudflare.loadFailed")}
+            hint={t("settings.cloudflare.loadFailedHint")}
+            action={
+              <Button variant="ghost" loading={cfQuery.isFetching} onClick={() => void cfQuery.refetch()}>
+                {t("common.retry")}
+              </Button>
+            }
+          />
+        ) : cfQuery.isLoading ? (
           <div className="py-12 text-center text-[13px] text-[var(--text-secondary)] flex items-center justify-center gap-2">
             <LoaderCircle
               size={16}
@@ -53,26 +66,9 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                   {t("settings.cloudflare.accountConnected")}
                 </div>
               </div>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold ${
-                  cf.status === "active"
-                    ? "bg-[var(--panel-success-bg)] text-[var(--panel-success-text)]"
-                    : cf.status === "invalid"
-                      ? "bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)]"
-                      : "bg-[var(--panel-warning-bg)] text-[var(--panel-warning-text)]"
-                }`}
-              >
-                {cf.status === "active" ? (
-                  <CheckCircle2 size={13} />
-                ) : (
-                  <AlertTriangle size={13} />
-                )}
-                {cf.status === "active"
-                  ? "Terverifikasi"
-                  : cf.status === "invalid"
-                    ? "Token Tidak Valid"
-                    : "Belum Diverifikasi"}
-              </span>
+              <Badge tone={cf.status === "active" ? "success" : cf.status === "invalid" ? "danger" : "warning"} dot>
+                {t(cf.status === "active" ? "settings.cloudflare.statusActive" : cf.status === "invalid" ? "settings.cloudflare.statusInvalid" : "settings.cloudflare.statusUnverified")}
+              </Badge>
             </div>
 
             <div className="space-y-2.5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 text-[12.5px]">
@@ -117,30 +113,11 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
             </div>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button
-                type="button"
-                onClick={() => verifyCFMut.mutate()}
-                disabled={verifyCFMut.isPending} variant="primary" className="rounded-xl px-4 py-2.5 text-[13px] flex items-center gap-2"
-              >
-                {verifyCFMut.isPending ? (
-                  <LoaderCircle
-                    size={14}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <BadgeCheck size={14} />
-                )}
-                {verifyCFMut.isPending
-                  ? "Memverifikasi..."
-                  : "Verifikasi Ulang Token"}
+              <Button type="button" variant="primary" icon={<BadgeCheck className="h-3.5 w-3.5" />} loading={verifyCFMut.isPending} onClick={() => verifyCFMut.mutate()}>
+                {verifyCFMut.isPending ? t("settings.cloudflare.verifying") : t("settings.cloudflare.verifyAgain")}
               </Button>
 
-              <Button
-                type="button"
-                onClick={handleDeleteCloudflare}
-                disabled={deleteCFMut.isPending} className="border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)] rounded-xl px-4 py-2.5 text-[13px] flex items-center gap-2 ml-auto"
-              >
-                <Trash2 size={14} />
+              <Button type="button" variant="danger-soft" className="ml-auto" icon={<Trash2 className="h-3.5 w-3.5" />} loading={deleteCFMut.isPending} onClick={handleDeleteCloudflare}>
                 {t("settings.cloudflare.deleteCredentials")}
               </Button>
             </div>
@@ -181,7 +158,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
               <div>
                 <FieldLabel
                   label={t("settings.cloudflare.apiTokenRequired")}
-                  hint="Permissions: Tunnel & DNS"
+                  hint={t("settings.cloudflare.hintPermissions")}
                 />
                 <div className="relative">
                   <TextInput
@@ -195,17 +172,14 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                       }))
                     } mono className="h-[42px] px-3.5 pr-10 text-[13px]"
                   />
-                  <button
+                  <IconButton
                     type="button"
+                    className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2"
+                    label={showCfToken ? t("settings.hideKey") : t("settings.showKey")}
                     onClick={() => setShowCfToken((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
                   >
-                    {showCfToken ? (
-                      <EyeOff size={15} />
-                    ) : (
-                      <Eye size={15} />
-                    )}
-                  </button>
+                    {showCfToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </IconButton>
                 </div>
               </div>
 
@@ -213,7 +187,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                 <div>
                   <FieldLabel
                     label={t("settings.cloudflare.accountIdRequired")}
-                    hint="Account overview"
+                    hint={t("settings.cloudflare.hintAccount")}
                   />
                   <TextInput
                     value={cfForm.accountId}
@@ -230,7 +204,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                 <div>
                   <FieldLabel
                     label={t("settings.cloudflare.zoneIdOptional")}
-                    hint="Domain overview"
+                    hint={t("settings.cloudflare.hintDomain")}
                   />
                   <TextInput
                     value={cfForm.zoneId}
@@ -247,7 +221,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                 <div>
                   <FieldLabel
                     label={t("settings.cloudflare.baseDomainOptional")}
-                    hint="contoh.com"
+                    hint={t("settings.cloudflare.hintExample")}
                   />
                   <TextInput
                     value={cfForm.baseDomain}
@@ -269,24 +243,13 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
               </span>
               <Button
                 type="button"
+                variant="primary"
+                icon={<Save className="h-3.5 w-3.5" />}
+                loading={saveCFMut.isPending}
+                disabled={!cfForm.apiToken.trim() || !cfForm.accountId.trim()}
                 onClick={() => saveCFMut.mutate(cfForm)}
-                disabled={
-                  saveCFMut.isPending ||
-                  !cfForm.apiToken.trim() ||
-                  !cfForm.accountId.trim()
-                } variant="primary" className="rounded-xl px-5 py-2.5 text-[13px] flex items-center gap-2"
               >
-                {saveCFMut.isPending ? (
-                  <LoaderCircle
-                    size={14}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Save size={14} />
-                )}
-                {saveCFMut.isPending
-                  ? "Menyimpan & Menghubungkan..."
-                  : "Simpan & Verifikasi"}
+                {saveCFMut.isPending ? t("settings.cloudflare.connecting") : t("settings.cloudflare.saveAndVerify")}
               </Button>
             </div>
           </div>

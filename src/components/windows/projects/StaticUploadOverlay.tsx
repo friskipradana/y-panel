@@ -3,8 +3,9 @@ import type { ProjectsWindowState } from './useProjectsWindow'
 import { IconBadge } from '@/components/ui/IconBadge'
 
 export function StaticUploadOverlay({ pw }: { pw: ProjectsWindowState }) {
-  const { t, staticUpload } = pw
-  if (!(staticUpload)) return null
+  const { t, staticUpload, uploadDraft } = pw
+  // while the upload dialog is open it shows the progress itself: two loaders for one upload would be one too many
+  if (!staticUpload || uploadDraft) return null
 
   return (
     <div className="absolute inset-0 z-[80] mobile:fixed flex items-center justify-center bg-[var(--win-bg)]/82 px-6 backdrop-blur-md">
@@ -27,13 +28,7 @@ export function StaticUploadOverlay({ pw }: { pw: ProjectsWindowState }) {
           <div className="panel-progress__bar transition-[width] duration-300" style={{ width: `${staticUpload.percent}%` }} />
         </div>
         <div className="mt-3 text-[11px] leading-5 text-[var(--text-secondary)]">
-          {staticUpload.phase === 'extracting'
-            ? 'Upload sudah diterima. Backend sedang membersihkan folder project dan mengekstrak ZIP.'
-            : staticUpload.phase === 'done'
-              ? 'File sudah siap dipakai oleh static server.'
-              : staticUpload.phase === 'error'
-                ? 'Cek pesan error untuk detail kegagalan.'
-                : 'Jangan tutup window sampai proses selesai.'}
+          {t(`projects.uploadNote.${staticUpload.phase}`)}
         </div>
       </div>
     </div>

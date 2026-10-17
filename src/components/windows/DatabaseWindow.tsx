@@ -46,7 +46,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
             />
           </div>
           <button type="button" className="docker-icon-btn" title={t('common.refresh')} aria-label={t('common.refresh')} disabled={query.isFetching} onClick={() => void query.refetch()}>
-            <RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            <RefreshCw className={`h-3.5 w-3.5 ${(query.isFetching && !query.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
           <div className="docker-badge-running">{t('databases.count', { count: all })}</div>
         </div>

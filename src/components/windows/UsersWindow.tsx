@@ -137,7 +137,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
             />
           </div>
           <button type="button" className="docker-icon-btn" title={t('users.refresh')} aria-label={t('users.refresh')} onClick={() => { void refetch(); void summary.refetch() }}>
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
         </div>
       </div>

@@ -18,7 +18,7 @@ export interface ListColumn {
 
 interface ListTableProps {
   /** Selects the column widths in _docker.scss */
-  variant: 'containers' | 'images' | 'networks' | 'volumes' | 'templates' | 'projects' | 'dns' | 'routes' | 'files' | 'databases' | 'users' | 'users-plain' | 'docs' | 'speed' | 'widgets' | 'widgets-installed'
+  variant: 'containers' | 'images' | 'networks' | 'volumes' | 'templates' | 'projects' | 'dns' | 'routes' | 'files' | 'databases' | 'users' | 'users-plain' | 'docs' | 'speed' | 'widgets' | 'widgets-installed' | 'tokens'
   columns: ListColumn[]
   /** No rows to head (nothing yet, still loading, or failed): the header is left out */
   empty?: boolean

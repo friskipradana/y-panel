@@ -43,7 +43,7 @@ export function HostingSubdomainsCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader icon={<Link2 />} title={t('hosting.subs.title')} subtitle={t('hosting.subs.subtitle')} />
 
       {list.isLoading ? (

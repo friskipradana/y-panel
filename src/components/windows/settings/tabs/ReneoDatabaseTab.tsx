@@ -9,31 +9,17 @@ import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { KpiCard } from '@/components/ui/KpiCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { TextInput } from '@/components/ui/Field'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
 const TRUNCATE_DAYS = [3, 7, 14, 30, 60]
 const TRUNCATE_TARGETS = [
-  { label: 'Semua (Logs & Audit)', value: 'all' },
-  { label: 'Runtime Logs', value: 'runtime_logs' },
-  { label: 'Settings Audit', value: 'settings_audit' },
+  { label: 'settings.db.all', value: 'all' },
+  { label: 'settings.db.runtimeLogs', value: 'runtime_logs' },
+  { label: 'settings.db.settingsAudit', value: 'settings_audit' },
 ]
-
-function MetricCard({ icon, label, value, description }: { icon: React.ReactNode; label: string; value: string; description: React.ReactNode }) {
-  return (
-    <article className="panel-kpi-card">
-      <div className="panel-kpi-card__header">
-        <div className="flex min-w-0 items-center gap-2">
-          {icon}
-          <span className="truncate text-[12px] font-semibold">{label}</span>
-        </div>
-      </div>
-      <div className="panel-kpi-card__value">{value}</div>
-      <p className="panel-kpi-card__description">{description}</p>
-    </article>
-  )
-}
 
 function DetailRow({ label, value, tone = 'normal' }: { label: string; value: string; tone?: 'normal' | 'warning' }) {
   return (
@@ -177,7 +163,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
 
         <div className="flex items-center gap-2">
           <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
-            <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
+            <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
           </IconButton>
         </div>
       </div>
@@ -198,7 +184,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
                 id="database-truncate-target"
                 value={truncateTarget}
                 onChange={setTruncateTarget}
-                options={TRUNCATE_TARGETS}
+                options={TRUNCATE_TARGETS.map((target) => ({ value: target.value, label: t(target.label) }))}
                 className="max-w-[220px]"
                 buttonClassName="rounded-full px-3 py-2 text-[12px]"
                 dropdownClassName="min-w-[220px]"
@@ -218,18 +204,18 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
                 searchPlaceholder={t('database.searchDayPlaceholder')}
               />
 
-              <Button type="button" onClick={() => void handleTruncate()} disabled={truncating} variant="danger" className="rounded-full px-4 py-2 text-[12px]">
+              <Button type="button" onClick={() => void handleTruncate()} disabled={truncating} variant="danger">
                 {truncating ? t('database.truncatingShort') : t('database.truncateButton')}
               </Button>
             </div>
           </section>
 
           <div className="panel-kpi-grid panel-kpi-grid--4">
-            <MetricCard
+            <KpiCard
               icon={<ShieldCheck size={16} />}
-              label={t('database.connectionLabel')}
+              title={t('database.connectionLabel')}
               value={status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
-              description={
+              subtitle={
                 status.connected ? (
                   <>
                     <span className="block">{status.user}@{status.host}:{status.port}</span>
@@ -240,13 +226,13 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
                 )
               }
             />
-            <MetricCard icon={<HardDriveDownload size={16} />} label={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount ?? 0)} description={t('database.runtimeLogsDescription')} />
-            <MetricCard icon={<ActivitySquare size={16} />} label={t('database.changelogRowsLabel')} value={String(status.changelogCount ?? 0)} description={t('database.changelogRowsDescription')} />
-            <MetricCard icon={<Database size={16} />} label={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount ?? 0)} description={t('database.settingsAuditDescription')} />
+            <KpiCard icon={<HardDriveDownload size={16} />} title={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount ?? 0)} subtitle={t('database.runtimeLogsDescription')} />
+            <KpiCard icon={<ActivitySquare size={16} />} title={t('database.changelogRowsLabel')} value={String(status.changelogCount ?? 0)} subtitle={t('database.changelogRowsDescription')} />
+            <KpiCard icon={<Database size={16} />} title={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount ?? 0)} subtitle={t('database.settingsAuditDescription')} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-            <section className="panel-shell-card p-5">
+            <section className="panel-shell-card settings-card">
               <div className="mb-4 flex items-start gap-3">
                 <IconBadge size="lg">
                   <Database />
@@ -336,7 +322,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
             </section>
           </div>
 
-          <section className="panel-shell-card p-5">
+          <section className="panel-shell-card settings-card">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="panel-shell-card__title">{t('database.recentAuditTitle')}</div>

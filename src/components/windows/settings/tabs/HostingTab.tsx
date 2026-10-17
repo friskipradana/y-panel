@@ -64,7 +64,7 @@ export function HostingTab() {
 
   return (
     <div className="space-y-3.5">
-      <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+      <div className="panel-shell-card flex flex-col gap-4 settings-card">
         <SectionHeader icon={<Store />} title={t('settings.hosting.title')} subtitle={t('settings.hosting.subtitle')} />
         <SettingRow
           title={t('settings.hosting.toggleTitle')}

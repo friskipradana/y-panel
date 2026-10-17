@@ -35,7 +35,7 @@ export function HostingChecklist({ onGo }: { onGo: (section: HostingSection) => 
   const blocking = missing.filter((step) => step.required)
 
   return (
-    <div className="panel-shell-card flex flex-col gap-3 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-3 settings-card">
       <SectionHeader
         icon={<ListChecks />}
         title={t('hosting.check.title')}

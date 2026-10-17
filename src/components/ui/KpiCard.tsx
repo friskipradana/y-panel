@@ -4,7 +4,7 @@ export interface KpiCardProps {
   icon?: ReactNode
   title: string
   value: ReactNode
-  subtitle?: string
+  subtitle?: ReactNode
   /** 0-100; menampilkan persentase dan bar progres */
   percent?: number
 }

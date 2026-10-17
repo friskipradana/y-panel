@@ -174,7 +174,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
             <Download size={14} />
           </IconButton>
           <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
-            <RefreshCcw size={14} className={query.isFetching ? 'animate-spin' : ''} />
+            <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
           </IconButton>
         </div>
       </div>

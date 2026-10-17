@@ -1209,3 +1209,203 @@ button:focus-visible,
     padding: 10px;
   }
 }
+
+// Settings: the menu by group, and the title of the page beside it
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 190px;
+  flex-shrink: 0;
+  padding: 10px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  user-select: none;
+}
+
+.settings-nav__title {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--win-text);
+}
+
+.settings-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  & + & {
+    margin-top: 8px;
+  }
+}
+
+.settings-nav__label {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--panel-surface-hover);
+    color: var(--win-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: -2px;
+  }
+
+  &--active {
+    border-color: color-mix(in srgb, var(--panel-primary-text) 25%, transparent);
+    background: var(--panel-primary-bg);
+    color: var(--panel-primary-text);
+    font-weight: 600;
+  }
+}
+
+.settings-nav__icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.settings-nav__item--active .settings-nav__icon {
+  opacity: 1;
+}
+
+.settings-page__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--win-border);
+}
+
+.settings-page__icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--panel-primary-text);
+}
+
+.settings-page__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--win-text);
+}
+
+.settings-page__desc {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+// Phones: the groups run into one strip that scrolls sideways
+.layout-mobile {
+  .settings-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--win-border);
+  }
+
+  .settings-nav__title,
+  .settings-nav__label {
+    display: none;
+  }
+
+  .settings-nav__group {
+    display: contents;
+
+    & + & {
+      margin-top: 0;
+    }
+  }
+
+  .settings-nav__item {
+    width: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+// Every card of a Settings page: one padding and one gap, so the pages read the same
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+// A live sample of a setting: on a surface that stands in for the desktop
+.settings-preview {
+  padding: 12px 16px 16px;
+  border: 1px solid var(--win-border);
+  border-radius: 14px;
+  background: var(--win-content-bg);
+}
+
+.settings-preview__label {
+  margin: 0 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+// The save row of a settings page: it follows the scroll, and turns blue while something is unsaved
+.settings-savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  background: var(--menu-bg);
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.15s;
+
+  &--dirty {
+    border-color: var(--panel-primary-text);
+  }
+}

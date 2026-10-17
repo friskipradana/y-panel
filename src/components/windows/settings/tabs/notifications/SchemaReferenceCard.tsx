@@ -6,7 +6,7 @@ export function SchemaReferenceCard() {
   const { t } = useI18n();
 
   return (
-    <div className="panel-shell-card p-4.5 flex flex-col gap-3">
+    <div className="panel-shell-card settings-card flex flex-col gap-3">
       <SectionHeader
         icon={<Copy />}
         title={t("settings.listener.schemaTitle")}

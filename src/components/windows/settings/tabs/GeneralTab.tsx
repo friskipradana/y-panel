@@ -1,44 +1,18 @@
-import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { SitePublicCard } from "../SitePublicCard";
-import {
-  ArrowUpCircle,
-  Check,
-  Copy,
-  ExternalLink,
-  Globe2,
-  LoaderCircle,
-  RefreshCw,
-  Save,
-  Server,
-  CircleArrowUp,
-  CircleCheck,
-  Terminal,
-} from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Select } from "@/components/ui/Select";
-import { useI18n, type Language } from "@/lib/i18n";
+import { UpdateCard } from "../UpdateCard";
+import { SettingsSaveBar } from "../SettingsSaveBar";
+import { Globe2, Server } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 import type { HostSettings } from "../hooks/useHostSettings";
 import { FieldLabel, TimezoneSelect, DnsEditor } from "../SettingsPrimitives";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconBadge } from "@/components/ui/IconBadge";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { TextInput } from "@/components/ui/Field";
-import { getUpdateInfo, getUpdateStatus, applyUpdate } from "@/api/system";
-import { copyTextToClipboard } from "@/api/agent";
-import { alertLib } from "@/lib/alert";
-import { toast } from "sonner";
-import { useUpdateProgress } from "@/store/updateStore";
 
 export function GeneralTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
-  const { language, setLanguage, t } = useI18n();
-  const queryClient = useQueryClient();
+  const { t } = useI18n();
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
-  const [copied, setCopied] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const showUpdateProgress = useUpdateProgress((s) => s.show);
-
   const {
     hostname,
     setHostname,
@@ -52,85 +26,6 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
     identityDirty,
   } = host;
 
-  const updateQuery = useQuery({
-    queryKey: ["system-update"],
-    queryFn: () => getUpdateInfo(false),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const statusQuery = useQuery({
-    queryKey: ["system-update-status"],
-    queryFn: getUpdateStatus,
-    refetchInterval: (query) => (query.state.data?.state === "running" ? 3000 : false),
-  });
-
-  const applyMutation = useMutation({
-    mutationFn: (targetVersion?: string) => applyUpdate(targetVersion),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["system-update-status"] });
-      showUpdateProgress();
-    },
-    onError: (err: unknown) => {
-      const message =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
-          : err instanceof Error
-            ? err.message
-            : String(err);
-      alertLib.fire(
-        t("settings.update.statusFailed"),
-        message || t("settings.update.statusFailed"),
-        "error"
-      );
-    },
-  });
-
-  const handleCheckUpdate = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      const info = await queryClient.fetchQuery({
-        queryKey: ["system-update"],
-        queryFn: () => getUpdateInfo(true),
-        staleTime: 0,
-      });
-      if (info.error) toast.error(t("settings.update.checkFailed"), { description: info.error });
-      else if (info.available) toast.info(t("settings.update.foundToast", { version: info.latest }));
-      else toast.success(t("settings.update.upToDateToast"));
-    } catch {
-      toast.error(t("settings.update.checkFailed"));
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const handleCopyCli = async () => {
-    try {
-      // works on plain http too, where navigator.clipboard is unavailable
-      if (await copyTextToClipboard("sudo reneo update")) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
-    } catch {
-      // the command stays visible in the block above
-    }
-  };
-
-  const handleApplyUpdate = async () => {
-    const confirmed = await alertLib.confirm(
-      t("settings.update.confirmTitle"),
-      t("settings.update.confirmDesc"),
-      t("settings.update.apply"),
-      t("common.cancel"),
-      "warning",
-      "settings"
-    );
-    if (confirmed) {
-      applyMutation.mutate(updateQuery.data?.latest);
-    }
-  };
-
-  const updateInfo = updateQuery.data;
 
   return (
     <div className="space-y-3.5">
@@ -168,140 +63,10 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
         </div>
       </div>
 
-      {/* Reneo Version & Update Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionHeader
-            icon={<ArrowUpCircle />}
-            title={t("settings.update.title")}
-            subtitle={t("settings.update.subtitle")}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleCheckUpdate}
-            aria-busy={isRefreshing}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--win-border)] px-4 py-2 text-[13px] sm:min-h-9 sm:px-3.5"
-          >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-            <span>{isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}</span>
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 rounded-xl bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
-          <div className="flex items-center gap-3">
-            <IconBadge size="md" tone={updateInfo?.available ? "warning" : "success"}>
-              {updateInfo?.available ? <CircleArrowUp /> : <CircleCheck />}
-            </IconBadge>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-[var(--win-text)]">
-                  Reneo <span className="font-mono text-[var(--panel-primary-text)] font-bold">v{updateInfo?.current || "..."}</span>
-                </span>
-                <Badge tone={updateInfo?.available ? "warning" : "success"} dot>
-                  {updateInfo?.available ? t("settings.update.updateAvailable") : t("settings.update.upToDate")}
-                </Badge>
-              </div>
-              <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                {updateInfo?.latest ? `${t("settings.update.latestVersion")}: v${updateInfo.latest}` : t("settings.update.checking")}
-                {updateInfo?.checkedAt && ` • ${t("settings.update.lastChecked")}: ${new Date(updateInfo.checkedAt).toLocaleTimeString()}`}
-              </div>
-            </div>
-          </div>
-
-          {updateInfo?.releaseUrl && (
-            <a
-              href={updateInfo.releaseUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12px] text-[var(--panel-primary-text)] hover:underline font-medium"
-            >
-              <span>{t("settings.update.releaseNotes")}</span>
-              <ExternalLink size={12} />
-            </a>
-          )}
-        </div>
-
-        {updateInfo?.available && (
-          <div className="space-y-3 pt-1">
-            <div className="text-[12px] text-[var(--text-secondary)]">
-              {t("settings.update.cliHint")}
-            </div>
-            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)]">
-              <div className="flex items-center gap-2 font-mono text-[12px] text-[var(--win-text)] overflow-x-auto">
-                <Terminal size={13} className="text-[var(--text-secondary)] shrink-0" />
-                <span>sudo reneo update</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleCopyCli}
-                className="shrink-0 flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-lg"
-              >
-                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                <span>{copied ? t("settings.update.copied") : t("common.copy")}</span>
-              </Button>
-            </div>
-
-            {updateInfo?.canApply && (
-              <div className="flex justify-end pt-1">
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleApplyUpdate}
-                  disabled={applyMutation.isPending || statusQuery.data?.state === "running"}
-                  className="rounded-xl px-4 py-2 text-[12.5px] font-semibold flex items-center gap-2"
-                >
-                  {applyMutation.isPending || statusQuery.data?.state === "running" ? (
-                    <LoaderCircle size={13} className="animate-spin" />
-                  ) : (
-                    <ArrowUpCircle size={13} />
-                  )}
-                  <span>
-                    {applyMutation.isPending || statusQuery.data?.state === "running"
-                      ? t("settings.update.applying")
-                      : t("settings.update.apply")}
-                  </span>
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {statusQuery.data?.state === "done" && statusQuery.data.to ? (
-          <div className="p-3 rounded-xl border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] text-[12px] font-medium">
-            {t("settings.update.statusDone", { version: statusQuery.data.to })}
-          </div>
-        ) : null}
-
-        {statusQuery.data?.state === "failed" ? (
-          <div className="p-3 rounded-xl border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[12px] space-y-1.5">
-            <div className="font-medium">{t("settings.update.statusFailed")}</div>
-            {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-              <pre className="p-2 rounded bg-black/40 text-[11px] font-mono text-zinc-300 max-h-24 overflow-y-auto whitespace-pre-wrap">
-                {statusQuery.data.log.slice(-8).join("\n")}
-              </pre>
-            )}
-          </div>
-        ) : null}
-
-        {statusQuery.data?.state === "running" && (
-          <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[12px] space-y-1.5">
-            <div className="flex items-center gap-2 font-medium">
-              <LoaderCircle size={13} className="animate-spin" />
-              <span>{t("settings.update.statusRunning")}</span>
-            </div>
-            {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-              <pre className="p-2 rounded bg-black/40 text-[11px] font-mono text-zinc-300 max-h-24 overflow-y-auto whitespace-pre-wrap">
-                {statusQuery.data.log.join("\n")}
-              </pre>
-            )}
-          </div>
-        )}
-      </div>
+      <UpdateCard />
 
       {/* Host Identity Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+      <div className="panel-shell-card settings-card">
         <SectionHeader
           icon={<Server />}
           title={t("settings.identity")}
@@ -345,7 +110,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
       </div>
 
       {/* DNS Configuration Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+      <div className="panel-shell-card settings-card">
         <SectionHeader
           icon={<Globe2 />}
           title={t("settings.dnsNameservers")}
@@ -359,67 +124,19 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
           nameservers={nameservers}
           onChange={setNameservers}
         />
-
-        {/* Action Bar */}
-        <div className="border-t border-[var(--win-border)] pt-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold text-[var(--win-text)]">
-              {t("settings.saveHostChanges")}
-            </div>
-            <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5">
-              {identityDirty ? t("settings.saveHostChangesHint") : t("settings.noChanges")}
-            </div>
-          </div>
-
-          <Button
-            id="settings-save"
-            type="button"
-            onClick={handleUpdateIdentity}
-            disabled={mutation.isPending || !identityDirty || hostnameError} variant="primary" className="rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
-          >
-            {mutation.isPending ? (
-              <LoaderCircle size={14} className="animate-spin" />
-            ) : (
-              <Save size={14} />
-            )}
-            {mutation.isPending
-              ? t("settings.saving")
-              : t("settings.saveSettings")}
-          </Button>
-        </div>
       </div>
 
-      {/* Language Preferences Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <IconBadge size="md" tone="neutral">
-            <Globe2 />
-          </IconBadge>
-          <div>
-            <div className="text-[13px] font-semibold text-[var(--win-text)]">
-              {t("settings.language.title")}
-            </div>
-            <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 max-w-[480px]">
-              {t("settings.language.subtitle")}
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full sm:w-[220px] shrink-0">
-          <Select
-            id="settings-language-select"
-            value={language}
-            onChange={(value) => setLanguage(value as Language)}
-            options={[
-              { value: "id", label: t("language.indonesian") },
-              { value: "en", label: t("language.english") },
-            ]}
-            className="w-full"
-            buttonClassName="panel-input min-h-[38px] justify-between rounded-xl px-3.5 py-1.5 text-[12.5px] font-semibold"
-            dropdownClassName="left-auto right-0 z-[700] min-w-[190px]"
-          />
-        </div>
-      </div>
+      <SettingsSaveBar
+        id="settings-save"
+        title={t("settings.saveHostChanges")}
+        hint={identityDirty ? t("settings.saveHostChangesHint") : t("settings.noChanges")}
+        dirty={identityDirty}
+        pending={mutation.isPending}
+        invalid={hostnameError}
+        onSave={handleUpdateIdentity}
+        saveLabel={t("settings.saveSettings")}
+        pendingLabel={t("settings.saving")}
+      />
 
       {isSuperadmin ? <SitePublicCard /> : null}
     </div>

@@ -27,7 +27,7 @@ export function SitePublicCard() {
   const busy = !data || mutation.isPending
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader icon={<Globe2 />} title={t('settings.site.title')} subtitle={t('settings.site.subtitle')} />
 
       <SettingRow

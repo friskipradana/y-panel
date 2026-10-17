@@ -44,7 +44,7 @@ function TermsForm({ settings, title }: { settings: SiteSettings; title: string 
   })
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader icon={<ReceiptText />} title={title} subtitle={t('hosting.terms.subtitle')} />
 
       <div className="grid gap-3 sm:grid-cols-2">

@@ -10,6 +10,7 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
     setActiveTab,
     refreshAll,
     isFetching,
+    isLoading,
     openDeployModal,
     setShowPullImage,
     setShowCreateNet,
@@ -72,7 +73,7 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
         </div>
 
         <button type="button" className="docker-icon-btn" title={t('docker.refresh')} aria-label={t('docker.refresh')} onClick={refreshAll}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>
 
         <div className="docker-badge-running">

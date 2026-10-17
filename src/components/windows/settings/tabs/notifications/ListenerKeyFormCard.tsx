@@ -1,4 +1,4 @@
-import { BadgeCheck, Copy, Key, LoaderCircle, RefreshCcw, Save } from "lucide-react";
+import { BadgeCheck, Copy, Key, RefreshCcw, Save } from "lucide-react";
 import { copyTextToClipboard } from "@/api/agent";
 import { Select } from "@/components/ui/Select";
 import { FieldLabel } from "../../SettingsPrimitives";
@@ -27,18 +27,17 @@ export function ListenerKeyFormCard({ listener, setActiveTab }: { listener: Noti
   } = listener;
 
   return (
-    <div className="panel-shell-card p-4.5 flex flex-col gap-4">
-      {/* Notice for MCP / REST API tokens */}
-      <div className="p-3 rounded-xl border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)]/30 flex items-center justify-between gap-3 text-[12px]">
+    <div className="panel-shell-card settings-card flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)] p-3 text-[12px]">
         <div className="flex items-center gap-2 text-[var(--win-text)]">
           <Key size={14} className="text-[var(--panel-primary-text)] shrink-0" />
-          <span>Mencari Token untuk AI MCP (Claude / Cursor) atau REST API server?</span>
+          <span>{t("settings.listener.tokenNotice")}</span>
         </div>
         <Button
           type="button"
-          onClick={() => setActiveTab("api_tokens")} variant="primary" className="px-3 py-1 rounded-lg text-[11px] font-semibold shrink-0 cursor-pointer"
+          onClick={() => setActiveTab("api_tokens")} variant="primary" size="sm" className="shrink-0"
         >
-          Buka API & MCP Tokens →
+          {t("settings.listener.openTokens")}
         </Button>
       </div>
 
@@ -49,14 +48,13 @@ export function ListenerKeyFormCard({ listener, setActiveTab }: { listener: Noti
           subtitle={t("settings.listener.manageSubtitle")}
         />
         <Button
-          type="button" variant="ghost" className="rounded-xl px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
+          type="button" variant="ghost" icon={<RefreshCcw size={12} />}
           onClick={() =>
             setListenerApiKey(
               `ypnl_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`,
             )
           }
         >
-          <RefreshCcw size={12} />{" "}
           {t("settings.listener.generateKey")}
         </Button>
       </div>
@@ -137,37 +135,31 @@ export function ListenerKeyFormCard({ listener, setActiveTab }: { listener: Noti
         <Button
           id="notification-save-api-key"
           type="button"
+          variant="primary"
+          icon={<Save size={13} />}
+          loading={registerDeviceMutation.isPending}
           onClick={handleSaveListenerDevice}
-          disabled={registerDeviceMutation.isPending} variant="primary" className="rounded-xl px-4 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
         >
-          {registerDeviceMutation.isPending ? (
-            <LoaderCircle size={13} className="animate-spin" />
-          ) : (
-            <Save size={13} />
-          )}
           {t("settings.listener.saveApiKey")}
         </Button>
         <Button
           id="notification-update-device-meta"
           type="button"
+          variant="ghost"
+          icon={<BadgeCheck size={13} />}
+          loading={updateDeviceMutation.isPending}
           onClick={handleUpdateListenerMetadata}
-          disabled={updateDeviceMutation.isPending} variant="ghost" className="rounded-xl px-3.5 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
         >
-          {updateDeviceMutation.isPending ? (
-            <LoaderCircle size={13} className="animate-spin" />
-          ) : (
-            <BadgeCheck size={13} />
-          )}
           {t("settings.listener.updateMeta")}
         </Button>
         <Button
-          type="button" variant="ghost" className="rounded-xl px-3.5 py-2 text-[12.5px] font-semibold flex items-center gap-1.5"
-          onClick={() =>
-            void copyTextToClipboard(listenerApiKey)
-          }
+          type="button"
+          variant="ghost"
+          icon={<Copy size={13} />}
+          onClick={() => void copyTextToClipboard(listenerApiKey)}
           disabled={!listenerApiKey}
         >
-          <Copy size={13} /> {t("settings.listener.copyNewKey")}
+          {t("settings.listener.copyNewKey")}
         </Button>
       </div>
     </div>

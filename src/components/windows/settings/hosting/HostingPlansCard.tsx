@@ -68,7 +68,7 @@ export function HostingPlansCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 p-4.5">
+    <div className="panel-shell-card flex flex-col gap-4 settings-card">
       <SectionHeader
         icon={<Boxes />}
         title={t('hosting.plans.title')}

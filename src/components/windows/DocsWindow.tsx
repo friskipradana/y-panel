@@ -156,7 +156,7 @@ export default function DocsWindow() {
             />
           </div>
           <button type="button" className="docker-icon-btn" title={t('docs.refresh')} aria-label={t('docs.refresh')} onClick={() => void docsQuery.refetch()}>
-            <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            <RefreshCw className={`h-3.5 w-3.5 ${(docsQuery.isFetching && !docsQuery.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
           <div className="docker-badge-running">{t('docs.count', { count: all })}</div>
         </div>

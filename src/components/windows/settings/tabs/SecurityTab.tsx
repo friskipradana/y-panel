@@ -1,14 +1,13 @@
-import { Copy, Database, Key, LoaderCircle, LockKeyhole, RefreshCcw } from "lucide-react";
+import { Copy, Database, Key, LockKeyhole, RefreshCcw } from "lucide-react";
 import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
 import type { HostSettings } from "../hooks/useHostSettings";
 import type { SettingsTabKey } from "../constants";
-import { FieldLabel } from "../SettingsPrimitives";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { IconBadge } from "@/components/ui/IconBadge";
 import { Button } from "@/components/ui/Button"
-import { TextInput } from "@/components/ui/Field"
+import { Field, TextInput } from "@/components/ui/Field"
 
 export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setActiveTab: (tab: SettingsTabKey) => void }) {
   const { t } = useI18n();
@@ -25,48 +24,27 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
     handleResetPrimaryPassword,
   } = host;
 
+  // told while typing, not after the agent refuses
+  const tooShort = primaryPassword !== "" && primaryPassword.length < 8;
+  const mismatch = primaryPasswordConfirm !== "" && primaryPassword !== primaryPasswordConfirm;
+
   return (
     <div className="space-y-3.5">
       {/* Primary Account Password Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+      <div className="panel-shell-card settings-card">
         <SectionHeader
           icon={<LockKeyhole />}
           title={t("settings.primaryPasswordTitle")}
           subtitle={t("settings.primaryPasswordSubtitle")}
         />
 
-        {/* Password Inputs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <FieldLabel
-              label={t("settings.newPassword")}
-              hint={t("settings.minEightChars")}
-            />
-            <TextInput
-              id="settings-primary-password"
-              type="password"
-              value={primaryPassword}
-              onChange={(event) =>
-                setPrimaryPassword(event.target.value)
-              } className="h-[40px] px-3.5 text-[13px]"
-              placeholder={t("settings.enterNewPassword")}
-            />
-          </div>
-          <div>
-            <FieldLabel
-              label={t("settings.confirmPassword")}
-              hint={t("settings.mustMatch")}
-            />
-            <TextInput
-              id="settings-primary-password-confirm"
-              type="password"
-              value={primaryPasswordConfirm}
-              onChange={(event) =>
-                setPrimaryPasswordConfirm(event.target.value)
-              } className="h-[40px] px-3.5 text-[13px]"
-              placeholder={t("settings.repeatNewPassword")}
-            />
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t("settings.newPassword")} htmlFor="settings-primary-password" hint={t("settings.minEightChars")} error={tooShort ? t("settings.passwordTooShort") : undefined}>
+            <TextInput id="settings-primary-password" type="password" autoComplete="new-password" invalid={tooShort} value={primaryPassword} onChange={(event) => setPrimaryPassword(event.target.value)} placeholder={t("settings.enterNewPassword")} />
+          </Field>
+          <Field label={t("settings.confirmPassword")} htmlFor="settings-primary-password-confirm" hint={t("settings.mustMatch")} error={mismatch ? t("settings.passwordMismatch") : undefined}>
+            <TextInput id="settings-primary-password-confirm" type="password" autoComplete="new-password" invalid={mismatch} value={primaryPasswordConfirm} onChange={(event) => setPrimaryPasswordConfirm(event.target.value)} placeholder={t("settings.repeatNewPassword")} />
+          </Field>
         </div>
 
         {/* Security Notice Alert */}
@@ -98,17 +76,11 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             disabled={
               resetPrimaryPasswordMutation.isPending ||
               !primaryPassword.trim() ||
-              !primaryPasswordConfirm.trim()
-            } variant="primary" className="rounded-xl px-5 py-2 text-[13px] font-semibold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
+              !primaryPasswordConfirm.trim() ||
+              tooShort ||
+              mismatch
+            } variant="primary" icon={<LockKeyhole size={14} />} loading={resetPrimaryPasswordMutation.isPending}
           >
-            {resetPrimaryPasswordMutation.isPending ? (
-              <LoaderCircle
-                size={14}
-                className="animate-spin"
-              />
-            ) : (
-              <LockKeyhole size={14} />
-            )}
             {resetPrimaryPasswordMutation.isPending
               ? t("settings.changingPassword")
               : t("settings.changePrimaryPassword")}
@@ -117,7 +89,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
       </div>
 
       {/* Database & Storage Card */}
-      <div className="panel-shell-card p-4.5 flex flex-col gap-4">
+      <div className="panel-shell-card settings-card">
         <SectionHeader
           icon={<Database />}
           title={t("settings.databaseTitle")}
@@ -192,14 +164,9 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
               <Button
                 id="settings-db-refresh"
                 type="button"
-                onClick={() => void databaseQuery.refetch()} variant="ghost" className="rounded-xl px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
+                onClick={() => void databaseQuery.refetch()} variant="ghost"
+                icon={<RefreshCcw size={12} />} loading={databaseQuery.isFetching && !databaseQuery.isLoading}
               >
-                <RefreshCcw
-                  size={12}
-                  className={
-                    databaseQuery.isFetching ? "animate-spin" : ""
-                  }
-                />
                 {t("common.refresh")}
               </Button>
 
@@ -210,16 +177,8 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
                 disabled={
                   resetDatabaseMutation.isPending ||
                   !databaseQuery.data?.status.enabled
-                } variant="primary" className="rounded-xl px-3.5 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"
+                } variant="primary" icon={<Database size={13} />} loading={resetDatabaseMutation.isPending}
               >
-                {resetDatabaseMutation.isPending ? (
-                  <LoaderCircle
-                    size={13}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Database size={13} />
-                )}
                 {resetDatabaseMutation.isPending
                   ? t("settings.resetting")
                   : t("settings.resetPassword")}
@@ -228,12 +187,12 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
           </div>
 
           {dbResetResult ? (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-[var(--panel-success-text)]/30 bg-[var(--panel-success-bg)] p-3">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--panel-success-text)]">
                   {t("settings.database.newPasswordLabel")}
                 </div>
-                <code className="panel-mono break-all text-[13px] font-semibold text-emerald-300 mt-0.5 block">
+                <code className="panel-mono mt-0.5 block break-all text-[13px] font-semibold text-[var(--win-text)]">
                   {dbResetResult.password}
                 </code>
               </div>
@@ -262,9 +221,8 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
                       "settings",
                     );
                   }
-                }} variant="ghost" className="rounded-lg px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 text-emerald-300 hover:bg-emerald-500/20"
+                }} variant="ghost" icon={<Copy size={12} />}
               >
-                <Copy size={12} />
                 {t("common.copy")}
               </Button>
             </div>
@@ -272,27 +230,25 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
         </div>
       </div>
 
-      {/* API & MCP Tokens Shortcut Card */}
-      <div className="panel-shell-card p-4 flex items-center justify-between gap-4 border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)]/20">
+      <div className="panel-shell-card settings-card flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <IconBadge size="md" tone="neutral">
             <Key />
           </IconBadge>
           <div>
             <div className="text-[13px] font-semibold text-[var(--win-text)]">
-              API Key & Token MCP Server
+              {t("settings.security.tokensCardTitle")}
             </div>
             <div className="text-[11.5px] text-[var(--text-secondary)]">
-              Kelola token akses pribadi untuk Claude Desktop, Cursor, dan programmatic REST API.
+              {t("settings.security.tokensCardHint")}
             </div>
           </div>
         </div>
         <Button
           type="button"
-          onClick={() => setActiveTab("api_tokens")} variant="primary" className="rounded-xl px-3.5 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer"
+          onClick={() => setActiveTab("api_tokens")} variant="primary" className="shrink-0"
         >
-          <span>{t("settings.security.openMcpTokens")}</span>
-          <span>→</span>
+          {t("settings.security.openMcpTokens")}
         </Button>
       </div>
     </div>
