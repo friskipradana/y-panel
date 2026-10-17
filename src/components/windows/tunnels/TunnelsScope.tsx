@@ -56,7 +56,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
           {status ? <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge> : null}
           {selectedDomain ? (
             <>
-              <Button variant="ghost" icon={<RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} />} disabled={checking} onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}>
+              <Button variant="ghost" icon={<RefreshCw className="h-3.5 w-3.5" />} loading={checking} onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}>
                 {checking ? t('tunnels.checking') : t('tunnels.checkStatus')}
               </Button>
               <IconButton tone="danger" label={t('tunnels.deleteDomainTitle')} disabled={deleting} onClick={() => void askDeleteDomain()}>

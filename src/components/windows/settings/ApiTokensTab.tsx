@@ -11,7 +11,7 @@ import { ListRowIcon, ListState, ListTable } from "@/components/ui/ListTable";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Select } from "@/components/ui/Select";
 import { alertLib } from "@/lib/alert";
-import { formatDateTimeID } from "@/lib/datetime";
+import { formatDateID, formatDateTimeID } from "@/lib/datetime";
 import { useI18n } from "@/lib/i18n";
 
 type Expiry = CreateAPITokenPayload["expiresIn"];
@@ -116,7 +116,7 @@ export function ApiTokensTab() {
 
   return (
     <div id="api-tokens-container" className="space-y-3.5">
-      <div className="flex items-start gap-2.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3.5">
+      <div className="flex items-start gap-2.5 settings-inset p-3.5">
         {privileged ? <ShieldAlert size={16} className="mt-0.5 shrink-0 text-[var(--panel-warning-text)]" /> : <Shield size={16} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" />}
         <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{privileged ? t("settings.tokens.scopePrivileged", { role }) : t("settings.tokens.scopeUser")}</p>
       </div>
@@ -195,13 +195,13 @@ export function ApiTokensTab() {
                         <span className="docker-row__meta">{`${token.tokenPrefix}... \u00b7 ${token.expiresAt ? formatDateTimeID(token.expiresAt) : t("settings.tokens.never")}`}</span>
                       </div>
                     </div>
-                    <div className="docker-cell">{formatDateTimeID(token.createdAt)}</div>
-                    <div className="docker-cell">{token.lastUsedAt ? formatDateTimeID(token.lastUsedAt) : t("settings.tokens.neverUsed")}</div>
+                    <div className="docker-cell" title={formatDateTimeID(token.createdAt)}>{formatDateID(token.createdAt)}</div>
+                    <div className="docker-cell" title={token.lastUsedAt ? formatDateTimeID(token.lastUsedAt) : undefined}>{token.lastUsedAt ? formatDateID(token.lastUsedAt) : t("settings.tokens.neverUsed")}</div>
                     <div className="docker-cell--keep">
                       {expired ? (
                         <Badge tone="danger">{t("settings.tokens.expired")}</Badge>
                       ) : (
-                        <span className="text-[0.75rem] text-[var(--text-secondary)]">{token.expiresAt ? formatDateTimeID(token.expiresAt) : t("settings.tokens.never")}</span>
+                        <span className="text-[0.75rem] text-[var(--text-secondary)]" title={token.expiresAt ? formatDateTimeID(token.expiresAt) : undefined}>{token.expiresAt ? formatDateID(token.expiresAt) : t("settings.tokens.never")}</span>
                       )}
                     </div>
                     <div className="docker-action-btns">

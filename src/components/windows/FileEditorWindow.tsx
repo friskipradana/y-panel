@@ -159,11 +159,17 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated]) // ONLY depend on authenticated status
 
+  // A file asked for from the File Manager opens once: StrictMode runs this effect twice on the same request
+  const handledPending = useRef<typeof pendingFile>(null)
   useEffect(() => {
-    if (pendingFile) {
-      void handleOpenFile(pendingFile.path, pendingFile.name)
-      setPendingFile(null)
+    if (!pendingFile) {
+      handledPending.current = null
+      return
     }
+    if (handledPending.current === pendingFile) return
+    handledPending.current = pendingFile
+    void handleOpenFile(pendingFile.path, pendingFile.name)
+    setPendingFile(null)
   }, [pendingFile, handleOpenFile, setPendingFile])
 
 
@@ -276,7 +282,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
                 <span className="truncate max-w-[150px]">{tab.name}</span>
                 {isDirty && <div className="w-[8px] h-[8px] bg-[var(--panel-warning-text)] rounded-full ml-1" title={t('fileEditor.unsavedChanges')} />}
                 <button
-                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)] transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                  className={`ml-1 w-5 h-5 mobile:w-7 mobile:h-7 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] dark:hover:bg-[var(--panel-surface-hover)] transition ${isDirty ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 mobile:opacity-100'}`}
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
                 >
                   <X size={12} strokeWidth={2.5} />
@@ -301,7 +307,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
           <div className="flex gap-2">
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
-              className="px-3 py-2 flex items-center gap-1 text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
+              className="px-3 py-2 flex items-center gap-1 whitespace-nowrap text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
               title={t('fileEditor.reloadTitle')}
             >
               <RefreshCcw size={12} /> {t('fileEditor.reload')}
@@ -309,7 +315,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             <button
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
-              className={`px-3 py-2 flex items-center gap-1.5 text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
+              className={`px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
                 ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-[var(--file-editor-save-shadow)]'
                 : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
                 }`}

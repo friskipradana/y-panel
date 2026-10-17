@@ -85,7 +85,7 @@ function PaletteDialog({ close }: { close: () => void }) {
               value={search}
               onValueChange={setSearch}
               placeholder={t('commandPalette.placeholder')}
-              className="w-full bg-transparent text-[14px] text-[var(--win-text)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none"
+              className="w-full bg-transparent text-[14px] max-md:text-base text-[var(--win-text)] placeholder:text-[var(--text-secondary)]/60 focus:outline-none"
             />
             <button
               type="button"

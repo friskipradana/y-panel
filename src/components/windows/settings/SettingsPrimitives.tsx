@@ -15,7 +15,7 @@ export function FieldLabel({ label, hint }: { label: string; hint?: string }) {
         {label}
       </span>
       {hint ? (
-        <span className="panel-mono text-[12px] text-[var(--text-secondary)]">
+        <span className="panel-mono text-[11px] text-[var(--text-secondary)] opacity-70">
           {hint}
         </span>
       ) : null}
@@ -96,7 +96,7 @@ export function DnsEditor({
           {nameservers.map((nameserver, index) => (
             <div
               key={`${nameserver}-${index}`}
-              className="flex items-center justify-between px-3.5 py-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-solid)]/40 transition-colors"
+              className="flex items-center justify-between px-3.5 py-2 settings-inset hover:border-[var(--panel-primary-solid)]/40 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2

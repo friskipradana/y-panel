@@ -59,7 +59,7 @@ export function SoundTab() {
         <SectionHeader icon={<AudioLines />} title={t("settings.sound.previewTitle")} subtitle={soundEnabled ? t("settings.sound.previewSubtitle") : t("settings.sound.previewOff")} />
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {SAMPLES.map(({ key, icon: Icon, play }) => (
-            <Button key={key} variant="ghost" disabled={!soundEnabled} className="!h-auto flex-col !items-start gap-1 !p-3 text-left" onClick={play}>
+            <Button key={key} variant="outline" disabled={!soundEnabled} className="h-auto flex-col items-start gap-1 p-3 text-left" onClick={play}>
               <span className="flex items-center gap-2 text-[12.5px] font-semibold text-[var(--win-text)]">
                 <Icon size={14} className="text-[var(--panel-primary-text)]" />
                 {t(`settings.sound.${key}`)}

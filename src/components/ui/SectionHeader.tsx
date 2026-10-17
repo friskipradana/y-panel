@@ -24,8 +24,8 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   const minH = size === 'sm' ? 'min-h-7' : size === 'lg' ? 'min-h-11' : 'min-h-9'
   return (
-    <div className={`flex items-center justify-between gap-3 ${className}`}>
-      <div className="flex min-w-0 items-center gap-3">
+    <div className={`section-header flex items-center justify-between gap-3 mobile:flex-wrap ${className}`}>
+      <div className="flex min-w-0 items-center gap-3 mobile:flex-1 mobile:basis-[14rem]">
         <IconBadge size={size} tone={tone}>
           {icon}
         </IconBadge>

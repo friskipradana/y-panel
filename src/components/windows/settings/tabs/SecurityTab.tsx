@@ -48,7 +48,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
         </div>
 
         {/* Security Notice Alert */}
-        <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex items-start gap-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+        <div className="p-3 settings-inset flex items-start gap-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
           <LockKeyhole
             size={16}
             className="text-[var(--panel-primary-text)] shrink-0 mt-0.5"
@@ -58,7 +58,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             <strong className="text-[var(--win-text)] font-semibold">
               {t("settings.panelLoginPassword")}
             </strong>{" "}
-            {t("settings.primaryPasswordSecurityNoteEnd")}
+            {t("settings.primaryPasswordSecurityNoteEnd")}{" "}
             {t("settings.linuxUserPasswordNote")}{" "}
             <code className="panel-mono text-[11px] text-[var(--win-text)] bg-[var(--panel-surface-hover)] px-1.5 py-0.5 rounded border border-[var(--win-border)]">
               reneo
@@ -98,7 +98,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
 
         {/* Status & Rows 2-Column Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-1.5">
+          <div className="p-3.5 settings-inset flex flex-col justify-between gap-1.5">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
               {t("settings.connection")}
             </div>
@@ -125,7 +125,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-1.5">
+          <div className="p-3.5 settings-inset flex flex-col justify-between gap-1.5">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
               {t("settings.rows")}
             </div>
@@ -149,7 +149,7 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
         </div>
 
         {/* Reset DB Password Action Bar */}
-        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col gap-3">
+        <div className="p-3.5 settings-inset flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-semibold text-[var(--win-text)]">

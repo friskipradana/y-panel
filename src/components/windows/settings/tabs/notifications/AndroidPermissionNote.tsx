@@ -4,7 +4,7 @@ export function AndroidPermissionNote() {
   const { t } = useI18n();
 
   return (
-    <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+    <div className="p-3 settings-inset text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
       <strong className="text-[var(--win-text)] font-semibold">
         {t("settings.listener.howItWorksTitle")}
       </strong>{" "}

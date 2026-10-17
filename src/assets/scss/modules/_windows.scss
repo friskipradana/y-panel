@@ -1225,11 +1225,8 @@ button:focus-visible,
 }
 
 .settings-nav__title {
-  margin: 0 0 4px;
-  padding: 0 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--win-text);
+  // the window title already says "Settings"
+  display: none;
 }
 
 .settings-nav__group {
@@ -1238,7 +1235,7 @@ button:focus-visible,
   gap: 1px;
 
   & + & {
-    margin-top: 8px;
+    margin-top: 14px;
   }
 }
 
@@ -1390,22 +1387,87 @@ button:focus-visible,
 // The save row of a settings page: it follows the scroll, and turns blue while something is unsaved
 .settings-savebar {
   position: sticky;
-  bottom: 0;
+  bottom: -16px;
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  border: 1px solid var(--win-border);
-  border-radius: 12px;
-  background: var(--menu-bg);
-  box-shadow: var(--win-shadow);
-  backdrop-filter: blur(12px);
+  // runs edge to edge under the page, so it reads as the foot of the window and covers no card
+  margin: 0 -16px -16px;
+  padding: 10px 16px;
+  border: none;
+  border-top: 1px solid var(--win-border);
+  background: var(--win-content-bg);
   transition: border-color 0.15s;
 
   &--dirty {
     border-color: var(--panel-primary-text);
   }
+}
+
+// Phones: buttons of the kit are a finger wide
+.layout-mobile {
+  .panel-btn {
+    min-height: 36px;
+  }
+
+  .panel-btn--sm {
+    min-height: 32px;
+  }
+
+  .panel-icon-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+// Phones: any text field is 16px, so iOS does not zoom the page when it takes focus (the code editors keep their own size)
+.layout-mobile {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']):not(.monaco-editor *, .xterm *),
+  textarea:not(.monaco-editor *, .xterm *) {
+    font-size: 1rem;
+  }
+}
+
+.layout-mobile .settings-savebar {
+  bottom: -14px;
+  margin: 0 -14px -14px;
+  padding-inline: 14px;
+}
+
+// A card whose content is one line: icon and text on the left, a value on the right
+.settings-card--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Inside a Settings card a block is a tint, not another bordered card, and a setting is a line of the list
+.settings-inset {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--panel-surface-hover);
+}
+
+.settings-card .setting-row {
+  padding: 12px 0 0;
+  border: none;
+  border-top: 1px solid var(--win-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-card > .setting-row:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
+// The gap of the card already spaces its header from what follows
+.settings-card > .section-header {
+  margin-bottom: 0;
 }

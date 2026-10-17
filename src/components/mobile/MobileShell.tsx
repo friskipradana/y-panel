@@ -29,7 +29,7 @@ interface MobileShellProps {
 }
 
 const QUICK_APPS: WindowKind[] = ['apps', 'host-terminal', 'file-manager']
-const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor']
+const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings']
 
 // Phone layout: one app at a time, bottom navigation, no floating windows
 export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
@@ -114,7 +114,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   return (
     <div className="layout-mobile flex h-dvh w-full flex-col bg-[var(--win-content-bg)] text-[var(--win-text)]">
       {/* Top bar */}
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-2">
+      <header className="flex h-[calc(3rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-2 pt-[env(safe-area-inset-top)]">
         {showingApp && current ? (
           <>
             <IconButton label={t('mobile.back')} onClick={goHome}>

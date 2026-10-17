@@ -31,7 +31,7 @@ export function AppearanceTab() {
 
   return (
     <div className="space-y-3.5">
-      <section className="panel-shell-card settings-card sm:flex-row sm:items-center sm:justify-between">
+      <section className="panel-shell-card settings-card settings-card--row">
         <SectionHeader icon={<Globe2 />} title={t("settings.language.title")} subtitle={t("settings.language.subtitle")} />
         <div className="w-full shrink-0 sm:w-[220px]">
           <Select

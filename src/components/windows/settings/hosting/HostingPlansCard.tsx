@@ -81,7 +81,7 @@ export function HostingPlansCard() {
       />
 
       {site.data?.examplePlansSeeded && plans.data?.some((plan) => ['starter', 'pro', 'bisnis'].includes(plan.slug)) ? (
-        <p className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12px] text-[var(--text-secondary)]">{t('hosting.plans.exampleHint')}</p>
+        <p className="settings-inset p-3 text-[12px] text-[var(--text-secondary)]">{t('hosting.plans.exampleHint')}</p>
       ) : null}
 
       {plans.isLoading ? (

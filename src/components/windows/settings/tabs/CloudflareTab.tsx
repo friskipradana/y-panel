@@ -53,7 +53,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
           </div>
         ) : cf?.configured ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+            <div className="flex items-center justify-between gap-3 settings-inset p-4">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                   {t("settings.cloudflare.connectionStatus")}
@@ -71,7 +71,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
               </Badge>
             </div>
 
-            <div className="space-y-2.5 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 text-[12.5px]">
+            <div className="space-y-2.5 settings-inset p-4 text-[12.5px]">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[var(--text-secondary)]">
                   Account ID

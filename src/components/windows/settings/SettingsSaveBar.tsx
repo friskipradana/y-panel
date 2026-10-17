@@ -18,8 +18,11 @@ interface SettingsSaveBarProps {
   extra?: ReactNode;
 }
 
-// The save row of a page that edits settings: it stays in view while the page scrolls, and says what is unsaved
+// The save row of a page that edits settings: it appears when something is unsaved (or there is another action to keep), stays in view while the page scrolls, and says what is unsaved
 export function SettingsSaveBar({ id, title, hint, dirty, pending, invalid = false, onSave, saveLabel, pendingLabel, extra }: SettingsSaveBarProps) {
+  // nothing to save and nothing else to offer: the bar would only cover the page
+  if (!dirty && !pending && !extra) return null;
+
   return (
     <div className={`settings-savebar${dirty ? " settings-savebar--dirty" : ""}`}>
       <div className="min-w-0">

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck } from 'lucide-react'
+import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
-import { IconBadge } from '@/components/ui/IconBadge'
+import { SectionHeader } from '@/components/ui/SectionHeader'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -23,7 +23,7 @@ const TRUNCATE_TARGETS = [
 
 function DetailRow({ label, value, tone = 'normal' }: { label: string; value: string; tone?: 'normal' | 'warning' }) {
   return (
-    <div className={`panel-muted-block rounded-[14px] px-4 py-3 ${tone === 'warning' ? 'border border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
+    <div className={`settings-inset ${tone === 'warning' ? 'border border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <span className="panel-section-label">{label}</span>
         <span className={`max-w-[70%] break-words text-right text-[12px] ${tone === 'warning' ? 'text-[var(--panel-warning-text)]' : 'text-[var(--win-text)]'}`}>{value}</span>
@@ -105,112 +105,70 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
 
   if (query.isLoading) {
     return (
-      <div className="panel-window">
-        <div className="panel-window__header">
-          <div className="panel-window__title">
-            <Database className="panel-window__icon h-4 w-4" />
-            <div>
-              <div className="panel-window__title-text">{t('database.title')}</div>
-              <div className="panel-window__meta">{t('database.meta')}</div>
-            </div>
-          </div>
-        </div>
-        <div className="panel-window__body">
-          <LoadingState>{t('database.loadingStatus')}</LoadingState>
-        </div>
-      </div>
+      <LoadingState>{t('database.loadingStatus')}</LoadingState>
     )
   }
 
   if (query.isError || !query.data || !status) {
     return (
-      <div className="panel-window">
-        <div className="panel-window__header">
-          <div className="panel-window__title">
-            <Database className="panel-window__icon h-4 w-4" />
-            <div>
-              <div className="panel-window__title-text">{t('database.title')}</div>
-              <div className="panel-window__meta">{t('database.meta')}</div>
-            </div>
-          </div>
-        </div>
-        <div className="panel-window__body">
-          <ErrorState
-            title={t('database.statusLoadFailed')}
-            hint={t('database.statusLoadFailedHint')}
-            action={
-              <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
-                {t('common.retry')}
-              </Button>
-            }
-          />
-        </div>
-      </div>
+      <ErrorState
+        title={t('database.statusLoadFailed')}
+        hint={t('database.statusLoadFailedHint')}
+        action={
+          <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
+            {t('common.retry')}
+          </Button>
+        }
+      />
     )
   }
 
   return (
-    <div className="panel-window">
-      {/* ── Compact Toolbar ── */}
-      <div className="flex items-center justify-between border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--win-text)]">{status.database || 'Database'}</span>
-          <span>•</span>
-          <span className="text-[var(--panel-success-text)] font-medium">{status.host}:{status.port}</span>
-          <span>•</span>
-          <span>user: {status.user}</span>
+    <div className="space-y-3.5">
+      <section className="panel-shell-card settings-card">
+        <SectionHeader
+          icon={<Database />}
+          title={status.database || 'Database'}
+          subtitle={`${status.user}@${status.host}:${status.port}`}
+          actions={
+            <>
+              <Badge tone={status.connected ? 'success' : status.enabled ? 'danger' : 'neutral'} dot>
+                {status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
+              </Badge>
+              <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
+                <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+              </IconButton>
+            </>
+          }
+        />
+      </section>
+
+      <section className="panel-shell-card settings-card">
+        <SectionHeader icon={<Trash2 />} title={t('settings.db.cleanupTitle')} subtitle={t('settings.db.cleanupSubtitle')} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            id="database-truncate-target"
+            value={truncateTarget}
+            onChange={setTruncateTarget}
+            options={TRUNCATE_TARGETS.map((target) => ({ value: target.value, label: t(target.label) }))}
+            className="min-w-[200px]"
+            dropdownClassName="min-w-[220px]"
+          />
+          <Select
+            id="database-truncate-day"
+            value={String(truncateDay)}
+            onChange={(value) => setTruncateDay(Number(value))}
+            options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: t('database.olderThanDays', { days: day }) }))}
+            className="min-w-[140px]"
+            dropdownClassName="min-w-[140px]"
+          />
+          <Button type="button" onClick={() => void handleTruncate()} loading={truncating} variant="danger">
+            {t('database.truncateButton')}
+          </Button>
         </div>
+      </section>
 
-        <div className="flex items-center gap-2">
-          <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
-            <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
-          </IconButton>
-        </div>
-      </div>
-
-      <div className="panel-window__body">
-        <div className="panel-window__stack">
-          <section className="panel-hero">
-            <div className="panel-hero__eyebrow">
-              <Database className="h-3 w-3" />
-              {t('database.heroEyebrow')}
-            </div>
-            <div className="panel-hero__title">{t('database.heroTitle')}</div>
-            <p className="panel-hero__description">
-              {t('database.heroDescription')}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Select
-                id="database-truncate-target"
-                value={truncateTarget}
-                onChange={setTruncateTarget}
-                options={TRUNCATE_TARGETS.map((target) => ({ value: target.value, label: t(target.label) }))}
-                className="max-w-[220px]"
-                buttonClassName="rounded-full px-3 py-2 text-[12px]"
-                dropdownClassName="min-w-[220px]"
-                searchable
-                searchPlaceholder={t('database.searchTargetPlaceholder')}
-              />
-
-              <Select
-                id="database-truncate-day"
-                value={String(truncateDay)}
-                onChange={(value) => setTruncateDay(Number(value))}
-                options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: t('database.olderThanDays', { days: day }) }))}
-                className="max-w-[140px]"
-                buttonClassName="rounded-full px-3 py-2 text-[12px]"
-                dropdownClassName="min-w-[140px]"
-                searchable
-                searchPlaceholder={t('database.searchDayPlaceholder')}
-              />
-
-              <Button type="button" onClick={() => void handleTruncate()} disabled={truncating} variant="danger">
-                {truncating ? t('database.truncatingShort') : t('database.truncateButton')}
-              </Button>
-            </div>
-          </section>
-
-          <div className="panel-kpi-grid panel-kpi-grid--4">
+      <div className="panel-kpi-grid panel-kpi-grid--4">
             <KpiCard
               icon={<ShieldCheck size={16} />}
               title={t('database.connectionLabel')}
@@ -233,15 +191,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
 
           <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
             <section className="panel-shell-card settings-card">
-              <div className="mb-4 flex items-start gap-3">
-                <IconBadge size="lg">
-                  <Database />
-                </IconBadge>
-                <div className="min-w-0 flex-1">
-                  <div className="panel-shell-card__title">{t('database.connectionDetailsTitle')}</div>
-                  <p className="panel-shell-card__meta">{t('database.connectionDetailsMeta')}</p>
-                </div>
-              </div>
+              <SectionHeader icon={<Database />} title={t('database.connectionDetailsTitle')} subtitle={t('database.connectionDetailsMeta')} />
 
               <div className="grid gap-3 text-[12px]">
                 <DetailRow label={t('database.enabledLabel')} value={status.enabled ? t('common.yes') : t('common.no')} />
@@ -298,7 +248,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
                       return (
                         <div
                           key={entry.id}
-                          className={`panel-shell-card ${isError ? 'border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)]' : ''}`}
+                          className={`settings-inset ${isError ? 'border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)]' : ''}`}
                         >
                           <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
                             <span>{entry.service}</span>
@@ -335,7 +285,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
                 <EmptyState icon={<ActivitySquare />} className="min-h-[140px]">{t('database.emptySettingsAudit')}</EmptyState>
               ) : (
                 settingsAudit.map((entry) => (
-                  <div key={entry.id} className="panel-muted-block rounded-[14px] px-4 py-3.5">
+                  <div key={entry.id} className="settings-inset">
                     <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
                       <span>{entry.username || 'system'}</span>
                       <span>•</span>
@@ -355,12 +305,6 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
           {!status.connected && status.enabled ? (
             <ErrorState title={t('database.mariadbNotReady')} hint={t('database.mariadbNotReadyHint')} />
           ) : null}
-        </div>
-      </div>
     </div>
   )
 }
-
-
-
-

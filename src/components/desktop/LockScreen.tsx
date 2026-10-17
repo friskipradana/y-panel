@@ -337,7 +337,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('lockscreen.passwordPlaceholder')}
                 autoFocus
-                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
+                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm max-md:text-base text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
               />
               <button
                 type="submit"

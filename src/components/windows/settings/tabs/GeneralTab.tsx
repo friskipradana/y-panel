@@ -30,7 +30,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
   return (
     <div className="space-y-3.5">
       {/* Compact Host System Info Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] shadow-xs">
+      <div className="panel-shell-card settings-card settings-card--row">
         <div className="flex items-center gap-3">
           <IconBadge size="md" tone="primary">
             <Server />

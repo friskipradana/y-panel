@@ -121,7 +121,7 @@ export function UpdateCard() {
           />
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             onClick={handleCheckUpdate}
             icon={<RefreshCw size={14} />}
             loading={isRefreshing}
@@ -130,7 +130,7 @@ export function UpdateCard() {
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 rounded-xl bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--win-border)] pt-4">
           <div className="flex items-center gap-3">
             <IconBadge size="md" tone={updateInfo?.available ? "warning" : "success"}>
               {updateInfo?.available ? <CircleArrowUp /> : <CircleCheck />}

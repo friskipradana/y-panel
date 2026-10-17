@@ -808,3 +808,13 @@
 .layout-mobile .ht-body {
   position: relative;
 }
+
+// Phones: there is no hover, so the tab buttons are always shown and big enough to touch
+.layout-mobile {
+  .ht-tab-close,
+  .ht-tab-action {
+    width: 28px;
+    height: 28px;
+    opacity: 1;
+  }
+}

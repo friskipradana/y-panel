@@ -163,7 +163,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
           </div>
         </div>
 
-        <div className="docker-cell !overflow-visible">
+        <div className="docker-cell docker-cell--wide !overflow-visible">
           {editingRole ? (
             <div className="flex items-center gap-1">
               <Select

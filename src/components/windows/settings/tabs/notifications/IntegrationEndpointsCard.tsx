@@ -24,7 +24,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Step 1: Register */}
-        <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+        <div className="p-3 settings-inset flex flex-col justify-between gap-2.5">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
@@ -49,7 +49,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
         </div>
 
         {/* Step 2: Send Webhook */}
-        <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+        <div className="p-3 settings-inset flex flex-col justify-between gap-2.5">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
@@ -74,7 +74,7 @@ export function IntegrationEndpointsCard({ listener }: { listener: NotificationS
         </div>
 
         {/* Step 3: Realtime Admin Stream */}
-        <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between gap-2.5">
+        <div className="p-3 settings-inset flex flex-col justify-between gap-2.5">
           <div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">

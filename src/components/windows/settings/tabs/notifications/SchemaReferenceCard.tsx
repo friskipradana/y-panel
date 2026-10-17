@@ -14,7 +14,7 @@ export function SchemaReferenceCard() {
       />
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
+        <div className="settings-inset p-3">
           <div className="mb-1.5 text-[11.5px] font-bold text-[var(--win-text)]">
             {t("settings.listener.registerBodyTitle")}
           </div>
@@ -30,7 +30,7 @@ export function SchemaReferenceCard() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3">
+        <div className="settings-inset p-3">
           <div className="mb-1.5 text-[11.5px] font-bold text-[var(--win-text)]">
             {t("settings.listener.webhookBodyTitle")}
           </div>

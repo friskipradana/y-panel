@@ -1,8 +1,10 @@
 import { memo } from 'react'
-import { File as FileIcon, Folder } from 'lucide-react'
+import { EllipsisVertical, File as FileIcon, Folder } from 'lucide-react'
 import { fileKind, type FileNode } from './fileManagerConfig'
 import { ListRowIcon } from '@/components/ui/ListTable'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { useI18n } from '@/lib/i18n'
 
 interface FileRowProps {
   item: FileNode
@@ -23,6 +25,9 @@ interface FileRowProps {
 
 // One file or folder, in the same row as a container
 export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, onDragStart, onDragOver, onDragLeave, onDrop, onContextMenu, onDoubleClick, formatSize, formatDate, folderLabel, fileLabel }: FileRowProps) => {
+  const { t } = useI18n()
+  // a phone has no double click and no right click: a tap opens, a button opens the menu
+  const touch = useIsMobileLayout()
   const kind = fileKind(item, folderLabel, fileLabel)
   const summary = [item.isDir ? '' : formatSize(item.size), formatDate(item.modified)].filter(Boolean).join(' · ')
   const state = dragOverPath === item.path ? ' docker-row--drop' : isSelected ? ' docker-row--selected' : ''
@@ -37,6 +42,7 @@ export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, o
       onDrop={(e) => onDrop(e, item)}
       onContextMenu={(e) => onContextMenu(e, item)}
       onDoubleClick={() => onDoubleClick(item)}
+      onClick={touch ? () => onDoubleClick(item) : undefined}
     >
       <div className="docker-row__select">
         <Checkbox aria-label={item.name} checked={isSelected} onChange={(checked) => onToggleSelect(item.path, checked)} onClick={(e) => e.stopPropagation()} />
@@ -52,6 +58,20 @@ export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, o
       <div className="docker-cell docker-cell--mono">{item.isDir ? '--' : formatSize(item.size)}</div>
       <div className="docker-cell docker-cell--mono">{item.mode}</div>
       <div className="docker-cell">{formatDate(item.modified)}</div>
+      {touch ? (
+        <button
+          type="button"
+          className="docker-act-btn"
+          title={t('common.moreActions')}
+          aria-label={t('common.moreActions')}
+          onClick={(e) => {
+            e.stopPropagation()
+            onContextMenu(e, item)
+          }}
+        >
+          <EllipsisVertical className="h-4 w-4" strokeWidth={1.75} />
+        </button>
+      ) : null}
     </div>
   )
 })
