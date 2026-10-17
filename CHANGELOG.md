@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.7] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.7** berisi 1 perubahan: 1 fitur. (19 files changed, 430 insertions(+), 41 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **users:** Accounts from an admin must choose their own password; send-access dialog; superadmin can create the panel address at account creation ([`cd9c6cf`](https://github.com/friskipradana/y-panel/commit/cd9c6cf))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.6...v4.7.7
+
 ## [4.7.6] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
