@@ -19,6 +19,7 @@ import {
   Palette,
   Server,
   Smartphone,
+  Store,
   Volume2,
 } from "lucide-react";
 import { ApiTokensTab } from "@/components/windows/settings/ApiTokensTab";
@@ -29,6 +30,7 @@ import { usePaymentSettings } from "./settings/hooks/usePaymentSettings";
 import { useNotificationSettings } from "./settings/hooks/useNotificationSettings";
 import type { SettingsTabKey } from "./settings/constants";
 import { GeneralTab } from "./settings/tabs/GeneralTab";
+import { HostingTab } from "./settings/tabs/HostingTab";
 import { AppearanceTab } from "./settings/tabs/AppearanceTab";
 import { WallpaperTab } from "./settings/tabs/WallpaperTab";
 import { DesktopTab } from "./settings/tabs/DesktopTab";
@@ -68,6 +70,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
       label: t("settings.tabs.general"),
       icon: Server,
     },
+    ...(isSuperadmin ? [{ key: "hosting" as SettingsTabKey, label: t("settings.tabs.hosting"), icon: Store }] : []),
     { key: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
     { key: "wallpaper", label: t("settings.tabs.wallpaper"), icon: ImagePlus },
     { key: "desktop", label: t("settings.tabs.desktop"), icon: Monitor },
@@ -183,6 +186,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
           {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
             <>
               {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
+
+              {shownTab === "hosting" && isSuperadmin && <HostingTab />}
 
               {shownTab === "appearance" && <AppearanceTab />}
 

@@ -105,11 +105,26 @@ func (s *Server) demoSettingsView() demoSettingsView {
 	case strings.TrimSpace(s.cfg.DemoPassword) != "":
 		source = "env"
 	}
-	view := demoSettingsView{Enabled: settings.Enabled, Username: settings.Username, Source: source}
-	if settings.Enabled {
+	// the demo account is part of hosting mode: off there means off here
+	active := settings.Enabled && s.hostingEnabled()
+	view := demoSettingsView{Enabled: active, Username: settings.Username, Source: source}
+	if active {
 		view.Password = settings.Password
 	}
 	return view
+}
+
+// disableDemoAccount switches the demo off and blocks its user, as the demo toggle does
+func (s *Server) disableDemoAccount() {
+	current, _ := s.loadDemoSettings()
+	if !current.Enabled {
+		return
+	}
+	current.Enabled = false
+	if err := s.saveDemoSettings(current); err != nil {
+		return
+	}
+	s.suspendDemoAccount(current.Username)
 }
 
 func (s *Server) handleGetDemoSettings(w http.ResponseWriter, _ *http.Request) {
@@ -123,6 +138,11 @@ func (s *Server) handleSetDemoSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+
+	if req.Enabled && !s.hostingEnabled() {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "turn hosting mode on before enabling the demo account"})
 		return
 	}
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
-import { DemoAccountCard } from "../DemoAccountCard";
+import { SitePublicCard } from "../SitePublicCard";
 import {
   ArrowUpCircle,
   Check,
@@ -421,7 +421,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
         </div>
       </div>
 
-      {isSuperadmin ? <DemoAccountCard /> : null}
+      {isSuperadmin ? <SitePublicCard /> : null}
     </div>
   );
 }

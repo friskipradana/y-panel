@@ -52,6 +52,29 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			return
 		}
 
+		// With the public site off only the login form stays open. "/" sends a visitor to the
+		// login form (or the app when signed in), every other public address does not exist.
+		if !s.landingEnabled() && isPublicSitePath(path) {
+			if path == "/" {
+				if _, authed := s.currentUser(r); authed {
+					http.Redirect(w, r, "/home", http.StatusFound)
+				} else {
+					http.Redirect(w, r, "/login", http.StatusFound)
+				}
+				return
+			}
+			if path == "/robots.txt" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if acceptsHTML(r) {
+				s.writeStatusPage(w, r, http.StatusNotFound, "Halaman tidak ditemukan", "Alamat yang Anda buka tidak tersedia.", "Periksa kembali alamatnya, atau masuk ke panel.", false)
+				return
+			}
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+
 		// Public pages: Landing (/), Login (/login), and Public MCP Tutorial (/docs/mcp, /mcp/guide)
 		isPublicPage := path == "/" || path == "/login" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
 			path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" ||
@@ -89,6 +112,14 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isPublicSitePath is a page of the public site: landing, articles, install and MCP guides, and
+// the files crawlers ask for. /login is not one of them.
+func isPublicSitePath(path string) bool {
+	return path == "/" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
+		path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" ||
+		path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 }
 
 // ServeHTTP applies the middleware chain: access log → host guard → CORS → rate limit → mux.

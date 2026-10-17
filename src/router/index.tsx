@@ -9,6 +9,7 @@ import { InstallPage } from '@/pages/InstallPage'
 import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
+import { usePublicSite } from '@/hooks/usePublicSite'
 
 export const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 export const HOME_PATH = '/home'
@@ -21,6 +22,8 @@ export function AppRouter() {
   const authenticated = useAuthStore((s) => s.authenticated)
   const loginSuccess = useAuthStore((s) => s.loginSuccess)
   const logout = useAuthStore((s) => s.logout)
+  const { landing } = usePublicSite()
+  const publicFallback = <Navigate to={authenticated ? HOME_PATH : LOGIN_PATH} replace />
 
   const handleLogin = async (userData?: { username: string; role?: string }) => {
     await loginSuccess(userData)
@@ -40,7 +43,7 @@ export function AppRouter() {
       <Routes location={location} key={location.pathname}>
         <Route
           path={LANDING_PATH}
-          element={
+          element={landing ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -50,11 +53,11 @@ export function AppRouter() {
             >
               <LandingPage authenticated={authenticated} onNavigate={(path) => navigate(path)} />
             </motion.div>
-          }
+          ) : publicFallback}
         />
         <Route
           path="/docs/mcp"
-          element={
+          element={landing ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -64,12 +67,12 @@ export function AppRouter() {
             >
               <McpGuidePage />
             </motion.div>
-          }
+          ) : publicFallback}
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
-        <Route path="/install" element={<div className="h-full w-full overflow-y-auto"><InstallPage /></div>} />
-        <Route path="/articles" element={<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>} />
-        <Route path="/articles/:slug" element={<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>} />
+        <Route path="/install" element={landing ? (<div className="h-full w-full overflow-y-auto"><InstallPage /></div>) : publicFallback} />
+        <Route path="/articles" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>) : publicFallback} />
+        <Route path="/articles/:slug" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>) : publicFallback} />
         <Route
           path={LOGIN_PATH}
           element={
@@ -84,7 +87,7 @@ export function AppRouter() {
                 className="absolute inset-0 z-[10000] overflow-hidden"
               >
                 <LoginPage
-                  onBack={() => navigate(LANDING_PATH)}
+                  onBack={landing ? () => navigate(LANDING_PATH) : undefined}
                   onLoginSuccess={handleLogin}
                 />
               </motion.div>

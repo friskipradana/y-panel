@@ -50,7 +50,7 @@ var demoReadOnlyRoutes = map[string]bool{
 // demoUsername is the demo account name while the demo is switched on, "" otherwise.
 func (s *Server) demoUsername() string {
 	settings, _ := s.loadDemoSettings()
-	if !settings.Enabled || strings.TrimSpace(settings.Password) == "" {
+	if !settings.Enabled || strings.TrimSpace(settings.Password) == "" || !s.hostingEnabled() {
 		return ""
 	}
 	return strings.ToLower(strings.TrimSpace(settings.Username))
@@ -106,7 +106,15 @@ func (s *Server) guardDemo(w http.ResponseWriter, r *http.Request, u *database.U
 // The configured password is authoritative, so it is re-applied on every start.
 func (s *Server) EnsureDemoAccount() {
 	name := s.demoUsername()
-	if name == "" || s.database == nil || !s.database.IsConnected() {
+	if name == "" {
+		// a demo account left over from before hosting mode was switched off must not stay usable
+		settings, _ := s.loadDemoSettings()
+		if (settings.Enabled || settings.Provisioned) && !s.hostingEnabled() {
+			s.suspendDemoAccount(settings.Username)
+		}
+		return
+	}
+	if s.database == nil || !s.database.IsConnected() {
 		return
 	}
 	if err := users.ValidateUsername(name); err != nil {

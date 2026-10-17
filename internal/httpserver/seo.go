@@ -47,6 +47,9 @@ func publicBaseURL(r *http.Request) string {
 	return scheme + "://" + r.Host
 }
 
+// robotsTxtClosed keeps every well behaved crawler out
+const robotsTxtClosed = "# Reneo: nothing here is for search engines or AI crawlers\nUser-agent: *\nDisallow: /\n"
+
 func robotsTxt(base string) string {
 	var b strings.Builder
 	b.WriteString("# Reneo: public pages are open to search engines and AI crawlers\n")
@@ -265,6 +268,20 @@ func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler
 		}
 		base := publicBaseURL(r)
 		path := r.URL.Path
+
+		// switched off from Settings: nothing is offered to crawlers
+		if !s.indexingAllowed() {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+			switch path {
+			case "/robots.txt":
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				_, _ = w.Write([]byte(robotsTxtClosed))
+				return
+			case "/sitemap.xml", "/llms.txt":
+				http.NotFound(w, r)
+				return
+			}
+		}
 
 		switch {
 		case path == "/robots.txt":

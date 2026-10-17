@@ -61,6 +61,7 @@ export const PRESET_DNS = [
 
 export type SettingsTabKey =
   | "general"
+  | "hosting"
   | "appearance"
   | "wallpaper"
   | "desktop"

@@ -110,6 +110,25 @@ export interface PublicContributors {
 export const getPublicContributors = () =>
   agentApi.get<PublicContributors>('/api/v1/public/contributors').then((r) => r.data)
 
+export interface SiteSettings {
+  landingEnabled: boolean
+  indexingEnabled: boolean
+  hostingEnabled: boolean
+}
+
+export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)
+
+export const setSiteSettings = (patch: Partial<SiteSettings>) =>
+  agentApi.put<SiteSettings>('/api/v1/settings/site', patch).then((r) => r.data)
+
+/** What the public pages may show; no login needed */
+export interface PublicSite {
+  landing: boolean
+  hosting: boolean
+}
+
+export const getPublicSite = () => agentApi.get<PublicSite>('/api/v1/public/site').then((r) => r.data)
+
 export const getDemoInfo = () => agentApi.get<DemoInfo>('/api/v1/public/demo').then((r) => r.data)
 
 export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)
