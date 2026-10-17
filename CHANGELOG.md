@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.2] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.2** berisi 1 perubahan: 1 fitur. (17 files changed, 1240 insertions(+), 14 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **speedtest:** Google (M-Lab NDT7) and Speedtest.net/CBN (Ookla client, licence accepted by the superadmin) as speed test servers ([`7c78aa6`](https://github.com/friskipradana/y-panel/commit/7c78aa6))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.1...v4.7.2
+
 ## [4.7.1] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
