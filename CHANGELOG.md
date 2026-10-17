@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.3] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.3** berisi 1 perubahan: 1 perbaikan. (17 files changed, 478 insertions(+), 78 deletions(-))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **speedtest:** Arc no longer lags behind the marker, tabs inside the card, tidy history table with clear; feat(hosting): sectioned Hosting tab with readiness list, domain picker as a dropdown, example plans on first use ([`433cb63`](https://github.com/friskipradana/y-panel/commit/433cb63))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.2...v4.7.3
+
 ## [4.7.2] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
