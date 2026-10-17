@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #0d1117;
+  background: var(--terminal-bg);
   overflow: hidden;
 }
 
@@ -13,10 +13,12 @@
 .ht-tabbar {
   display: flex;
   align-items: center;
-  background: #161b22;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--terminal-bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--terminal-bright-white) 7%, transparent);
   min-height: 36px;
-  overflow: hidden;
+  // the action menu drops below the strip, so the strip must not clip it and must sit above the panes
+  position: relative;
+  z-index: 20;
   flex-shrink: 0;
 }
 
@@ -25,6 +27,7 @@
   align-items: stretch;
   overflow-x: auto;
   flex: 1 1 0;
+  min-width: 0;
   scrollbar-width: none;
 }
 
@@ -37,14 +40,14 @@
   align-items: center;
   gap: 6px;
   padding: 0 10px 0 10px;
-  min-width: 110px;
+  min-width: 140px;
   max-width: 180px;
   height: 36px;
   font-size: 12.5px;
-  color: #8b949e;
+  color: var(--terminal-chrome-fg);
   background: transparent;
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid color-mix(in srgb, var(--terminal-bright-white) 5%, transparent);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -53,14 +56,14 @@
 }
 
 .ht-tab:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #c9d1d9;
+  background: color-mix(in srgb, var(--terminal-bright-white) 4%, transparent);
+  color: var(--terminal-chrome-fg-strong);
 }
 
 .ht-tab--active {
-  color: #e6edf3;
-  background: #0d1117;
-  border-bottom: 2px solid #58a6ff;
+  color: var(--terminal-chrome-fg-strong);
+  background: var(--terminal-bg);
+  border-bottom: 2px solid var(--terminal-blue);
 }
 
 .ht-tab-label {
@@ -81,7 +84,7 @@
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: #6e7681;
+  color: var(--terminal-chrome-dim);
   cursor: pointer;
   padding: 0;
   opacity: 0;
@@ -93,9 +96,48 @@
   opacity: 1;
 }
 
+// Reconnect of that tab, left of its close button
+.ht-tab-action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--terminal-chrome-dim);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+
+.ht-tab:hover .ht-tab-action,
+.ht-tab--active .ht-tab-action {
+  opacity: 1;
+}
+
+.ht-tab-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--terminal-blue) 15%, transparent);
+  color: var(--terminal-bright-blue);
+}
+
+.ht-tab-action:disabled {
+  cursor: default;
+}
+
+.ht-tab-action:focus-visible,
+.ht-tab-close:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--terminal-blue);
+  outline-offset: 1px;
+}
+
 .ht-tab-close:hover {
-  background: rgba(248, 81, 73, 0.15);
-  color: #f85149;
+  background: color-mix(in srgb, var(--terminal-red) 15%, transparent);
+  color: var(--terminal-red);
 }
 
 
@@ -111,44 +153,56 @@
 .ht-tabbar-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 6px;
+  padding: 0 8px;
   flex-shrink: 0;
 }
 
+// Flat buttons of one height; a border is always there (transparent) so a state never shifts the row
 .ht-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #8b949e;
-  font-size: 11.5px;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--terminal-chrome-fg);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--terminal-bright-white) 8%, transparent);
+    color: var(--terminal-chrome-fg-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--terminal-blue);
+    outline-offset: 1px;
+  }
 }
 
-.ht-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #c9d1d9;
-  border-color: rgba(255, 255, 255, 0.18);
+// Icon-only button: a square of the same height
+.ht-action-btn--icon {
+  width: 28px;
+  padding: 0;
 }
 
+// New terminal: a square icon button in the accent color
 .ht-action-btn--add {
-  padding: 4px 7px;
-  border-color: rgba(88, 166, 255, 0.2);
-  color: #58a6ff;
-}
+  width: 28px;
+  padding: 0;
+  color: var(--terminal-bright-blue);
 
-.ht-action-btn--add:hover {
-  background: rgba(88, 166, 255, 0.1);
-  border-color: rgba(88, 166, 255, 0.4);
-  color: #79c0ff;
+  &:hover {
+    background: color-mix(in srgb, var(--terminal-blue) 16%, transparent);
+    color: var(--terminal-bright-blue);
+  }
 }
-
 
 .ht-panes {
   flex: 1;
@@ -172,7 +226,7 @@
 .ht-pane .xterm-viewport {
   overflow-y: auto !important;
   scrollbar-width: thin;
-  scrollbar-color: #30363d transparent;
+  scrollbar-color: var(--terminal-scroll) transparent;
 }
 
 .ht-pane .xterm-viewport::-webkit-scrollbar {
@@ -184,12 +238,12 @@
 }
 
 .ht-pane .xterm-viewport::-webkit-scrollbar-thumb {
-  background: #30363d;
+  background: var(--terminal-scroll);
   border-radius: 4px;
 }
 
 .ht-pane .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #484f58;
+  background: var(--terminal-scroll-hover);
 }
 
 .ht-pane .xterm-screen,
@@ -203,240 +257,24 @@
 }
 
 
-.ht-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  background: #161b22;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  flex-shrink: 0;
-  min-height: 38px;
+.ht-action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
-.ht-presets-scroll {
-  display: flex;
-  gap: 5px;
-  overflow-x: auto;
-  flex: 1 1 0;
-  scrollbar-width: none;
-  cursor: grab;
-  user-select: none;
+.ht-action-btn--active,
+.ht-action-btn--active:hover {
+  background: color-mix(in srgb, var(--terminal-blue) 14%, transparent);
+  border-color: color-mix(in srgb, var(--terminal-blue) 30%, transparent);
+  color: var(--terminal-bright-blue);
 }
 
-.ht-presets-scroll:active {
-  cursor: grabbing;
-}
-
-.ht-presets-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.ht-preset-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: #8b949e;
-  font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.11s, color 0.11s;
-}
-
-.ht-preset-btn:hover:not(:disabled) {
-  background: rgba(88, 166, 255, 0.1);
-  color: #79c0ff;
-  border-color: rgba(88, 166, 255, 0.3);
-}
-
-.ht-preset-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.ht-manage-btn {
-  flex-shrink: 0;
-  font-size: 12px;
-}
-
-.ht-action-btn--active {
-  background: rgba(88, 166, 255, 0.12);
-  border-color: rgba(88, 166, 255, 0.35);
-  color: #79c0ff;
-}
-
-
-.ht-manager {
-  background: #0d1117;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 12px 12px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 240px;
-  overflow: hidden;
-}
-
-.ht-manager-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #8b949e;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.ht-manager-reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
-  color: #6e7681;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.ht-manager-reset:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  color: #c9d1d9;
-}
-
-.ht-manager-reset:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.ht-manager-add {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.ht-manager-input {
-  padding: 5px 9px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #c9d1d9;
-  font-size: 12px;
-  outline: none;
-  width: 100px;
-}
-
-.ht-manager-input--flex {
-  flex: 1 1 0;
-  width: auto;
-}
-
-.ht-manager-input:focus {
-  border-color: rgba(88, 166, 255, 0.4);
-  background: rgba(88, 166, 255, 0.05);
-}
-
-.ht-manager-save {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(88, 166, 255, 0.3);
-  background: rgba(88, 166, 255, 0.1);
-  color: #79c0ff;
-  font-size: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.1s;
-}
-
-.ht-manager-save:hover:not(:disabled) {
-  background: rgba(88, 166, 255, 0.18);
-}
-
-.ht-manager-save:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.ht-manager-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #30363d transparent;
-}
 
 .ht-manager-empty {
   font-size: 12px;
-  color: #484f58;
+  color: var(--terminal-chrome-dim);
   text-align: center;
   padding: 8px 0;
-}
-
-.ht-manager-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.ht-manager-row-label {
-  font-size: 11.5px;
-  color: #8b949e;
-  min-width: 80px;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ht-manager-row-cmd {
-  flex: 1 1 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11.5px;
-  color: #c9d1d9;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ht-manager-del {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  border: none;
-  background: transparent;
-  color: #484f58;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.ht-manager-del:hover:not(:disabled) {
-  background: rgba(248, 81, 73, 0.12);
-  color: #f85149;
-}
-
-.ht-manager-del:disabled {
-  opacity: 0.35;
 }
 
 .ht-status-dot--pulse {
@@ -461,8 +299,8 @@
   padding: 6px 8px;
   overflow-x: auto;
   flex-shrink: 0;
-  background: #161b22;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--terminal-bg);
+  border-top: 1px solid color-mix(in srgb, var(--terminal-bright-white) 7%, transparent);
   scrollbar-width: none;
 }
 
@@ -471,17 +309,17 @@
   min-height: 36px;
   padding: 0 10px;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--terminal-bright-white) 12%, transparent);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #e6edf3;
+  background: color-mix(in srgb, var(--terminal-bright-white) 5%, transparent);
+  color: var(--terminal-chrome-fg-strong);
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   cursor: pointer;
 }
 
 .ht-keybar__key:active {
-  background: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--terminal-bright-white) 14%, transparent);
 }
 
 .ht-keybar__key:disabled {
@@ -490,6 +328,483 @@
 }
 
 .ht-keybar__key:focus-visible {
-  outline: 2px solid #58a6ff;
+  outline: 2px solid var(--terminal-blue);
   outline-offset: 1px;
+}
+
+// Without a second tab the strip would only hold buttons: they float over the surface and show
+// while the pointer is in the terminal, so the window reads as the prompt alone
+.ht-root {
+  position: relative;
+}
+
+// Spans the window so the list below can size itself to the window, not to the small button
+.ht-floating-actions {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+
+  .ht-floating-group {
+    pointer-events: none;
+  }
+
+  .ht-menu__panel {
+    right: 14px;
+    width: min(18rem, calc(100% - 28px));
+  }
+
+  .ht-menu__panel--compact {
+    width: min(12.5rem, calc(100% - 28px));
+  }
+}
+
+.ht-root:hover .ht-floating-actions,
+.ht-root:focus-within .ht-floating-actions {
+  opacity: 1;
+
+  // only the buttons and the list take clicks; the rest of the row stays part of the terminal
+  .ht-floating-group {
+    pointer-events: auto;
+  }
+}
+
+// touch has no hover, so the buttons stay on screen
+.layout-mobile .ht-floating-actions {
+  opacity: 1;
+
+  .ht-floating-group {
+    pointer-events: auto;
+  }
+}
+
+// a terminal that is not connected keeps its status and Reconnect in view
+.ht-floating-actions--alert {
+  opacity: 1;
+
+  .ht-floating-group {
+    pointer-events: auto;
+  }
+}
+
+.ht-floating-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  // hairlines between status, reconnect and the action list; they hang off the buttons, because
+  // the action list is placed against the whole row and so nothing around it may be positioned
+  > * + * {
+    margin-left: 8px;
+  }
+
+  .ht-action-btn,
+  .ht-menu__trigger {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 6px;
+      bottom: 6px;
+      width: 1px;
+      background: color-mix(in srgb, var(--terminal-bright-white) 12%, transparent);
+    }
+  }
+}
+
+.ht-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 28px;
+}
+
+// The one button that holds the terminal actions, and the list it opens
+// the list is placed against the strip or the floating row, so it can follow the window's width
+.ht-menu {
+  position: static;
+}
+
+.ht-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--terminal-chrome-fg);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+
+  &:hover,
+  &--open {
+    background: color-mix(in srgb, var(--terminal-bright-white) 10%, transparent);
+    color: var(--terminal-chrome-fg-strong);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--terminal-blue);
+    outline-offset: 1px;
+  }
+}
+
+.ht-menu__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(18rem, calc(100% - 16px));
+  box-sizing: border-box;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--terminal-scroll);
+  background: var(--terminal-bg);
+  box-shadow: var(--win-shadow);
+  overflow: hidden;
+}
+
+// The first level only holds three short items; the shortcut list and the SSH form need the wider panel
+.ht-menu__panel--compact {
+  width: min(12.5rem, calc(100% - 16px));
+}
+
+.ht-menu__item,
+.ht-menu__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--terminal-chrome-fg-strong);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.11s;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, var(--terminal-bright-white) 8%, transparent);
+    outline: none;
+  }
+}
+
+.ht-menu__back {
+  color: var(--terminal-chrome-fg);
+  font-weight: 600;
+}
+
+.ht-menu__chevron {
+  margin-left: auto;
+  color: var(--terminal-chrome-dim);
+}
+
+// Address form of the SSH view: full width, one column
+.ht-menu__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 4px 4px;
+}
+
+.ht-menu__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--terminal-bright-white) 14%, transparent);
+  background: color-mix(in srgb, var(--terminal-bright-white) 4%, transparent);
+  color: var(--terminal-chrome-fg-strong);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--terminal-chrome-dim);
+  }
+
+  &:focus {
+    border-color: var(--terminal-blue);
+  }
+}
+
+.ht-menu__submit {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--terminal-blue);
+  color: var(--terminal-bg);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.12s;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--terminal-bright-white);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.ht-presets-menu__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 14rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-scroll) transparent;
+}
+
+.ht-presets-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--terminal-chrome-fg-strong);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.11s;
+}
+
+// a hairline between shortcuts so each one reads as its own entry
+.ht-presets-menu__item + .ht-presets-menu__item {
+  border-top: 1px solid color-mix(in srgb, var(--terminal-bright-white) 9%, transparent);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.ht-presets-menu__item:hover:not(:disabled),
+.ht-presets-menu__item:focus-visible {
+  background: color-mix(in srgb, var(--terminal-bright-white) 8%, transparent);
+  outline: none;
+}
+
+.ht-presets-menu__item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ht-presets-menu__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.ht-presets-menu__cmd.ht-presets-menu__cmd--main {
+  color: var(--terminal-chrome-fg-strong);
+  font-size: 11.5px;
+}
+
+.ht-presets-menu__cmd {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--terminal-chrome-fg);
+}
+
+.ht-presets-menu__manage {
+  padding: 8px;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--terminal-scroll);
+  background: transparent;
+  color: var(--terminal-chrome-fg);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.11s, background 0.11s;
+}
+
+.ht-presets-menu__manage:hover {
+  color: var(--terminal-chrome-fg-strong);
+  background: color-mix(in srgb, var(--terminal-bright-white) 6%, transparent);
+}
+
+// Size readout after Ctrl + wheel or Ctrl + / - / 0
+.ht-zoom-hint {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  z-index: 6;
+  padding: 3px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--terminal-scroll);
+  background: color-mix(in srgb, var(--terminal-bg) 88%, transparent);
+  color: var(--terminal-chrome-fg-strong);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  pointer-events: none;
+}
+
+// The shortcut manager beside the terminal (a split, like an editor's side panel). It wears the terminal's
+// colors: the theme tokens the controls in it read are pointed at the terminal palette, whatever theme the
+// desktop uses.
+.ht-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.ht-body > .ht-panes {
+  min-width: 0;
+}
+
+.ht-side {
+  --win-bg: var(--terminal-bg);
+  --win-text: var(--terminal-chrome-fg-strong);
+  --win-border: color-mix(in srgb, var(--terminal-bright-white) 12%, transparent);
+  --text-secondary: var(--terminal-chrome-fg);
+  --panel-surface: color-mix(in srgb, var(--terminal-bright-white) 4%, var(--terminal-bg));
+  --panel-surface-strong: color-mix(in srgb, var(--terminal-bright-white) 7%, var(--terminal-bg));
+  --panel-surface-hover: color-mix(in srgb, var(--terminal-bright-white) 9%, var(--terminal-bg));
+  --panel-field-bg: color-mix(in srgb, var(--terminal-bright-white) 5%, var(--terminal-bg));
+  --panel-field-focus: color-mix(in srgb, var(--terminal-bright-white) 8%, var(--terminal-bg));
+  --tb-hover: color-mix(in srgb, var(--terminal-bright-white) 9%, transparent);
+  --panel-primary-text: var(--terminal-bright-blue);
+  --panel-primary-bg: color-mix(in srgb, var(--terminal-blue) 14%, transparent);
+  --panel-primary-hover: color-mix(in srgb, var(--terminal-blue) 22%, transparent);
+  --panel-primary-solid: var(--terminal-accent-solid);
+  --panel-danger-text: var(--terminal-bright-red);
+  --panel-danger-bg: color-mix(in srgb, var(--terminal-red) 16%, transparent);
+  --panel-danger-hover: color-mix(in srgb, var(--terminal-red) 26%, transparent);
+
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: min(20rem, 45%);
+  min-height: 0;
+  border-left: 1px solid var(--win-border);
+  background: var(--terminal-bg);
+  color: var(--win-text);
+  font-size: 12.5px;
+}
+
+.ht-side__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--win-border);
+}
+
+.ht-side__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+
+  svg {
+    flex-shrink: 0;
+    color: var(--terminal-bright-blue);
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ht-side__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--terminal-scroll) transparent;
+}
+
+.ht-side__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 14px;
+  border-top: 1px solid var(--win-border);
+}
+
+// fields and rows at the same scale as the terminal's chrome
+.ht-side {
+  .panel-input {
+    min-height: 32px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+  }
+
+  .panel-section-label {
+    margin-bottom: 4px;
+    font-size: 0.68rem;
+  }
+
+  .panel-table-row {
+    padding: 7px 2px;
+  }
+
+  .panel-list-row__name {
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .panel-list-row__desc {
+    font-size: 0.68rem;
+  }
+
+  .panel-badge--detail {
+    padding-inline: 0;
+    background: transparent;
+    border: none;
+  }
+}
+
+// Phones: no room for a split, so the panel covers the terminal
+.layout-mobile .ht-side {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  width: 100%;
+  border-left: none;
+}
+
+.layout-mobile .ht-body {
+  position: relative;
 }

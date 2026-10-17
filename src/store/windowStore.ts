@@ -138,6 +138,11 @@ export const selectGlobalTerminalFontSize = (s: WindowStore) => s.globalTerminal
 export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
 
+// Terminal text size in px; Ctrl + wheel and Ctrl + / - / 0 move it inside this range
+export const TERMINAL_FONT_DEFAULT = 15;
+export const TERMINAL_FONT_MIN = 8;
+export const TERMINAL_FONT_MAX = 32;
+
 export const useWindowStore = create<WindowStore>()(
   persist(
     withMutative<WindowStore>((set) => ({
@@ -146,7 +151,7 @@ export const useWindowStore = create<WindowStore>()(
       autoHideDock: false,
       globalContentZoom: 1,
       globalFontIndex: 2,
-      globalTerminalFontSize: 9,
+      globalTerminalFontSize: TERMINAL_FONT_DEFAULT,
 
       openWindow: (kind, params) => {
         let openedId = '';
@@ -327,7 +332,7 @@ export const useWindowStore = create<WindowStore>()(
 
       setGlobalTerminalFontSize: (value) =>
         set((state) => {
-          state.globalTerminalFontSize = Math.min(18, Math.max(7, Math.round(value)));
+          state.globalTerminalFontSize = Math.min(TERMINAL_FONT_MAX, Math.max(TERMINAL_FONT_MIN, Math.round(value)));
         }),
 
       toggleDockAutoHide: () =>
@@ -369,6 +374,13 @@ export const useWindowStore = create<WindowStore>()(
     {
       name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
+      version: 2,
+      // the old defaults (9px, then 13px) were too small to read; anyone still on one gets the new default
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<WindowStore>;
+        if (version < 2 && (state.globalTerminalFontSize === 9 || state.globalTerminalFontSize === 13)) state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
+        return state as WindowStore;
+      },
     }
   )
 );

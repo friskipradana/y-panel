@@ -274,29 +274,36 @@
   --fallback-action-text: rgb(129, 140, 248);
   --fallback-action-border: rgba(99, 102, 241, 0.25);
 
-  // Host terminal
-  --terminal-bg: #0d1117;
-  --terminal-fg: #c9d1d9;
-  --terminal-cursor: #f59e0b;
-  --terminal-cursor-accent: #0d1117;
-  --terminal-selection-bg: rgba(96, 165, 250, 0.22);
-  --terminal-selection-fg: #f8fbff;
+  // Host terminal: the surface is the window's own (same as --win-content-bg), and its chrome and ANSI colors follow the theme. In light, "white" and
+  // "bright white" are dark inks, so text and the overlays mixed from bright white stay readable.
+  --terminal-bg: #ffffff;
+  --terminal-fg: #1e293b;
+  --terminal-cursor: #1e293b;
+  --terminal-cursor-accent: #ffffff;
+  --terminal-chrome-fg: #4b5563;
+  --terminal-chrome-dim: #94a3b8;
+  --terminal-chrome-fg-strong: #1e293b;
+  --terminal-scroll: #cbd5e1;
+  --terminal-scroll-hover: #94a3b8;
+  --terminal-accent-solid: #2563eb;
+  --terminal-selection-bg: rgba(37, 99, 235, 0.18);
+  --terminal-selection-fg: #0f172a;
   --terminal-black: #0f172a;
-  --terminal-red: #fb7185;
-  --terminal-green: #34d399;
-  --terminal-yellow: #fbbf24;
-  --terminal-blue: #60a5fa;
-  --terminal-magenta: #a78bfa;
-  --terminal-cyan: #22d3ee;
-  --terminal-white: #cdd9e5;
-  --terminal-bright-black: #475569;
-  --terminal-bright-red: #fda4af;
-  --terminal-bright-green: #6ee7b7;
-  --terminal-bright-yellow: #fcd34d;
-  --terminal-bright-blue: #93c5fd;
-  --terminal-bright-magenta: #c4b5fd;
-  --terminal-bright-cyan: #67e8f9;
-  --terminal-bright-white: #ffffff;
+  --terminal-red: #dc2626;
+  --terminal-green: #15803d;
+  --terminal-yellow: #a16207;
+  --terminal-blue: #2563eb;
+  --terminal-magenta: #7e22ce;
+  --terminal-cyan: #0e7490;
+  --terminal-white: #475569;
+  --terminal-bright-black: #64748b;
+  --terminal-bright-red: #ef4444;
+  --terminal-bright-green: #16a34a;
+  --terminal-bright-yellow: #ca8a04;
+  --terminal-bright-blue: #1d4ed8;
+  --terminal-bright-magenta: #9333ea;
+  --terminal-bright-cyan: #0891b2;
+  --terminal-bright-white: #0f172a;
 }
 
 [data-theme="dark"] {
@@ -419,6 +426,37 @@
   --dock-indicator-visible-bg: rgba(226, 232, 240, 0.70);
   --dock-indicator-muted-bg: rgba(255, 255, 255, 0.60);
   --projects-card-highlight-bg: rgba(251, 191, 36, 0.08);
+
+  // Host terminal (dark)
+  --terminal-bg: #0f172a;
+  --terminal-fg: #e2e8f0;
+  --terminal-cursor: #f1f5f9;
+  --terminal-cursor-accent: #0f172a;
+  // chrome around the surface (tabs, scrollbar): flush with the surface
+  --terminal-chrome-fg: #94a3b8;
+  --terminal-chrome-dim: #64748b;
+  --terminal-chrome-fg-strong: #f1f5f9;
+  --terminal-scroll: #334155;
+  --terminal-scroll-hover: #475569;
+  --terminal-accent-solid: #3b82f6;
+  --terminal-selection-bg: rgba(96, 165, 250, 0.22);
+  --terminal-selection-fg: #f8fbff;
+  --terminal-black: #0f172a;
+  --terminal-red: #fb7185;
+  --terminal-green: #34d399;
+  --terminal-yellow: #fbbf24;
+  --terminal-blue: #60a5fa;
+  --terminal-magenta: #a78bfa;
+  --terminal-cyan: #22d3ee;
+  --terminal-white: #cdd9e5;
+  --terminal-bright-black: #475569;
+  --terminal-bright-red: #fda4af;
+  --terminal-bright-green: #6ee7b7;
+  --terminal-bright-yellow: #fcd34d;
+  --terminal-bright-blue: #93c5fd;
+  --terminal-bright-magenta: #c4b5fd;
+  --terminal-bright-cyan: #67e8f9;
+  --terminal-bright-white: #ffffff;
 }
 
 * {

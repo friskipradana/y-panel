@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
-import { Plus, RefreshCcw, RotateCcw, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import 'xterm/css/xterm.css'
-import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize } from '@/store/windowStore'
+import { useThemeStore } from '@/store/themeStore'
+import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize, TERMINAL_FONT_DEFAULT } from '@/store/windowStore'
 import { useTerminalSession } from '@/hooks/useTerminalSession'
 import {
   listTerminalPresets,
@@ -14,6 +15,12 @@ import {
   type TerminalPreset,
 } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import { alertLib } from '@/lib/alert'
+import { Button } from '@/components/ui/Button'
+import { Field, TextInput } from '@/components/ui/Field'
+import { IconButton } from '@/components/ui/IconButton'
+import { ListRow } from '@/components/ui/ListRow'
+import { EmptyState } from '@/components/ui/states'
 
 const cssVar = (name: string) => {
   if (typeof window === 'undefined') return `var(${name})`
@@ -58,20 +65,26 @@ interface TerminalTabPaneProps {
   target?: string
   fontFamily: string
   fontSize: number
+  /** Ctrl + wheel and Ctrl + / - / 0: 1 or -1 steps the text size, 0 resets it */
+  onZoom: (step: number) => void
   onStatusChange?: (connected: boolean, error: boolean, reconnecting: boolean) => void
   onStart?: (start: (target?: string) => Promise<void>) => void
   onSendInput?: (fn: (cmd: string) => Promise<void>) => void
 }
 
-function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
+function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
   const {
     sessionId, starting, connected, reconnecting, error,
     start, sendInput, updateTerminalSize, setOutputListener, close,
   } = useTerminalSession()
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
+  const themeMode    = useThemeStore((s) => s.mode)
   const xtermRef    = useRef<Terminal | null>(null)
   const fitRef      = useRef<FitAddon | null>(null)
+  // the key and wheel handlers live as long as the terminal, so they read the current callback here
+  const zoomRef     = useRef(onZoom)
+  zoomRef.current = onZoom
 
   useEffect(() => { onStart?.(start) }, [onStart, start])
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
@@ -105,6 +118,12 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
       if (event.type !== 'keydown') return true
       const mod = event.ctrlKey || event.metaKey
       const key = event.key.toLowerCase()
+      // Ctrl + / - / 0 change the text size of the terminal, not the page
+      if (mod && !event.altKey && ['+', '=', '-', '_', '0'].includes(key)) {
+        event.preventDefault()
+        zoomRef.current(key === '0' ? 0 : key === '+' || key === '=' ? 1 : -1)
+        return false
+      }
       if (mod && key === 'c' && (event.shiftKey || xterm.hasSelection())) {
         const text = xterm.getSelection()
         if (text) {
@@ -125,6 +144,17 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
       fitRef.current.fit()
       updateTerminalSize(xtermRef.current.cols, xtermRef.current.rows)
     }
+    // Ctrl + wheel (also a trackpad pinch) steps the size; small deltas add up so one flick is one step
+    let wheelAcc = 0
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return
+      event.preventDefault()
+      wheelAcc += event.deltaY
+      if (Math.abs(wheelAcc) < 30) return
+      zoomRef.current(wheelAcc < 0 ? 1 : -1)
+      wheelAcc = 0
+    }
+    host.addEventListener('wheel', onWheel, { passive: false })
     const ro = new ResizeObserver(() => requestAnimationFrame(syncSize))
     ro.observe(host)
     window.addEventListener('resize', syncSize)
@@ -132,6 +162,7 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
     requestAnimationFrame(() => { syncSize(); xterm.focus() })
     return () => {
       ro.disconnect()
+      host.removeEventListener('wheel', onWheel)
       window.removeEventListener('resize', syncSize)
       d.dispose()
       setOutputListener(null)
@@ -182,6 +213,14 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
     })
   }, [fontFamily, fontSize, updateTerminalSize])
 
+  // light and dark have their own palette; xterm keeps the colors it was given, so give them again
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (xtermRef.current) xtermRef.current.options.theme = createXtermTheme()
+    }, 60)
+    return () => window.clearTimeout(timer)
+  }, [themeMode])
+
   useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
   useEffect(() => () => { void close() }, [close])
 
@@ -212,6 +251,14 @@ interface Tab {
   sendInputFn: ((cmd: string) => Promise<void>) | null
 }
 
+// What a terminal's state is called and which color shows it
+function statusOf(tab: Tab) {
+  if (tab.error) return { key: 'error', color: 'var(--status-error)' }
+  if (tab.reconnecting) return { key: 'reconnecting', color: 'var(--panel-warning-text)' }
+  if (tab.connected) return { key: 'connected', color: 'var(--status-online)' }
+  return { key: 'offline', color: 'var(--status-offline)' }
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export function HostTerminalWindow({ authenticated }: { authenticated?: boolean }) {
   const globalContentZoom      = useWindowStore(selectGlobalContentZoom)
@@ -219,6 +266,25 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
   const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
   const fontFamily = TERMINAL_FONT_OPTIONS[globalFontIndex] ?? TERMINAL_FONT_OPTIONS[2]
   const fontSize   = Math.max(7, Math.round(globalTerminalFontSize * globalContentZoom * 10) / 10)
+
+  // Size steps from Ctrl + wheel or Ctrl + / - / 0; the store keeps it between sessions
+  const zoom = useCallback((step: number) => {
+    const state = useWindowStore.getState()
+    state.setGlobalTerminalFontSize(step === 0 ? TERMINAL_FONT_DEFAULT : state.globalTerminalFontSize + step)
+  }, [])
+
+  // a short readout of the size after each change, so the step is visible
+  const [zoomHint, setZoomHint] = useState('')
+  const firstSize = useRef(true)
+  useEffect(() => {
+    if (firstSize.current) {
+      firstSize.current = false
+      return
+    }
+    setZoomHint(`${globalTerminalFontSize}px · ${Math.round((globalTerminalFontSize / TERMINAL_FONT_DEFAULT) * 100)}%`)
+    const timer = window.setTimeout(() => setZoomHint(''), 900)
+    return () => window.clearTimeout(timer)
+  }, [globalTerminalFontSize])
 
   const { t } = useI18n()
 
@@ -345,6 +411,16 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     }
   }
 
+  const confirmDeletePreset = async (id: number, name: string) => {
+    const ok = await alertLib.confirm(t('hostTerminal.deleteShortcutTitle'), t('hostTerminal.deleteShortcutMessage', { name }), t('common.delete'), t('common.cancel'), 'warning', 'host-terminal')
+    if (ok) await handleDeletePreset(id)
+  }
+
+  const confirmResetPresets = async () => {
+    const ok = await alertLib.confirm(t('hostTerminal.resetShortcutsTitle'), t('hostTerminal.resetShortcutsMessage'), t('hostTerminal.resetDefault'), t('common.cancel'), 'warning', 'host-terminal')
+    if (ok) await handleResetPresets()
+  }
+
   const handleResetPresets = async () => {
     setResetting(true)
     try {
@@ -356,39 +432,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     }
   }
 
-  // ── Drag to scroll for presets ──────────────────────────────────────────
-  const presetsScrollRef = useRef<HTMLDivElement>(null)
-  const isDraggingRef = useRef(false)
-  const startXRef = useRef(0)
-  const scrollLeftRef = useRef(0)
-  const hasDraggedRef = useRef(false)
-
-  const handlePresetsMouseDown = (e: React.MouseEvent) => {
-    if (!presetsScrollRef.current) return
-    isDraggingRef.current = true
-    hasDraggedRef.current = false
-    startXRef.current = e.pageX - presetsScrollRef.current.offsetLeft
-    scrollLeftRef.current = presetsScrollRef.current.scrollLeft
-  }
-  const handlePresetsMouseLeave = () => { isDraggingRef.current = false }
-  const handlePresetsMouseUp = () => { isDraggingRef.current = false }
-  const handlePresetsMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !presetsScrollRef.current) return
-    e.preventDefault()
-    const x = e.pageX - presetsScrollRef.current.offsetLeft
-    const walk = (x - startXRef.current) * 1.5
-    if (Math.abs(walk) > 3) hasDraggedRef.current = true
-    presetsScrollRef.current.scrollLeft = scrollLeftRef.current - walk
-  }
-
-  const handlePresetClick = (command: string, e: React.MouseEvent) => {
-    if (hasDraggedRef.current) {
-      e.stopPropagation()
-      e.preventDefault()
-      return
-    }
-    void runPreset(command)
-  }
+  const [showPresets, setShowPresets] = useState(false)
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -444,9 +488,220 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     })
   }, [activeTabId, tabs.length])
 
+  // Actions: with one terminal a small button holds them (opens on hover or click); with several they
+  // are spelled out in the tab strip. Both share the same shortcut list and SSH form.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<number | undefined>(undefined)
+  const closeMenu = useCallback(() => {
+    window.clearTimeout(closeTimer.current)
+    setMenuOpen(false)
+    setShowPresets(false)
+    setShowSshModal(false)
+  }, [])
+  const openMenu = () => {
+    window.clearTimeout(closeTimer.current)
+    setMenuOpen(true)
+  }
+  // leaving the menu closes it after a moment, except while an address is being typed
+  const leaveMenu = () => {
+    if (showSshModal) return
+    window.clearTimeout(closeTimer.current)
+    closeTimer.current = window.setTimeout(closeMenu, 350)
+  }
+  const popupOpen = menuOpen || showPresets || showSshModal
+  useEffect(() => {
+    if (!popupOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu()
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [popupOpen, closeMenu])
+  useEffect(() => () => window.clearTimeout(closeTimer.current), [])
+
+  const view = showSshModal ? 'ssh' : showPresets ? 'presets' : 'main'
+  const backToMenu = () => {
+    setShowPresets(false)
+    setShowSshModal(false)
+  }
+
+  const presetsBody = (
+    <>
+      <div className="ht-presets-menu__list">
+        {presets.length === 0 ? <span className="ht-manager-empty">{t('hostTerminal.noShortcuts')}</span> : null}
+        {presets.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="menuitem"
+            className="ht-presets-menu__item"
+            disabled={!activeTab.connected && !activeTab.reconnecting}
+            onClick={() => {
+              closeMenu()
+              void runPreset(p.command)
+            }}
+            title={p.command}
+          >
+            {p.label ? (
+              <>
+                <span className="ht-presets-menu__label">{p.label}</span>
+                <code className="ht-presets-menu__cmd">{p.command}</code>
+              </>
+            ) : (
+              <code className="ht-presets-menu__cmd ht-presets-menu__cmd--main">{p.command}</code>
+            )}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="ht-presets-menu__manage" onClick={() => { closeMenu(); setShowPresetManager(true) }}>
+        {t('hostTerminal.manageCommandShortcuts')}
+      </button>
+    </>
+  )
+
+  const sshBody = (
+    <div className="ht-menu__form">
+      <input
+        autoFocus
+        className="ht-menu__input"
+        placeholder={t('hostTerminal.sshPlaceholder')}
+        aria-label={t('hostTerminal.connectRemote')}
+        value={sshInput}
+        onChange={(e) => setSshInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleSshConnect()
+            closeMenu()
+          }
+        }}
+      />
+      <button type="button" className="ht-menu__submit" disabled={!sshInput.trim()} onClick={() => { handleSshConnect(); closeMenu() }}>
+        {t('hostTerminal.connect')}
+      </button>
+    </div>
+  )
+
+  const onPanelKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') closeMenu()
+  }
+
+  // one terminal: the small button and its list
+  const menuActions = (
+    <div className="ht-menu" ref={menuRef} onMouseEnter={openMenu} onMouseLeave={leaveMenu}>
+      <button
+        type="button"
+        className={`ht-menu__trigger${menuOpen ? ' ht-menu__trigger--open' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label={t('hostTerminal.actions')}
+        title={t('hostTerminal.actions')}
+        onClick={() => (menuOpen ? closeMenu() : openMenu())}
+      >
+        <MoreVertical size={15} />
+      </button>
+
+      {menuOpen && (
+        <div role="menu" className={`ht-menu__panel${view === 'main' ? ' ht-menu__panel--compact' : ''}`} onKeyDown={onPanelKey}>
+          {view === 'main' && (
+            <>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => { addTab(); closeMenu() }}>
+                <Plus size={14} />
+                <span>{t('hostTerminal.newLocalTerminal')}</span>
+              </button>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => setShowPresets(true)}>
+                <Zap size={14} />
+                <span>{t('hostTerminal.shortcuts')}</span>
+                <ChevronRight size={13} className="ht-menu__chevron" />
+              </button>
+              <button type="button" role="menuitem" className="ht-menu__item" onClick={() => setShowSshModal(true)}>
+                <SquareTerminal size={14} />
+                <span>{t('hostTerminal.connectViaSsh')}</span>
+                <ChevronRight size={13} className="ht-menu__chevron" />
+              </button>
+            </>
+          )}
+          {view === 'presets' && (
+            <>
+              <button type="button" className="ht-menu__back" onClick={backToMenu}>
+                <ChevronLeft size={14} />
+                <span>{t('hostTerminal.commandShortcuts')}</span>
+              </button>
+              {presetsBody}
+            </>
+          )}
+          {view === 'ssh' && (
+            <>
+              <button type="button" className="ht-menu__back" onClick={backToMenu}>
+                <ChevronLeft size={14} />
+                <span>{t('hostTerminal.connectRemote')}</span>
+              </button>
+              {sshBody}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  // several terminals: the buttons sit in the strip, each list opens under its own button;
+  // Reconnect is on every tab instead
+  const stripActions = (
+    <div className="ht-strip-actions" ref={menuRef}>
+      <button
+        type="button"
+        className="ht-action-btn ht-action-btn--add"
+        title={t('hostTerminal.newLocalTerminal')}
+        aria-label={t('hostTerminal.newLocalTerminal')}
+        onClick={() => { closeMenu(); addTab() }}
+      >
+        <Plus size={14} />
+      </button>
+      <button
+        type="button"
+        className={`ht-action-btn${showPresets ? ' ht-action-btn--active' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={showPresets}
+        title={t('hostTerminal.commandShortcuts')}
+        onClick={() => {
+          setShowSshModal(false)
+          setShowPresets((v) => !v)
+        }}
+      >
+        <Zap size={13} />
+        <span>{t('hostTerminal.shortcuts')}</span>
+      </button>
+      <button
+        type="button"
+        className={`ht-action-btn${showSshModal ? ' ht-action-btn--active' : ''}`}
+        aria-haspopup="dialog"
+        aria-expanded={showSshModal}
+        title={t('hostTerminal.connectViaSsh')}
+        onClick={() => {
+          setShowPresets(false)
+          setShowSshModal((v) => !v)
+        }}
+      >
+        <SquareTerminal size={13} />
+        <span>SSH</span>
+      </button>
+      {showPresets && (
+        <div role="menu" className="ht-menu__panel" onKeyDown={onPanelKey}>
+          {presetsBody}
+        </div>
+      )}
+      {showSshModal && (
+        <div className="ht-menu__panel" onKeyDown={onPanelKey}>
+          {sshBody}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className="ht-root">
-      {/* ── Tab bar ─────────────────────────────────────────────────── */}
+      {/* Tab strip: only with more than one terminal */}
+      {tabs.length > 1 ? (
       <div className="ht-tabbar">
         <div 
           className="ht-tabs"
@@ -485,6 +740,16 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
                 }}
               />
               <span className="ht-tab-label">{tab.label}</span>
+              <button
+                type="button"
+                className="ht-tab-action"
+                aria-label={t('hostTerminal.reconnect')}
+                title={tab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}
+                disabled={tab.reconnecting}
+                onClick={(e) => { e.stopPropagation(); void tab.startFn?.(tab.target) }}
+              >
+                <RefreshCcw size={11} className={tab.reconnecting ? 'animate-spin' : ''} />
+              </button>
               {tabs.length > 1 && (
                 <button
                   type="button"
@@ -498,154 +763,120 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
             </div>
           ))}
         </div>
-        <div className="ht-tabbar-actions">
-          <button className="ht-action-btn" onClick={handleReconnect} title={t('hostTerminal.reconnect')}>
-            <RefreshCcw size={13} className={activeTab.reconnecting ? 'animate-spin' : ''} />
-            <span>{activeTab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}</span>
-          </button>
-          
-          <div className="relative flex items-center gap-1 ml-1 pl-1 border-l border-[var(--win-border)]">
-            <button 
-              className={`ht-action-btn ${showSshModal ? 'bg-[var(--panel-primary-hover)] text-[var(--panel-primary-text)]' : ''}`} 
-              onClick={() => setShowSshModal(!showSshModal)} 
-              title={t('hostTerminal.connectViaSsh')}
-            >
-              <Plus size={14} className="rotate-45" />
-              <span>SSH</span>
-            </button>
-
-            {showSshModal && (
-              <div className="absolute top-[40px] right-0 w-64 p-3 rounded-2xl bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--win-border)] shadow-2xl z-[50]">
-                <div className="text-[12px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">{t('hostTerminal.connectRemote')}</div>
-                <input 
-                  autoFocus
-                  className="w-full px-3 py-2 bg-[var(--panel-code-bg)] border border-[var(--win-border)] rounded-xl text-[var(--win-text)] text-[12px] focus:border-[var(--focus-ring)]/50 outline-none transition-all"
-                  placeholder={t('hostTerminal.sshPlaceholder')}
-                  value={sshInput}
-                  onChange={(e) => setSshInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSshConnect()
-                    if (e.key === 'Escape') setShowSshModal(false)
-                  }}
-                />
-                <div className="flex justify-end gap-2 mt-3">
-                  <button className="px-3 py-2 text-[12px] font-bold text-[var(--text-secondary)] hover:text-[var(--win-text)]" onClick={() => setShowSshModal(false)}>{t('common.cancel')}</button>
-                  <button className="px-3 py-2 bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] text-[12px] font-bold rounded-lg shadow-lg" onClick={handleSshConnect}>{t('hostTerminal.connect')}</button>
-                </div>
-              </div>
-            )}
-
-            <button className="ht-action-btn ht-action-btn--add" onClick={() => addTab()} title={t('hostTerminal.newLocalTerminal')}>
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
+        <div className="ht-tabbar-actions">{stripActions}</div>
       </div>
+      ) : null}
 
-      {/* ── Preset shortcut bar ──────────────────────────────────────── */}
-      <div className="ht-footer">
-        <div 
-          className="ht-presets-scroll"
-          ref={presetsScrollRef}
-          onMouseDown={handlePresetsMouseDown}
-          onMouseLeave={handlePresetsMouseLeave}
-          onMouseUp={handlePresetsMouseUp}
-          onMouseMove={handlePresetsMouseMove}
-        >
-          {presets.map((p) => (
-            <button
-              key={p.id}
-              className="ht-preset-btn"
-              onClick={(e) => handlePresetClick(p.command, e)}
-              disabled={!activeTab.connected && !activeTab.reconnecting}
-              title={p.command}
-            >
-              {p.label || p.command}
-            </button>
+      {/* ── Terminal and, when asked for, the shortcut manager beside it ─ */}
+      <div className="ht-body">
+        <div className="ht-panes">
+          {zoomHint ? <div className="ht-zoom-hint" role="status">{zoomHint}</div> : null}
+          {tabs.length === 1 ? (
+            // status | reconnect | actions; it stays on screen while the terminal is not connected
+            <div className={`ht-floating-actions${activeTab.connected ? '' : ' ht-floating-actions--alert'}`}>
+              <div className="ht-floating-group">
+                <span
+                  className="ht-status"
+                  role="status"
+                  aria-label={t(`hostTerminal.status.${statusOf(activeTab).key}`)}
+                  title={t(`hostTerminal.status.${statusOf(activeTab).key}`)}
+                >
+                  <span className={`ht-status-dot${activeTab.reconnecting ? ' ht-status-dot--pulse' : ''}`} style={{ background: statusOf(activeTab).color }} />
+                </span>
+                <button
+                  type="button"
+                  className="ht-action-btn ht-action-btn--icon"
+                  disabled={activeTab.reconnecting}
+                  onClick={handleReconnect}
+                  title={activeTab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}
+                  aria-label={t('hostTerminal.reconnect')}
+                >
+                  <RefreshCcw size={14} className={activeTab.reconnecting ? 'animate-spin' : ''} />
+                </button>
+                {menuActions}
+              </div>
+            </div>
+          ) : null}
+          {tabs.map((tab) => (
+            <TerminalTabPane
+              key={tab.id}
+              authenticated={authenticated}
+              active={tab.id === activeTabId}
+              target={tab.target}
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              onZoom={zoom}
+              onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
+              onStart={(fn) => handleStart(tab.id, fn)}
+              onSendInput={(fn) => handleSendInput(tab.id, fn)}
+            />
           ))}
         </div>
-        <button
-          className={`ht-action-btn ht-manage-btn${showPresetManager ? ' ht-action-btn--active' : ''}`}
-          onClick={() => setShowPresetManager((v) => !v)}
-          title={t('hostTerminal.manageCommandShortcuts')}
-        >
-          {t('hostTerminal.manage')}
-        </button>
-      </div>
 
-      {/* ── Preset manager panel ─────────────────────────────────────── */}
-      {showPresetManager && (
-        <div className="ht-manager">
-          <div className="ht-manager-header">
-            <span>{t('hostTerminal.manageCommandShortcutsTitle')}</span>
-            <button className="ht-manager-reset" onClick={handleResetPresets} disabled={resetting} title={t('hostTerminal.resetToDefault')}>
-              <RotateCcw size={13} />
-              <span>{resetting ? t('hostTerminal.resetting') : t('hostTerminal.resetDefault')}</span>
-            </button>
-          </div>
+        {showPresetManager ? (
+          <aside
+            className="ht-side"
+            aria-label={t('hostTerminal.manageCommandShortcutsTitle')}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setShowPresetManager(false)
+            }}
+          >
+            <div className="ht-side__header">
+              <h3 className="ht-side__title">
+                {/* <Zap size={14} /> */}
+                <span>{t('hostTerminal.manageCommandShortcutsTitle')}</span>
+              </h3>
+              <IconButton label={t('common.close')} onClick={() => setShowPresetManager(false)}>
+                <X className="h-4 w-4" />
+              </IconButton>
+            </div>
 
-          {/* Add form */}
-          <div className="ht-manager-add">
-            <input
-              className="ht-manager-input"
-              placeholder={t('hostTerminal.optionalLabel')}
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-            />
-            <input
-              className="ht-manager-input ht-manager-input--flex"
-              placeholder={t('hostTerminal.commandExample')}
-              value={newCommand}
-              onChange={(e) => setNewCommand(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void handleAddPreset() }}
-            />
-            <button
-              className="ht-manager-save"
-              onClick={() => void handleAddPreset()}
-              disabled={addingPreset || !newCommand.trim()}
-            >
-              {addingPreset ? '...' : <><Plus size={13} /> {t('hostTerminal.add')}</>}
-            </button>
-          </div>
+            <div className="ht-side__body">
+              <form
+                className="space-y-2.5"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void handleAddPreset()
+                }}
+              >
+                <Field label={t('hostTerminal.shortcutLabel')}>
+                  <TextInput placeholder={t('hostTerminal.optionalLabel')} value={newLabel} maxLength={40} onChange={(e) => setNewLabel(e.target.value)} />
+                </Field>
+                <Field label={t('hostTerminal.shortcutCommand')}>
+                  <TextInput mono placeholder={t('hostTerminal.commandExample')} value={newCommand} onChange={(e) => setNewCommand(e.target.value)} />
+                </Field>
+                <Button type="submit" variant="primary" size="sm" block icon={<Plus className="h-3.5 w-3.5" />} loading={addingPreset} disabled={!newCommand.trim()}>
+                  {t('hostTerminal.add')}
+                </Button>
+              </form>
 
-          {/* List */}
-          <div className="ht-manager-list">
-            {presets.length === 0 && (
-              <span className="ht-manager-empty">{t('hostTerminal.noShortcuts')}</span>
-            )}
-            {presets.map((p) => (
-              <div key={p.id} className="ht-manager-row">
-                <span className="ht-manager-row-label">{p.label || <em style={{ opacity: 0.5 }}>—</em>}</span>
-                <code className="ht-manager-row-cmd">{p.command}</code>
-                <button
-                  className="ht-manager-del"
-                  onClick={() => void handleDeletePreset(p.id)}
-                  disabled={deletingId === p.id}
-                  title={t('common.delete')}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {presets.length === 0 ? (
+                <EmptyState icon={<Zap />}>{t('hostTerminal.noShortcuts')}</EmptyState>
+              ) : (
+                <div className="ht-side__list">
+                  {presets.map((p) => (
+                    <ListRow
+                      key={p.id}
+                      title={p.label || <span className="panel-mono">{p.command}</span>}
+                      details={p.label ? <span className="panel-mono break-all">{p.command}</span> : undefined}
+                      actions={
+                        <IconButton label={t('common.delete')} tone="danger" disabled={deletingId === p.id} onClick={() => void confirmDeletePreset(p.id, p.label || p.command)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconButton>
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
 
-      {/* ── Terminal panes ───────────────────────────────────────────── */}
-      <div className="ht-panes">
-        {tabs.map((tab) => (
-          <TerminalTabPane
-            key={tab.id}
-            authenticated={authenticated}
-            active={tab.id === activeTabId}
-            target={tab.target}
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
-            onStart={(fn) => handleStart(tab.id, fn)}
-            onSendInput={(fn) => handleSendInput(tab.id, fn)}
-          />
-        ))}
+            <div className="ht-side__footer">
+              <Button variant="ghost" size="sm" icon={<RotateCcw className="h-3.5 w-3.5" />} loading={resetting} onClick={() => void confirmResetPresets()}>
+                {t('hostTerminal.resetDefault')}
+              </Button>
+            </div>
+          </aside>
+        ) : null}
       </div>
 
       <div className="hidden mobile:block">
