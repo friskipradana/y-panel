@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.1] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.1** berisi 1 perubahan: 1 fitur. (15 files changed, 724 insertions(+), 846 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **search:** Rebuilt quick search (role aware list from data, settings tab jump, open windows, recents, strict ranking with Indonesian/English keywords, i18n) and the speed test desktop icon ([`1ae6e97`](https://github.com/friskipradana/y-panel/commit/1ae6e97))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.0...v4.7.1
+
 ## [4.7.0] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
