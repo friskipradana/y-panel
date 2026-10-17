@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.9.0] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.9.0** berisi 1 perubahan: 1 fitur. (148 files changed, 9115 insertions(+), 3972 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **agent:** Table queries on the agent, supervised projects, one owner per port, safer file handling ([`ad1707f`](https://github.com/friskipradana/y-panel/commit/ad1707f))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.8.0...v4.9.0
+
 ## [4.8.0] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
