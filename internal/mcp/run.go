@@ -19,8 +19,6 @@ type Config struct {
 	// Required for API-backed tools (projects, users, cloudflare).
 	SessionToken string
 
-	// PortainerURL is passed through to the system inspection helper.
-	PortainerURL string
 
 	// StateDir is the panel's data directory for storage usage stats.
 	StateDir string
@@ -99,7 +97,6 @@ func BuildServer(cfg Config, userRole string, rawToken string) *Server {
 	// home, containers and quota.
 	if isSuper || isLocal {
 		registerSystemTools(srv, systemConfig{
-			PortainerURL: cfg.PortainerURL,
 			StateDir:     cfg.StateDir,
 		})
 		registerDockerTools(srv, isAdmin)

@@ -47,6 +47,7 @@ func (s *Server) routes() {
 
 	// ── Users (admin+) ────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListUsers)))
+	s.mux.Handle("GET /api/v1/users/table", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUsersTable)))
 	s.mux.Handle("POST /api/v1/users", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateUser)))
 	s.mux.Handle("GET /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleGetUser))))
 	s.mux.Handle("PATCH /api/v1/users/{id}", s.requireRole(auth.AdminRole, s.requireUserScope(http.HandlerFunc(s.handleUpdateUser))))
@@ -93,6 +94,7 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteProject)))
 	s.mux.Handle("POST /api/v1/projects/{id}/start", s.requireAuthV2(http.HandlerFunc(s.handleStartProject)))
 	s.mux.Handle("POST /api/v1/projects/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleStopProject)))
+	s.mux.Handle("GET /api/v1/projects/{id}/logs", s.requireAuthV2(http.HandlerFunc(s.handleProjectLogs)))
 
 	// ── Tunnels ───────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/tunnels", s.requireAuthV2(http.HandlerFunc(s.handleListTunnels)))
@@ -106,6 +108,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/docs", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCreateDoc)))
 	s.mux.Handle("POST /api/v1/docs/images", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUploadDocImage)))
 	s.mux.Handle("GET /api/v1/docs/official", s.requireAuthV2(http.HandlerFunc(s.handleListOfficialDocs)))
+	s.mux.Handle("GET /api/v1/docs/table", s.requireAuthV2(http.HandlerFunc(s.handleDocsTable)))
 	s.mux.Handle("GET /api/v1/docs/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetDoc)))
 	s.mux.Handle("PATCH /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateDoc)))
 	s.mux.Handle("DELETE /api/v1/docs/{id}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteDoc)))
@@ -210,6 +213,7 @@ func (s *Server) routes() {
 
 	// ── Containers ────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/containers", s.requireAuthV2(http.HandlerFunc(s.handleContainersList)))
+	s.mux.Handle("GET /api/v1/containers/table", s.requireAuthV2(http.HandlerFunc(s.handleContainersTable)))
 	s.mux.Handle("GET /api/v1/containers/owners", s.requireAuthV2(http.HandlerFunc(s.handleContainerOwners)))
 	s.mux.Handle("POST /api/v1/containers/deploy-image", s.requireCapability(auth.CapabilityDockerDeploy, http.HandlerFunc(s.handleContainerDeployImage)))
 	s.mux.Handle("POST /api/v1/containers/deploy-compose", s.requireCapability(auth.CapabilityDockerDeploy, http.HandlerFunc(s.handleContainerDeployCompose)))

@@ -60,6 +60,7 @@ func main() {
 
 	srv.EnsureDemoAccount()
 	srv.RestoreProjects()
+	srv.RecoverDatabases()
 	srv.RestoreTunnels()
 
 	log.Printf("Reneo agent listening on %s", cfg.BindAddr)
@@ -218,7 +219,6 @@ func runMCP() error {
 	mcpCfg := mcp.Config{
 		PanelURL:     panelURL,
 		SessionToken: os.Getenv("PANEL_MCP_TOKEN"),
-		PortainerURL: os.Getenv("PANEL_PORTAINER_URL"),
 		StateDir:     os.Getenv("PANEL_STATE_DIR"),
 	}
 

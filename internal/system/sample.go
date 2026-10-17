@@ -1,7 +1,7 @@
 package system
 
 // Sample is the lightweight subset of Summary used for history recording.
-// It deliberately skips docker/portainer probes, which are slow.
+// It deliberately skips docker probes, which are slow.
 type Sample struct {
 	CPUPercent  float64
 	RAMPercent  float64

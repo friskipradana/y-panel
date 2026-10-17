@@ -20,12 +20,14 @@ func readStorageUsagePlatform(target string) UsageStat {
 		return UsageStat{}
 	}
 
-	total := stat.Blocks * uint64(stat.Bsize)
-	free := stat.Bavail * uint64(stat.Bsize)
+	// the way df counts it: what is used, against what is used plus what an ordinary program may still take;
+	// the blocks the filesystem keeps back for root are in neither
+	bsize := uint64(stat.Bsize)
 	used := uint64(0)
-	if total > free {
-		used = total - free
+	if stat.Blocks > stat.Bfree {
+		used = (stat.Blocks - stat.Bfree) * bsize
 	}
+	total := used + stat.Bavail*bsize
 
 	return UsageStat{Total: total, Used: used}
 }

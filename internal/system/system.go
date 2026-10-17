@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,7 +39,6 @@ type Summary struct {
 	DockerInstalled    bool      `json:"dockerInstalled"`
 	DockerReachable    bool      `json:"dockerReachable"`
 	DockerStatus       string    `json:"dockerStatus"`
-	PortainerReachable bool      `json:"portainerReachable"`
 	IPAddresses        []string  `json:"ipAddresses"`
 }
 
@@ -48,15 +46,10 @@ type LogEntry struct {
 	Line string `json:"line"`
 }
 
-func Inspect(portainerURL, stateDir string) Summary {
+func Inspect(stateDir string) Summary {
 	hostname, _ := os.Hostname()
 	dockerInstalled := hasCommand("docker")
 	dockerReachable := dockerReachable()
-
-	portainerReachable := false
-	if strings.TrimSpace(portainerURL) != "" {
-		portainerReachable = urlReachable(strings.TrimRight(portainerURL, "/") + "/api/status")
-	}
 
 	return Summary{
 		Hostname:           hostname,
@@ -71,7 +64,6 @@ func Inspect(portainerURL, stateDir string) Summary {
 		DockerInstalled:    dockerInstalled,
 		DockerReachable:    dockerReachable,
 		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
-		PortainerReachable: portainerReachable,
 		IPAddresses:        readIPAddresses(),
 	}
 }
@@ -98,16 +90,6 @@ func resolveDockerStatus(installed, reachable bool) string {
 	default:
 		return "Docker aktif dan merespons"
 	}
-}
-
-func urlReachable(url string) bool {
-	client := http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
 func readOSName() string {
@@ -254,16 +236,16 @@ func readMemoryUsage() UsageStat {
 	}
 
 	total := stats["MemTotal"]
-	free := stats["MemFree"]
-	buffers := stats["Buffers"]
-	cached := stats["Cached"]
-	reclaimable := stats["SReclaimable"]
-
-	// Di Linux, 'Used' yang sebenarnya (seperti di perintah free) adalah:
-	// Total - Free - Buffers - Cache
-	// SReclaimable juga merupakan bagian dari cache yang bisa diambil kembali
-	used := total - free - buffers - cached - reclaimable
-
+	// MemAvailable is what the kernel itself says can be given to a program without swapping; older kernels lack it
+	used := uint64(0)
+	if available, ok := stats["MemAvailable"]; ok && available <= total {
+		used = total - available
+	} else {
+		reclaimable := stats["Buffers"] + stats["Cached"] + stats["SReclaimable"]
+		if stats["MemFree"]+reclaimable <= total {
+			used = total - stats["MemFree"] - reclaimable
+		}
+	}
 	return UsageStat{Total: total, Used: used}
 }
 

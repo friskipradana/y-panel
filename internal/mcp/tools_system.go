@@ -20,7 +20,7 @@ func registerSystemTools(s *Server, cfg systemConfig) {
 		Description: "Get server system information: hostname, OS, kernel, uptime, CPU usage, memory, storage, network I/O, Docker status, and IP addresses.",
 		InputSchema: InputSchema{Type: "object"},
 	}, func(ctx context.Context, _ map[string]any) (string, error) {
-		summary := system.Inspect(cfg.PortainerURL, cfg.StateDir)
+		summary := system.Inspect(cfg.StateDir)
 		return formatJSON(summary)
 	})
 
@@ -78,8 +78,7 @@ func registerUpdateCheck(s *Server) {
 
 // systemConfig holds config fields needed by system tools.
 type systemConfig struct {
-	PortainerURL string
-	StateDir     string
+	StateDir string
 }
 
 // --- helpers ---

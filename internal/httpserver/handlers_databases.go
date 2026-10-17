@@ -80,7 +80,7 @@ func (s *Server) handleListUserDatabases(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": s.viewManagedDatabases(list)})
+	s.writeJSON(w, http.StatusOK, tableResponse(s.viewManagedDatabases(list), databaseSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleCreateUserDatabase(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +130,9 @@ func (s *Server) handleCreateUserDatabase(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// the port is chosen and then written: two creations at once must not choose the same one
+	s.databaseCreateMu.Lock()
+	defer s.databaseCreateMu.Unlock()
 	port, err := s.allocateDatabasePort()
 	if err != nil {
 		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": err.Error()})
@@ -187,18 +190,13 @@ func (s *Server) provisionUserDatabase(id, ownerID int64, spec userdb.Spec) {
 	s.notifyUserAction(ownerID, "Database siap 🗄️", fmt.Sprintf("Database %s berhasil dibuat.", spec.Engine.Label), "success")
 }
 
+// allocateDatabasePort gives the first port of the database range that no project, database or container holds and nothing listens on
 func (s *Server) allocateDatabasePort() (int, error) {
-	used, err := s.database.ManagedDatabasePorts()
+	port, err := s.freePort(userdb.PortStart, userdb.PortEnd, nil)
 	if err != nil {
-		return 0, err
+		return 0, errors.New("no free database port left")
 	}
-	for port := userdb.PortStart; port <= userdb.PortEnd; port++ {
-		if used[port] {
-			continue
-		}
-		return port, nil
-	}
-	return 0, errors.New("no free database port left")
+	return port, nil
 }
 
 func (s *Server) ownedDatabase(w http.ResponseWriter, r *http.Request) (*database.ManagedDatabase, *database.User, bool) {
@@ -292,5 +290,25 @@ func (s *Server) stopUserDatabases(userID int64, remove bool) {
 			continue
 		}
 		_ = userdb.Stop(item.ID)
+	}
+}
+
+// RecoverDatabases marks the databases that were still being created when the agent stopped: the image
+// pull and the first start run in the agent, so no one is finishing them any more.
+func (s *Server) RecoverDatabases() {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	list, err := s.database.ListManagedDatabases(0, true)
+	if err != nil {
+		log.Printf("[databases] recover: %v", err)
+		return
+	}
+	for _, item := range list {
+		if item.Status != "creating" {
+			continue
+		}
+		_ = userdb.Remove(item.ID)
+		_ = s.database.SetManagedDatabaseStatus(item.ID, "error", "creation was interrupted when the agent stopped; delete it and create it again")
 	}
 }

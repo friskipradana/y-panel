@@ -240,7 +240,7 @@ Aturan yang diterapkan agent:
 - Folder awal terminal adalah home akun. Selain superadmin, folder yang diminta harus ada di dalam home setelah symlink diselesaikan. Home akun diberi mode 0700 agar akun lain tidak bisa membaca berkasnya. Menutup sesi membunuh seluruh grup proses shell, bukan hanya shell-nya.
 - File manager dibatasi ke home dan folder project akun. Folder state panel (kredensial semua akun) hanya untuk superadmin.
 - Container, image, network, template, project, database, dan token Cloudflare dipisah per pemilik; admin juga melihat milik turunannya.
-- Info host (hostname, OS, kernel, uptime, IP, NIC, riwayat metrik, Docker/Portainer) hanya untuk superadmin. Akun lain melihat CPU, RAM, dan storage miliknya sendiri terhadap kuota yang ditetapkan (`GET /api/v1/system/summary` dengan `scoped: true`, juga di live socket).
+- Info host (hostname, OS, kernel, uptime, IP, NIC, riwayat metrik, Docker) hanya untuk superadmin. Akun lain melihat CPU, RAM, dan storage miliknya sendiri terhadap kuota yang ditetapkan (`GET /api/v1/system/summary` dengan `scoped: true`, juga di live socket).
 - Pengaturan host (hostname, DNS, port, origin, update, payment), log sistem, dan database runtime hanya untuk superadmin.
 - Akun yang sudah ada sebelum migrasi `000014` menjadi turunan superadmin; superadmin dapat memindahkannya.
 - Batas CPU dan memori dari kuota dipaksa pada container dan pada shell: terminal dan `POST /api/v1/terminal/exec` berjalan di dalam slice systemd `reneo-<akun>.slice` dengan `CPUQuota`, `MemoryMax`, dan `TasksMax`. Tanpa systemd (atau bukan Linux) batas shell tidak dapat dipaksa dan perintah berjalan tanpa slice; angka pemakaian tetap tampil.
@@ -252,3 +252,11 @@ Aturan yang diterapkan agent:
 - Alamat publik sebuah database (halaman penuh `/database/<kunci>`, pintu masuk Adminer `/api/v1/db-open/<kunci>`, dan proxy `/adminer/<kunci>/`) memakai kunci buram, bukan ID numerik. Kunci adalah HMAC-SHA256 dari ID dengan `PANEL_ENCRYPTION_KEY`, tidak bisa ditebak atau dihitung dari ID tanpa rahasia itu. Setiap pemakaian tetap diperiksa terhadap pemilik yang sedang login.
 - Proxy Adminer hanya menerima login ke server database yang terikat pada kunci itu, tidak ke database lain milik akun yang sama.
 - Widget dan alat ping terbuka untuk semua akun kecuali demo. Selain superadmin, target di-resolve dan hanya alamat publik yang diizinkan (bukan loopback, privat, link-local, CGNAT, atau alamat khusus); probe dikirim ke alamat yang sudah diperiksa, sehingga jawaban DNS tidak dapat berubah di antara pemeriksaan dan pemakaian.
+
+## Container akun hosting tidak boleh menjangkau host
+
+Portainer dan alat sejenisnya (Yacht, Dockge, Komodo, Lazydocker, Watchtower, dan lain-lain) mengendalikan Docker daemon. Container yang bisa menjangkau daemon, namespace, perangkat, atau folder host dapat melihat dan mengubah semua container akun lain, jadi **hanya superadmin** yang boleh menjalankannya. Aturannya ada di `internal/docker/policy.go`:
+
+- **Ditolak saat deploy** (image maupun compose, termasuk template): image manajemen container, `docker.sock` atau `containerd.sock`, `privileged`, namespace `host` (`pid`, `ipc`, `uts`, `userns_mode`, `network_mode`), capability berbahaya (`SYS_ADMIN`, `SYS_PTRACE`, `SYS_MODULE`, `ALL`, dan sejenisnya), `security_opt` unconfined, `devices`, dan bind mount di luar folder pemilik. Jalur volume yang berupa symlink ke luar folder pemilik juga ditolak.
+- **Diperiksa lagi setelah naik:** compose yang nilainya dibentuk dari variabel atau `.env` tidak terlihat dari teksnya, jadi container yang benar-benar berjalan diperiksa lewat `docker inspect`. Bila melanggar, project diturunkan dan deploy dibatalkan.
+- **Disapu berkala:** tiap sekitar 2 menit agent memeriksa semua container berlabel pemilik. Container milik akun non-superadmin yang melanggar dihentikan, restart otomatisnya dimatikan, dan pemiliknya diberi notifikasi. Container tanpa pemilik (dibuat di luar panel) tidak disentuh.

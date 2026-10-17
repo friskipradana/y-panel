@@ -50,7 +50,6 @@ type Config struct {
 	AdminFileManagerRootAccess bool
 
 	// External services
-	PortainerURL   string
 	InstallChannel string
 
 	// Panel identity
@@ -79,7 +78,6 @@ func Load() (Config, error) {
 		TerminalEnabled:            parseBoolEnv("PANEL_TERMINAL_ENABLED", true),
 		TerminalAllowRemote:        parseBoolEnv("PANEL_TERMINAL_ALLOW_REMOTE", false),
 		AdminFileManagerRootAccess: parseBoolEnv("PANEL_ADMIN_FILE_ROOT_ACCESS", false),
-		PortainerURL:               os.Getenv("PANEL_PORTAINER_URL"),
 		InstallChannel:             getenv("PANEL_INSTALL_CHANNEL", "stable"),
 		BaseDomain:                 os.Getenv("PANEL_BASE_DOMAIN"),
 		EncryptionKey:              os.Getenv("PANEL_ENCRYPTION_KEY"),

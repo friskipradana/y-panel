@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
@@ -24,6 +25,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
+	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -1018,7 +1020,7 @@ func (s *Server) handleCloudflareDNSRecords(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": records})
+	s.writeJSON(w, http.StatusOK, tableResponse(records, dnsSpec(), r.URL.Query()))
 }
 
 func decodeDNSPayload(r *http.Request) (cloudflareapi.DNSRecordPayload, error) {
@@ -1264,18 +1266,14 @@ func (s *Server) handleCloudflareTunnelProfileRoutes(w http.ResponseWriter, r *h
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	type tunnelWithDaemon struct {
-		database.Tunnel
-		DaemonRunning bool `json:"daemonRunning"`
-	}
-	result := make([]tunnelWithDaemon, 0)
+	result := make([]tunnelRow, 0)
 	for _, route := range routes {
 		matches := route.CFTunnelID == profileID || (profileID == "pending" && route.CFTunnelID == "")
 		if matches {
-			result = append(result, tunnelWithDaemon{Tunnel: route, DaemonRunning: route.CFTunnelID != "" && s.cfDaemon.IsRunning(route.CFTunnelID)})
+			result = append(result, tunnelRow{Tunnel: route, DaemonRunning: route.CFTunnelID != "" && s.cfDaemon.IsRunning(route.CFTunnelID)})
 		}
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"items": result})
+	s.writeJSON(w, http.StatusOK, tableResponse(result, routeSpec(), r.URL.Query()))
 }
 
 // ─── Projects Handlers ────────────────────────────────────────────────────────
@@ -1310,9 +1308,29 @@ type projectAttentionSummary struct {
 	DriftCount     int64 `json:"driftCount"`
 }
 
+// driftLogged remembers when a project's drift was last written to the runtime log
+var (
+	driftLoggedMu sync.Mutex
+	driftLogged   = map[string]time.Time{}
+)
+
+const driftLogEvery = 10 * time.Minute
+
+// shouldLogDrift is true the first time a drift (project and reason) is seen, then once per driftLogEvery
+func shouldLogDrift(projectID int64, reason string, now time.Time) bool {
+	key := fmt.Sprintf("%d|%s", projectID, reason)
+	driftLoggedMu.Lock()
+	defer driftLoggedMu.Unlock()
+	if last, ok := driftLogged[key]; ok && now.Sub(last) < driftLogEvery {
+		return false
+	}
+	driftLogged[key] = now
+	return true
+}
+
 func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime {
 	snapshot := s.projectManager.SnapshotProject(project)
-	if snapshot.Drift {
+	if snapshot.Drift && shouldLogDrift(project.ID, snapshot.DriftReason, time.Now()) {
 		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
 			"projectId":     project.ID,
 			"projectName":   project.Name,
@@ -1341,23 +1359,34 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	query := querySearch(r)
 	includeAll := auth.IsAdmin(u.Role) && r.URL.Query().Get("all") == "1"
 
-	projectList, total, err := s.listProjectsScoped(u, includeAll, query, limit, offset)
+	// the state of a project is known only with its runtime, so the whole list is read; the search, the column
+	// filters and the order are then applied to it, and only the page asked for is sent
+	projectList, _, err := s.listProjectsScoped(u, includeAll, "", projectScanLimit, 0)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	result := make([]projectWithRuntime, len(projectList))
+	all := make([]projectWithRuntime, len(projectList))
 	for i, p := range projectList {
-		result[i] = s.projectWithRuntime(p)
+		all[i] = s.projectWithRuntime(p)
+	}
+	res := tableResponse(all, projectSpec(), r.URL.Query())
+	if offset > res.Total {
+		offset = res.Total
+	}
+	end := offset + limit
+	if end > res.Total {
+		end = res.Total
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"items":  result,
-		"total":  total,
+		"items":  res.Items[offset:end],
+		"total":  res.Total,
+		"all":    res.All,
 		"limit":  limit,
 		"offset": offset,
+		"facets": res.Facets,
 	})
 }
 
@@ -1427,7 +1456,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	assignedPort, err := allocateProjectPort(u.ID, existing)
+	assignedPort, err := s.allocateProjectPort(u.ID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
@@ -1482,7 +1511,8 @@ func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType 
 
 	if strings.EqualFold(strings.TrimSpace(projectType), "static") {
 		indexPath := filepath.Join(workingDir, "index.html")
-		if _, err := os.Stat(indexPath); errors.Is(err, os.ErrNotExist) {
+		// Lstat: a dangling symlink here must not be followed by the write below
+		if _, err := os.Lstat(indexPath); errors.Is(err, os.ErrNotExist) {
 			content := fmt.Sprintf(`<!doctype html>
 <html lang="id">
 <head>
@@ -1530,37 +1560,7 @@ func chownPathToUser(path, osUsername string) error {
 	if err != nil {
 		return nil
 	}
-	return os.Chown(path, uid, gid)
-}
-
-func chownPathRecursiveToUser(path, osUsername string) error {
-	if runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
-		return nil
-	}
-	return filepath.Walk(path, func(current string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		return chownPathToUser(current, osUsername)
-	})
-}
-
-func clearDirectoryContents(dir string) error {
-	cleanDir := filepath.Clean(dir)
-	entries, err := os.ReadDir(cleanDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		target := filepath.Join(cleanDir, entry.Name())
-		if !pathWithinRoot(target, cleanDir) || filepath.Clean(target) == cleanDir {
-			return fmt.Errorf("refusing to remove unsafe path %q", target)
-		}
-		if err := os.RemoveAll(target); err != nil {
-			return err
-		}
-	}
-	return nil
+	return os.Lchown(path, uid, gid)
 }
 
 func detectStaticUploadSource(tempDir, requestedRoot string) (string, error) {
@@ -1685,24 +1685,6 @@ func findStaticRootCandidates(tempDir string) ([]string, error) {
 	return paths, nil
 }
 
-func copyDirectoryContents(sourceDir, destDir string) error {
-	entries, err := os.ReadDir(sourceDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		source := filepath.Join(sourceDir, entry.Name())
-		dest := filepath.Join(destDir, entry.Name())
-		if !pathWithinRoot(dest, destDir) {
-			return fmt.Errorf("refusing to copy unsafe path %q", dest)
-		}
-		if err := copyPathRecursive(source, dest); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	u := userFromCtx(r)
@@ -1764,74 +1746,52 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	tempDir, err := os.MkdirTemp("", "reneo-static-build-*")
+	// unpacked beside the project, so putting it in place is a rename and not a long copy
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	stageDir, err := os.MkdirTemp(filepath.Dir(projectDir), ".reneo-upload-*")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(stageDir)
 
-	if err := extractZip(tempPath, tempDir); err != nil {
+	if err := extractProjectZip(tempPath, stageDir); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "gagal extract ZIP: " + err.Error()})
 		return
 	}
-	requestedRoot := strings.TrimSpace(r.FormValue("rootDir"))
-	sourceDir, err := detectStaticUploadSource(tempDir, requestedRoot)
+	sourceDir, err := detectStaticUploadSource(stageDir, strings.TrimSpace(r.FormValue("rootDir")))
 	if err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
 	}
-
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+	if _, err := os.Stat(filepath.Join(sourceDir, "index.html")); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "ZIP tidak berisi index.html; isi folder root jika build ada di dalam folder"})
 		return
-	}
-	if strings.EqualFold(r.FormValue("clean"), "true") {
-		if err := clearDirectoryContents(projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-	}
-	serveDir := projectDir
-	if requestedRoot != "" {
-		if err := copyDirectoryContents(tempDir, projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		relSource, err := filepath.Rel(tempDir, sourceDir)
-		if err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		serveDir = filepath.Clean(filepath.Join(projectDir, relSource))
-		if !pathWithinRoot(serveDir, projectDir) {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder root ZIP tidak aman"})
-			return
-		}
-		if _, err := os.Stat(filepath.Join(serveDir, "index.html")); err != nil {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "folder target tidak berisi index.html"})
-			return
-		}
-		updated, err := s.database.UpdateProject(project.ID, project.UserID, project.Name, project.Description, project.ProjectType, project.RepoURL, serveDir, project.SPAFallback)
-		if err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		project = updated
-	} else {
-		if err := copyDirectoryContents(sourceDir, projectDir); err != nil {
-			s.writeError(w, http.StatusInternalServerError, err)
-			return
-		}
 	}
 	osUsername := panelosuser.MappedUsername(u.Username)
-	if err := chownPathRecursiveToUser(projectDir, osUsername); err != nil {
+	if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	// a clean upload swaps entries one by one, so the site is never empty in between
+	place := mergeTree
+	if strings.EqualFold(r.FormValue("clean"), "true") {
+		place = replaceTree
+	}
+	if err := place(sourceDir, projectDir); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := chownTreeNoFollow(projectDir, osUsername); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "serveDir": serveDir, "file": header.Filename})
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "project": project, "workingDir": serveDir})
+	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "file": header.Filename})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "project": project, "workingDir": projectDir})
 }
 
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
@@ -1895,6 +1855,14 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	// what runs must match what is saved: a changed folder, type, script or SPA setting needs a new process
+	if existing.WorkingDir != p.WorkingDir || existing.ProjectType != p.ProjectType || existing.RepoURL != p.RepoURL || existing.SPAFallback != p.SPAFallback {
+		if status, restartErr := s.restartProject(u, existing, p); restartErr != nil {
+			log.Printf("[projects] restart after update failed id=%d: %v", p.ID, restartErr)
+		} else if status != "" {
+			p.Status = status
+		}
+	}
 	log.Printf("[projects] updated id=%d name=%q user=%q", p.ID, p.Name, u.Username)
 	s.notifyUserAction(u.ID, "Project diperbarui", fmt.Sprintf("Project '%s' berhasil diperbarui.", p.Name), "success")
 	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
@@ -1913,6 +1881,7 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.projectManager.RemoveLog(p.ID)
 	log.Printf("[projects] deleted id=%d user=%q", id, u.Username)
 	s.notifyUserAction(u.ID, "Project dihapus 🗑️", fmt.Sprintf("Project '%s' berhasil dihapus.", p.Name), "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
@@ -1926,16 +1895,75 @@ func (s *Server) handleStartProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	if err := s.projectManager.Start(u, p); err != nil {
+	if !projects.Runnable(p.ProjectType) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "tipe project ini tidak dijalankan sebagai proses"})
+		return
+	}
+	// active only once the project accepts connections; one still installing or building says so
+	ready, err := s.projectManager.StartAndWait(u, p, projectStartWait)
+	if err != nil {
 		_ = s.database.UpdateProjectStatus(id, "error")
 		s.notifyUserAction(u.ID, "Project gagal dijalankan ⚠️", fmt.Sprintf("Project '%s' gagal dijalankan: %s", p.Name, err.Error()), "warning")
 		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if !ready {
+		_ = s.database.UpdateProjectStatus(id, "building")
+		p.Status = "building"
+		s.notifyUserAction(u.ID, "Project sedang dimulai", fmt.Sprintf("Project '%s' belum membuka port. Pantau log project.", p.Name), "info")
+		s.writeJSON(w, http.StatusAccepted, jsonResponse{"ok": true, "status": "building", "project": s.projectWithRuntime(*p)})
 		return
 	}
 	_ = s.database.UpdateProjectStatus(id, "active")
 	p.Status = "active"
 	s.notifyUserAction(u.ID, "Project berjalan ▶️", fmt.Sprintf("Project '%s' berhasil dijalankan.", p.Name), "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": "active", "project": s.projectWithRuntime(*p)})
+}
+
+// projectStartWait is how long a start waits for the project to open its port
+const projectStartWait = 30 * time.Second
+
+// restartProject starts a running project again after its settings changed, so the running
+// process matches what is saved. A project that is not running is left alone.
+func (s *Server) restartProject(u *database.User, before, after *database.Project) (string, error) {
+	if !s.projectManager.SnapshotProject(*before).Running {
+		return "", nil
+	}
+	if err := s.projectManager.StopProject(*before); err != nil {
+		return "", err
+	}
+	ready, err := s.projectManager.StartAndWait(u, after, projectStartWait)
+	status := "active"
+	switch {
+	case err != nil:
+		status = "error"
+	case !ready:
+		status = "building"
+	}
+	_ = s.database.UpdateProjectStatus(after.ID, status)
+	return status, err
+}
+
+func (s *Server) handleProjectLogs(w http.ResponseWriter, r *http.Request) {
+	u := userFromCtx(r)
+	id := parsePathID(r, "id")
+	p, err := s.database.GetProject(id, u.ID)
+	if err != nil || p == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
+		return
+	}
+	lines := 300
+	if raw := r.URL.Query().Get("lines"); raw != "" {
+		if n, convErr := strconv.Atoi(raw); convErr == nil && n > 0 && n <= 2000 {
+			lines = n
+		}
+	}
+	out, err := s.projectManager.ReadLog(p.ID, lines)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"lines": out})
 }
 
 func (s *Server) handleStopProject(w http.ResponseWriter, r *http.Request) {
@@ -2593,22 +2621,17 @@ func validateProjectType(projectType string) error {
 	return fmt.Errorf("unsupported project type %q (use static, nodejs, python, php or custom)", projectType)
 }
 
-// allocateProjectPort returns the first port of the user's block that no project of
-// theirs holds and nothing is listening on. Counting projects instead would reuse a
-// live project's port after an earlier one was deleted.
-func allocateProjectPort(userID int64, existing []database.Project) (int, error) {
-	const base, block, maxUID = 10000, 100, 900
-	start := base + int((userID-1)%int64(maxUID))*block
-	taken := make(map[int]bool, len(existing))
-	for _, p := range existing {
-		taken[p.AssignedPort] = true
-	}
-	for offset := 0; offset < block; offset++ {
-		port := start + offset
-		if taken[port] || projects.PortInUse(port) {
-			continue
-		}
+// allocateProjectPort gives a project the first free port of its owner's block. A port that a
+// project, a database or a container holds, or that something on the host listens on, is never given.
+// An owner whose block is full takes the first free port of the whole project range.
+func (s *Server) allocateProjectPort(userID int64) (int, error) {
+	start := projects.AllocatePort(userID, 0)
+	if port, err := s.freePort(start, start+projects.PortBlock-1, nil); err == nil {
 		return port, nil
 	}
-	return 0, errors.New("no free port left in your project port range")
+	port, err := s.freePort(projects.PortBase, 65535, func(p int) bool { return p >= userdb.PortStart && p <= userdb.PortEnd })
+	if err != nil {
+		return 0, errors.New("no free port left for projects")
+	}
+	return port, nil
 }

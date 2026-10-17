@@ -115,6 +115,23 @@ func (s *Server) handleContainersList(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, containers)
 }
 
+// handleContainersTable is the container list as a table: the search, the column filters and the order applied
+// to the whole list, with what each column can be narrowed to
+func (s *Server) handleContainersTable(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	visible := s.filterContainersForUser(actor, containers)
+	s.writeJSON(w, http.StatusOK, tableResponse(visible, containerSpec(), r.URL.Query()))
+}
+
 // handleDockerVolumes lists what the running containers of the caller have mounted
 func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
 	actor := s.currentUserRecord(r)
@@ -140,7 +157,7 @@ func (s *Server) handleDockerVolumes(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": mounts})
+	s.writeJSON(w, http.StatusOK, tableResponse(mounts, mountSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerVersion(w http.ResponseWriter, r *http.Request) {
@@ -304,11 +321,22 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	wants, err := docker.HostPortsOf(req.Ports)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	if req.ReplaceContainerID != "" {
 		if _, err := s.ensureContainerAccess(r, req.ReplaceContainerID); err != nil {
 			s.writeError(w, http.StatusForbidden, err)
 			return
 		}
+	}
+	if err := s.ensurePortsFree(wants, portIgnore{containerID: req.ReplaceContainerID, composeName: docker.ProjectSlug(req.Name)}); err != nil {
+		s.writePortError(w, actor, err)
+		return
+	}
+	if req.ReplaceContainerID != "" {
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -372,6 +400,12 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 			s.writeError(w, http.StatusForbidden, err)
 			return
 		}
+	}
+	if err := s.ensurePortsFree(docker.ComposeHostPorts(req.ComposeYAML), portIgnore{containerID: req.ReplaceContainerID, composeName: docker.ProjectSlug(req.Name)}); err != nil {
+		s.writePortError(w, actor, err)
+		return
+	}
+	if req.ReplaceContainerID != "" {
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 

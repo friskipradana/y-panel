@@ -73,7 +73,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 	// the machine is only measured for the superadmin; everyone else gets figures for their own account
 	var summary system.Summary
 	if isSuperadmin {
-		summary = system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
+		summary = system.Inspect(s.cfg.StateDir)
 	}
 	var scoped *accountResources
 	if !isSuperadmin && viewer != nil {
@@ -100,12 +100,8 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		)
 		var err error
 		if viewer != nil {
-			if scope := s.ownerScopeFor(viewer); scope.all {
-				projectList, total, err = s.database.ListAllProjects(250, 0)
-			} else {
-				// workload counts cover the account itself and the accounts below it, nothing else
-				projectList, total, err = s.database.ListProjectsForOwners(scope.list(), "", 250, 0)
-			}
+			// workload counts cover the account itself and the accounts below it, nothing else
+			projectList, total, err = s.projectsForSummary(s.ownerScopeFor(viewer))
 		}
 		if err != nil {
 			log.Printf("[system] failed to summarize projects: %v", err)
@@ -146,9 +142,9 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 	if !isSuperadmin {
 		dbStatus = database.Status{Enabled: dbStatus.Enabled, Connected: dbStatus.Connected}
 	}
-	portainerURL, stateDir := s.cfg.PortainerURL, s.cfg.StateDir
+	stateDir := s.cfg.StateDir
 	if demo || !isSuperadmin {
-		portainerURL, stateDir = "", ""
+		stateDir = ""
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
@@ -163,8 +159,9 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		"dockerInstalled":    summary.DockerInstalled,
 		"dockerReachable":    summary.DockerReachable,
 		"dockerStatus":       summary.DockerStatus,
-		"portainerReachable": summary.PortainerReachable,
-		"portainerUrl":       portainerURL,
+		"networkIO":          summary.NetworkIO,
+		"ipAddresses":        summary.IPAddresses,
+		"counts":             s.systemCounts(viewer),
 		"stateDir":           stateDir,
 		"database":           dbStatus,
 		"projects":           projectSummary,
@@ -534,4 +531,30 @@ func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.
 	s.recordRuntimeLog("warning", "primary Reneo password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
 	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
 	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
+}
+
+// projectsForSummary reads every project the scope covers, page by page: a count over only the first page would be wrong
+func (s *Server) projectsForSummary(scope ownerScope) ([]database.Project, int64, error) {
+	const page = 250
+	var all []database.Project
+	for offset := 0; offset < 10000; offset += page {
+		var (
+			part  []database.Project
+			total int64
+			err   error
+		)
+		if scope.all {
+			part, total, err = s.database.ListAllProjects(page, offset)
+		} else {
+			part, total, err = s.database.ListProjectsForOwners(scope.list(), "", page, offset)
+		}
+		if err != nil {
+			return nil, 0, err
+		}
+		all = append(all, part...)
+		if int64(len(all)) >= total || len(part) == 0 {
+			return all, total, nil
+		}
+	}
+	return all, int64(len(all)), nil
 }

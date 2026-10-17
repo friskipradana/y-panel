@@ -31,7 +31,20 @@ func (s *Server) handleDockerNetworksList(w http.ResponseWriter, r *http.Request
 		}
 		networks = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": networks})
+	// how many containers each network holds
+	holding := map[string]int{}
+	if containers, listErr := docker.ListContainers(); listErr == nil {
+		for _, c := range containers {
+			for _, name := range c.Networks {
+				holding[name]++
+			}
+		}
+	}
+	rows := make([]networkRow, len(networks))
+	for i, network := range networks {
+		rows[i] = networkRow{Network: network, Containers: holding[network.Name]}
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(rows, networkSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerNetworkCreate(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +107,18 @@ func (s *Server) handleDockerImagesList(w http.ResponseWriter, r *http.Request) 
 		}
 		images = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": images})
+	// which images a container uses, so "in use" is a column that can be filtered
+	used := map[string]bool{}
+	if containers, listErr := docker.ListContainers(); listErr == nil {
+		for _, c := range containers {
+			used[c.Image] = true
+		}
+	}
+	rows := make([]imageRow, len(images))
+	for i, img := range images {
+		rows[i] = imageRow{Image: img, InUse: imageInUse(img, used)}
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(rows, imageSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerImageDelete(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +173,7 @@ func (s *Server) handleDockerTemplatesList(w http.ResponseWriter, r *http.Reques
 		}
 		templates = filtered
 	}
-	s.writeJSON(w, http.StatusOK, map[string]any{"items": templates})
+	s.writeJSON(w, http.StatusOK, tableResponse(templates, templateSpec(), r.URL.Query()))
 }
 
 func (s *Server) handleDockerTemplateCreate(w http.ResponseWriter, r *http.Request) {

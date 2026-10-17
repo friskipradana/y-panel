@@ -115,3 +115,6 @@ func safePath() string {
 	}
 	return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 }
+
+// RealPath resolves the symlinks of the deepest part of a path that exists, whether or not the rest does.
+func RealPath(p string) (string, error) { return realPath(p) }

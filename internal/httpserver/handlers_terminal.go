@@ -286,7 +286,7 @@ func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Reque
 		case <-stop:
 			return
 		case <-ticker.C:
-			summary := system.Inspect(s.cfg.PortainerURL, s.cfg.StateDir)
+			summary := system.Inspect(s.cfg.StateDir)
 			if err := conn.WriteJSON(summary); err != nil {
 				return
 			}

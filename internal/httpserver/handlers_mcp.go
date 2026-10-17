@@ -82,7 +82,6 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 		PanelURL:     internalURL,
 		SessionToken: rawToken,
 		StateDir:     s.cfg.StateDir,
-		PortainerURL: s.cfg.PortainerURL,
 	}
 
 	srv := mcp.BuildServer(mcpCfg, userRole, rawToken)

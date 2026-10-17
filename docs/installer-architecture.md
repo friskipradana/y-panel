@@ -1,3 +1,5 @@
+> **Catatan:** Reneo tidak lagi memakai Portainer. Bagian Portainer di dokumen ini adalah rancangan lama dan tidak berlaku; panel tidak menyetel `PANEL_PORTAINER_URL` dan tidak memeriksa Portainer. Akun hosting juga tidak boleh menjalankannya (lihat `security-hardening.md`).
+
 # Reneo Installer Architecture
 
 ## Goal

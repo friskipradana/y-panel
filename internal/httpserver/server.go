@@ -70,6 +70,7 @@ type Server struct {
 	rateLimits                   map[string]*rateLimitEntry
 	reconcileStop                chan struct{}
 	reconcileDone                chan struct{}
+	databaseCreateMu             sync.Mutex
 	fileRootAccessMu             sync.Mutex
 	fileRootAccess               map[string]time.Time
 }
@@ -232,6 +233,15 @@ func deriveReconciledProjectStatus(desiredStatus string, snapshot projects.Runti
 		return "degraded"
 	case "stopped":
 		return "stopped"
+	case "building":
+		// still installing or starting stays so; once it listens it is active, and a process that ended is an error
+		if snapshot.Listening {
+			return "active"
+		}
+		if snapshot.Running {
+			return "building"
+		}
+		return "error"
 	case "error", "degraded":
 		if snapshot.Running {
 			return "active"
@@ -298,12 +308,17 @@ func (s *Server) runProjectReconcileLoop(interval time.Duration) {
 	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	round := 0
 	for {
 		select {
 		case <-s.reconcileStop:
 			return
 		case <-ticker.C:
 			s.reconcileProjectStatuses()
+			if round%policySweepEvery == 0 {
+				s.enforceContainerPolicy()
+			}
+			round++
 		}
 	}
 }

@@ -316,3 +316,12 @@ func GetDockerVersions() DockerVersionInfo {
 	}
 	return info
 }
+
+// CountVolumes is how many named volumes Docker holds (0 when it cannot be asked)
+func CountVolumes() int {
+	output, err := exec.Command("docker", "volume", "ls", "-q").Output()
+	if err != nil {
+		return 0
+	}
+	return len(splitNonEmptyLines(string(output)))
+}

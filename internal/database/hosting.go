@@ -658,3 +658,50 @@ func (m *Manager) UserSummaryFor(ids []int64, graceDays int, now time.Time) (Use
 	`, idsArg, now, graceDays).Scan(&s.Total, &s.Active, &s.Suspended, &s.NoPlan, &s.PlanActive, &s.Grace, &s.Expired, &s.Expiring)
 	return s, err
 }
+
+// CountTunnels counts the routes of the given accounts (nil: all) and those that are active
+func (m *Manager) CountTunnels(ids []int64) (total, active int, err error) {
+	if !m.IsConnected() {
+		return 0, 0, fmt.Errorf("database not connected")
+	}
+	var idsArg any
+	if ids != nil {
+		idsArg = pq.Array(ids)
+	}
+	err = m.db.QueryRow(`
+		SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'active')
+		FROM tunnels
+		WHERE ($1::bigint[] IS NULL OR user_id = ANY($1::bigint[]))
+	`, idsArg).Scan(&total, &active)
+	return total, active, err
+}
+
+// UserRoleCounts counts the given accounts (nil: all) by role
+func (m *Manager) UserRoleCounts(ids []int64) (map[string]int, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	var idsArg any
+	if ids != nil {
+		idsArg = pq.Array(ids)
+	}
+	rows, err := m.db.Query(`
+		SELECT role, COUNT(*) FROM users
+		WHERE ($1::bigint[] IS NULL OR id = ANY($1::bigint[]))
+		GROUP BY role
+	`, idsArg)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var role string
+		var count int
+		if err := rows.Scan(&role, &count); err != nil {
+			return nil, err
+		}
+		out[role] = count
+	}
+	return out, rows.Err()
+}

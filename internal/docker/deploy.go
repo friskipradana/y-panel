@@ -38,6 +38,14 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err != nil {
 		return nil, err
 	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckNetworkPolicy(req.Network); err != nil {
+			return nil, err
+		}
+		if err := CheckComposePolicy(composeYAML, owner.HomeDir); err != nil {
+			return nil, err
+		}
+	}
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
 	}
@@ -47,7 +55,27 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
 		return nil, err
 	}
+	if err := enforceDeployedPolicy(owner, projectName, projectDir, composePath); err != nil {
+		return nil, err
+	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
+}
+
+// enforceDeployedPolicy judges the containers that really came up: a compose file can build a value
+// from a variable or an .env file, which no reading of its text would show. A container that breaks
+// the policy is taken down again with its project.
+func enforceDeployedPolicy(owner OwnerContext, projectName, projectDir, composePath string) error {
+	if IsPolicyExempt(owner.Role) {
+		return nil
+	}
+	violations, err := ProjectViolations(projectName, owner.HomeDir)
+	if err != nil || len(violations) == 0 {
+		return nil
+	}
+	down := exec.Command("docker", "compose", "-f", composePath, "-p", projectName, "down", "--remove-orphans")
+	down.Dir = projectDir
+	_ = down.Run()
+	return &PolicyError{Reason: fmt.Sprintf("container %q asks for %s", violations[0].Name, strings.Join(violations[0].Reasons, ", "))}
 }
 
 func PullImage(image string, auth *RegistryAuth) error {
@@ -81,6 +109,11 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
 		return nil, err
 	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
+			return nil, err
+		}
+	}
 	content = namespaceComposeContainerNames(content, projectName)
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
@@ -98,6 +131,9 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	}
 
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
+		return nil, err
+	}
+	if err := enforceDeployedPolicy(owner, projectName, projectDir, composePath); err != nil {
 		return nil, err
 	}
 	return &DeployResult{ProjectName: projectName, ComposePath: composePath, ProjectDir: projectDir}, nil
@@ -175,7 +211,43 @@ func resolveVolumeHostPath(owner OwnerContext, hostPath string) (string, error) 
 	if candidate != root && !strings.HasPrefix(candidate, root+string(filepath.Separator)) {
 		return "", fmt.Errorf("volume path %q berada di luar root user", hostPath)
 	}
-	return candidate, nil
+	// a symlink in the account's folder must not lead the mount somewhere else
+	real, err := realPathOf(candidate)
+	if err != nil {
+		return "", fmt.Errorf("volume path %q tidak dapat diverifikasi", hostPath)
+	}
+	realRoot, err := realPathOf(root)
+	if err != nil {
+		return "", fmt.Errorf("volume path %q tidak dapat diverifikasi", hostPath)
+	}
+	if real != realRoot && !strings.HasPrefix(real, realRoot+string(filepath.Separator)) {
+		return "", fmt.Errorf("volume path %q mengarah ke luar root user", hostPath)
+	}
+	return real, nil
+}
+
+// realPathOf resolves the symlinks of the deepest part of a path that exists
+func realPathOf(p string) (string, error) {
+	p = filepath.Clean(p)
+	rest := ""
+	for {
+		resolved, err := filepath.EvalSymlinks(p)
+		if err == nil {
+			if rest == "" {
+				return resolved, nil
+			}
+			return filepath.Join(resolved, rest), nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return "", err
+		}
+		rest = filepath.Join(filepath.Base(p), rest)
+		p = parent
+	}
 }
 
 func ensureComposeWithinOwnerRoot(content, homeDir string) error {

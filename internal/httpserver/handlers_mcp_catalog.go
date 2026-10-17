@@ -102,7 +102,7 @@ func buildMCPCatalog(cfg mcp.Config) map[string]any {
 // It carries no secrets, so the public MCP guide can show the live catalog.
 func (s *Server) handleMCPCatalog(w http.ResponseWriter, _ *http.Request) {
 	mcpCatalogOnce.Do(func() {
-		mcpCatalogCache = buildMCPCatalog(mcp.Config{PanelURL: "http://127.0.0.1:1", StateDir: s.cfg.StateDir, PortainerURL: s.cfg.PortainerURL})
+		mcpCatalogCache = buildMCPCatalog(mcp.Config{PanelURL: "http://127.0.0.1:1", StateDir: s.cfg.StateDir})
 	})
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	s.writeJSON(w, http.StatusOK, mcpCatalogCache)
