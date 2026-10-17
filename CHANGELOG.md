@@ -2,6 +2,23 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.8.0] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.8.0** berisi 3 perubahan: 2 fitur, 1 pemeliharaan. (52 files changed, 4604 insertions(+), 1255 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **docker:** Same table in every tab, volumes tab, live logs over WebSocket, domain via Cloudflare tunnel ([`9dfe5c6`](https://github.com/friskipradana/y-panel/commit/9dfe5c6))
+- **terminal:** Minimal terminal that follows the app theme, one action menu, shortcut manager as a split panel, zoom ([`c820a28`](https://github.com/friskipradana/y-panel/commit/c820a28))
+
+### 🔧 Pemeliharaan (Chores & Maintenance)
+- **ui-rules:** Tighten design rules and check:ui ([`4f862e5`](https://github.com/friskipradana/y-panel/commit/4f862e5))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.7...v4.8.0
+
 ## [4.7.7] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
