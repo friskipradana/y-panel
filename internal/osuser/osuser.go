@@ -7,6 +7,7 @@ import (
 	osuser "os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -46,7 +47,7 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 		return mapped, nil
 	}
 	if account, err := osuser.Lookup(mapped); err == nil {
-		lockHome(account.HomeDir)
+		lockHome(account)
 		return mapped, nil
 	}
 	comment := strings.TrimSpace(displayName)
@@ -58,19 +59,34 @@ func EnsureUser(panelUsername, displayName string) (string, error) {
 		return "", fmt.Errorf("create os user %q: %w (%s)", mapped, err, strings.TrimSpace(string(output)))
 	}
 	if account, err := osuser.Lookup(mapped); err == nil {
-		lockHome(account.HomeDir)
+		lockHome(account)
 	}
 	return mapped, nil
 }
 
 // lockHome keeps one account's files unreadable to the other accounts: distro defaults
-// leave a new home world-readable (0755), which would expose every user's projects.
-func lockHome(home string) {
-	home = filepath.Clean(strings.TrimSpace(home))
-	if home == "" || home == "." || !strings.HasPrefix(home, "/home/") {
+// leave a new home world-readable (0755), which would expose every user's projects. The home
+// must belong to the account first, or closing it would lock the account out of its own files
+// (a home the agent created as root, for example).
+func lockHome(account *osuser.User) {
+	home := filepath.Clean(strings.TrimSpace(account.HomeDir))
+	if !strings.HasPrefix(home, "/home/") {
 		return
 	}
-	if info, err := os.Stat(home); err == nil && info.IsDir() && info.Mode().Perm()&0o077 != 0 {
+	info, err := os.Lstat(home)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	if uid, gid, ok := ownerOf(info); ok {
+		wantUID, uidErr := strconv.Atoi(account.Uid)
+		wantGID, gidErr := strconv.Atoi(account.Gid)
+		if uidErr == nil && gidErr == nil && uid != wantUID {
+			_ = os.Lchown(home, wantUID, wantGID)
+		} else if gidErr == nil && gid != wantGID {
+			_ = os.Lchown(home, uid, wantGID)
+		}
+	}
+	if info.Mode().Perm()&0o077 != 0 {
 		_ = os.Chmod(home, 0o700)
 	}
 }
