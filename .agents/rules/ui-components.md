@@ -38,6 +38,10 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `EntityRow` | `EntityRow.tsx` | Baris entitas kaya (user, project, container) | `leading?`, `title`, `badges?`, `subtitle?`, `meta?`, `actions?`, `description?`, `expanded?` |
 | `Pagination` | `Pagination.tsx` | Sebelumnya / berikutnya | `page`, `totalPages`, `onChange` |
 | `Modal` | `Modal.tsx` | Semua dialog dan sheet | `open`, `onClose`, `title`, `subtitle?`, `icon?`, `size`, `footer?`, `busyOverlay?`, `className?` (lapisan luar; window bertema sendiri seperti terminal menimpa token warna lewat kelas ini, mis. `.ht-modal`) |
+| `ListTable`, `ListRowIcon`, `ListState` | `ListTable.tsx` | Tabel jendela daftar (Docker, Proyek): header kolom, baris datar bergaya container, dan state memuat/gagal/kosong; kolom diatur varian di `_docker.scss` | `variant`, `columns`, `empty`; `loading`, `error`, `empty`, `emptyTitle` |
+| `ColumnMenu` | `ColumnMenu.tsx` | Header kolom bergaya spreadsheet: urut naik/turun dan centang nilai kolom (cari, pilih semua, hapus filter). Dipasang `ListTable` lewat `ListColumn.sort/filter`; jangan dipakai terpisah | `label`, `sort`, `filter` |
+| `useListQuery` | `hooks/useListQuery.ts` | State pencarian, urutan, dan filter kolom satu tabel; `column(key, label, facets)` membuat header. Sort dan filter selalu di backend (`internal/listquery`, query `q`, `sort`, `order`, `f.<kolom>`; jawaban `items,total,all,facets`) | – |
+| `FilterMenu` | `FilterMenu.tsx` | Menu pilihan dari satu tombol (pengganti tab atau filter), gaya dropdown tab Docker | `label`, `items` (`key`, `label`, `count?`), `value`, `onChange` |
 | `KpiCard` | `KpiCard.tsx` | Kartu metrik + progres | `title`, `value`, `subtitle?`, `percent?`, `icon?` |
 | `EmptyState`, `LoadingState`, `ErrorState` | `states.tsx` | Tiga state standar | `icon?`/`children`; `title` + `hint?` |
 

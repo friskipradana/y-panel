@@ -5,14 +5,16 @@ import { formatDateTimeID } from '@/lib/datetime'
 import { Button } from '@/components/ui/Button'
 import { Field, Textarea, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
-import { DockerListState, DockerRowIcon, DockerTable } from './DockerTable'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
 import { DEFAULT_COMPOSE_YAML } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
 
 const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
-  const { t, templatesQuery, filteredTemplates, search, showCreateTpl, setShowCreateTpl, tplForm, setTplForm, setShowDeploy, setDeployType, setDeployForm, deleteTemplateMut, createTemplateMut } = docker
+  const { t, templatesQuery, filteredTemplates, narrowed, lists, showCreateTpl, setShowCreateTpl, tplForm, setTplForm, setShowDeploy, setDeployType, setDeployForm, deleteTemplateMut, createTemplateMut } = docker
+
+  const facets = templatesQuery.data?.facets
 
   const close = () => {
     setShowCreateTpl(false)
@@ -67,17 +69,17 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
         </div>
       </Modal>
 
-      <DockerTable
+      <ListTable
         variant="templates"
         empty={templatesQuery.isLoading || templatesQuery.isError || filteredTemplates.length === 0}
         columns={[
           { label: t('docker.colIndex') },
-          { label: t('docker.col.template') },
-          { label: t('docker.col.created') },
+          lists.templates.column('name', t('docker.col.template'), facets?.name),
+          lists.templates.column('created', t('docker.col.created'), facets?.created),
           { label: t('docker.colActions'), actions: true },
         ]}
       >
-        <DockerListState
+        <ListState
           loading={templatesQuery.isLoading}
           error={templatesQuery.isError}
           errorTitle={t('docker.templatesLoadFailed')}
@@ -85,14 +87,14 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
           loadingText={t('docker.loadingList')}
           empty={filteredTemplates.length === 0}
           emptyIcon={<FileCode />}
-          emptyTitle={search ? t('docker.noResults') : t('docker.noTemplates')}
-          emptyHint={search ? undefined : t('docker.noTemplatesHint')}
+          emptyTitle={narrowed ? t('docker.noResults') : t('docker.noTemplates')}
+          emptyHint={narrowed ? undefined : t('docker.noTemplatesHint')}
         >
           {filteredTemplates.map((tmpl, idx) => (
             <div key={tmpl.id} className="docker-row">
               <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
               <div className="docker-row__app">
-                <DockerRowIcon><FileCode className="h-3.5 w-3.5" strokeWidth={1.75} /></DockerRowIcon>
+                <ListRowIcon><FileCode className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
                 <div className="docker-row__text">
                   <span className="docker-app-name" title={tmpl.name}>{tmpl.name}</span>
                   {tmpl.description ? <span className="docker-row__sub">{tmpl.description}</span> : null}
@@ -126,8 +128,8 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
               </div>
             </div>
           ))}
-        </DockerListState>
-      </DockerTable>
+        </ListState>
+      </ListTable>
     </>
   )
 }

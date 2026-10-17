@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
-import { Gauge, Play, Square, TriangleAlert } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { SectionHeader } from '@/components/ui/SectionHeader'
+import { TriangleAlert } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import type { SpeedLive, SpeedResult } from '@/api/speedtest'
 import { SpeedGauge } from './SpeedGauge'
@@ -9,12 +7,10 @@ import { SpeedStats } from './SpeedStats'
 import { SpeedSteps } from './SpeedSteps'
 
 interface SpeedPanelProps {
-  title: string
-  subtitle: string
-  /** Tab jenis tes, di dalam kartu paling atas */
-  tabs?: ReactNode
-  /** Pemilih server atau keterangan server, tampil di atas meter */
-  toolbar?: ReactNode
+  /** What this test measures, in a line */
+  description: string
+  /** The server or the address that is measured against, with any notice about it */
+  target?: ReactNode
   live: SpeedLive
   result: SpeedResult | null
   /** Hasil sebelumnya untuk perbandingan persen */
@@ -22,17 +18,13 @@ interface SpeedPanelProps {
   running: boolean
   /** False bila server yang dipilih hanya melayani unduhan */
   uploadAvailable: boolean
-  /** Server yang dipilih belum bisa dipakai (klien belum terpasang, lisensi belum disetujui) */
-  startDisabled?: boolean
-  onStart: () => void
-  onStop: () => void
 }
 
 const change = (now: number | undefined, before: number | undefined) =>
   now !== undefined && before !== undefined && before > 0 ? ((now - before) / before) * 100 : null
 
 // One test: meter and steps on the left, the figures on the right, all live
-export function SpeedPanel({ title, subtitle, tabs, toolbar, live, result, previous, running, uploadAvailable, startDisabled = false, onStart, onStop }: SpeedPanelProps) {
+export function SpeedPanel({ description, target, live, result, previous, running, uploadAvailable }: SpeedPanelProps) {
   const { t } = useI18n()
   const measuring = live.phase === 'download' || live.phase === 'upload'
   const gaugeValue = measuring ? live.mbps : running ? 0 : (result?.downloadMbps ?? 0)
@@ -42,27 +34,9 @@ export function SpeedPanel({ title, subtitle, tabs, toolbar, live, result, previ
   const delta = running || !result ? { download: null, upload: null } : { download: change(result.downloadMbps, previous?.downloadMbps), upload: change(result.uploadMbps, previous?.uploadMbps) }
 
   return (
-    <div className="panel-shell-card space-y-4 p-4">
-      {tabs ? <div className="-mx-1 overflow-x-auto px-1">{tabs}</div> : null}
-
-      <SectionHeader
-        icon={<Gauge />}
-        title={title}
-        subtitle={subtitle}
-        actions={
-          running ? (
-            <Button variant="danger-soft" icon={<Square className="h-3.5 w-3.5" />} onClick={onStop}>
-              {t('speedtest.stop')}
-            </Button>
-          ) : (
-            <Button variant="primary" icon={<Play className="h-3.5 w-3.5" />} disabled={startDisabled} onClick={onStart}>
-              {result ? t('speedtest.again') : t('speedtest.start')}
-            </Button>
-          )
-        }
-      />
-
-      {toolbar}
+    <section className="space-y-3">
+      <p className="text-[0.8125rem] text-[var(--text-secondary)]">{description}</p>
+      {target}
 
       <div className="grid gap-4 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]" aria-live="off">
         <div className="speed-hero">
@@ -94,6 +68,6 @@ export function SpeedPanel({ title, subtitle, tabs, toolbar, live, result, previ
       <p className="sr-only" aria-live="polite">
         {running ? gaugeLabel : result ? t('speedtest.phase.done') : ''}
       </p>
-    </div>
+    </section>
   )
 }

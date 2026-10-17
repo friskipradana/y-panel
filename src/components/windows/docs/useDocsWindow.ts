@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { copyTextToClipboard, createDoc, deleteDoc, listDocs, listOfficialDocs, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { copyTextToClipboard, createDoc, deleteDoc, listDocsTable, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
+import { useListQuery } from '@/hooks/useListQuery'
+import { listQueryKey } from '@/lib/listQuery'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { toast } from 'sonner'
 
-export const DOCS_PAGE_SIZE = 8
+export const DOCS_PAGE_SIZE = 30
 
 export function emptyDocForm(): DocPayload {
   return { title: '', slug: '', excerpt: '', content: '', status: 'draft', isPublic: false }
@@ -27,30 +29,25 @@ export function useDocsWindow() {
   const role = useAuthStore((s) => s.user?.role)
   const isAdmin = role === 'admin' || role === 'superadmin'
 
-  const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
-  const [offset, setOffset] = useState(0)
+  // the search, the order and the column filters; the agent applies them to local and official articles alike
+  const list = useListQuery()
+  const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<DocRecord | null>(null)
 
   const docsQuery = useQuery({
-    queryKey: ['docs', { search, offset, isAdmin }],
-    queryFn: () => listDocs({ q: search, limit: DOCS_PAGE_SIZE, offset, includeDrafts: isAdmin }),
+    queryKey: ['docs', listQueryKey(list.query), page, isAdmin],
+    queryFn: () => listDocsTable(list.query, { limit: DOCS_PAGE_SIZE, offset: (page - 1) * DOCS_PAGE_SIZE }),
+    placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   })
   const docs = docsQuery.data?.items ?? []
   const total = docsQuery.data?.total ?? 0
-
-  // official articles are the same on every panel; local articles with the same slug win
-  const officialQuery = useQuery({ queryKey: ['docs-official'], queryFn: () => listOfficialDocs(), staleTime: 10 * 60_000, retry: 0 })
-  const needle = search.trim().toLowerCase()
-  const official = (officialQuery.data ?? []).filter(
-    (doc) =>
-      !docs.some((local) => local.slug === doc.slug) &&
-      (!needle || `${doc.title} ${doc.excerpt} ${doc.content}`.toLowerCase().includes(needle)),
-  )
-  const selected = docs.find((doc) => doc.id === selectedId) ?? official.find((doc) => doc.id === selectedId) ?? null
+  const all = docsQuery.data?.all ?? 0
+  const facets = docsQuery.data?.facets
+  const narrowed = !!list.query.q || Object.keys(list.filters).length > 0
+  const selected = docs.find((doc) => doc.id === selectedId) ?? null
 
   const done = () => {
     void qc.invalidateQueries({ queryKey: ['docs'] })
@@ -114,15 +111,13 @@ export function useDocsWindow() {
     isAdmin,
     docsQuery,
     docs,
-    official,
-    officialQuery,
     total,
-    query,
-    setQuery,
-    search,
-    setSearch,
-    offset,
-    setOffset,
+    all,
+    facets,
+    narrowed,
+    list,
+    page,
+    setPage,
     selected,
     setSelectedId,
     editorOpen,

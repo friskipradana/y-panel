@@ -1,5 +1,6 @@
 import { agentApi, withPagination } from './client'
 import type { PaginatedResponse, PaginationParams } from '@/types'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface PanelUser {
   id: number
@@ -71,6 +72,14 @@ export const listUsers = (params?: UserListParams) =>
       },
     })
     .then((r) => r.data)
+
+// The accounts as a table: the search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listUsersTable = (query: ListQuery, page: { limit: number; offset: number }) => {
+  const params = listParams(query)
+  params.set('limit', String(page.limit))
+  params.set('offset', String(page.offset))
+  return agentApi.get<TableResult<PanelUser> & { limit: number; offset: number }>('/api/v1/users/table', { params }).then((r) => r.data)
+}
 
 export const getUsersSummary = () =>
   agentApi.get<{ summary: UsersSummary; hosting: boolean }>('/api/v1/users/summary').then((r) => r.data)

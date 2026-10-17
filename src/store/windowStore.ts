@@ -16,7 +16,6 @@ const DEFAULTS: Record<
   "system-logs": { title: "System Logs", width: 860, height: 540, singleton: true },
   docs: { title: "Docs", width: 840, height: 530, singleton: true },
   changelog: { title: "Changelog", width: 780, height: 490, singleton: true },
-  portainer: { title: "Portainer", width: 720, height: 460, singleton: true },
   settings: { title: "Settings", width: 900, height: 570, singleton: true },
   database: { title: "Database", width: 960, height: 600, singleton: true },
   "file-manager": { title: "File Manager", width: 900, height: 560, singleton: true },
@@ -374,11 +373,13 @@ export const useWindowStore = create<WindowStore>()(
     {
       name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       // the old defaults (9px, then 13px) were too small to read; anyone still on one gets the new default
       migrate: (persisted, version) => {
         const state = persisted as Partial<WindowStore>;
         if (version < 2 && (state.globalTerminalFontSize === 9 || state.globalTerminalFontSize === 13)) state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
+        // the Portainer window is gone: a saved layout must not try to open it
+        if (version < 3 && Array.isArray(state.windows)) state.windows = state.windows.filter((w) => (w.kind as string) !== 'portainer');
         return state as WindowStore;
       },
     }

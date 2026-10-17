@@ -1,22 +1,10 @@
 import { memo } from 'react'
-import { Folder, File as FileIcon } from 'lucide-react'
-import type { FileNode } from './fileManagerConfig'
+import { File as FileIcon, Folder } from 'lucide-react'
+import { fileKind, type FileNode } from './fileManagerConfig'
+import { ListRowIcon } from '@/components/ui/ListTable'
 import { Checkbox } from '@/components/ui/Checkbox'
 
-export const FileRow = memo(({
-  item,
-  isSelected,
-  onToggleSelect,
-  dragOverPath,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onContextMenu,
-  onDoubleClick,
-  formatSize,
-  formatDate
-}: {
+interface FileRowProps {
   item: FileNode
   isSelected: boolean
   onToggleSelect: (path: string, checked: boolean) => void
@@ -29,42 +17,41 @@ export const FileRow = memo(({
   onDoubleClick: (item: FileNode) => void
   formatSize: (size: number) => string
   formatDate: (date: string) => string
-}) => {
+  folderLabel: string
+  fileLabel: string
+}
+
+// One file or folder, in the same row as a container
+export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, onDragStart, onDragOver, onDragLeave, onDrop, onContextMenu, onDoubleClick, formatSize, formatDate, folderLabel, fileLabel }: FileRowProps) => {
+  const kind = fileKind(item, folderLabel, fileLabel)
+  const summary = [item.isDir ? '' : formatSize(item.size), formatDate(item.modified)].filter(Boolean).join(' · ')
+  const state = dragOverPath === item.path ? ' docker-row--drop' : isSelected ? ' docker-row--selected' : ''
+
   return (
     <div
       draggable
+      className={`docker-row docker-row--files${state}`}
       onDragStart={(e) => onDragStart(e, item)}
-      className={`grid grid-cols-[30px_1fr_80px_100px_130px] mobile:grid-cols-[30px_1fr] gap-4 px-4 py-2 rounded-lg cursor-pointer transition items-center group border ${dragOverPath === item.path ? 'bg-[var(--panel-primary-hover)] border-[var(--focus-ring)] shadow-[var(--win-shadow)]' : isSelected ? 'bg-[var(--panel-primary-bg)] border-[var(--win-border)]' : 'border-transparent hover:bg-[var(--tb-hover)] hover:border-[var(--win-bar-border)]'}`}
       onDragOver={(e) => onDragOver(e, item)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, item)}
       onContextMenu={(e) => onContextMenu(e, item)}
       onDoubleClick={() => onDoubleClick(item)}
     >
-      <div className="flex items-center justify-center">
+      <div className="docker-row__select">
         <Checkbox aria-label={item.name} checked={isSelected} onChange={(checked) => onToggleSelect(item.path, checked)} onClick={(e) => e.stopPropagation()} />
       </div>
-      <div className="flex items-center gap-3 overflow-hidden">
-        {item.isDir ? <Folder size={17} className="text-[var(--panel-primary-text)] fill-sky-500/20 shrink-0" /> : <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />}
-        <span className="min-w-0">
-          <span className="block truncate text-[13px] font-medium text-[var(--win-text)] transition-colors group-hover:text-[var(--panel-primary-text)]">{item.name}</span>
-          <span className="hidden truncate text-[11px] text-[var(--text-secondary)] mobile:block">
-            {item.isDir ? '' : `${formatSize(item.size)} · `}
-            {formatDate(item.modified)}
-          </span>
-        </span>
-      </div>
-      <div className="text-[12px] text-[var(--text-secondary)] p-1 font-mono tracking-tight mobile:hidden">
-        {item.isDir ? '--' : formatSize(item.size)}
-      </div>
-      <div className="flex items-center mobile:hidden">
-        <div className="text-[12px] text-[var(--tb-clock)] bg-[var(--file-manager-mode-bg)] font-mono tracking-tighter rounded max-w-full px-2 py-0.5 border border-[var(--win-bar-border)]">
-          {item.mode}
+      <div className="docker-row__app">
+        <ListRowIcon>{item.isDir ? <Folder className="h-3.5 w-3.5" /> : <FileIcon className="h-3.5 w-3.5" />}</ListRowIcon>
+        <div className="docker-row__text">
+          <span className="docker-app-name" title={item.name}>{item.name}</span>
+          <span className="docker-row__meta">{summary}</span>
         </div>
       </div>
-      <div className="text-[12px] text-[var(--text-secondary)] p-1 truncate font-medium mobile:hidden">
-        {formatDate(item.modified)}
-      </div>
+      <div className="docker-cell docker-cell--mono">{kind}</div>
+      <div className="docker-cell docker-cell--mono">{item.isDir ? '--' : formatSize(item.size)}</div>
+      <div className="docker-cell docker-cell--mono">{item.mode}</div>
+      <div className="docker-cell">{formatDate(item.modified)}</div>
     </div>
   )
 })

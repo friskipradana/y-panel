@@ -16,7 +16,7 @@ export function DatabaseAdminPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { key = '' } = useParams()
-  const query = useQuery({ queryKey: ['user-databases'], queryFn: listUserDatabases, refetchInterval: 15_000 })
+  const query = useQuery({ queryKey: ['user-databases'], queryFn: () => listUserDatabases().then((r) => r.items), refetchInterval: 15_000 })
   const target = query.data?.find((item) => item.accessKey === key)
   usePageMeta(target ? `${target.name} | ${t('databases.admin.title')}` : t('databases.admin.title'))
 

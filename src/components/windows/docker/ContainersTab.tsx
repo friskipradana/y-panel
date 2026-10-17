@@ -24,6 +24,7 @@ import type { DockerWindowState } from './useDockerWindow'
 import type { Container } from '@/types'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/states'
+import { ListTable } from '@/components/ui/ListTable'
 import { domainTargets } from './domainTargets'
 
 function DockerContainerIcon() {
@@ -124,6 +125,9 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
     restartMutation,
     deleteMutation,
     filteredContainers,
+    lists,
+    narrowed,
+    containersQuery,
   } = docker
 
   // a refused start, stop or restart says why instead of just staying as it was
@@ -132,6 +136,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
       onError: (e) =>
         alertLib.fire(t('docker.actionFailed'), (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('docker.unknownError'), 'error', 'apps'),
     })
+
+  const facets = containersQuery.data?.facets
 
   const handleEditRedeploy = async (container: Container) => {
     setEditLoading(true)
@@ -179,18 +185,17 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Table Column Headers */}
-      <div className="docker-col-header">
-        <div className="pl-1">{t('docker.colIndex')}</div>
-        <div>{t('docker.colContainerService')}</div>
-        <div>{t('docker.colStatus')}</div>
-        <div>{t('docker.colPort')}</div>
-        <div className="text-right pr-1">{t('docker.colActions')}</div>
-      </div>
-
-      {/* Table Content */}
-      <div className="docker-table-scroll">
+    <ListTable
+      variant="containers"
+      empty={isLoading || isError || filteredContainers.length === 0}
+      columns={[
+        { label: t('docker.colIndex') },
+        lists.containers.column('name', t('docker.colContainerService'), facets?.name),
+        lists.containers.column('state', t('docker.colStatus'), facets?.state),
+        lists.containers.column('port', t('docker.colPort'), facets?.port),
+        { label: t('docker.colActions'), actions: true },
+      ]}
+    >
         {isLoading ? (
           <div className="p-8">
             <LoadingState>{t('docker.connectingAgent')}</LoadingState>
@@ -211,8 +216,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
             <div className="panel-empty panel-empty--wide">
               <Boxes className="h-8 w-8" strokeWidth={1.75} />
               <div className="space-y-1">
-                <div className="text-sm font-medium text-[var(--win-text)]">{t('docker.noContainersMatch')}</div>
-                <div>{t('docker.emptyContainersHint')}</div>
+                <div className="text-sm font-medium text-[var(--win-text)]">{narrowed ? t('docker.noResults') : t('docker.noContainersMatch')}</div>
+                {narrowed ? null : <div>{t('docker.emptyContainersHint')}</div>}
               </div>
             </div>
           </div>
@@ -375,7 +380,6 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
             )
           })
         )}
-      </div>
-    </div>
+    </ListTable>
   )
 }

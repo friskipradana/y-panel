@@ -28,6 +28,8 @@ import {
 } from '@/api/agent'
 import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useListQuery } from '@/hooks/useListQuery'
+import { listQueryKey, type TableResult } from '@/lib/listQuery'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 import {
@@ -51,10 +53,8 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
   const [tab, setTab] = useState<'domains' | 'tunnels'>('domains')
   const [selectedDomainId, setSelectedDomainId] = useState('')
   const [selectedProfileId, setSelectedProfileId] = useState('')
-  const [domainSearch, setDomainSearch] = useState('')
-  const [dnsSearch, setDnsSearch] = useState('')
-  const [profileSearch, setProfileSearch] = useState('')
-  const [routeSearch, setRouteSearch] = useState('')
+  // the search, order and column filters of each table; the agent applies them
+  const lists = { dns: useListQuery(), routes: useListQuery() }
   const [showDnsModal, setShowDnsModal] = useState(false)
   const [showDomainModal, setShowDomainModal] = useState(false)
   const [createdDomain, setCreatedDomain] = useState<CloudflareDomain | null>(null)
@@ -70,18 +70,28 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
   const { data: cfConfig } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
   const cfNotConfigured = !cfConfig?.configured || cfConfig?.status !== 'active'
   const { data: cfZones = [] } = useQuery({ queryKey: ['cf-zones'], queryFn: getCFZones, enabled: !cfNotConfigured })
-  const { data: domains = [], isLoading: domainsLoading, refetch: refetchDomains, isFetching: domainsFetching } = useQuery({ queryKey: ['cloudflare-domains'], queryFn: listCloudflareDomains, enabled: !cfNotConfigured })
+  const { data: domains = [], isLoading: domainsLoading, isError: domainsError, refetch: refetchDomains, isFetching: domainsFetching } = useQuery({ queryKey: ['cloudflare-domains'], queryFn: listCloudflareDomains, enabled: !cfNotConfigured })
   const { data: selectedDomainDetail } = useQuery({ queryKey: ['cloudflare-domain', selectedDomainId], queryFn: () => getCloudflareDomain(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
-  const { data: dnsRecords = [], isLoading: dnsLoading } = useQuery({ queryKey: ['cloudflare-dns', selectedDomainId], queryFn: () => listCloudflareDNSRecords(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
-  const { data: profiles = [], isLoading: profilesLoading, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: pollingActive ? 8_000 : false })
-  const { data: profileRoutes = [], isLoading: routesLoading } = useQuery({ queryKey: ['cloudflare-profile-routes', selectedProfileId], queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId), enabled: !cfNotConfigured && !!selectedProfileId, refetchInterval: pollingActive ? 8_000 : false })
+  // switching domain or profile must not show the rows of the last one while the new ones load
+  const { data: dnsData, isLoading: dnsLoading, isError: dnsError } = useQuery({
+    queryKey: ['cloudflare-dns', selectedDomainId, listQueryKey(lists.dns.query)],
+    queryFn: () => listCloudflareDNSRecords(selectedDomainId, lists.dns.query),
+    enabled: !cfNotConfigured && !!selectedDomainId,
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedDomainId ? previous : undefined),
+  })
+  const { data: profiles = [], isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: pollingActive ? 8_000 : false })
+  const { data: routesData, isLoading: routesLoading, isError: routesError } = useQuery({
+    queryKey: ['cloudflare-profile-routes', selectedProfileId, listQueryKey(lists.routes.query)],
+    queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId, lists.routes.query),
+    enabled: !cfNotConfigured && !!selectedProfileId,
+    refetchInterval: pollingActive ? 8_000 : false,
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedProfileId ? previous : undefined),
+  })
   const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured })
 
   const safeCfZones = Array.isArray(cfZones) ? cfZones : []
   const safeDomains = Array.isArray(domains) ? domains : []
-  const safeDnsRecords = Array.isArray(dnsRecords) ? dnsRecords : []
   const safeProfiles = Array.isArray(profiles) ? profiles : []
-  const safeProfileRoutes = Array.isArray(profileRoutes) ? profileRoutes : []
   const safeProjects = Array.isArray(projectData?.items) ? projectData.items : []
 
   useEffect(() => {
@@ -118,24 +128,22 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
 
   const selectedDomain = selectedDomainDetail ?? safeDomains.find((d) => d.id === selectedDomainId)
   const selectedProfile = safeProfiles.find((p) => p.id === selectedProfileId)
-  const filteredDomains = safeDomains.filter((d) => d.name.toLowerCase().includes(domainSearch.toLowerCase()))
-  const filteredDns = safeDnsRecords.filter((r) => `${r.type} ${r.name} ${r.content}`.toLowerCase().includes(dnsSearch.toLowerCase()))
-  const filteredProfiles = safeProfiles.filter((p) => `${p.name} ${p.id} ${p.status}`.toLowerCase().includes(profileSearch.toLowerCase()))
-  const filteredRoutes = safeProfileRoutes.filter((r) => `${r.name} ${r.cfHostname} ${r.targetUrl} ${r.status}`.toLowerCase().includes(routeSearch.toLowerCase()))
+  const filteredDns = dnsData?.items ?? []
+  const filteredRoutes = routesData?.items ?? []
   const zoneOptions = useMemo(() => safeCfZones.map((zone) => ({ value: zone.id, label: zone.name })), [safeCfZones])
   const protocolOptions = useMemo(() => [{ value: 'http', label: 'http://' }, { value: 'https', label: 'https://' }], [])
   const profileOptions = useMemo(() => safeProfiles.map((p) => ({ value: p.id, label: p.name || p.id })), [safeProfiles])
   const tunnelProjects = useMemo(() => safeProjects.filter((project) => project.assignedPort > 0), [safeProjects])
   const projectOptions = useMemo(
     () => [
-      { value: '', label: 'Manual target' },
+      { value: '', label: t('tunnels.manualTarget') },
       ...tunnelProjects.map((project) => ({
         value: String(project.id),
         label: `${project.name} :${project.assignedPort}`,
-        description: `${project.projectType}${project.running ? ' - running' : ''}`,
+        description: `${project.projectType}${project.running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
       })),
     ],
-    [tunnelProjects],
+    [tunnelProjects, t],
   )
 
   const dnsPayload = (): CloudflareDNSRecordPayload => ({
@@ -268,12 +276,12 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
 
       alertLib.fire(t('tunnels.routeProcessing'), res.message ?? t('tunnels.routeProcessingMessage'), 'info', 'tunnels')
       setTab('tunnels')
-      setRouteSearch('')
+      lists.routes.setText('')
       if (profileId) {
         setSelectedProfileId(profileId)
-        qc.setQueryData<Tunnel[]>(['cloudflare-profile-routes', profileId], (current = []) => {
-          if (current.some((route) => route.id === res.id)) return current
-          return [optimisticRoute, ...current]
+        qc.setQueriesData<TableResult<Tunnel>>({ queryKey: ['cloudflare-profile-routes', profileId] }, (current) => {
+          if (!current || current.items.some((route) => route.id === res.id)) return current
+          return { ...current, items: [optimisticRoute, ...current.items], total: current.total + 1, all: current.all + 1 }
         })
       }
       closeTunnelModal()
@@ -356,14 +364,6 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     setSelectedDomainId,
     selectedProfileId,
     setSelectedProfileId,
-    domainSearch,
-    setDomainSearch,
-    dnsSearch,
-    setDnsSearch,
-    profileSearch,
-    setProfileSearch,
-    routeSearch,
-    setRouteSearch,
     showDnsModal,
     setShowDnsModal,
     showDomainModal,
@@ -385,6 +385,10 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     cfNotConfigured,
     cfZones,
     domainsLoading,
+    domainsError,
+    dnsError,
+    profilesError,
+    routesError,
     refetchDomains,
     domainsFetching,
     dnsLoading,
@@ -394,14 +398,13 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     routesLoading,
     safeCfZones,
     safeDomains,
-    safeDnsRecords,
     safeProfiles,
-    safeProfileRoutes,
     selectedDomain,
     selectedProfile,
-    filteredDomains,
+    lists,
+    dnsData,
+    routesData,
     filteredDns,
-    filteredProfiles,
     filteredRoutes,
     zoneOptions,
     protocolOptions,

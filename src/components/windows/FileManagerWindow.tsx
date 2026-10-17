@@ -2,7 +2,6 @@ import type { WindowState } from '@/types'
 import { useFileManager } from './file-manager/useFileManager'
 import { FileTabsStrip } from './file-manager/FileTabsStrip'
 import { FileToolbar } from './file-manager/FileToolbar'
-import { FileTableHeader } from './file-manager/FileTableHeader'
 import { FileList } from './file-manager/FileList'
 import { FileStatusBar } from './file-manager/FileStatusBar'
 import { BulkActionsBar } from './file-manager/BulkActionsBar'
@@ -21,8 +20,7 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
   return (
     <div
       ref={containerRef}
-      className="flex flex-col h-full bg-[var(--win-content-bg)] text-[var(--text-secondary)] relative select-none"
-      style={{ background: 'var(--win-bg)' }}
+      className="panel-window docker-window-root relative select-none"
       onClick={() => setMenu(null)}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -31,7 +29,6 @@ export function FileManagerWindow({ win, authenticated }: { win: WindowState, au
     >
       <FileTabsStrip fm={fm} />
       <FileToolbar fm={fm} />
-      <FileTableHeader fm={fm} />
       <FileList fm={fm} />
       <FileStatusBar fm={fm} />
       <BulkActionsBar fm={fm} />

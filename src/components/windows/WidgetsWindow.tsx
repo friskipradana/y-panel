@@ -1,15 +1,11 @@
 import { useState } from 'react'
-import { Activity, Clock, Gauge, Move, Network, Plus, Puzzle, Radar, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
+import { Activity, Clock, Gauge, GripVertical, Lock, Network, Plus, Puzzle, Radar, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
 import { useAuthStore } from '@/store/authStore'
 import type { PlacedWidget, WidgetType } from '@/types'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
-import { IconBadge } from '@/components/ui/IconBadge'
-import { IconButton } from '@/components/ui/IconButton'
-import { EmptyState } from '@/components/ui/states'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -68,124 +64,162 @@ export function WidgetsWindow() {
     if (ok) removeWidget(widget.id)
   }
 
+  const install = (type: WidgetType) => {
+    addWidget(type)
+    toast.success(t('widgets.installedToast', { name: t(`widget.catalog.${type}.title`) }), { description: isMobile ? t('widgets.installedToastMobile') : t('widgets.installedToastDesktop') })
+  }
+
   return (
-    <div className="panel-window flex h-full flex-col">
-      <div className="flex min-h-[40px] shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1">
-        <div className="flex min-w-0 items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <Puzzle className="h-4 w-4 shrink-0" />
-          <span className="font-semibold text-[var(--win-text)]">{t('widgets.gallery')}</span>
-          <span>•</span>
-          <span>{t('widgets.installedCount', { count: visibleInstalled.length })}</span>
+    <div className="panel-window docker-window-root relative overflow-hidden">
+      <div className="docker-topbar">
+        <div className="docker-topbar__left">
+          <div className="docker-topbar__meta">
+            <span className="font-semibold text-[var(--win-text)]">{t('widgets.gallery')}</span>
+            <span>{t('widgets.installedCount', { count: visibleInstalled.length })}</span>
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          className="px-2.5 py-1 text-xs"
-          onClick={resetLayout}
-          disabled={placedWidgets.length === 0}
-          title={isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          {isMobile ? t('widgets.resetMobile') : t('widgets.reset')}
-        </Button>
+        <div className="docker-topbar__right">
+          <button
+            type="button"
+            className="docker-secondary-btn"
+            onClick={resetLayout}
+            disabled={placedWidgets.length === 0}
+            title={isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')}
+            aria-label={isMobile ? t('widgets.resetMobileTitle') : t('widgets.resetTitle')}
+          >
+            <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span className="docker-secondary-btn__text">{isMobile ? t('widgets.resetMobile') : t('widgets.reset')}</span>
+          </button>
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-3 sm:p-4">
-        <section aria-labelledby="widgets-installed">
-          <h2 id="widgets-installed" className="panel-section-label mb-2">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-3 sm:p-4">
+        <section aria-labelledby="widgets-installed" className="widgets-section space-y-2">
+          <h2 id="widgets-installed" className="panel-section-label">
             {t('widgets.sectionInstalled')}
           </h2>
-          {visibleInstalled.length === 0 ? (
-            <EmptyState icon={<Puzzle />}>{t('widgets.noneInstalled')}</EmptyState>
-          ) : (
-            <div className="panel-table-container">
-              {visibleInstalled.map((widget) => {
-                const Icon = WIDGET_ICONS[widget.type]
-                const extra = detail(widget)
-                return (
-                  <EntityRow
-                    key={widget.id}
-                    centered
-                    className="p-3"
-                    leading={
-                      <IconBadge size="md" tone="primary">
-                        <Icon />
-                      </IconBadge>
-                    }
-                    title={t(`widget.catalog.${widget.type}.title`)}
-                    badges={widget.isLocked && !isMobile ? <Badge tone="warning">{t('widgets.locked')}</Badge> : undefined}
-                    subtitle={extra ? <span className="panel-mono">{extra}</span> : undefined}
-                    actions={
-                      <IconButton label={t('mobile.widgetRemove')} tone="danger" onClick={() => void confirmRemove(widget)}>
-                        <Trash2 className="h-4 w-4" />
-                      </IconButton>
-                    }
-                  />
-                )
-              })}
-            </div>
-          )}
+          <div className="overflow-hidden rounded-xl border border-[var(--win-border)]">
+            <ListTable
+              variant="widgets-installed"
+              empty={visibleInstalled.length === 0}
+              columns={[
+                { label: t('widgets.col.widget') },
+                { label: t('widgets.col.detail') },
+                { label: t('widgets.col.status') },
+                { label: t('widgets.col.actions'), actions: true },
+              ]}
+            >
+              <ListState
+                loading={false}
+                error={false}
+                errorTitle=""
+                loadingText=""
+                empty={visibleInstalled.length === 0}
+                emptyIcon={<Puzzle />}
+                emptyTitle={t('widgets.noneInstalled')}
+              >
+                {visibleInstalled.map((widget) => {
+                  const Icon = WIDGET_ICONS[widget.type]
+                  const extra = detail(widget)
+                  const locked = widget.isLocked && !isMobile
+                  return (
+                    <div key={widget.id} className="docker-row">
+                      <div className="docker-row__app">
+                        <ListRowIcon><Icon className="h-3.5 w-3.5" /></ListRowIcon>
+                        <div className="docker-row__text">
+                          <span className="docker-app-name">{t(`widget.catalog.${widget.type}.title`)}</span>
+                          <span className="docker-row__meta">{[extra, locked ? t('widgets.locked') : ''].filter(Boolean).join(' \u00b7 ')}</span>
+                        </div>
+                      </div>
+                      <div className="docker-cell docker-cell--mono" title={extra}>{extra || '-'}</div>
+                      <div className="docker-cell--keep">
+                        <span className={`docker-status-pill docker-status-pill--${locked ? 'paused' : 'running'}`}>
+                          {locked ? <Lock className="h-3 w-3" strokeWidth={1.75} /> : <span className="docker-status-dot" />}
+                          <span>{locked ? t('widgets.locked') : t('widgets.installed')}</span>
+                        </span>
+                      </div>
+                      <div className="docker-action-btns">
+                        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('mobile.widgetRemove')} aria-label={t('mobile.widgetRemove')} onClick={() => void confirmRemove(widget)}>
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </ListState>
+            </ListTable>
+          </div>
         </section>
 
-        <section aria-labelledby="widgets-gallery">
-          <h2 id="widgets-gallery" className="panel-section-label mb-1">
-            {t('widgets.sectionGallery')}
-          </h2>
-          <p className="mb-2 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
-            {isMobile ? t('widgets.galleryHintMobile') : t('widgets.galleryHint')}
-          </p>
-          <div className="panel-table-container">
-            {catalog.map((item) => {
-              const Icon = WIDGET_ICONS[item.type]
-              const multi = MULTI_INSTANCE_WIDGETS.includes(item.type)
-              const installed = !multi && placedWidgets.some((w) => w.type === item.type)
-              return (
-                <div
-                  key={item.type}
-                  draggable={!isMobile}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/x-reneo-widget', item.type)
-                    e.dataTransfer.setData('text/plain', item.type)
-                    e.dataTransfer.effectAllowed = 'copy'
-                    setDraggedType(item.type)
-                  }}
-                  onDragEnd={() => setDraggedType(null)}
-                  className={draggedType === item.type ? 'opacity-50' : ''}
-                >
-                  <EntityRow
-                    centered
-                    className="p-3"
-                    leading={
-                      <IconBadge size="md">
-                        <Icon />
-                      </IconBadge>
-                    }
-                    title={t(`widget.catalog.${item.type}.title`)}
-                    badges={<Badge tone="neutral">{item.badge}</Badge>}
-                    subtitle={<span className="[word-break:normal]">{t(`widget.catalog.${item.type}.subtitle`)}</span>}
-                    meta={
-                      !isMobile ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Move size={12} />
+        <section aria-labelledby="widgets-gallery" className="widgets-section space-y-2">
+          <div>
+            <h2 id="widgets-gallery" className="panel-section-label">
+              {t('widgets.sectionGallery')}
+            </h2>
+            <p className="mt-1 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{isMobile ? t('widgets.galleryHintMobile') : t('widgets.galleryHint')}</p>
+          </div>
+          <div className="overflow-hidden rounded-xl border border-[var(--win-border)]">
+            <ListTable
+              variant="widgets"
+              columns={[
+                { label: t('widgets.col.widget') },
+                { label: t('widgets.col.about') },
+                { label: t('widgets.col.actions'), actions: true },
+              ]}
+            >
+              {catalog.map((item) => {
+                const Icon = WIDGET_ICONS[item.type]
+                const multi = MULTI_INSTANCE_WIDGETS.includes(item.type)
+                const installed = !multi && placedWidgets.some((w) => w.type === item.type)
+                return (
+                  <div
+                    key={item.type}
+                    draggable={!isMobile}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/x-reneo-widget', item.type)
+                      e.dataTransfer.setData('text/plain', item.type)
+                      e.dataTransfer.effectAllowed = 'copy'
+                      setDraggedType(item.type)
+                    }}
+                    onDragEnd={() => setDraggedType(null)}
+                    className={`docker-row${isMobile ? '' : ' docker-row--grab'}${draggedType === item.type ? ' docker-row--dragging' : ''}`}
+                  >
+                    <div className="docker-row__app">
+                      <ListRowIcon><Icon className="h-3.5 w-3.5" /></ListRowIcon>
+                      <div className="docker-row__text">
+                        <span className="docker-row__title">
+                          <span className="docker-app-name">{t(`widget.catalog.${item.type}.title`)}</span>
+                          <span className="text-[0.6875rem] text-[var(--text-secondary)]">{item.badge}</span>
+                        </span>
+                        <span className="docker-row__meta">{t(`widget.catalog.${item.type}.subtitle`)}</span>
+                      </div>
+                    </div>
+                    <div className="docker-cell !whitespace-normal">
+                      <span className="text-[0.75rem] leading-snug">{t(`widget.catalog.${item.type}.subtitle`)}</span>
+                      {!isMobile ? (
+                        <span className="mt-0.5 inline-flex items-center gap-1 text-[0.6875rem]">
+                          <GripVertical size={12} />
                           {t('widgets.dragHint')}
                         </span>
-                      ) : undefined
-                    }
-                    actions={
-                      installed ? (
-                        <Badge tone="success" dot>
-                          {t('widgets.installed')}
-                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="docker-action-btns">
+                      {installed ? (
+                        <span className="docker-status-pill docker-status-pill--running">
+                          <span className="docker-status-dot" />
+                          <span>{t('widgets.installed')}</span>
+                        </span>
                       ) : (
-                        <Button variant="primary-soft" onClick={() => addWidget(item.type)} title={t('widgets.installTitle')}>
-                          <Plus className="h-3.5 w-3.5" />
-                          {t('widgets.install')}
-                        </Button>
-                      )
-                    }
-                  />
-                </div>
-              )
-            })}
+                        <button type="button" className="docker-secondary-btn" title={t('widgets.installTitle')} aria-label={`${t('widgets.install')} ${t(`widget.catalog.${item.type}.title`)}`} onClick={() => install(item.type)}>
+                          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                          <span>{t('widgets.install')}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </ListTable>
           </div>
         </section>
       </div>

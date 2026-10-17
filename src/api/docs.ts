@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 import type { PaginatedResponse, PaginationParams } from '@/types'
 
 export interface DocRecord {
@@ -74,6 +75,14 @@ export const getPublicDoc = (slug: string) =>
   agentApi.get<PublicDoc>(`/api/v1/public/docs/${encodeURIComponent(slug)}`).then((r) => r.data)
 
 // Official articles synced from the project repository (same on every installation)
+// Local and official articles in one list: the search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listDocsTable = (query: ListQuery, page: { limit: number; offset: number }) => {
+  const params = listParams(query)
+  params.set('limit', String(page.limit))
+  params.set('offset', String(page.offset))
+  return agentApi.get<TableResult<DocRecord>>('/api/v1/docs/table', { params }).then((r) => r.data)
+}
+
 export const listOfficialDocs = (refresh = false) =>
   agentApi
     .get<{ items: DocRecord[] }>('/api/v1/docs/official', { params: { refresh: refresh ? 1 : undefined } })

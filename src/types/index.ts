@@ -7,7 +7,6 @@ export type WindowKind =
   | 'system-logs'
   | 'docs'
   | 'changelog'
-  | 'portainer'
   | 'settings'
   | 'database'
   | 'trash'
@@ -59,7 +58,7 @@ export interface WindowState {
   params?: Record<string, any>
 }
 
-// ── Docker / Portainer ───────────────────────────────────────────
+// ── Docker ───────────────────────────────────────────
 export interface AccountResources {
   cpuPercent: number
   cpuCores: number
@@ -68,6 +67,26 @@ export interface AccountResources {
   diskUsed: number
   diskLimit: number
   cpuLimitPct: number
+}
+
+// What the System window counts besides the machine: what each key holds is chosen by the agent for the viewer
+export interface SystemCounts {
+  docker?: { reachable: boolean; containers: number; running: number; images?: number; networks?: number; volumes?: number }
+  databases?: { total: number; running: number }
+  routes?: { total: number; active: number }
+  users?: {
+    total: number
+    active: number
+    suspended: number
+    roles?: Record<string, number>
+    planActive?: number
+    expiring?: number
+    grace?: number
+    expired?: number
+    noPlan?: number
+  }
+  cloudflare?: { configured: boolean; reachable: boolean; zones: number; zonesActive: number; profiles: number; profilesLive: number }
+  hostingDomains?: number
 }
 
 export interface SystemSummary {
@@ -96,8 +115,6 @@ export interface SystemSummary {
   dockerInstalled: boolean
   dockerReachable: boolean
   dockerStatus: string
-  portainerUrl: string
-  portainerReachable: boolean
   database: {
     connected: boolean
     enabled: boolean
@@ -118,6 +135,7 @@ export interface SystemSummary {
     reconcileFresh: boolean
   }
   ipAddresses: string[]
+  counts?: SystemCounts
 }
 
 export interface Container {
@@ -256,6 +274,8 @@ export interface DeployComposePayload {
 }
 
 export interface DockerNetwork {
+  /** Containers on this network (from the agent) */
+  containers?: number
   Id: string
   Name: string
   Driver: string
@@ -269,6 +289,8 @@ export interface DockerNetwork {
 }
 
 export interface DockerImage {
+  /** A container uses this image (from the agent) */
+  inUse?: boolean
   Id: string
   Repository: string
   Tag: string
@@ -326,10 +348,6 @@ export interface ContainerStats {
   memory_usage: number
   memory_limit: number
   memory_percent: number
-}
-
-export interface PortainerAuth {
-  jwt: string
 }
 
 // ── App shortcut ─────────────────────────────────────────────────

@@ -51,16 +51,14 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
             onChange={(event) => setUploadDraft((current) => current ? { ...current, rootDir: event.target.value } : current)} mono
             placeholder={t('projects.zipRootPlaceholder')}
           />
-          <p className="mt-1 text-[12px] text-[var(--text-secondary)]">Kosongkan untuk auto-detect. Isi manual seperti `dist`, `build`, `out`, atau `public` jika perlu.</p>
+          <p className="mt-1 text-[12px] text-[var(--text-secondary)]">{t('projects.zipRootHint')}</p>
         </div>
         <Checkbox
           checked={uploadDraft.clean}
           onChange={(checked) => setUploadDraft((current) => current ? { ...current, clean: checked } : current)}
           label={t('projects.cleanBeforeExtract')}
         />
-        <p className="mt-[-10px] text-[11px] leading-5 text-[var(--text-secondary)]">
-          Jika folder root diisi, struktur ZIP tetap dipertahankan dan project akan diarahkan ke folder itu.
-        </p>
+        <p className="mt-[-10px] text-[11px] leading-5 text-[var(--text-secondary)]">{t('projects.zipRootNote')}</p>
       </div>
     </Modal>
   )

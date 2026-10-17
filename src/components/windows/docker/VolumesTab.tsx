@@ -1,31 +1,32 @@
 import { toast } from 'sonner'
 import { Copy, Database, FolderOpen, HardDrive } from 'lucide-react'
 import { copyTextToClipboard } from '@/api/agent'
-import { DockerListState, DockerRowIcon, DockerTable } from './DockerTable'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
 import type { DockerWindowState } from './useDockerWindow'
 
 // What the running containers have mounted: named volumes, bind mounts and tmpfs
 export function VolumesTab({ docker }: { docker: DockerWindowState }) {
-  const { t, volumesQuery, filteredMounts, search } = docker
+  const { t, volumesQuery, filteredMounts, narrowed, lists } = docker
+  const facets = volumesQuery.data?.facets
 
   const copy = (text: string) => {
     void copyTextToClipboard(text).then(() => toast.success(t('docker.pathCopied')))
   }
 
   return (
-    <DockerTable
+    <ListTable
       variant="volumes"
       empty={volumesQuery.isLoading || volumesQuery.isError || filteredMounts.length === 0}
       columns={[
         { label: t('docker.colIndex') },
-        { label: t('docker.col.mount') },
-        { label: t('docker.col.container') },
-        { label: t('docker.col.path') },
-        { label: t('docker.col.mode') },
+        lists.volumes.column('mount', t('docker.col.mount'), facets?.mount),
+        lists.volumes.column('container', t('docker.col.container'), facets?.container),
+        lists.volumes.column('path', t('docker.col.path'), facets?.path),
+        lists.volumes.column('mode', t('docker.col.mode'), facets?.mode, { labelOf: (v) => (v === 'ro' ? t('docker.readOnly') : t('docker.readWrite')) }),
         { label: t('docker.colActions'), actions: true },
       ]}
     >
-      <DockerListState
+      <ListState
         loading={volumesQuery.isLoading}
         error={volumesQuery.isError}
         errorTitle={t('docker.volumesLoadFailed')}
@@ -33,8 +34,8 @@ export function VolumesTab({ docker }: { docker: DockerWindowState }) {
         loadingText={t('docker.loadingList')}
         empty={filteredMounts.length === 0}
         emptyIcon={<HardDrive />}
-        emptyTitle={search ? t('docker.noResults') : t('docker.noVolumes')}
-        emptyHint={search ? undefined : t('docker.noVolumesHint')}
+        emptyTitle={narrowed ? t('docker.noResults') : t('docker.noVolumes')}
+        emptyHint={narrowed ? undefined : t('docker.noVolumesHint')}
       >
         {filteredMounts.map((mount, idx) => {
           const title = mount.type === 'volume' ? mount.name || mount.destination : mount.source || mount.destination
@@ -44,7 +45,7 @@ export function VolumesTab({ docker }: { docker: DockerWindowState }) {
             <div key={`${mount.containerId}:${mount.destination}`} className="docker-row">
               <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
               <div className="docker-row__app">
-                <DockerRowIcon><Icon className="h-3.5 w-3.5" strokeWidth={1.75} /></DockerRowIcon>
+                <ListRowIcon><Icon className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
                 <div className="docker-row__text">
                   <span className="docker-app-name docker-app-name--mono" title={title}>{title}</span>
                   <span className="docker-row__sub">{t(`docker.mountType.${mount.type}`)}{mount.type === 'volume' && mount.source ? ` · ${mount.source}` : ''}</span>
@@ -70,7 +71,7 @@ export function VolumesTab({ docker }: { docker: DockerWindowState }) {
             </div>
           )
         })}
-      </DockerListState>
-    </DockerTable>
+      </ListState>
+    </ListTable>
   )
 }

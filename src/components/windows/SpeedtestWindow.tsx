@@ -1,8 +1,9 @@
-import { Server, Smartphone } from 'lucide-react'
-import { Tabs } from '@/components/ui/Tabs'
+import { Play, Square } from 'lucide-react'
+import { FilterMenu } from '@/components/ui/FilterMenu'
 import { useI18n } from '@/lib/i18n'
 import { SpeedHistory } from './speedtest/SpeedHistory'
 import { SpeedPanel } from './speedtest/SpeedPanel'
+import { SpeedServerNotice } from './speedtest/SpeedServerNotice'
 import { SpeedServerPicker } from './speedtest/SpeedServerPicker'
 import { useSpeedtestWindow, type SpeedTab } from './speedtest/useSpeedtestWindow'
 
@@ -19,32 +20,56 @@ export function SpeedtestWindow() {
   const sameKind = history.filter((item) => item.kind === active)
   const previous = (run.running || !run.result ? sameKind[0] : sameKind[1]) ?? null
   const uploadAvailable = active === 'browser' ? true : (run.result?.canUpload ?? selected?.canUpload ?? true)
+  const startDisabled = active === 'server' && selected !== null && !selected.available
 
   return (
-    <div className="panel-window flex h-full flex-col overflow-hidden">
-      <div className="panel-window__body min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5">
+    <div className="panel-window docker-window-root relative overflow-hidden">
+      <div className="docker-topbar">
+        <div className="docker-topbar__left">
+          {isSuperadmin ? (
+            <FilterMenu
+              label={t('speedtest.tabs')}
+              value={active}
+              onChange={(key) => {
+                if (!locked) setTab(key as SpeedTab)
+              }}
+              items={[
+                { key: 'browser', label: t('speedtest.tab.browser') },
+                { key: 'server', label: t('speedtest.tab.server') },
+              ]}
+            />
+          ) : (
+            <span className="text-[0.8125rem] font-semibold text-[var(--win-text)]">{t('speedtest.tab.browser')}</span>
+          )}
+          {run.running ? (
+            <button type="button" className="docker-secondary-btn docker-secondary-btn--danger" onClick={run.stop}>
+              <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+              <span>{t('speedtest.stop')}</span>
+            </button>
+          ) : (
+            <button type="button" className="docker-primary-btn" disabled={startDisabled} onClick={run.start}>
+              <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+              <span>{run.result ? t('speedtest.again') : t('speedtest.start')}</span>
+            </button>
+          )}
+        </div>
+        <div className="docker-topbar__right min-w-0">
+          {active === 'server' && servers.data ? <SpeedServerPicker servers={servers.data} value={selected?.id ?? ''} onChange={setServerId} disabled={server.running} /> : null}
+        </div>
+      </div>
+
+      <div className="panel-window__body min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5">
         <SpeedPanel
           key={active}
-          tabs={
-            isSuperadmin ? (
-              <Tabs
-                label={t('speedtest.tabs')}
-                value={active}
-                onChange={(key) => {
-                  if (!locked) setTab(key)
-                }}
-                items={[
-                  { key: 'browser', label: t('speedtest.tab.browser'), icon: <Smartphone size={14} /> },
-                  { key: 'server', label: t('speedtest.tab.server'), icon: <Server size={14} /> },
-                ]}
-              />
-            ) : undefined
-          }
-          title={t(`speedtest.${active}.title`)}
-          subtitle={t(`speedtest.${active}.subtitle`)}
-          toolbar={
-            active === 'server' && servers.data ? (
-              <SpeedServerPicker servers={servers.data} value={selected?.id ?? ''} onChange={setServerId} disabled={server.running} />
+          description={t(`speedtest.${active}.subtitle`)}
+          target={
+            active === 'server' ? (
+              selected ? (
+                <>
+                  <p className="speed-picker__host">{selected.host}</p>
+                  <SpeedServerNotice server={selected} />
+                </>
+              ) : null
             ) : (
               <p className="speed-picker__host">{t('speedtest.browser.target', { host: window.location.host })}</p>
             )
@@ -54,9 +79,6 @@ export function SpeedtestWindow() {
           previous={previous}
           running={run.running}
           uploadAvailable={uploadAvailable}
-          startDisabled={active === 'server' && selected !== null && !selected.available}
-          onStart={run.start}
-          onStop={run.stop}
         />
 
         <SpeedHistory items={history.filter((item) => isSuperadmin || item.kind === 'browser')} onClear={clearHistory} />

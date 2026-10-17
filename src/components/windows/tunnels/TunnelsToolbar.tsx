@@ -1,83 +1,83 @@
-import { Globe2, Network, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { FilterMenu } from '@/components/ui/FilterMenu'
 import type { TunnelsWindowState } from './useTunnelsWindow'
-import { IconButton } from '@/components/ui/IconButton'
-import { Button } from '@/components/ui/Button'
 
+// The bar of the Docker window: which list, its main action, search, refresh, and whether the token works
 export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
   const {
     t,
     tab,
     setTab,
-    selectedDomainId,
-    selectedProfileId,
+    safeDomains,
+    safeProfiles,
+    cfNotConfigured,
     setShowDomainModal,
     setShowProfileModal,
-    cfNotConfigured,
+    lists,
     refetchDomains,
     domainsFetching,
     refetchProfiles,
     profilesFetching,
-    safeDomains,
-    safeProfiles,
-    openDnsModal,
-    openTunnelModal,
   } = tw
 
+  const onDomains = tab === 'domains'
+  const current = onDomains ? lists.dns : lists.routes
+  const fetching = onDomains ? domainsFetching : profilesFetching
+
   return (
-    <div className="flex items-center justify-between mobile:flex-wrap mobile:gap-x-2 mobile:gap-y-1 border-b border-[var(--win-border)] px-3 py-1 bg-[var(--win-bar)] shrink-0 min-h-[40px]">
-      <div className="flex items-center gap-1">
+    <div className="docker-topbar">
+      <div className="docker-topbar__left">
+        <FilterMenu
+          label={t('tunnels.tabs')}
+          value={tab}
+          onChange={(key) => setTab(key as 'domains' | 'tunnels')}
+          items={[
+            { key: 'domains', label: t('tunnels.domainTab'), count: safeDomains.length },
+            { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: safeProfiles.length },
+          ]}
+        />
         <button
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-            tab === 'domains'
-              ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] shadow-xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-[var(--tb-hover)]'
-          }`}
-          onClick={() => setTab('domains')}
+          type="button"
+          className="docker-primary-btn"
+          disabled={cfNotConfigured}
+          onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
         >
-          <Globe2 className="h-3.5 w-3.5" /> {t('tunnels.domainTab')}
-          <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-mono">{safeDomains.length}</span>
-        </button>
-        <button
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-            tab === 'tunnels'
-              ? 'bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] shadow-xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:bg-[var(--tb-hover)]'
-          }`}
-          onClick={() => setTab('tunnels')}
-        >
-          <Network className="h-3.5 w-3.5" /> {t('tunnels.tunnelsTab')}
-          <span className="rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-mono">{safeProfiles.length}</span>
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        {!cfNotConfigured && (
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-[var(--panel-success-text)] font-medium mr-1">
-            <ShieldCheck className="h-3.5 w-3.5" /> {t('tunnels.tokenActive')}
+      <div className="docker-topbar__right">
+        <div className="docker-search-wrap">
+          <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+          <input
+            id="cloudflare-search-input"
+            type="search"
+            className="docker-search-input"
+            aria-label={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
+            placeholder={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
+            value={current.text}
+            onChange={(e) => current.setText(e.target.value)}
+          />
+        </div>
+
+        <button
+          type="button"
+          className="docker-icon-btn"
+          title={t('tunnels.refresh')}
+          aria-label={t('tunnels.refresh')}
+          disabled={cfNotConfigured}
+          onClick={() => void (onDomains ? refetchDomains() : refetchProfiles())}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+        </button>
+
+        {!cfNotConfigured ? (
+          <div className="docker-badge-running" title={t('tunnels.tokenActive')}>
+            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span>{t('tunnels.tokenActiveShort')}</span>
           </div>
-        )}
-        <IconButton onClick={() => tab === 'domains' ? refetchDomains() : refetchProfiles()} label={t('tunnels.refresh')}>
-          <RefreshCw className={`h-3.5 w-3.5 ${(domainsFetching || profilesFetching) ? 'animate-spin' : ''}`} />
-        </IconButton>
-        {tab === 'domains' ? (
-          <>
-            <Button onClick={() => setShowDomainModal(true)} disabled={cfNotConfigured} variant="primary-soft" className="text-xs py-1 px-2.5 disabled:cursor-not-allowed">
-              <Plus className="h-3.5 w-3.5" /> {t('tunnels.addDomain')}
-            </Button>
-            <Button onClick={() => openDnsModal()} disabled={cfNotConfigured || !selectedDomainId} variant="primary" className="text-xs py-1 px-2.5 disabled:cursor-not-allowed">
-              <Plus className="h-3.5 w-3.5" /> {t('tunnels.createDns')}
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button onClick={() => setShowProfileModal(true)} disabled={cfNotConfigured} variant="primary-soft" className="text-xs py-1 px-2.5 disabled:cursor-not-allowed">
-              <Plus className="h-3.5 w-3.5" /> {t('tunnels.createProfile')}
-            </Button>
-            <Button onClick={() => openTunnelModal()} disabled={cfNotConfigured || !selectedProfileId} variant="primary" className="text-xs py-1 px-2.5 disabled:cursor-not-allowed">
-              <Plus className="h-3.5 w-3.5" /> {t('tunnels.createRoute')}
-            </Button>
-          </>
-        )}
+        ) : null}
       </div>
     </div>
   )

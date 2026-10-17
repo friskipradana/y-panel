@@ -1,118 +1,81 @@
-import {
-  FilePlus,
-  FolderPlus,
-  Edit2,
-  Key,
-  Download,
-  Trash,
-  Archive,
-  PackageOpen,
-  Copy,
-  ClipboardPaste,
-  Scissors,
-} from 'lucide-react'
+import { Archive, ClipboardPaste, Copy, Download, FilePlus, FolderPlus, Key, PackageOpen, Pencil, Scissors, SquarePen, Trash2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { FileManagerState } from './useFileManager'
 
+function MenuItem({ icon, label, onClick, danger = false }: { icon: ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button type="button" role="menuitem" className={`file-menu__item${danger ? ' file-menu__item--danger' : ''}`} onClick={onClick}>
+      {icon}
+      <span>{label}</span>
+    </button>
+  )
+}
+
+const ARCHIVE = /\.(zip|tar\.gz|tgz|tar)$/i
+const ICON = { size: 14, strokeWidth: 1.75 }
+
+// The menu of a right click: on a file or folder, or on the empty space of the open folder
 export function FileContextMenu({ fm }: { fm: FileManagerState }) {
-  const {
-    t,
-    menu,
-    clipboard,
-    handleEdit,
-    handleDownload,
-    openModal,
-    setClipboardItem,
-    handlePasteClipboard,
-    getSafeMenuStyles,
-  } = fm
+  const { t, menu, clipboard, handleEdit, handleDownload, openModal, setClipboardItem, handlePasteClipboard, getSafeMenuStyles } = fm
+  const item = menu?.item
+  const position = getSafeMenuStyles()
 
   return (
     <AnimatePresence>
-      {menu && (
+      {menu ? (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          role="menu"
+          initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          exit={{ opacity: 0, scale: 0.97 }}
           transition={{ duration: 0.1 }}
-          className="absolute bg-[var(--menu-bg)] backdrop-blur-xl border border-[var(--menu-border)] shadow-[var(--menu-shadow)] rounded-xl py-2 z-[9998] min-w-[170px]"
-          style={{ top: getSafeMenuStyles().top, left: getSafeMenuStyles().left }}
+          className="file-menu"
+          style={{ top: position.top, left: position.left }}
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <div className="px-3 py-2 text-[12px] uppercase tracking-wider font-bold text-[var(--text-secondary)] border-b border-[var(--win-border)] mb-1 truncate max-w-[170px]">
-            {menu.item ? menu.item.name : menu.targetPath}
-          </div>
+          <div className="file-menu__title" title={item ? item.name : menu.targetPath}>{item ? item.name : menu.targetPath}</div>
 
-          {!menu.item && (
+          {!item ? (
+            <div className="file-menu__group">
+              <MenuItem icon={<FilePlus {...ICON} />} label={t('fileManager.newFile')} onClick={() => openModal({ type: 'touch' })} />
+              <MenuItem icon={<FolderPlus {...ICON} />} label={t('fileManager.newFolder')} onClick={() => openModal({ type: 'mkdir' })} />
+            </div>
+          ) : (
+            <div className="file-menu__group">
+              {!item.isDir ? <MenuItem icon={<SquarePen {...ICON} />} label={t('fileManager.openEditor')} onClick={() => handleEdit(item)} /> : null}
+              {!item.isDir ? <MenuItem icon={<Download {...ICON} />} label={t('common.download')} onClick={() => handleDownload(item)} /> : null}
+              <MenuItem icon={<Scissors {...ICON} />} label={t('common.cut')} onClick={() => setClipboardItem(item, 'cut')} />
+              <MenuItem icon={<Copy {...ICON} />} label={t('common.copy')} onClick={() => setClipboardItem(item, 'copy')} />
+            </div>
+          )}
+
+          {clipboard && clipboard.items.length > 0 ? (
+            <div className="file-menu__group">
+              <MenuItem
+                icon={<ClipboardPaste {...ICON} />}
+                label={t('fileManager.pasteAction', { action: clipboard.mode === 'cut' ? t('fileManager.move') : t('common.copy'), count: clipboard.items.length })}
+                onClick={() => handlePasteClipboard(menu.targetPath)}
+              />
+            </div>
+          ) : null}
+
+          {item ? (
             <>
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'touch' })}>
-                <FilePlus size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.newFile')}
-              </button>
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'mkdir' })}>
-                <FolderPlus size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.newFolder')}
-              </button>
+              <div className="file-menu__group">
+                <MenuItem icon={<Pencil {...ICON} />} label={t('fileManager.renameAction')} onClick={() => openModal({ type: 'rename', item })} />
+                <MenuItem icon={<Key {...ICON} />} label={t('fileManager.permissionAction')} onClick={() => openModal({ type: 'chmod', item })} />
+                <MenuItem icon={<Archive {...ICON} />} label={t('fileManager.compressAction')} onClick={() => openModal({ type: 'compress', item })} />
+                {ARCHIVE.test(item.name) && !item.isDir ? <MenuItem icon={<PackageOpen {...ICON} />} label={t('fileManager.extractHereAction')} onClick={() => openModal({ type: 'extract', item })} /> : null}
+              </div>
+              <div className="file-menu__group">
+                <MenuItem danger icon={<Trash2 {...ICON} />} label={t('fileManager.deleteAction')} onClick={() => openModal({ type: 'delete', item })} />
+              </div>
             </>
-          )}
-
-          {menu.item && !menu.item.isDir && (
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handleEdit(menu.item!)}>
-              <Edit2 size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.openEditor')}
-            </button>
-          )}
-
-          {menu.item && (
-            <>
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'cut')}>
-                <Scissors size={13} className="text-[var(--text-secondary)]" /> {t('common.cut')}
-              </button>
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => setClipboardItem(menu.item!, 'copy')}>
-                <Copy size={13} className="text-[var(--text-secondary)]" /> {t('common.copy')}
-              </button>
-            </>
-          )}
-
-          {clipboard && clipboard.items.length > 0 && (
-            <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-success-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handlePasteClipboard(menu.targetPath)}>
-              <ClipboardPaste size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.pasteAction', { action: clipboard.mode === 'cut' ? t('fileManager.move') : t('common.copy'), count: clipboard.items.length })}
-            </button>
-          )}
-
-          {menu.item && (
-            <>
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'rename', item: menu.item! })}>
-                <Edit2 size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.renameAction')}
-              </button>
-
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'chmod', item: menu.item! })}>
-                <Key size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.permissionAction')}
-              </button>
-
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'compress', item: menu.item! })}>
-                <Archive size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.compressAction')}
-              </button>
-
-              {/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir && (
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => openModal({ type: 'extract', item: menu.item! })}>
-                  <PackageOpen size={13} className="text-[var(--text-secondary)]" /> {t('fileManager.extractHereAction')}
-                </button>
-              )}
-
-              {!menu.item.isDir && (
-                <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-primary-bg)] text-[var(--text-secondary)] font-medium transition" onClick={() => handleDownload(menu.item!)}>
-                  <Download size={13} className="text-[var(--text-secondary)]" /> {t('common.download')}
-                </button>
-              )}
-
-              <div className="border-t border-[var(--win-border)] my-1"></div>
-
-              <button className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 text-[12.5px] hover:bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] font-medium transition group" onClick={() => openModal({ type: 'delete', item: menu.item! })}>
-                <Trash size={13} className="group-hover:scale-110 transition-transform" /> {t('fileManager.deleteAction')}
-              </button>
-            </>
-          )}
+          ) : null}
         </motion.div>
-      )}
+      ) : null}
     </AnimatePresence>
   )
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Loader2, Trash2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import { lazyNamed, lazyDefault } from '@/lib/lazy'
 import type { WindowKind, WindowState } from '@/types'
 import { useI18n } from '@/lib/i18n'
@@ -38,21 +38,6 @@ export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (SUPERADMIN_ONLY_WINDOW_KINDS.has(kind)) return role === 'superadmin'
   if (role === 'admin' || role === 'superadmin') return true
   return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
-}
-
-function PortainerPlaceholder() {
-  const { t } = useI18n()
-  return (
-    <div className="flex h-40 flex-col items-center justify-center gap-3 text-center">
-      <Box size={36} strokeWidth={1.5} />
-      <p className="text-sm font-semibold" style={{ color: 'var(--win-text)' }}>
-        {t('app.portainerTitle')}
-      </p>
-      <p className="max-w-xs text-xs leading-relaxed" style={{ color: 'var(--app-placeholder-copy)' }}>
-        {t('app.portainerBody')}
-      </p>
-    </div>
-  )
 }
 
 function TerminalPlaceholder() {
@@ -96,7 +81,6 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
   'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
   'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
-  portainer: () => <PortainerPlaceholder />,
   terminal: () => <TerminalPlaceholder />,
   docs: () => <DocsWindow />,
   changelog: () => <ChangelogWindow />,

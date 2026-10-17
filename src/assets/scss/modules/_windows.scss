@@ -676,6 +676,15 @@ button:focus-visible,
   }
 }
 
+// as many columns as the window has room for, none squeezed narrower than a readable card
+.panel-kpi-grid--auto {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.layout-mobile .panel-kpi-grid--auto {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 @media (min-width: 768px) {
   .panel-kpi-grid--2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -714,8 +723,7 @@ button:focus-visible,
   font-size: 0.75rem;
   line-height: 1.6;
   color: var(--text-secondary);
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .panel-progress {

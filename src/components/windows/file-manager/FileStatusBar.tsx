@@ -1,17 +1,20 @@
 import type { FileManagerState } from './useFileManager'
 
+// How many things the folder holds, and how many of them the search and filters leave
 export function FileStatusBar({ fm }: { fm: FileManagerState }) {
-  const {
-    t,
-    activeTab,
-  } = fm
+  const { t, activeTab, narrowed } = fm
+  const data = activeTab.data
+  const shown = (data?.contents || []).length
 
   return (
-    <div className="px-4 py-2 bg-[var(--tb-hover)] border-t border-[var(--win-border)] text-[12px] text-[var(--tb-clock)] flex justify-between tracking-wide font-medium">
-      <span>{activeTab.data ? t('fileManager.itemCount', { count: (activeTab.data.contents || []).length }) : t('fileManager.loadingObjects')}</span>
-      {/* <span className="text-[var(--panel-success-text)]/70 font-bold uppercase flex items-center gap-1">
-        Root Access
-      </span> */}
+    <div className="docker-statusbar">
+      <span>
+        {!data
+          ? t('fileManager.loadingObjects')
+          : narrowed
+            ? t('fileManager.itemCountOf', { shown, total: data.all ?? shown })
+            : t('fileManager.itemCount', { count: shown })}
+      </span>
     </div>
   )
 }

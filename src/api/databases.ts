@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import { EMPTY_LIST_QUERY, listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface DatabaseEngine {
   id: string
@@ -45,8 +46,9 @@ export interface DatabaseCredentials {
 export const listDatabaseEngines = () =>
   agentApi.get<{ engines: DatabaseEngine[] }>('/api/v1/databases/engines').then((r) => r.data.engines)
 
-export const listUserDatabases = () =>
-  agentApi.get<{ items: UserDatabase[] }>('/api/v1/databases').then((r) => r.data.items)
+// The search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listUserDatabases = (query: ListQuery = EMPTY_LIST_QUERY) =>
+  agentApi.get<TableResult<UserDatabase>>('/api/v1/databases', { params: listParams(query) }).then((r) => r.data)
 
 export const createUserDatabase = (payload: { name: string; engine: string; version?: string }) =>
   agentApi.post<UserDatabase>('/api/v1/databases', payload).then((r) => r.data)

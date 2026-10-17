@@ -1,5 +1,6 @@
 import { agentApi } from './client'
-import type { PaginatedResponse, PaginationParams } from '@/types'
+import type { PaginationParams } from '@/types'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface ProjectRuntimeState {
   known: boolean
@@ -30,6 +31,8 @@ export interface Project {
 
 export interface ProjectListParams extends PaginationParams {
   all?: boolean
+  /** The column filters and the order, applied by the agent */
+  table?: ListQuery
 }
 
 export interface ProjectAttentionSummary {
@@ -39,17 +42,14 @@ export interface ProjectAttentionSummary {
   driftCount: number
 }
 
-export const listProjects = (params?: ProjectListParams) =>
-  agentApi
-    .get<PaginatedResponse<Project>>('/api/v1/projects', {
-      params: {
-        q: params?.q ?? '',
-        limit: params?.limit,
-        offset: params?.offset,
-        all: params?.all ? 1 : undefined,
-      },
-    })
-    .then((r) => r.data)
+export const listProjects = (params?: ProjectListParams) => {
+  const query = params?.table ? listParams(params.table) : new URLSearchParams()
+  if (!params?.table && params?.q) query.set('q', params.q)
+  if (params?.limit !== undefined) query.set('limit', String(params.limit))
+  if (params?.offset !== undefined) query.set('offset', String(params.offset))
+  if (params?.all) query.set('all', '1')
+  return agentApi.get<TableResult<Project>>('/api/v1/projects', { params: query }).then((r) => r.data)
+}
 
 export const getProjectAttentionSummary = (params?: Pick<ProjectListParams, 'q' | 'all'>) =>
   agentApi
@@ -87,6 +87,10 @@ export const deleteProject = (id: number) =>
 
 export const startProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/start`).then((r) => r.data)
+
+// The end of what the project wrote, and what the agent did to it (starts, crashes, restarts)
+export const getProjectLogs = (id: number, lines = 300) =>
+  agentApi.get<{ lines: string[] }>(`/api/v1/projects/${id}/logs`, { params: { lines } }).then((r) => r.data.lines)
 
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)

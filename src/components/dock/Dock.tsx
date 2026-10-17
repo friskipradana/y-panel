@@ -66,7 +66,6 @@ export function Dock() {
       'system-logs': [],
       docs: [],
       changelog: [],
-      portainer: [],
       settings: [],
       database: [],
       trash: [],

@@ -47,7 +47,6 @@ const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSPr
   widgets: { icon: Board24Filled, color: '#06b6d4' }, // Widgets (Cyan)
   speedtest: { icon: Gauge24Filled, color: '#14b8a6' }, // Speed test (Teal)
   trash: { icon: Delete24Filled, color: '#ef4444' }, // Trash (Red)
-  portainer: { icon: Box24Filled, color: '#38bdf8' },
 }
 
 export function AppIcon({ kind, size = 24, className = '', style = {} }: AppIconProps) {

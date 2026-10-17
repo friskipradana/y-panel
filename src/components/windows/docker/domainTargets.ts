@@ -1,17 +1,11 @@
 import type { Container } from '@/types'
-
-export interface DomainTarget {
-  key: string
-  host: string
-  port: number
-  label: string
-}
+import type { RouteSubject, RouteTarget } from '@/components/windows/tunnels/RouteDomainModal'
 
 // Where a tunnel on this machine can reach the container: a port it publishes on the host, or, when it
 // publishes none, its own address on the Docker network
-export function domainTargets(container: Container): DomainTarget[] {
+export function domainTargets(container: Container): RouteTarget[] {
   const seen = new Set<string>()
-  const targets: DomainTarget[] = []
+  const targets: RouteTarget[] = []
   const tcp = (container.Ports ?? []).filter((p) => (p.Type || 'tcp') === 'tcp')
   for (const p of tcp) {
     if (!p.PublicPort || seen.has(`pub:${p.PublicPort}`)) continue
@@ -27,4 +21,14 @@ export function domainTargets(container: Container): DomainTarget[] {
     }
   }
   return targets
+}
+
+// A container as what a domain can be pointed at
+export function containerSubject(container: Container): RouteSubject {
+  return {
+    id: container.Id,
+    name: container.Names?.[0]?.replace(/^\//, '') ?? container.Id.slice(0, 12),
+    kind: 'container',
+    targets: domainTargets(container),
+  }
 }

@@ -1,6 +1,6 @@
 import { type WindowState } from '@/types'
 import {
-  useContainers,
+  useContainerTable,
   useStartContainer,
   useStopContainer,
   useRestartContainer,
@@ -22,31 +22,34 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 import type { Container } from '@/types'
-import { useDockerLists } from './useDockerLists'
+import { useListQuery } from '@/hooks/useListQuery'
 import { DEFAULT_COMPOSE_YAML, createDefaultDeployForm, createDefaultPullImageForm, type DockerTab } from './constants'
 
 export function useDockerWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const pollingActive = useWindowPollingActive(win)
   const { t } = useI18n()
-  const [activeTab, setActiveTabState] = useState<DockerTab>('containers')
-  const { data, isLoading, isError, error, refetch, isFetching } = useContainers(pollingActive)
+  const [activeTab, setActiveTab] = useState<DockerTab>('containers')
+  // each table keeps its own search, order and column filters; the agent applies them
+  const lists = {
+    containers: useListQuery(),
+    images: useListQuery(),
+    networks: useListQuery(),
+    volumes: useListQuery(),
+    templates: useListQuery(),
+  }
+  const current = lists[activeTab]
+  const narrowed = !!current.query.q || Object.keys(current.filters).length > 0
+  const containersQuery = useContainerTable(lists.containers.query, pollingActive)
+  const { data, isLoading, isError, error, refetch, isFetching } = containersQuery
   // only the tab on screen is polled
-  const networksQuery = useDockerNetworks(pollingActive && activeTab === 'networks')
-  const imagesQuery = useDockerImages(pollingActive && activeTab === 'images')
-  const volumesQuery = useDockerVolumes(pollingActive && activeTab === 'volumes')
-  const templatesQuery = useDockerTemplates()
+  const networksQuery = useDockerNetworks(pollingActive && activeTab === 'networks', lists.networks.query)
+  const imagesQuery = useDockerImages(pollingActive && activeTab === 'images', lists.images.query)
+  const volumesQuery = useDockerVolumes(pollingActive && activeTab === 'volumes', lists.volumes.query)
+  const templatesQuery = useDockerTemplates(lists.templates.query)
   const { data: networksData, refetch: refetchNetworks } = networksQuery
   const { data: imagesData, refetch: refetchImages } = imagesQuery
   const { data: volumesData, refetch: refetchVolumes } = volumesQuery
   const { data: templatesData, refetch: refetchTemplates } = templatesQuery
-
-  // One search box in the toolbar filters whichever tab is open; changing tab clears it
-  const [query, setQuery] = useState('')
-  const search = query.trim().toLowerCase()
-  const setActiveTab = (tab: DockerTab) => {
-    setActiveTabState(tab)
-    setQuery('')
-  }
 
   // Networks tab state
   const [showCreateNet, setShowCreateNet] = useState(false)
@@ -71,8 +74,6 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   const [netInputValue, setNetInputValue] = useState('')
   const [pullImageForm, setPullImageForm] = useState(createDefaultPullImageForm)
 
-  const [tabDropdownOpen, setTabDropdownOpen] = useState(false)
-  const tabDropdownRef = useRef<HTMLDivElement>(null)
   // Refs for click-outside to close dropdowns
   const imgComboRef = useRef<HTMLDivElement>(null)
   const nameComboRef = useRef<HTMLDivElement>(null)
@@ -80,7 +81,6 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (tabDropdownRef.current && !tabDropdownRef.current.contains(e.target as Node)) setTabDropdownOpen(false)
       if (imgComboRef.current && !imgComboRef.current.contains(e.target as Node)) setImgDropdownOpen(false)
       if (nameComboRef.current && !nameComboRef.current.contains(e.target as Node)) setNameDropdownOpen(false)
       if (netComboRef.current && !netComboRef.current.contains(e.target as Node)) setNetDropdownOpen(false)
@@ -143,41 +143,14 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   const deleteTemplateMut = useDeleteDockerTemplate()
   const createTemplateMut = useCreateDockerTemplate()
 
-  const containers = useMemo(() => {
-    const rawContainers = Array.isArray(data) ? data : []
-    return rawContainers.filter((container) => {
-      const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
-      return !name.toLowerCase().includes('portainer') && !container.Image.toLowerCase().includes('portainer')
-    })
-  }, [data])
+  const filteredContainers = useMemo(() => data?.items ?? [], [data])
+  const filteredImages = useMemo(() => imagesData?.items ?? [], [imagesData])
+  const filteredNetworks = useMemo(() => networksData?.items ?? [], [networksData])
+  const filteredMounts = useMemo(() => volumesData?.items ?? [], [volumesData])
+  const filteredTemplates = useMemo(() => templatesData?.items ?? [], [templatesData])
 
-  const filteredContainers = useMemo(() => {
-    const needle = search
-    if (!needle) return containers
-    return containers.filter((container) => {
-      const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
-      const networks = (container.Networks ?? []).join(' ')
-      const ips = (container.IpAddresses ?? []).join(' ')
-      const ports = (container.Ports ?? []).map((port) => `${port.PublicPort ?? ''} ${port.PrivatePort} ${port.Type}`).join(' ')
-      return [name, container.Image, container.State, container.Status, container.Id, container.Health, container.RestartCount ? `restart ${container.RestartCount}` : '', networks, ips, ports]
-        .filter((value): value is string => value !== undefined && value !== null && value !== '')
-        .some((value) => value.toLowerCase().includes(needle))
-    })
-  }, [containers, search])
-
-  const stats = useMemo(() => {
-    const running = containers.filter((c) => c.State === 'running').length
-    return { running }
-  }, [containers])
-
-  const { imagesInUse, networkUsage, filteredImages, filteredNetworks, filteredMounts, filteredTemplates } = useDockerLists({
-    containers,
-    search,
-    images: imagesData?.items,
-    networks: networksData?.items,
-    mounts: volumesData?.items,
-    templates: templatesData?.items,
-  })
+  // how many there are, whatever the filters say: the tab menu and the badge
+  const stats = { running: data?.facets.state?.running ?? 0, all: data?.all ?? 0 }
 
   // A tab opened after a while shows fresh data at once instead of waiting for the next poll
   useEffect(() => {
@@ -231,11 +204,10 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     templatesQuery,
     templatesData,
     refetchTemplates,
-    query,
-    setQuery,
-    search,
-    imagesInUse,
-    networkUsage,
+    lists,
+    containersQuery,
+    current,
+    narrowed,
     filteredImages,
     filteredNetworks,
     filteredMounts,
@@ -304,13 +276,9 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     deleteImageMut,
     deleteTemplateMut,
     createTemplateMut,
-    containers,
     filteredContainers,
     stats,
     deployReady,
-    tabDropdownOpen,
-    setTabDropdownOpen,
-    tabDropdownRef,
   }
 }
 

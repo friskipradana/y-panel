@@ -6,8 +6,8 @@ import { Checkbox } from '@/components/ui/Checkbox'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { DockerProgressOverlay } from './DockerProgressOverlay'
-import { DockerListState, DockerRowIcon, DockerTable } from './DockerTable'
-import { formatDockerDate, isImageInUse } from './constants'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
+import { formatDockerDate } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
 
 const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
@@ -17,8 +17,8 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
     t,
     imagesQuery,
     filteredImages,
-    imagesInUse,
-    search,
+    narrowed,
+    lists,
     refetchImages,
     showPullImage,
     resetPullImageModal,
@@ -28,6 +28,8 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
     deleteImageMut,
     deployFromImage,
   } = docker
+
+  const facets = imagesQuery.data?.facets
 
   const pull = () => {
     const image = pullImageForm.image.trim()
@@ -106,19 +108,19 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
         </div>
       </Modal>
 
-      <DockerTable
+      <ListTable
         variant="images"
         empty={imagesQuery.isLoading || imagesQuery.isError || filteredImages.length === 0}
         columns={[
           { label: t('docker.colIndex') },
-          { label: t('docker.col.image') },
-          { label: t('docker.col.usage') },
-          { label: t('docker.col.size') },
-          { label: t('docker.col.created') },
+          lists.images.column('name', t('docker.col.image'), facets?.name),
+          lists.images.column('usage', t('docker.col.usage'), facets?.usage, { labelOf: (v) => (v === 'in-use' ? t('docker.inUse') : t('docker.unused')) }),
+          lists.images.column('size', t('docker.col.size'), facets?.size),
+          lists.images.column('created', t('docker.col.created'), facets?.created),
           { label: t('docker.colActions'), actions: true },
         ]}
       >
-        <DockerListState
+        <ListState
           loading={imagesQuery.isLoading}
           error={imagesQuery.isError}
           errorTitle={t('docker.imagesLoadFailed')}
@@ -126,18 +128,18 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
           loadingText={t('docker.loadingList')}
           empty={filteredImages.length === 0}
           emptyIcon={<Box />}
-          emptyTitle={search ? t('docker.noResults') : t('docker.noLocalImages')}
-          emptyHint={search ? undefined : t('docker.noLocalImagesHint')}
+          emptyTitle={narrowed ? t('docker.noResults') : t('docker.noLocalImages')}
+          emptyHint={narrowed ? undefined : t('docker.noLocalImagesHint')}
         >
           {filteredImages.map((img, idx) => {
             const label = `${img.Repository}:${img.Tag}`
-            const inUse = isImageInUse(img, imagesInUse)
+            const inUse = !!img.inUse
             const untagged = img.Repository === '<none>' || img.Tag === '<none>'
             return (
               <div key={img.Id} className="docker-row">
                 <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
                 <div className="docker-row__app">
-                  <DockerRowIcon><Box className="h-3.5 w-3.5" strokeWidth={1.75} /></DockerRowIcon>
+                  <ListRowIcon><Box className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
                   <div className="docker-row__text">
                     <span className="docker-app-name" title={label}>{img.Repository}</span>
                     <span className="docker-row__sub">{img.Tag} · {img.Id.replace('sha256:', '').slice(0, 12)}</span>
@@ -169,8 +171,8 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
               </div>
             )
           })}
-        </DockerListState>
-      </DockerTable>
+        </ListState>
+      </ListTable>
     </>
   )
 }

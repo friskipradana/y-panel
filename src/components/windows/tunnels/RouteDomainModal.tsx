@@ -10,38 +10,55 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
-import { slugifyRoutePart } from '@/components/windows/tunnels/tunnelForms'
+import { SUBDOMAIN_RE, slugifyRoutePart } from './tunnelForms'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
-import type { Container } from '@/types'
-import { domainTargets } from './domainTargets'
 
-// 1 to 63 characters of a DNS label; "@" is the domain itself
-const LABEL_RE = /^(@|[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)$/
+// Something a tunnel can be pointed at: where it listens on this machine
+export interface RouteTarget {
+  key: string
+  host: string
+  port: number
+  label: string
+}
 
-interface ContainerDomainModalProps {
-  container: Container | null
+// What a window hands over to open the dialog
+export interface RouteSubject {
+  /** Stable id, so the form starts afresh for another subject */
+  id: string
+  /** Its name; the route and the subdomain start from it */
+  name: string
+  kind: 'container' | 'project'
+  targets: RouteTarget[]
+  /** A project's id, kept on the route made for it */
+  projectId?: number
+}
+
+interface RouteDomainModalProps {
+  subject: RouteSubject | null
   onClose: () => void
 }
 
-// Points a domain of the account's Cloudflare at a container: a route of a tunnel profile to the port the container serves
-export function ContainerDomainModal({ container, onClose }: ContainerDomainModalProps) {
-  // a fresh form for every container
-  return <DomainForm key={container?.Id ?? 'none'} container={container} onClose={onClose} />
+// Points a domain of the account's Cloudflare at something this machine serves: a route of a tunnel profile.
+// Routes that already lead there come first; another one is added only on request.
+export function RouteDomainModal({ subject, onClose }: RouteDomainModalProps) {
+  // a fresh form for every subject
+  return <DomainForm key={subject?.id ?? 'none'} subject={subject} onClose={onClose} />
 }
 
-function DomainForm({ container, onClose }: ContainerDomainModalProps) {
+function DomainForm({ subject, onClose }: RouteDomainModalProps) {
   const { t } = useI18n()
   const qc = useQueryClient()
-  const open = !!container
-  const name = container?.Names?.[0]?.replace(/^\//, '') ?? ''
-  const targets = useMemo(() => (container ? domainTargets(container) : []), [container])
+  const open = !!subject
+  const name = subject?.name ?? ''
+  const kind = subject?.kind ?? 'container'
+  const targets = useMemo(() => subject?.targets ?? [], [subject])
 
   const config = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig, enabled: open, staleTime: 30_000 })
   const ready = config.data?.configured === true && config.data.status === 'active'
   const zones = useQuery({ queryKey: ['cf-zones'], queryFn: getCFZones, enabled: open && ready, staleTime: 30_000 })
   const profiles = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: open && ready, staleTime: 15_000 })
-  const routes = useQuery({ queryKey: ['tunnels', 'for-docker'], queryFn: () => listTunnels({ limit: 100, offset: 0 }), enabled: open && ready, staleTime: 15_000 })
+  const routes = useQuery({ queryKey: ['tunnels', 'for-route-dialog'], queryFn: () => listTunnels({ limit: 100, offset: 0 }), enabled: open && ready, staleTime: 15_000 })
 
   const [targetKey, setTargetKey] = useState(targets[0]?.key ?? '')
   const [protocol, setProtocol] = useState('http')
@@ -57,11 +74,12 @@ function DomainForm({ container, onClose }: ContainerDomainModalProps) {
   const effectiveProfile = profileId || (profileList.length === 1 ? profileList[0].id : '')
   const effectiveZone = zoneId || (zoneList.length === 1 ? zoneList[0].id : '')
   const zone = zoneList.find((z) => z.id === effectiveZone)
-  const labelValid = LABEL_RE.test(subdomain)
+  const labelValid = SUBDOMAIN_RE.test(subdomain)
   const hostname = zone && labelValid ? (subdomain === '@' ? zone.name : `${subdomain}.${zone.name}`) : ''
 
   // routes that already lead to this container
   const linked = (routes.data?.items ?? []).filter((route) => {
+    if (subject?.projectId && route.projectId === subject.projectId) return true
     try {
       const url = new URL(route.targetUrl)
       return targets.some((item) => String(item.port) === (url.port || (url.protocol === 'https:' ? '443' : '80')) && [item.host, 'localhost', '127.0.0.1'].includes(url.hostname))
@@ -82,6 +100,7 @@ function DomainForm({ container, onClose }: ContainerDomainModalProps) {
         ip: target?.host ?? 'localhost',
         port: String(target?.port ?? ''),
         profileId: effectiveProfile,
+        projectId: subject?.projectId ?? null,
       }),
     onSuccess: (res) => {
       toast.success(t('docker.domain.created', { host: hostname }), { description: res.message })
@@ -159,7 +178,7 @@ function DomainForm({ container, onClose }: ContainerDomainModalProps) {
       ) : !ready ? (
         <p className="panel-alert">{t('docker.domain.notConfigured')}</p>
       ) : targets.length === 0 ? (
-        <p className="panel-alert">{t('docker.domain.noPort')}</p>
+        <p className="panel-alert">{t(kind === 'project' ? 'projects.domain.noPort' : 'docker.domain.noPort')}</p>
       ) : (
         <div className="space-y-3.5">
           {linkedList}
@@ -170,7 +189,7 @@ function DomainForm({ container, onClose }: ContainerDomainModalProps) {
             </Button>
           ) : (
             <div className="space-y-3.5">
-              <p className="text-[12.5px] text-[var(--text-secondary)]">{t(linked.length > 0 ? 'docker.domain.addHint' : 'docker.domain.hint')}</p>
+              <p className="text-[12.5px] text-[var(--text-secondary)]">{t(linked.length > 0 ? 'docker.domain.addHint' : kind === 'project' ? 'projects.domain.hint' : 'docker.domain.hint')}</p>
 
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
                 <Field label={t('docker.domain.profile')} hint={profileList.length === 0 && !profiles.isLoading ? t('docker.domain.noProfile') : undefined}>

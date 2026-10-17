@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   listProjects,
   createProject,
@@ -8,18 +8,18 @@ import {
   startProject,
   stopProject,
   uploadStaticProjectBuild,
-  getProjectAttentionSummary,
   type Project,
 } from '@/api/agent'
 import { type WindowState } from '@/types'
 import { alertLib } from '@/lib/alert'
 import { useWindowStore } from '@/store/windowStore'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useListQuery } from '@/hooks/useListQuery'
+import { listQueryKey } from '@/lib/listQuery'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 import {
-  PAGE_SIZE,
-  type AttentionFilter,
+  LIST_LIMIT,
   type StaticUploadState,
   type UploadDraft,
 } from './projectsConfig'
@@ -28,6 +28,10 @@ export interface ProjectsWindowProps {
   win?: WindowState
 }
 
+const EMPTY_FORM = { name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true }
+
+const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
+
 export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
@@ -35,140 +39,103 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const { t } = useI18n()
   const [showCreate, setShowCreate] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
-  const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
-  const [offset, setOffset] = useState(0)
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    projectType: 'nodejs',
-    repoUrl: '',
-    workingDir: '',
-    spaFallback: true,
-  })
-  const [attentionOnly, setAttentionOnly] = useState(false)
-  const [attentionFilter, setAttentionFilter] = useState<AttentionFilter>('all')
+  // the search, the order and the column filters; the agent applies them to the whole list
+  const list = useListQuery()
+  const { setFilter, setText } = list
+  const [form, setForm] = useState(EMPTY_FORM)
   const uploadClearTimerRef = useRef<number | null>(null)
   const [staticUpload, setStaticUpload] = useState<StaticUploadState | null>(null)
   const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null)
+  // the project whose domain is being pointed through a Cloudflare tunnel
+  const [domainProject, setDomainProject] = useState<Project | null>(null)
+  // the project whose log is open
+  const [logProject, setLogProject] = useState<Project | null>(null)
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
-    queryKey: ['projects', { search, offset }],
-    queryFn: () => listProjects({ q: search, limit: PAGE_SIZE, offset }),
+    queryKey: ['projects', listQueryKey(list.query)],
+    queryFn: () => listProjects({ table: list.query, limit: LIST_LIMIT, offset: 0 }),
     refetchInterval: pollingActive ? 10_000 : false,
-  })
-  const { data: attentionSummary, refetch: refetchAttentionSummary, isFetching: isFetchingAttentionSummary } = useQuery({
-    queryKey: ['projects-attention-summary', { search }],
-    queryFn: () => getProjectAttentionSummary({ q: search }),
-    refetchInterval: pollingActive ? 10_000 : false,
+    placeholderData: keepPreviousData,
   })
 
-  const projects = data?.items ?? []
+  const visibleProjects = useMemo(() => data?.items ?? [], [data])
   const total = data?.total ?? 0
-  const summaryTotal = attentionSummary?.total ?? total
-  const activeCount = useMemo(() => projects.filter((project) => project.running || project.status === 'active').length, [projects])
-  const degradedCount = attentionSummary?.degradedCount ?? projects.filter((project) => project.status === 'degraded').length
-  const driftCount = attentionSummary?.driftCount ?? projects.filter((project) => project.runtime?.drift).length
-  const attentionCount = attentionSummary?.attentionCount ?? projects.filter((project) => project.status === 'degraded' || project.runtime?.drift).length
-  const showRefreshing = isFetching || isFetchingAttentionSummary
-  const visibleProjects = useMemo(() => {
-    if (!attentionOnly) return projects
-    if (attentionFilter === 'drift') {
-      return projects.filter((project) => project.runtime?.drift)
-    }
-    if (attentionFilter === 'degraded') {
-      return projects.filter((project) => project.status === 'degraded')
-    }
-    return projects.filter((project) => project.status === 'degraded' || project.runtime?.drift)
-  }, [attentionFilter, attentionOnly, projects])
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1
+  const facets = data?.facets
+  // how many there are, whatever the filters say: the badge
+  const stats = { running: facets?.state?.running ?? 0, all: data?.all ?? 0 }
+  const narrowed = !!list.query.q || Object.keys(list.filters).length > 0
+
   const highlightedProjectId = Number(win?.params?.highlightProjectId ?? 0) || null
   const incidentMessage = typeof win?.params?.incidentMessage === 'string' ? win.params.incidentMessage : ''
   const incidentMetadata = typeof win?.params?.incidentMetadata === 'string' ? win.params.incidentMetadata : ''
   const incidentAt = typeof win?.params?.incidentAt === 'string' ? win.params.incidentAt : ''
   const hasAutoFocusedRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    setOffset(0)
-  }, [attentionFilter, attentionOnly])
-
+  // opened from an incident or a link: the same filter and search arrive as window params
   useEffect(() => {
     if (win?.params?.attentionOnly !== undefined) {
-      setAttentionOnly(Boolean(win.params.attentionOnly))
+      const type = typeof win.params.attentionType === 'string' ? win.params.attentionType.toLowerCase() : 'all'
+      if (!win.params.attentionOnly) setFilter('state', [])
+      else setFilter('state', type === 'drift' || type === 'degraded' ? [type] : ['degraded', 'drift'])
     }
-    if (typeof win?.params?.attentionType === 'string') {
-      const nextFilter = win.params.attentionType.toLowerCase()
-      if (nextFilter === 'drift' || nextFilter === 'degraded' || nextFilter === 'all') {
-        setAttentionFilter(nextFilter)
-      }
-    }
-    if (typeof win?.params?.search === 'string') {
-      const nextSearch = win.params.search.trim()
-      setQuery(nextSearch)
-      setSearch(nextSearch)
-      setOffset(0)
-    }
-    if (highlightedProjectId) {
-      hasAutoFocusedRef.current = null
-    }
-  }, [highlightedProjectId, win?.params?.attentionOnly, win?.params?.attentionType, win?.params?.search])
+    if (typeof win?.params?.search === 'string') setText(win.params.search.trim())
+    if (highlightedProjectId) hasAutoFocusedRef.current = null
+  }, [highlightedProjectId, win?.params?.attentionOnly, win?.params?.attentionType, win?.params?.search, setFilter, setText])
+
+  const refresh = () => qc.invalidateQueries({ queryKey: ['projects'] })
 
   const createMut = useMutation({
     mutationFn: createProject,
     onSuccess: (p) => {
-      alertLib.fire(t('projects.createdTitle'), t('projects.createdMessage', { name: p.name, port: p.assignedPort }), 'success', 'projects')
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      toast.success(t('projects.createdTitle'), { description: t('projects.createdMessage', { name: p.name, port: p.assignedPort }) })
+      void refresh()
       setShowCreate(false)
-      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true })
+      setForm(EMPTY_FORM)
     },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? t('projects.createFailedMessage')
-      toast.error(t('projects.createFailedMessage'), { description: message })
+    onError: (e) => {
+      const message = apiError(e, t('projects.createFailedMessage'))
       alertLib.fire(t('projects.createFailedTitle'), message, 'error', 'projects')
     },
   })
 
   const startMut = useMutation({
     mutationFn: startProject,
-    onSuccess: () => {
-      alertLib.fire(t('projects.startedTitle'), t('projects.startedMessage'), 'success', 'projects')
-      qc.invalidateQueries({ queryKey: ['projects'] })
+    onSuccess: (result) => {
+      // a project that is still installing or building has not failed; its log says how far it is
+      if (result.status === 'building') toast.info(t('projects.startingTitle'), { description: t('projects.startingMessage') })
+      else toast.success(t('projects.startedTitle'), { description: t('projects.startedMessage') })
+      void refresh()
     },
-    onError: (e: any) => alertLib.fire(t('projects.startFailedTitle'), e.response?.data?.error ?? t('projects.startFailedMessage'), 'error', 'projects'),
+    onError: (e) => alertLib.fire(t('projects.startFailedTitle'), apiError(e, t('projects.startFailedMessage')), 'error', 'projects'),
   })
 
   const stopMut = useMutation({
     mutationFn: stopProject,
     onSuccess: () => {
-      alertLib.fire(t('projects.stoppedTitle'), t('projects.stoppedMessage'), 'warning', 'projects')
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      toast.success(t('projects.stoppedTitle'), { description: t('projects.stoppedMessage') })
+      void refresh()
     },
-    onError: (e: any) => alertLib.fire(t('projects.stopFailedTitle'), e.response?.data?.error ?? t('projects.stopFailedMessage'), 'error', 'projects'),
+    onError: (e) => alertLib.fire(t('projects.stopFailedTitle'), apiError(e, t('projects.stopFailedMessage')), 'error', 'projects'),
   })
 
   const deleteMut = useMutation({
     mutationFn: deleteProject,
     onSuccess: () => {
-      alertLib.fire(t('projects.deletedTitle'), t('projects.deletedMessage'), 'success', 'projects')
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      toast.success(t('projects.deletedTitle'), { description: t('projects.deletedMessage') })
+      void refresh()
     },
-    onError: (e: any) => alertLib.fire(t('projects.deleteFailedTitle'), e.response?.data?.error ?? t('projects.deleteFailedMessage'), 'error', 'projects'),
+    onError: (e) => alertLib.fire(t('projects.deleteFailedTitle'), apiError(e, t('projects.deleteFailedMessage')), 'error', 'projects'),
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: typeof form }) => updateProject(id, payload),
     onSuccess: (p) => {
-      alertLib.fire('Project Diperbarui', `Project <strong>${p.name}</strong> berhasil diperbarui.`, 'success', 'projects')
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      toast.success(t('projects.updatedTitle'), { description: t('projects.updatedMessage', { name: p.name }) })
+      void refresh()
       setEditingProject(null)
-      setForm({ name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true })
+      setForm(EMPTY_FORM)
     },
-    onError: (e: any) => {
-      const message = e.response?.data?.error ?? 'Gagal memperbarui project'
-      toast.error('Gagal memperbarui project', { description: message })
-      alertLib.fire('Gagal Update Project', message, 'error', 'projects')
-    },
+    onError: (e) => alertLib.fire(t('projects.updateFailedTitle'), apiError(e, t('projects.updateFailedMessage')), 'error', 'projects'),
   })
 
   const uploadStaticMut = useMutation({
@@ -176,30 +143,24 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
       if (uploadClearTimerRef.current) window.clearTimeout(uploadClearTimerRef.current)
       setStaticUpload({ projectName: project.name, fileName: file.name, percent: 0, phase: 'uploading' })
       return uploadStaticProjectBuild(project.id, file, clean, rootDir, (percent) => {
-        setStaticUpload((current) => current
-          ? { ...current, percent, phase: percent >= 100 ? 'extracting' : 'uploading' }
-          : current)
+        setStaticUpload((current) => (current ? { ...current, percent, phase: percent >= 100 ? 'extracting' : 'uploading' } : current))
       })
     },
     onSuccess: (_, variables) => {
-      setStaticUpload((current) => current ? { ...current, percent: 100, phase: 'done' } : current)
-      toast.success('Build static berhasil diupload', { description: variables.project.name })
-      alertLib.fire('Build Static Diupload', `File build untuk <strong>${variables.project.name}</strong> berhasil diextract ke working directory.`, 'success', 'projects')
+      setStaticUpload((current) => (current ? { ...current, percent: 100, phase: 'done' } : current))
+      toast.success(t('projects.uploadedTitle'), { description: t('projects.uploadedMessage', { name: variables.project.name }) })
       setUploadDraft(null)
-      qc.invalidateQueries({ queryKey: ['projects'] })
+      void refresh()
     },
-    onError: (e: any) => {
-      setStaticUpload((current) => current ? { ...current, phase: 'error' } : current)
-      const message = e.response?.data?.error ?? 'Gagal upload build static'
-      toast.error('Gagal upload build static', { description: message })
-      alertLib.fire('Gagal Upload Build', message, 'error', 'projects')
+    onError: (e) => {
+      setStaticUpload((current) => (current ? { ...current, phase: 'error' } : current))
+      alertLib.fire(t('projects.uploadFailedTitle'), apiError(e, t('projects.uploadFailedMessage')), 'error', 'projects')
     },
     onSettled: () => {
-      uploadClearTimerRef.current = window.setTimeout(() => {
-        setStaticUpload(null)
-      }, 900)
+      uploadClearTimerRef.current = window.setTimeout(() => setStaticUpload(null), 900)
     },
   })
+
   const highlightedProject = useMemo(
     () => visibleProjects.find((project) => project.id === highlightedProjectId) ?? null,
     [highlightedProjectId, visibleProjects],
@@ -207,13 +168,11 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
 
   useEffect(() => {
     if (!highlightedProjectId || hasAutoFocusedRef.current === highlightedProjectId) return
-    const element = document.getElementById(`project-card-${highlightedProjectId}`)
+    const element = document.getElementById(`project-row-${highlightedProjectId}`)
     if (!element) return
     hasAutoFocusedRef.current = highlightedProjectId
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    window.setTimeout(() => {
-      ;(element as HTMLDivElement).focus()
-    }, 180)
+    window.setTimeout(() => element.focus(), 180)
   }, [highlightedProjectId, visibleProjects])
 
   const openHighlightedProjectFiles = async () => {
@@ -239,10 +198,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
 
   const openHighlightedProjectLogs = () => {
     if (!highlightedProject) return
-    openWindow('system-logs', {
-      service: 'reneo',
-      search: highlightedProject.name,
-    })
+    openWindow('system-logs', { service: 'reneo', search: highlightedProject.name })
   }
 
   const copyHighlightedInspectCommand = async () => {
@@ -253,29 +209,24 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
       `printf '\\n== docker ps ==\\n' && docker ps --format 'table {{.Names}}\\t{{.Status}}' | grep -i ${JSON.stringify(runtimeName)} || true`,
       `printf '\\n== recent logs ==\\n' && journalctl -u reneo -n 80 --no-pager | grep -i ${JSON.stringify(highlightedProject.name)} || true`,
     ].filter(Boolean)
-    const command = commandParts.join(' && ')
     try {
-      await navigator.clipboard.writeText(command)
+      await navigator.clipboard.writeText(commandParts.join(' && '))
       toast.success(t('projects.inspectCopiedTitle'), { description: highlightedProject.name })
     } catch {
       toast.error(t('projects.inspectCopyFailedTitle'), { description: highlightedProject.name })
     }
   }
 
-  const openTunnelForProject = (project: Project) => {
-    openWindow('tunnels', {
-      tab: 'tunnels',
-      action: 'createTunnel',
-      projectId: project.id,
-      projectName: project.name,
-      projectSlug: project.slug,
-      projectPort: project.assignedPort,
-      shortcutNonce: Date.now(),
-    })
-  }
+  const openTunnelForProject = (project: Project) => setDomainProject(project)
 
   const openStaticUpload = (project: Project) => {
     setUploadDraft({ project, file: null, rootDir: '', clean: false })
+  }
+
+  const openCreate = () => {
+    setEditingProject(null)
+    setForm(EMPTY_FORM)
+    setShowCreate(true)
   }
 
   const openEditProject = (project: Project) => {
@@ -292,12 +243,12 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
 
   const submitStaticUpload = () => {
     if (!uploadDraft?.file) {
-      toast.error('File ZIP belum dipilih')
+      toast.error(t('projects.zipMissing'))
       return
     }
     const file = uploadDraft.file
     if (!file.name.toLowerCase().endsWith('.zip')) {
-      toast.error('Format file tidak didukung', { description: 'Upload build static harus berupa file .zip.' })
+      toast.error(t('projects.zipFormatTitle'), { description: t('projects.zipFormatMessage') })
       return
     }
     uploadStaticMut.mutate({
@@ -314,17 +265,10 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     setShowCreate,
     editingProject,
     setEditingProject,
-    query,
-    setQuery,
-    setSearch,
-    offset,
-    setOffset,
+    list,
+    narrowed,
     form,
     setForm,
-    attentionOnly,
-    setAttentionOnly,
-    attentionFilter,
-    setAttentionFilter,
     staticUpload,
     uploadDraft,
     setUploadDraft,
@@ -332,17 +276,10 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     isError,
     refetch,
     isFetching,
-    refetchAttentionSummary,
     total,
-    summaryTotal,
-    activeCount,
-    degradedCount,
-    driftCount,
-    attentionCount,
-    showRefreshing,
+    facets,
+    stats,
     visibleProjects,
-    totalPages,
-    currentPage,
     highlightedProjectId,
     incidentMessage,
     incidentMetadata,
@@ -359,7 +296,13 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     openHighlightedProjectLogs,
     copyHighlightedInspectCommand,
     openTunnelForProject,
+    domainProject,
+    setDomainProject,
+    logProject,
+    setLogProject,
+    pollingActive,
     openStaticUpload,
+    openCreate,
     openEditProject,
     submitStaticUpload,
   }

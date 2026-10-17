@@ -4,7 +4,8 @@ import { DockerToolbar } from './docker/DockerToolbar'
 import { DeployModal } from './docker/DeployModal'
 import { DeleteContainerModal } from './docker/DeleteContainerModal'
 import { LogModal } from './docker/LogModal'
-import { ContainerDomainModal } from './docker/ContainerDomainModal'
+import { RouteDomainModal } from './tunnels/RouteDomainModal'
+import { containerSubject } from './docker/domainTargets'
 import { ContainersTab } from './docker/ContainersTab'
 import { ImagesTab } from './docker/ImagesTab'
 import { NetworksTab } from './docker/NetworksTab'
@@ -21,7 +22,7 @@ export function DockerWindow({ win, authenticated }: { win?: WindowState; authen
       <DeployModal docker={docker} />
       <DeleteContainerModal docker={docker} />
       <LogModal target={docker.logModal} onClose={() => docker.setLogModal(null)} />
-      <ContainerDomainModal container={docker.domainContainer} onClose={() => docker.setDomainContainer(null)} />
+      <RouteDomainModal subject={docker.domainContainer ? containerSubject(docker.domainContainer) : null} onClose={() => docker.setDomainContainer(null)} />
       <div className="docker-window__body">
         {activeTab === 'containers' && <ContainersTab docker={docker} />}
         {activeTab === 'images' && <ImagesTab docker={docker} />}

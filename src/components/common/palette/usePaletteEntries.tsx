@@ -82,7 +82,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   audit: ['audit', 'riwayat', 'log'],
   api_tokens: ['token', 'api', 'mcp', 'integrasi'],
   reneo_database: ['database', 'postgres', 'reneo'],
-  reneo_runtime: ['runtime', 'path', 'portainer', 'reneo'],
+  reneo_runtime: ['runtime', 'path', 'reneo'],
 }
 
 const glyph = (node: ReactNode) => <IconBadge size="md">{node}</IconBadge>

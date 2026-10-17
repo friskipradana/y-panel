@@ -1,7 +1,7 @@
 import { type CloudflareDomain, type Project } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { toast } from 'sonner'
-import { Copy, Globe2, Network, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, Globe2, Network, RefreshCw } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import {
   DNS_TYPES,
@@ -9,85 +9,99 @@ import {
   type TunnelForm,
   type DomainForm,
   type ProfileForm,
+  SUBDOMAIN_RE,
   slugifyRoutePart,
 } from './tunnelForms'
 import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
-import { TextInput } from '@/components/ui/Field'
+import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Checkbox } from '@/components/ui/Checkbox'
 
-export function DNSModal({ form, setForm, editing, onClose, onSubmit, pending }: { form: DnsForm; setForm: React.Dispatch<React.SetStateAction<DnsForm>>; editing: boolean; onClose: () => void; onSubmit: () => void; pending: boolean }) {
+// Types Cloudflare can put behind its proxy, and the ones that carry a priority
+const PROXIABLE = ['A', 'AAAA', 'CNAME']
+const WITH_PRIORITY = ['MX', 'SRV']
+// TTL in seconds; 1 is Cloudflare's "automatic"
+const TTL_CHOICES = [1, 60, 120, 300, 600, 1800, 3600, 43200, 86400]
+
+export function DNSModal({ form, setForm, editing, domainName, onClose, onSubmit, pending }: { form: DnsForm; setForm: React.Dispatch<React.SetStateAction<DnsForm>>; editing: boolean; domainName?: string; onClose: () => void; onSubmit: () => void; pending: boolean }) {
   const { t } = useI18n()
+  const proxiable = PROXIABLE.includes(form.type)
+  const hasPriority = WITH_PRIORITY.includes(form.type)
+  // a proxied record is always automatic: Cloudflare sets it
+  const ttlLocked = form.proxied && proxiable
+  const ttlLabel = (seconds: number) => (seconds === 1 ? t('tunnels.auto') : seconds < 3600 ? t('tunnels.ttlMinutes', { count: seconds / 60 }) : t('tunnels.ttlHours', { count: seconds / 3600 }))
+  const ttlOptions = TTL_CHOICES.includes(Number(form.ttl)) ? TTL_CHOICES : [...TTL_CHOICES, Number(form.ttl)]
+  const canSubmit = !pending && !!form.type && !!form.name.trim() && !!form.content.trim() && (!WITH_PRIORITY.includes(form.type) || form.priority !== '')
+
+  const setType = (type: string) =>
+    setForm((f) => ({
+      ...f,
+      type,
+      // what the new type cannot carry is dropped, not sent along
+      proxied: PROXIABLE.includes(type) ? f.proxied : false,
+      priority: WITH_PRIORITY.includes(type) ? f.priority : '',
+    }))
+
   return (
     <Modal
       open
       onClose={onClose}
       title={editing ? t('tunnels.dnsEditTitle') : t('tunnels.dnsCreateTitle')}
-      width={560}
+      subtitle={domainName}
+      icon={<Globe2 />}
+      size="md"
       footer={
         <>
           <Button onClick={onClose} variant="ghost">{t('common.cancel')}</Button>
-          <Button onClick={onSubmit} disabled={pending || !form.type || !form.name || !form.content} variant="primary">{pending ? t('tunnels.saving') : t('tunnels.saveDns')}</Button>
+          <Button onClick={onSubmit} disabled={!canSubmit} loading={pending} variant="primary">{t('tunnels.saveDns')}</Button>
         </>
       }
     >
-      <p className="mb-4 text-[12px] text-[var(--text-secondary)]">{t('tunnels.dnsModalSubtitle')}</p>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="panel-section-label">{t('tunnels.type')}</label><Select id="dns-type" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={DNS_TYPES.map((t) => ({ value: t, label: t }))} /></div>
-          <div><label className="panel-section-label">TTL</label><TextInput type="number" value={form.ttl} onChange={(e) => setForm((f) => ({ ...f, ttl: Number(e.target.value) }))} /></div>
+      <div className="space-y-3.5">
+        <div className="grid gap-3 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+          <Field label={t('tunnels.type')}>
+            <Select id="dns-type" value={form.type} onChange={setType} options={DNS_TYPES.map((type) => ({ value: type, label: type }))} />
+          </Field>
+          <Field label={t('tunnels.name')} hint={t('tunnels.dnsNameHint')}>
+            <TextInput mono value={form.name} autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t('tunnels.dnsNamePlaceholder')} />
+          </Field>
         </div>
-        <div><label className="panel-section-label">{t('tunnels.name')}</label><TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t('tunnels.dnsNamePlaceholder')} /></div>
-        <div><label className="panel-section-label">{t('tunnels.content')}</label><TextInput value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} placeholder={t('tunnels.dnsContentPlaceholder')} /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="panel-section-label">{t('tunnels.priority')}</label><TextInput value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} placeholder={t('tunnels.priorityPlaceholder')} /></div>
-          <Checkbox checked={form.proxied} onChange={(checked) => setForm((f) => ({ ...f, proxied: checked }))} label={t('tunnels.proxied')} />
+
+        <Field label={t('tunnels.content')} hint={t(`tunnels.dnsContentHint.${form.type}`)}>
+          <TextInput mono value={form.content} autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} placeholder={t(`tunnels.dnsContent.${form.type}`)} />
+        </Field>
+
+        <div className={hasPriority ? 'grid gap-3 sm:grid-cols-2' : undefined}>
+          <Field label="TTL" hint={ttlLocked ? t('tunnels.ttlLockedHint') : undefined}>
+            <Select
+              id="dns-ttl"
+              value={String(ttlLocked ? 1 : form.ttl)}
+              onChange={(v) => setForm((f) => ({ ...f, ttl: Number(v) }))}
+              options={ttlOptions.map((seconds) => ({ value: String(seconds), label: ttlLabel(seconds) }))}
+              disabled={ttlLocked}
+            />
+          </Field>
+          {hasPriority ? (
+            <Field label={t('tunnels.priority')}>
+              <TextInput mono value={form.priority} inputMode="numeric" autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value.replace(/\D/g, '') }))} placeholder="10" />
+            </Field>
+          ) : null}
         </div>
-        <div><label className="panel-section-label">{t('tunnels.comment')}</label><TextInput value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} placeholder={t('tunnels.optional')} /></div>
+
+        {proxiable ? (
+          <Checkbox
+            checked={form.proxied}
+            onChange={(checked) => setForm((f) => ({ ...f, proxied: checked, ttl: checked ? 1 : f.ttl }))}
+            label={t('tunnels.proxied')}
+            description={t('tunnels.proxiedHint')}
+          />
+        ) : null}
+
+        <Field label={t('tunnels.comment')} htmlFor="dns-comment">
+          <TextInput id="dns-comment" value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} placeholder={t('tunnels.optional')} />
+        </Field>
       </div>
     </Modal>
-  )
-}
-
-export function DomainStatusPanel({ domain, onCheckStatus, checkingStatus, onDelete, deleting }: { domain: CloudflareDomain; onCheckStatus: () => void; checkingStatus: boolean; onDelete: () => void; deleting: boolean }) {
-  const { t } = useI18n()
-  const active = domain.status === 'active'
-  const pending = !active
-  return (
-    <div className="cloudflare-domain-status-panel">
-      <div className="cloudflare-domain-status-panel__main">
-        <div className='!gap-2'>
-          <span className={`cloudflare-domain-status-panel__status ${active ? 'is-active' : 'is-pending'}`}>
-            <span className="panel-status-dot" />
-            {domain.status || 'pending'}
-          </span>
-          <div className="cloudflare-domain-status-panel__copy">
-            {pending ? t('tunnels.domainPendingCopy') : t('tunnels.domainActiveCopy')}
-          </div>
-        </div>
-        <div className='!gap-2'>
-          <Button type="button" variant="primary-soft" className="cloudflare-domain-status-panel__check" onClick={onCheckStatus} disabled={checkingStatus}>
-            <RefreshCw className={`h-3.5 w-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
-            {checkingStatus ? t('tunnels.checking') : t('tunnels.checkStatus')}
-          </Button>
-          <IconButton type="button" onClick={onDelete} disabled={deleting} tone="danger" label={t('tunnels.deleteDomainTitle')}>
-            {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-          </IconButton>
-        </div>
-      </div>
-      {domain.name_servers?.length ? (
-        <div className="cloudflare-domain-status-panel__ns">
-          {(domain.name_servers ?? []).map((ns, idx) => (
-            <button key={ns} type="button" className="cloudflare-domain-status-panel__ns-item" onClick={() => navigator.clipboard.writeText(ns).then(() => toast.success(t('tunnels.nameserverCopied', { name: ns })))}>
-              <span>NS {idx + 1}</span>
-              <strong>{ns}</strong>
-              <Copy className="h-3 w-3" />
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
   )
 }
 
@@ -192,8 +206,27 @@ export function ProfileModal({ form, setForm, onClose, onSubmit, pending }: { fo
   )
 }
 
-export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, projectOptions, projects, onClose, onSubmit, pending }: { form: TunnelForm; setForm: React.Dispatch<React.SetStateAction<TunnelForm>>; editing: boolean; zoneOptions: { value: string; label: string }[]; cfZones: { id: string; name: string }[]; protocolOptions: { value: string; label: string }[]; profileOptions: { value: string; label: string }[]; projectOptions: { value: string; label: string; description?: string }[]; projects: Project[]; onClose: () => void; onSubmit: () => void; pending: boolean }) {
+interface TunnelModalProps {
+  form: TunnelForm
+  setForm: React.Dispatch<React.SetStateAction<TunnelForm>>
+  editing: boolean
+  zoneOptions: { value: string; label: string }[]
+  cfZones: { id: string; name: string }[]
+  protocolOptions: { value: string; label: string }[]
+  profileOptions: { value: string; label: string }[]
+  projectOptions: { value: string; label: string; description?: string }[]
+  projects: Project[]
+  onClose: () => void
+  onSubmit: () => void
+  pending: boolean
+}
+
+// A route of a tunnel profile, laid out like the "Atur domain" dialog of the Docker window: where it goes
+// (profile, protocol), what it points at, then the address it gets
+export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, projectOptions, projects, onClose, onSubmit, pending }: TunnelModalProps) {
   const { t } = useI18n()
+
+  // a project fills in what it can (its port, a name, a subdomain) and leaves the rest to be edited
   const selectProject = (projectId: string) => {
     const project = projects.find((item) => String(item.id) === projectId)
     setForm((current) => {
@@ -202,7 +235,7 @@ export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, prot
       return {
         ...current,
         projectId,
-        name: current.name || `${project.name} tunnel`,
+        name: current.name || project.name,
         subdomain: current.subdomain || routePart,
         protocol: 'http',
         ip: 'localhost',
@@ -211,39 +244,94 @@ export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, prot
     })
   }
 
+  // the route is named after its subdomain until the name is typed over
+  const setSubdomain = (value: string) => {
+    const next = value.toLowerCase().trim()
+    setForm((current) => ({ ...current, subdomain: next, name: current.name === '' || current.name === current.subdomain ? next : current.name }))
+  }
+
+  const zone = cfZones.find((z) => z.id === form.zoneId)
+  const subdomainValid = form.subdomain === '' || SUBDOMAIN_RE.test(form.subdomain)
+  const hostname = zone && form.subdomain !== '' && subdomainValid ? (form.subdomain === '@' ? zone.name : `${form.subdomain}.${zone.name}`) : ''
+  const path = form.path ? (form.path.startsWith('/') ? form.path : `/${form.path}`) : ''
+  const canSubmit = !pending && !!form.name && !!form.zoneId && !!form.ip && !!form.port && subdomainValid && (editing || !!form.profileId)
+
   return (
     <Modal
       open
       onClose={onClose}
       title={editing ? t('tunnels.routeEditTitle') : t('tunnels.routeNewTitle')}
+      subtitle={t('tunnels.routeModalSubtitle')}
       icon={<Network />}
-      width={560}
+      size="md"
       footer={
         <>
           <Button onClick={onClose} variant="ghost">{t('common.cancel')}</Button>
-          <Button onClick={onSubmit} disabled={pending || !form.name || !form.zoneId || !form.ip || !form.port || (!editing && !form.profileId)} variant="primary">{pending ? t('tunnels.saving') : t('tunnels.saveRoute')}</Button>
+          <Button onClick={onSubmit} disabled={!canSubmit} loading={pending} variant="primary">{t('tunnels.saveRoute')}</Button>
         </>
       }
     >
-      <p className="mb-4 text-[12px] text-[var(--text-secondary)]">{t('tunnels.routeModalSubtitle')}</p>
       <div className="space-y-4">
-        {!editing && <div><label className="panel-section-label">{t('tunnels.tunnelProfileRequired')}</label><Select id="route-profile-select" value={form.profileId} onChange={(v) => setForm((f) => ({ ...f, profileId: v }))} options={profileOptions} searchable /></div>}
-        <div><label className="panel-section-label">Project sumber</label><Select id="route-project-select" value={form.projectId} onChange={selectProject} options={projectOptions} searchable /></div>
-        <div><label className="panel-section-label">{t('tunnels.routeNameRequired')}</label><TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t('tunnels.routeNamePlaceholder')} /></div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="panel-section-label">{t('tunnels.subdomain')}</label><TextInput value={form.subdomain} onChange={(e) => setForm((f) => ({ ...f, subdomain: e.target.value }))} placeholder={t('tunnels.subdomainPlaceholder')} /></div>
-          <div><label className="panel-section-label">{t('tunnels.domainRequiredShort')}</label><Select id="tunnel-zone-select" value={form.zoneId} onChange={(v) => { const selected = cfZones.find((z) => z.id === v); setForm((f) => ({ ...f, zoneId: v, domain: selected?.name || '' })) }} options={zoneOptions} searchable /></div>
-        </div>
-        <div><label className="panel-section-label">{t('tunnels.path')}</label><TextInput value={form.path} onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))} placeholder={t('tunnels.pathPlaceholder')} /></div>
-        <div>
-          <label className="panel-section-label">{t('tunnels.targetUrlRequired')}</label>
-          <div className="flex items-center gap-2">
-            <Select id="tunnel-protocol-select" value={form.protocol} onChange={(v) => setForm((f) => ({ ...f, protocol: v }))} options={protocolOptions} buttonClassName="!w-28" />
-            <TextInput value={form.ip} onChange={(e) => setForm((f) => ({ ...f, ip: e.target.value }))} className="flex-1" placeholder={t('tunnels.ipPlaceholder')} />
-            <span className="text-[var(--text-secondary)]">:</span>
-            <TextInput value={form.port} onChange={(e) => setForm((f) => ({ ...f, port: e.target.value }))} className="!w-24" placeholder={t('tunnels.portPlaceholder')} />
+        {editing ? null : (
+          <Field label={t('tunnels.tunnelProfileRequired')} hint={profileOptions.length === 0 ? t('tunnels.noProfileHint') : undefined}>
+            <Select id="route-profile-select" value={form.profileId} onChange={(v) => setForm((f) => ({ ...f, profileId: v }))} options={profileOptions} placeholder={t('tunnels.pickProfile')} searchable searchPlaceholder={t('tunnels.searchProfile')} />
+          </Field>
+        )}
+
+        <section className="space-y-3">
+          <p className="panel-section-label">{t('tunnels.sectionPublic')}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t('tunnels.subdomain')} error={!subdomainValid ? t('tunnels.subdomainInvalid') : undefined}>
+              <TextInput mono value={form.subdomain} maxLength={63} autoComplete="off" invalid={!subdomainValid} onChange={(e) => setSubdomain(e.target.value)} placeholder={t('tunnels.subdomainPlaceholder')} />
+            </Field>
+            <Field label={t('tunnels.domainRequiredShort')}>
+              <Select
+                id="tunnel-zone-select"
+                value={form.zoneId}
+                onChange={(v) => {
+                  const selected = cfZones.find((z) => z.id === v)
+                  setForm((f) => ({ ...f, zoneId: v, domain: selected?.name || '' }))
+                }}
+                options={zoneOptions}
+                placeholder={t('tunnels.pickDomain')}
+                searchable
+                searchPlaceholder={t('tunnels.searchDomain')}
+              />
+            </Field>
           </div>
-        </div>
+          <Field label={t('tunnels.pathOptional')}>
+            <TextInput mono value={form.path} autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, path: e.target.value }))} placeholder={t('tunnels.pathPlaceholder')} />
+          </Field>
+        </section>
+
+        <section className="space-y-3">
+          <p className="panel-section-label">{t('tunnels.sectionTarget')}</p>
+          <Field label={t('tunnels.projectSource')} hint={t('tunnels.projectSourceHint')}>
+            <Select id="route-project-select" value={form.projectId} onChange={selectProject} options={projectOptions} searchable searchPlaceholder={t('tunnels.searchProject')} />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-[8.5rem_minmax(0,1fr)_7rem]">
+            <Field label={t('tunnels.protocol')}>
+              <Select id="tunnel-protocol-select" value={form.protocol} onChange={(v) => setForm((f) => ({ ...f, protocol: v }))} options={protocolOptions} />
+            </Field>
+            <Field label={t('tunnels.targetHost')}>
+              <TextInput mono value={form.ip} autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, ip: e.target.value }))} placeholder={t('tunnels.ipPlaceholder')} />
+            </Field>
+            <Field label={t('tunnels.targetPort')}>
+              <TextInput mono value={form.port} inputMode="numeric" autoComplete="off" onChange={(e) => setForm((f) => ({ ...f, port: e.target.value.replace(/\D/g, '') }))} placeholder={t('tunnels.portPlaceholder')} />
+            </Field>
+          </div>
+        </section>
+
+        <Field label={t('tunnels.routeNameRequired')} hint={t('tunnels.routeNameHint')}>
+          <TextInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t('tunnels.routeNamePlaceholder')} />
+        </Field>
+
+        {hostname ? (
+          <p className="panel-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12.5px]">
+            https://{hostname}
+            {path} &rarr; {form.protocol}://{form.ip}:{form.port}
+          </p>
+        ) : null}
       </div>
     </Modal>
   )

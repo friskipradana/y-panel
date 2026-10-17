@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Loader2 } from 'lucide-react'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { getFileRootAccessStatus, getMeV2, revokeFileRootAccess, verifyFileRootAccess } from '@/api/agent'
@@ -11,11 +10,11 @@ import {
   type DirResponse,
   type ModalType,
   type FileManagerTab,
-  MODAL_CONFIGS,
 } from './fileManagerConfig'
 
 import type { WindowState } from '@/types'
-import { Checkbox } from '@/components/ui/Checkbox'
+import { EMPTY_LIST_QUERY, listParams, type ListQuery } from '@/lib/listQuery'
+import { listColumn, type ColumnOptions } from '@/hooks/useListQuery'
 
 let nextFileManagerTabId = 1
 
@@ -28,7 +27,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
   const initialPath = win.params?.currentPath || '/'
 
   const [tabs, setTabs] = useState<FileManagerTab[]>([
-    { id: 'tab-0', currentPath: initialPath, inputPath: initialPath, data: null, loading: false }
+    { id: 'tab-0', currentPath: initialPath, inputPath: initialPath, data: null, loading: false, failed: false, query: EMPTY_LIST_QUERY, searchText: '' }
   ])
   const [activeTabId, setActiveTabId] = useState<string>('tab-0')
   const [modalLoading, setModalLoading] = useState(false)
@@ -102,40 +101,51 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     tabsScrollRef.current.scrollLeft = tabScrollLeftRef.current - walk
   }
 
-  const loadDirectory = useCallback(async (path: string, tabId: string) => {
-    // Pengecekan awal: Jika sudah loading, jangan double hit!
-    let skip = false
-    setTabs(prev => {
-      const t = prev.find(tab => tab.id === tabId)
-      if (t?.loading) {
-        skip = true
-        return prev
-      }
-      return prev.map(tab => tab.id === tabId ? { ...tab, loading: true } : tab)
-    })
+  // the tabs as the last render had them, for code that must not wait for a new render
+  const tabsRef = useRef(tabs)
+  useEffect(() => {
+    tabsRef.current = tabs
+  }, [tabs])
+  // the newest read of each tab: an older answer that arrives late is dropped
+  const readSerial = useRef<Record<string, number>>({})
 
-    if (skip) return
+  // Reads a folder with the tab's search, order and filters; a changed query is passed in because the state has not caught up yet
+  const loadDirectory = useCallback(async (path: string, tabId: string, queryOverride?: ListQuery) => {
+    const existing = tabsRef.current.find((tab) => tab.id === tabId)
+    // a plain reload while one is under way is not repeated; a changed query always is
+    if (existing?.loading && !queryOverride) return
+    const query = queryOverride ?? existing?.query ?? EMPTY_LIST_QUERY
+    const serial = (readSerial.current[tabId] ?? 0) + 1
+    readSerial.current[tabId] = serial
+
+    setTabs(prev => prev.map(tab => tab.id === tabId ? { ...tab, loading: true, failed: false } : tab))
     setMenu(null)
     setModal(null)
 
     try {
-      const res = await axios.get<DirResponse>('/api/v1/files?path=' + encodeURIComponent(path), {
+      const params = listParams(query)
+      params.set('path', path)
+      const res = await axios.get<DirResponse>('/api/v1/files', {
         baseURL: import.meta.env.VITE_AGENT_BASE,
-        withCredentials: true
+        withCredentials: true,
+        params,
       })
+      if (readSerial.current[tabId] !== serial) return
 
       setTabs(prev => prev.map(t => t.id === tabId ? {
         ...t,
         data: { ...res.data, contents: res.data.contents || [] },
         currentPath: res.data.path,
         inputPath: res.data.path,
-        loading: false
+        loading: false,
+        failed: false
       } : t))
     } catch (err: any) {
+      if (readSerial.current[tabId] !== serial) return
       if (err?.response?.status !== 401) {
         alertLib.fire(t('fileManager.accessDeniedTitle'), err?.response?.data?.error || t('fileManager.readDirectoryFailed'), 'error', 'file-manager')
       }
-      setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: false } : t))
+      setTabs(prev => prev.map(t => t.id === tabId ? { ...t, loading: false, failed: true } : t))
     }
   }, [])
 
@@ -145,18 +155,65 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
 
     // Temukan tab yang butuh data (kosong dan tidak sedang loading)
     // Utamakan tab aktif
-    const targetTab = tabs.find(t => t.id === activeTabId && !t.data && !t.loading)
-      || tabs.find(t => !t.data && !t.loading)
+    const targetTab = tabs.find(t => t.id === activeTabId && !t.data && !t.loading && !t.failed)
+      || tabs.find(t => !t.data && !t.loading && !t.failed)
 
     if (targetTab) {
       void loadDirectory(targetTab.currentPath, targetTab.id)
     }
   }, [authenticated, activeTabId, tabs, loadDirectory])
 
+  // Another folder starts without the search and filters of the last one; the order is kept
   const setCurrentPath = (path: string) => {
-    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, currentPath: path } : t))
-    void loadDirectory(path, activeTabId)
+    const same = path === activeTab.currentPath
+    const query: ListQuery = same ? activeTab.query : { ...activeTab.query, q: '', filters: {} }
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, currentPath: path, query, searchText: same ? t.searchText : '' } : t))
+    void loadDirectory(path, activeTabId, query)
   }
+
+  const changeQuery = (patch: Partial<ListQuery>) => {
+    const next: ListQuery = { ...activeTab.query, ...patch }
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, query: next } : t))
+    void loadDirectory(activeTab.currentPath, activeTabId, next)
+  }
+
+  const setSearchText = (text: string) => {
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, searchText: text } : t))
+  }
+
+  // typing narrows the folder after a short pause, not on every key
+  useEffect(() => {
+    const q = activeTab.searchText.trim()
+    if (q === activeTab.query.q) return
+    const timer = window.setTimeout(() => {
+      const next: ListQuery = { ...activeTab.query, q }
+      setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, query: next } : t))
+      void loadDirectory(activeTab.currentPath, activeTab.id, next)
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [activeTab.id, activeTab.searchText, activeTab.query, activeTab.currentPath, loadDirectory])
+
+  // The spreadsheet header of one column of the open folder
+  const fileColumn = (key: string, label: string, options?: ColumnOptions) =>
+    listColumn(
+      activeTab.query,
+      {
+        orderBy: (column, descending) => changeQuery({ sort: column, desc: descending }),
+        clearSort: () => changeQuery({ sort: null, desc: false }),
+        setFilter: (column, values) => {
+          const filters = { ...activeTab.query.filters }
+          if (values.length === 0) delete filters[column]
+          else filters[column] = values
+          changeQuery({ filters })
+        },
+      },
+      key,
+      label,
+      activeTab.data?.facets?.[key],
+      options,
+    )
+
+  const narrowed = !!activeTab.query.q || Object.keys(activeTab.query.filters).length > 0
 
   const setInputPath = (path: string) => {
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, inputPath: path } : t))
@@ -169,7 +226,10 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
       currentPath: activeTab.currentPath,
       inputPath: activeTab.currentPath,
       data: null,
-      loading: false
+      loading: false,
+      failed: false,
+      query: EMPTY_LIST_QUERY,
+      searchText: '',
     }
     setTabs(prev => [...prev, newTab])
     setActiveTabId(id)
@@ -434,150 +494,6 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
   }
 
   // Modal Render Helpers
-  const parseOctal = (str: string) => {
-    const padded = str.padStart(3, '0').slice(-3)
-    const [u, g, o] = padded.split('').map(Number)
-    return { u: u || 0, g: g || 0, o: o || 0 }
-  }
-
-  const toggleBit = (currentOctalStr: string, position: 'u' | 'g' | 'o', bit: number) => {
-    const m = parseOctal(currentOctalStr)
-    const val = m[position]
-    const hasBit = (val & bit) === bit
-
-    if (hasBit) m[position] -= bit
-    else m[position] += bit
-
-    setChmodMode(`0${m.u}${m.g}${m.o}`)
-  }
-
-  const renderModalContent = () => {
-    if (!modal) return null
-
-    const config = MODAL_CONFIGS[modal.type]
-    if (!config) return null
-
-    const { icon, confirmBtn } = config
-    const modalItem = 'item' in modal ? modal.item : undefined
-    const modalKey = modal.type
-    const title = t(`fileManager.modal.${modalKey}.title`)
-    const confirmText = t(`fileManager.modal.${modalKey}.confirm`)
-    const description = t(`fileManager.modal.${modalKey}.description`, { name: modalItem?.name ?? '' })
-
-    return (
-      <div className="flex flex-col items-center">
-        <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[var(--win-bar)] shadow-inner ring-1 ring-[var(--win-border)]">
-          {icon}
-        </div>
-        <h3 className="mb-2 text-[16.5px] font-semibold tracking-[-0.02em] text-[var(--win-text)]">
-          {title}
-        </h3>
-        <p className="mb-6 text-[12.5px] leading-relaxed text-[var(--text-secondary)]" dangerouslySetInnerHTML={{ __html: description }} />
-
-        {/* INPUT AREA */}
-        {['rename', 'mkdir', 'touch', 'compress'].includes(modal.type) && (
-          <div className="w-full mb-6">
-            <input
-              autoFocus
-              className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
-              placeholder={modal.type === 'rename' ? modal.item.name : t('fileManager.typeHere')}
-              value={modalInput}
-              onChange={(e) => setModalInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
-            />
-          </div>
-        )}
-
-        {modal.type === 'extract' && (
-          <div className="w-full mb-6 space-y-3">
-            <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-primary-bg)] px-3 py-2 text-[11.5px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)]">
-              <div className="font-semibold text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)]">{t('fileManager.extractionDirection')}</div>
-              <div className="mt-1 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{modal.item.path} → {joinPath(modalPathInput || activeTab.currentPath, modalInput || t('fileManager.destinationFolderFallback'))}</div>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.destinationDirectory')}</label>
-              <input
-                autoFocus
-                className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
-                placeholder={t('fileManager.destinationDirectoryPlaceholder')}
-                value={modalPathInput}
-                onChange={(e) => setModalPathInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--tb-clock)]">{t('fileManager.extractFolderName')}</label>
-              <input
-                className="w-full bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl px-4 py-3 text-[var(--win-text)] text-[13.5px] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner placeholder-[var(--text-secondary)]"
-                placeholder={t('fileManager.extractFolderNamePlaceholder')}
-                value={modalInput}
-                onChange={(e) => setModalInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* CHMOD UI */}
-        {modal.type === 'chmod' && (
-          <div className="w-full mb-6 flex flex-col mt-2">
-            <div className="flex justify-between gap-3 px-1 mb-6">
-              {(['u', 'g', 'o'] as const).map((pos) => {
-                const titleMap = { u: t('fileManager.owner'), g: t('fileManager.group'), o: t('fileManager.public') }
-                const val = parseOctal(chmodMode.substring(1))[pos]
-                return (
-                  <div key={pos} className="flex-col gap-2 p-3 bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-xl relative flex-1 text-left">
-                    <label className="absolute -top-2.5 left-3 bg-[var(--menu-bg)] px-1.5 text-[10.5px] tracking-wide font-bold uppercase text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] rounded backdrop-blur border border-[var(--win-border)]">
-                      {titleMap[pos]}
-                    </label>
-                    <div className="mt-3 flex flex-col gap-2">
-                      <Checkbox checked={(val & 4) === 4} onChange={() => toggleBit(chmodMode, pos, 4)} label={t('fileManager.read')} />
-                      <Checkbox checked={(val & 2) === 2} onChange={() => toggleBit(chmodMode, pos, 2)} label={t('fileManager.write')} />
-                      <Checkbox checked={(val & 1) === 1} onChange={() => toggleBit(chmodMode, pos, 1)} label={t('fileManager.execute')} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="flex items-center justify-between px-2 gap-3">
-              <div className="flex items-center gap-3">
-                <label className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">{t('fileManager.octal')}</label>
-                <input
-                  value={chmodMode}
-                  onChange={e => setChmodMode(e.target.value)}
-                  className="w-20 bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] border border-[var(--win-border)] rounded-lg py-2 px-3 text-[13px] text-[var(--panel-primary-text)] dark:text-[var(--panel-primary-text)] font-mono outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)] transition shadow-inner"
-                  onKeyDown={(e) => { if (e.key === 'Enter') executeModal() }}
-                />
-              </div>
-              {modal.item.isDir && (
-                <Checkbox tone="warning" checked={chmodRecursive} onChange={setChmodRecursive} label={t('fileManager.applyRecursive')} />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* BUTTONS */}
-        <div className="flex w-full items-center justify-center gap-3">
-          <button
-            onClick={() => setModal(null)}
-            disabled={modalLoading}
-            className="flex-1 rounded-full border border-[var(--win-border)] bg-[var(--surface-subtle)] dark:bg-[var(--surface-subtle-dark)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--win-text)] transition hover:brightness-[0.95] dark:hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={executeModal}
-            disabled={modalLoading}
-            className={`flex-1 flex gap-2 justify-center items-center rounded-full border border-[var(--win-border)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--win-text)] transition focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-70 disabled:cursor-not-allowed ${confirmBtn}`}
-          >
-            {modalLoading ? <Loader2 size={16} className="animate-spin" /> : null}
-            {modalLoading ? t('fileManager.processing') : confirmText}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   // Safe Coordinate Logic Context Menu
   const getMenuHeight = () => {
     if (!menu) return 0
@@ -590,7 +506,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     if (/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir) count += 1 // Extract
     if (!menu.item.isDir) count += 1 // Download
     count += 1 // Delete
-    return 30 + 10 + 12 + (count * 35) // Header + Divider + Padding + Items
+    return 30 + 10 + 12 + (count * 32) // Header + Dividers + Padding + Items
   }
 
   const getSafeMenuStyles = () => {
@@ -644,6 +560,9 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     loadDirectory,
     setCurrentPath,
     setInputPath,
+    setSearchText,
+    fileColumn,
+    narrowed,
     openNewTab,
     closeTab,
     handleEdit,
@@ -656,7 +575,17 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     setClipboardBulk,
     handleBulkDelete,
     handlePasteClipboard,
-    renderModalContent,
+    modalInput,
+    setModalInput,
+    modalPathInput,
+    setModalPathInput,
+    chmodMode,
+    setChmodMode,
+    chmodRecursive,
+    setChmodRecursive,
+    modalLoading,
+    executeModal,
+    joinPath,
     getSafeMenuStyles,
   }
 }

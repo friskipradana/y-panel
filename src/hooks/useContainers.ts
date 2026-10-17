@@ -1,10 +1,10 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   deleteContainer,
   deployComposeProject,
   deployImageContainer,
   listContainerOwners,
-  listContainers,
+  listContainerTable,
   restartContainer,
   startContainer,
   stopContainer,
@@ -28,21 +28,26 @@ import type {
   PaginatedResponse,
   PaginationParams,
 } from '@/types'
+import { listQueryKey, type ListQuery, type TableResult } from '@/lib/listQuery'
 
-// After a start, stop or restart the list shows the new state at once; the invalidation then fetches the real one
+// After a start, stop or restart the tables show the new state at once; the invalidation then fetches the real one
 function setContainerState(qc: QueryClient, containerId: string, state: Container['State']) {
-  qc.setQueryData<Container[]>(['containers'], (prev) => prev?.map((c) => (c.Id === containerId || c.Id.startsWith(containerId) ? { ...c, State: state } : c)))
+  qc.setQueriesData<TableResult<Container>>({ queryKey: ['containers', 'table'] }, (prev) =>
+    prev ? { ...prev, items: prev.items.map((c) => (c.Id === containerId || c.Id.startsWith(containerId) ? { ...c, State: state } : c)) } : prev,
+  )
   return qc.invalidateQueries({ queryKey: ['containers'] })
 }
 
-export function useContainers(active = true) {
-  return useQuery<Container[]>({
-    queryKey: ['containers'],
-    queryFn: listContainers,
+// The container table: filtered, searched and ordered by the agent
+export function useContainerTable(query: ListQuery, active = true) {
+  return useQuery<TableResult<Container>>({
+    queryKey: ['containers', 'table', listQueryKey(query)],
+    queryFn: () => listContainerTable(query),
     refetchInterval: active ? 10_000 : false,
     refetchIntervalInBackground: false,
     retry: 2,
     staleTime: 5_000,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -103,19 +108,21 @@ export function useDeployComposeProject() {
   })
 }
 
-export function useDockerVolumes(active = true) {
+export function useDockerVolumes(active: boolean, query: ListQuery) {
   return useQuery({
-    queryKey: ['docker-volumes'],
-    queryFn: listDockerVolumes,
+    queryKey: ['docker-volumes', listQueryKey(query)],
+    queryFn: () => listDockerVolumes(query),
+    placeholderData: keepPreviousData,
     refetchInterval: active ? 15_000 : false,
     refetchIntervalInBackground: false,
   })
 }
 
-export function useDockerNetworks(active = true) {
+export function useDockerNetworks(active: boolean, query: ListQuery) {
   return useQuery({
-    queryKey: ['docker-networks'],
-    queryFn: listDockerNetworks,
+    queryKey: ['docker-networks', listQueryKey(query)],
+    queryFn: () => listDockerNetworks(query),
+    placeholderData: keepPreviousData,
     refetchInterval: active ? 15_000 : false,
   })
 }
@@ -136,10 +143,11 @@ export function useDeleteDockerNetwork() {
   })
 }
 
-export function useDockerImages(active = true) {
+export function useDockerImages(active: boolean, query: ListQuery) {
   return useQuery({
-    queryKey: ['docker-images'],
-    queryFn: listDockerImages,
+    queryKey: ['docker-images', listQueryKey(query)],
+    queryFn: () => listDockerImages(query),
+    placeholderData: keepPreviousData,
     refetchInterval: active ? 15_000 : false,
   })
 }
@@ -163,10 +171,11 @@ export function useDeleteDockerImage() {
   })
 }
 
-export function useDockerTemplates() {
+export function useDockerTemplates(query: ListQuery) {
   return useQuery({
-    queryKey: ['docker-templates'],
-    queryFn: listDockerTemplates,
+    queryKey: ['docker-templates', listQueryKey(query)],
+    queryFn: () => listDockerTemplates(query),
+    placeholderData: keepPreviousData,
   })
 }
 

@@ -1,7 +1,7 @@
 import { type ReactElement } from 'react'
 import { type Project } from '@/api/agent'
-import type { UiTone } from '@/components/ui/IconBadge'
 import { FolderCode, Globe, Server, Code, Box } from 'lucide-react'
+import type { RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 
 export const TYPE_ICON: Record<string, ReactElement> = {
   static: <Globe className="h-3.5 w-3.5" />,
@@ -13,19 +13,14 @@ export const TYPE_ICON: Record<string, ReactElement> = {
   custom: <FolderCode className="h-3.5 w-3.5" />,
 }
 
-export const STATUS_PILL: Record<string, UiTone> = {
-  active: 'success',
-  stopped: 'neutral',
-  building: 'warning',
-  error: 'danger',
-  draft: 'info',
-  degraded: 'warning',
-}
-
 // docker and proxy rows from older versions still render; new projects can only be runnable types
 export const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'custom']
 
-export const PAGE_SIZE = 8
+// The most projects one list loads; the search narrows it when there are more
+export const LIST_LIMIT = 100
+
+// docker and proxy rows from older versions are not processes: there is nothing to start
+export const isRunnableProject = (project: Project) => PROJECT_TYPES.includes(project.projectType)
 
 export function isProjectRuntimeRunning(project: Project) {
   return project.runtime?.known ? project.runtime.running : project.running
@@ -35,7 +30,25 @@ export function shouldShowProjectStop(project: Project) {
   return project.status === 'active' && isProjectRuntimeRunning(project)
 }
 
-export type AttentionFilter = 'all' | 'drift' | 'degraded'
+// The one state a project shows: what the runtime really does wins over what was asked for
+export type ProjectStateKey = 'running' | 'stopped' | 'building' | 'error' | 'draft' | 'degraded' | 'drift'
+
+export function projectState(project: Project): ProjectStateKey {
+  if (project.runtime?.drift) return 'drift'
+  if (project.status === 'error' || project.status === 'degraded' || project.status === 'building' || project.status === 'draft') return project.status
+  return isProjectRuntimeRunning(project) ? 'running' : 'stopped'
+}
+
+// The look of each state: the pill classes the list windows share
+export const STATE_PILL: Record<ProjectStateKey, string> = {
+  running: 'running',
+  stopped: 'exited',
+  building: 'paused',
+  error: 'dead',
+  draft: 'exited',
+  degraded: 'paused',
+  drift: 'paused',
+}
 
 export type UploadPhase = 'uploading' | 'extracting' | 'done' | 'error'
 
@@ -51,4 +64,16 @@ export type UploadDraft = {
   file: File | null
   rootDir: string
   clean: boolean
+}
+
+// A project as what a domain can be pointed at: the port the panel gave it
+export function projectSubject(project: Project): RouteSubject {
+  const port = project.assignedPort
+  return {
+    id: `project-${project.id}`,
+    name: project.name,
+    kind: 'project',
+    projectId: project.id,
+    targets: port > 0 ? [{ key: `port:${port}`, host: 'localhost', port, label: `localhost:${port}` }] : [],
+  }
 }

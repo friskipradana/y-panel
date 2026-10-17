@@ -662,6 +662,50 @@
   &--templates {
     --docker-cols: 48px minmax(0, 2fr) minmax(130px, 1fr) 84px;
   }
+
+  &--projects {
+    --docker-cols: 48px minmax(0, 2.4fr) minmax(104px, 0.9fr) minmax(64px, 0.5fr) 176px;
+  }
+
+  &--dns {
+    --docker-cols: 48px minmax(0, 2fr) minmax(0, 2fr) minmax(104px, 0.8fr) 84px;
+  }
+
+  &--routes {
+    --docker-cols: 48px minmax(0, 2fr) minmax(0, 1.6fr) minmax(104px, 0.8fr) 176px;
+  }
+
+  &--users {
+    --docker-cols: 48px minmax(0, 2fr) minmax(88px, 0.7fr) minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(112px, 0.9fr) 204px;
+  }
+
+  &--users-plain {
+    --docker-cols: 48px minmax(0, 2.4fr) minmax(88px, 0.8fr) minmax(96px, 0.8fr) minmax(112px, 0.9fr) 204px;
+  }
+
+  &--docs {
+    --docker-cols: minmax(0, 1fr) 96px;
+  }
+
+  &--widgets {
+    --docker-cols: minmax(0, 1.3fr) minmax(0, 2fr) 116px;
+  }
+
+  &--widgets-installed {
+    --docker-cols: minmax(0, 1.4fr) minmax(0, 1.4fr) 104px 56px;
+  }
+
+  &--speed {
+    --docker-cols: minmax(0, 2fr) 72px 72px 72px 150px;
+  }
+
+  &--databases {
+    --docker-cols: 48px minmax(0, 2fr) minmax(88px, 0.8fr) minmax(0, 1.2fr) minmax(104px, 0.9fr) 176px;
+  }
+
+  &--files {
+    --docker-cols: 40px minmax(0, 2.4fr) minmax(72px, 0.6fr) minmax(76px, 0.6fr) 104px minmax(140px, 1fr);
+  }
 }
 
 .docker-primary-btn {
@@ -814,4 +858,474 @@
 .docker-table .panel-empty {
   border: none;
   background: transparent;
+}
+
+// Projects: the table scrolls under the bar, with the focused project (opened from an incident) above it
+.projects-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.projects-focus {
+  flex-shrink: 0;
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--win-border);
+  border-radius: 10px;
+  background: var(--projects-highlight-bg);
+}
+
+.projects-focus__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.projects-focus__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.projects-focus__incident {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-warning-bg);
+}
+
+.docker-row--highlight {
+  background: var(--projects-card-highlight-bg);
+  box-shadow: inset 2px 0 0 var(--projects-card-highlight-ring);
+  outline: none;
+}
+
+.docker-row__warn {
+  color: var(--panel-warning-text);
+}
+
+.docker-list-note {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+// File manager: the path field, a bordered text button, the states of a row, and the footer
+.docker-topbar--path {
+  .docker-topbar__left {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.docker-path {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+  height: var(--docker-control-h);
+  padding: 0 10px;
+  border: 1px solid var(--win-border);
+  border-radius: 8px;
+  background: var(--panel-surface-strong);
+  transition: border-color 0.15s;
+
+  &:focus-within {
+    border-color: var(--panel-primary-text);
+  }
+}
+
+.docker-path__label {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.docker-path__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--win-text);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.docker-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--docker-control-h);
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--danger {
+    color: var(--panel-danger-text);
+    border-color: color-mix(in srgb, var(--panel-danger-text) 40%, var(--win-border));
+  }
+}
+
+.docker-row--files {
+  cursor: pointer;
+}
+
+.docker-row--selected {
+  background: var(--panel-primary-bg);
+}
+
+.docker-row--drop {
+  background: var(--panel-primary-hover);
+  box-shadow: inset 2px 0 0 var(--focus-ring);
+}
+
+.docker-row__select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docker-statusbar {
+  display: flex;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-top: 1px solid var(--win-border);
+  background: var(--win-bar);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.layout-mobile {
+  .docker-topbar--path {
+    flex-wrap: wrap;
+  }
+
+  .docker-topbar--path .docker-topbar__left {
+    flex-basis: 100%;
+  }
+
+  .docker-secondary-btn__text {
+    display: none;
+  }
+
+  .docker-row--files {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+}
+
+// File manager: tabs, the right-click menu, and the bar of ticked rows
+.file-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid var(--win-border);
+  background: var(--win-bar);
+}
+
+.file-tabs__list {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.file-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--tb-hover);
+    color: var(--win-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: -2px;
+  }
+
+  &--active {
+    border-color: var(--win-border);
+    background: var(--win-bg);
+    color: var(--win-text);
+    // sits on the line under the tabs, so the open tab reads as joined to the page
+    margin-bottom: -1px;
+    height: 31px;
+
+    svg {
+      color: var(--panel-primary-text);
+    }
+  }
+}
+
+.file-tab__label {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tab__close,
+.file-tabs__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: var(--panel-surface-hover);
+    color: var(--win-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: 1px;
+  }
+}
+
+.file-tab__close {
+  width: 18px;
+  height: 18px;
+}
+
+.file-tabs__add {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 2px;
+}
+
+.file-menu {
+  position: absolute;
+  z-index: 9998;
+  min-width: 190px;
+  max-width: 260px;
+  overflow: hidden;
+  border: 1px solid var(--menu-border);
+  border-radius: 10px;
+  background: var(--menu-bg);
+  box-shadow: var(--menu-shadow);
+  backdrop-filter: blur(12px);
+  font-size: 0.75rem;
+  color: var(--win-text);
+}
+
+.file-menu__title {
+  padding: 8px 12px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--win-border);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.file-menu__group {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+
+  & + & {
+    border-top: 1px solid var(--win-border);
+  }
+}
+
+.file-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  svg {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--tb-hover);
+    outline: none;
+  }
+
+  &--danger,
+  &--danger svg {
+    color: var(--panel-danger-text);
+  }
+}
+
+.file-bulk {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--win-border);
+  border-radius: 10px;
+  background: var(--menu-bg);
+  box-shadow: var(--file-manager-floating-shadow);
+  backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+}
+
+.file-bulk__count {
+  padding-right: 8px;
+  margin-right: 2px;
+  border-right: 1px solid var(--win-border);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--win-text);
+}
+
+// A line of figures next to the main action of a list window
+.docker-topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+
+  span + span::before {
+    content: '\00b7';
+    margin-right: 10px;
+    color: var(--text-secondary);
+  }
+}
+
+// The quota and plan of an account, opened under its row
+.users-expand {
+  padding: 12px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--win-border) 20%, transparent);
+  background: var(--panel-surface);
+}
+
+.layout-mobile .docker-topbar__meta {
+  display: none;
+}
+
+// An article in the list of the Docs window: a row that is a whole button
+.docs-row {
+  width: 100%;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding-top: 10px;
+  padding-bottom: 10px;
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: -2px;
+  }
+}
+
+.docs-row__excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.docs-row__date {
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+// The widget gallery: two short tables that sit one above the other in a scrolling page
+.widgets-section .docker-table {
+  flex: none;
+}
+
+.widgets-section .docker-table-scroll {
+  overflow: visible;
+}
+
+// A gallery row can be picked up and dropped on the desktop
+.docker-row--grab {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.docker-row--dragging {
+  opacity: 0.5;
 }

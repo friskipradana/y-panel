@@ -1,135 +1,114 @@
-import {
-  type CloudflareDNSRecord,
-  type CloudflareDomain,
-  type CloudflareTunnelProfile,
-  type Tunnel,
-} from '@/api/agent'
+import { type CloudflareDNSRecord, type Tunnel } from '@/api/agent'
 import { toast } from 'sonner'
-import {
-  CheckCircle2,
-  Clock,
-  Copy,
-  ExternalLink,
-  Globe2,
-  Network,
-  RefreshCcw,
-  RefreshCw,
-  Trash2,
-} from 'lucide-react'
+import { Copy, ExternalLink, Globe2, LoaderCircle, Network, Pencil, RefreshCcw, Trash2 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { ListRowIcon } from '@/components/ui/ListTable'
+import type { UiTone } from '@/components/ui/IconBadge'
 import { STATUS_CONFIG } from './tunnelForms'
-import { RowActions } from './TunnelsShared'
-import { IconButton } from '@/components/ui/IconButton'
-import { Badge } from '@/components/ui/Badge'
 
-export function DomainRow({ domain, active, onClick, onDelete, deleting }: { domain: CloudflareDomain; active: boolean; onClick: () => void; onDelete: () => void; deleting: boolean }) {
-  const { t } = useI18n()
-  return (
-    <div className={`cloudflare-row cloudflare-row--with-action ${active ? 'is-active' : ''}`}>
-      <button type="button" onClick={onClick} className="cloudflare-row__select">
-        <div className="cloudflare-row__icon"><Globe2 className="h-4 w-4" /></div>
-        <div className="cloudflare-row__body">
-          <div className="cloudflare-row__title">{domain.name}</div>
-          <div className="cloudflare-row__meta">Zone ID: {domain.id}</div>
-        </div>
-      </button>
-      <IconButton type="button" onClick={onDelete} disabled={deleting} tone="danger" label={t('tunnels.deleteDomainTitle')}>
-        {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-      </IconButton>
-    </div>
-  )
+// The pill of each tone: the classes the list windows share
+const TONE_PILL: Record<UiTone, string> = {
+  success: 'running',
+  primary: 'running',
+  warning: 'paused',
+  info: 'paused',
+  danger: 'dead',
+  neutral: 'exited',
 }
 
-export function ProfileRow({ profile, active, onClick, onDelete, deleting }: { profile: CloudflareTunnelProfile; active: boolean; onClick: () => void; onDelete: () => void; deleting: boolean }) {
-  const { t } = useI18n()
-  const sc = STATUS_CONFIG[profile.status] ?? { tone: 'neutral' as const, labelKey: 'tunnels.status.unknown' }
-  return (
-    <div className={`cloudflare-row cloudflare-row--with-action cloudflare-profile-row ${active ? 'is-active' : ''}`}>
-      <button type="button" onClick={onClick} className="cloudflare-row__select cloudflare-profile-row__select">
-        <div className="cloudflare-row__icon"><Network className="h-4 w-4" /></div>
-        <div className="cloudflare-row__body">
-          <div className="cloudflare-profile-row__title-line">
-            <span className="cloudflare-row__title">{profile.name}</span>
-            <Badge tone={sc.tone}>{t(sc.labelKey)}</Badge>
-          </div>
-          <div className="cloudflare-profile-row__meta-grid">
-            <span>{profile.routeCount === 1 ? t('tunnels.routeCount', { count: profile.routeCount }) : t('tunnels.routesCount', { count: profile.routeCount })}</span>
-            <span>{profile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}</span>
-            <span title={profile.id}>ID {profile.id.slice(0, 8)}...</span>
-          </div>
-        </div>
-      </button>
-      <IconButton type="button" onClick={onDelete} disabled={deleting || profile.id === 'pending'} tone="danger" label={t('tunnels.deleteProfileTitle')}>
-        {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-      </IconButton>
-    </div>
-  )
-}
+const indexLabel = (index: number) => String(index + 1).padStart(2, '0')
 
-export function DNSRow({ record, onEdit, onDelete }: { record: CloudflareDNSRecord; onEdit: () => void; onDelete: () => void }) {
+// One DNS record, in the same row as a container: its name, what it points to, whether Cloudflare proxies it, and its actions
+export function DnsRow({ record, index, onEdit, onDelete, deleting }: { record: CloudflareDNSRecord; index: number; onEdit: () => void; onDelete: () => void; deleting: boolean }) {
   const { t } = useI18n()
+  const ttl = record.ttl === 1 ? t('tunnels.auto') : String(record.ttl)
+  const detail = `${record.type} · TTL ${ttl}`
   return (
-    <div className="cloudflare-detail-row">
-      <div className="cloudflare-detail-row__main">
-        <div className="cloudflare-detail-row__title">
-          <Badge tone="info">{record.type}</Badge>
-          <span className="truncate font-semibold text-[var(--win-text)]">{record.name}</span>
-          {record.proxied && <Badge tone="warning">{t('tunnels.proxied')}</Badge>}
+    <div className="docker-row">
+      <div className="docker-row__num">{indexLabel(index)}</div>
+      <div className="docker-row__app">
+        <ListRowIcon><Globe2 className="h-3.5 w-3.5" /></ListRowIcon>
+        <div className="docker-row__text">
+          <span className="docker-app-name docker-app-name--mono" title={record.name}>{record.name}</span>
+          <span className="docker-row__sub">{detail}</span>
+          <span className="docker-row__meta">{`${detail} · ${record.content}`}</span>
         </div>
-        <div className="cloudflare-detail-row__meta">{record.content} • TTL {record.ttl === 1 ? t('tunnels.auto') : record.ttl}</div>
       </div>
-      <RowActions onEdit={onEdit} onDelete={onDelete} />
+      <div className="docker-cell docker-cell--mono" title={record.content}>{record.content}</div>
+      <div className="docker-cell--keep">
+        <span className={`docker-status-pill docker-status-pill--${record.proxied ? 'paused' : 'exited'}`}>
+          <span className="docker-status-dot" />
+          <span>{record.proxied ? t('tunnels.proxied') : t('tunnels.dnsOnly')}</span>
+        </span>
+      </div>
+      <div className="docker-action-btns">
+        <button type="button" className="docker-act-btn" title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={deleting} onClick={onDelete}>
+          {deleting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+        </button>
+      </div>
     </div>
   )
 }
 
-export function TunnelCard({ tunnel: t, onEdit, onDelete, onSync, isSyncing }: { tunnel: Tunnel; onEdit: () => void; onDelete: () => void; onSync: () => void; isSyncing: boolean }) {
-  const { t: translate } = useI18n()
-  const sc = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.inactive
-  const copyHostname = async () => {
-    if (!t.cfHostname) return
+// One tunnel route: its public address, where it leads, its state, and its actions
+export function RouteRow({ route, index, onEdit, onDelete, onSync, syncing, deleting }: { route: Tunnel; index: number; onEdit: () => void; onDelete: () => void; onSync: () => void; syncing: boolean; deleting: boolean }) {
+  const { t } = useI18n()
+  const status = STATUS_CONFIG[route.status] ?? STATUS_CONFIG.inactive
+  const address = route.cfHostname || t('tunnels.hostnamePending')
+
+  const copyAddress = async () => {
+    if (!route.cfHostname) return
     try {
-      await navigator.clipboard.writeText(`https://${t.cfHostname}`)
-      toast.success(translate('tunnels.hostnameCopied'))
+      await navigator.clipboard.writeText(`https://${route.cfHostname}`)
+      toast.success(t('tunnels.hostnameCopied'))
     } catch {
-      toast.error(translate('tunnels.hostnameCopyFailed'))
+      toast.error(t('tunnels.hostnameCopyFailed'))
     }
   }
 
   return (
-    <div className="cloudflare-detail-row">
-      <div className="cloudflare-detail-row__main">
-        <div className="cloudflare-detail-row__title">
-          <span className="tunnel-flat-row__name">{t.name}</span>
-          <Badge tone={sc.tone} dot>{translate(sc.labelKey)}</Badge>
-          {t.status === 'active' && <Badge tone="success"><CheckCircle2 className="h-3 w-3" />{translate('tunnels.live')}</Badge>}
-          {t.status === 'creating' && <Badge tone="warning"><Clock className="h-3 w-3 animate-spin" />{translate('tunnels.provisioning')}</Badge>}
-        </div>
-        <div className="cloudflare-detail-row__meta cloudflare-route-line">
-          {t.cfHostname ? (
-            <>
-              <span className="tunnel-flat-row__hostname">{t.cfHostname}</span>
-              <IconButton onClick={copyHostname} label={translate('tunnels.copy')} className="h-5 w-5"><Copy className="h-3 w-3" /></IconButton>
-              <a href={`https://${t.cfHostname}`} target="_blank" rel="noopener noreferrer" className="panel-icon-btn h-5 w-5"><ExternalLink className="h-3 w-3" /></a>
-              <span className="tunnel-flat-row__arrow">→</span>
-              <span className="tunnel-flat-row__target">{t.targetUrl}</span>
-            </>
-          ) : (
-            <>
-              <span className="tunnel-flat-row__pending">{translate('tunnels.hostnamePending')}</span>
-              <span className="tunnel-flat-row__arrow">→</span>
-              <span className="tunnel-flat-row__target">{t.targetUrl}</span>
-            </>
-          )}
+    <div className="docker-row">
+      <div className="docker-row__num">{indexLabel(index)}</div>
+      <div className="docker-row__app">
+        <ListRowIcon><Network className="h-3.5 w-3.5" /></ListRowIcon>
+        <div className="docker-row__text">
+          <span className="docker-app-name" title={route.name}>{route.name}</span>
+          <span className="docker-row__sub" title={address}>{address}</span>
+          <span className="docker-row__meta">{`${address} → ${route.targetUrl}`}</span>
         </div>
       </div>
-      <div className="tunnel-flat-row__actions">
-        {t.status === 'active' && (
-          <IconButton onClick={onSync} disabled={isSyncing} tone="primary" label={translate('common.sync')}>
-            <RefreshCcw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-          </IconButton>
-        )}
-        <RowActions onEdit={onEdit} onDelete={onDelete} />
+      <div className="docker-cell docker-cell--mono" title={route.targetUrl}>{route.targetUrl}</div>
+      <div className="docker-cell--keep">
+        <span className={`docker-status-pill docker-status-pill--${TONE_PILL[status.tone]}`}>
+          <span className="docker-status-dot" />
+          <span>{route.status === 'active' ? t('tunnels.live') : t(status.labelKey)}</span>
+        </span>
+      </div>
+      <div className="docker-action-btns">
+        {route.status === 'active' ? (
+          <button type="button" className="docker-act-btn" title={t('common.sync')} aria-label={t('common.sync')} disabled={syncing} onClick={onSync}>
+            <RefreshCcw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          </button>
+        ) : null}
+        {route.cfHostname ? (
+          <>
+            <button type="button" className="docker-act-btn" title={t('tunnels.copy')} aria-label={t('tunnels.copy')} onClick={() => void copyAddress()}>
+              <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+            <a className="docker-act-btn" href={`https://${route.cfHostname}`} target="_blank" rel="noopener noreferrer" title={t('tunnels.openSite')} aria-label={t('tunnels.openSite')}>
+              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </a>
+          </>
+        ) : null}
+        <button type="button" className="docker-act-btn" title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={deleting} onClick={onDelete}>
+          {deleting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+        </button>
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
-import { RefreshCw, Plus, ChevronDown, Search, Check } from 'lucide-react'
+import { RefreshCw, Plus, Search } from 'lucide-react'
+import { FilterMenu } from '@/components/ui/FilterMenu'
 import { DOCKER_TABS, type DockerTab } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
 
@@ -13,17 +14,12 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
     setShowPullImage,
     setShowCreateNet,
     setShowCreateTpl,
-    query,
-    setQuery,
-    containers,
+    current,
     stats,
     imagesData,
     networksData,
     volumesData,
     templatesData,
-    tabDropdownOpen,
-    setTabDropdownOpen,
-    tabDropdownRef,
   } = docker
 
   // The main action follows the open tab; the volume list is read-only, so it has none
@@ -36,41 +32,22 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
   const action = primary[activeTab]
 
   const counts: Record<DockerTab, number> = {
-    containers: containers.length,
-    images: imagesData?.items.length ?? 0,
-    networks: networksData?.items.length ?? 0,
-    volumes: volumesData?.items.length ?? 0,
-    templates: templatesData?.items.length ?? 0,
+    containers: stats.all,
+    images: imagesData?.all ?? 0,
+    networks: networksData?.all ?? 0,
+    volumes: volumesData?.all ?? 0,
+    templates: templatesData?.all ?? 0,
   }
 
   return (
     <div className="docker-topbar">
       <div className="docker-topbar__left">
-        <div className="docker-dropdown-wrap" ref={tabDropdownRef}>
-          <button type="button" className="docker-dropdown-btn" onClick={() => setTabDropdownOpen(!tabDropdownOpen)} aria-expanded={tabDropdownOpen} aria-haspopup="menu">
-            <span>{t(`docker.tab.${activeTab}`)}</span>
-            <ChevronDown className="h-3.5 w-3.5 opacity-75" strokeWidth={1.75} />
-          </button>
-          {tabDropdownOpen && (
-            <div className="docker-dropdown-menu" role="menu">
-              {DOCKER_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  role="menuitem"
-                  className={`docker-dropdown-item ${activeTab === tab ? 'docker-dropdown-item--active' : ''}`}
-                  onClick={() => {
-                    setActiveTab(tab)
-                    setTabDropdownOpen(false)
-                  }}
-                >
-                  <span>{t(`docker.tab.${tab}`)}</span>
-                  {activeTab === tab ? <Check className="h-3.5 w-3.5" strokeWidth={1.75} /> : <span className="docker-dropdown-item__count">{counts[tab]}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilterMenu
+          label={t('docker.tabs')}
+          value={activeTab}
+          onChange={(key) => setActiveTab(key as DockerTab)}
+          items={DOCKER_TABS.map((tab) => ({ key: tab, label: t(`docker.tab.${tab}`), count: counts[tab] }))}
+        />
 
         {action ? (
           <button type="button" onClick={action.run} className="docker-primary-btn">
@@ -89,8 +66,8 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
             className="docker-search-input"
             aria-label={t(`docker.search.${activeTab}`)}
             placeholder={t(`docker.search.${activeTab}`)}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={current.text}
+            onChange={(e) => current.setText(e.target.value)}
           />
         </div>
 
@@ -99,7 +76,7 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
         </button>
 
         <div className="docker-badge-running">
-          {activeTab === 'containers' ? t('docker.runningSummaryBadge', { running: stats.running, total: containers.length }) : t('docker.itemsBadge', { count: counts[activeTab] })}
+          {activeTab === 'containers' ? t('docker.runningSummaryBadge', { running: stats.running, total: stats.all }) : t('docker.itemsBadge', { count: counts[activeTab] })}
         </div>
       </div>
     </div>

@@ -3,9 +3,7 @@ import type { ProjectsWindowState } from './useProjectsWindow'
 import { IconBadge } from '@/components/ui/IconBadge'
 
 export function StaticUploadOverlay({ pw }: { pw: ProjectsWindowState }) {
-  const {
-    staticUpload,
-  } = pw
+  const { t, staticUpload } = pw
   if (!(staticUpload)) return null
 
   return (
@@ -17,13 +15,7 @@ export function StaticUploadOverlay({ pw }: { pw: ProjectsWindowState }) {
           </IconBadge>
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-[var(--win-text)]">
-              {staticUpload.phase === 'uploading'
-                ? 'Mengupload build static'
-                : staticUpload.phase === 'extracting'
-                  ? 'Mengekstrak file build'
-                  : staticUpload.phase === 'done'
-                    ? 'Upload selesai'
-                    : 'Upload gagal'}
+              {t(`projects.upload.${staticUpload.phase}`)}
             </div>
             <div className="mt-0.5 truncate text-[11px] text-[var(--text-secondary)]">
               {staticUpload.projectName} • {staticUpload.fileName}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createUserDatabase,
   deleteUserDatabase,
@@ -12,6 +12,8 @@ import {
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useListQuery } from '@/hooks/useListQuery'
+import { listQueryKey } from '@/lib/listQuery'
 import type { WindowState } from '@/types'
 
 const KEY = ['user-databases']
@@ -29,13 +31,16 @@ export function useDatabasesWindow(win?: WindowState) {
   const [connectionTarget, setConnectionTarget] = useState<UserDatabase | null>(null)
   const [manageTarget, setManageTarget] = useState<UserDatabase | null>(null)
 
+  // the search, the order and the column filters; the agent applies them
+  const list = useListQuery()
   const query = useQuery({
-    queryKey: KEY,
-    queryFn: listUserDatabases,
+    queryKey: [...KEY, listQueryKey(list.query)],
+    queryFn: () => listUserDatabases(list.query),
+    placeholderData: keepPreviousData,
     // creating rows move to ready on their own; poll faster while any is pending
     refetchInterval: (q) => {
       if (!pollingActive) return false
-      return q.state.data?.some((item) => item.status === 'creating') ? 3_000 : 15_000
+      return q.state.data?.items.some((item) => item.status === 'creating') ? 3_000 : 15_000
     },
   })
   const enginesQuery = useQuery({ queryKey: ['database-engines'], queryFn: listDatabaseEngines, staleTime: Infinity })
@@ -71,7 +76,11 @@ export function useDatabasesWindow(win?: WindowState) {
   return {
     t,
     query,
-    items: query.data ?? [],
+    list,
+    items: query.data?.items ?? [],
+    all: query.data?.all ?? 0,
+    facets: query.data?.facets,
+    narrowed: !!list.query.q || Object.keys(list.filters).length > 0,
     engines: enginesQuery.data ?? [],
     showCreate,
     setShowCreate,
@@ -82,6 +91,7 @@ export function useDatabasesWindow(win?: WindowState) {
     createMut,
     startMut,
     stopMut,
+    deleteBusy: (id: number) => deleteMut.isPending && deleteMut.variables === id,
     confirmDelete,
   }
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, FolderCog } from 'lucide-react'
+import { AlertTriangle, FolderCog } from 'lucide-react'
 import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState, LoadingState } from '@/components/ui/states'
@@ -76,16 +76,10 @@ export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) 
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3">
         <InfoCard icon={<FolderCog size={15} />} title={t('settings.runtime.statePath')}>
           <code className="panel-mono block break-all text-[12px] leading-relaxed text-[var(--win-text)]">{data?.stateDir || '-'}</code>
           <p className="panel-shell-card__meta">{t('settings.runtime.statePathMeta')}</p>
-        </InfoCard>
-
-        <InfoCard icon={<Activity size={15} />} title={t('system.portainerIntegration')}>
-          <p className="panel-section-label">{t('system.endpoint')}</p>
-          <code className="panel-mono block break-all text-[12px] leading-relaxed text-[var(--win-text)]">{data?.portainerUrl || '-'}</code>
-          <p className="panel-shell-card__meta">{t('system.portainerMeta')}</p>
         </InfoCard>
       </div>
 

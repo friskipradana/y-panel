@@ -4,14 +4,16 @@ import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
-import { DockerListState, DockerRowIcon, DockerTable } from './DockerTable'
+import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
 import { BUILTIN_NETWORKS } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
 
 const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 export function NetworksTab({ docker }: { docker: DockerWindowState }) {
-  const { t, networksQuery, filteredNetworks, networkUsage, search, showCreateNet, setShowCreateNet, netForm, setNetForm, createNetworkMut, deleteNetworkMut } = docker
+  const { t, networksQuery, filteredNetworks, narrowed, lists, showCreateNet, setShowCreateNet, netForm, setNetForm, createNetworkMut, deleteNetworkMut } = docker
+
+  const facets = networksQuery.data?.facets
 
   const close = () => {
     setShowCreateNet(false)
@@ -70,19 +72,19 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
         </div>
       </Modal>
 
-      <DockerTable
+      <ListTable
         variant="networks"
         empty={networksQuery.isLoading || networksQuery.isError || filteredNetworks.length === 0}
         columns={[
           { label: t('docker.colIndex') },
-          { label: t('docker.col.network') },
-          { label: t('docker.col.driver') },
-          { label: t('docker.col.subnet') },
-          { label: t('docker.col.containers') },
+          lists.networks.column('name', t('docker.col.network'), facets?.name),
+          lists.networks.column('driver', t('docker.col.driver'), facets?.driver),
+          lists.networks.column('subnet', t('docker.col.subnet'), facets?.subnet),
+          lists.networks.column('containers', t('docker.col.containers'), facets?.containers),
           { label: t('docker.colActions'), actions: true },
         ]}
       >
-        <DockerListState
+        <ListState
           loading={networksQuery.isLoading}
           error={networksQuery.isError}
           errorTitle={t('docker.networksLoadFailed')}
@@ -90,18 +92,18 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
           loadingText={t('docker.loadingList')}
           empty={filteredNetworks.length === 0}
           emptyIcon={<Network />}
-          emptyTitle={search ? t('docker.noResults') : t('docker.noNetworks')}
-          emptyHint={search ? undefined : t('docker.noNetworksHint')}
+          emptyTitle={narrowed ? t('docker.noResults') : t('docker.noNetworks')}
+          emptyHint={narrowed ? undefined : t('docker.noNetworksHint')}
         >
           {filteredNetworks.map((net, idx) => {
             const builtin = BUILTIN_NETWORKS.includes(net.Name)
-            const used = networkUsage[net.Name] ?? 0
+            const used = net.containers ?? 0
             const lockHint = builtin ? t('docker.networkBuiltinHint') : used > 0 ? t('docker.networkInUseHint') : t('docker.deleteNetwork')
             return (
               <div key={net.Id} className="docker-row">
                 <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
                 <div className="docker-row__app">
-                  <DockerRowIcon><Network className="h-3.5 w-3.5" strokeWidth={1.75} /></DockerRowIcon>
+                  <ListRowIcon><Network className="h-3.5 w-3.5" strokeWidth={1.75} /></ListRowIcon>
                   <div className="docker-row__text">
                     <span className="docker-app-name" title={net.Name}>{net.Name}</span>
                     <span className="docker-row__sub">{net.Scope} · {net.Id.slice(0, 12)}</span>
@@ -133,8 +135,8 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
               </div>
             )
           })}
-        </DockerListState>
-      </DockerTable>
+        </ListState>
+      </ListTable>
     </>
   )
 }

@@ -1,4 +1,6 @@
-import { Folder, Loader2 } from 'lucide-react'
+import { Folder } from 'lucide-react'
+import { ListState, ListTable } from '@/components/ui/ListTable'
+import { Checkbox } from '@/components/ui/Checkbox'
 import { formatSize, formatDate } from './fileManagerConfig'
 import { FileRow } from './FileRow'
 import type { FileManagerState } from './useFileManager'
@@ -15,11 +17,15 @@ export function FileList({ fm }: { fm: FileManagerState }) {
     setCurrentPath,
     handleEdit,
     moveItems,
+    fileColumn,
+    narrowed,
   } = fm
+
+  const contents = activeTab.data?.contents || []
 
   return (
     <div
-      className={`flex-1 overflow-y-auto p-2 border-t border-[var(--win-border)] bg-[var(--win-content-bg)] transition-colors relative ${dragOverPath === activeTab.currentPath ? 'bg-[var(--panel-primary-bg)]' : ''}`}
+      className={`flex min-h-0 flex-1 flex-col transition-colors ${dragOverPath === activeTab.currentPath ? 'bg-[var(--panel-primary-bg)]' : ''} ${activeTab.loading && activeTab.data ? 'opacity-60' : ''}`}
       onDragOver={(e) => {
         const raw = e.dataTransfer.getData('application/x-reneo-file')
         if (!raw) return
@@ -42,23 +48,38 @@ export function FileList({ fm }: { fm: FileManagerState }) {
         } catch (err) { }
       }}
     >
-      {/* FIX: Show loader if loading OR if we don't have data yet (initial hit) */}
-      {(activeTab.loading || (!activeTab.data && !activeTab.loading)) && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--win-bg)]/60 backdrop-blur-[1px] transition-opacity">
-          <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[var(--win-bg)] shadow-[var(--win-shadow)] border border-[var(--win-border)]">
-            <Loader2 size={24} className="animate-spin text-[var(--panel-primary-text)]" />
-            <span className="text-[12px] font-semibold text-[var(--tb-clock)] uppercase tracking-widest">{t('fileManager.loadingFiles')}</span>
-          </div>
-        </div>
-      )}
-
-      {activeTab.data && (activeTab.data.contents || []).length === 0 && !activeTab.loading && (
-        <div className="flex flex-col items-center justify-center p-14 text-[var(--text-secondary)]">
-          <Folder size={46} className="mb-3 opacity-30" />
-          <p className="text-[13px] font-medium opacity-80">{t('fileManager.emptyFolder')}</p>
-        </div>
-      )}
-      {activeTab.data && (activeTab.data.contents || []).map((item) => (
+      <ListTable
+        variant="files"
+        empty={!activeTab.data || activeTab.failed || contents.length === 0}
+        columns={[
+          {
+            label: t('fileManager.selectAll'),
+            node: (
+              <Checkbox
+                aria-label={t('fileManager.selectAll')}
+                checked={contents.length > 0 && selectedPaths.size === contents.length}
+                onChange={(checked) => setSelectedPaths(checked ? new Set(contents.map((it) => it.path)) : new Set())}
+              />
+            ),
+          },
+          fileColumn('name', t('fileManager.nameColumn'), { filterable: false }),
+          fileColumn('type', t('fileManager.typeColumn'), { labelOf: (v) => (v === 'folder' ? t('fileManager.type.folder') : v === 'file' ? t('fileManager.type.file') : v) }),
+          fileColumn('size', t('fileManager.sizeColumn'), { labelOf: (v) => t(`fileManager.size.${v}`) }),
+          fileColumn('mode', t('fileManager.accessColumn')),
+          fileColumn('modified', t('fileManager.modifiedColumn'), { labelOf: (v) => t(`fileManager.age.${v}`) }),
+        ]}
+      >
+        <ListState
+          loading={!activeTab.data && !activeTab.failed}
+          error={activeTab.failed}
+          errorTitle={t('fileManager.readDirectoryFailed')}
+          errorHint={t('fileManager.readDirectoryFailedHint')}
+          loadingText={t('fileManager.loadingFiles')}
+          empty={contents.length === 0}
+          emptyIcon={<Folder />}
+          emptyTitle={narrowed ? t('docker.noResults') : t('fileManager.emptyFolder')}
+        >
+          {(activeTab.data?.contents || []).map((item) => (
         <FileRow
           key={item.path}
           item={item}
@@ -72,6 +93,8 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           dragOverPath={dragOverPath}
           formatSize={formatSize}
           formatDate={formatDate}
+          folderLabel={t('fileManager.type.folder')}
+          fileLabel={t('fileManager.type.file')}
           onDragStart={(e, it) => {
             e.stopPropagation()
             const drags = selectedPaths.has(it.path) ? Array.from(selectedPaths) : [it.path]
@@ -132,6 +155,8 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           }}
         />
       ))}
+        </ListState>
+      </ListTable>
     </div>
   )
 }

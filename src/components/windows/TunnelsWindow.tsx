@@ -28,7 +28,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   } = tw
 
   return (
-    <div className="panel-window cloudflare-window">
+    <div className="panel-window docker-window-root relative overflow-hidden">
       <HostingSubdomainsPanel />
       <TunnelsToolbar tw={tw} />
       <CloudflareSetupNotice tw={tw} />
@@ -40,6 +40,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
           form={dnsForm}
           setForm={setDnsForm}
           editing={!!editingDns}
+          domainName={tw.selectedDomain?.name}
           onClose={() => setShowDnsModal(false)}
           onSubmit={() => editingDns ? updateDnsMut.mutate() : createDnsMut.mutate()}
           pending={createDnsMut.isPending || updateDnsMut.isPending}

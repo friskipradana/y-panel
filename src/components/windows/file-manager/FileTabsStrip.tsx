@@ -1,26 +1,15 @@
-import { Folder, X, Plus } from 'lucide-react'
+import { Folder, Plus, X } from 'lucide-react'
 import type { FileManagerState } from './useFileManager'
 
+// The folders open in this window, one tab each
 export function FileTabsStrip({ fm }: { fm: FileManagerState }) {
-  const {
-    t,
-    tabs,
-    activeTabId,
-    setActiveTabId,
-    tabsScrollRef,
-    isTabDragging,
-    handleTabsMouseDown,
-    handleTabsMouseLeave,
-    handleTabsMouseUp,
-    handleTabsMouseMove,
-    openNewTab,
-    closeTab,
-  } = fm
+  const { t, tabs, activeTabId, setActiveTabId, tabsScrollRef, isTabDragging, handleTabsMouseDown, handleTabsMouseLeave, handleTabsMouseUp, handleTabsMouseMove, openNewTab, closeTab } = fm
 
   return (
-    <div className="flex h-[35px] shrink-0 overflow-hidden bg-[var(--win-bg)]" style={{ background: 'var(--win-bg)' }}>
+    <div className="file-tabs">
       <div
-        className="flex flex-1 overflow-x-auto no-scrollbar items-end border-b border-[var(--win-border)] transition-colors"
+        className="file-tabs__list no-scrollbar"
+        role="tablist"
         ref={tabsScrollRef}
         onMouseDown={handleTabsMouseDown}
         onMouseLeave={handleTabsMouseLeave}
@@ -29,37 +18,30 @@ export function FileTabsStrip({ fm }: { fm: FileManagerState }) {
         style={{ cursor: isTabDragging ? 'grabbing' : 'auto' }}
       >
         {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId
-          const tColor = isActive ? 'var(--win-text)' : 'var(--tb-clock)'
-          const tBg = isActive ? 'var(--win-bg)' : 'transparent'
-
+          const label = tab.currentPath.split('/').pop() || '/'
           return (
             <div
               key={tab.id}
-              className="flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-border)] shrink-0 text-[12.5px] transition select-none group relative cursor-pointer"
-              style={{
-                background: tBg,
-                color: tColor,
-                borderTop: isActive ? '2px solid var(--file-manager-tab-accent)' : '2px solid transparent'
-              }}
+              role="tab"
+              aria-selected={tab.id === activeTabId}
+              tabIndex={0}
+              className={`file-tab${tab.id === activeTabId ? ' file-tab--active' : ''}`}
               onClick={() => setActiveTabId(tab.id)}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setActiveTabId(tab.id)}
             >
-              <Folder size={14} className={isActive ? 'text-[var(--panel-primary-text)]' : 'text-[var(--text-secondary)]'} />
-              <span className="truncate max-w-[150px] font-medium">{tab.currentPath.split('/').pop() || '/'}</span>
-              {tabs.length > 1 && (
-                <button
-                  className={`ml-1 w-5 h-5 flex items-center justify-center rounded-md hover:bg-[var(--panel-surface-hover)] transition opacity-0 group-hover:opacity-100`}
-                  onClick={(e) => closeTab(tab.id, e)}
-                >
-                  <X size={12} strokeWidth={2.5} />
+              <Folder className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+              <span className="file-tab__label" title={tab.currentPath}>{label}</span>
+              {tabs.length > 1 ? (
+                <button type="button" className="file-tab__close" title={t('common.close')} aria-label={t('common.close')} onClick={(e) => closeTab(tab.id, e)}>
+                  <X className="h-3 w-3" strokeWidth={2} />
                 </button>
-              )}
+              ) : null}
             </div>
           )
         })}
       </div>
-      <button className="w-[35px] h-[35px] flex items-center justify-center hover:bg-[var(--tb-hover)] transition text-[var(--tb-clock)] shrink-0" onClick={openNewTab} title={t('fileManager.newTab')}>
-        <Plus size={18} />
+      <button type="button" className="file-tabs__add" title={t('fileManager.newTab')} aria-label={t('fileManager.newTab')} onClick={openNewTab}>
+        <Plus className="h-4 w-4" strokeWidth={1.75} />
       </button>
     </div>
   )

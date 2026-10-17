@@ -71,6 +71,9 @@ export function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name
   return { name: t.name, subdomain, domain, zoneId, profileId: t.cfTunnelId || '', path, protocol, ip, port, projectId: t.projectId ? String(t.projectId) : '' }
 }
 
+// 1 to 63 characters of a DNS label; "@" is the domain itself
+export const SUBDOMAIN_RE = /^(@|[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)$/
+
 export function slugifyRoutePart(value: string) {
   return value
     .trim()

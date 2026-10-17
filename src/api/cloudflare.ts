@@ -1,4 +1,5 @@
 import { agentApi } from './client'
+import { listParams, type ListQuery, type TableResult } from '@/lib/listQuery'
 
 export interface CFConfig {
   configured: boolean
@@ -87,8 +88,9 @@ export const getCloudflareDomain = (zoneId: string) =>
 export const deleteCloudflareDomain = (zoneId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/cloudflare/domains/${zoneId}`).then((r) => r.data)
 
-export const listCloudflareDNSRecords = (zoneId: string) =>
-  agentApi.get<{ items?: CloudflareDNSRecord[] }>(`/api/v1/cloudflare/domains/${zoneId}/dns`).then((r) => r.data.items ?? [])
+// The records of a domain: the search, the column filters and the order are the agent's to apply (lib/listQuery)
+export const listCloudflareDNSRecords = (zoneId: string, query: ListQuery) =>
+  agentApi.get<TableResult<CloudflareDNSRecord>>(`/api/v1/cloudflare/domains/${zoneId}/dns`, { params: listParams(query) }).then((r) => r.data)
 
 export const createCloudflareDNSRecord = (zoneId: string, payload: CloudflareDNSRecordPayload) =>
   agentApi.post<CloudflareDNSRecord>(`/api/v1/cloudflare/domains/${zoneId}/dns`, payload).then((r) => r.data)
@@ -108,5 +110,5 @@ export const createCloudflareTunnelProfile = (payload: CloudflareTunnelProfilePa
 export const deleteCloudflareTunnelProfile = (profileId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/cloudflare/tunnel-profiles/${profileId}`).then((r) => r.data)
 
-export const listCloudflareTunnelProfileRoutes = (profileId: string) =>
-  agentApi.get<{ items?: import('./tunnels').Tunnel[] }>(`/api/v1/cloudflare/tunnel-profiles/${profileId}/routes`).then((r) => r.data.items ?? [])
+export const listCloudflareTunnelProfileRoutes = (profileId: string, query: ListQuery) =>
+  agentApi.get<TableResult<import('./tunnels').Tunnel>>(`/api/v1/cloudflare/tunnel-profiles/${profileId}/routes`, { params: listParams(query) }).then((r) => r.data)

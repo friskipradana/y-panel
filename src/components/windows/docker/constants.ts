@@ -37,18 +37,6 @@ export function formatDockerDate(raw: string): string {
   return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
 }
 
-// An image counts as in use when a container names it as repo:tag, as a bare repo (latest), or by id
-export function isImageInUse(image: { Id: string; Repository: string; Tag: string }, used: Set<string>): boolean {
-  if (used.has(`${image.Repository}:${image.Tag}`)) return true
-  if (image.Tag === 'latest' && used.has(image.Repository)) return true
-  const id = image.Id.replace('sha256:', '')
-  for (const name of used) {
-    const wanted = name.replace('sha256:', '')
-    if (wanted.length >= 8 && /^[0-9a-f]+$/.test(wanted) && id.startsWith(wanted)) return true
-  }
-  return false
-}
-
 // Networks Docker makes itself; they cannot be removed
 export const BUILTIN_NETWORKS = ['bridge', 'host', 'none']
 
