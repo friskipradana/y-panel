@@ -282,7 +282,6 @@ type HostingSubdomain struct {
 	ZoneID    string    `json:"zoneId"`
 	Domain    string    `json:"domain"`
 	Hostname  string    `json:"hostname"`
-	ProjectID *int64    `json:"projectId"`
 	Status    string    `json:"status"`
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -292,11 +291,11 @@ type HostingSubdomain struct {
 // ErrHostnameTaken is returned when a hostname is already held by someone
 var ErrHostnameTaken = errors.New("hostname is already taken")
 
-const subdomainColumns = `s.id, s.user_id, COALESCE(u.username,''), s.label, s.zone_id, s.domain, s.hostname, s.project_id, s.status, s.note, s.created_at, s.updated_at`
+const subdomainColumns = `s.id, s.user_id, COALESCE(u.username,''), s.label, s.zone_id, s.domain, s.hostname, s.status, s.note, s.created_at, s.updated_at`
 
 func scanSubdomain(row rowScanner) (*HostingSubdomain, error) {
 	var s HostingSubdomain
-	if err := row.Scan(&s.ID, &s.UserID, &s.Username, &s.Label, &s.ZoneID, &s.Domain, &s.Hostname, &s.ProjectID, &s.Status, &s.Note, &s.CreatedAt, &s.UpdatedAt); err != nil {
+	if err := row.Scan(&s.ID, &s.UserID, &s.Username, &s.Label, &s.ZoneID, &s.Domain, &s.Hostname, &s.Status, &s.Note, &s.CreatedAt, &s.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -341,15 +340,27 @@ func (m *Manager) GetHostingSubdomain(id int64) (*HostingSubdomain, error) {
 	return s, err
 }
 
-func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, hostname string, projectID *int64) (*HostingSubdomain, error) {
+// GetHostingSubdomainByHostname finds the subdomain that holds a hostname, nil when none does
+func (m *Manager) GetHostingSubdomainByHostname(hostname string) (*HostingSubdomain, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	s, err := scanSubdomain(m.db.QueryRow(`SELECT `+subdomainColumns+` FROM hosting_subdomains s JOIN users u ON u.id = s.user_id WHERE s.hostname = $1`, strings.ToLower(hostname)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return s, err
+}
+
+func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, hostname string) (*HostingSubdomain, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var id int64
 	err := m.db.QueryRow(`
-		INSERT INTO hosting_subdomains (user_id, label, zone_id, domain, hostname, project_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'pending') RETURNING id
-	`, userID, label, zoneID, domain, hostname, projectID).Scan(&id)
+		INSERT INTO hosting_subdomains (user_id, label, zone_id, domain, hostname, status)
+		VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id
+	`, userID, label, zoneID, domain, hostname).Scan(&id)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate key") {
 			return nil, ErrHostnameTaken
@@ -357,14 +368,6 @@ func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, ho
 		return nil, err
 	}
 	return m.GetHostingSubdomain(id)
-}
-
-func (m *Manager) SetHostingSubdomainProject(id int64, projectID *int64) error {
-	if !m.IsConnected() {
-		return fmt.Errorf("database not connected")
-	}
-	_, err := m.db.Exec(`UPDATE hosting_subdomains SET project_id = $2, updated_at = NOW() WHERE id = $1`, id, projectID)
-	return err
 }
 
 func (m *Manager) SetHostingSubdomainStatus(id int64, status, note string) error {

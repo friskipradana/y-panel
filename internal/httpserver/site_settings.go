@@ -18,6 +18,22 @@ import (
 //   - indexing: search engines and AI crawlers may index what is public
 //   - hosting:  hosting mode (plans, demo account, subdomains for buyers)
 
+const maxOrderMessageLen = 600
+
+// cleanOrderMessage keeps the template as plain text: line breaks stay, other control characters go
+func cleanOrderMessage(raw string) (string, error) {
+	message := strings.TrimSpace(strings.ReplaceAll(raw, "\r\n", "\n"))
+	if len([]rune(message)) > maxOrderMessageLen {
+		return "", fmt.Errorf("the order message is longer than %d characters", maxOrderMessageLen)
+	}
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r >= 0x20 && r != 0x7f {
+			return r
+		}
+		return -1
+	}, message), nil
+}
+
 const siteSettingsFile = "site-settings.json"
 
 type siteSettings struct {
@@ -28,6 +44,9 @@ type siteSettings struct {
 	GraceDays int `json:"graceDays"`
 	// OrderURL is where the "order" button of a plan leads (web page, wa.me link or mailto:)
 	OrderURL string `json:"orderUrl"`
+	// OrderMessage is the text sent along with the order button ({plan}, {price} and {period} are filled in);
+	// empty means the default text of the buyer's language
+	OrderMessage string `json:"orderMessage"`
 	// OoklaLicenseAccepted: the superadmin accepted Ookla's licence for its client, which the agent
 	// would otherwise have to accept on its own
 	OoklaLicenseAccepted bool `json:"ooklaLicenseAccepted"`
@@ -125,11 +144,12 @@ func (s *Server) handleGetSiteSettings(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var req struct {
-		LandingEnabled  *bool `json:"landingEnabled"`
-		IndexingEnabled *bool `json:"indexingEnabled"`
+		LandingEnabled  *bool   `json:"landingEnabled"`
+		IndexingEnabled *bool   `json:"indexingEnabled"`
 		HostingEnabled  *bool   `json:"hostingEnabled"`
 		GraceDays       *int    `json:"graceDays"`
 		OrderURL        *string `json:"orderUrl"`
+		OrderMessage    *string `json:"orderMessage"`
 		// OoklaLicenseAccepted can be given and taken back
 		OoklaLicenseAccepted *bool `json:"ooklaLicenseAccepted"`
 	}
@@ -162,6 +182,14 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		next.OrderURL = link
+	}
+	if req.OrderMessage != nil {
+		message, err := cleanOrderMessage(*req.OrderMessage)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		next.OrderMessage = message
 	}
 	if req.OoklaLicenseAccepted != nil {
 		next.OoklaLicenseAccepted = *req.OoklaLicenseAccepted
@@ -198,6 +226,9 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if next.OrderURL != current.OrderURL {
 			changes["orderUrlChanged"] = true
+		}
+		if next.OrderMessage != current.OrderMessage {
+			changes["orderMessageChanged"] = true
 		}
 		if next.OoklaLicenseAccepted != current.OoklaLicenseAccepted {
 			changes["ooklaLicense"] = next.OoklaLicenseAccepted

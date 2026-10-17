@@ -44,39 +44,43 @@ func TestValidateSubdomainLabel(t *testing.T) {
 	}
 }
 
-func ptr(v int64) *int64 { return &v }
+func TestPanelService(t *testing.T) {
+	for bind, want := range map[string]string{"0.0.0.0:8787": "http://localhost:8787", "127.0.0.1:9000": "http://localhost:9000", ":8080": "http://localhost:8080", "": "http://localhost:8787"} {
+		if got := panelService(bind); got != want {
+			t.Errorf("%q: got %q want %q", bind, got, want)
+		}
+	}
+}
 
 func TestPlanHostingRoutes(t *testing.T) {
 	rows := []database.HostingSubdomain{
-		{ID: 1, UserID: 10, Hostname: "b.example.com", ProjectID: ptr(100), Status: subdomainActive},
-		{ID: 2, UserID: 10, Hostname: "a.example.com", ProjectID: ptr(100), Status: subdomainPending},
-		{ID: 3, UserID: 10, Hostname: "c.example.com", ProjectID: ptr(100), Status: subdomainSuspended},
-		{ID: 4, UserID: 11, Hostname: "d.example.com", ProjectID: ptr(101), Status: subdomainActive},
-		{ID: 5, UserID: 10, Hostname: "e.example.com", ProjectID: nil, Status: subdomainActive},
-		{ID: 6, UserID: 10, Hostname: "f.example.com", ProjectID: ptr(102), Status: subdomainActive},
-		{ID: 7, UserID: 10, Hostname: "g.example.com", ProjectID: ptr(100), Status: subdomainError},
+		{ID: 1, UserID: 10, Hostname: "b.example.com", Status: subdomainActive},
+		{ID: 2, UserID: 10, Hostname: "a.example.com", Status: subdomainPending},
+		{ID: 3, UserID: 10, Hostname: "c.example.com", Status: subdomainSuspended},
+		{ID: 4, UserID: 11, Hostname: "d.example.com", Status: subdomainActive},
+		{ID: 7, UserID: 10, Hostname: "g.example.com", Status: subdomainError},
 	}
 	owners := map[int64]bool{10: true, 11: false}
-	ports := map[int64]int{100: 4001, 101: 4002, 102: 0}
+	const panel = "http://localhost:8787"
 
-	served, skipped := planHostingRoutes(rows, true, owners, ports)
+	served, skipped := planHostingRoutes(rows, true, owners, panel)
 	var hosts []string
 	for _, route := range served {
 		hosts = append(hosts, route.subdomain.Hostname+"="+route.service)
 	}
-	want := "a.example.com=http://localhost:4001,b.example.com=http://localhost:4001,g.example.com=http://localhost:4001"
+	want := "a.example.com=" + panel + ",b.example.com=" + panel + ",g.example.com=" + panel
 	if strings.Join(hosts, ",") != want {
 		t.Fatalf("served routes (sorted, retrying errors):\n got %v\nwant %s", hosts, want)
 	}
-	if skipped[3] != "" || skipped[4] == "" || skipped[5] == "" || skipped[6] == "" {
-		t.Fatalf("a suspended row is skipped silently, the others with a reason: %v", skipped)
+	if skipped[3] != "" || skipped[4] == "" {
+		t.Fatalf("a suspended row is skipped silently, a row of an inactive owner with a reason: %v", skipped)
 	}
 	if _, wrongly := skipped[1]; wrongly {
 		t.Fatal("an active row of an active owner must be served")
 	}
 
 	// hosting mode off: nothing is served and no row gets a reason that changes its status
-	none, all := planHostingRoutes(rows, false, owners, ports)
+	none, all := planHostingRoutes(rows, false, owners, panel)
 	if len(none) != 0 || len(all) != len(rows) {
 		t.Fatalf("hosting off must serve nothing: %d served, %d skipped", len(none), len(all))
 	}
@@ -89,9 +93,9 @@ func TestPlanHostingRoutes(t *testing.T) {
 
 func TestIngressAndRulesKey(t *testing.T) {
 	served, _ := planHostingRoutes([]database.HostingSubdomain{
-		{ID: 1, UserID: 1, Hostname: "z.example.com", ProjectID: ptr(1), Status: subdomainActive},
-		{ID: 2, UserID: 1, Hostname: "a.example.com", ProjectID: ptr(1), Status: subdomainActive},
-	}, true, map[int64]bool{1: true}, map[int64]int{1: 4100})
+		{ID: 1, UserID: 1, Hostname: "z.example.com", Status: subdomainActive},
+		{ID: 2, UserID: 1, Hostname: "a.example.com", Status: subdomainActive},
+	}, true, map[int64]bool{1: true}, "http://localhost:4100")
 	rules := ingressFor(served)
 	if len(rules) != 2 || rules[0].Hostname != "a.example.com" || rules[0].Service != "http://localhost:4100" {
 		t.Fatalf("rules must follow the sorted hostnames: %+v", rules)
@@ -143,7 +147,6 @@ func TestSubdomainEndpointsNeedHostingMode(t *testing.T) {
 	for name, call := range map[string]func(http.ResponseWriter, *http.Request){
 		"create":   s.handleCreateMySubdomain,
 		"check":    s.handleCheckSubdomain,
-		"retarget": s.handleRetargetMySubdomain,
 		"domain":   s.handleSetHostingDomain,
 	} {
 		rec := httptest.NewRecorder()
@@ -151,5 +154,18 @@ func TestSubdomainEndpointsNeedHostingMode(t *testing.T) {
 		if rec.Code != http.StatusConflict {
 			t.Errorf("%s with hosting off must answer 409, got %d", name, rec.Code)
 		}
+	}
+}
+
+func TestCleanOrderMessage(t *testing.T) {
+	got, err := cleanOrderMessage("  Halo,\r\nsaya mau {plan}\x00\x07  ")
+	if err != nil || got != "Halo,\nsaya mau {plan}" {
+		t.Fatalf("got %q err=%v", got, err)
+	}
+	if _, err := cleanOrderMessage(strings.Repeat("a", maxOrderMessageLen+1)); err == nil {
+		t.Fatal("a message over the limit must be refused")
+	}
+	if got, err := cleanOrderMessage(""); err != nil || got != "" {
+		t.Fatalf("an empty message means the default: %q %v", got, err)
 	}
 }

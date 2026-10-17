@@ -162,7 +162,7 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, Highlighted: p.Highlighted,
 		})
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "orderUrl": settings.OrderURL, "plans": out})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
 }
 
 // ─── Accounts on a plan ───────────────────────────────────────────────────────

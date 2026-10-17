@@ -118,6 +118,8 @@ export interface SiteSettings {
   graceDays: number
   /** Where the order buttons of the landing page lead */
   orderUrl: string
+  /** Text sent with the order button; empty uses the default */
+  orderMessage: string
   /** The superadmin accepted Ookla's licence for its command line client */
   ooklaLicenseAccepted: boolean
   /** The example plans were offered once */

@@ -2,7 +2,7 @@ package httpserver
 
 import (
 	"errors"
-	"fmt"
+	"net"
 	"regexp"
 	"sort"
 	"strings"
@@ -60,10 +60,19 @@ type hostingRoute struct {
 	service   string
 }
 
-// planHostingRoutes decides which rows are served. Nothing is while hosting mode is off. A row is served when it is not suspended,
-// its owner can sign in (not suspended by hand or by an ended plan), and it points at a project
-// that has a port. The rest are listed with the reason, for the status the owner sees.
-func planHostingRoutes(rows []database.HostingSubdomain, hostingOn bool, ownerActive map[int64]bool, projectPort map[int64]int) (served []hostingRoute, skipped map[int64]string) {
+// panelService is where a sold subdomain leads: the panel itself, which the buyer signs in to
+func panelService(bindAddr string) string {
+	port := "8787"
+	if _, p, err := net.SplitHostPort(bindAddr); err == nil && p != "" {
+		port = p
+	}
+	return "http://localhost:" + port
+}
+
+// planHostingRoutes decides which rows are served. Nothing is while hosting mode is off. A row is served when it is not
+// suspended and its owner can sign in (not suspended by hand or by an ended plan). The rest are listed with the reason,
+// for the status the owner sees.
+func planHostingRoutes(rows []database.HostingSubdomain, hostingOn bool, ownerActive map[int64]bool, service string) (served []hostingRoute, skipped map[int64]string) {
 	skipped = map[int64]string{}
 	for _, row := range rows {
 		switch {
@@ -72,12 +81,8 @@ func planHostingRoutes(rows []database.HostingSubdomain, hostingOn bool, ownerAc
 			skipped[row.ID] = ""
 		case !ownerActive[row.UserID]:
 			skipped[row.ID] = "account is not active"
-		case row.ProjectID == nil:
-			skipped[row.ID] = "choose a project for this subdomain"
-		case projectPort[*row.ProjectID] <= 0:
-			skipped[row.ID] = "the project has no port yet"
 		default:
-			served = append(served, hostingRoute{subdomain: row, service: fmt.Sprintf("http://localhost:%d", projectPort[*row.ProjectID])})
+			served = append(served, hostingRoute{subdomain: row, service: service})
 		}
 	}
 	sort.Slice(served, func(i, j int) bool { return served[i].subdomain.Hostname < served[j].subdomain.Hostname })

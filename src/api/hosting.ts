@@ -62,6 +62,7 @@ export interface PublicHosting {
   enabled: boolean
   currency?: string
   orderUrl?: string
+  orderMessage?: string
   plans: PublicPlan[]
 }
 
@@ -97,7 +98,6 @@ export interface Subdomain {
   zoneId: string
   domain: string
   hostname: string
-  projectId: number | null
   status: SubdomainStatus
   /** Why a subdomain waits or failed */
   note: string
@@ -128,11 +128,8 @@ export const checkSubdomain = (label: string, zoneId: string) =>
     .get<{ available: boolean; reason: string }>('/api/v1/me/subdomains/check', { params: { label, zoneId } })
     .then((r) => r.data)
 
-export const createMySubdomain = (body: { label: string; zoneId: string; projectId: number }) =>
+export const createMySubdomain = (body: { label: string; zoneId: string }) =>
   agentApi.post<Subdomain>('/api/v1/me/subdomains', body).then((r) => r.data)
-
-export const retargetMySubdomain = (id: number, projectId: number) =>
-  agentApi.patch<Subdomain>(`/api/v1/me/subdomains/${id}`, { projectId }).then((r) => r.data)
 
 export const deleteMySubdomain = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/me/subdomains/${id}`).then((r) => r.data)

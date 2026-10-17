@@ -302,6 +302,10 @@ func (s *Server) isKnownWorkloadHost(host string) bool {
 	if host == "" || s.database == nil {
 		return false
 	}
+	// the address of a buyer's panel
+	if s.hostingHostOwner(host) != 0 {
+		return true
+	}
 	// Check base domain & its subdomains
 	if s.cfg.BaseDomain != "" {
 		bd := strings.ToLower(s.cfg.BaseDomain)

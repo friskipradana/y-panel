@@ -14,7 +14,7 @@ import (
 )
 
 // Everything that touches Cloudflare for the sold subdomains goes through syncHostingRoutes: it
-// makes DNS and the carrier tunnel match the table, so any change (create, retarget, delete,
+// makes DNS and the carrier tunnel match the table, so any change (create, delete,
 // suspend, renew, an ended plan) is one call and a failed call is repaired by the next one.
 // The tunnel is a dedicated one owned by the superadmin's Cloudflare account; the superadmin's
 // own tunnels are never touched.
@@ -68,21 +68,13 @@ func (s *Server) syncHostingRoutes() {
 	}
 
 	ownerActive := map[int64]bool{}
-	projectPort := map[int64]int{}
 	for _, row := range rows {
 		if _, seen := ownerActive[row.UserID]; !seen {
 			user, _ := s.database.GetUserByID(row.UserID)
 			ownerActive[row.UserID] = user != nil && user.Status == "active"
 		}
-		if row.ProjectID != nil {
-			if _, seen := projectPort[*row.ProjectID]; !seen {
-				if project, _ := s.database.GetProject(*row.ProjectID, row.UserID); project != nil {
-					projectPort[*row.ProjectID] = project.AssignedPort
-				}
-			}
-		}
 	}
-	served, skipped := planHostingRoutes(rows, s.hostingEnabled(), ownerActive, projectPort)
+	served, skipped := planHostingRoutes(rows, s.hostingEnabled(), ownerActive, panelService(s.cfg.BindAddr))
 
 	client, superID, err := s.hostingCloudflare()
 	if err != nil {

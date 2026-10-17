@@ -150,20 +150,6 @@ func (s *Server) handleCheckSubdomain(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"available": reason == "", "reason": reason})
 }
 
-func (s *Server) projectTarget(userID int64, projectID *int64) (*int64, string) {
-	if projectID == nil {
-		return nil, "choose a project for the subdomain"
-	}
-	project, _ := s.database.GetProject(*projectID, userID)
-	if project == nil {
-		return nil, "project not found"
-	}
-	if project.AssignedPort <= 0 {
-		return nil, "the project has no port yet; start it first"
-	}
-	return projectID, ""
-}
-
 func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if !s.hostingEnabled() {
@@ -175,9 +161,8 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 	}
 	u := userFromCtx(r)
 	var req struct {
-		Label     string `json:"label"`
-		ZoneID    string `json:"zoneId"`
-		ProjectID *int64 `json:"projectId"`
+		Label  string `json:"label"`
+		ZoneID string `json:"zoneId"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -195,11 +180,6 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "subdomain quota exceeded"})
 		return
 	}
-	projectID, problem := s.projectTarget(u.ID, req.ProjectID)
-	if problem != "" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": problem})
-		return
-	}
 	reason, domain, err := s.subdomainAvailability(label, req.ZoneID)
 	if err != nil {
 		log.Printf("[hosting] create subdomain: %v", err)
@@ -215,7 +195,7 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	created, err := s.database.CreateHostingSubdomain(u.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name), projectID)
+	created, err := s.database.CreateHostingSubdomain(u.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name))
 	if errors.Is(err, database.ErrHostnameTaken) {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this name is taken"})
 		return
@@ -225,6 +205,7 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.auditSensitiveAction(r, u, "hosting.subdomain.create", "ok", map[string]any{"hostname": created.Hostname})
+	forgetHostingHosts()
 	s.syncHostingRoutes()
 	if fresh, _ := s.database.GetHostingSubdomain(created.ID); fresh != nil {
 		created = fresh
@@ -243,39 +224,6 @@ func (s *Server) ownedSubdomain(w http.ResponseWriter, r *http.Request) (*databa
 	return u, row
 }
 
-func (s *Server) handleRetargetMySubdomain(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	if !s.hostingEnabled() {
-		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "hosting mode is off"})
-		return
-	}
-	u, row := s.ownedSubdomain(w, r)
-	if row == nil {
-		return
-	}
-	var req struct {
-		ProjectID *int64 `json:"projectId"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
-		return
-	}
-	// the project must belong to the owner of the subdomain, not to whoever asks
-	projectID, problem := s.projectTarget(row.UserID, req.ProjectID)
-	if problem != "" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": problem})
-		return
-	}
-	if err := s.database.SetHostingSubdomainProject(row.ID, projectID); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	s.auditSensitiveAction(r, u, "hosting.subdomain.retarget", "ok", map[string]any{"hostname": row.Hostname})
-	s.syncHostingRoutes()
-	fresh, _ := s.database.GetHostingSubdomain(row.ID)
-	s.writeJSON(w, http.StatusOK, fresh)
-}
-
 func (s *Server) handleDeleteMySubdomain(w http.ResponseWriter, r *http.Request) {
 	u, row := s.ownedSubdomain(w, r)
 	if row == nil {
@@ -289,6 +237,7 @@ func (s *Server) handleDeleteMySubdomain(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.auditSensitiveAction(r, u, "hosting.subdomain.delete", "ok", map[string]any{"hostname": row.Hostname})
+	forgetHostingHosts()
 	s.syncHostingRoutes()
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }

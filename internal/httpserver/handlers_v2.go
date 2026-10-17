@@ -123,6 +123,10 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 				s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid or expired API token"})
 				return
 			}
+			if !s.userMayUseHost(r, u.ID) {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this address belongs to another account"})
+				return
+			}
 			if !s.guardDemo(w, r, u) {
 				return
 			}
@@ -139,6 +143,10 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 		u, ok := s.auth.Validate(cookie.Value)
 		if !ok || u == nil {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+			return
+		}
+		if !s.userMayUseHost(r, u.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this address belongs to another account"})
 			return
 		}
 		if !s.guardDemo(w, r, u) {
@@ -322,6 +330,15 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
 		}
 		log.Printf("[auth] login failed username=%q remote=%s", req.Username, remoteAddr(r))
+		return
+	}
+
+	// on the address of a buyer's panel only that buyer can sign in; the answer is the same as for a wrong password
+	if !s.userMayUseHost(r, u.ID) {
+		s.auth.Logout(token)
+		loginFailures.fail(req.Username)
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
+		log.Printf("[auth] login refused user=%q: not the owner of host %q remote=%s", u.Username, r.Host, remoteAddr(r))
 		return
 	}
 

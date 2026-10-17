@@ -146,7 +146,6 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/me/subdomains", s.requireAuthV2(http.HandlerFunc(s.handleListMySubdomains)))
 	s.mux.Handle("POST /api/v1/me/subdomains", s.requireAuthV2(http.HandlerFunc(s.handleCreateMySubdomain)))
 	s.mux.Handle("GET /api/v1/me/subdomains/check", s.requireAuthV2(http.HandlerFunc(s.handleCheckSubdomain)))
-	s.mux.Handle("PATCH /api/v1/me/subdomains/{id}", s.requireAuthV2(http.HandlerFunc(s.handleRetargetMySubdomain)))
 	s.mux.Handle("DELETE /api/v1/me/subdomains/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteMySubdomain)))
 	s.mux.Handle("GET /api/v1/settings/site", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetSiteSettings)))
 	s.mux.Handle("PUT /api/v1/settings/site", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetSiteSettings)))

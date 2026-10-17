@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, Globe2, LoaderCircle } from 'lucide-react'
 import { checkSubdomain, type HostingDomain } from '@/api/hosting'
-import type { Project } from '@/api/projects'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
@@ -12,27 +11,25 @@ import { useI18n } from '@/lib/i18n'
 interface SubdomainModalProps {
   open: boolean
   domains: HostingDomain[]
-  projects: Project[]
   saving: boolean
   error: string
   onClose: () => void
-  onCreate: (body: { label: string; zoneId: string; projectId: number }) => void
+  onCreate: (body: { label: string; zoneId: string }) => void
 }
 
 const LABEL_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 
-// Pick a name under one of the offered domains and the project it should show. The name is
+// Pick the name of the address of the buyer's panel under one of the offered domains. The name is
 // checked against the agent while typing, so "taken" shows before the button is pressed.
 export function SubdomainModal(props: SubdomainModalProps) {
   // a fresh form for every opening
   return <SubdomainForm key={props.open ? 'open' : 'closed'} {...props} />
 }
 
-function SubdomainForm({ open, domains, projects, saving, error, onClose, onCreate }: SubdomainModalProps) {
+function SubdomainForm({ open, domains, saving, error, onClose, onCreate }: SubdomainModalProps) {
   const { t } = useI18n()
   const [label, setLabel] = useState('')
   const [zoneId, setZoneId] = useState(domains[0]?.zoneId ?? '')
-  const [projectId, setProjectId] = useState('')
   const [settled, setSettled] = useState('')
 
   // wait for a pause in typing before asking the agent
@@ -52,7 +49,6 @@ function SubdomainForm({ open, domains, projects, saving, error, onClose, onCrea
 
   const domain = domains.find((d) => d.zoneId === zoneId)
   const available = shapeOk && settled === label && check.data?.available === true
-  const ready = available && projectId !== ''
 
   const hint = !label
     ? t('hosting.sub.labelHint')
@@ -77,7 +73,7 @@ function SubdomainForm({ open, domains, projects, saving, error, onClose, onCrea
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="primary" disabled={!ready} loading={saving} onClick={() => onCreate({ label, zoneId, projectId: Number(projectId) })}>
+          <Button variant="primary" disabled={!available} loading={saving} onClick={() => onCreate({ label, zoneId })}>
             {t('hosting.sub.create')}
           </Button>
         </>
@@ -106,16 +102,6 @@ function SubdomainForm({ open, domains, projects, saving, error, onClose, onCrea
           {check.isFetching || (shapeOk && settled !== label) ? <LoaderCircle size={13} className="animate-spin" /> : available ? <CircleCheck size={13} /> : label && shapeOk && !check.isFetching ? <CircleAlert size={13} /> : null}
           {hint}
         </p>
-
-        <Field label={t('hosting.sub.project')} hint={t('hosting.sub.projectHint')}>
-          <Select
-            value={projectId}
-            onChange={setProjectId}
-            placeholder={t('hosting.sub.projectPlaceholder')}
-            options={projects.map((p) => ({ value: String(p.id), label: p.name, description: `localhost:${p.assignedPort}` }))}
-            searchable={projects.length > 8}
-          />
-        </Field>
 
         {label && domain ? (
           <p className="panel-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12.5px]">

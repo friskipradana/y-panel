@@ -195,12 +195,14 @@ Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `
 - Tautan pemesanan hanya menerima `https://`, `http://`, dan `mailto:`; skema lain (`javascript:`, `data:`) ditolak.
 - Penangguhan karena masa berlaku ditandai (`suspended_for_expiry`): perpanjangan hanya mengaktifkan akun yang ditangguhkan oleh pemeriksa, tidak yang ditangguhkan manual. Pemeriksa tidak berjalan saat mode hosting mati.
 
-## Subdomain Pembeli
+## Subdomain Pembeli (alamat panel)
+
+Subdomain yang dijual adalah alamat panel Reneo milik pembeli. Tunnel `reneo-hosting` mengarahkan semua subdomain ke panel itu sendiri (`http://localhost:<port panel>`), bukan ke project. Setelah masuk, pembeli menghubungkan Cloudflare miliknya sendiri untuk project-nya.
 
 - Nama dibatasi 3 sampai 32 karakter (huruf kecil, angka, tanda hubung tunggal di dalam), tanpa `--` (nama internasional dan tiruan), dan daftar kata dicadangkan (`www`, `mail`, `admin`, `api`, `panel`, `reneo`, dan sejenisnya) ditolak.
 - Nama yang sudah punya record DNS apa pun di zona itu (A, MX, TXT, CNAME) tidak bisa diambil, sehingga situs atau surel yang ada tidak bisa dibajak. Hanya CNAME ke tunnel `reneo-hosting` yang dianggap milik sistem.
 - Hanya domain dari akun Cloudflare superadmin yang dipilih superadmin (daftar zona dari Cloudflare, bukan dari input) yang ditawarkan.
-- Satu subdomain hanya bisa menunjuk ke proyek milik pemegangnya yang punya port; superadmin yang mengganti tujuan pun hanya bisa memilih proyek pemilik subdomain itu. Kuota mengikuti paket (`maxSubdomains`); tanpa paket tidak bisa membuat.
+- Di alamat panel milik pembeli hanya akun pemiliknya yang bisa masuk atau memakai sesi: login akun lain ditolak dengan jawaban yang sama seperti kata sandi salah (sesi yang sempat dibuat langsung dicabut), dan API di host itu menolak akun lain dengan 403. Host subdomain dikenali dari tabel `hosting_subdomains` (cache 15 detik). Kuota mengikuti paket (`maxSubdomains`); tanpa paket tidak bisa membuat.
 - Tunnel `reneo-hosting` dipisah dari tunnel superadmin sendiri; token Cloudflare superadmin tidak pernah dikirim ke pembeli. Pengecekan nama dibatasi 30 permintaan per menit per akun agar jatah API Cloudflare tidak habis.
 - Akun yang ditangguhkan (paket berakhir setelah masa tenggang, atau manual), subdomain yang ditangguhkan superadmin, dan mode hosting mati menghentikan penyajian dan menghapus record DNS-nya; semuanya kembali saat akun diaktifkan lagi. Sinkronisasi berjalan ulang tiap 15 menit untuk memperbaiki panggilan yang gagal.
 
