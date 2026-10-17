@@ -208,6 +208,9 @@ Subdomain yang dijual adalah alamat panel Reneo milik pembeli. Tunnel `reneo-hos
 
 ## Manajemen Akun dan Paket
 
+- Akun yang dibuat atau di-reset password-nya oleh admin diberi tanda `users.must_change_password` (bawaan nyala, bisa dimatikan di formulir). Selama tanda itu ada, sesi akun hanya bisa memanggil `GET /api/v1/me`, `POST /api/v1/me/password`, dan `POST /api/v1/auth/logout`; yang lain dijawab 403 `password_change_required`, dan antarmuka menampilkan layar ganti password (`PasswordGate`) sebagai pengganti desktop. Tanda dicabut saat akun mengganti passwordnya sendiri (yang baru harus berbeda dari yang lama).
+- Setelah membuat akun atau reset password, dialog `AccessShareModal` menyusun pesan akses (alamat panel, username, password sementara) untuk disalin atau dikirim lewat WhatsApp/email. Password hanya terlihat pada dialog itu. Superadmin bisa sekaligus membuat alamat panel akun (`POST /api/v1/hosting/subdomains`, kuota paket tidak berlaku).
+
 - Data paket pada daftar akun (`hosting` per akun, hitungan di `/api/v1/users/summary`, dan filter `plan`/`planState`) hanya diberikan kepada superadmin dengan mode hosting aktif; admin hanya melihat akun di bawahnya tanpa data paket. Nilai filter yang tidak dikenal diabaikan dan tidak pernah sampai ke SQL (semuanya parameter).
 - Memberi paket saat membuat akun hanya boleh superadmin dan diperiksa sebelum akunnya dibuat, sehingga paket yang salah tidak meninggalkan akun setengah jadi.
 - Menghapus akun melepas DNS subdomainnya lebih dulu; menangguhkan, mengaktifkan, atau menghapus akun menjalankan sinkronisasi subdomain segera, tidak menunggu pemeriksa 15 menit.

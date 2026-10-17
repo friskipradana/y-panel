@@ -107,6 +107,10 @@ export interface Subdomain {
 export const listAllSubdomains = () =>
   agentApi.get<{ items: Subdomain[] }>('/api/v1/hosting/subdomains').then((r) => r.data.items)
 
+// The superadmin gives an account its panel address (the plan quota does not apply)
+export const createSubdomainForUser = (body: { userId: number; label: string; zoneId: string }) =>
+  agentApi.post<Subdomain>('/api/v1/hosting/subdomains', body).then((r) => r.data)
+
 export const setSubdomainStatus = (id: number, status: 'active' | 'suspended') =>
   agentApi.patch<Subdomain>(`/api/v1/hosting/subdomains/${id}`, { status }).then((r) => r.data)
 

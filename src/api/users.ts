@@ -84,6 +84,8 @@ export const createUser = (payload: {
   /** superadmin with hosting mode on: put the new account on a plan (months: how long) */
   planId?: number
   months?: number
+  /** The account chooses its own password at the first sign-in (default true) */
+  forcePasswordChange?: boolean
 }) => agentApi.post<PanelUser>('/api/v1/users', payload).then((r) => r.data)
 
 export const getUserByID = (id: number) =>
@@ -123,8 +125,8 @@ export const getUserUsage = (id: number) =>
 
 export const getMyUsage = () => agentApi.get<AccountUsage>('/api/v1/me/usage').then((r) => r.data)
 
-export const resetUserPassword = (id: number, newPassword: string) =>
-  agentApi.post<{ ok: boolean }>(`/api/v1/users/${id}/password`, { newPassword }).then((r) => r.data)
+export const resetUserPassword = (id: number, newPassword: string, forceChange = true) =>
+  agentApi.post<{ ok: boolean }>(`/api/v1/users/${id}/password`, { newPassword, forceChange }).then((r) => r.data)
 
 export const changeMyPassword = (currentPassword: string, newPassword: string) =>
   agentApi.post<{ ok: boolean }>('/api/v1/me/password', { currentPassword, newPassword }).then((r) => r.data)

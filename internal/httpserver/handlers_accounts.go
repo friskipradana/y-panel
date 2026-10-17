@@ -245,6 +245,7 @@ func (s *Server) handleChangeMyPassword(w http.ResponseWriter, r *http.Request) 
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
+	_ = s.database.SetMustChangePassword(u.ID, false)
 	s.auditSensitiveAction(r, u, "account.password.change", "ok", nil)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
@@ -265,6 +266,8 @@ func (s *Server) handleResetUserPassword(w http.ResponseWriter, r *http.Request)
 	}
 	var req struct {
 		NewPassword string `json:"newPassword"`
+		// ForceChange (default true) makes the account choose its own password at the next sign-in
+		ForceChange *bool `json:"forceChange"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -278,6 +281,7 @@ func (s *Server) handleResetUserPassword(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	_ = s.database.SetMustChangePassword(target.ID, req.ForceChange == nil || *req.ForceChange)
 	_ = s.database.DeleteUserSessions(target.ID)
 	s.auditSensitiveAction(r, actor, "user.password.reset", "ok", map[string]any{"target": target.Username})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})

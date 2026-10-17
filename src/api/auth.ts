@@ -16,6 +16,8 @@ export interface AuthMeV2 {
   cloudflareStatus: 'active' | 'invalid' | 'unconfigured'
   createdAt: string
   lastLoginAt: string | null
+  /** An admin gave this account its password: it must choose its own first */
+  mustChangePassword?: boolean
 }
 
 export interface SetupStatusResponse {

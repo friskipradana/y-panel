@@ -168,19 +168,52 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
-	label := strings.ToLower(strings.TrimSpace(req.Label))
+	s.createSubdomainFor(w, r, u, u, strings.ToLower(strings.TrimSpace(req.Label)), req.ZoneID, true)
+}
 
-	limit := s.subdomainLimit(u)
-	used, _ := s.database.CountHostingSubdomains(u.ID)
-	if limit <= 0 {
-		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "your plan does not include subdomains"})
+// handleCreateSubdomainForUser lets the superadmin give an account its panel address, so the
+// access sent to a buyer already works (the plan quota is the buyer's limit, not the seller's)
+func (s *Server) handleCreateSubdomainForUser(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if !s.hostingEnabled() {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "hosting mode is off"})
 		return
 	}
-	if used >= limit {
-		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "subdomain quota exceeded"})
+	if !s.subdomainThrottle(w, r) {
 		return
 	}
-	reason, domain, err := s.subdomainAvailability(label, req.ZoneID)
+	var req struct {
+		UserID int64  `json:"userId"`
+		Label  string `json:"label"`
+		ZoneID string `json:"zoneId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	owner, _ := s.database.GetUserByID(req.UserID)
+	if owner == nil || owner.Role == auth.SuperadminRole {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "user not found"})
+		return
+	}
+	s.createSubdomainFor(w, r, userFromCtx(r), owner, strings.ToLower(strings.TrimSpace(req.Label)), req.ZoneID, false)
+}
+
+// createSubdomainFor makes the subdomain of owner; actor is who asked (the owner, or the superadmin)
+func (s *Server) createSubdomainFor(w http.ResponseWriter, r *http.Request, actor, owner *database.User, label, zoneID string, enforceQuota bool) {
+	if enforceQuota {
+		limit := s.subdomainLimit(owner)
+		used, _ := s.database.CountHostingSubdomains(owner.ID)
+		if limit <= 0 {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "your plan does not include subdomains"})
+			return
+		}
+		if used >= limit {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "subdomain quota exceeded"})
+			return
+		}
+	}
+	reason, domain, err := s.subdomainAvailability(label, zoneID)
 	if err != nil {
 		log.Printf("[hosting] create subdomain: %v", err)
 		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "the subdomain service is not ready, try again later"})
@@ -195,7 +228,7 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	created, err := s.database.CreateHostingSubdomain(u.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name))
+	created, err := s.database.CreateHostingSubdomain(owner.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name))
 	if errors.Is(err, database.ErrHostnameTaken) {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this name is taken"})
 		return
@@ -204,7 +237,7 @@ func (s *Server) handleCreateMySubdomain(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.auditSensitiveAction(r, u, "hosting.subdomain.create", "ok", map[string]any{"hostname": created.Hostname})
+	s.auditSensitiveAction(r, actor, "hosting.subdomain.create", "ok", map[string]any{"hostname": created.Hostname, "owner": owner.Username})
 	forgetHostingHosts()
 	s.syncHostingRoutes()
 	if fresh, _ := s.database.GetHostingSubdomain(created.ID); fresh != nil {

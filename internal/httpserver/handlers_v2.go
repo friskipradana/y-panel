@@ -149,6 +149,11 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "this address belongs to another account"})
 			return
 		}
+		// an account that got its password from an admin can do nothing but choose its own
+		if !passwordGateAllows(r.URL.Path) && s.database.MustChangePassword(u.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "choose a new password first", "code": "password_change_required"})
+			return
+		}
 		if !s.guardDemo(w, r, u) {
 			return
 		}
@@ -157,6 +162,14 @@ func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 	})
 }
 
+// passwordGateAllows lists what an account may still reach before it has chosen its own password
+func passwordGateAllows(path string) bool {
+	switch path {
+	case "/api/v1/me", "/api/v1/me/password", "/api/v1/auth/logout":
+		return true
+	}
+	return false
+}
 
 // requireRole checks that the current user has at least the given role.
 func (s *Server) requireRole(role string, next http.Handler) http.Handler {
@@ -371,16 +384,17 @@ func (s *Server) handleMeV2(w http.ResponseWriter, r *http.Request) {
 		role = "demo"
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"id":               u.ID,
-		"username":         u.Username,
-		"email":            u.Email,
-		"role":             role,
-		"status":           u.Status,
-		"displayName":      u.DisplayName,
-		"avatarUrl":        u.AvatarURL,
-		"createdAt":        u.CreatedAt,
-		"lastLoginAt":      u.LastLoginAt,
-		"cloudflareStatus": cfStatus,
+		"id":                 u.ID,
+		"username":           u.Username,
+		"email":              u.Email,
+		"role":               role,
+		"status":             u.Status,
+		"displayName":        u.DisplayName,
+		"avatarUrl":          u.AvatarURL,
+		"createdAt":          u.CreatedAt,
+		"lastLoginAt":        u.LastLoginAt,
+		"cloudflareStatus":   cfStatus,
+		"mustChangePassword": s.database.MustChangePassword(u.ID),
 	})
 }
 
@@ -392,6 +406,8 @@ type createUserRequest struct {
 	Password    string `json:"password"`
 	Role        string `json:"role"`
 	DisplayName string `json:"displayName"`
+	// ForcePasswordChange (default true) makes the account choose its own password at the first sign-in
+	ForcePasswordChange *bool `json:"forcePasswordChange"`
 	// PlanID and Months put the new account on a plan right away (superadmin, hosting mode on)
 	PlanID *int64 `json:"planId"`
 	Months *int   `json:"months"`
@@ -547,6 +563,11 @@ func (s *Server) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	if plan != nil {
 		if err := s.applyUserPlan(u.ID, plan, planEndsAt); err != nil {
 			log.Printf("[hosting] new account %q created but the plan was not applied: %v", u.Username, err)
+		}
+	}
+	if req.ForcePasswordChange == nil || *req.ForcePasswordChange {
+		if err := s.database.SetMustChangePassword(u.ID, true); err != nil {
+			log.Printf("[users] could not require a password change for %q: %v", u.Username, err)
 		}
 	}
 	if creator := userFromCtx(r); creator != nil {
@@ -2370,12 +2391,12 @@ func (s *Server) handleMarkAllNotificationsRead(w http.ResponseWriter, r *http.R
 }
 
 type docPayload struct {
-	Title   string `json:"title"`
-	Slug    string `json:"slug"`
-	Excerpt string `json:"excerpt"`
-	Content string `json:"content"`
-	Status  string `json:"status"`
-	IsPublic bool  `json:"isPublic"`
+	Title    string `json:"title"`
+	Slug     string `json:"slug"`
+	Excerpt  string `json:"excerpt"`
+	Content  string `json:"content"`
+	Status   string `json:"status"`
+	IsPublic bool   `json:"isPublic"`
 }
 
 const maxDocContentBytes = 200 << 10

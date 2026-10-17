@@ -7,6 +7,7 @@ import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
 import { useI18n } from '@/lib/i18n'
 import { BootSplash } from '@/components/system/BootSplash'
+import { PasswordGate } from '@/components/system/PasswordGate'
 import { UpdateProgressModal } from '@/components/system/UpdateProgressModal'
 import { getUpdateStatus } from '@/api/system'
 import { useUpdateProgress } from '@/store/updateStore'
@@ -19,6 +20,7 @@ export function AppShell() {
   const authenticated = useAuthStore((s) => s.authenticated)
   const checkingSession = useAuthStore((s) => s.checkingSession)
   const initSession = useAuthStore((s) => s.initSession)
+  const mustChangePassword = useAuthStore((s) => s.authenticated && !!s.user?.mustChangePassword)
   const handleSessionExpired = useAuthStore((s) => s.handleSessionExpired)
 
   // Initialize session check on initial mount
@@ -63,6 +65,11 @@ export function AppShell() {
 
   if (checkingSession) {
     return <BootSplash message={t('app.checkingSession')} />
+  }
+
+  // an account with a password from an admin sees nothing else until it has chosen its own
+  if (mustChangePassword) {
+    return <PasswordGate />
   }
 
   return (

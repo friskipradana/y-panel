@@ -340,6 +340,26 @@ func (m *Manager) GetHostingSubdomain(id int64) (*HostingSubdomain, error) {
 	return s, err
 }
 
+// MustChangePassword says whether the account has to pick its own password before anything else
+func (m *Manager) MustChangePassword(userID int64) bool {
+	if !m.IsConnected() {
+		return false
+	}
+	var pending bool
+	if err := m.db.QueryRow(`SELECT must_change_password FROM users WHERE id = $1`, userID).Scan(&pending); err != nil {
+		return false
+	}
+	return pending
+}
+
+func (m *Manager) SetMustChangePassword(userID int64, pending bool) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE users SET must_change_password = $2, updated_at = NOW() WHERE id = $1`, userID, pending)
+	return err
+}
+
 // GetHostingSubdomainByHostname finds the subdomain that holds a hostname, nil when none does
 func (m *Manager) GetHostingSubdomainByHostname(hostname string) (*HostingSubdomain, error) {
 	if !m.IsConnected() {
