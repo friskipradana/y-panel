@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.7.6] - 2026-10-17
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.7.6** berisi 1 perubahan: 1 fitur. (23 files changed, 485 insertions(+), 300 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **hosting:** Sold subdomains are the buyer's panel address (routed to the panel, sign-in locked to the owner); order message template for the order button ([`5b7e23c`](https://github.com/friskipradana/y-panel/commit/5b7e23c))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.5...v4.7.6
+
 ## [4.7.5] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
