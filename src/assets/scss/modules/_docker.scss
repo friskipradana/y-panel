@@ -823,9 +823,9 @@
     padding: 10px 14px;
   }
 
-  // a cell that matters on a phone too (the role of a user) takes a line under the name
+  // a cell that matters on a phone too (the role of a user) takes the line under the name, with the state beside it
   .docker-row > .docker-cell--wide {
-    grid-column: 1 / -1;
+    grid-column: 1;
   }
 
   .docker-row > .docker-action-btns {
