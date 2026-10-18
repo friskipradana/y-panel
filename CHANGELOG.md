@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.30.1] - 2026-10-18
+
+2 perubahan, utamanya switching windows is lighter, the hover header grows the whole widget, and View has its own icon.
+
+### Perbaikan
+- **desktop:** Switching windows is lighter, the hover header grows the whole widget, and View has its own icon ([`c9182b7`](https://github.com/friskipradana/y-panel/commit/c9182b7))
+- **settings:** The Notifications tab has its labels back, and Settings reopens on the last tab after a refresh ([`79d3370`](https://github.com/friskipradana/y-panel/commit/79d3370))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.30.0...v1.30.1
+
 ## [1.30.0] - 2026-10-18
 
 15 perubahan, utamanya the Notifications tab for Telegram, the queue and the alert thresholds.
