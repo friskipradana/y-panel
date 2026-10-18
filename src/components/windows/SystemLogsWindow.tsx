@@ -156,7 +156,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
           className="min-w-[110px] max-w-[140px]"
           buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
         />
-        <label className="panel-search h-[30px] min-w-[10rem] max-w-[320px] flex-1">
+        <label className="panel-search h-[30px] min-w-[10rem] max-w-[320px] flex-1 system-logs__search">
           <Search className="h-3.5 w-3.5" />
           <input id="system-logs-search" value={search} onChange={(e) => setSearch(e.target.value)} className="panel-search__input text-xs" placeholder={t('systemLogs.searchPlaceholder')} />
         </label>

@@ -374,6 +374,9 @@ button:focus-visible,
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
+  // a status is one line: it takes the room it needs instead of folding into two
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 // Kotak centang
@@ -761,11 +764,11 @@ button:focus-visible,
 }
 
 .panel-log-surface {
-  border-radius: 20px;
+  border-radius: 14px;
   border: 1px solid var(--win-border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--win-bg) 72%, black), color-mix(in srgb, var(--win-bg) 60%, black));
-  color: color-mix(in srgb, var(--win-text) 82%, white);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  // a plain surface of the theme: the old black mix turned grey, with dark text on it, in the light theme
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
 }
 
 .panel-timeline {
@@ -1428,6 +1431,7 @@ button:focus-visible,
 // Phones: any text field is 16px, so iOS does not zoom the page when it takes focus (the code editors keep their own size)
 .layout-mobile {
   input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']):not(.monaco-editor *, .xterm *),
+  select,
   textarea:not(.monaco-editor *, .xterm *) {
     font-size: 1rem;
   }
@@ -1495,4 +1499,32 @@ button:focus-visible,
   .panel-progress__bar {
     background: var(--panel-danger-solid);
   }
+}
+
+// Phones: the bar is one short line of text over one row of buttons, so it leaves the page most of the screen
+.layout-mobile .settings-savebar {
+  gap: 6px;
+  padding-block: 8px;
+
+  .settings-savebar__hint {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    margin-top: 0;
+  }
+
+  .settings-savebar__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+// A badge that carries a detail (a command, a list of packages) is text: it wraps instead of running off the card
+.panel-badge--detail {
+  flex-shrink: 1;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }

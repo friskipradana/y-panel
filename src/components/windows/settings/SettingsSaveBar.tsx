@@ -26,10 +26,10 @@ export function SettingsSaveBar({ id, title, hint, dirty, pending, invalid = fal
   return (
     <div className={`settings-savebar${dirty ? " settings-savebar--dirty" : ""}`}>
       <div className="min-w-0">
-        <p className="text-[13px] font-semibold text-[var(--win-text)]">{title}</p>
-        <p className="mt-0.5 text-[11.5px] text-[var(--text-secondary)]" aria-live="polite">{hint}</p>
+        <p className="settings-savebar__title text-[13px] font-semibold text-[var(--win-text)]">{title}</p>
+        <p className="settings-savebar__hint mt-0.5 text-[11.5px] text-[var(--text-secondary)]" aria-live="polite">{hint}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="settings-savebar__actions flex shrink-0 items-center gap-2">
         {extra}
         <Button id={id} type="button" variant="primary" icon={<Save className="h-3.5 w-3.5" />} loading={pending} disabled={!dirty || invalid} onClick={onSave}>
           {pending ? pendingLabel : saveLabel}

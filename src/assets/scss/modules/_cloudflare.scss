@@ -247,3 +247,35 @@
     font-weight: 500;
   }
 }
+
+// Phones: the picker takes a line, its state and actions share the next, and the main action closes the bar
+.layout-mobile {
+  .cloudflare-scope__select {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .cloudflare-scope__row > .panel-btn--primary-soft {
+    flex-basis: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+}
+
+// Status, check and delete of the chosen domain: one group, so a phone can lay it out as one line
+.cloudflare-scope__state {
+  display: contents;
+}
+
+.layout-mobile .cloudflare-scope__state {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 8px;
+
+  // the check button takes the room between the state and the delete button
+  > .panel-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

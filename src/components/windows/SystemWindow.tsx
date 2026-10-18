@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { ErrorState, LoadingState } from '@/components/ui/states'
+import { IpAddressList } from './system/IpAddressList'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -107,9 +108,9 @@ function CountSections({ counts, t }: { counts?: SystemCounts; t: (key: string, 
   )
 }
 
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function InfoCard({ icon, title, children, className = '' }: { icon: React.ReactNode; title: string; children: React.ReactNode; className?: string }) {
   return (
-    <article className="panel-shell-card">
+    <article className={`panel-shell-card ${className}`}>
       <div className="mb-2.5 flex items-center gap-2 text-[var(--text-secondary)]">
         {icon}
         <span className="text-[13px] font-semibold text-[var(--win-text)]">{title}</span>
@@ -270,13 +271,9 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
                 </p>
               </InfoCard>
 
-              <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')}>
+              <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="mobile:col-span-full">
                 {data.ipAddresses && data.ipAddresses.length > 0 ? (
-                  <div className="flex flex-col gap-1.5">
-                    {data.ipAddresses.map((ip) => (
-                      <code key={ip} className="panel-muted-block panel-mono block break-all px-3 py-2 text-[12px] text-[var(--win-text)]">{ip}</code>
-                    ))}
-                  </div>
+                  <IpAddressList addresses={data.ipAddresses} />
                 ) : (
                   <p className="panel-shell-card__meta">{t('system.noActiveInterfaces')}</p>
                 )}

@@ -32,15 +32,17 @@ function formatUptime(seconds: number) {
   return d > 0 ? `${d}d ${h}h` : `${h}h ${m}m`
 }
 
-function Meter({ label, percent, detail }: { label: string; percent: number; detail?: string }) {
-  const pct = Math.min(100, Math.max(0, percent))
+// percent is undefined until the agent has answered: the meter then shows a dash, not an invented 0%
+function Meter({ label, percent, detail }: { label: string; percent?: number; detail?: string }) {
+  const known = percent !== undefined && Number.isFinite(percent)
+  const pct = known ? Math.min(100, Math.max(0, percent)) : 0
   const tone = pct >= 90 ? 'var(--panel-danger-text)' : pct >= 75 ? 'var(--panel-warning-text)' : 'var(--panel-info-text)'
   return (
     <div>
       <div className="flex items-baseline justify-between text-[0.75rem]">
         <span className="text-[var(--text-secondary)]">{label}</span>
         <span className="panel-mono font-semibold">
-          {pct.toFixed(pct < 10 ? 1 : 0)}%{detail ? <span className="ml-1 font-normal text-[var(--text-secondary)]">{detail}</span> : null}
+          {known ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : '-'}{known && detail ? <span className="ml-1 font-normal text-[var(--text-secondary)]">{detail}</span> : null}
         </span>
       </div>
       <div
@@ -48,7 +50,7 @@ function Meter({ label, percent, detail }: { label: string; percent: number; det
         aria-label={label}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(pct)}
+        aria-valuenow={known ? Math.round(pct) : undefined}
         className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--panel-surface-strong)]"
       >
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: tone }} />
@@ -92,9 +94,9 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
         </div>
         <p className="mt-0.5 truncate text-[0.75rem] text-[var(--text-secondary)]">{[summary?.osName, summary?.kernel].filter(Boolean).join(' · ')}</p>
         <div className="mt-3 space-y-2.5">
-          <Meter label="CPU" percent={summary?.cpuUsagePercent ?? 0} />
-          <Meter label="RAM" percent={ramTotal ? ((summary?.memory?.used ?? 0) / ramTotal) * 100 : 0} detail={formatBytes(summary?.memory?.used ?? 0)} />
-          <Meter label="Disk" percent={diskTotal ? ((summary?.storage?.used ?? 0) / diskTotal) * 100 : 0} detail={formatBytes(summary?.storage?.used ?? 0)} />
+          <Meter label="CPU" percent={summary ? summary.cpuUsagePercent : undefined} />
+          <Meter label="RAM" percent={ramTotal ? ((summary?.memory?.used ?? 0) / ramTotal) * 100 : undefined} detail={formatBytes(summary?.memory?.used ?? 0)} />
+          <Meter label="Disk" percent={diskTotal ? ((summary?.storage?.used ?? 0) / diskTotal) * 100 : undefined} detail={formatBytes(summary?.storage?.used ?? 0)} />
         </div>
       </section>
 

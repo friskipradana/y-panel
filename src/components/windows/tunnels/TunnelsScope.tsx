@@ -53,10 +53,11 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
             searchable={safeDomains.length > SEARCH_FROM}
             placeholder={t('tunnels.pickDomain')}
           />
+          <div className="cloudflare-scope__state">
           {status ? <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge> : null}
           {selectedDomain ? (
             <>
-              <Button variant="ghost" icon={<RefreshCw className="h-3.5 w-3.5" />} loading={checking} onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}>
+              <Button variant="outline" icon={<RefreshCw className="h-3.5 w-3.5" />} loading={checking} onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}>
                 {checking ? t('tunnels.checking') : t('tunnels.checkStatus')}
               </Button>
               <IconButton tone="danger" label={t('tunnels.deleteDomainTitle')} disabled={deleting} onClick={() => void askDeleteDomain()}>
@@ -64,6 +65,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
               </IconButton>
             </>
           ) : null}
+          </div>
           <Button className="ml-auto" variant="primary-soft" icon={<Plus className="h-3.5 w-3.5" />} disabled={cfNotConfigured || !selectedDomainId} onClick={() => openDnsModal()}>
             {t('tunnels.createDns')}
           </Button>

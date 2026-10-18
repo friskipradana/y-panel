@@ -104,7 +104,6 @@ export function WidgetsWindow() {
               empty={visibleInstalled.length === 0}
               columns={[
                 { label: t('widgets.col.widget') },
-                { label: t('widgets.col.detail') },
                 { label: t('widgets.col.status') },
                 { label: t('widgets.col.actions'), actions: true },
               ]}
@@ -128,10 +127,10 @@ export function WidgetsWindow() {
                         <ListRowIcon><Icon className="h-3.5 w-3.5" /></ListRowIcon>
                         <div className="docker-row__text">
                           <span className="docker-app-name">{t(`widget.catalog.${widget.type}.title`)}</span>
+                          {extra ? <span className="docker-row__sub" title={extra}>{extra}</span> : null}
                           <span className="docker-row__meta">{[extra, locked ? t('widgets.locked') : ''].filter(Boolean).join(' \u00b7 ')}</span>
                         </div>
                       </div>
-                      <div className="docker-cell docker-cell--mono" title={extra}>{extra || '-'}</div>
                       <div className="docker-cell--keep">
                         <span className={`docker-status-pill docker-status-pill--${locked ? 'paused' : 'running'}`}>
                           {locked ? <Lock className="h-3 w-3" strokeWidth={1.75} /> : <span className="docker-status-dot" />}
@@ -189,7 +188,7 @@ export function WidgetsWindow() {
                       <div className="docker-row__text">
                         <span className="docker-row__title">
                           <span className="docker-app-name">{t(`widget.catalog.${item.type}.title`)}</span>
-                          <span className="text-[0.6875rem] text-[var(--text-secondary)]">{item.badge}</span>
+                          <span className="text-[0.6875rem] text-[var(--text-secondary)]">{t(`widget.catalog.${item.type}.badge`)}</span>
                         </span>
                         <span className="docker-row__meta">{t(`widget.catalog.${item.type}.subtitle`)}</span>
                       </div>

@@ -677,11 +677,11 @@
   }
 
   &--users {
-    --docker-cols: 48px minmax(0, 2fr) minmax(88px, 0.7fr) minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(112px, 0.9fr) 204px;
+    --docker-cols: 48px minmax(0, 2fr) minmax(132px, 0.8fr) minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(112px, 0.9fr) 204px;
   }
 
   &--users-plain {
-    --docker-cols: 48px minmax(0, 2.4fr) minmax(88px, 0.8fr) minmax(96px, 0.8fr) minmax(112px, 0.9fr) 204px;
+    --docker-cols: 48px minmax(0, 2.4fr) minmax(132px, 0.8fr) minmax(96px, 0.8fr) minmax(112px, 0.9fr) 204px;
   }
 
   &--docs {
@@ -693,7 +693,7 @@
   }
 
   &--widgets-installed {
-    --docker-cols: minmax(0, 1.4fr) minmax(0, 1.4fr) 104px 56px;
+    --docker-cols: minmax(0, 1fr) 112px 56px;
   }
 
   &--tokens {
@@ -815,9 +815,9 @@
     display: none;
   }
 
-  // name and state share the first line; the actions get a line of their own so they never squeeze the name
+  // name, state and (up to three) actions share one line; more actions than that take a line of their own so they never squeeze the name
   .docker-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     column-gap: 8px;
     row-gap: 6px;
     padding: 10px 14px;
@@ -829,6 +829,11 @@
   }
 
   .docker-row > .docker-action-btns {
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .docker-row > .docker-action-btns:has(> :nth-child(4)) {
     grid-column: 1 / -1;
     flex-wrap: wrap;
     justify-content: flex-start;
@@ -1085,6 +1090,12 @@
   gap: 2px;
   min-width: 0;
   overflow-x: auto;
+  // the tabs slide sideways without a scrollbar eating the strip
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .file-tab {
@@ -1311,6 +1322,11 @@
   }
 }
 
+// the state pill keeps clear of the excerpt beside it
+.docs-row .docker-cell--keep {
+  padding-left: 12px;
+}
+
 .docs-row__excerpt {
   display: -webkit-box;
   overflow: hidden;
@@ -1398,12 +1414,6 @@
     padding: 6px 12px;
   }
 
-  .panel-input,
-  .panel-select,
-  .panel-textarea {
-    font-size: 1rem;
-  }
-
   // wide tables (DataTable) scroll sideways inside their own box
   .panel-table-container {
     overflow-x: auto;
@@ -1421,4 +1431,27 @@
 .layout-mobile .file-menu__item {
   min-height: 40px;
   font-size: 0.8125rem;
+}
+
+// System logs on a phone: the filter takes a line of its own instead of being squeezed beside the two pickers
+.layout-mobile .system-logs__search {
+  flex: 1 1 100%;
+  max-width: none;
+}
+
+// Phones: a row with one to three actions gives the name the whole first line; its state and its actions share the second
+.layout-mobile .docker-row:has(> .docker-action-btns):not(:has(> .docker-cell--wide)):not(:has(> .docker-action-btns > :nth-child(4))) {
+  grid-template-columns: auto minmax(0, 1fr);
+
+  > .docker-row__app {
+    grid-column: 1 / -1;
+  }
+
+  > .docker-cell--keep {
+    grid-column: 1;
+  }
+
+  > .docker-action-btns {
+    grid-column: 2;
+  }
 }

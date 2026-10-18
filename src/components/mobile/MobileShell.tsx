@@ -180,7 +180,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
           return (
             <div key={win.id} hidden={!isCurrent} className="relative flex h-full flex-col">
               <div className={`min-h-0 flex-1 ${owns ? 'overflow-hidden' : 'overflow-auto'}`}>
-                <div className={owns ? 'flex h-full flex-col' : 'min-h-full'}>
+                <div className="flex h-full flex-col">
                   <WindowErrorBoundary>
                     <Suspense fallback={<WindowFallback />}>{renderContent(win, authenticated)}</Suspense>
                   </WindowErrorBoundary>
