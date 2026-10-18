@@ -31,12 +31,31 @@ import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/states"
 import { Database, RefreshCw } from "lucide-react";
 
+const TAB_STORAGE_KEY = "reneo-settings-tab";
+
 export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const role = useAuthStore((s) => s.user?.role);
   // host settings (hostname, DNS, ports, updates, payment, audit) belong to the superadmin
-  const [activeTab, setActiveTab] = useState<SettingsTabKey>(role === "superadmin" ? "general" : "appearance");
+  // the last tab stays across a refresh; a stored tab the account cannot see falls back below
+  const [activeTab, setActiveTabState] = useState<SettingsTabKey>(() => {
+    try {
+      const saved = localStorage.getItem(TAB_STORAGE_KEY);
+      if (saved) return saved as SettingsTabKey;
+    } catch {
+      // storage can be blocked
+    }
+    return role === "superadmin" ? "general" : "appearance";
+  });
+  const setActiveTab = (tab: SettingsTabKey) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, tab);
+    } catch {
+      // storage can be blocked
+    }
+  };
 
   const host = useHostSettings({ authenticated });
   const cloudflare = useCloudflareSettings();
