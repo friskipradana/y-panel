@@ -71,6 +71,7 @@ export type SettingsTabKey =
   | "network"
   | "security"
   | "payment"
+  | "notifications"
   | "audit"
   | "api_tokens"
   | "reneo_database"
@@ -100,6 +101,7 @@ export const SETTINGS_TAB_TITLE: Record<SettingsTabKey, string> = {
   network: "settings.tabs.network",
   security: "settings.tabs.security",
   payment: "settings.tabs.payment",
+  notifications: "settings.tabs.notifications",
   audit: "settings.tabs.audit",
   api_tokens: "settings.tabs.apiTokens",
   reneo_database: "settings.tabs.reneoDatabase",

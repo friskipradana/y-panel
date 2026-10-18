@@ -78,6 +78,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   network: ['jaringan', 'port', 'origin', 'host'],
   security: ['kata sandi', 'password', 'keamanan', 'database'],
   payment: ['pembayaran', 'gateway', 'midtrans', 'xendit', 'notifikasi', 'listener', 'pembaca', 'perangkat', 'device', 'transfer', 'bank', 'wimboro'],
+  notifications: ['notifikasi', 'telegram', 'kabar', 'peringatan', 'serangan', 'antrian', 'whatsapp'],
   audit: ['audit', 'riwayat', 'log'],
   api_tokens: ['token', 'api', 'mcp', 'integrasi'],
   reneo_database: ['database', 'postgres', 'reneo'],
