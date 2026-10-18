@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.28.1] - 2026-10-18
+
+Origin editor is tall enough, host and origin lists are chips, the tip is one line.
+
+### Perbaikan
+- **settings:** Origin editor is tall enough, host and origin lists are chips, the tip is one line ([`3aec26c`](https://github.com/friskipradana/y-panel/commit/3aec26c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.28.0...v1.28.1
+
 ## [1.28.0] - 2026-10-18
 
 Ringkasan, riwayat, dan revisi didorong lewat socket langsung, dan kamus bahasa Indonesia diterjemahkan.
