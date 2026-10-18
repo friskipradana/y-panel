@@ -4,13 +4,15 @@ import { getSystemHistory, getSystemSummary } from '@/api/system'
 import { acquireLiveSocket } from '@/lib/liveSocket'
 import { useAuthStore } from '@/store/authStore'
 import { SAMPLE_INTERVAL_MS, useMetricsStore } from '@/store/metricsStore'
+import { useLivePolling } from '@/hooks/useLivePolling'
 
-// One shared poll for every system widget (CPU, RAM, disk, network)
+// One summary for every system widget (CPU, RAM, disk, network): pushed by the live socket, polled only when it is down
 export function useSystemSummary() {
+  const refetchInterval = useLivePolling(SAMPLE_INTERVAL_MS)
   return useQuery({
     queryKey: ['system', 'summary', 'widgets'],
     queryFn: getSystemSummary,
-    refetchInterval: SAMPLE_INTERVAL_MS,
+    refetchInterval,
     staleTime: SAMPLE_INTERVAL_MS / 2,
   })
 }
@@ -37,6 +39,7 @@ export function useSystemSampler() {
   // the recorded host history is the superadmin's; other accounts build their own series from the summary
   const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
 
+  const historyInterval = useLivePolling(SAMPLE_INTERVAL_MS)
   const history = useQuery({
     queryKey: ['system', 'history'],
     queryFn: async () => {
@@ -46,7 +49,7 @@ export function useSystemSampler() {
       useMetricsStore.getState().merge(series)
       return true
     },
-    refetchInterval: SAMPLE_INTERVAL_MS,
+    refetchInterval: historyInterval,
     retry: false,
     enabled: isSuperadmin,
   })

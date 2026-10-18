@@ -13,15 +13,26 @@ interface LiveSample {
 
 interface LiveState {
   connected: boolean
+  // true once the agent has pushed the slower state (summary, history, revision) on this connection;
+  // an older agent only sends samples, and then the pages keep polling
+  statePush: boolean
+  markStatePush: () => void
+  // the revision of the installed panel, as the agent last pushed it
+  revision: { revision: string; version: string } | null
   series: Record<string, MetricPoint[]>
   setConnected: (connected: boolean) => void
+  setRevision: (revision: { revision: string; version: string }) => void
   pushSample: (sample: LiveSample) => void
 }
 
 export const useLiveStore = create<LiveState>((set) => ({
   connected: false,
+  statePush: false,
+  markStatePush: () => set((state) => (state.statePush ? state : { statePush: true })),
+  revision: null,
   series: {},
-  setConnected: (connected) => set({ connected }),
+  setConnected: (connected) => set(connected ? { connected } : { connected, statePush: false }),
+  setRevision: (revision) => set({ revision }),
   pushSample: ({ t, values }) =>
     set((state) => {
       const next = { ...state.series }

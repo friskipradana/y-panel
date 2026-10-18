@@ -1,6 +1,9 @@
+import { queryClient } from '@/lib/queryClient'
 import { useLiveStore } from '@/store/liveStore'
+import { useMetricsStore, type MetricPoint } from '@/store/metricsStore'
 
-// One shared WebSocket for the widgets: a system sample every second and ping results.
+// One shared WebSocket for the panel: a system sample every second, ping results, and the slower
+// state the pages used to poll for (summary, recorded history, installed revision).
 // It opens with the first user, closes with the last, and reconnects with backoff.
 
 export interface LivePingResult {
@@ -38,6 +41,19 @@ function sendSub(id: string, sub: PingSub) {
   socket.send(JSON.stringify({ op: 'ping', id, host: sub.host, port: sub.port, intervalSec: sub.intervalSec }))
 }
 
+// The slower state the agent pushes: the summary, the recorded history and the installed revision
+function handleState(message: Record<string, unknown>) {
+  if (message.type === 'summary') {
+    // the same payload GET /system/summary returns, for every screen that shows it
+    queryClient.setQueryData(['system', 'summary', 'widgets'], message.data)
+    queryClient.setQueryData(['agent-system-summary'], message.data)
+  } else if (message.type === 'history') {
+    useMetricsStore.getState().merge(message.series as Record<string, MetricPoint[]>)
+  } else if (message.type === 'revision') {
+    useLiveStore.getState().setRevision({ revision: String(message.revision ?? ''), version: String(message.version ?? '') })
+  }
+}
+
 function handleMessage(raw: string) {
   let message: Record<string, unknown>
   try {
@@ -55,6 +71,9 @@ function handleMessage(raw: string) {
     }
     if (typeof message.temp === 'number') values.temp = message.temp
     useLiveStore.getState().pushSample({ t: Number(message.t) || Date.now(), values })
+  } else if (message.type === 'summary' || message.type === 'history' || message.type === 'revision') {
+    useLiveStore.getState().markStatePush()
+    handleState(message)
   } else if (message.type === 'ping') {
     pingSubs.get(String(message.id))?.onResult({
       ok: Boolean(message.ok),

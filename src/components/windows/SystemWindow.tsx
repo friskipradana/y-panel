@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { IpAddressList } from './system/IpAddressList'
+import { useLivePolling } from '@/hooks/useLivePolling'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -122,11 +123,12 @@ function InfoCard({ icon, title, children, className = '' }: { icon: React.React
 
 export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n()
+  const livePolling = useLivePolling(5_000)
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
     queryFn: getSystemSummary,
     retry: 1,
-    refetchInterval: 5_000,
+    refetchInterval: livePolling,
   })
 
   useEffect(() => {

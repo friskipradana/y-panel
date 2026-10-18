@@ -189,7 +189,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
               onClick={roleEditable ? () => { setEditingRole(true); setSelectedRole(user.role) } : undefined}
               title={roleEditable ? t('users.clickChangeRole') : undefined}
             >
-              {ROLE_ICON[user.role]} {user.role}
+              {ROLE_ICON[user.role]} {t(`users.role.${user.role}`)}
               {roleEditable ? <Pencil className="h-2.5 w-2.5 opacity-60" /> : null}
             </Badge>
           )}
@@ -198,7 +198,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
         <div className="docker-cell--keep">
           <span className={`docker-status-pill docker-status-pill--${STATUS_PILL[user.status] ?? 'exited'}`}>
             <span className="docker-status-dot" />
-            <span>{user.status}</span>
+            <span>{t(`users.status.${user.status}`)}</span>
           </span>
         </div>
 

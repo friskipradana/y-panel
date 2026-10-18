@@ -9,6 +9,8 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 )
 
@@ -135,6 +137,10 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// the slower things the pages used to poll for: the summary, the recorded history and the
+	// revision of the installed panel. They ride the same socket, so an open page asks for none of them.
+	go s.pushLiveState(ctx, user, hostView, send, cancel)
+
 	subs := map[string]context.CancelFunc{}
 	defer func() {
 		for _, stop := range subs {
@@ -247,6 +253,99 @@ func (s *Server) runLivePing(ctx context.Context, send func(any) error, id, host
 		case <-ctx.Done():
 			return
 		case <-time.After(every):
+		}
+	}
+}
+
+const (
+	liveSummaryEvery  = 10 * time.Second
+	liveHistoryEvery  = 5 * time.Second
+	liveRevisionEvery = 5 * time.Second
+)
+
+type liveSummaryMessage struct {
+	Type string       `json:"type"`
+	Data jsonResponse `json:"data"`
+}
+
+type liveHistoryMessage struct {
+	Type   string                      `json:"type"`
+	Series map[string][]metrics.Point `json:"series"`
+}
+
+type liveRevisionMessage struct {
+	Type     string `json:"type"`
+	Revision string `json:"revision"`
+	Version  string `json:"version"`
+}
+
+// pushLiveState sends the summary every few seconds, new history points for the superadmin, and
+// the frontend revision when it changes. Everything is sent once on connect.
+func (s *Server) pushLiveState(ctx context.Context, user *database.User, hostView bool, send func(any) error, cancel context.CancelFunc) {
+	fail := func(err error) bool {
+		if err != nil {
+			cancel()
+			return true
+		}
+		return false
+	}
+	var lastRevision string
+	var lastHistory int64
+	pushRevision := func() bool {
+		revision := s.frontendRevision()
+		if revision == lastRevision {
+			return false
+		}
+		lastRevision = revision
+		return fail(send(liveRevisionMessage{Type: "revision", Revision: revision, Version: s.appVersion()}))
+	}
+	pushHistory := func() bool {
+		if !hostView || s.metrics == nil {
+			return false
+		}
+		series := s.metrics.Since(lastHistory)
+		var newest int64
+		for _, points := range series {
+			if n := len(points); n > 0 && points[n-1].T > newest {
+				newest = points[n-1].T
+			}
+		}
+		if newest == 0 {
+			return false
+		}
+		// overlap by one point, so a slow tick never leaves a hole
+		lastHistory = newest - 1
+		return fail(send(liveHistoryMessage{Type: "history", Series: series}))
+	}
+	pushSummary := func() bool {
+		return fail(send(liveSummaryMessage{Type: "summary", Data: s.systemSummaryPayload(user)}))
+	}
+
+	if pushRevision() || pushHistory() || pushSummary() {
+		return
+	}
+	summaryTick := time.NewTicker(liveSummaryEvery)
+	historyTick := time.NewTicker(liveHistoryEvery)
+	revisionTick := time.NewTicker(liveRevisionEvery)
+	defer summaryTick.Stop()
+	defer historyTick.Stop()
+	defer revisionTick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-summaryTick.C:
+			if pushSummary() {
+				return
+			}
+		case <-historyTick.C:
+			if pushHistory() {
+				return
+			}
+		case <-revisionTick.C:
+			if pushRevision() {
+				return
+			}
 		}
 	}
 }

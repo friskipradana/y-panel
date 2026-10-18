@@ -66,8 +66,13 @@ type truncateDataRequest struct {
 }
 
 func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
+	s.writeJSON(w, http.StatusOK, s.systemSummaryPayload(userFromCtx(r)))
+}
+
+// systemSummaryPayload is the summary of the host (or of the viewer's own share of it). The HTTP
+// handler and the live WebSocket both send it, so the two never drift apart.
+func (s *Server) systemSummaryPayload(viewer *database.User) jsonResponse {
 	dbStatus := s.database.Status()
-	viewer := userFromCtx(r)
 	demo := s.isDemoUser(viewer)
 	isSuperadmin := viewer != nil && viewer.Role == auth.SuperadminRole
 	// the machine is only measured for the superadmin; everyone else gets figures for their own account
@@ -147,7 +152,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		stateDir = ""
 	}
 
-	s.writeJSON(w, http.StatusOK, jsonResponse{
+	return jsonResponse{
 		"hostname":           summary.Hostname,
 		"osName":             summary.OSName,
 		"kernel":             summary.Kernel,
@@ -167,7 +172,7 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 		"projects":           projectSummary,
 		"scoped":             scoped != nil,
 		"account":            scoped,
-	})
+	}
 }
 
 func (s *Server) handleSystemLogs(w http.ResponseWriter, r *http.Request) {

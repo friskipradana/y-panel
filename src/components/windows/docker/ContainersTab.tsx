@@ -60,44 +60,17 @@ function formatContainerPorts(ports: Container['Ports']): string {
   return Array.from(new Set(priv)).join('\n')
 }
 
-function renderStatusPill(state: string) {
+// The state of a container as the Docker daemon names it, in the language of the panel
+const STATE_PILL: Record<string, string> = { running: 'running', exited: 'exited', stopped: 'exited', paused: 'paused', restarting: 'restarting' }
+
+function renderStatusPill(state: string, t: (key: string) => string) {
   const norm = state.toLowerCase()
-  if (norm === 'running') {
-    return (
-      <span className="docker-status-pill docker-status-pill--running">
-        <span className="docker-status-dot" />
-        <span>Running</span>
-      </span>
-    )
-  }
-  if (norm === 'exited' || norm === 'stopped') {
-    return (
-      <span className="docker-status-pill docker-status-pill--exited">
-        <span className="docker-status-dot" />
-        <span>exited</span>
-      </span>
-    )
-  }
-  if (norm === 'paused') {
-    return (
-      <span className="docker-status-pill docker-status-pill--paused">
-        <span className="docker-status-dot" />
-        <span>paused</span>
-      </span>
-    )
-  }
-  if (norm === 'restarting') {
-    return (
-      <span className="docker-status-pill docker-status-pill--restarting">
-        <span className="docker-status-dot" />
-        <span>restarting</span>
-      </span>
-    )
-  }
+  const kind = STATE_PILL[norm] ?? 'dead'
+  const label = STATE_PILL[norm] ? t(`docker.state.${kind}`) : norm || t('docker.state.dead')
   return (
-    <span className="docker-status-pill docker-status-pill--dead">
+    <span className={`docker-status-pill docker-status-pill--${kind}`}>
       <span className="docker-status-dot" />
-      <span>{norm || 'dead'}</span>
+      <span>{label}</span>
     </span>
   )
 }
@@ -268,7 +241,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                 </div>
 
                 {/* Column 3: Status */}
-                <div className="docker-cell--keep">{renderStatusPill(container.State)}</div>
+                <div className="docker-cell--keep">{renderStatusPill(container.State, t)}</div>
 
                 {/* Column 4: Port */}
                 <div className="docker-port-text">{portsText}</div>

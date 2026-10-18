@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState, LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
+import { useLivePolling } from '@/hooks/useLivePolling'
 import type { RuntimeDatabaseLog } from '@/types'
 
 function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
@@ -46,7 +47,8 @@ function extractAttentionType(message: string, metadata: string) {
 export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n()
   const openWindow = useWindowStore((state) => state.openWindow)
-  const summary = useQuery({ queryKey: ['agent-system-summary'], queryFn: getSystemSummary, retry: 1, refetchInterval: 15_000, enabled: authenticated !== false })
+  const summaryPolling = useLivePolling(15_000)
+  const summary = useQuery({ queryKey: ['agent-system-summary'], queryFn: getSystemSummary, retry: 1, refetchInterval: summaryPolling, enabled: authenticated !== false })
   const database = useQuery({ queryKey: ['database-status'], queryFn: getDatabaseStatus, retry: 1, refetchInterval: 15_000, enabled: authenticated !== false })
 
   const incidents = useMemo(() => {
