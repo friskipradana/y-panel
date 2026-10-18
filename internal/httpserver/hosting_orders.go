@@ -13,6 +13,7 @@ import (
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
 
@@ -205,12 +206,14 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	ip := clientIP(r)
 	now := time.Now()
 	if n, err := s.database.CountRecentOrdersFromIP(ip, now.Add(-time.Hour), ""); err == nil && n >= orderMaxPerHour {
+		s.notify.OrderRefused(ip)
 		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many orders from this address, try again later"})
 		return
 	}
 	if req.Kind == database.OrderTrial {
 		if n, err := s.database.CountRecentOrdersFromIP(ip, now.Add(-24*time.Hour), database.OrderTrial); err == nil && n >= orderMaxTrialsDay {
-			s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "one trial per address a day"})
+			s.notify.OrderRefused(ip)
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "one trial per address a day"})
 			return
 		}
 	}
@@ -277,6 +280,10 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		}
 	} else {
 		s.notifyAllAdmins("Pesanan hosting baru", fmt.Sprintf("%s memesan paket %s (%s).", u.Username, plan.Name, orderKindLabel(created)), "info")
+		s.emitOrderCreated(created, u.Username, plan.Name)
+		if created.Status == database.OrderReview {
+			s.emitOrderReview(created.ID, u.Username, "pesanan ini menunggu persetujuan Anda.")
+		}
 	}
 	s.recordRuntimeLog("info", "hosting order created", map[string]any{"user": u.Username, "plan": plan.Name, "kind": created.Kind, "remote": ip})
 	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
@@ -370,6 +377,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	s.emitOrderCreated(created, user.Username, plan.Name)
 	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
 }
 
@@ -524,12 +532,12 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	}
 	user, _ := s.database.GetUserByID(order.UserID)
 	if user == nil || order.PlanID == nil {
-		s.notifyAllAdmins("Pesanan perlu ditangani", fmt.Sprintf("Pesanan #%d dibayar, tetapi akun atau paketnya sudah tidak ada.", order.ID), "warning")
+		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi akun atau paketnya sudah tidak ada.", order.ID), "warning")
 		return errors.New("the account or the plan of the order no longer exists")
 	}
 	plan, _ := s.database.GetHostingPlan(*order.PlanID)
 	if plan == nil {
-		s.notifyAllAdmins("Pesanan perlu ditangani", fmt.Sprintf("Pesanan #%d dibayar, tetapi paketnya sudah dihapus.", order.ID), "warning")
+		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi paketnya sudah dihapus.", order.ID), "warning")
 		return errors.New("the plan of the order no longer exists")
 	}
 	// a trial upgrade in progress ends first, so its time is credited to the plan this order renews
@@ -551,7 +559,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 		}
 	}
 	if err := s.applyUserPlan(user.ID, plan, ends); err != nil {
-		s.notifyAllAdmins("Pesanan perlu ditangani", fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "warning")
+		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "warning")
 		return err
 	}
 	if user.Status == "pending" {
@@ -565,6 +573,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	}
 	s.recordRuntimeLog("info", "hosting order paid", map[string]any{"order": order.ID, "user": user.Username, "plan": plan.Name, "kind": order.Kind})
 	s.notifyAllAdmins("Pesanan terbayar", fmt.Sprintf("%s: paket %s aktif (%s).", user.Username, plan.Name, note), "success")
+	s.emitOrderPaid(order, user.Username, plan.Name, note)
 	s.notifyBuyerOrderDone(order, user, plan, ends)
 	go s.syncHostingRoutes()
 	return nil
@@ -600,7 +609,7 @@ func (s *Server) giveOrderSubdomain(order *database.HostingOrder, user *database
 	}
 	if _, err := s.database.CreateHostingSubdomain(user.ID, order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname); err != nil {
 		log.Printf("[orders] could not create %s for %q: %v", order.SubHostname, user.Username, err)
-		s.notifyAllAdmins("Pesanan perlu ditangani", fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "warning")
+		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "warning")
 		return
 	}
 	forgetHostingHosts()
@@ -615,6 +624,7 @@ func (s *Server) handlePublicCheckSubdomain(w http.ResponseWriter, r *http.Reque
 	// each check asks Cloudflare, so one address gets a few a minute
 	if allowed, retry := s.allowRateLimit("pubsub:"+clientIP(r), rateLimitRule{Window: time.Minute, Limit: 30}); !allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+		s.notify.OrderRefused(clientIP(r))
 		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many requests, wait a moment"})
 		return
 	}
@@ -647,6 +657,10 @@ func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, 
 	if len(orders) != 1 {
 		if len(orders) > 1 {
 			log.Printf("[orders] %d waiting orders share the total %d: left for review", len(orders), total)
+			s.notify.Emit(notify.Event{
+				Name: notify.EventOrderAttention, Key: fmt.Sprintf("shared-total-%d-%d", total, notifID),
+				Data: map[string]any{"detail": fmt.Sprintf("%d pesanan menunggu dengan total %s yang sama, jadi transfernya tidak bisa dicocokkan sendiri. Periksa di tab Pesanan.", len(orders), rupiah(total))},
+			})
 		}
 		return
 	}
@@ -655,6 +669,7 @@ func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, 
 	if auto, _ := s.database.GetPaymentSettingValue("auto_confirm"); auto != "true" {
 		if _, err := s.database.SetOrderStatus(order.ID, database.OrderReview, "pembayaran cocok, menunggu konfirmasi"); err == nil {
 			s.notifyAllAdmins("Pembayaran cocok, perlu konfirmasi", fmt.Sprintf("Pesanan #%d (%s, Rp %d) cocok dengan notifikasi. Konfirmasi di tab Hosting.", order.ID, order.Username, total), "info")
+			s.emitOrderReview(order.ID, order.Username, fmt.Sprintf("transfer %s cocok dengan notifikasi bank dan menunggu konfirmasi Anda.", rupiah(total)))
 		}
 		return
 	}

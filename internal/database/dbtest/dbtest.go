@@ -2,7 +2,9 @@
 package dbtest
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -26,7 +28,10 @@ func New(t *testing.T) *database.Manager {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := fmt.Sprintf("reneo_test_%d", time.Now().UnixNano())
+	// the clock alone is not enough: packages run in parallel, and on Windows two can read the same instant
+	suffix := make([]byte, 4)
+	_, _ = rand.Read(suffix)
+	name := fmt.Sprintf("reneo_test_%d_%s", time.Now().UnixNano(), hex.EncodeToString(suffix))
 	if _, err := adminDB.Exec(`CREATE DATABASE ` + name); err != nil {
 		t.Fatalf("cannot create the test database: %v", err)
 	}

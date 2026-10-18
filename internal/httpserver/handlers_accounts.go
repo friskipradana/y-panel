@@ -247,6 +247,7 @@ func (s *Server) handleChangeMyPassword(w http.ResponseWriter, r *http.Request) 
 	}
 	_ = s.database.SetMustChangePassword(u.ID, false)
 	s.auditSensitiveAction(r, u, "account.password.change", "ok", nil)
+	s.emitPasswordChanged(u, "")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -284,5 +285,6 @@ func (s *Server) handleResetUserPassword(w http.ResponseWriter, r *http.Request)
 	_ = s.database.SetMustChangePassword(target.ID, req.ForceChange == nil || *req.ForceChange)
 	_ = s.database.DeleteUserSessions(target.ID)
 	s.auditSensitiveAction(r, actor, "user.password.reset", "ok", map[string]any{"target": target.Username})
+	s.emitPasswordChanged(target, actor.Username)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }

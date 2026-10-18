@@ -381,8 +381,15 @@ func (s *Server) withRateLimit(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
-		log.Printf("[security] rate limit hit path=%s method=%s remote=%s retry_after=%s", r.URL.Path, r.Method, remoteAddr(r), retryAfter)
-		s.recordRuntimeLog("warning", "request rate limited", map[string]any{"path": r.URL.Path, "method": r.Method, "remote": remoteAddr(r), "retryAfter": retryAfter.String()})
+		// refusals are counted (and told to the seller when they pile up); only a few a minute are written down
+		s.notify.RequestRefused(clientIP(r))
+		if strings.HasPrefix(r.URL.Path, "/api/v1/public/hosting") {
+			s.notify.OrderRefused(clientIP(r))
+		}
+		if rateLogSampler.Allow() {
+			log.Printf("[security] rate limit hit path=%s method=%s remote=%s retry_after=%s", r.URL.Path, r.Method, remoteAddr(r), retryAfter)
+			s.recordRuntimeLog("warning", "request rate limited", map[string]any{"path": r.URL.Path, "method": r.Method, "remote": remoteAddr(r), "retryAfter": retryAfter.String()})
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/healthz" {
 			s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many requests"})
 			return

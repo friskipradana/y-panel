@@ -439,6 +439,13 @@ func (s *Server) expirePlans(now time.Time) {
 				continue
 			}
 			s.recordRuntimeLog("warning", "account suspended: plan ended", map[string]any{"user": user.Username})
+			planName := ""
+			if up.PlanID != nil {
+				if plan, _ := s.database.GetHostingPlan(*up.PlanID); plan != nil {
+					planName = plan.Name
+				}
+			}
+			s.emitPlanEnded(user, planName, up.ExpiresAt)
 			s.terminalManager.CloseOwned(user.ID)
 			suspendedAny = true
 		}

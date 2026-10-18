@@ -301,6 +301,7 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 		apiKey = r.URL.Query().Get("api_key")
 	}
 	if apiKey == "" {
+		s.notify.WebhookRejected(clientIP(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "X-API-Key header required"})
 		return
 	}
@@ -308,6 +309,7 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 	// Validate the device by API key
 	device, err := s.database.GetNotificationDeviceByAPIKey(apiKey)
 	if err != nil || device == nil {
+		s.notify.WebhookRejected(clientIP(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid API key"})
 		return
 	}

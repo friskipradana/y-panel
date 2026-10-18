@@ -191,6 +191,9 @@ func (s *Server) refreshCustomDomain(client *cloudflareapi.Client, zoneID string
 		log.Printf("[hosting] custom domain %s: %v", row.Hostname, err)
 		return row
 	}
+	if status == "error" && row.Status != "error" {
+		s.emitDomainError(row, note)
+	}
 	if status == "active" && row.Status != "active" {
 		s.notifyUserAction(row.UserID, "Domain aktif", fmt.Sprintf("Domain %s sudah tersambung ke panel Anda dan bisa dipakai untuk masuk.", row.Hostname), "success")
 	}

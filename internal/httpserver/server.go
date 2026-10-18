@@ -17,6 +17,7 @@ import (
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 	"github.com/friskipradana/panel-desktop-ui/internal/docsync"
 	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
@@ -58,6 +59,7 @@ type Server struct {
 	terminalManager              *terminal.Manager
 	terminalUpgrader             websocket.Upgrader
 	database                     *database.Manager
+	notify                       *notify.Service
 	projectManager               *projects.Manager
 	metrics                      *metrics.Recorder
 	updates                      *updater.Checker
@@ -150,6 +152,12 @@ func New(cfg config.Config) *Server {
 	s.updates = updater.New()
 	if docsync.Enabled() {
 		s.docsSync = docsync.New()
+	}
+
+	// notices outside the panel: the queue, its workers, and the detectors of attacks
+	s.notify = notify.New(db, cfg.EncryptionKey)
+	if db.IsConnected() {
+		s.notify.Start(4)
 	}
 
 	s.routes()
@@ -331,6 +339,7 @@ func (s *Server) Close() error {
 	if s.reconcileDone != nil {
 		<-s.reconcileDone
 	}
+	s.notify.Stop()
 	if s.database != nil {
 		return s.database.Close()
 	}

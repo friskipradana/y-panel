@@ -104,6 +104,7 @@ func (s *Server) handleCreateAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.emitTokenCreated(user, record.Name)
 	s.writeJSON(w, http.StatusCreated, createAPITokenResponse{
 		Token: rawToken,
 		Record: apiTokenDisplay{

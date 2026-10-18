@@ -351,8 +351,8 @@ func TestIntegrationCustomDomains(t *testing.T) {
 
 func TestIntegrationNewMigrationsGoDownAndUpAgain(t *testing.T) {
 	m := newIntegrationManager(t)
-	// the three newest migrations come off one by one, and go on again
-	for i := 0; i < 3; i++ {
+	// the four newest migrations come off one by one, and go on again
+	for i := 0; i < 4; i++ {
 		if err := migrations.Down(m.DB()); err != nil {
 			t.Fatalf("down step %d: %v", i+1, err)
 		}

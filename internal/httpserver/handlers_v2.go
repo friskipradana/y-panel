@@ -324,6 +324,7 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 	// repeated failures for one account name stop here, whatever address they come from
 	if blocked, wait := loginFailures.blocked(req.Username); blocked {
 		w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
+		s.notify.LoginLocked(req.Username)
 		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many failed sign-ins for this account, try again later"})
 		return
 	}
@@ -337,6 +338,7 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if !errors.Is(err, auth.ErrUserSuspended) && !errors.Is(err, auth.ErrUserPending) {
 			loginFailures.fail(req.Username)
+			s.notify.LoginFailed(req.Username, clientIP(r))
 		}
 		switch {
 		case errors.Is(err, auth.ErrUserSuspended):
@@ -354,6 +356,7 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 	if !s.userMayUseHost(r, u.ID) {
 		s.auth.Logout(token)
 		loginFailures.fail(req.Username)
+		s.notify.LoginFailed(req.Username, clientIP(r))
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
 		log.Printf("[auth] login refused user=%q: not the owner of host %q remote=%s", u.Username, r.Host, remoteAddr(r))
 		return
@@ -361,6 +364,8 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 
 	loginFailures.clear(req.Username)
 	s.issueSessionCookie(w, token)
+	// a sign-in from a device the account has not used before is told to its owner
+	go s.notify.SignedIn(u.ID, u.Username, clientIP(r), r.UserAgent())
 
 	log.Printf("[auth] login success user=%q role=%q remote=%s", u.Username, u.Role, remoteAddr(r))
 	s.writeJSON(w, http.StatusOK, jsonResponse{
