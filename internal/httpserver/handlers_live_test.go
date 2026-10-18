@@ -54,7 +54,8 @@ func TestPushLiveStateSendsSummaryAndRevision(t *testing.T) {
 
 	waitFor := func(check func() bool) {
 		t.Helper()
-		deadline := time.Now().Add(3 * time.Second)
+		// the summary probes Docker and the host: a CI runner can need several seconds for it
+		deadline := time.Now().Add(30 * time.Second)
 		for time.Now().Before(deadline) {
 			mu.Lock()
 			ok := check()
