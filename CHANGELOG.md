@@ -2,6 +2,35 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.30.0] - 2026-10-18
+
+15 perubahan, utamanya the Notifications tab for Telegram, the queue and the alert thresholds.
+
+### Fitur baru
+- **hosting:** Order page, buyers' plan card, trials, own domains and token guide in the UI ([`e2eb645`](https://github.com/friskipradana/y-panel/commit/e2eb645))
+- **hosting:** Orders, trials, reminders and buyers' own domains in the agent ([`8e45a72`](https://github.com/friskipradana/y-panel/commit/8e45a72))
+- **notify:** A safe realtime queue, attack alerts that wait for a pattern, and Telegram ([`355ffa6`](https://github.com/friskipradana/y-panel/commit/355ffa6))
+- **settings:** The Notifications tab for Telegram, the queue and the alert thresholds ([`297b2a4`](https://github.com/friskipradana/y-panel/commit/297b2a4))
+
+### Perbaikan
+- **desktop:** The wallpaper loader no longer covers the desktop ([`46e5c8c`](https://github.com/friskipradana/y-panel/commit/46e5c8c))
+
+### Peningkatan
+- **settings:** Tidy the Payments tab ([`bac880d`](https://github.com/friskipradana/y-panel/commit/bac880d))
+- **settings:** The bank notification reader lives under Payments ([`c2e42b5`](https://github.com/friskipradana/y-panel/commit/c2e42b5))
+- **settings:** A denser Settings window, and one Notifications tab ([`a6519ff`](https://github.com/friskipradana/y-panel/commit/a6519ff))
+- **speedtest:** The Speed Test window uses the shared buttons and badges ([`1d14c73`](https://github.com/friskipradana/y-panel/commit/1d14c73))
+- **taskbar:** The notification bell is its own component, flatter and denser ([`afd9e3a`](https://github.com/friskipradana/y-panel/commit/afd9e3a))
+
+### Dokumentasi
+- **hosting:** Step list for testing the purchase flow on a real server ([`2775d14`](https://github.com/friskipradana/y-panel/commit/2775d14))
+- **notifications:** Realtime delivery through the queue, race conditions, thresholds for attacks ([`5d671bd`](https://github.com/friskipradana/y-panel/commit/5d671bd))
+- **notifications:** Security notices for every account, and the order process in steps ([`c5555be`](https://github.com/friskipradana/y-panel/commit/c5555be))
+- **notifications:** Design of the Telegram, WhatsApp Cloud and WAHA channels ([`1882840`](https://github.com/friskipradana/y-panel/commit/1882840))
+- **notify:** What stage 1 built and where it differs, the Telegram test steps ([`96caa6a`](https://github.com/friskipradana/y-panel/commit/96caa6a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.29.0...v1.30.0
+
 ## [1.29.0] - 2026-10-18
 
 View menu for the icons, free placement, reset, and a tidier phone bar.
