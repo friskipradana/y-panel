@@ -12,6 +12,11 @@ export interface NotifyChannel {
   checkedAt: string | null
   botUsername?: string
   botName?: string
+  /** WhatsApp Cloud: the number it sends from, the name Meta verified for it, and the ids typed by the owner */
+  phone?: string
+  phoneName?: string
+  phoneId?: string
+  wabaId?: string
 }
 
 export interface NotifyRecipient {
@@ -27,6 +32,9 @@ export interface NotifyRecipient {
 export interface NotifyOverview {
   channels: NotifyChannel[]
   telegram: NotifyRecipient
+  whatsappCloud: NotifyRecipient
+  /** What the owner pastes into the webhook settings of the Meta app */
+  cloudWebhook?: { verifyToken: string; secretSet: boolean } | null
   pending: number
   failed: number
 }
@@ -52,6 +60,8 @@ export interface OutboxItem {
   error: string
   createdAt: string
   sentAt: string | null
+  /** What the channel said after it left: delivered, read, failed */
+  providerStatus?: string
   /** What the message said, with its few HTML tags */
   text: string
 }
@@ -72,17 +82,17 @@ export const getNotifyOverview = () => agentApi.get<NotifyOverview>('/api/v1/not
 export const saveTelegramChannel = (body: { enabled: boolean; botToken?: string }) =>
   agentApi.put<NotifyOverview>('/api/v1/notify/channels/telegram', body).then((r) => r.data)
 
-export const testTelegram = () => agentApi.post<{ id: number }>('/api/v1/notify/channels/telegram/test').then((r) => r.data)
+export const testTelegram = () => agentApi.post<{ id: number }>('/api/v1/me/telegram/test').then((r) => r.data)
 
-export const startTelegramLink = () => agentApi.post<NotifyLink>('/api/v1/notify/recipients/telegram/link').then((r) => r.data)
+export const startTelegramLink = () => agentApi.post<NotifyLink>('/api/v1/me/telegram/link').then((r) => r.data)
 
 export const checkTelegramLink = () =>
-  agentApi.post<{ linked: boolean; telegram: NotifyRecipient }>('/api/v1/notify/recipients/telegram/link/check').then((r) => r.data)
+  agentApi.post<{ linked: boolean; telegram: NotifyRecipient }>('/api/v1/me/telegram/link/check').then((r) => r.data)
 
 export const setTelegramMuted = (mutedEvents: string[]) =>
-  agentApi.put<NotifyRecipient>('/api/v1/notify/recipients/telegram', { mutedEvents }).then((r) => r.data)
+  agentApi.put<NotifyRecipient>('/api/v1/me/telegram', { mutedEvents }).then((r) => r.data)
 
-export const unlinkTelegram = () => agentApi.delete<{ ok: boolean }>('/api/v1/notify/recipients/telegram').then((r) => r.data)
+export const unlinkTelegram = () => agentApi.delete<{ ok: boolean }>('/api/v1/me/telegram').then((r) => r.data)
 
 export const listOutbox = (status: string) =>
   agentApi
@@ -99,3 +109,93 @@ export const saveThresholds = (detectors: Detector[]) =>
 
 export const resetThresholds = () =>
   agentApi.delete<{ detectors: Detector[]; defaults: Detector[] }>('/api/v1/notify/thresholds').then((r) => r.data)
+
+export type WahaState = 'off' | 'starting' | 'running' | 'stopped' | 'error'
+
+export interface WahaStatus {
+  state: WahaState
+  enabled: boolean
+  image: string
+  engine: string
+  version: string
+  sessions: number
+  lastError: string
+  /** Only reachable from the server itself: the container listens on the loopback address */
+  dashboardUrl: string
+  dashboardUser: string
+  dashboardPassword: string
+}
+
+export const getWahaStatus = () => agentApi.get<WahaStatus>('/api/v1/notify/waha').then((r) => r.data)
+
+export const setWahaEnabled = (enabled: boolean) => agentApi.put<WahaStatus>('/api/v1/notify/waha', { enabled }).then((r) => r.data)
+
+export const restartWaha = () => agentApi.post<WahaStatus>('/api/v1/notify/waha/restart').then((r) => r.data)
+
+export type WhatsAppStatus = 'STOPPED' | 'STARTING' | 'SCAN_QR_CODE' | 'WORKING' | 'FAILED'
+
+export interface MyWhatsApp {
+  /** The owner switched WhatsApp on and it answers */
+  available: boolean
+  status: WhatsAppStatus
+  connected: boolean
+  /** Masked */
+  phone: string
+  sessionName: string
+  recipient: NotifyRecipient
+}
+
+export const getMyWhatsApp = () => agentApi.get<MyWhatsApp>('/api/v1/me/whatsapp').then((r) => r.data)
+
+export const connectWhatsApp = () => agentApi.post<MyWhatsApp>('/api/v1/me/whatsapp/connect').then((r) => r.data)
+
+export const getWhatsAppQR = () => agentApi.get<Blob>('/api/v1/me/whatsapp/qr', { responseType: 'blob' }).then((r) => r.data)
+
+export const setWhatsAppMuted = (mutedEvents: string[]) =>
+  agentApi.put<NotifyRecipient>('/api/v1/me/whatsapp', { mutedEvents }).then((r) => r.data)
+
+export const testWhatsApp = () => agentApi.post<{ id: number }>('/api/v1/me/whatsapp/test').then((r) => r.data)
+
+export const disconnectWhatsApp = () => agentApi.delete<{ ok: boolean }>('/api/v1/me/whatsapp').then((r) => r.data)
+
+export interface CloudInput {
+  enabled: boolean
+  /** Left out, the saved token stays */
+  accessToken?: string
+  phoneId: string
+  wabaId: string
+  /** Left out, the saved app secret stays */
+  appSecret?: string
+}
+
+export const saveCloudChannel = (body: CloudInput) =>
+  agentApi.put<NotifyOverview>('/api/v1/notify/channels/whatsapp-cloud', body).then((r) => r.data)
+
+export type TemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'PAUSED' | 'MISSING' | string
+
+export interface CloudTemplate {
+  name: string
+  language: string
+  event: string
+  body: string
+  status: TemplateStatus
+}
+
+export const getCloudTemplates = () =>
+  agentApi.get<{ templates: CloudTemplate[] }>('/api/v1/notify/whatsapp-cloud/templates').then((r) => r.data.templates)
+
+export const createCloudTemplates = () =>
+  agentApi.post<{ created: number }>('/api/v1/notify/whatsapp-cloud/templates').then((r) => r.data)
+
+export const setCloudNumber = (number: string) =>
+  agentApi.put<NotifyRecipient>('/api/v1/notify/recipients/whatsapp-cloud', { number }).then((r) => r.data)
+
+export const setCloudMuted = (mutedEvents: string[]) =>
+  agentApi.put<NotifyRecipient>('/api/v1/notify/recipients/whatsapp-cloud/muted', { mutedEvents }).then((r) => r.data)
+
+export const removeCloudNumber = () => agentApi.delete<{ ok: boolean }>('/api/v1/notify/recipients/whatsapp-cloud').then((r) => r.data)
+
+export const testCloud = () => agentApi.post<{ id: number }>('/api/v1/notify/channels/whatsapp-cloud/test').then((r) => r.data)
+
+/** What an account needs to link its own Telegram, in the shape of the settings overview */
+export const getMyTelegramOverview = () => agentApi.get<NotifyOverview>('/api/v1/me/telegram').then((r) => r.data)

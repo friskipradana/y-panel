@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, Link2, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
-import { checkTelegramLink, setTelegramMuted, startTelegramLink, unlinkTelegram, type NotifyChannel, type NotifyLink, type NotifyOverview, type NotifyRecipient } from '@/api/notify'
+import { checkTelegramLink, setTelegramMuted, startTelegramLink, testTelegram, unlinkTelegram, type NotifyChannel, type NotifyLink, type NotifyOverview, type NotifyRecipient } from '@/api/notify'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -20,7 +20,7 @@ const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 // Where the notices of this account go: the link to a Telegram chat, and which kinds of notice are wanted
-export function MyTelegram({ channel, recipient }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined }) {
+export function MyTelegram({ channel, recipient, groups = GROUPS }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined; groups?: readonly string[] }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [link, setLink] = useState<NotifyLink | null>(null)
@@ -62,6 +62,14 @@ export function MyTelegram({ channel, recipient }: { channel: NotifyChannel | un
     mutationFn: setTelegramMuted,
     onSuccess: (telegram) => setOverview({ telegram }),
     onError: (error) => toast.error(apiError(error, t('notify.me.saveFailed'))),
+  })
+  const test = useMutation({
+    mutationFn: testTelegram,
+    onSuccess: () => {
+      toast.success(t('notify.telegram.testQueued'))
+      void qc.invalidateQueries({ queryKey: ['notify', 'outbox'] })
+    },
+    onError: (error) => toast.error(apiError(error, t('notify.telegram.testFailed'))),
   })
   const unlink = useMutation({
     mutationFn: unlinkTelegram,
@@ -108,15 +116,20 @@ export function MyTelegram({ channel, recipient }: { channel: NotifyChannel | un
                 </p>
               ) : null}
             </div>
-            <Button variant="danger-soft" size="sm" icon={<Unlink className="h-3.5 w-3.5" />} loading={unlink.isPending} onClick={() => void confirmUnlink()}>
-              {t('notify.me.disconnect')}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={!ready || !!recipient.blocked} loading={test.isPending} onClick={() => test.mutate()}>
+                {t('notify.telegram.test')}
+              </Button>
+              <Button variant="danger-soft" size="sm" icon={<Unlink className="h-3.5 w-3.5" />} loading={unlink.isPending} onClick={() => void confirmUnlink()}>
+                {t('notify.me.disconnect')}
+              </Button>
+            </div>
           </div>
           {recipient.blocked ? <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{t('notify.me.blocked')}</p> : null}
 
           <div className="flex flex-col gap-1">
             <p className="text-[12px] font-medium text-[var(--text-secondary)]">{t('notify.me.which')}</p>
-            {GROUPS.map((group) => (
+            {groups.map((group) => (
               <SettingRow
                 key={group}
                 title={t(`notify.group.${group}`)}

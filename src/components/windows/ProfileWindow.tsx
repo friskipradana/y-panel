@@ -17,6 +17,8 @@ import { useI18n } from '@/lib/i18n'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { AccountSecurityCard } from '@/components/windows/profile/AccountSecurityCard'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
+import { MyTelegramCard } from '@/components/windows/profile/MyTelegramCard'
+import { MyWhatsAppCard } from '@/components/windows/profile/MyWhatsAppCard'
 
 export default function ProfileWindow() {
   const { t } = useI18n()
@@ -107,6 +109,8 @@ export default function ProfileWindow() {
           </div>
 
           <MyPlanCard />
+          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyTelegramCard groups={['security']} /> : null}
+          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyWhatsAppCard groups={['security', 'buyer']} /> : null}
           <AccountSecurityCard />
 
           {/* ── Shortcuts / Quick Management ── */}

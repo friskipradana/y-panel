@@ -85,6 +85,8 @@ export interface PublicHosting {
   orderMessage?: string
   /** Buyers may sign up and pay on the page */
   selfSignup?: boolean
+  /** WhatsApp can carry the notices about an order, so the form asks for a number */
+  whatsapp?: boolean
   /** The domains a buyer may pick a panel address under */
   domains?: { zoneId: string; name: string }[]
   plans: PublicPlan[]
@@ -123,6 +125,8 @@ export interface CreateOrderInput {
   /** The panel address, when the plan includes one */
   subLabel?: string
   subZoneId?: string
+  /** Where the notices about the order go */
+  whatsapp?: string
 }
 
 export const createPublicOrder = (input: CreateOrderInput) =>

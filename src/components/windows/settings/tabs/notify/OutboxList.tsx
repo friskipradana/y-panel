@@ -83,6 +83,7 @@ export function OutboxList() {
                 <span className="panel-mono text-[11px] text-[var(--text-secondary)]">
                   {item.username || '-'} · {item.address} · <DateTimeText value={item.sentAt ?? item.createdAt} />
                   {item.attempts > 1 ? ` · ${t('notify.queue.attempts', { count: item.attempts })}` : ''}
+                  {item.providerStatus ? ` · ${t(`notify.provider.${item.providerStatus}`)}` : ''}
                   {item.error ? ` · ${item.error}` : ''}
                 </span>
               }

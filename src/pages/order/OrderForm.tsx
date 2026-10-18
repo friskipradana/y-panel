@@ -24,7 +24,7 @@ export function OrderForm() {
   const [slug, setSlug] = useState(params.get('plan') ?? '')
   const [trial, setTrial] = useState(params.get('trial') === '1')
   const [periods, setPeriods] = useState('1')
-  const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '' })
+  const [form, setForm] = useState({ username: '', email: '', displayName: '', password: '', whatsapp: '' })
   const [address, setAddress] = useState<SubdomainChoice>({ label: '', zoneId: '', available: false })
   const patch = (next: Partial<typeof form>) => setForm((current) => ({ ...current, ...next }))
 
@@ -35,6 +35,7 @@ export function OrderForm() {
   const needsAddress = !!plan && plan.maxSubdomains > 0
   const domains = query.data?.domains ?? []
   const isTrial = trial && trialOffered
+  const whatsappRequired = !!query.data?.whatsapp
   const maxPeriods = plan ? MAX_PERIODS[plan.period] : 1
   const count = Math.min(Math.max(Number(periods) || 1, 1), maxPeriods)
   const total = plan ? plan.priceAmount * count : 0
@@ -42,7 +43,7 @@ export function OrderForm() {
   const submit = useMutation({
     mutationFn: () =>
       createPublicOrder({
-        planId: plan!.id, kind: isTrial ? 'trial' : 'new', periods: isTrial ? 1 : count, ...form,
+        planId: plan!.id, kind: isTrial ? 'trial' : 'new', periods: isTrial ? 1 : count, ...form, whatsapp: form.whatsapp.trim() || undefined,
         ...(needsAddress ? { subLabel: address.label, subZoneId: address.zoneId } : {}),
       }),
     onSuccess: (order) => navigate(`/order/${order.publicId}`),
@@ -116,6 +117,9 @@ export function OrderForm() {
         </Field>
         <Field label={t('order.email')} htmlFor="order-email">
           <TextInput id="order-email" type="email" autoComplete="email" required value={form.email} onChange={(e) => patch({ email: e.target.value })} />
+        </Field>
+        <Field label={t('order.whatsapp')} htmlFor="order-whatsapp" hint={t(whatsappRequired ? 'order.whatsappHint' : 'order.whatsappOptionalHint')}>
+          <TextInput id="order-whatsapp" mono type="tel" inputMode="tel" autoComplete="tel" required={whatsappRequired} placeholder="0812 3456 7890" value={form.whatsapp} onChange={(e) => patch({ whatsapp: e.target.value })} />
         </Field>
         <Field label={t('order.displayName')} htmlFor="order-name">
           <TextInput id="order-name" autoComplete="name" maxLength={60} value={form.displayName} onChange={(e) => patch({ displayName: e.target.value })} />
