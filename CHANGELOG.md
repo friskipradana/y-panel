@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.29.0] - 2026-10-18
+
+View menu for the icons, free placement, reset, and a tidier phone bar.
+
+### Fitur baru
+- **desktop,mobile:** View menu for the icons, free placement, reset, and a tidier phone bar ([`0038e95`](https://github.com/friskipradana/y-panel/commit/0038e95))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.28.1...v1.29.0
+
 ## [1.28.1] - 2026-10-18
 
 Origin editor is tall enough, host and origin lists are chips, the tip is one line.
