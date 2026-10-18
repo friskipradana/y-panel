@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.31.0] - 2026-10-18
+
+3 perubahan, utamanya whatsApp and Cloud cards, the buyer's number in the order form, and Telegram and WhatsApp in Profile.
+
+### Fitur baru
+- **notify:** WhatsApp through WAHA and Meta Cloud, notices to buyers, and answers from people ([`ab5a76f`](https://github.com/friskipradana/y-panel/commit/ab5a76f))
+- **notify-ui:** WhatsApp and Cloud cards, the buyer's number in the order form, and Telegram and WhatsApp in Profile ([`16edb71`](https://github.com/friskipradana/y-panel/commit/16edb71))
+
+### Dokumentasi
+- **notify:** Stages 2 to 5, the proof with a real WAHA container, and how to test each channel ([`74d302c`](https://github.com/friskipradana/y-panel/commit/74d302c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.30.1...v1.31.0
+
 ## [1.30.1] - 2026-10-18
 
 2 perubahan, utamanya switching windows is lighter, the hover header grows the whole widget, and View has its own icon.
