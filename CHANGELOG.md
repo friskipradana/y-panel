@@ -2,6 +2,19 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.10.1] - 2026-10-18
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.10.1** berisi 1 perubahan: 1 fitur. (16 files changed, 538 insertions(+), 266 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **agent,ui:** Push summary, history and revision over the live socket; translate the Indonesian strings ([`5e464d1`](https://github.com/friskipradana/y-panel/commit/5e464d1))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.10.0...v4.10.1
+
 ## [4.10.0] - 2026-10-18
 
 ### 🌟 Ringkasan Rilis (Release Overview)
