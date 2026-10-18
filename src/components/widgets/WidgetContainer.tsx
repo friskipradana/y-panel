@@ -81,6 +81,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const headerRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const viewport = useViewport()
   const Component = WIDGET_COMPONENTS[widget.type]
@@ -191,6 +192,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     e.preventDefault()
     e.stopPropagation()
     const card = containerRef.current
+    const body = bodyRef.current
     if (!card) return
 
     const start = { x: e.clientX, y: e.clientY, left, top, w: width, h: height }
@@ -223,7 +225,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       card.style.left = `${nx}px`
       card.style.top = `${ny}px`
       card.style.width = `${cw}px`
-      card.style.height = `${ch}px`
+      if (body) body.style.height = `${ch}px`
       card.style.setProperty('--ws', String(contentScale(cw)))
     }
 
@@ -245,7 +247,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         card.style.left = `${start.left}px`
         card.style.top = `${start.top}px`
         card.style.width = `${start.w}px`
-        card.style.height = `${start.h}px`
+        if (body) body.style.height = widget.h ? `${widget.h}px` : ''
         return
       }
       resizeWidget(widget.id, rect)
@@ -268,8 +270,6 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         left,
         top,
         width,
-        // a size set by the user is exact; otherwise the card is as tall as its content needs
-        ...(widget.h ? { height: widget.h, minHeight: WIDGET_MIN_HEIGHT } : { minHeight: WIDGET_HEIGHTS[widget.type] || 165 }),
         background,
         color: 'var(--win-text)',
         boxShadow: isDragging ? 'var(--widget-shadow-hover)' : 'var(--widget-shadow)',
@@ -328,9 +328,16 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
         </div>
       </div>
 
-      <div className={`flex min-h-0 flex-1 flex-col ${widget.h ? 'overflow-hidden' : ''}`} style={{ zoom: 'var(--ws)' }}>
-        <div className="@container flex min-h-0 flex-1 flex-col">
-          <Component widget={widget} />
+      {/* the body holds the height (set by the user, or the minimum for its type), so the hover header grows the whole card */}
+      <div
+        ref={bodyRef}
+        className="flex min-h-0 flex-1 flex-col"
+        style={widget.h ? { height: widget.h, minHeight: WIDGET_MIN_HEIGHT } : { minHeight: WIDGET_HEIGHTS[widget.type] || 165 }}
+      >
+        <div className={`flex min-h-0 flex-1 flex-col ${widget.h ? 'overflow-hidden' : ''}`} style={{ zoom: 'var(--ws)' }}>
+          <div className="@container flex min-h-0 flex-1 flex-col">
+            <Component widget={widget} />
+          </div>
         </div>
       </div>
 

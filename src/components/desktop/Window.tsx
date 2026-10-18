@@ -314,7 +314,6 @@ export function Window({ win, children }: Props) {
         scale: win.isMinimized ? 0.88 : 1,
         opacity: win.isMinimized ? 0 : 1,
         y: win.isMinimized ? 40 : 0,
-        filter: isFocused ? 'brightness(1)' : 'brightness(0.975)',
         pointerEvents: win.isMinimized ? 'none' : 'auto',
       }}
       exit={animation.exit}
@@ -333,7 +332,7 @@ export function Window({ win, children }: Props) {
           : isFocused
             ? 'var(--win-shadow-focus)'
             : 'var(--win-shadow)',
-        transition: 'box-shadow 200ms ease, border-color 200ms ease, border-radius 200ms ease',
+        transition: 'box-shadow 100ms ease, border-color 100ms ease, border-radius 150ms ease',
         backdropFilter: 'blur(20px)',
       }}
       onMouseDown={() => focusWindow(win.id)}

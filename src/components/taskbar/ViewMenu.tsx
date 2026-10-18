@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { ArrowDownAZ, Check, ChevronDown, Grid2x2, LayoutGrid, Move, RotateCcw, Rows3, Eye, Magnet } from 'lucide-react'
+import { ArrowDownAZ, Check, ChevronDown, Grid2x2, LayoutGrid, Move, RotateCcw, Rows3, Eye, Magnet, PanelsTopLeft } from 'lucide-react'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { MENU_ITEMS, CATEGORIES } from '@/components/taskbar/appCatalog'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
@@ -109,7 +109,7 @@ export function ViewMenu({ role }: { role?: string | null }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <LayoutGrid size={15} className="shrink-0 text-[var(--tb-text)]" aria-hidden="true" />
+        <PanelsTopLeft size={15} strokeWidth={1.75} className="shrink-0 text-[var(--tb-text)]" aria-hidden="true" />
         <span className="font-sans text-[13px] font-medium tracking-normal text-[var(--tb-text)]">{t('desktop.view.title')}</span>
         <ChevronDown size={12} className={`text-[var(--tb-text)] opacity-60 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
