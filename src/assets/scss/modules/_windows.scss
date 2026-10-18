@@ -1471,3 +1471,28 @@ button:focus-visible,
 .settings-card > .section-header {
   margin-bottom: 0;
 }
+
+// A meter that is filling up changes colour: warning from 75%, danger from 90%
+.panel-kpi-card__percent {
+  color: var(--panel-primary-text);
+}
+
+.panel-kpi-card[data-level='warn'] {
+  .panel-kpi-card__percent {
+    color: var(--panel-warning-text);
+  }
+
+  .panel-progress__bar {
+    background: var(--panel-warning-text);
+  }
+}
+
+.panel-kpi-card[data-level='crit'] {
+  .panel-kpi-card__percent {
+    color: var(--panel-danger-text);
+  }
+
+  .panel-progress__bar {
+    background: var(--panel-danger-solid);
+  }
+}
