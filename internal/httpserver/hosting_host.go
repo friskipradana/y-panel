@@ -37,6 +37,9 @@ func (s *Server) hostingHostOwner(host string) int64 {
 	var owner int64
 	if row, err := s.database.GetHostingSubdomainByHostname(host); err == nil && row != nil {
 		owner = row.UserID
+	} else if custom, err := s.database.GetHostingCustomDomainByHostname(host); err == nil && custom != nil {
+		// a domain of the buyer's own is their address as well
+		owner = custom.UserID
 	}
 	hostingHostCache.Store(host, hostingHostEntry{owner: owner, at: time.Now()})
 	return owner

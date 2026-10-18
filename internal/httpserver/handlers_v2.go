@@ -335,12 +335,14 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 		r.UserAgent(),
 	)
 	if err != nil {
-		if !errors.Is(err, auth.ErrUserSuspended) {
+		if !errors.Is(err, auth.ErrUserSuspended) && !errors.Is(err, auth.ErrUserPending) {
 			loginFailures.fail(req.Username)
 		}
 		switch {
 		case errors.Is(err, auth.ErrUserSuspended):
 			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "account suspended"})
+		case errors.Is(err, auth.ErrUserPending):
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "account waiting for payment"})
 		default:
 			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "invalid credentials"})
 		}
@@ -657,6 +659,7 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	_ = s.database.DeleteUserSessions(targetUser.ID)
 	// the DNS records of their subdomains must go before the rows do
 	s.releaseUserSubdomains(targetUser.ID)
+	s.releaseUserCustomDomains(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return

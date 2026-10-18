@@ -21,6 +21,8 @@ const (
 	planMaxFeatureLen  = 100
 	planMaxPrice       = 1_000_000_000
 	planMaxSubdomains  = 200
+	planMaxCustomDomains = 50
+	planMaxTrialDays   = 90
 	planMaxGraceDays   = 90
 	planMaxOrderURLLen = 300
 )
@@ -52,7 +54,7 @@ func exampleHostingPlans() []database.HostingPlan {
 				"Beberapa proyek dan database sekaligus",
 				"Ruang disk dan RAM yang lebih besar",
 			},
-			MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 10240, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3,
+			MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 10240, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3, MaxCustomDomains: 1,
 			Highlighted: true, Visible: true, SortOrder: 1,
 		},
 		{
@@ -62,7 +64,7 @@ func exampleHostingPlans() []database.HostingPlan {
 				"Batas proyek, database, dan subdomain tertinggi",
 				"CPU dan RAM terbesar",
 			},
-			MaxProjects: 15, MaxTunnels: 15, MaxDatabases: 10, DiskQuotaMB: 51200, CPULimitPct: 400, MemoryLimitMB: 4096, MaxSubdomains: 10,
+			MaxProjects: 15, MaxTunnels: 15, MaxDatabases: 10, DiskQuotaMB: 51200, CPULimitPct: 400, MemoryLimitMB: 4096, MaxSubdomains: 10, MaxCustomDomains: 3,
 			Visible: true, SortOrder: 2,
 		},
 	}
@@ -97,8 +99,12 @@ func validatePlan(p database.HostingPlan) error {
 		return errors.New("period must be monthly, yearly or once")
 	case len(p.Features) > planMaxFeatures:
 		return fmt.Errorf("at most %d features", planMaxFeatures)
+	case p.MaxCustomDomains < 0 || p.MaxCustomDomains > planMaxCustomDomains:
+		return fmt.Errorf("custom domains must be between 0 and %d", planMaxCustomDomains)
 	case p.MaxSubdomains < 0 || p.MaxSubdomains > planMaxSubdomains:
 		return fmt.Errorf("subdomains must be between 0 and %d", planMaxSubdomains)
+	case p.TrialDays < 0 || p.TrialDays > planMaxTrialDays:
+		return fmt.Errorf("trial must be between 0 and %d days", planMaxTrialDays)
 	case p.SortOrder < -1000 || p.SortOrder > 1000:
 		return errors.New("sort order must be between -1000 and 1000")
 	}

@@ -41,6 +41,8 @@ const (
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUserSuspended      = errors.New("account suspended")
+	// ErrUserPending: the account was made by a self-service order that is not paid yet
+	ErrUserPending = errors.New("account waiting for payment")
 	ErrUserNotFound       = errors.New("user not found")
 )
 
@@ -90,6 +92,10 @@ func (m *Manager) Login(username, password, ip, ua string) (string, *database.Us
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
 		return "", nil, ErrInvalidCredentials
+	}
+	// said only to someone who knows the password: a wrong one learns nothing about the account
+	if u.Status == "pending" {
+		return "", nil, ErrUserPending
 	}
 
 	token, err := randomToken(32)

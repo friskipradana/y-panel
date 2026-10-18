@@ -164,7 +164,7 @@ func (s *Server) syncHostingRoutes() {
 	}
 
 	// the tunnel: ingress at Cloudflare and the local cloudflared that carries it
-	rules := ingressFor(ready)
+	rules := append(ingressFor(ready), s.customIngress(panelService(s.cfg.BindAddr), s.hostingEnabled())...)
 	key := rulesKey(rules)
 	last, _ := hostingLastKeys.Load(tunnelID)
 	if last != key || !s.cfDaemon.IsRunning(tunnelID) {

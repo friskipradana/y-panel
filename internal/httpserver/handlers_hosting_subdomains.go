@@ -23,11 +23,7 @@ func (s *Server) subdomainLimit(u *database.User) int {
 	if u == nil || u.Role == auth.SuperadminRole {
 		return 0
 	}
-	up, _ := s.database.GetUserPlan(u.ID)
-	if up == nil || up.PlanID == nil {
-		return 0
-	}
-	plan, _ := s.database.GetHostingPlan(*up.PlanID)
+	plan := s.effectivePlan(u)
 	if plan == nil {
 		return 0
 	}
@@ -94,6 +90,12 @@ func (s *Server) subdomainAvailability(label, zoneID string) (reason string, dom
 		return "this domain is not offered", nil, nil
 	}
 	hostname := hostnameFor(label, domain.Name)
+	// an address a buyer picked in an order that waits for its payment is theirs for now
+	if held, heldErr := s.database.SubdomainReserved(hostname); heldErr != nil {
+		return "", domain, heldErr
+	} else if held {
+		return "this name is taken", domain, nil
+	}
 	all, listErr := s.database.ListHostingSubdomains(0)
 	if listErr != nil {
 		return "", domain, listErr

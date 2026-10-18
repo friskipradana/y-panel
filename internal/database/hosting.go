@@ -29,7 +29,11 @@ type HostingPlan struct {
 	CPULimitPct   int       `json:"cpuLimitPct"`
 	MemoryLimitMB int       `json:"memoryLimitMb"`
 	MaxSubdomains int       `json:"maxSubdomains"`
-	Highlighted   bool      `json:"highlighted"`
+	// MaxCustomDomains is how many domains of their own a buyer may point at their panel; 0 means none
+	MaxCustomDomains int `json:"maxCustomDomains"`
+	// TrialDays is how long a buyer may try the plan for free; 0 offers no trial
+	TrialDays   int       `json:"trialDays"`
+	Highlighted bool      `json:"highlighted"`
 	Visible       bool      `json:"visible"`
 	SortOrder     int       `json:"sortOrder"`
 	CreatedAt     time.Time `json:"createdAt"`
@@ -42,7 +46,7 @@ type HostingPlan struct {
 var ErrPlanInUse = errors.New("plan is still assigned to accounts")
 
 const planColumns = `p.id, p.slug, p.name, p.tagline, p.price_amount, p.period, p.features,
-	p.max_projects, p.max_tunnels, p.max_databases, p.disk_quota_mb, p.cpu_limit_pct, p.memory_limit_mb, p.max_subdomains,
+	p.max_projects, p.max_tunnels, p.max_databases, p.disk_quota_mb, p.cpu_limit_pct, p.memory_limit_mb, p.max_subdomains, p.max_custom_domains, p.trial_days,
 	p.highlighted, p.visible, p.sort_order, p.created_at, p.updated_at,
 	(SELECT COUNT(*) FROM user_plans up WHERE up.plan_id = p.id)`
 
@@ -50,7 +54,7 @@ func scanPlan(row rowScanner) (*HostingPlan, error) {
 	var p HostingPlan
 	var features []byte
 	if err := row.Scan(&p.ID, &p.Slug, &p.Name, &p.Tagline, &p.PriceAmount, &p.Period, &features,
-		&p.MaxProjects, &p.MaxTunnels, &p.MaxDatabases, &p.DiskQuotaMB, &p.CPULimitPct, &p.MemoryLimitMB, &p.MaxSubdomains,
+		&p.MaxProjects, &p.MaxTunnels, &p.MaxDatabases, &p.DiskQuotaMB, &p.CPULimitPct, &p.MemoryLimitMB, &p.MaxSubdomains, &p.MaxCustomDomains, &p.TrialDays,
 		&p.Highlighted, &p.Visible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.Accounts); err != nil {
 		return nil, err
 	}
@@ -105,10 +109,10 @@ func (m *Manager) CreateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 	var id int64
 	err := m.db.QueryRow(`
 		INSERT INTO hosting_plans (slug, name, tagline, price_amount, period, features, max_projects, max_tunnels, max_databases,
-			disk_quota_mb, cpu_limit_pct, memory_limit_mb, max_subdomains, highlighted, visible, sort_order)
-		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id
+			disk_quota_mb, cpu_limit_pct, memory_limit_mb, max_subdomains, max_custom_domains, trial_days, highlighted, visible, sort_order)
+		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id
 	`, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases,
-		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.Highlighted, p.Visible, p.SortOrder).Scan(&id)
+		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +127,10 @@ func (m *Manager) UpdateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 	res, err := m.db.Exec(`
 		UPDATE hosting_plans SET slug=$2, name=$3, tagline=$4, price_amount=$5, period=$6, features=$7::jsonb,
 			max_projects=$8, max_tunnels=$9, max_databases=$10, disk_quota_mb=$11, cpu_limit_pct=$12, memory_limit_mb=$13,
-			max_subdomains=$14, highlighted=$15, visible=$16, sort_order=$17, updated_at=NOW()
+			max_subdomains=$14, max_custom_domains=$15, trial_days=$16, highlighted=$17, visible=$18, sort_order=$19, updated_at=NOW()
 		WHERE id=$1
 	`, p.ID, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases,
-		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.Highlighted, p.Visible, p.SortOrder)
+		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +170,15 @@ type UserPlan struct {
 	PlanID             *int64     `json:"planId"`
 	ExpiresAt          *time.Time `json:"expiresAt"`
 	SuspendedForExpiry bool       `json:"suspendedForExpiry"`
+	// a trial upgrade in progress: the account runs on TrialPlanID until TrialEndsAt while PlanID waits
+	TrialPlanID    *int64     `json:"trialPlanId"`
+	TrialStartedAt *time.Time `json:"trialStartedAt"`
+	TrialEndsAt    *time.Time `json:"trialEndsAt"`
+}
+
+// TrialRunning says whether a trial upgrade is still in progress at that moment
+func (up *UserPlan) TrialRunning(at time.Time) bool {
+	return up != nil && up.TrialEndsAt != nil && up.TrialEndsAt.After(at)
 }
 
 func (m *Manager) GetUserPlan(userID int64) (*UserPlan, error) {
@@ -173,8 +186,8 @@ func (m *Manager) GetUserPlan(userID int64) (*UserPlan, error) {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var up UserPlan
-	err := m.db.QueryRow(`SELECT user_id, plan_id, expires_at, suspended_for_expiry FROM user_plans WHERE user_id = $1`, userID).
-		Scan(&up.UserID, &up.PlanID, &up.ExpiresAt, &up.SuspendedForExpiry)
+	err := m.db.QueryRow(`SELECT user_id, plan_id, expires_at, suspended_for_expiry, trial_plan_id, trial_started_at, trial_ends_at FROM user_plans WHERE user_id = $1`, userID).
+		Scan(&up.UserID, &up.PlanID, &up.ExpiresAt, &up.SuspendedForExpiry, &up.TrialPlanID, &up.TrialStartedAt, &up.TrialEndsAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -190,7 +203,7 @@ func (m *Manager) SetUserPlan(userID, planID int64, expiresAt *time.Time) error 
 		INSERT INTO user_plans (user_id, plan_id, expires_at, suspended_for_expiry)
 		VALUES ($1, $2, $3, FALSE)
 		ON CONFLICT (user_id) DO UPDATE SET plan_id = EXCLUDED.plan_id, expires_at = EXCLUDED.expires_at,
-			suspended_for_expiry = FALSE, updated_at = NOW()
+			suspended_for_expiry = FALSE, trial_plan_id = NULL, trial_started_at = NULL, trial_ends_at = NULL, updated_at = NOW()
 	`, userID, planID, expiresAt)
 	return err
 }
@@ -218,7 +231,7 @@ func (m *Manager) ListExpiredUserPlans(cutoff time.Time) ([]UserPlan, error) {
 	}
 	rows, err := m.db.Query(`
 		SELECT user_id, plan_id, expires_at, suspended_for_expiry FROM user_plans
-		WHERE expires_at IS NOT NULL AND expires_at <= $1 AND NOT suspended_for_expiry
+		WHERE expires_at IS NOT NULL AND expires_at <= $1 AND NOT suspended_for_expiry AND trial_ends_at IS NULL
 	`, cutoff)
 	if err != nil {
 		return nil, err
@@ -233,6 +246,92 @@ func (m *Manager) ListExpiredUserPlans(cutoff time.Time) ([]UserPlan, error) {
 		out = append(out, up)
 	}
 	return out, rows.Err()
+}
+
+// StartPlanTrial lets an account run on another plan until end. Only an account on a plan, with no trial running.
+func (m *Manager) StartPlanTrial(userID, trialPlanID int64, start, end time.Time) (bool, error) {
+	if !m.IsConnected() {
+		return false, fmt.Errorf("database not connected")
+	}
+	res, err := m.db.Exec(`UPDATE user_plans SET trial_plan_id = $2, trial_started_at = $3, trial_ends_at = $4, updated_at = NOW()
+		WHERE user_id = $1 AND plan_id IS NOT NULL AND trial_ends_at IS NULL`, userID, trialPlanID, start, end)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+// FinishPlanTrial closes a trial and moves the end of the account's own plan later by the time the trial
+// lasted (up to at, when it is cut short). It says whether a trial was running.
+func (m *Manager) FinishPlanTrial(userID int64, at time.Time) (bool, error) {
+	if !m.IsConnected() {
+		return false, fmt.Errorf("database not connected")
+	}
+	res, err := m.db.Exec(`UPDATE user_plans SET
+			expires_at = CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at + (LEAST($2::timestamptz, trial_ends_at) - trial_started_at) END,
+			trial_plan_id = NULL, trial_started_at = NULL, trial_ends_at = NULL, updated_at = NOW()
+		WHERE user_id = $1 AND trial_ends_at IS NOT NULL`, userID, at)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+// ListEndedTrials returns the accounts whose trial time is over
+func (m *Manager) ListEndedTrials(now time.Time) ([]int64, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`SELECT user_id FROM user_plans WHERE trial_ends_at IS NOT NULL AND trial_ends_at <= $1`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// ListPlansToRemind returns the plans that end within the window and whose current end was not reminded yet
+func (m *Manager) ListPlansToRemind(now time.Time, within time.Duration) ([]UserPlan, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	rows, err := m.db.Query(`
+		SELECT user_id, plan_id, expires_at, suspended_for_expiry FROM user_plans
+		WHERE expires_at IS NOT NULL AND expires_at > $1 AND expires_at <= $2
+			AND (reminded_for IS NULL OR reminded_for <> expires_at) AND trial_ends_at IS NULL
+	`, now, now.Add(within))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UserPlan
+	for rows.Next() {
+		var up UserPlan
+		if err := rows.Scan(&up.UserID, &up.PlanID, &up.ExpiresAt, &up.SuspendedForExpiry); err != nil {
+			return nil, err
+		}
+		out = append(out, up)
+	}
+	return out, rows.Err()
+}
+
+// MarkPlanReminded remembers that the end date was announced; a renewal in between changes the date and nothing is marked
+func (m *Manager) MarkPlanReminded(userID int64, expiresAt time.Time) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE user_plans SET reminded_for = expires_at WHERE user_id = $1 AND expires_at = $2`, userID, expiresAt)
+	return err
 }
 
 // ─── Domains and subdomains ───────────────────────────────────────────────────
@@ -568,6 +667,9 @@ type UserHosting struct {
 	SuspendedForExpiry bool
 	Subdomains         int
 	MaxSubdomains      int
+	// the trial upgrade the account is on, if any
+	TrialPlanName string
+	TrialEndsAt   *time.Time
 }
 
 func (m *Manager) UserHostingInfo(ids []int64) (map[int64]UserHosting, error) {
@@ -579,8 +681,9 @@ func (m *Manager) UserHostingInfo(ids []int64) (map[int64]UserHosting, error) {
 		return out, nil
 	}
 	rows, err := m.db.Query(`
-		SELECT up.user_id, up.plan_id, COALESCE(p.name,''), up.expires_at, up.suspended_for_expiry, COALESCE(p.max_subdomains,0)
-		FROM user_plans up LEFT JOIN hosting_plans p ON p.id = up.plan_id
+		SELECT up.user_id, up.plan_id, COALESCE(p.name,''), up.expires_at, up.suspended_for_expiry, COALESCE(p.max_subdomains,0),
+			COALESCE(tp.name,''), up.trial_ends_at
+		FROM user_plans up LEFT JOIN hosting_plans p ON p.id = up.plan_id LEFT JOIN hosting_plans tp ON tp.id = up.trial_plan_id
 		WHERE up.user_id = ANY($1)
 	`, pq.Array(ids))
 	if err != nil {
@@ -589,7 +692,7 @@ func (m *Manager) UserHostingInfo(ids []int64) (map[int64]UserHosting, error) {
 	for rows.Next() {
 		var id int64
 		var h UserHosting
-		if err := rows.Scan(&id, &h.PlanID, &h.PlanName, &h.ExpiresAt, &h.SuspendedForExpiry, &h.MaxSubdomains); err != nil {
+		if err := rows.Scan(&id, &h.PlanID, &h.PlanName, &h.ExpiresAt, &h.SuspendedForExpiry, &h.MaxSubdomains, &h.TrialPlanName, &h.TrialEndsAt); err != nil {
 			rows.Close()
 			return nil, err
 		}

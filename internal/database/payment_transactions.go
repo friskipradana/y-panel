@@ -154,6 +154,19 @@ func (m *Manager) MatchCapturedAmountToPendingTransaction(amountDetected string)
 	return &txn, nil
 }
 
+// NormalizeAmount reads an amount as a bank notification writes it ("Rp 50.123,00" and the like) in whole rupiah.
+func NormalizeAmount(raw string) int64 { return normalizeAmount(strings.TrimSpace(stripDecimals(raw))) }
+
+// stripDecimals drops the cents of "50.123,00" or "50,123.00" so they are not read as two more digits
+func stripDecimals(raw string) string {
+	for _, sep := range []string{",", "."} {
+		if i := strings.LastIndex(raw, sep); i >= 0 && len(raw)-i-1 == 2 {
+			return raw[:i]
+		}
+	}
+	return raw
+}
+
 // normalizeAmount strips non-digit characters and returns the numeric value.
 func normalizeAmount(raw string) int64 {
 	// Remove common prefixes, whitespace, and thousands separators

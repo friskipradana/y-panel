@@ -24,6 +24,7 @@ type Client struct {
 	accountID string
 	zoneID    string
 	http      *http.Client
+	base      string
 }
 
 // NewClient creates a new Client with the given credentials.
@@ -33,7 +34,14 @@ func NewClient(apiToken, accountID, zoneID string) *Client {
 		accountID: accountID,
 		zoneID:    zoneID,
 		http:      &http.Client{Timeout: 15 * time.Second},
+		base:      baseURL,
 	}
+}
+
+// WithBaseURL points the client at another API address; tests use it to talk to a fake Cloudflare
+func (c *Client) WithBaseURL(base string) *Client {
+	c.base = strings.TrimRight(base, "/")
+	return c
 }
 
 // VerifyToken validates the API token against the Cloudflare /user/tokens/verify endpoint.
@@ -56,7 +64,10 @@ type TokenPermissions struct {
 	CanManageDNS   bool   `json:"canManageDNS"`
 	CanEditTunnels bool   `json:"canEditTunnels"`
 	// CanManageRedirects reports access to Single Redirect rules (Rulesets) on the first zone
-	CanManageRedirects bool     `json:"canManageRedirects"`
+	CanManageRedirects bool `json:"canManageRedirects"`
+	// CanManageCustomHostnames reports that the zone answers for custom hostnames: the SSL and Certificates permission
+	// is on the token and Custom Hostnames (Cloudflare for SaaS) is switched on. Only the seller of hosting needs it.
+	CanManageCustomHostnames bool `json:"canManageCustomHostnames"`
 	AccountID          string   `json:"accountId,omitempty"`
 	MissingScopes      []string `json:"missingScopes,omitempty"`
 	Summary            string   `json:"summary"`
@@ -95,6 +106,8 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 			if _, redirErr := c.ListRedirectRules(zones[0].ID); redirErr == nil {
 				perm.CanManageRedirects = true
 			}
+			// so are custom hostnames: they matter only to the seller of hosting
+			perm.CanManageCustomHostnames = c.CanReadCustomHostnames(zones[0].ID)
 		} else {
 			perm.CanManageDNS = true
 		}
@@ -512,7 +525,7 @@ func (c *Client) request(method, path string, body any) (*apiResponse, error) {
 		bodyReader = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, baseURL+path, bodyReader)
+	req, err := http.NewRequest(method, c.base+path, bodyReader)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

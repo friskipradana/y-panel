@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -125,6 +126,7 @@ func (s *Server) handleDeleteHostingPlan(w http.ResponseWriter, r *http.Request)
 
 // publicPlan is a plan as visitors see it: no account counts, no internal ids beyond the slug
 type publicPlan struct {
+	ID            int64    `json:"id"`
 	Slug          string   `json:"slug"`
 	Name          string   `json:"name"`
 	Tagline       string   `json:"tagline"`
@@ -137,7 +139,9 @@ type publicPlan struct {
 	DiskQuotaMB   int64    `json:"diskQuotaMb"`
 	MemoryLimitMB int      `json:"memoryLimitMb"`
 	MaxSubdomains int      `json:"maxSubdomains"`
+	MaxCustomDomains int   `json:"maxCustomDomains"`
 	Highlighted   bool     `json:"highlighted"`
+	TrialDays     int      `json:"trialDays"`
 }
 
 // handlePublicHosting feeds the pricing section of the landing page. Nothing is offered while
@@ -157,12 +161,17 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 	out := make([]publicPlan, 0, len(plans))
 	for _, p := range plans {
 		out = append(out, publicPlan{
-			Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
+			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
 			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, DiskQuotaMB: p.DiskQuotaMB,
-			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, Highlighted: p.Highlighted,
+			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
 		})
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
+	// ordering needs an address to give: without an offered domain the order buttons stay on the old way
+	offered := []map[string]string{}
+	for _, d := range s.enabledHostingDomains() {
+		offered = append(offered, map[string]string{"zoneId": d.ZoneID, "name": d.Name})
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
 }
 
 // ─── Accounts on a plan ───────────────────────────────────────────────────────
@@ -173,6 +182,8 @@ type userPlanView struct {
 	State       string                `json:"state"`
 	GraceEndsAt *time.Time            `json:"graceEndsAt"`
 	GraceDays   int                   `json:"graceDays"`
+	// Trial is the upgrade the account is trying; Plan is then the plan that waits
+	Trial *planTrialView `json:"trial"`
 }
 
 func (s *Server) userPlanView(userID int64) (userPlanView, error) {
@@ -188,7 +199,12 @@ func (s *Server) userPlanView(userID int64) (userPlanView, error) {
 	}
 	view.Plan = plan
 	view.ExpiresAt = up.ExpiresAt
-	view.State, view.GraceEndsAt = planState(up.ExpiresAt, grace, time.Now())
+	now := time.Now()
+	view.State, view.GraceEndsAt = planState(up.ExpiresAt, grace, now)
+	// the plan waits while the trial runs, so it is not counted as ended
+	if view.Trial = s.trialViewFor(up, now); view.Trial != nil {
+		view.State, view.GraceEndsAt = planStateActive, nil
+	}
 	return view, nil
 }
 
@@ -211,6 +227,8 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 		PlanID    *int64  `json:"planId"`
 		ExpiresAt *string `json:"expiresAt"`
 		Months    *int    `json:"months"`
+		// Days gives a trial: the plan ends that many days from now
+		Days *int `json:"days"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -226,6 +244,8 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "the superadmin account does not take a plan"})
 		return
 	}
+	// a trial upgrade in progress ends first, so its time is credited before the plan changes
+	s.finishPlanTrial(userID, time.Now())
 	previous, _ := s.database.GetUserPlan(userID)
 
 	if req.PlanID == nil {
@@ -240,7 +260,16 @@ func (s *Server) handleSetUserPlan(w http.ResponseWriter, r *http.Request) {
 			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "plan not found"})
 			return
 		}
-		expires, err := planEnd(plan, previous, req.ExpiresAt, req.Months, time.Now())
+		now := time.Now()
+		expires, err := planEnd(plan, previous, req.ExpiresAt, req.Months, now)
+		if req.Days != nil {
+			if *req.Days < 1 || *req.Days > planMaxTrialDays {
+				err = errors.New("days must be between 1 and 90")
+			} else {
+				end := now.AddDate(0, 0, *req.Days)
+				expires = &end
+			}
+		}
 		if err != nil {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 			return
@@ -309,6 +338,9 @@ type userHostingView struct {
 	GraceEndsAt   *time.Time `json:"graceEndsAt"`
 	Subdomains    int        `json:"subdomains"`
 	MaxSubdomains int        `json:"maxSubdomains"`
+	// the trial upgrade the account is on, if any
+	TrialPlanName string     `json:"trialPlanName,omitempty"`
+	TrialEndsAt   *time.Time `json:"trialEndsAt,omitempty"`
 }
 
 func hostingViewFor(info database.UserHosting, graceDays int, now time.Time) userHostingView {
@@ -318,6 +350,10 @@ func hostingViewFor(info database.UserHosting, graceDays int, now time.Time) use
 	}
 	view.PlanID, view.PlanName, view.ExpiresAt = info.PlanID, info.PlanName, info.ExpiresAt
 	view.State, view.GraceEndsAt = planState(info.ExpiresAt, graceDays, now)
+	if info.TrialEndsAt != nil && info.TrialEndsAt.After(now) {
+		view.TrialPlanName, view.TrialEndsAt = info.TrialPlanName, info.TrialEndsAt
+		view.State, view.GraceEndsAt = planStateActive, nil
+	}
 	return view
 }
 
@@ -416,6 +452,33 @@ func (s *Server) expirePlans(now time.Time) {
 	}
 }
 
+// planReminderWindow is how long before its end an account is told that its plan is running out
+const planReminderWindow = 3 * 24 * time.Hour
+
+// remindPlans tells the accounts whose plan ends soon, once per end date
+func (s *Server) remindPlans(now time.Time) {
+	if s.database == nil || !s.database.IsConnected() || !s.hostingEnabled() {
+		return
+	}
+	due, err := s.database.ListPlansToRemind(now, planReminderWindow)
+	if err != nil {
+		log.Printf("[hosting] reminder check failed: %v", err)
+		return
+	}
+	for _, up := range due {
+		user, _ := s.database.GetUserByID(up.UserID)
+		if user == nil || user.Role == auth.SuperadminRole || user.Status != "active" || up.ExpiresAt == nil {
+			continue
+		}
+		left := up.ExpiresAt.Sub(now)
+		days := int((left + 24*time.Hour - 1) / (24 * time.Hour))
+		s.notifyUserAction(user.ID, "Paket hosting segera berakhir", fmt.Sprintf("Paket Anda berakhir %s (sekitar %d hari lagi). Perpanjang dari Profil agar akun tidak ditangguhkan.", up.ExpiresAt.Local().Format("02 Jan 2006 15:04"), days), "warning")
+		if err := s.database.MarkPlanReminded(user.ID, *up.ExpiresAt); err != nil {
+			log.Printf("[hosting] could not mark the reminder of %s: %v", user.Username, err)
+		}
+	}
+}
+
 // syncHostingRoutesIfOn repairs the subdomain routes (a restart, a failed call, a project that got its port)
 func (s *Server) syncHostingRoutesIfOn() {
 	if s.hostingEnabled() {
@@ -428,6 +491,10 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	s.expirePlans(time.Now())
+	s.expireOrders(time.Now())
+	s.endPlanTrials(time.Now())
+	s.remindPlans(time.Now())
+	s.refreshPendingCustomDomains()
 	if s.hostingEnabled() {
 		// an install that had hosting mode on before the example plans existed gets them too
 		s.seedExamplePlans()
@@ -439,6 +506,10 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration) {
 			return
 		case <-ticker.C:
 			s.expirePlans(time.Now())
+			s.expireOrders(time.Now())
+			s.endPlanTrials(time.Now())
+			s.remindPlans(time.Now())
+			s.refreshPendingCustomDomains()
 			s.syncHostingRoutesIfOn()
 		}
 	}

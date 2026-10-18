@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Public site switches, kept in the state directory like the demo choice so they work before the
@@ -53,6 +54,19 @@ type siteSettings struct {
 	// ExamplePlansSeeded: the three example plans were offered once (or plans already existed), so they
 	// are not put back after the superadmin deletes them
 	ExamplePlansSeeded bool `json:"examplePlansSeeded"`
+	// SelfSignup lets a buyer sign up and pay for a plan from the landing page. Off by default: the seller
+	// turns it on once the account to pay to is filled in.
+	SelfSignup bool `json:"selfSignup"`
+	// the account the buyer transfers to, shown on the page of an order
+	OrderBank    string `json:"orderBank"`
+	OrderAccount string `json:"orderAccount"`
+	OrderHolder  string `json:"orderHolder"`
+	// OrderExpiryMinutes is how long an order waits for its payment; 0 means a day
+	OrderExpiryMinutes int `json:"orderExpiryMinutes"`
+	// OrderUniqueMax is the largest code added to a price to make the total unique; 0 means 999
+	OrderUniqueMax int `json:"orderUniqueMax"`
+	// TrialApproval: a trial waits for the superadmin instead of starting at once
+	TrialApproval bool `json:"trialApproval"`
 }
 
 var (
@@ -152,6 +166,13 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		OrderMessage    *string `json:"orderMessage"`
 		// OoklaLicenseAccepted can be given and taken back
 		OoklaLicenseAccepted *bool `json:"ooklaLicenseAccepted"`
+		SelfSignup           *bool   `json:"selfSignup"`
+		OrderBank            *string `json:"orderBank"`
+		OrderAccount         *string `json:"orderAccount"`
+		OrderHolder          *string `json:"orderHolder"`
+		OrderExpiryMinutes   *int    `json:"orderExpiryMinutes"`
+		OrderUniqueMax       *int    `json:"orderUniqueMax"`
+		TrialApproval        *bool   `json:"trialApproval"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -193,6 +214,45 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.OoklaLicenseAccepted != nil {
 		next.OoklaLicenseAccepted = *req.OoklaLicenseAccepted
+	}
+	for _, field := range []struct {
+		in  *string
+		out *string
+	}{{req.OrderBank, &next.OrderBank}, {req.OrderAccount, &next.OrderAccount}, {req.OrderHolder, &next.OrderHolder}} {
+		if field.in == nil {
+			continue
+		}
+		text := strings.TrimSpace(*field.in)
+		if utf8.RuneCountInString(text) > orderTextMax || strings.ContainsAny(text, "\r\n") {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("the payment details are one line of at most %d characters each", orderTextMax)})
+			return
+		}
+		*field.out = text
+	}
+	if req.OrderExpiryMinutes != nil {
+		if *req.OrderExpiryMinutes != 0 && (*req.OrderExpiryMinutes < orderMinExpiryMinutes || *req.OrderExpiryMinutes > orderMaxExpiryMinutes) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("an order waits between %d minutes and %d days", orderMinExpiryMinutes, orderMaxExpiryMinutes/1440)})
+			return
+		}
+		next.OrderExpiryMinutes = *req.OrderExpiryMinutes
+	}
+	if req.OrderUniqueMax != nil {
+		if *req.OrderUniqueMax != 0 && (*req.OrderUniqueMax < 9 || *req.OrderUniqueMax > 9999) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "the unique code goes up to a number between 9 and 9999"})
+			return
+		}
+		next.OrderUniqueMax = *req.OrderUniqueMax
+	}
+	if req.TrialApproval != nil {
+		next.TrialApproval = *req.TrialApproval
+	}
+	if req.SelfSignup != nil {
+		// buyers pay to an account: it has to be named before orders are taken
+		if *req.SelfSignup && (next.OrderAccount == "" || next.OrderHolder == "") {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "fill in the account number and its holder before turning on orders"})
+			return
+		}
+		next.SelfSignup = *req.SelfSignup
 	}
 	if err := s.saveSiteSettings(next); err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("could not save the site settings"))
