@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the YPanel project will be documented in this file.
+Semua perubahan penting pada Reneo dicatat di berkas ini.
 
 ## [4.10.1] - 2026-10-18
 

@@ -61,8 +61,15 @@ Penggunaan:
   bun run release:patch      3.1.5 -> 3.1.6
   bun run release:minor      3.1.5 -> 3.2.0
   bun run release:major      3.1.5 -> 4.0.0
-  bun run release            patch (default) atau nomor manual, mis. 3.2.0
+  bun run release            otomatis: naik versi menurut isi commit (lihat di bawah)
+  bun run release 3.2.0      nomor manual
   bun run release:notes      Pratinjau catatan rilis (sama dengan --dry-run)
+
+Naik versi otomatis (semver, dari Conventional Commits sejak tag terakhir):
+  ada breaking change (\`!\` atau BREAKING CHANGE:)   -> major
+  ada feat                                          -> minor
+  selain itu (fix, perf, refactor, docs, chore)      -> patch
+  patch/minor/major yang dipilih sendiri lebih rendah dari anjuran tetap diizinkan, dengan peringatan.
 
 Opsi:
   --dry-run        Pratinjau catatan rilis tanpa mengubah file, commit, atau tag
@@ -168,6 +175,18 @@ function readCommits(range: string): Commit[] {
   return commits;
 }
 
+// ── Bump recommendation ────────────────────────────────────────────────────
+const BUMP_RANK: Record<BumpType, number> = { patch: 0, minor: 1, major: 2 }
+
+// What semver asks for, given what is in the release
+function recommendBump(commits: Commit[]): { bump: BumpType; reason: string } {
+  const breaking = commits.filter((cm) => cm.breaking);
+  if (breaking.length > 0) return { bump: "major", reason: `${breaking.length} breaking change` };
+  const feats = commits.filter((cm) => cm.kind === "feat");
+  if (feats.length > 0) return { bump: "minor", reason: `${feats.length} fitur baru` };
+  return { bump: "patch", reason: "hanya perbaikan, peningkatan, dokumentasi, atau pemeliharaan" };
+}
+
 // ── Release notes ──────────────────────────────────────────────────────────
 function repoWebUrl(): string {
   const upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], { allowFail: true });
@@ -179,14 +198,15 @@ function repoWebUrl(): string {
     .replace(/\.git$/, "");
 }
 
+// Plain titles: the app shows these notes in its Changelog window, where emoji do not belong
 const SECTIONS: Array<{ kind: Kind; title: string }> = [
-  { kind: "feat", title: "🚀 Fitur Baru (Added)" },
-  { kind: "fix", title: "🐛 Perbaikan Bug (Fixed)" },
-  { kind: "perf", title: "⚡ Performa (Performance)" },
-  { kind: "refactor", title: "♻️ Refaktor & Peningkatan (Changed)" },
-  { kind: "docs", title: "📚 Dokumentasi (Documentation)" },
-  { kind: "maintenance", title: "🔧 Pemeliharaan (Chores & Maintenance)" },
-  { kind: "other", title: "📦 Lainnya (Other)" },
+  { kind: "feat", title: "Fitur baru" },
+  { kind: "fix", title: "Perbaikan" },
+  { kind: "perf", title: "Performa" },
+  { kind: "refactor", title: "Peningkatan" },
+  { kind: "docs", title: "Dokumentasi" },
+  { kind: "maintenance", title: "Pemeliharaan" },
+  { kind: "other", title: "Lainnya" },
 ];
 
 function capitalize(text: string): string {
@@ -226,7 +246,7 @@ function generateNotes(opts: {
     counts("maintenance") + counts("other") ? `${counts("maintenance") + counts("other")} pemeliharaan` : "",
   ].filter(Boolean);
 
-  out.push(`\n### 🌟 Ringkasan Rilis (Release Overview)`);
+  out.push(`\n### Ringkasan`);
   if (commits.length === 0) {
     out.push(`Pembaruan rutin stabilitas dan pemeliharaan sistem Reneo.`);
   } else {
@@ -236,19 +256,19 @@ function generateNotes(opts: {
   const breaking = commits.filter((cm) => cm.breaking);
   if (breaking.length > 0) {
     const lines = breaking.map((cm) => `${entryLine(cm, repo)}${cm.breakingNote ? `\n  - ${cm.breakingNote}` : ""}`);
-    out.push(`\n### ⚠️ Perubahan Breaking (Breaking Changes)\n${lines.join("\n")}`);
+    out.push(`\n### Perubahan breaking\n${lines.join("\n")}`);
   }
 
   for (const { kind, title } of SECTIONS) {
-    const items = commits.filter((cm) => cm.kind === kind);
+    const items = commits.filter((cm) => cm.kind === kind && !cm.breaking);
     if (items.length > 0) out.push(`\n### ${title}\n${renderSection(items, repo)}`);
   }
 
   const authors = [...new Set(commits.map((cm) => cm.author).filter(Boolean))];
-  if (authors.length > 0) out.push(`\n### 👥 Kontributor\n${authors.map((a) => `- ${a}`).join("\n")}`);
+  if (authors.length > 0) out.push(`\n### Kontributor\n${authors.map((a) => `- ${a}`).join("\n")}`);
 
   if (repo && prevTag) {
-    out.push(`\n**Full Changelog**: ${repo}/compare/${prevTag}...${tag}`);
+    out.push(`\n**Semua perubahan**: ${repo}/compare/${prevTag}...${tag}`);
   }
   return out.join("\n");
 }
@@ -256,14 +276,14 @@ function generateNotes(opts: {
 // ── CHANGELOG.md ───────────────────────────────────────────────────────────
 function updateChangelogFile(version: string, entry: string) {
   const changelogPath = path.resolve(process.cwd(), "CHANGELOG.md");
-  const header = `# Changelog\n\nAll notable changes to the Reneo project will be documented in this file.\n`;
+  const header = `# Changelog\n\nSemua perubahan penting pada Reneo dicatat di berkas ini.\n`;
   const content = fs.existsSync(changelogPath) ? fs.readFileSync(changelogPath, "utf-8") : header;
 
   if (content.includes(`## [${version}]`)) {
     throw new Error(`CHANGELOG.md sudah memuat entri untuk v${version}`);
   }
 
-  const match = content.match(/# Changelog\s*\n\s*(All notable changes[^\n]*\n)?/i);
+  const match = content.match(/# Changelog\s*\n\s*((?:All notable changes|Semua perubahan penting)[^\n]*\n)?/i);
   let updated: string;
   if (match) {
     const end = match.index! + match[0].length;
@@ -287,7 +307,7 @@ async function main() {
   const isNoPush = args.includes("--no-push");
   const skipChecks = args.includes("--skip-checks");
   const allowDirty = args.includes("--allow-dirty");
-  const bumpArg = args.filter((a) => !a.startsWith("--"))[0] || "patch";
+  const bumpArg = args.filter((a) => !a.startsWith("--"))[0] || "auto";
 
   console.log(`\n${c.bold}${c.cyan}Reneo Release${c.reset}`);
   if (isDryRun) console.log(`${c.yellow}Mode dry-run: tidak ada file, commit, atau tag yang diubah.${c.reset}`);
@@ -300,21 +320,36 @@ async function main() {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   const currentVersion: string = pkg.version || "1.0.0";
 
+  const branch = git(["branch", "--show-current"], { allowFail: true }) || "(detached)";
+  const lastTag = git(["describe", "--tags", "--abbrev=0"], { allowFail: true });
+
+  // The release content comes first: the version follows from it
+  const commits = readCommits(lastTag ? `${lastTag}..HEAD` : "HEAD");
+  const recommended = recommendBump(commits);
+
   let nextVersion: string;
-  if (["patch", "minor", "major"].includes(bumpArg.toLowerCase())) {
-    nextVersion = incrementVersion(currentVersion, bumpArg.toLowerCase() as BumpType);
+  let how = "";
+  if (bumpArg.toLowerCase() === "auto") {
+    nextVersion = incrementVersion(currentVersion, recommended.bump);
+    how = `otomatis: ${recommended.bump} (${recommended.reason})`;
+  } else if (["patch", "minor", "major"].includes(bumpArg.toLowerCase())) {
+    const chosen = bumpArg.toLowerCase() as BumpType;
+    nextVersion = incrementVersion(currentVersion, chosen);
+    how = `dipilih: ${chosen}`;
+    if (BUMP_RANK[chosen] < BUMP_RANK[recommended.bump]) {
+      console.log(`${c.yellow}Peringatan: isi rilis meminta ${recommended.bump} (${recommended.reason}), yang dipilih ${chosen}.${c.reset}`);
+    }
   } else if (/^v?\d+\.\d+\.\d+(?:[-+][\w.]+)?$/.test(bumpArg)) {
     nextVersion = bumpArg.replace(/^v/, "");
+    how = "nomor manual";
   } else {
-    console.error(`${c.red}Argumen "${bumpArg}" tidak dikenal. Pakai patch, minor, major, atau nomor versi (mis. 3.2.0).${c.reset}`);
+    console.error(`${c.red}Argumen "${bumpArg}" tidak dikenal. Pakai auto, patch, minor, major, atau nomor versi (mis. 3.2.0).${c.reset}`);
     process.exit(1);
   }
   const nextTag = `v${nextVersion}`;
 
-  const branch = git(["branch", "--show-current"], { allowFail: true }) || "(detached)";
-  const lastTag = git(["describe", "--tags", "--abbrev=0"], { allowFail: true });
   console.log(`Branch: ${c.bold}${branch}${c.reset}`);
-  console.log(`Versi: ${c.bold}${currentVersion}${c.reset} -> ${c.bold}${c.green}${nextVersion}${c.reset} (tag ${nextTag})`);
+  console.log(`Versi: ${c.bold}${currentVersion}${c.reset} -> ${c.bold}${c.green}${nextVersion}${c.reset} (tag ${nextTag}, ${how})`);
   console.log(`Sejak tag: ${c.bold}${lastTag || "(belum ada tag)"}${c.reset}\n`);
 
   if (git(["tag", "--list", nextTag], { allowFail: true })) {
@@ -322,8 +357,7 @@ async function main() {
     process.exit(1);
   }
 
-  // Release content = commits since last tag. Nothing new means nothing to release.
-  const commits = readCommits(lastTag ? `${lastTag}..HEAD` : "HEAD");
+  // Nothing new since the last tag means nothing to release.
   if (lastTag && git(["rev-list", "--count", `${lastTag}..HEAD`], { allowFail: true }) === "0") {
     console.error(`${c.red}HEAD sudah bertag ${lastTag}; tidak ada perubahan baru untuk dirilis.${c.reset}`);
     process.exit(1);
