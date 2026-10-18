@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck, ListChecks } from 'lucide-react'
-import { listHostingDomains, listHostingPlans } from '@/api/hosting'
+import { getNotificationDevices } from '@/api/payment'
+import { getCustomDomainSetup, listHostingDomains, listHostingPlans } from '@/api/hosting'
 import { getSiteSettings } from '@/api/system'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useI18n } from '@/lib/i18n'
 
-export type HostingSection = 'plans' | 'domains' | 'subdomains' | 'terms' | 'demo'
+export type HostingSection = 'plans' | 'domains' | 'subdomains' | 'orders' | 'payment' | 'terms' | 'demo'
 
 interface Step {
   key: string
@@ -22,6 +23,8 @@ export function HostingChecklist({ onGo }: { onGo: (section: HostingSection) => 
   const site = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
   const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0 })
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0 })
+  const customSetup = useQuery({ queryKey: ['hosting', 'custom-domains'], queryFn: getCustomDomainSetup, retry: 0 })
+  const devices = useQuery({ queryKey: ['notification-devices'], queryFn: getNotificationDevices, retry: 0 })
 
   if (!site.data) return null
   const steps: Step[] = [
@@ -29,7 +32,12 @@ export function HostingChecklist({ onGo }: { onGo: (section: HostingSection) => 
     { key: 'plan', done: (plans.data ?? []).some((plan) => plan.visible), required: true, go: 'plans' },
     { key: 'domain', done: (domains.data ?? []).some((domain) => domain.enabled), required: true, go: 'domains' },
     { key: 'landing', done: site.data.landingEnabled, required: true, go: null },
-    { key: 'order', done: site.data.orderUrl !== '', required: false, go: 'terms' },
+    { key: 'order', done: site.data.orderUrl !== '' || site.data.selfSignup, required: false, go: 'terms' },
+    // self-service ordering: where to pay, the switch, and the listener that reads the transfers
+    { key: 'account', done: site.data.orderAccount !== '' && site.data.orderHolder !== '', required: false, go: 'payment' },
+    { key: 'selfSignup', done: site.data.selfSignup, required: false, go: 'payment' },
+    { key: 'listener', done: (devices.data?.devices ?? []).length > 0 || devices.isError, required: false, go: null },
+    { key: 'customDomains', done: customSetup.data?.ready ?? true, required: false, go: 'domains' },
   ]
   const missing = steps.filter((step) => !step.done)
   const blocking = missing.filter((step) => step.required)

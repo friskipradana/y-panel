@@ -54,6 +54,8 @@ export function useCloudflareSettings() {
   const verifyCFMut = useMutation({
     mutationFn: verifyCFConfig,
     onSuccess: (res) => {
+      // the permission guide marks what this verification found
+      queryClient.setQueryData(["cf-verify"], res.details ?? null);
       if (res.valid) {
         alertLib.fire(
           t("profile.verifySuccessTitle") || "Token Verified",

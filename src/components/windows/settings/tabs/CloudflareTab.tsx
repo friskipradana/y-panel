@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { BadgeCheck, Cloud, Eye, EyeOff, LoaderCircle, Save, Trash2 } from "lucide-react";
+import { CloudflareTokenGuide } from "@/components/cloudflare/CloudflareTokenGuide";
 import { useI18n } from "@/lib/i18n";
 import type { CloudflareSettings } from "../hooks/useCloudflareSettings";
 import { FieldLabel } from "../SettingsPrimitives";
@@ -11,6 +13,7 @@ import { TextInput } from "@/components/ui/Field"
 
 export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }) {
   const { t } = useI18n();
+  const [showGuide, setShowGuide] = useState(false);
   const {
     cfForm,
     setCfForm,
@@ -121,38 +124,17 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
                 {t("settings.cloudflare.deleteCredentials")}
               </Button>
             </div>
+
+            <div className="space-y-3">
+              <Button type="button" variant="ghost" aria-expanded={showGuide} onClick={() => setShowGuide((open) => !open)}>
+                {showGuide ? t("cfguide.hide") : t("cfguide.show")}
+              </Button>
+              {showGuide ? <CloudflareTokenGuide /> : null}
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Permission Guidance Banner */}
-            <div className="rounded-2xl border border-[var(--panel-primary-text)]/20 bg-[var(--panel-primary-bg)] p-4 text-[12px] leading-relaxed">
-              <div className="flex items-start gap-3">
-                <Cloud className="h-5 w-5 text-[var(--panel-primary-text)] shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold text-[var(--win-text)] text-[13px]">
-                    {t("settings.cloudflare.permissionGuideTitle")}
-                  </div>
-                  <p className="mt-1 text-[var(--text-secondary)]">
-                    {t("settings.cloudflare.permissionGuideBody")}
-                  </p>
-                  <ul className="list-disc pl-4 mt-2 space-y-1 font-medium text-[var(--panel-primary-text)]">
-                    <li>Account → Cloudflare Tunnel → Edit</li>
-                    <li>Zone → Zone → Edit & Read</li>
-                    <li>Zone → DNS → Edit</li>
-                  </ul>
-                  <div className="mt-3">
-                    <a
-                      href="https://dash.cloudflare.com/profile/api-tokens"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-semibold underline underline-offset-2 text-[var(--panel-primary-text)] hover:brightness-110"
-                    >
-                      {t("settings.cloudflare.openDashboard")}
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <CloudflareTokenGuide />
 
             <div className="grid grid-cols-1 gap-4">
               <div>

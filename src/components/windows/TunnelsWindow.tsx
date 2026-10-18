@@ -3,6 +3,7 @@ import { DNSModal, DomainModal } from './tunnels/TunnelModals'
 import { useTunnelsWindow } from './tunnels/useTunnelsWindow'
 import { TunnelsToolbar } from './tunnels/TunnelsToolbar'
 import { CloudflareSetupNotice } from './tunnels/CloudflareSetupNotice'
+import { HostingCustomDomainsPanel } from './tunnels/HostingCustomDomainsPanel'
 import { HostingSubdomainsPanel } from './tunnels/HostingSubdomainsPanel'
 import { TunnelsBody } from './tunnels/TunnelsBody'
 import { TunnelModalHost } from './tunnels/TunnelModalHost'
@@ -30,6 +31,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
       <HostingSubdomainsPanel />
+      <HostingCustomDomainsPanel />
       <TunnelsToolbar tw={tw} />
       <CloudflareSetupNotice tw={tw} />
       <TunnelsBody tw={tw} />

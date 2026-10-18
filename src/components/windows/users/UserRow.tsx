@@ -32,7 +32,8 @@ const PLAN_PILL: Record<UserPlanState, string> = { active: 'running', grace: 'pa
 function hostingMeta(hosting: UserHosting, t: (key: string, params?: Record<string, string | number>) => string) {
   const parts: string[] = []
   if (hosting.planId) {
-    if (!hosting.expiresAt) parts.push(t('hosting.userPlan.noEnd'))
+    if (hosting.trialPlanName && hosting.trialEndsAt) parts.push(t('hosting.users.trialUntil', { plan: hosting.trialPlanName, date: formatDateID(hosting.trialEndsAt) }))
+    else if (!hosting.expiresAt) parts.push(t('hosting.userPlan.noEnd'))
     else if (hosting.state === 'grace' && hosting.graceEndsAt) parts.push(t('hosting.users.graceUntil', { end: formatDateID(hosting.graceEndsAt) }))
     else if (hosting.state === 'expired') parts.push(t('hosting.users.endedOn', { date: formatDateID(hosting.expiresAt) }))
     else parts.push(t('hosting.users.until', { date: formatDateID(hosting.expiresAt) }))
@@ -224,7 +225,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
         )}
 
         <div className="docker-action-btns">
-          {plan?.planId ? (
+          {plan?.planId && !plan.trialEndsAt ? (
             <button type="button" className="docker-act-btn docker-act-btn--start" title={t('hosting.users.renewOne')} aria-label={t('hosting.users.renewOne')} disabled={renewMut.isPending} onClick={() => void confirmRenew()}>
               <CalendarPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>

@@ -22,6 +22,8 @@ const EMPTY: PlanInput = {
   cpuLimitPct: 100,
   memoryLimitMb: 512,
   maxSubdomains: 1,
+  maxCustomDomains: 0,
+  trialDays: 0,
   highlighted: false,
   visible: true,
   sortOrder: 0,
@@ -32,6 +34,7 @@ const LIMITS: { key: keyof PlanInput; labelKey: string }[] = [
   { key: 'maxTunnels', labelKey: 'users.maxTunnels' },
   { key: 'maxDatabases', labelKey: 'users.maxDatabases' },
   { key: 'maxSubdomains', labelKey: 'hosting.plan.subdomains' },
+  { key: 'maxCustomDomains', labelKey: 'hosting.plan.customDomains' },
   { key: 'diskQuotaMb', labelKey: 'users.diskMb' },
   { key: 'cpuLimitPct', labelKey: 'users.cpuLimitPct' },
   { key: 'memoryLimitMb', labelKey: 'users.ramMb' },
@@ -133,6 +136,10 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
 
         <Field label={t('hosting.plan.features')} hint={t('hosting.plan.featuresHint')}>
           <Textarea rows={4} value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} placeholder={t('hosting.plan.featuresPlaceholder')} />
+        </Field>
+
+        <Field label={t('hosting.plan.trialDays')} hint={t('hosting.plan.trialDaysHint')}>
+          <TextInput mono type="number" min={0} max={90} value={form.trialDays} onChange={(e) => patch({ trialDays: Number(e.target.value) })} />
         </Field>
 
         <section aria-label={t('hosting.plan.limits')}>

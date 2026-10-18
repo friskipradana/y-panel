@@ -6,6 +6,7 @@ import { DesktopPage } from '@/pages/DesktopPage'
 import { McpGuidePage } from '@/pages/McpGuidePage'
 import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
 import { InstallPage } from '@/pages/InstallPage'
+import { OrderPage } from '@/pages/OrderPage'
 import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
@@ -71,6 +72,8 @@ export function AppRouter() {
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
         <Route path="/install" element={landing ? (<div className="h-full w-full overflow-y-auto"><InstallPage /></div>) : publicFallback} />
+        <Route path="/order" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
+        <Route path="/order/:publicId" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
         <Route path="/articles" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlesPage /></div>) : publicFallback} />
         <Route path="/articles/:slug" element={landing ? (<div className="h-full w-full overflow-y-auto"><ArticlePage /></div>) : publicFallback} />
         <Route

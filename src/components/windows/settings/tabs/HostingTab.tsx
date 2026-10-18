@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Boxes, Eye, Globe2, Link2, ReceiptText, Store } from 'lucide-react'
+import { Boxes, Eye, Globe2, Landmark, Link2, ReceiptText, ShoppingCart, Store } from 'lucide-react'
 import { toast } from 'sonner'
-import { listAllSubdomains, listHostingDomains, listHostingPlans } from '@/api/hosting'
+import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans } from '@/api/hosting'
 import { getDemoSettings, getSiteSettings, setSiteSettings } from '@/api/system'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { SettingRow } from '@/components/ui/SettingRow'
@@ -12,7 +12,10 @@ import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { DemoAccountCard } from '../DemoAccountCard'
 import { HostingChecklist, type HostingSection } from '../hosting/HostingChecklist'
+import { HostingCustomDomainsCard } from '../hosting/HostingCustomDomainsCard'
 import { HostingDomainsCard } from '../hosting/HostingDomainsCard'
+import { HostingOrdersCard } from '../hosting/HostingOrdersCard'
+import { HostingPaymentCard } from '../hosting/HostingPaymentCard'
 import { HostingPlansCard } from '../hosting/HostingPlansCard'
 import { HostingSubdomainsCard } from '../hosting/HostingSubdomainsCard'
 import { HostingTermsCard } from '../hosting/HostingTermsCard'
@@ -30,6 +33,7 @@ export function HostingTab() {
   const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0, enabled })
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled })
   const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled })
+  const waiting = useQuery({ queryKey: ['hosting', 'orders', 'review'], queryFn: () => listHostingOrders('review'), retry: 0, enabled, refetchInterval: 30_000 })
 
   const mutation = useMutation({
     mutationFn: (hostingEnabled: boolean) => setSiteSettings({ hostingEnabled }),
@@ -93,6 +97,8 @@ export function HostingTab() {
                 { key: 'plans', label: t('hosting.tab.plans'), icon: <Boxes />, count: plans.data?.length },
                 { key: 'domains', label: t('hosting.tab.domains'), icon: <Globe2 />, count: domains.data?.filter((domain) => domain.enabled).length },
                 { key: 'subdomains', label: t('hosting.tab.subdomains'), icon: <Link2 />, count: subdomains.data?.length },
+                { key: 'orders', label: t('hosting.tab.orders'), icon: <ShoppingCart />, count: waiting.data?.total },
+                { key: 'payment', label: t('hosting.tab.payment'), icon: <Landmark /> },
                 { key: 'terms', label: t('hosting.tab.terms'), icon: <ReceiptText /> },
                 { key: 'demo', label: t('hosting.tab.demo'), icon: <Eye /> },
               ]}
@@ -100,8 +106,15 @@ export function HostingTab() {
           </div>
 
           {section === 'plans' ? <HostingPlansCard /> : null}
-          {section === 'domains' ? <HostingDomainsCard /> : null}
+          {section === 'domains' ? (
+            <>
+              <HostingDomainsCard />
+              <HostingCustomDomainsCard />
+            </>
+          ) : null}
           {section === 'subdomains' ? <HostingSubdomainsCard /> : null}
+          {section === 'orders' ? <HostingOrdersCard /> : null}
+          {section === 'payment' ? <HostingPaymentCard /> : null}
           {section === 'terms' ? <HostingTermsCard /> : null}
           {section === 'demo' ? <DemoAccountCard /> : null}
         </>

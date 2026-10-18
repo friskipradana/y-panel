@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { Check, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
@@ -14,6 +15,7 @@ function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string
     t('hosting.landing.projects', { count: plan.maxProjects }),
     t('hosting.landing.databases', { count: plan.maxDatabases }),
     t('hosting.landing.subdomains', { count: plan.maxSubdomains }),
+    ...(plan.maxCustomDomains > 0 ? [t('hosting.landing.customDomains', { count: plan.maxCustomDomains })] : []),
     t('hosting.landing.disk', { amount: disk }),
     t('hosting.landing.ram', { amount: ram }),
   ]
@@ -94,7 +96,21 @@ export function Pricing() {
                 </div>
               ) : null}
 
-              {data.orderUrl ? (
+              {data.selfSignup ? (
+                <div className="mt-auto space-y-2 pt-6">
+                  <Link
+                    to={`/order?plan=${encodeURIComponent(plan.slug)}`}
+                    className={`panel-btn w-full justify-center ${plan.highlighted ? 'panel-btn--primary' : 'panel-btn--outline'}`}
+                  >
+                    {t('hosting.landing.order', { name: plan.name })}
+                  </Link>
+                  {plan.trialDays > 0 ? (
+                    <Link to={`/order?plan=${encodeURIComponent(plan.slug)}&trial=1`} className="panel-btn panel-btn--ghost w-full justify-center">
+                      {t('order.trial', { days: plan.trialDays })}
+                    </Link>
+                  ) : null}
+                </div>
+              ) : data.orderUrl ? (
                 <div className="mt-auto pt-6">
                   <a
                     href={buildOrderLink(data.orderUrl, message, t('hosting.order.subject', { name: plan.name }))}
@@ -126,7 +142,7 @@ export function Pricing() {
         })}
       </ul>
 
-      {!data.orderUrl ? <p className="mt-3 text-[0.8125rem] text-[var(--text-secondary)]">{t('hosting.landing.contact')}</p> : null}
+      {!data.orderUrl && !data.selfSignup ? <p className="mt-3 text-[0.8125rem] text-[var(--text-secondary)]">{t('hosting.landing.contact')}</p> : null}
     </section>
   )
 }

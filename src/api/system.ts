@@ -124,6 +124,17 @@ export interface SiteSettings {
   ooklaLicenseAccepted: boolean
   /** The example plans were offered once */
   examplePlansSeeded: boolean
+  /** Buyers may sign up and pay from the landing page */
+  selfSignup: boolean
+  orderBank: string
+  orderAccount: string
+  orderHolder: string
+  /** Minutes an order waits for its payment; 0 means a day */
+  orderExpiryMinutes: number
+  /** Largest unique code added to a price; 0 means 999 */
+  orderUniqueMax: number
+  /** A trial waits for the superadmin instead of starting at once */
+  trialApproval: boolean
 }
 
 export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)

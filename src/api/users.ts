@@ -29,6 +29,9 @@ export interface UserHosting {
   graceEndsAt: string | null
   subdomains: number
   maxSubdomains: number
+  /** The trial upgrade the account is on, if any */
+  trialPlanName?: string
+  trialEndsAt?: string
 }
 
 export interface UserListParams extends PaginationParams {

@@ -20,8 +20,23 @@ export const setCFConfig = (payload: {
   baseDomain?: string
 }) => agentApi.post<{ ok: boolean; message: string }>('/api/v1/me/cloudflare', payload).then((r) => r.data)
 
+/** What the agent could do with the token on the last verification */
+export interface CFPermissionDetails {
+  valid: boolean
+  canReadZones: boolean
+  canManageDNS: boolean
+  canEditTunnels: boolean
+  canManageRedirects: boolean
+  /** SSL and Certificates is on the token and Custom Hostnames is on for the zone (hosting sellers only) */
+  canManageCustomHostnames: boolean
+  missingScopes?: string[]
+  summary: string
+}
+
 export const verifyCFConfig = () =>
-  agentApi.post<{ valid: boolean; status?: string; error?: string; action?: string }>('/api/v1/me/cloudflare/verify').then((r) => r.data)
+  agentApi
+    .post<{ valid: boolean; status?: string; error?: string; action?: string; details?: CFPermissionDetails }>('/api/v1/me/cloudflare/verify')
+    .then((r) => r.data)
 
 export const deleteCFConfig = () =>
   agentApi.delete<{ ok: boolean }>('/api/v1/me/cloudflare').then((r) => r.data)

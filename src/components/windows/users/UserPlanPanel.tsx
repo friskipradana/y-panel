@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
 import { formatDateID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
+import { UserPlanTrial } from '@/components/windows/users/UserPlanTrial'
 import { UserSubdomainsList } from '@/components/windows/users/UserSubdomainsList'
 
 const NONE = ''
@@ -25,14 +26,17 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
   const current = useQuery({ queryKey: ['user-plan', userId], queryFn: () => getUserPlan(userId), retry: 0 })
   const [planId, setPlanId] = useState<string | null>(null)
   const [months, setMonths] = useState('')
+  const [days, setDays] = useState('')
 
   const view = current.data
   const selected = planId ?? (view?.plan ? String(view.plan.id) : NONE)
   const monthsNumber = months.trim() === '' ? undefined : Number(months)
   const monthsValid = monthsNumber === undefined || (Number.isInteger(monthsNumber) && monthsNumber >= 1 && monthsNumber <= 60)
+  const daysNumber = days.trim() === '' ? undefined : Number(days)
+  const daysValid = daysNumber === undefined || (Number.isInteger(daysNumber) && daysNumber >= 1 && daysNumber <= 90)
 
   const mutation = useMutation({
-    mutationFn: () => setUserPlan(userId, { planId: selected === NONE ? null : Number(selected), months: selected === NONE ? undefined : monthsNumber }),
+    mutationFn: () => setUserPlan(userId, { planId: selected === NONE ? null : Number(selected), months: selected === NONE || daysNumber !== undefined ? undefined : monthsNumber, days: selected === NONE ? undefined : daysNumber }),
     onSuccess: (next) => {
       qc.setQueryData(['user-plan', userId], next)
       // the plan sets the quota and may reactivate the account
@@ -42,6 +46,7 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
       void qc.invalidateQueries({ queryKey: ['hosting', 'plans'] })
       setPlanId(null)
       setMonths('')
+      setDays('')
       alertLib.fire(t('hosting.userPlan.savedTitle'), t('hosting.userPlan.savedMessage', { username }), 'success', 'users')
     },
     onError: (error) => alertLib.fire(t('hosting.userPlan.failedTitle'), apiError(error, t('hosting.userPlan.failedMessage')), 'error', 'users'),
@@ -51,7 +56,7 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
   if (!view || !plans.data) return <p className="text-[12px] text-[var(--text-secondary)]">{t('hosting.userPlan.loadFailed')}</p>
 
   const sameAsCurrent = selected === (view.plan ? String(view.plan.id) : NONE)
-  const dirty = !sameAsCurrent || (selected !== NONE && monthsNumber !== undefined)
+  const dirty = !sameAsCurrent || (selected !== NONE && (monthsNumber !== undefined || daysNumber !== undefined))
 
   return (
     <section aria-label={t('hosting.userPlan.title')} className="space-y-3">
@@ -76,7 +81,7 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_9rem]">
+      <div className="grid gap-3 sm:grid-cols-[1fr_7rem_7rem]">
         <Field label={t('hosting.userPlan.plan')}>
           <Select
             value={selected}
@@ -88,13 +93,18 @@ export function UserPlanPanel({ userId, username }: { userId: number; username: 
           />
         </Field>
         <Field label={t('hosting.userPlan.months')} hint={t('hosting.userPlan.monthsHint')} error={monthsValid ? undefined : t('hosting.userPlan.monthsInvalid')}>
-          <TextInput mono type="number" min={1} max={60} value={months} disabled={selected === NONE} onChange={(e) => setMonths(e.target.value)} />
+          <TextInput mono type="number" min={1} max={60} value={months} disabled={selected === NONE || daysNumber !== undefined} onChange={(e) => setMonths(e.target.value)} />
+        </Field>
+        <Field label={t('hosting.userPlan.days')} hint={t('hosting.userPlan.daysHint')} error={daysValid ? undefined : t('hosting.userPlan.daysInvalid')}>
+          <TextInput mono type="number" min={1} max={90} value={days} disabled={selected === NONE} onChange={(e) => setDays(e.target.value)} />
         </Field>
       </div>
 
+      <UserPlanTrial userId={userId} username={username} view={view} plans={plans.data} />
+
       <UserSubdomainsList userId={userId} />
 
-      <Button variant="primary-soft" className="w-full" disabled={!dirty || !monthsValid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+      <Button variant="primary-soft" className="w-full" disabled={!dirty || !monthsValid || !daysValid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
         {selected === NONE ? t('hosting.userPlan.remove') : view.plan && sameAsCurrent ? t('hosting.userPlan.renew') : t('hosting.userPlan.apply')}
       </Button>
     </section>
