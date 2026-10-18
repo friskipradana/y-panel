@@ -97,9 +97,14 @@ func TestBuildCommandKeepsURLsOutOfScript(t *testing.T) {
 
 func TestInstallerURLLegacyAsset(t *testing.T) {
 	c := New()
-	url, _ := c.InstallerURL("3.3.0")
+	url, _ := c.InstallerURL("0.22.0")
 	if !strings.HasSuffix(url, "/ypanel-installer.run") {
 		t.Errorf("pre-rename release should use the legacy asset: %s", url)
+	}
+
+	current, _ := c.InstallerURL("1.28.0")
+	if !strings.HasSuffix(current, "/reneo-installer.run") {
+		t.Errorf("renamed releases ship reneo-installer.run: %s", current)
 	}
 }
 

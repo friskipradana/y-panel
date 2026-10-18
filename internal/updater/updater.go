@@ -26,7 +26,7 @@ const (
 	logFile       = "update.log"
 	updateUnit    = "reneo-update"
 	// First release that ships reneo-installer.run (older ones only have ypanel-installer.run)
-	firstReneoAsset = "3.4.0"
+	firstReneoAsset = "0.23.0"
 )
 
 var versionRe = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)$`)

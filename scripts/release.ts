@@ -232,25 +232,23 @@ function generateNotes(opts: {
   repo: string;
   prevTag: string;
   tag: string;
-  stats: string;
 }): string {
-  const { version, date, commits, repo, prevTag, tag, stats } = opts;
+  const { version, date, commits, repo, prevTag, tag } = opts;
   const out: string[] = [`## [${version}] - ${date}`];
 
-  const counts = (kind: Kind) => commits.filter((cm) => cm.kind === kind).length;
-  const summaryParts = [
-    counts("feat") ? `${counts("feat")} fitur` : "",
-    counts("fix") ? `${counts("fix")} perbaikan` : "",
-    counts("perf") + counts("refactor") ? `${counts("perf") + counts("refactor")} peningkatan` : "",
-    counts("docs") ? `${counts("docs")} dokumentasi` : "",
-    counts("maintenance") + counts("other") ? `${counts("maintenance") + counts("other")} pemeliharaan` : "",
-  ].filter(Boolean);
-
-  out.push(`\n### Ringkasan`);
-  if (commits.length === 0) {
-    out.push(`Pembaruan rutin stabilitas dan pemeliharaan sistem Reneo.`);
+  // The first line is the teaser the app shows for this release (Changelog window), so it names the
+  // main change instead of repeating a heading
+  const order: Kind[] = ["feat", "fix", "perf", "refactor", "docs", "maintenance", "other"];
+  const main = [...commits].sort((x, y) => order.indexOf(x.kind) - order.indexOf(y.kind))[0];
+  if (!main) {
+    out.push(`\nPembaruan rutin stabilitas dan pemeliharaan sistem Reneo.`);
   } else {
-    out.push(`Rilis **v${version}** berisi ${commits.length} perubahan: ${summaryParts.join(", ")}.${stats ? ` ${stats}` : ""}`);
+    const text = capitalize(main.description).replace(/[.\s]+$/, "");
+    out.push(
+      commits.length === 1
+        ? `\n${text}.`
+        : `\n${commits.length} perubahan, utamanya ${text.charAt(0).toLowerCase()}${text.slice(1)}.`,
+    );
   }
 
   const breaking = commits.filter((cm) => cm.breaking);
@@ -263,9 +261,6 @@ function generateNotes(opts: {
     const items = commits.filter((cm) => cm.kind === kind && !cm.breaking);
     if (items.length > 0) out.push(`\n### ${title}\n${renderSection(items, repo)}`);
   }
-
-  const authors = [...new Set(commits.map((cm) => cm.author).filter(Boolean))];
-  if (authors.length > 0) out.push(`\n### Kontributor\n${authors.map((a) => `- ${a}`).join("\n")}`);
 
   if (repo && prevTag) {
     out.push(`\n**Semua perubahan**: ${repo}/compare/${prevTag}...${tag}`);
@@ -363,7 +358,6 @@ async function main() {
     process.exit(1);
   }
 
-  const stats = lastTag ? git(["diff", "--shortstat", `${lastTag}..HEAD`], { allowFail: true }) : "";
   const notes = generateNotes({
     version: nextVersion,
     date: new Date().toISOString().split("T")[0],
@@ -371,7 +365,6 @@ async function main() {
     repo: repoWebUrl(),
     prevTag: lastTag,
     tag: nextTag,
-    stats: stats ? `(${stats.trim()})` : "",
   });
 
   console.log(`${c.bold}${c.green}${"━".repeat(66)}${c.reset}`);

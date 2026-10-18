@@ -2,1001 +2,889 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
-## [4.10.1] - 2026-10-18
+## [1.28.0] - 2026-10-18
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.10.1** berisi 1 perubahan: 1 fitur. (16 files changed, 538 insertions(+), 266 deletions(-))
+Ringkasan, riwayat, dan revisi didorong lewat socket langsung, dan kamus bahasa Indonesia diterjemahkan.
 
-### 🚀 Fitur Baru (Added)
-- **agent,ui:** Push summary, history and revision over the live socket; translate the Indonesian strings ([`5e464d1`](https://github.com/friskipradana/y-panel/commit/5e464d1))
+### Fitur baru
+- **agent,ui:** Ringkasan, riwayat, dan revisi didorong lewat socket langsung, dan kamus bahasa Indonesia diterjemahkan ([`5e464d1`](https://github.com/friskipradana/y-panel/commit/5e464d1))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.27.0...v1.28.0
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.10.0...v4.10.1
+## [1.27.0] - 2026-10-18
 
-## [4.10.0] - 2026-10-18
+5 perubahan, utamanya menu berkelompok, judul per halaman, dan isi tab di atas kit bersama.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.10.0** berisi 5 perubahan: 4 fitur, 1 perbaikan. (72 files changed, 2538 insertions(+), 3247 deletions(-))
+### Fitur baru
+- **settings:** Menu berkelompok, judul per halaman, dan isi tab di atas kit bersama ([`86e11a2`](https://github.com/friskipradana/y-panel/commit/86e11a2))
+- **ui:** Tata letak ponsel di semua jendela, bar simpan Pengaturan, dan halaman Pengaturan yang lebih rapi ([`52a7cd0`](https://github.com/friskipradana/y-panel/commit/52a7cd0))
+- **ui:** Tata letak ponsel diselesaikan dan beberapa jendela dirapikan ([`118ec91`](https://github.com/friskipradana/y-panel/commit/118ec91))
+- **ui:** Meter pemakaian berubah menjadi peringatan di 75% dan bahaya di 90% ([`cda67b4`](https://github.com/friskipradana/y-panel/commit/cda67b4))
 
-### 🚀 Fitur Baru (Added)
-- **settings:** Grouped menu, per-page headers, and tab content on the shared kit ([`86e11a2`](https://github.com/friskipradana/y-panel/commit/86e11a2))
-- **ui:** Finish the phone layout and tidy several windows ([`118ec91`](https://github.com/friskipradana/y-panel/commit/118ec91))
-- **ui:** Usage meters turn warning from 75% and danger from 90% ([`cda67b4`](https://github.com/friskipradana/y-panel/commit/cda67b4))
-- **ui:** Phone layout across the windows, settings save bar, and cleaner settings pages ([`52a7cd0`](https://github.com/friskipradana/y-panel/commit/52a7cd0))
+### Perbaikan
+- **ui:** Peran dan status pengguna berbagi satu baris di ponsel ([`1f31ac1`](https://github.com/friskipradana/y-panel/commit/1f31ac1))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **ui:** Role and state of a user share a line on phones ([`1f31ac1`](https://github.com/friskipradana/y-panel/commit/1f31ac1))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.26.0...v1.27.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.26.0] - 2026-10-17
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.9.0...v4.10.0
+2 perubahan, utamanya kolom ala spreadsheet dan tampilan bersama di semua jendela.
 
-## [4.9.0] - 2026-10-17
+### Fitur baru
+- **ui:** Kolom ala spreadsheet dan tampilan bersama di semua jendela ([`d9090be`](https://github.com/friskipradana/y-panel/commit/d9090be))
+- **agent:** Kueri tabel di agent, proyek yang diawasi, satu pemilik per port, dan penanganan berkas yang lebih aman ([`1e02257`](https://github.com/friskipradana/y-panel/commit/1e02257))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.9.0** berisi 1 perubahan: 1 fitur. (148 files changed, 9115 insertions(+), 3972 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.25.0...v1.26.0
 
-### 🚀 Fitur Baru (Added)
-- **agent:** Table queries on the agent, supervised projects, one owner per port, safer file handling ([`ad1707f`](https://github.com/friskipradana/y-panel/commit/ad1707f))
+## [1.25.0] - 2026-10-17
 
-### 👥 Kontributor
-- AknalRe
+3 perubahan, utamanya tabel yang sama di setiap tab, tab Volume, log langsung lewat WebSocket, dan domain lewat tunnel Cloudflare.
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.8.0...v4.9.0
+### Fitur baru
+- **docker:** Tabel yang sama di setiap tab, tab Volume, log langsung lewat WebSocket, dan domain lewat tunnel Cloudflare ([`9dfe5c6`](https://github.com/friskipradana/y-panel/commit/9dfe5c6))
+- **terminal:** Terminal minimal yang mengikuti tema aplikasi, satu menu aksi, pengelola pintasan sebagai panel terbelah, dan zoom ([`c820a28`](https://github.com/friskipradana/y-panel/commit/c820a28))
 
-## [4.8.0] - 2026-10-17
+### Pemeliharaan
+- **ui-rules:** Aturan desain dan check:ui diperketat ([`4f862e5`](https://github.com/friskipradana/y-panel/commit/4f862e5))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.8.0** berisi 3 perubahan: 2 fitur, 1 pemeliharaan. (52 files changed, 4604 insertions(+), 1255 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.24.0...v1.25.0
 
-### 🚀 Fitur Baru (Added)
-- **docker:** Same table in every tab, volumes tab, live logs over WebSocket, domain via Cloudflare tunnel ([`9dfe5c6`](https://github.com/friskipradana/y-panel/commit/9dfe5c6))
-- **terminal:** Minimal terminal that follows the app theme, one action menu, shortcut manager as a split panel, zoom ([`c820a28`](https://github.com/friskipradana/y-panel/commit/c820a28))
+## [1.24.0] - 2026-10-17
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **ui-rules:** Tighten design rules and check:ui ([`4f862e5`](https://github.com/friskipradana/y-panel/commit/4f862e5))
+Akun dari admin wajib memilih kata sandi sendiri, dialog kirim akses, dan superadmin bisa membuat alamat panel saat membuat akun.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **users:** Akun dari admin wajib memilih kata sandi sendiri, dialog kirim akses, dan superadmin bisa membuat alamat panel saat membuat akun ([`cd9c6cf`](https://github.com/friskipradana/y-panel/commit/cd9c6cf))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.7...v4.8.0
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.23.0...v1.24.0
 
-## [4.7.7] - 2026-10-17
+## [1.23.0] - 2026-10-17
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.7** berisi 1 perubahan: 1 fitur. (19 files changed, 430 insertions(+), 41 deletions(-))
+Subdomain yang dijual menjadi alamat panel pembeli (diarahkan ke panel, login terkunci untuk pemilik) dan templat pesan pemesanan untuk tombol order.
 
-### 🚀 Fitur Baru (Added)
-- **users:** Accounts from an admin must choose their own password; send-access dialog; superadmin can create the panel address at account creation ([`cd9c6cf`](https://github.com/friskipradana/y-panel/commit/cd9c6cf))
+### Fitur baru
+- **hosting:** Subdomain yang dijual menjadi alamat panel pembeli (diarahkan ke panel, login terkunci untuk pemilik) dan templat pesan pemesanan untuk tombol order ([`5b7e23c`](https://github.com/friskipradana/y-panel/commit/5b7e23c))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.22.1...v1.23.0
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.6...v4.7.7
+## [1.22.1] - 2026-10-17
 
-## [4.7.6] - 2026-10-17
+Home diberikan ke akunnya sebelum ditutup untuk yang lain, sehingga home milik root tidak lagi mengunci shell dari .bashrc.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.6** berisi 1 perubahan: 1 fitur. (23 files changed, 485 insertions(+), 300 deletions(-))
+### Perbaikan
+- **osuser:** Home diberikan ke akunnya sebelum ditutup untuk yang lain, sehingga home milik root tidak lagi mengunci shell dari .bashrc ([`b3f2166`](https://github.com/friskipradana/y-panel/commit/b3f2166))
 
-### 🚀 Fitur Baru (Added)
-- **hosting:** Sold subdomains are the buyer's panel address (routed to the panel, sign-in locked to the owner); order message template for the order button ([`5b7e23c`](https://github.com/friskipradana/y-panel/commit/5b7e23c))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.22.0...v1.22.1
 
-### 👥 Kontributor
-- AknalRe
+## [1.22.0] - 2026-10-17
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.5...v4.7.6
+2 perubahan, utamanya klien Ookla dipasang secara privat dari arsip resmi.
 
-## [4.7.5] - 2026-10-17
+### Fitur baru
+- **speedtest:** Klien Ookla dipasang secara privat dari arsip resmi ([`3f1d298`](https://github.com/friskipradana/y-panel/commit/3f1d298))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.5** berisi 1 perubahan: 1 perbaikan. (3 files changed, 47 insertions(+), 7 deletions(-))
+### Perbaikan
+- **terminal:** Lingkungan shell yang bersih, kepemilikan sesi, validasi target ssh dan cwd, batas sesi, mematikan process group, dan home 0700 ([`3f1d298`](https://github.com/friskipradana/y-panel/commit/3f1d298))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **osuser:** Give the home to its account before closing it to others, so a root-owned home no longer locks the shell out of .bashrc ([`b3f2166`](https://github.com/friskipradana/y-panel/commit/b3f2166))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.21.0...v1.22.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.21.0] - 2026-10-17
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.4...v4.7.5
+2 perubahan, utamanya tab Hosting bersekat dengan daftar kesiapan, pemilih domain berupa dropdown, dan paket contoh saat pertama kali dinyalakan.
 
-## [4.7.4] - 2026-10-17
+### Fitur baru
+- **hosting:** Tab Hosting bersekat dengan daftar kesiapan, pemilih domain berupa dropdown, dan paket contoh saat pertama kali dinyalakan ([`433cb63`](https://github.com/friskipradana/y-panel/commit/433cb63))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.4** berisi 1 perubahan: 1 perbaikan. (24 files changed, 796 insertions(+), 81 deletions(-))
+### Perbaikan
+- **speedtest:** Busur tidak lagi tertinggal dari penanda, tab di dalam kartu, dan tabel riwayat dirapikan dengan tombol hapus ([`433cb63`](https://github.com/friskipradana/y-panel/commit/433cb63))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **terminal:** Clean shell environment, session ownership, ssh target and cwd validation, session caps, process-group kill, 0700 homes; feat(speedtest): install Ookla client privately from the official archive (installer and panel button) ([`3f1d298`](https://github.com/friskipradana/y-panel/commit/3f1d298))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.20.0...v1.21.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.20.0] - 2026-10-17
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.3...v4.7.4
+Google (M-Lab NDT7) dan Speedtest.net/CBN (klien Ookla, lisensi disetujui superadmin) sebagai server uji kecepatan.
 
-## [4.7.3] - 2026-10-17
+### Fitur baru
+- **speedtest:** Google (M-Lab NDT7) dan Speedtest.net/CBN (klien Ookla, lisensi disetujui superadmin) sebagai server uji kecepatan ([`7c78aa6`](https://github.com/friskipradana/y-panel/commit/7c78aa6))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.3** berisi 1 perubahan: 1 perbaikan. (17 files changed, 478 insertions(+), 78 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.19.0...v1.20.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **speedtest:** Arc no longer lags behind the marker, tabs inside the card, tidy history table with clear; feat(hosting): sectioned Hosting tab with readiness list, domain picker as a dropdown, example plans on first use ([`433cb63`](https://github.com/friskipradana/y-panel/commit/433cb63))
+## [1.19.0] - 2026-10-17
 
-### 👥 Kontributor
-- AknalRe
+Pencarian cepat dibangun ulang (daftar sadar peran dari data, lompat ke tab pengaturan, jendela terbuka, terakhir dipakai, peringkat ketat dengan kata kunci Indonesia/Inggris, i18n) dan ikon desktop Speed Test.
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.2...v4.7.3
+### Fitur baru
+- **search:** Pencarian cepat dibangun ulang (daftar sadar peran dari data, lompat ke tab pengaturan, jendela terbuka, terakhir dipakai, peringkat ketat dengan kata kunci Indonesia/Inggris, i18n) dan ikon desktop Speed Test ([`1ae6e97`](https://github.com/friskipradana/y-panel/commit/1ae6e97))
 
-## [4.7.2] - 2026-10-17
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.18.0...v1.19.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.2** berisi 1 perubahan: 1 fitur. (17 files changed, 1240 insertions(+), 14 deletions(-))
+## [1.18.0] - 2026-10-17
 
-### 🚀 Fitur Baru (Added)
-- **speedtest:** Google (M-Lab NDT7) and Speedtest.net/CBN (Ookla client, licence accepted by the superadmin) as speed test servers ([`7c78aa6`](https://github.com/friskipradana/y-panel/commit/7c78aa6))
+4 perubahan, utamanya paket layanan: database, API, pengelola paket, harga di halaman depan, serta paket per akun dengan masa berlaku dan masa tenggang.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **hosting:** Paket layanan: database, API, pengelola paket, harga di halaman depan, serta paket per akun dengan masa berlaku dan masa tenggang ([`4f8114d`](https://github.com/friskipradana/y-panel/commit/4f8114d))
+- **hosting:** Subdomain yang bisa dijual: domain Cloudflare yang ditawarkan, panel subdomain pembeli, tunnel pembawa, sinkron DNS, tangguhkan bersama akun, dan kuota paket ([`80b1abb`](https://github.com/friskipradana/y-panel/commit/80b1abb))
+- **hosting:** Tab Pengaturan Hosting (saklar mode hosting, akun demo dipindah ke sana), Umum mendapat saklar landing page dan pengindeksan, dan halaman publik serta aturan crawler mengikutinya ([`4ce0a17`](https://github.com/friskipradana/y-panel/commit/4ce0a17))
+- **users:** Pengelolaan akun untuk hosting: tab dan filter status paket dengan hitungan, paket dan subdomain per akun, buat akun dengan paket, perpanjang sekali klik, dan subdomain mengikuti tangguhkan/hapus ([`0a50dec`](https://github.com/friskipradana/y-panel/commit/0a50dec))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.1...v4.7.2
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.17.1...v1.18.0
 
-## [4.7.1] - 2026-10-17
+## [1.17.1] - 2026-10-16
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.1** berisi 1 perubahan: 1 fitur. (15 files changed, 724 insertions(+), 846 deletions(-))
+Unduhan mencoba host berikutnya bila satu tidak mengukur apa pun, mengulang koneksi yang terputus, batas waktu dial/handshake yang nyata, dukungan proxy, dan penjelasan batas laju HTTP 429.
 
-### 🚀 Fitur Baru (Added)
-- **search:** Rebuilt quick search (role aware list from data, settings tab jump, open windows, recents, strict ranking with Indonesian/English keywords, i18n) and the speed test desktop icon ([`1ae6e97`](https://github.com/friskipradana/y-panel/commit/1ae6e97))
+### Perbaikan
+- **speedtest:** Unduhan mencoba host berikutnya bila satu tidak mengukur apa pun, mengulang koneksi yang terputus, batas waktu dial/handshake yang nyata, dukungan proxy, dan penjelasan batas laju HTTP 429 ([`d4d1eb1`](https://github.com/friskipradana/y-panel/commit/d4d1eb1))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.17.0...v1.17.1
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.7.0...v4.7.1
+## [1.17.0] - 2026-10-16
 
-## [4.7.0] - 2026-10-17
+Memilih server pengukuran, User-Agent gaya browser untuk host kecepatan, meter dirancang ulang dengan tanda dan penanda, serta ubin unduh dan unggah besar dengan perbandingan terhadap uji sebelumnya.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.7.0** berisi 4 perubahan: 4 fitur. (54 files changed, 5212 insertions(+), 146 deletions(-))
+### Fitur baru
+- **speedtest:** Memilih server pengukuran, User-Agent gaya browser untuk host kecepatan, meter dirancang ulang dengan tanda dan penanda, serta ubin unduh dan unggah besar dengan perbandingan terhadap uji sebelumnya ([`eda9711`](https://github.com/friskipradana/y-panel/commit/eda9711))
 
-### 🚀 Fitur Baru (Added)
-- **hosting:** Sellable subdomains (offered Cloudflare domains, buyer subdomain panel, carrier tunnel, DNS sync, suspend with the account, plan quota) ([`80b1abb`](https://github.com/friskipradana/y-panel/commit/80b1abb))
-- **hosting:** Service plans (database, API, plan manager, landing pricing, per-account plan with expiry and grace period) ([`4f8114d`](https://github.com/friskipradana/y-panel/commit/4f8114d))
-- **hosting:** Hosting settings tab (hosting mode switch, demo account moved there), General gets landing page and indexing switches, public pages and crawler rules follow them ([`4ce0a17`](https://github.com/friskipradana/y-panel/commit/4ce0a17))
-- **users:** Account management for hosting (plan state tabs and filters with counts, plan and subdomains per account, create with a plan, renew in one click, subdomains follow suspend/delete) ([`0a50dec`](https://github.com/friskipradana/y-panel/commit/0a50dec))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.16.1...v1.17.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.16.1] - 2026-10-16
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.17...v4.7.0
+Uji server memeriksa status HTTP, beralih ke host unduhan lain, dan melaporkan alasan sebuah angka tidak ada.
 
-## [4.6.17] - 2026-10-16
+### Perbaikan
+- **speedtest:** Uji server memeriksa status HTTP, beralih ke host unduhan lain, dan melaporkan alasan sebuah angka tidak ada ([`cb7eeb4`](https://github.com/friskipradana/y-panel/commit/cb7eeb4))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.17** berisi 1 perubahan: 1 perbaikan. (6 files changed, 147 insertions(+), 30 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.16.0...v1.16.1
 
-### 🐛 Perbaikan Bug (Fixed)
-- **speedtest:** Download keeps trying the next host when one measures nothing, retries dropped connections, real dial/handshake timeouts and proxy support, explains HTTP 429 rate limits ([`d4d1eb1`](https://github.com/friskipradana/y-panel/commit/d4d1eb1))
+## [1.16.0] - 2026-10-16
 
-### 👥 Kontributor
-- AknalRe
+Meter langsung, langkah, dan jejak per angka; uji server mengalirkan NDJSON sehingga nilai terisi waktu nyata.
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.16...v4.6.17
+### Fitur baru
+- **speedtest:** Meter langsung, langkah, dan jejak per angka; uji server mengalirkan NDJSON sehingga nilai terisi waktu nyata ([`3302ecb`](https://github.com/friskipradana/y-panel/commit/3302ecb))
 
-## [4.6.16] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.15.0...v1.16.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.16** berisi 1 perubahan: 1 fitur. (18 files changed, 542 insertions(+), 99 deletions(-))
+## [1.15.0] - 2026-10-16
 
-### 🚀 Fitur Baru (Added)
-- **speedtest:** Choose the measurement server, browser style User-Agent for speed hosts, redesigned meter with ticks and marker, big download and upload tiles with change against the previous test ([`eda9711`](https://github.com/friskipradana/y-panel/commit/eda9711))
+Jendela Speed Test (perangkat ke panel dari browser, panel ke internet oleh agent), pengalih bahasa di bar atas ponsel dan halaman depan, dan konfirmasi hapus widget di beranda ponsel muncul.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **speedtest:** Jendela Speed Test (perangkat ke panel dari browser, panel ke internet oleh agent), pengalih bahasa di bar atas ponsel dan halaman depan, dan konfirmasi hapus widget di beranda ponsel muncul ([`3db64d9`](https://github.com/friskipradana/y-panel/commit/3db64d9))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.15...v4.6.16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.14.3...v1.15.0
 
-## [4.6.15] - 2026-10-16
+## [1.14.3] - 2026-10-16
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.15** berisi 1 perubahan: 1 perbaikan. (6 files changed, 158 insertions(+), 11 deletions(-))
+Non-superadmin melihat keamanan miliknya (pemakaian dan kata sandi), bukan formulir reset host; kueri pembayaran dan notifikasi hanya berjalan untuk peran yang diizinkan; tidak pernah berada di tab tersembunyi.
 
-### 🐛 Perbaikan Bug (Fixed)
-- **speedtest:** Server test checks HTTP status, falls back to other download hosts and reports why a figure is missing ([`cb7eeb4`](https://github.com/friskipradana/y-panel/commit/cb7eeb4))
+### Perbaikan
+- **settings:** Non-superadmin melihat keamanan miliknya (pemakaian dan kata sandi), bukan formulir reset host; kueri pembayaran dan notifikasi hanya berjalan untuk peran yang diizinkan; tidak pernah berada di tab tersembunyi ([`9a7d2c9`](https://github.com/friskipradana/y-panel/commit/9a7d2c9))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.14.2...v1.14.3
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.14...v4.6.15
+## [1.14.2] - 2026-10-16
 
-## [4.6.14] - 2026-10-16
+Tombol demo selembut tombol pemasang, dengan tepi dan label biru.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.14** berisi 1 perubahan: 1 fitur. (17 files changed, 935 insertions(+), 368 deletions(-))
+### Peningkatan
+- **landing:** Tombol demo selembut tombol pemasang, dengan tepi dan label biru ([`1f87de3`](https://github.com/friskipradana/y-panel/commit/1f87de3))
 
-### 🚀 Fitur Baru (Added)
-- **speedtest:** Live meter, steps and per-figure traces; server test streams NDJSON so values fill in realtime ([`3302ecb`](https://github.com/friskipradana/y-panel/commit/3302ecb))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.14.1...v1.14.2
 
-### 👥 Kontributor
-- AknalRe
+## [1.14.1] - 2026-10-16
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.13...v4.6.14
+Tombol demo berkontur dengan biru login.
 
-## [4.6.13] - 2026-10-16
+### Peningkatan
+- **landing:** Tombol demo berkontur dengan biru login ([`5c97e67`](https://github.com/friskipradana/y-panel/commit/5c97e67))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.13** berisi 1 perubahan: 1 fitur. (23 files changed, 892 insertions(+), 4 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.14.0...v1.14.1
 
-### 🚀 Fitur Baru (Added)
-- **speedtest:** Speed Test window (device to panel from the browser, panel to internet by the agent), phone top bar language switch, landing language switch, mobile home widget delete confirm shows ([`3db64d9`](https://github.com/friskipradana/y-panel/commit/3db64d9))
+## [1.14.0] - 2026-10-16
 
-### 👥 Kontributor
-- AknalRe
+Komponen Checkbox, ukuran dan lebar penuh Button, dan Badge interaktif; badge, kotak centang, dan textarea mentah dimigrasikan ke kit; check:ui menandai kotak centang mentah.
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.12...v4.6.13
+### Fitur baru
+- **ui-kit:** Komponen Checkbox, ukuran dan lebar penuh Button, dan Badge interaktif; badge, kotak centang, dan textarea mentah dimigrasikan ke kit; check:ui menandai kotak centang mentah ([`472c4b2`](https://github.com/friskipradana/y-panel/commit/472c4b2))
 
-## [4.6.12] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.13.1...v1.14.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.12** berisi 1 perubahan: 1 perbaikan. (5 files changed, 33 insertions(+), 18 deletions(-))
+## [1.13.1] - 2026-10-16
 
-### 🐛 Perbaikan Bug (Fixed)
-- **settings:** Non-superadmin sees own security (usage + password) instead of host reset forms; payment and notification queries only run for allowed roles; never sit on a hidden tab ([`9a7d2c9`](https://github.com/friskipradana/y-panel/commit/9a7d2c9))
+2 perubahan, utamanya hanya superadmin yang mengambil riwayat metrik host (akun lain mendapat 403 tiap 5 detik).
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **widgets:** Hanya superadmin yang mengambil riwayat metrik host (akun lain mendapat 403 tiap 5 detik) ([`2cee2cc`](https://github.com/friskipradana/y-panel/commit/2cee2cc))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.11...v4.6.12
+### Peningkatan
+- **ui-kit:** Kolom lebih tenang dengan hover dan satu status fokus, tombol default menjadi tombol sekunder sungguhan, dan panel dropdown lebih bersih ([`6ecd653`](https://github.com/friskipradana/y-panel/commit/6ecd653))
 
-## [4.6.11] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.13.0...v1.13.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.11** berisi 1 perubahan: 1 peningkatan. (1 file changed, 3 insertions(+), 3 deletions(-))
+## [1.13.0] - 2026-10-16
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **landing:** Demo button as soft as the installer button, blue edge and label ([`1f87de3`](https://github.com/friskipradana/y-panel/commit/1f87de3))
+Jendela database dan Cloudflare hanya-baca untuk akun demo, dan urutan bar atas ponsel: cari, notifikasi, tema, profil.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **demo:** Jendela database dan Cloudflare hanya-baca untuk akun demo, dan urutan bar atas ponsel: cari, notifikasi, tema, profil ([`fcbcb53`](https://github.com/friskipradana/y-panel/commit/fcbcb53))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.10...v4.6.11
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.12.2...v1.13.0
 
-## [4.6.10] - 2026-10-16
+## [1.12.2] - 2026-10-16
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.10** berisi 1 perubahan: 1 peningkatan. (1 file changed, 2 insertions(+), 2 deletions(-))
+Tombol hero dibedakan, taskbar desktop lebih ringan, pengalih tema di bar atas ponsel, dan menu profil mengikuti matriks akses.
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **landing:** Demo button outlined in the login blue ([`5c97e67`](https://github.com/friskipradana/y-panel/commit/5c97e67))
+### Peningkatan
+- Tombol hero dibedakan, taskbar desktop lebih ringan, pengalih tema di bar atas ponsel, dan menu profil mengikuti matriks akses ([`7327de5`](https://github.com/friskipradana/y-panel/commit/7327de5))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.12.1...v1.12.2
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.9...v4.6.10
+## [1.12.1] - 2026-10-16
 
-## [4.6.9] - 2026-10-16
+2 perubahan, utamanya kartu kredensial demo dihapus; tombol di hero tetap ada.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.9** berisi 1 perubahan: 1 fitur. (36 files changed, 372 insertions(+), 159 deletions(-))
+### Pemeliharaan
+- **landing:** Kartu kredensial demo dihapus; tombol di hero tetap ada ([`793d494`](https://github.com/friskipradana/y-panel/commit/793d494))
+- **login:** Kembali ke desain halaman login sebelumnya (pil kaca di atas wallpaper) ([`594aab3`](https://github.com/friskipradana/y-panel/commit/594aab3))
 
-### 🚀 Fitur Baru (Added)
-- **ui-kit:** Checkbox component, Button sizes and block, interactive Badge; migrate raw badges, checkboxes and textarea to the kit; check:ui flags raw checkboxes ([`472c4b2`](https://github.com/friskipradana/y-panel/commit/472c4b2))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.12.0...v1.12.1
 
-### 👥 Kontributor
-- AknalRe
+## [1.12.0] - 2026-10-16
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.8...v4.6.9
+Satu aksi login di hero, panduan pemasangan di halaman sendiri, bagian filosofi, kartu artikel dengan sampul, transisi halaman bertema, dan kartu login bersih.
 
-## [4.6.8] - 2026-10-16
+### Fitur baru
+- **public:** Satu aksi login di hero, panduan pemasangan di halaman sendiri, bagian filosofi, kartu artikel dengan sampul, transisi halaman bertema, dan kartu login bersih ([`6e7871b`](https://github.com/friskipradana/y-panel/commit/6e7871b))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.8** berisi 2 perubahan: 1 perbaikan, 1 peningkatan. (3 files changed, 64 insertions(+), 35 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.11.1...v1.12.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **widgets:** Only the superadmin polls the host metric history (others got a 403 every 5s) ([`2cee2cc`](https://github.com/friskipradana/y-panel/commit/2cee2cc))
+## [1.11.1] - 2026-10-16
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **ui-kit:** Calmer fields with hover and one focus state, default button is a real secondary button, cleaner dropdown panel ([`6ecd653`](https://github.com/friskipradana/y-panel/commit/6ecd653))
+Menu aplikasi, dock, dan pengecekan pembaruan mengikuti matriks akses akun, bukan penanda admin-saja yang lama.
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **ui:** Menu aplikasi, dock, dan pengecekan pembaruan mengikuti matriks akses akun, bukan penanda admin-saja yang lama ([`a2cc655`](https://github.com/friskipradana/y-panel/commit/a2cc655))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.7...v4.6.8
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.11.0...v1.11.1
 
-## [4.6.7] - 2026-10-16
+## [1.11.0] - 2026-10-16
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.7** berisi 1 perubahan: 1 fitur. (4 files changed, 14 insertions(+), 10 deletions(-))
+Isi widget menyesuaikan lebar kartu (faktor zoom, langsung saat diubah ukurannya).
 
-### 🚀 Fitur Baru (Added)
-- **demo:** Database and Cloudflare windows read-only for the demo account; phone top bar order search, notifications, theme, profile ([`fcbcb53`](https://github.com/friskipradana/y-panel/commit/fcbcb53))
+### Fitur baru
+- **widgets:** Isi widget menyesuaikan lebar kartu (faktor zoom, langsung saat diubah ukurannya) ([`40a58b0`](https://github.com/friskipradana/y-panel/commit/40a58b0))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.10.0...v1.11.0
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.6...v4.6.7
+## [1.10.0] - 2026-10-16
 
-## [4.6.6] - 2026-10-16
+3 perubahan, utamanya gagang ubah ukuran seperti jendela, penempatan lepas yang dapat diprediksi, dan daftar catatan tetap di konfigurasi.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.6** berisi 1 perubahan: 1 peningkatan. (4 files changed, 56 insertions(+), 45 deletions(-))
+### Fitur baru
+- **widgets:** Gagang ubah ukuran seperti jendela, penempatan lepas yang dapat diprediksi, dan daftar catatan tetap di konfigurasi ([`a553cb2`](https://github.com/friskipradana/y-panel/commit/a553cb2))
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- Distinct hero buttons, lighter desktop taskbar, theme switch in the phone top bar, profile menu follows the access matrix ([`7327de5`](https://github.com/friskipradana/y-panel/commit/7327de5))
+### Perbaikan
+- **tooling:** Skrip pembersih atribusi memakai nama ref lengkap saat membuat cabang lokal, dan klon sementara dibersihkan di setiap keluar ([`bc43f9e`](https://github.com/friskipradana/y-panel/commit/bc43f9e))
 
-### 👥 Kontributor
-- AknalRe
+### Pemeliharaan
+- **tooling:** Skrip untuk membersihkan atribusi AI dari riwayat, force-push, dan menyegarkan kontributor GitHub ([`cf905c1`](https://github.com/friskipradana/y-panel/commit/cf905c1))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.5...v4.6.6
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.9.0...v1.10.0
 
-## [4.6.5] - 2026-10-16
+## [1.9.0] - 2026-10-16
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.5** berisi 2 perubahan: 2 pemeliharaan. (5 files changed, 220 insertions(+), 179 deletions(-))
+7 perubahan, utamanya akun bergaya hosting: hierarki induk, tampilan sumber daya per akun, kemampuan peran pengguna, serta pengaturan host dan info sistem hanya untuk superadmin.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **landing:** Remove the demo credentials card; the hero button remains ([`793d494`](https://github.com/friskipradana/y-panel/commit/793d494))
-- **login:** Back to the previous login page design (glass pills over the wallpaper) ([`594aab3`](https://github.com/friskipradana/y-panel/commit/594aab3))
+### Fitur baru
+- **isolation:** Akun bergaya hosting: hierarki induk, tampilan sumber daya per akun, kemampuan peran pengguna, serta pengaturan host dan info sistem hanya untuk superadmin ([`560e27e`](https://github.com/friskipradana/y-panel/commit/560e27e))
+- **isolation:** Slice cgroup untuk shell akun, endpoint eksekusi terminal, alat MCP per akun, dan memindahkan akun antar admin ([`2556b5f`](https://github.com/friskipradana/y-panel/commit/2556b5f))
+- **isolation:** Matriks jendela dan pengaturan per peran, tampilan sumber daya akun, widget per peran, dan dokumentasi ([`17c3518`](https://github.com/friskipradana/y-panel/commit/17c3518))
+- Ping untuk setiap akun dengan kebijakan alamat publik, serta kunci HMAC buram pada URL publik database dan jalur Adminer ([`2a12dab`](https://github.com/friskipradana/y-panel/commit/2a12dab))
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **public:** 404 untuk alamat tak dikenal tanpa sesi, manifes dan ikon publik, IP klien tepercaya untuk pembatas laju, pembatas login per akun, dan halaman MCP lebih tenang ([`3a35fb1`](https://github.com/friskipradana/y-panel/commit/3a35fb1))
+- **widgets:** Ukuran jendela tidak lagi menarik posisi tersimpan ke atas, tumpang tindih hanya turun, dan penempelan vertikal lebih rapat; widget catatan menyimpan daftar catatan ([`2aa7e38`](https://github.com/friskipradana/y-panel/commit/2aa7e38))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.4...v4.6.5
+### Peningkatan
+- **alerts:** Kartu solid, tombol batal berkontur, tombol bahaya tanpa cahaya, baris kosong menjadi paragraf, dan varian tombol outline ([`2262687`](https://github.com/friskipradana/y-panel/commit/2262687))
 
-## [4.6.4] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.8.0...v1.9.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.4** berisi 1 perubahan: 1 fitur. (14 files changed, 247 insertions(+), 271 deletions(-))
+## [1.8.0] - 2026-10-16
 
-### 🚀 Fitur Baru (Added)
-- **public:** One login action in the hero, install guide on its own page, philosophy section, article cards with covers, themed page transitions, clean login card ([`6e7871b`](https://github.com/friskipradana/y-panel/commit/6e7871b))
+2 perubahan, utamanya akun demo publik bisa dinyalakan atau dimatikan dari Pengaturan > Umum (superadmin), dengan env sebagai bawaan.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **demo:** Akun demo publik bisa dinyalakan atau dimatikan dari Pengaturan > Umum (superadmin), dengan env sebagai bawaan ([`8baacc0`](https://github.com/friskipradana/y-panel/commit/8baacc0))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.3...v4.6.4
+### Peningkatan
+- **alerts:** Dialog konfirmasi dan peringatan memakai kit UI: lencana ikon, teks rata kiri, tombol rata kanan, dan konfirmasi merah untuk aksi berisiko ([`1940e6b`](https://github.com/friskipradana/y-panel/commit/1940e6b))
 
-## [4.6.3] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.7.2...v1.8.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.3** berisi 1 perubahan: 1 perbaikan. (3 files changed, 15 insertions(+), 19 deletions(-))
+## [1.7.2] - 2026-10-15
 
-### 🐛 Perbaikan Bug (Fixed)
-- **ui:** Applications menu, dock and update check follow the account access matrix instead of the old admin-only flags ([`a2cc655`](https://github.com/friskipradana/y-panel/commit/a2cc655))
+Daftar alat, jumlah, dan catatan dibuat ulang dari registri yang berjalan.
 
-### 👥 Kontributor
-- AknalRe
+### Dokumentasi
+- **mcp:** Daftar alat, jumlah, dan catatan dibuat ulang dari registri yang berjalan ([`e45e4e7`](https://github.com/friskipradana/y-panel/commit/e45e4e7))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.2...v4.6.3
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.7.1...v1.7.2
 
-## [4.6.2] - 2026-10-16
+## [1.7.1] - 2026-10-15
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.2** berisi 1 perubahan: 1 fitur. (1 file changed, 16 insertions(+), 4 deletions(-))
+2 perubahan, utamanya referrer asal-sama agar POST login Adminer mempertahankan Origin, dan halaman status 403/404/500 lebih sederhana dan bertema.
 
-### 🚀 Fitur Baru (Added)
-- **widgets:** Widget content scales with the card width (zoom factor, live while resizing) ([`40a58b0`](https://github.com/friskipradana/y-panel/commit/40a58b0))
+### Perbaikan
+- **adminer,status:** Referrer asal-sama agar POST login Adminer mempertahankan Origin, dan halaman status 403/404/500 lebih sederhana dan bertema ([`42722e3`](https://github.com/friskipradana/y-panel/commit/42722e3))
+- **mobile:** Tab bar alat Docker muat, aksi baris entitas di baris sendiri yang rata, dan penghitung pencarian proyek di bawah kolom ([`47004d0`](https://github.com/friskipradana/y-panel/commit/47004d0))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.7.0...v1.7.1
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.1...v4.6.2
+## [1.7.0] - 2026-10-15
 
-## [4.6.1] - 2026-10-16
+13 perubahan, utamanya aliran WebSocket langsung untuk widget jaringan, CPU, dan ping (sampel per detik, probe ping dari server).
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.1** berisi 3 perubahan: 1 fitur, 1 perbaikan, 1 pemeliharaan. (7 files changed, 625 insertions(+), 21 deletions(-))
+### Fitur baru
+- **widgets:** Aliran WebSocket langsung untuk widget jaringan, CPU, dan ping (sampel per detik, probe ping dari server) ([`8246be7`](https://github.com/friskipradana/y-panel/commit/8246be7))
+- **mcp:** Alat untuk database pengguna, preset terminal, pemakaian sendiri, status dan penerapan pembaruan, serta dokumen resmi; katalog dibuat ulang ([`33d1e8a`](https://github.com/friskipradana/y-panel/commit/33d1e8a))
+- **docs:** Toolbar editor artikel dengan unggah gambar, gambar markdown, dan tangkapan layar di artikel resmi ([`cfe6d58`](https://github.com/friskipradana/y-panel/commit/cfe6d58))
+- **public:** Halaman depan, artikel, dan panduan MCP mengikuti mode terang/gelap dengan tombol di header ([`ec14aca`](https://github.com/friskipradana/y-panel/commit/ec14aca))
+- **update,alerts:** Dialog log pembaruan langsung yang tidak bisa ditutup, pengecekan pembaruan lebih cepat, dan dialog peringatan yang aksesibel dan aman ([`b6c4a3e`](https://github.com/friskipradana/y-panel/commit/b6c4a3e))
+- **db,mobile,landing:** Masuk Adminer dari jendela Database, penelusuran tabel kosong diperbaiki, ponsel mempertahankan aplikasi dan kembali ke beranda saat ditutup, tombol demo mengisi login ([`9a70e2c`](https://github.com/friskipradana/y-panel/commit/9a70e2c))
 
-### 🚀 Fitur Baru (Added)
-- **widgets:** Resize handles like windows; predictable drop placement (no jumps), memo list stays in config ([`a553cb2`](https://github.com/friskipradana/y-panel/commit/a553cb2))
+### Perbaikan
+- **ui:** Dialog muat di layar ponsel, formulir deploy satu kolom, dan versi database spesifik menggantikan tag alpine ([`ce440ec`](https://github.com/friskipradana/y-panel/commit/ce440ec))
+- **ui:** Jendela Docker, terminal, Cloudflare, proyek, pengelola file, dan pengguna di ponsel, serta bar tombol terminal ([`3af3647`](https://github.com/friskipradana/y-panel/commit/3af3647))
+- **terminal:** Pintasan salin/tempel, dan pintasan global tidak lagi mengambil Esc, Ctrl+K, dan tombol Alt di dalam terminal dan editor ([`f1d9792`](https://github.com/friskipradana/y-panel/commit/f1d9792))
+- **widgets:** Kunci widget bertahan setelah muat ulang sebelum sinkron, dan widget terkunci tidak bergeser saat tata letak dirapikan ([`11fc4fa`](https://github.com/friskipradana/y-panel/commit/11fc4fa))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **declaude:** Full ref names when creating local branches (origin/HEAD became a bogus branch), clean the temp clone on every exit ([`bc43f9e`](https://github.com/friskipradana/y-panel/commit/bc43f9e))
+### Dokumentasi
+- Daftar komponen untuk toolbar editor artikel dan gambar ([`b5a1738`](https://github.com/friskipradana/y-panel/commit/b5a1738))
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **tooling:** Declaude script to strip AI attribution, force-push and refresh GitHub contributors ([`cf905c1`](https://github.com/friskipradana/y-panel/commit/cf905c1))
+### Pemeliharaan
+- **rename:** Perubahan nama ypanel/ui-panel menjadi reneo diselesaikan pada cookie, penanda env, berkas DNS, preset, kunci penyimpanan, skrip deploy, dan dokumentasi ([`d3007f1`](https://github.com/friskipradana/y-panel/commit/d3007f1))
+- **license:** Lisensi menyebut kontributor Reneo sebagai pemegang hak cipta dan daftar kontributor mengikuti GitHub ([`6bfb263`](https://github.com/friskipradana/y-panel/commit/6bfb263))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.6.0...v1.7.0
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.6.0...v4.6.1
+## [1.6.0] - 2026-10-15
 
-## [4.6.0] - 2026-10-16
+3 perubahan, utamanya jendela Widget dibangun ulang dengan daftar terpasang dan hapus, tombol hapus di beranda ponsel, dan aturan desktop plus mobile.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.6.0** berisi 7 perubahan: 4 fitur, 2 perbaikan, 1 peningkatan. (82 files changed, 2130 insertions(+), 285 deletions(-))
+### Fitur baru
+- **widgets:** Jendela Widget dibangun ulang dengan daftar terpasang dan hapus, tombol hapus di beranda ponsel, dan aturan desktop plus mobile ([`9a63ada`](https://github.com/friskipradana/y-panel/commit/9a63ada))
+- **databases:** Pilihan versi, lencana di jendela Docker, dan pengelola halaman penuh di /database/{id} ([`43cd798`](https://github.com/friskipradana/y-panel/commit/43cd798))
+- **mobile:** Splash boot bermerek dan halaman login yang ramah ponsel ([`85ede79`](https://github.com/friskipradana/y-panel/commit/85ede79))
 
-### 🚀 Fitur Baru (Added)
-- Ping for every account with a public-address policy; opaque HMAC keys in database public URLs and the Adminer path ([`2a12dab`](https://github.com/friskipradana/y-panel/commit/2a12dab))
-- **isolation:** Cgroup slice for account shells, terminal exec endpoint, account-scoped MCP tools, move account between admins ([`2556b5f`](https://github.com/friskipradana/y-panel/commit/2556b5f))
-- **isolation:** Window and settings matrix per role, account resource view, widgets per role, docs ([`17c3518`](https://github.com/friskipradana/y-panel/commit/17c3518))
-- **isolation:** Hosting-style accounts - parent hierarchy, per-account resource view, user-role capabilities, host settings and system info superadmin-only ([`560e27e`](https://github.com/friskipradana/y-panel/commit/560e27e))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.5.1...v1.6.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **public:** 404 for unknown addresses without a session, public manifest and icons, trusted client IP for rate limits, per-account login throttle; calmer MCP page and matching hero buttons ([`3a35fb1`](https://github.com/friskipradana/y-panel/commit/3a35fb1))
-- **widgets:** Window size no longer pulls stored positions up, overlaps move down only, tighter vertical snap; memo widget holds a list of memos ([`2aa7e38`](https://github.com/friskipradana/y-panel/commit/2aa7e38))
+## [1.5.1] - 2026-10-15
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **alerts:** Solid card, outlined cancel, no glow on the danger button, blank lines become paragraphs; Button outline variant ([`2262687`](https://github.com/friskipradana/y-panel/commit/2262687))
+2 perubahan, utamanya perubahan Umum dan Host divalidasi dan diterapkan dengan aman, pesan galat lebih jelas, dan status pembaruan.
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **settings:** Perubahan Umum dan Host divalidasi dan diterapkan dengan aman, pesan galat lebih jelas, dan status pembaruan ([`02df13b`](https://github.com/friskipradana/y-panel/commit/02df13b))
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.3...v4.6.0
+### Dokumentasi
+- README memakai tangkapan layar halaman depan ([`964cc9f`](https://github.com/friskipradana/y-panel/commit/964cc9f))
 
-## [4.5.3] - 2026-10-16
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.5.0...v1.5.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.5.3** berisi 2 perubahan: 1 fitur, 1 peningkatan. (13 files changed, 409 insertions(+), 79 deletions(-))
+## [1.5.0] - 2026-10-15
 
-### 🚀 Fitur Baru (Added)
-- **demo:** Switch the public demo account on/off from Settings > General (superadmin), env stays as default ([`8baacc0`](https://github.com/friskipradana/y-panel/commit/8baacc0))
+2 perubahan, utamanya kelola tabel, konsol SQL, pengguna dan izin, serta kata sandi dari jendela Database.
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **alerts:** Confirmation and alert dialogs use the UI kit (icon badge, left-aligned text, right-aligned buttons, red confirm for risky actions) ([`1940e6b`](https://github.com/friskipradana/y-panel/commit/1940e6b))
+### Fitur baru
+- **databases:** Kelola tabel, konsol SQL, pengguna dan izin, serta kata sandi dari jendela Database ([`45486aa`](https://github.com/friskipradana/y-panel/commit/45486aa))
+- SEO dan penemuan oleh AI, dokumen resmi tersinkron, antarmuka administrasi database, dan README disegarkan ([`bb46f13`](https://github.com/friskipradana/y-panel/commit/bb46f13))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.4.0...v1.5.0
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.2...v4.5.3
+## [1.4.0] - 2026-10-15
 
-## [4.5.2] - 2026-10-15
+Changelog dari GitHub, artikel publik dengan editor dokumen markdown, info sistem dan log dirombak, serta widget vital sistem tidak ada di ponsel.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.5.2** berisi 1 perubahan: 1 dokumentasi. (1 file changed, 212 insertions(+), 94 deletions(-))
+### Fitur baru
+- Changelog dari GitHub, artikel publik dengan editor dokumen markdown, info sistem dan log dirombak, serta widget vital sistem tidak ada di ponsel ([`34adc26`](https://github.com/friskipradana/y-panel/commit/34adc26))
 
-### 📚 Dokumentasi (Documentation)
-- **mcp:** Regenerate tool list, counts and notes from the live registry ([`e45e4e7`](https://github.com/friskipradana/y-panel/commit/e45e4e7))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.3.0...v1.4.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.3.0] - 2026-10-15
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.1...v4.5.2
+2 perubahan, utamanya database kelolaan pengguna di jendela Database, tab database Reneo dipindah ke Pengaturan khusus superadmin, dan runtime proyek diperkuat.
 
-## [4.5.1] - 2026-10-15
+### Fitur baru
+- **databases:** Database kelolaan pengguna di jendela Database, tab database Reneo dipindah ke Pengaturan khusus superadmin, dan runtime proyek diperkuat ([`7dd70d4`](https://github.com/friskipradana/y-panel/commit/7dd70d4))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.5.1** berisi 2 perubahan: 2 perbaikan. (7 files changed, 202 insertions(+), 497 deletions(-))
+### Pemeliharaan
+- **ui:** Ikon Sparkles dari lucide dilarang di mana pun dan ditegakkan oleh check:ui ([`9ae5376`](https://github.com/friskipradana/y-panel/commit/9ae5376))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **adminer,status:** Same-origin referrer so the sign-in POST keeps its Origin; simpler themed status pages for 403/404/500 ([`42722e3`](https://github.com/friskipradana/y-panel/commit/42722e3))
-- **mobile:** Docker toolbar tabs fit, entity row actions on their own aligned line, project search counter under the field ([`47004d0`](https://github.com/friskipradana/y-panel/commit/47004d0))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.2.0...v1.3.0
 
-### 👥 Kontributor
-- AknalRe
+## [1.2.0] - 2026-10-15
 
-**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.5.0...v4.5.1
+4 perubahan, utamanya hierarki peran, perubahan kuota yang aman, pemakaian, reset dan ganti kata sandi, serta penangguhan atau penghapusan akun menghentikan beban kerjanya.
 
-## [4.5.0] - 2026-10-15
+### Fitur baru
+- **accounts:** Hierarki peran, perubahan kuota yang aman, pemakaian, reset dan ganti kata sandi, serta penangguhan atau penghapusan akun menghentikan beban kerjanya ([`90d2c11`](https://github.com/friskipradana/y-panel/commit/90d2c11))
+- **demo:** Akun demo hanya-baca dengan kartu di halaman depan, serta penyempurnaan jendela proyek, database, sistem, dan log ([`9ddbc6e`](https://github.com/friskipradana/y-panel/commit/9ddbc6e))
+- **demo,landing:** Daftar izin demo diperketat, proyek contoh disiapkan, halaman depan ponsel dirapikan, dan jendela pengguna dipecah ([`d5d435c`](https://github.com/friskipradana/y-panel/commit/d5d435c))
+- **mobile:** Urutan dan kunci widget per ponsel, layar kunci di menu akun, serta galeri widget dan judul jendela diterjemahkan ([`bdd5be5`](https://github.com/friskipradana/y-panel/commit/bdd5be5))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.5.0** berisi 16 perubahan: 6 fitur, 4 perbaikan, 1 dokumentasi, 5 pemeliharaan. (118 files changed, 2119 insertions(+), 279 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.1.2...v1.2.0
 
-### 🚀 Fitur Baru (Added)
-- **db,mobile,landing:** Adminer sign-in from the Database window, empty-table browse fix, mobile keeps apps alive and returns home on close, demo button prefills login ([`9a70e2c`](https://github.com/friskipradana/panel-desktop-ui/commit/9a70e2c))
-- **docs:** Article editor toolbar with image upload, markdown images, screenshots in official articles ([`cfe6d58`](https://github.com/friskipradana/panel-desktop-ui/commit/cfe6d58))
-- **mcp:** Tools for user databases, terminal presets, own usage, update status/apply and official docs; regenerated catalog ([`33d1e8a`](https://github.com/friskipradana/panel-desktop-ui/commit/33d1e8a))
-- **public:** Landing, articles and MCP guide follow light/dark mode with a header toggle ([`ec14aca`](https://github.com/friskipradana/panel-desktop-ui/commit/ec14aca))
-- **update,alerts:** Live non-closable update log dialog, faster update check, accessible and safe alert dialogs on phone and desktop ([`b6c4a3e`](https://github.com/friskipradana/panel-desktop-ui/commit/b6c4a3e))
-- **widgets:** Live WebSocket stream for network, CPU and ping widgets (1s samples, server-driven ping probes) ([`8246be7`](https://github.com/friskipradana/panel-desktop-ui/commit/8246be7))
+## [1.1.2] - 2026-10-15
 
-### 🐛 Perbaikan Bug (Fixed)
-- **terminal:** Copy/paste shortcuts, global shortcuts no longer steal Esc/Ctrl+K/Alt keys inside terminal and editor ([`f1d9792`](https://github.com/friskipradana/panel-desktop-ui/commit/f1d9792))
-- **ui:** Dialogs fit the phone viewport, deploy form single column, specific database versions instead of alpine tags ([`ce440ec`](https://github.com/friskipradana/panel-desktop-ui/commit/ce440ec))
-- **ui:** Docker, terminal, cloudflare, projects, file manager and users windows on phone; terminal key bar ([`3af3647`](https://github.com/friskipradana/panel-desktop-ui/commit/3af3647))
-- **widgets:** Lock survives reload before sync, locked widgets stay put when the layout is tidied or sanitized ([`11fc4fa`](https://github.com/friskipradana/panel-desktop-ui/commit/11fc4fa))
+Pilihan tata letak lewat ?ui= hanya berlaku satu kali muat halaman, dan muat ulang tanpanya kembali ke otomatis.
 
-### 📚 Dokumentasi (Documentation)
-- Component list for article editor toolbar and images ([`b5a1738`](https://github.com/friskipradana/panel-desktop-ui/commit/b5a1738))
+### Perbaikan
+- **mobile:** Pilihan tata letak lewat ?ui= hanya berlaku satu kali muat halaman, dan muat ulang tanpanya kembali ke otomatis ([`1ec334d`](https://github.com/friskipradana/y-panel/commit/1ec334d))
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- Contributors come from GitHub instead of hardcoded names; remove Y_Corp owner line from README ([`2f207c7`](https://github.com/friskipradana/panel-desktop-ui/commit/2f207c7))
-- **license:** Point to the GitHub contributors list ([`c771c09`](https://github.com/friskipradana/panel-desktop-ui/commit/c771c09))
-- **license:** Name the Reneo contributors as copyright holder, drop Y_Corp and the old product name ([`6bfb263`](https://github.com/friskipradana/panel-desktop-ui/commit/6bfb263))
-- **rename:** Finish ypanel/ui-panel -> reneo in cookie, env markers, DNS file, presets, storage keys, deploy scripts and docs ([`d3007f1`](https://github.com/friskipradana/panel-desktop-ui/commit/d3007f1))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.1.1...v1.1.2
 
-### 📦 Lainnya (Other)
-- Revert "chore(release): v4.5.0" ([`fb44ee3`](https://github.com/friskipradana/panel-desktop-ui/commit/fb44ee3))
+## [1.1.1] - 2026-10-15
 
-### 👥 Kontributor
-- AknalRe
+Berkas tsconfig.app.tsbuildinfo tidak lagi dilacak git.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.4.0...v4.5.0
+### Pemeliharaan
+- Berkas tsconfig.app.tsbuildinfo tidak lagi dilacak git ([`f768f5a`](https://github.com/friskipradana/y-panel/commit/f768f5a))
 
-## [4.4.0] - 2026-10-15
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.1.0...v1.1.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.4.0** berisi 3 perubahan: 3 fitur. (30 files changed, 567 insertions(+), 208 deletions(-))
+## [1.1.0] - 2026-10-15
 
-### 🚀 Fitur Baru (Added)
-- **databases:** Version dropdown, Docker window badge, full page manager at /database/{id} ([`9acf6ab`](https://github.com/friskipradana/panel-desktop-ui/commit/9acf6ab))
-- **mobile:** Branded boot splash and a phone-friendly login ([`a4313e5`](https://github.com/friskipradana/panel-desktop-ui/commit/a4313e5))
-- **widgets:** Rebuilt Widgets window with installed list and remove, remove button on phone home, desktop+mobile rule ([`b2c022b`](https://github.com/friskipradana/panel-desktop-ui/commit/b2c022b))
+6 perubahan, utamanya tata letak ponsel untuk beranda dan aplikasi panel.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **mobile:** Tata letak ponsel untuk beranda dan aplikasi panel ([`15e77ec`](https://github.com/friskipradana/y-panel/commit/15e77ec))
+- **mobile:** Lonceng notifikasi, pengalih tema di menu akun, dan editor file mengelola gulirnya sendiri ([`6993cab`](https://github.com/friskipradana/y-panel/commit/6993cab))
+- **mobile:** Membuka jendela apa pun dari palet, profil dan aplikasi tambahan di ponsel, bar alat log dan tab pengaturan muat di layar ([`376f38c`](https://github.com/friskipradana/y-panel/commit/376f38c))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.4...v4.4.0
+### Perbaikan
+- **mobile:** Aksi baris entitas terbungkus, dan kolom pengelola file dilepas di jendela sempit ([`f53422c`](https://github.com/friskipradana/y-panel/commit/f53422c))
+- **widgets:** Tata letak widget tersimpan tidak pernah dipaksa saat tampilan ponsel aktif ([`9118c8c`](https://github.com/friskipradana/y-panel/commit/9118c8c))
 
-## [4.3.4] - 2026-10-15
+### Peningkatan
+- **mobile:** Gaya khusus ponsel dibatasi pada shell ponsel, sehingga jendela desktop tidak berubah ([`70d624c`](https://github.com/friskipradana/y-panel/commit/70d624c))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.3.4** berisi 2 perubahan: 1 perbaikan, 1 dokumentasi. (11 files changed, 250 insertions(+), 25 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.0.3...v1.1.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **settings:** Validate and apply General & Host changes safely, clearer errors and update status ([`1046db4`](https://github.com/friskipradana/panel-desktop-ui/commit/1046db4))
+## [1.0.3] - 2026-10-15
 
-### 📚 Dokumentasi (Documentation)
-- Use a landing page screenshot in the README ([`3916b5e`](https://github.com/friskipradana/panel-desktop-ui/commit/3916b5e))
+/docs/mcp tetap bisa dibuka tanpa sesi, dan panduan MCP memakai daftar, bukan kartu.
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **public:** /docs/mcp tetap bisa dibuka tanpa sesi, dan panduan MCP memakai daftar, bukan kartu ([`4ce9895`](https://github.com/friskipradana/y-panel/commit/4ce9895))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.3...v4.3.4
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.0.2...v1.0.3
 
-## [4.3.3] - 2026-10-15
+## [1.0.2] - 2026-10-15
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.3.3** berisi 2 perubahan: 2 fitur. (38 files changed, 2941 insertions(+), 249 deletions(-))
+Hiasan tanpa fungsi dibuang, daftar dan tabel menggantikan kisi kartu.
 
-### 🚀 Fitur Baru (Added)
-- SEO and AI discovery, synced official docs, database administration UI, README refresh ([`ebe6053`](https://github.com/friskipradana/panel-desktop-ui/commit/ebe6053))
-- **databases:** Manage tables, SQL console, users and permissions, password from the Database window ([`864fb27`](https://github.com/friskipradana/panel-desktop-ui/commit/864fb27))
+### Perbaikan
+- **landing:** Hiasan tanpa fungsi dibuang, daftar dan tabel menggantikan kisi kartu ([`c99bf26`](https://github.com/friskipradana/y-panel/commit/c99bf26))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.0.1...v1.0.2
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.2...v4.3.3
+## [1.0.1] - 2026-10-15
 
-## [4.3.2] - 2026-10-15
+Tata letak responsif untuk ponsel dan tablet.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.3.2** berisi 1 perubahan: 1 fitur. (32 files changed, 1633 insertions(+), 874 deletions(-))
+### Perbaikan
+- **landing:** Tata letak responsif untuk ponsel dan tablet ([`3048c5e`](https://github.com/friskipradana/y-panel/commit/3048c5e))
 
-### 🚀 Fitur Baru (Added)
-- GitHub-backed changelog, public articles with markdown docs editor, system info and logs reworked, no system vitals widget on mobile ([`5f0bdf7`](https://github.com/friskipradana/panel-desktop-ui/commit/5f0bdf7))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.0.0...v1.0.1
 
-### 👥 Kontributor
-- AknalRe
+## [1.0.0] - 2026-10-15
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.1...v4.3.2
+8 perubahan, utamanya nama YPanel menjadi Reneo di antarmuka, installer, runtime, dan dokumentasi, dengan halaman depan, filosofi, dan set ikon baru.
 
-## [4.3.1] - 2026-10-15
+### Fitur baru
+- **brand:** Nama YPanel menjadi Reneo di antarmuka, installer, runtime, dan dokumentasi, dengan halaman depan, filosofi, dan set ikon baru ([`aaf79a1`](https://github.com/friskipradana/y-panel/commit/aaf79a1))
+- **runtime:** Penamaan Reneo dengan alias variabel RENEO_* dan cadangan ke nama ypanel lama ([`580593b`](https://github.com/friskipradana/y-panel/commit/580593b))
+- **updater:** Memeriksa dan memasang rilis lewat CLI dan antarmuka web ([`7a142ff`](https://github.com/friskipradana/y-panel/commit/7a142ff))
+- **installer:** Pemasangan satu baris curl | sudo bash, berkas .run aman untuk pipa, dan aset sha256 ([`4f27b95`](https://github.com/friskipradana/y-panel/commit/4f27b95))
+- **landing:** Panduan pemasangan langkah demi langkah ([`2e5bd16`](https://github.com/friskipradana/y-panel/commit/2e5bd16))
+- **landing:** Halaman depan Reneo, filosofi, dan set ikon dari kit merek REN ([`b30c9b4`](https://github.com/friskipradana/y-panel/commit/b30c9b4))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.3.1** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (42 files changed, 2058 insertions(+), 404 deletions(-))
+### Perbaikan
+- **landing:** Perintah pemasangan di hero dirapikan dan pratinjau Cloudflare memakai reneo.my.id ([`02725f1`](https://github.com/friskipradana/y-panel/commit/02725f1))
 
-### 🚀 Fitur Baru (Added)
-- **databases:** User-managed databases in the Database window, Reneo database moved to superadmin-only Settings tab; project runtime hardening ([`f131d08`](https://github.com/friskipradana/panel-desktop-ui/commit/f131d08))
+### Dokumentasi
+- Dokumentasi filosofi dan prinsip Reneo ([`fa4d3f2`](https://github.com/friskipradana/y-panel/commit/fa4d3f2))
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **ui:** Ban lucide Sparkles icons everywhere and enforce it in check:ui ([`50fbcf7`](https://github.com/friskipradana/panel-desktop-ui/commit/50fbcf7))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.25.0...v1.0.0
 
-### 👥 Kontributor
-- AknalRe
+## [0.25.0] - 2026-10-13
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.3.0...v4.3.1
+Katalog alat langsung dari agent, sehingga panduan selalu sama dengan agent.
 
-## [4.3.0] - 2026-10-15
+### Fitur baru
+- **mcp:** Katalog alat langsung dari agent, sehingga panduan selalu sama dengan agent ([`588d165`](https://github.com/friskipradana/y-panel/commit/588d165))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.3.0** berisi 4 perubahan: 4 fitur. (46 files changed, 1741 insertions(+), 355 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.24.0...v0.25.0
 
-### 🚀 Fitur Baru (Added)
-- **accounts:** Role hierarchy, safe quota patch, usage, password reset and change, suspend/delete stop workloads ([`a391740`](https://github.com/friskipradana/panel-desktop-ui/commit/a391740))
-- **demo:** Read-only demo account with landing page card; polish projects, database, system and logs windows ([`7d77f0f`](https://github.com/friskipradana/panel-desktop-ui/commit/7d77f0f))
-- **demo,landing:** Harden demo allowlist, seed sample projects, tidy mobile landing, drop owner line, split users window ([`5f6056d`](https://github.com/friskipradana/panel-desktop-ui/commit/5f6056d))
-- **mobile:** Per-phone widget order and lock, lock screen in account menu, translate widget gallery and window titles ([`13004dc`](https://github.com/friskipradana/panel-desktop-ui/commit/13004dc))
+## [0.24.0] - 2026-10-13
 
-### 👥 Kontributor
-- AknalRe
+Alat operasi host untuk disk, firewall, dan membuka PostgreSQL ke luar.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.2.0...v4.3.0
+### Fitur baru
+- **mcp:** Alat operasi host untuk disk, firewall, dan membuka PostgreSQL ke luar ([`ecbdbdf`](https://github.com/friskipradana/y-panel/commit/ecbdbdf))
 
-## [4.2.0] - 2026-10-15
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.23.3...v0.24.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.2.0** berisi 1 perubahan: 1 perbaikan. (1 file changed, 13 insertions(+), 21 deletions(-))
+## [0.23.3] - 2026-10-13
 
-### 🐛 Perbaikan Bug (Fixed)
-- **mobile:** Layout override from ?ui= lasts one page load, reload without it returns to auto ([`0c21f7e`](https://github.com/friskipradana/panel-desktop-ui/commit/0c21f7e))
+Palet perintah dan pratinjau penempelan tetap berada di atas jendela.
 
-### 👥 Kontributor
-- AknalRe
+### Perbaikan
+- **desktop:** Palet perintah dan pratinjau penempelan tetap berada di atas jendela ([`0649b9e`](https://github.com/friskipradana/y-panel/commit/0649b9e))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.1.0...v4.2.0
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.23.2...v0.23.3
 
-## [4.1.0] - 2026-10-15
+## [0.23.2] - 2026-10-13
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.1.0** berisi 1 perubahan: 1 pemeliharaan. (1 file changed, 1 deletion(-))
+Tata letak memakai tinggi terukur dan tumpang tindih diselesaikan ke tempat kosong terdekat.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- Stop tracking tsconfig.app.tsbuildinfo (already gitignored, dirtied the tree on every build) ([`4b85ef3`](https://github.com/friskipradana/panel-desktop-ui/commit/4b85ef3))
+### Perbaikan
+- **widgets:** Tata letak memakai tinggi terukur dan tumpang tindih diselesaikan ke tempat kosong terdekat ([`df9fb78`](https://github.com/friskipradana/y-panel/commit/df9fb78))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.23.1...v0.23.2
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.4...v4.1.0
+## [0.23.1] - 2026-10-13
 
-## [4.0.4] - 2026-10-15
+Posisi widget yang dilepas dipertahankan, jendela menempel ke tepi, dan jendela bertingkat serta dibatasi dalam layar.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.0.4** berisi 6 perubahan: 3 fitur, 2 perbaikan, 1 peningkatan. (20 files changed, 767 insertions(+), 164 deletions(-))
+### Perbaikan
+- **desktop:** Posisi widget yang dilepas dipertahankan, jendela menempel ke tepi, dan jendela bertingkat serta dibatasi dalam layar ([`6bb5b1b`](https://github.com/friskipradana/y-panel/commit/6bb5b1b))
 
-### 🚀 Fitur Baru (Added)
-- **mobile:** Notification bell, theme switch in account menu, file editor owns scroll ([`f1f9e9b`](https://github.com/friskipradana/panel-desktop-ui/commit/f1f9e9b))
-- **mobile:** Open any window from the palette, profile and extra apps on phone, logs toolbar and settings tabs fit ([`1d5c780`](https://github.com/friskipradana/panel-desktop-ui/commit/1d5c780))
-- **mobile:** Phone layout for the panel home and apps ([`673b2aa`](https://github.com/friskipradana/panel-desktop-ui/commit/673b2aa))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.23.0...v0.23.1
 
-### 🐛 Perbaikan Bug (Fixed)
-- **mobile:** Wrap entity row actions and drop file manager columns on narrow windows ([`bbb8a40`](https://github.com/friskipradana/panel-desktop-ui/commit/bbb8a40))
-- **widgets:** Never clamp the stored widget layout while the phone layout is active ([`9794a5b`](https://github.com/friskipradana/panel-desktop-ui/commit/9794a5b))
+## [0.23.0] - 2026-10-13
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **mobile:** Scope phone-only styles to the mobile shell so desktop windows stay untouched ([`0a4666f`](https://github.com/friskipradana/panel-desktop-ui/commit/0a4666f))
+Halaman depan dan panduan MCP dibangun ulang, dan menampilkan versi panel yang sebenarnya.
 
-### 👥 Kontributor
-- AknalRe
+### Fitur baru
+- **public:** Halaman depan dan panduan MCP dibangun ulang, dan menampilkan versi panel yang sebenarnya ([`7c059c8`](https://github.com/friskipradana/y-panel/commit/7c059c8))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.3...v4.0.4
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.22.0...v0.23.0
 
-## [4.0.3] - 2026-10-15
+## [0.22.0] - 2026-10-13
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.0.3** berisi 1 perubahan: 1 perbaikan. (11 files changed, 57 insertions(+), 42 deletions(-))
+API aturan pengalihan (redirect) dan alat MCP-nya.
 
-### 🐛 Perbaikan Bug (Fixed)
-- **public:** Keep /docs/mcp reachable without a session; lists instead of cards on the MCP guide ([`fd1c74f`](https://github.com/friskipradana/panel-desktop-ui/commit/fd1c74f))
+### Fitur baru
+- **cloudflare:** API aturan pengalihan (redirect) dan alat MCP-nya ([`0592987`](https://github.com/friskipradana/y-panel/commit/0592987))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.21.0...v0.22.0
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.2...v4.0.3
+## [0.21.0] - 2026-10-13
 
-## [4.0.2] - 2026-10-15
+2 perubahan, utamanya katalog alat diperluas menjadi 97 alat, dengan anotasi, prompt, dan kontrol widget.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.0.2** berisi 1 perubahan: 1 perbaikan. (6 files changed, 184 insertions(+), 250 deletions(-))
+### Fitur baru
+- **mcp:** Katalog alat diperluas menjadi 97 alat, dengan anotasi, prompt, dan kontrol widget ([`1d242e1`](https://github.com/friskipradana/y-panel/commit/1d242e1))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **landing:** Remove decorative slop, use tables and lists instead of card grids ([`2f698ae`](https://github.com/friskipradana/panel-desktop-ui/commit/2f698ae))
+### Pemeliharaan
+- **release:** Catatan CHANGELOG diterbitkan sebagai isi rilis GitHub ([`2ec8b71`](https://github.com/friskipradana/y-panel/commit/2ec8b71))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.20.0...v0.21.0
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.1...v4.0.2
+## [0.20.0] - 2026-10-13
 
-## [4.0.1] - 2026-10-15
+2 perubahan, utamanya widget lalu lintas jaringan dan berkas bahasa Indonesia/Inggris.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.0.1** berisi 1 perubahan: 1 perbaikan. (4 files changed, 18 insertions(+), 18 deletions(-))
+### Fitur baru
+- Widget lalu lintas jaringan dan berkas bahasa Indonesia/Inggris ([`2aea861`](https://github.com/friskipradana/y-panel/commit/2aea861))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **landing:** Responsive layout for phones and tablets ([`80f9565`](https://github.com/friskipradana/panel-desktop-ui/commit/80f9565))
+### Perbaikan
+- **installer:** Service dimulai setelah pemasangan, deteksi database diperbaiki, agent siap pakai disertakan, dan keluaran lebih jelas ([`aab9836`](https://github.com/friskipradana/y-panel/commit/aab9836))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.19.1...v0.20.0
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v4.0.0...v4.0.1
+## [0.19.1] - 2026-10-13
 
-## [4.0.0] - 2026-10-15
+Lalu lintas jaringan hanya menghitung antarmuka fisik, dan migrasi widgets_data ditambahkan.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v4.0.0** berisi 10 perubahan: 6 fitur, 2 perbaikan, 1 dokumentasi, 1 pemeliharaan. (99 files changed, 2535 insertions(+), 618 deletions(-))
+### Perbaikan
+- **agent:** Lalu lintas jaringan hanya menghitung antarmuka fisik, dan migrasi widgets_data ditambahkan ([`bbbbf7f`](https://github.com/friskipradana/y-panel/commit/bbbbf7f))
 
-### 🚀 Fitur Baru (Added)
-- **brand:** Rename YPanel to Reneo across UI, installer, runtime and docs ([`8b27342`](https://github.com/friskipradana/panel-desktop-ui/commit/8b27342))
-- **brand:** Reneo landing page, philosophy and icon set from the REN brand kit ([`210486f`](https://github.com/friskipradana/panel-desktop-ui/commit/210486f))
-- **installer:** One-line curl | sudo bash install, pipe-safe .run and sha256 asset ([`fdafeaf`](https://github.com/friskipradana/panel-desktop-ui/commit/fdafeaf))
-- **landing:** Step-by-step installation guide ([`65a0277`](https://github.com/friskipradana/panel-desktop-ui/commit/65a0277))
-- **runtime:** Reneo naming with RENEO_* env aliases and legacy ypanel fallback ([`5583ecd`](https://github.com/friskipradana/panel-desktop-ui/commit/5583ecd))
-- **updater:** Check and apply releases via cli and web ui ([`535d77b`](https://github.com/friskipradana/panel-desktop-ui/commit/535d77b))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.19.0...v0.19.1
 
-### 🐛 Perbaikan Bug (Fixed)
-- **landing:** Use reneo.my.id in the Cloudflare preview ([`3eab805`](https://github.com/friskipradana/panel-desktop-ui/commit/3eab805))
-- **landing:** Tidy the hero install command block ([`61cca00`](https://github.com/friskipradana/panel-desktop-ui/commit/61cca00))
+## [0.19.0] - 2026-10-13
 
-### 📚 Dokumentasi (Documentation)
-- Add Reneo philosophy and guiding principles documentation ([`9bd9ac4`](https://github.com/friskipradana/panel-desktop-ui/commit/9bd9ac4))
+5 perubahan, utamanya terminal tetap hidup dan bisa tersambung ulang, pengecekan ping, riwayat metrik, dan tata letak widget per pengguna.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- Update typescript build info cache ([`246cc0e`](https://github.com/friskipradana/panel-desktop-ui/commit/246cc0e))
+### Fitur baru
+- **agent:** Terminal tetap hidup dan bisa tersambung ulang, pengecekan ping, riwayat metrik, dan tata letak widget per pengguna ([`56d2369`](https://github.com/friskipradana/y-panel/commit/56d2369))
+- **widgets:** Grafik garis yang tersimpan, monitor ping, banyak catatan tempel, dan kontrol jendela yang muncul saat kursor di atasnya ([`84e0cd9`](https://github.com/friskipradana/y-panel/commit/84e0cd9))
 
-### 👥 Kontributor
-- AknalRe
+### Peningkatan
+- **ui:** Kit UI bersama, jendela besar dipecah menjadi hook dan bagian, dan klien sambung ulang terminal ([`cb9606d`](https://github.com/friskipradana/y-panel/commit/cb9606d))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.5...v4.0.0
+### Dokumentasi
+- Aturan sistem desain, daftar komponen, aturan kit UI, dan pedoman anti-slop ([`29c28da`](https://github.com/friskipradana/y-panel/commit/29c28da))
 
-## [3.4.5] - 2026-10-13
+### Pemeliharaan
+- Validator check:ui dan pembuat catatan rilis yang dirombak ([`e2140ae`](https://github.com/friskipradana/y-panel/commit/e2140ae))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.5** berisi 1 perubahan: 1 fitur. (7 files changed, 183 insertions(+), 12 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.18.1...v0.19.0
 
-### 🚀 Fitur Baru (Added)
-- **mcp:** Serve the live tool catalog so the guide always matches the agent ([`99d5ad9`](https://github.com/friskipradana/panel-desktop-ui/commit/99d5ad9))
+## [0.18.1] - 2026-10-12
 
-### 👥 Kontributor
-- AknalRe
+Menambah alat cloudflare_create_tunnel_route dan hapus DNS, serta menimpa konflik DNS secara otomatis.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.4...v3.4.5
+### Perbaikan
+- **mcp:** Menambah alat cloudflare_create_tunnel_route dan hapus DNS, serta menimpa konflik DNS secara otomatis ([`2d39dd6`](https://github.com/friskipradana/y-panel/commit/2d39dd6))
 
-## [3.4.4] - 2026-10-13
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.18.0...v0.18.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.4** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (7 files changed, 711 insertions(+), 10 deletions(-))
+## [0.18.0] - 2026-10-12
 
-### 🚀 Fitur Baru (Added)
-- **mcp:** Host operations tools for disk, firewall and PostgreSQL exposure ([`bd41367`](https://github.com/friskipradana/panel-desktop-ui/commit/bd41367))
+Integrasi server MCP dan antarmuka pengaturannya.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **typescript:** Update build info ([`8194f74`](https://github.com/friskipradana/panel-desktop-ui/commit/8194f74))
+### Fitur baru
+- Integrasi server MCP dan antarmuka pengaturannya ([`a90c51f`](https://github.com/friskipradana/y-panel/commit/a90c51f))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.17.0...v0.18.0
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.3...v3.4.4
+## [0.17.0] - 2026-10-12
 
-## [3.4.3] - 2026-10-13
+Middleware HTTP, integrasi MCP, dukungan API Cloudflare, dan antarmuka token API.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.3** berisi 1 perubahan: 1 perbaikan. (4 files changed, 27 insertions(+), 6 deletions(-))
+### Fitur baru
+- Middleware HTTP, integrasi MCP, dukungan API Cloudflare, dan antarmuka token API ([`8c36923`](https://github.com/friskipradana/y-panel/commit/8c36923))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **desktop:** Keep the command palette and snap preview above windows ([`d9bb54b`](https://github.com/friskipradana/panel-desktop-ui/commit/d9bb54b))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.16.0...v0.17.0
 
-### 👥 Kontributor
-- AknalRe
+## [0.16.0] - 2026-10-12
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.2...v3.4.3
+2 perubahan, utamanya middleware server, API alat MCP, dan penangan HTTP MCP.
 
-## [3.4.2] - 2026-10-13
+### Fitur baru
+- Middleware server, API alat MCP, dan penangan HTTP MCP ([`e438bbe`](https://github.com/friskipradana/y-panel/commit/e438bbe))
+- Komponen ApiTokensTab di Pengaturan ([`d92c9b2`](https://github.com/friskipradana/y-panel/commit/d92c9b2))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.2** berisi 1 perubahan: 1 perbaikan. (2 files changed, 131 insertions(+), 37 deletions(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.15.0...v0.16.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **widgets:** Lay out with measured heights and resolve overlaps to the nearest free spot ([`c0a3d6c`](https://github.com/friskipradana/panel-desktop-ui/commit/c0a3d6c))
+## [0.15.0] - 2026-10-12
 
-### 👥 Kontributor
-- AknalRe
+Endpoint publik dan panduan pengguna MCP.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.1...v3.4.2
+### Fitur baru
+- **mcp:** Endpoint publik dan panduan pengguna MCP ([`e2e282c`](https://github.com/friskipradana/y-panel/commit/e2e282c))
 
-## [3.4.1] - 2026-10-13
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.14.1...v0.15.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.1** berisi 2 perubahan: 1 perbaikan, 1 pemeliharaan. (7 files changed, 283 insertions(+), 48 deletions(-))
+## [0.14.1] - 2026-10-12
 
-### 🐛 Perbaikan Bug (Fixed)
-- **desktop:** Keep dropped widget position, snap windows to edges, cascade and clamp windows ([`34e4ac1`](https://github.com/friskipradana/panel-desktop-ui/commit/34e4ac1))
+Rilis pemeliharaan: hanya penomoran versi dan catatan rilis, tanpa perubahan fungsi.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **compiler:** Refresh typescript build cache ([`58a5127`](https://github.com/friskipradana/panel-desktop-ui/commit/58a5127))
+### Pemeliharaan
+- Rilis pemeliharaan: hanya penomoran versi dan catatan rilis, tanpa perubahan fungsi
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.14.0...v0.14.1
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.4.0...v3.4.1
+## [0.14.0] - 2026-10-12
 
-## [3.4.0] - 2026-10-13
+Server MCP dan antarmuka pengaturan token API.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.4.0** berisi 1 perubahan: 1 fitur. (15 files changed, 949 insertions(+), 623 deletions(-))
+### Fitur baru
+- Server MCP dan antarmuka pengaturan token API ([`8507547`](https://github.com/friskipradana/y-panel/commit/8507547))
 
-### 🚀 Fitur Baru (Added)
-- **public:** Rebuild landing and MCP guide pages, show the real panel version ([`a576825`](https://github.com/friskipradana/panel-desktop-ui/commit/a576825))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.13.1...v0.14.0
 
-### 👥 Kontributor
-- AknalRe
+## [0.13.1] - 2026-10-12
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.3.1...v3.4.0
+Rilis pemeliharaan: hanya penomoran versi dan catatan rilis, tanpa perubahan fungsi.
 
-## [3.3.1] - 2026-10-13
+### Pemeliharaan
+- Rilis pemeliharaan: hanya penomoran versi dan catatan rilis, tanpa perubahan fungsi
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.3.1** berisi 1 perubahan: 1 fitur. (6 files changed, 310 insertions(+), 1 deletion(-))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.13.0...v0.13.1
 
-### 🚀 Fitur Baru (Added)
-- **cloudflare:** Redirect rules API and MCP tools ([`8c38ad3`](https://github.com/friskipradana/panel-desktop-ui/commit/8c38ad3))
+## [0.13.0] - 2026-10-11
 
-### 👥 Kontributor
-- AknalRe
+Skrip rilis otomatis, tab token API di Pengaturan, dan workflow CI untuk installer.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.3.0...v3.3.1
+### Fitur baru
+- Skrip rilis otomatis, tab token API di Pengaturan, dan workflow CI untuk installer ([`3c4584c`](https://github.com/friskipradana/y-panel/commit/3c4584c))
 
-## [3.3.0] - 2026-10-13
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.12.1...v0.13.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.3.0** berisi 2 perubahan: 1 fitur, 1 pemeliharaan. (9 files changed, 1218 insertions(+), 16 deletions(-))
+## [0.12.1] - 2026-10-11
 
-### 🚀 Fitur Baru (Added)
-- **mcp:** Expand tool catalog to 97 tools with annotations, prompts and widget control ([`5148e1c`](https://github.com/friskipradana/panel-desktop-ui/commit/5148e1c))
+Rilis 3.0.0: pijakan awal seri 3.x.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **release:** Publish CHANGELOG notes as the GitHub release body ([`8f09803`](https://github.com/friskipradana/panel-desktop-ui/commit/8f09803))
+### Pemeliharaan
+- Rilis 3.0.0: pijakan awal seri 3.x ([`ea93612`](https://github.com/friskipradana/y-panel/commit/ea93612))
 
-### 👥 Kontributor
-- AknalRe
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.12.0...v0.12.1
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.2...v3.3.0
+## [0.12.0] - 2026-10-11
 
-## [3.2.2] - 2026-10-13
+2 perubahan, utamanya server Model Context Protocol (MCP) dan pengelolaan token API.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.2.2** berisi 2 perubahan: 1 fitur, 1 perbaikan. (7 files changed, 385 insertions(+), 87 deletions(-))
+### Fitur baru
+- **mcp:** Server Model Context Protocol (MCP) dan pengelolaan token API ([`59fe4c0`](https://github.com/friskipradana/y-panel/commit/59fe4c0))
+- Jendela Pengaturan untuk preferensi desktop dan konfigurasi sistem ([`81feeb5`](https://github.com/friskipradana/y-panel/commit/81feeb5))
 
-### 🚀 Fitur Baru (Added)
-- Add NetworkTrafficWidget component and English/Indonesian localization files ([`f911f0a`](https://github.com/friskipradana/panel-desktop-ui/commit/f911f0a))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.11.1...v0.12.0
 
-### 🐛 Perbaikan Bug (Fixed)
-- **installer:** Start service after install, fix database detection, ship prebuilt agent, clearer output ([`7e7264d`](https://github.com/friskipradana/panel-desktop-ui/commit/7e7264d))
+## [0.11.1] - 2026-10-08
 
-### 👥 Kontributor
-- AknalRe
+2 perubahan, utamanya header menu profil dan integrasi ikonnya diperbarui.
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.1...v3.2.2
+### Peningkatan
+- **taskbar:** Header menu profil dan integrasi ikonnya diperbarui ([`bd61486`](https://github.com/friskipradana/y-panel/commit/bd61486))
+- **ui:** Tata letak dan perataan menu profil disesuaikan ([`d9b37fd`](https://github.com/friskipradana/y-panel/commit/d9b37fd))
 
-## [3.2.1] - 2026-10-13
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.11.0...v0.11.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.2.1** berisi 2 perubahan: 1 perbaikan, 1 pemeliharaan. (12 files changed, 181 insertions(+), 101 deletions(-))
+## [0.11.0] - 2026-10-08
 
-### 🐛 Perbaikan Bug (Fixed)
-- **agent:** Count physical interfaces only for network IO, add widgets_data migration ([`64e0ba2`](https://github.com/friskipradana/panel-desktop-ui/commit/64e0ba2))
+2 perubahan, utamanya palet perintah global untuk mencari dan membuka fitur dengan cepat.
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **build:** Update typescript build info ([`48c3a93`](https://github.com/friskipradana/panel-desktop-ui/commit/48c3a93))
+### Fitur baru
+- **ui:** Palet perintah global untuk mencari dan membuka fitur dengan cepat ([`b8c6237`](https://github.com/friskipradana/y-panel/commit/b8c6237))
 
-### 👥 Kontributor
-- AknalRe
+### Peningkatan
+- **ui:** Tampilan dan tata letak palet perintah dirapikan ([`4121d66`](https://github.com/friskipradana/y-panel/commit/4121d66))
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.2.0...v3.2.1
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.10.0...v0.11.0
 
-## [3.2.0] - 2026-10-13
+## [0.10.0] - 2026-10-08
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis **v3.2.0** berisi 7 perubahan: 2 fitur, 1 peningkatan, 3 dokumentasi, 1 pemeliharaan. (168 files changed, 20283 insertions(+), 18649 deletions(-))
+5 perubahan, utamanya sistem widget desktop dengan pemantauan CPU dan telemetri jaringan.
 
-### 🚀 Fitur Baru (Added)
-- **agent:** Terminal keepalive and reattach, ping probe, metrics history, per-user widget layout ([`560b623`](https://github.com/friskipradana/panel-desktop-ui/commit/560b623))
-- **widgets:** Persistent line graphs, ping monitor, multi sticky notes, hover-only chrome ([`5856336`](https://github.com/friskipradana/panel-desktop-ui/commit/5856336))
+### Fitur baru
+- **desktop:** Sistem widget desktop dengan pemantauan CPU dan telemetri jaringan ([`6832f35`](https://github.com/friskipradana/y-panel/commit/6832f35))
+- **ui:** Pengaturan ulang tata letak widget yang lebih cerdas ([`5c03168`](https://github.com/friskipradana/y-panel/commit/5c03168))
 
-### ♻️ Refaktor & Peningkatan (Changed)
-- **ui:** Shared UI kit, split large windows into hooks and sections, terminal reconnect client ([`8051af6`](https://github.com/friskipradana/panel-desktop-ui/commit/8051af6))
+### Perbaikan
+- **widgets:** Ikon Globe yang tidak terpakai dihapus dari widget jaringan ([`d7a5880`](https://github.com/friskipradana/y-panel/commit/d7a5880))
 
-### 📚 Dokumentasi (Documentation)
-- **rules:** Rewrite design system, component list, UI kit rules and anti-slop skill ([`f5338ea`](https://github.com/friskipradana/panel-desktop-ui/commit/f5338ea))
-- **rules:** Integrate UI design system, anti-slop, and review checklist into AGENTS.md and GEMINI.md ([`615c835`](https://github.com/friskipradana/panel-desktop-ui/commit/615c835))
-- **rules:** Establish design standards and agent guidelines ([`792dea5`](https://github.com/friskipradana/panel-desktop-ui/commit/792dea5))
+### Peningkatan
+- **ui:** Header widget disatukan, ukuran dan tinggi widget dirapikan, dan widget menempel ke grid ([`1b573ee`](https://github.com/friskipradana/y-panel/commit/1b573ee))
+- **ui:** Widget memakai variabel sistem desain ([`955867c`](https://github.com/friskipradana/y-panel/commit/955867c))
 
-### 🔧 Pemeliharaan (Chores & Maintenance)
-- **tooling:** Add check:ui validator and rework release notes generator ([`405ae4d`](https://github.com/friskipradana/panel-desktop-ui/commit/405ae4d))
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.9.0...v0.10.0
 
-### 👥 Kontributor
-- AknalRe
+## [0.9.0] - 2026-10-08
 
-**Full Changelog**: https://github.com/friskipradana/panel-desktop-ui/compare/v3.1.5...v3.2.0
+10 perubahan, utamanya lengkapnya antarmuka desktop: jendela, taskbar, dock, menu aplikasi, ikon desktop, layar kunci, dan menu profil.
 
-## [3.1.5] - 2026-10-12
+### Fitur baru
+- Lengkapnya antarmuka desktop: jendela, taskbar, dock, menu aplikasi, ikon desktop, layar kunci, dan menu profil ([`ab0522e`](https://github.com/friskipradana/y-panel/commit/ab0522e))
+- Jendela Pengaturan, penyimpanan tema, dan dukungan dua bahasa (Indonesia dan Inggris) ([`d8f5814`](https://github.com/friskipradana/y-panel/commit/d8f5814))
+- Jendela Cloudflare, Docker, Changelog, dan Log Sistem ([`e09c3d7`](https://github.com/friskipradana/y-panel/commit/e09c3d7))
+- Halaman depan dengan pratinjau desktop interaktif ([`cb7ab5d`](https://github.com/friskipradana/y-panel/commit/cb7ab5d))
+- Pengelola file aman dengan kontrol akses per peran dan akses root ([`1e16966`](https://github.com/friskipradana/y-panel/commit/1e16966))
+- Dukungan PWA ([`49a7814`](https://github.com/friskipradana/y-panel/commit/49a7814))
+- Dukungan SPA fallback pada proyek ([`1d23381`](https://github.com/friskipradana/y-panel/commit/1d23381))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.5** mencakup 1 pembaruan penting berikut:
+### Perbaikan
+- **auth:** Pengecekan sesi lebih tahan di StrictMode dan .env dimuat otomatis ([`8a2419b`](https://github.com/friskipradana/y-panel/commit/8a2419b))
 
-### 🐛 Perbaikan Bug (Fixed)
-- **fix(mcp): add cloudflare_create_tunnel_route, delete_dns, and auto-overwrite DNS conflicts** (`079bb42` by AknalRe)
+### Dokumentasi
+- Pedoman agent, alur kerja, dan spesifikasi sistem desain ([`883a0a1`](https://github.com/friskipradana/y-panel/commit/883a0a1))
 
-## [3.1.4] - 2026-10-12
+### Pemeliharaan
+- Perbaikan CI: lint Go tidak lagi menggagalkan build dan konfigurasi lint dirapikan ([`ceb191a`](https://github.com/friskipradana/y-panel/commit/ceb191a))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.4** mencakup 1 pembaruan penting berikut:
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.8.0...v0.9.0
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: implement Model Context Protocol (MCP) server integration and settings UI** (`7e0e40c` by AknalRe)
+## [0.8.0] - 2026-04-27
 
-## [3.1.3] - 2026-10-12
+Skrip pemasangan Linux otomatis, alat build PowerShell, dan penangan API V2.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.3** mencakup 1 pembaruan penting berikut:
+### Fitur baru
+- Skrip pemasangan Linux otomatis, alat build PowerShell, dan penangan API V2 ([`55daa30`](https://github.com/friskipradana/y-panel/commit/55daa30))
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add HTTP middleware, MCP integration, Cloudflare API support, and API tokens settings UI** (`82ec39e` by AknalRe)
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.7.1...v0.8.0
 
-## [3.1.2] - 2026-10-12
+## [0.7.1] - 2026-04-27
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.2** mencakup 2 pembaruan penting berikut:
+Rilis pemeliharaan: hanya penomoran versi, tanpa perubahan fungsi.
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add server middleware, MCP tools API, and MCP HTTP handlers** (`989505f` by AknalRe)
-- **feat: add ApiTokensTab settings component and HTTP server middleware** (`16d9c1e` by AknalRe)
+### Pemeliharaan
+- Rilis pemeliharaan: hanya penomoran versi, tanpa perubahan fungsi
 
-## [3.1.1] - 2026-10-12
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.7.0...v0.7.1
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.1** mencakup 1 pembaruan penting berikut:
+## [0.7.0] - 2026-04-27
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat(mcp): add public endpoints and user guide** (`ed91a42` by AknalRe)
+Skrip build dan deploy otomatis untuk infrastruktur panel.
 
-## [3.1.0] - 2026-10-12
+### Fitur baru
+- Skrip build dan deploy otomatis untuk infrastruktur panel ([`3f0e661`](https://github.com/friskipradana/y-panel/commit/3f0e661))
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.1.0** mencakup 2 pembaruan penting berikut:
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.6.0...v0.7.0
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add Model Context Protocol (MCP) server implementation and API token settings UI** (`8f9ffbb` by AknalRe)
-- **feat: add automated release script, API tokens settings tab, and release installer CI workflow** (`888aea1` by AknalRe)
+## [0.6.0] - 2026-04-27
 
-## [3.0.3] - 2026-10-12
+Skrip build dan deploy otomatis dengan pemasangan Linux jarak jauh.
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.0.3** mencakup 1 pembaruan penting berikut:
+### Fitur baru
+- Skrip build dan deploy otomatis dengan pemasangan Linux jarak jauh ([`6cdcf0e`](https://github.com/friskipradana/y-panel/commit/6cdcf0e))
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add Model Context Protocol (MCP) server implementation and API token settings UI** (`8f9ffbb` by AknalRe)
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.5.0...v0.6.0
 
-## [3.0.2] - 2026-10-12
+## [0.5.0] - 2026-04-27
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.0.2** mencakup 2 pembaruan penting berikut:
+Halaman depan dengan petunjuk pemasangan dan gaya khusus.
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add automated release script, API tokens settings tab, and release installer CI workflow** (`888aea1` by AknalRe)
-- **feat: add SettingsWindow component for desktop preferences and system configuration** (`126e67d` by AknalRe)
+### Fitur baru
+- Halaman depan dengan petunjuk pemasangan dan gaya khusus ([`9a77fd2`](https://github.com/friskipradana/y-panel/commit/9a77fd2))
 
-## [3.0.1] - 2026-10-11
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.4.0...v0.5.0
 
-### 🌟 Ringkasan Rilis (Release Overview)
-Rilis versi **v3.0.1** mencakup 1 pembaruan penting berikut:
+## [0.4.0] - 2026-04-27
 
-### 🚀 Fitur Baru (Added / Features)
-- **feat: add automated release script, API tokens settings tab, and release installer CI workflow** (`888aea1` by AknalRe)
+Skrip pemasangan Linux otomatis dan pembuat paket deploy.
 
-## [0.7.0] - 2026-04-05
-### Added
-- Dedicated **Database** desktop window for monitoring MariaDB connectivity, persisted runtime logs, changelog rows, and settings audit metrics.
-- Backend endpoint `GET /api/v1/database/status` and persistence bootstrap for MariaDB-backed runtime logs, changelog storage, and settings audit trails.
-- Linux installer provisioning for MariaDB, including automatic database/user creation and runtime `PANEL_DB_*` env generation.
-- CLI action `ui-panel reset-db-password` for rotating the MariaDB runtime password and restarting the service safely.
-- Dedicated API-backed **Changelog** window so release notes are now loaded from backend runtime data instead of hardcoded frontend content.
+### Fitur baru
+- Skrip pemasangan Linux otomatis dan pembuat paket deploy ([`1a31eb1`](https://github.com/friskipradana/y-panel/commit/1a31eb1))
 
-### Changed
-- **System** window now surfaces MariaDB health directly in the main host overview.
-- In-app changelog presentation is now powered by the backend persistence layer.
-- Backend server lifecycle now closes the database manager cleanly on shutdown.
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.3.0...v0.4.0
 
-## [0.6.0] - 2026-04-05
-### Added
-- **Settings** quick-launch entry on the taskbar for opening runtime configuration faster.
-- Dedicated **Settings** window for editing hostname, timezone, and managed nameserver values.
-- Backend endpoint pair `GET /api/v1/settings/system` and `POST /api/v1/settings/system` for authenticated host settings management.
-- Linux host settings runtime helper for reading settings snapshots and writing managed DNS configuration for `systemd-resolved` hosts.
+## [0.3.0] - 2026-04-27
 
-### Changed
-- Improved the **Settings** window layout so the hero panel, cards, and action area stay readable on narrower window sizes.
-- Increased the default **Settings** window size so the responsive layout starts in a more usable state.
-- In-app changelog entries now include the new Settings and host configuration work.
-- Desktop shell now routes the `settings` window kind to a dedicated settings editor instead of reusing system summary content.
+Gaya global, skrip pemasangan Linux, dan komponen awal halaman depan.
 
-## [0.5.0] - 2026-04-05
-### Added
-- Dedicated **System Logs** window in the desktop UI for viewing backend-hosted journal logs.
-- Backend endpoint `GET /api/v1/system/logs` for serving `journalctl` output to authenticated clients.
-- Taskbar shortcut for **System Logs** and separate shortcut for **Changelog**.
-- `README_TASKS.md` as an operational task tracker for all fixes and feature additions.
+### Fitur baru
+- Gaya global, skrip pemasangan Linux, dan komponen awal halaman depan ([`8b0db55`](https://github.com/friskipradana/y-panel/commit/8b0db55))
 
-### Changed
-- Updated in-app changelog entries to reflect the latest runtime observability work.
-- Refined desktop window defaults to support the new system log viewer.
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.2.0...v0.3.0
 
-### Fixed
-- WebSocket compatibility regression in access-log middleware by forwarding required HTTP interfaces.
-- Terminal/runtime observability coverage across frontend auth and terminal session flows.
-- Administrative password rotation flow via `ui-panel reset-password`.
+## [0.2.0] - 2026-04-27
 
-## [0.4.0] - 2026-04-05
-### Changed
-- Simplified login presentation.
-- Improved host-terminal workflow and deployment ergonomics.
+Gaya desktop dan sistem desain dengan Tailwind CSS, serta komponen halaman depan.
+
+### Fitur baru
+- Gaya desktop dan sistem desain dengan Tailwind CSS, serta komponen halaman depan ([`b5d2e34`](https://github.com/friskipradana/y-panel/commit/b5d2e34))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v0.1.0...v0.2.0
+
+## [0.1.0] - 2026-04-27
+
+11 perubahan, utamanya arsitektur panel dengan agent Go sebagai backend, dasbor React sebagai frontend, dan pemasang Linux.
+
+### Fitur baru
+- Arsitektur panel dengan agent Go sebagai backend, dasbor React sebagai frontend, dan pemasang Linux ([`250340a`](https://github.com/friskipradana/y-panel/commit/250340a))
+- Desktop berjendela: manajer jendela (seret, ubah ukuran, urutan lapisan), taskbar, dock yang menyembunyikan diri, dan penyimpanan status jendela ([`499a29b`](https://github.com/friskipradana/y-panel/commit/499a29b))
+- Sistem masuk dengan sesi, layar login, dan peran pengguna ([`f96ddd7`](https://github.com/friskipradana/y-panel/commit/f96ddd7))
+- Jendela Docker: kontainer, image, deploy, dan pengelolaan sumber daya ([`71fd593`](https://github.com/friskipradana/y-panel/commit/71fd593))
+- Jendela Pengelola File dan editor file dengan banyak tab dan operasi berkas ([`8896ebe`](https://github.com/friskipradana/y-panel/commit/8896ebe))
+- Terminal host berbasis xterm.js dengan banyak tab dan preset perintah ([`b557808`](https://github.com/friskipradana/y-panel/commit/b557808))
+- Integrasi Cloudflare: domain, catatan DNS, dan tunnel ([`dde7c33`](https://github.com/friskipradana/y-panel/commit/dde7c33))
+- Jendela Proyek, Pengaturan (DNS, database, sistem), dan ringkasan sistem ([`74d32d9`](https://github.com/friskipradana/y-panel/commit/74d32d9))
+- Isolasi akun OS per pengguna, taskbar dengan pemantauan sistem langsung, dan notifikasi ([`86de72d`](https://github.com/friskipradana/y-panel/commit/86de72d))
+- Skrip build dan deploy PowerShell serta skrip pemasangan Linux otomatis ([`373fbdb`](https://github.com/friskipradana/y-panel/commit/373fbdb))
+
+### Dokumentasi
+- Lisensi penggunaan publik, panduan kontributor, dan aset merek di README ([`cb4b26b`](https://github.com/friskipradana/y-panel/commit/cb4b26b))

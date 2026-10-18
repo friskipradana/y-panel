@@ -951,7 +951,7 @@ do_update() {
   fi
   target="${target#v}"
   if [[ ! "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    printf '\nVersi tidak valid: %s (contoh: 3.4.0)\n' "$target" >&2
+    printf '\nVersi tidak valid: %s (contoh: 1.28.0)\n' "$target" >&2
     return 1
   fi
 
@@ -974,7 +974,7 @@ do_update() {
   fi
 
   asset="reneo-installer.run"
-  version_gt "3.4.0" "$target" && asset="ypanel-installer.run"
+  version_gt "0.23.0" "$target" && asset="ypanel-installer.run"
   url="https://github.com/${RELEASE_REPO}/releases/download/v${target}/${asset}"
   tmp_file="$(mktemp /tmp/reneo-update.XXXXXX.run)"
   trap 'rm -f "$tmp_file" "$tmp_file.sha256"' RETURN
