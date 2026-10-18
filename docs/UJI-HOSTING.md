@@ -155,10 +155,28 @@ Syarat: bagian 1 dan 2 selesai, paket pembeli punya "Domain sendiri" minimal 1.
 5. Hapus domain dari panel pembeli. Harapan: pendaftarannya hilang dari Cloudflare dan domain berhenti terbuka.
 6. Tangguhkan akun pembeli (Pengguna > tangguhkan). Harapan: subdomain dan domain sendirinya berhenti dilayani; aktifkan lagi, keduanya kembali.
 
-## 8. Bila ada yang gagal
+## 8. Notifikasi Telegram
+
+Pengaturan > Notifikasi. Hanya superadmin yang melihatnya.
+
+1. **Buat bot:** di Telegram buka @BotFather, kirim `/newbot`, ikuti pertanyaannya, lalu salin token. Tempel di kolom Token bot, nyalakan "Kirim lewat Telegram", simpan. Harapan: lencana "Siap" dan teks "token tersimpan untuk bot @nama". Token yang salah ditolak dengan pesan dari Telegram dan tidak disimpan.
+2. **Sambungkan Telegram Anda:** di bagian Tujuan saya tekan "Sambungkan Telegram", tekan "Buka Telegram", lalu tekan Mulai pada bot. Harapan: dalam beberapa detik tampil "Tersambung" dan Telegram membalas pesan konfirmasi. Untuk grup, tambahkan bot ke grup lalu kirim `/start@namabot KODE` di grup.
+3. **Uji kirim:** tekan "Uji kirim". Harapan: pesan tiba di Telegram dalam kurang dari satu detik, dan di tab Antrian muncul baris "Uji kirim" berstatus Terkirim.
+4. **Kabar pesanan:** buat pesanan dari halaman utama. Harapan: "Pesanan baru" tiba di Telegram. Transfer yang cocok (dengan konfirmasi otomatis mati) memberi "Perlu diperiksa"; lunas memberi "Pesanan terbayar".
+5. **Login gagal:** di jendela samaran masukkan kata sandi salah untuk akun Anda tiga kali. Harapan: setelah percobaan ketiga satu pesan "Peringatan keamanan" tiba; dua percobaan pertama tidak mengirim apa pun, dan percobaan berikutnya pada tingkat yang sama tidak menambah pesan.
+6. **Perangkat baru:** masuk dengan browser atau jaringan yang belum pernah dipakai. Harapan: "Masuk dari perangkat baru" tiba. Login pertama sebuah akun tidak mengirim apa pun.
+7. **Antrian:** blokir bot dari Telegram, picu satu peristiwa lagi, dan lihat di tab Antrian: pesan gagal dengan alasannya, dan penerima ditandai bot diblokir. Sambungkan ulang untuk menerima lagi. Tombol putar di barisnya mengirim ulang pesan yang gagal.
+8. **Ambang:** di tab Ambang peringatan ubah satu ambang, simpan, dan lihat berlaku seketika; "Kembalikan bawaan" mengembalikannya.
+
+Pastikan juga **tidak ada** pesan untuk satu percobaan login gagal, dan bahwa mematikan saklar kanal membatalkan pesan yang menunggu.
+
+## 9. Bila ada yang gagal
 
 | Gejala | Kemungkinan penyebab |
 | :--- | :--- |
+| Telegram menolak token | Token salah atau bot dihapus di BotFather; salin ulang tanpa spasi |
+| Tautan Telegram tidak pernah selesai | Mulai belum ditekan pada bot yang benar, kode sudah lewat 10 menit, atau bot memakai webhook lain (getUpdates tidak bisa dipakai bersamaan dengan webhook) |
+| Pesan tertahan di Antrian berstatus Menunggu | Kanal mati, atau Telegram sedang gagal dan pesan menunggu percobaan ulang (5 detik, 30 detik, 5 menit, 30 menit, 2 jam) |
 | Daftar domain di tab Domain gagal dimuat | Cloudflare superadmin belum tersambung atau belum diverifikasi (Pengaturan > Cloudflare) |
 | Domain tidak bisa dipilih untuk ditawarkan | Token tidak mencakup zona itu (Zone Resources) |
 | Tombol di landing masih "Salin pesan pemesanan" | Pemesanan mandiri mati, belum ada domain ditawarkan, atau mode hosting mati |
@@ -170,7 +188,7 @@ Syarat: bagian 1 dan 2 selesai, paket pembeli punya "Domain sendiri" minimal 1.
 | Pesanan tidak otomatis lunas | Listener tidak mengirim `amountDetected`, jumlah tidak persis sama, pesanan sudah kedaluwarsa, atau ada dua pesanan menunggu dengan total sama (dibiarkan untuk diperiksa) |
 | Pesanan lunas tetapi alamat tidak ada | Notifikasi admin "Pesanan perlu ditangani" memuat alasannya; buat alamatnya dari jendela Pengguna |
 
-## 9. Membersihkan setelah uji
+## 10. Membersihkan setelah uji
 
 1. Hapus akun uji dari jendela Pengguna. Subdomain dan domain sendirinya ikut dilepas dari Cloudflare.
 2. Periksa di dasbor Cloudflare bahwa tidak ada record CNAME atau custom hostname tersisa, dan hapus `cname.<domain>` bila tidak dipakai lagi.

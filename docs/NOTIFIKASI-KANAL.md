@@ -1,6 +1,6 @@
 # Rancangan: Notifikasi lewat Telegram, WhatsApp Cloud API (Meta), dan WAHA
 
-Status: rancangan, belum dikerjakan. Dokumen ini menjawab apa yang dikirim, ke siapa, lewat apa, dan bagaimana dibuat bertahap. Keputusan pemilik (bagian 11) sudah dimasukkan: WAHA dijalankan Reneo sendiri dengan satu sesi WhatsApp per akun, dan nomor WhatsApp wajib diisi saat memesan.
+Status: **tahap 1 sudah dibangun** (bagian 10): antrian realtime yang aman dari race condition, pendeteksi ambang, kanal Telegram untuk superadmin, peristiwa penjual dan kabar keamanan, serta tab Pengaturan > Notifikasi. Tahap 2 dan seterusnya belum. Penyimpangan dari rancangan di bawah dicatat di akhir dokumen. Dokumen ini menjawab apa yang dikirim, ke siapa, lewat apa, dan bagaimana dibuat bertahap. Keputusan pemilik (bagian 11) sudah dimasukkan: WAHA dijalankan Reneo sendiri dengan satu sesi WhatsApp per akun, dan nomor WhatsApp wajib diisi saat memesan.
 
 ## 1. Tujuan dan batas
 
@@ -318,3 +318,19 @@ Masih terbuka (usulan saya):
 | Perangkat dikenal | 30 hari untuk menilai "baru", 90 hari baru dilupakan |
 | Retensi riwayat kiriman | 30 hari |
 | Grup Telegram untuk superadmin | Diterima |
+
+## 12. Yang dibangun di tahap 1, dan penyimpangannya
+
+Dibangun: paket `internal/notify` (peristiwa, katalog id/en, kanal Telegram, pendeteksi, antrian dan pekerja, layanan), migrasi `000021_notifications.sql`, endpoint `/api/v1/notify/*`, pemasangan `Emit` di titik-titik pesanan dan keamanan, dan tab Notifikasi. Pengujian: tes murni, tes antrian terhadap Postgres asli dengan `-race` (pengambilan paralel, sewa, urutan per penerima, idempotensi, percobaan ulang, kecepatan di bawah satu detik), dan tes dari handler sampai Telegram tiruan.
+
+Penyimpangan dari rancangan, dengan alasannya:
+
+| Rancangan | Yang dibangun | Alasan |
+| :--- | :--- | :--- |
+| Riwayat antrian bergerak lewat WebSocket | Daftar diperbarui tiap 4 detik selagi tab antrian terbuka | Pengiriman itu sendiri sudah realtime; WebSocket untuk tampilan menambah kode tanpa mengubah kecepatan kabar |
+| Menyambungkan Telegram lewat webhook | Lewat `getUpdates` yang dibaca saat tautan menunggu | Tidak butuh alamat HTTPS publik, jadi jalan juga di panel yang belum terbuka dari luar. Webhook ditunda ke tahap 5 |
+| `order.attention` juga untuk notifikasi bank yang tidak cocok dengan pesanan mana pun | Hanya bila beberapa pesanan menunggu dengan total yang sama | Pembaca membaca semua notifikasi bank di ponsel; setiap belanja pribadi akan menjadi peringatan |
+| Pekerja memeriksa antrian tiap 5 detik sebagai jaring pengaman | Sama, ditambah pembangunan tepat pada waktu percobaan ulang tiba | Tanpa itu percobaan ulang menunggu sapuan berikutnya |
+| Penerima: semua akun | Tahap 1 hanya superadmin (UI dan API) | Kabar untuk pembeli dan admin ada di tahap 4 |
+
+Saat mengujinya muncul empat cacat yang sudah diperbaiki: percobaan ulang yang baru diambil pada sapuan berikutnya, alamat IP yang salah di pesan pemindaian akun, nama database uji yang bisa kembar di Windows, dan alamat obrolan pendek yang tampil utuh.
