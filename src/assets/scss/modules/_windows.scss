@@ -1528,3 +1528,33 @@ button:focus-visible,
   overflow-wrap: anywhere;
   text-align: left;
 }
+
+// A list of addresses: one small chip each, so a long list wraps by address and not in the middle of one
+.settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--win-border);
+  border-radius: 6px;
+  background: var(--panel-surface);
+  font-family: var(--font-mono);
+  font-size: 0.71875rem;
+  line-height: 1.6;
+  color: var(--win-text);
+  overflow-wrap: anywhere;
+}
+
+// The editor of the origins: tall enough for a real list (the base field height would win over a utility class)
+.panel-textarea.settings-origins {
+  min-height: 220px;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  resize: vertical;
+}

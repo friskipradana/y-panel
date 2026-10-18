@@ -6,6 +6,24 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Button } from "@/components/ui/Button"
 import { TextInput, Textarea } from "@/components/ui/Field"
 
+// A labelled list of addresses, one chip each; a dash when there is none
+function ChipList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
+      {items.length ? (
+        <ul className="settings-chips">
+          {items.map((item) => (
+            <li key={item} className="settings-chip">{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <span className="text-[12px] text-[var(--text-secondary)]">—</span>
+      )}
+    </div>
+  );
+}
+
 export function NetworkTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
   const { t } = useI18n();
   const {
@@ -74,23 +92,9 @@ export function NetworkTab({ host, systemSettings }: { host: HostSettings; syste
             </div>
           </div>
 
-          <div className="panel-muted-block rounded-[14px] px-4 py-3 text-[12px] leading-6 text-[var(--text-secondary)]">
-            <div>
-              <strong className="text-[var(--win-text)]">
-                {t("settings.allowedHosts")}:
-              </strong>{" "}
-              {(systemSettings.allowedHosts ?? []).length
-                ? (systemSettings.allowedHosts ?? []).join(", ")
-                : "—"}
-            </div>
-            <div>
-              <strong className="text-[var(--win-text)]">
-                {t("settings.activeOrigins")}:
-              </strong>{" "}
-              {(systemSettings.allowedOrigins ?? []).length
-                ? (systemSettings.allowedOrigins ?? []).join(", ")
-                : "—"}
-            </div>
+          <div className="settings-inset space-y-3">
+            <ChipList label={t("settings.allowedHosts")} items={systemSettings.allowedHosts ?? []} />
+            <ChipList label={t("settings.activeOrigins")} items={systemSettings.allowedOrigins ?? []} />
           </div>
 
           <div className="flex justify-end">
@@ -118,33 +122,24 @@ export function NetworkTab({ host, systemSettings }: { host: HostSettings; syste
         />
 
         <div className="space-y-3.5">
-          <div className="panel-muted-block p-3">
-            <Textarea
-              id="settings-allowed-origins"
-              value={allowedOriginsText}
-              onChange={(event) =>
-                setAllowedOriginsText(event.target.value)
-              }
-              spellCheck={false} mono className="min-h-[220px] text-[12px] leading-6"
-              placeholder={
-                "http://127.0.0.1:80\nhttp://panel.domain.local:80"
-              }
-            />
-          </div>
+          <Textarea
+            id="settings-allowed-origins"
+            value={allowedOriginsText}
+            onChange={(event) =>
+              setAllowedOriginsText(event.target.value)
+            }
+            spellCheck={false} mono className="settings-origins"
+            placeholder={
+              "http://127.0.0.1:80\nhttp://panel.domain.local:80"
+            }
+          />
 
-          <div className="panel-empty min-h-[92px] text-[12px] leading-6">
-            <span>
-              {t("settings.originsTipPrefix")}{" "}
-              <code className="panel-mono text-[12px] text-[var(--win-text)]">
-                http://127.0.0.1:80
-              </code>{" "}
-              {t("settings.originsTipOr")}{" "}
-              <code className="panel-mono text-[12px] text-[var(--win-text)]">
-                https://panel.example.com:443
-              </code>
-              .
-            </span>
-          </div>
+          <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">
+            {t("settings.originsTipPrefix")}{" "}
+            <code className="panel-mono text-[var(--win-text)]">http://127.0.0.1:80</code>{" "}
+            {t("settings.originsTipOr")}{" "}
+            <code className="panel-mono text-[var(--win-text)]">https://panel.example.com:443</code>.
+          </p>
 
           <div className="flex justify-end">
             <Button
