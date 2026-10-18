@@ -29,7 +29,7 @@ Dikirim ke kanal terverifikasi milik akun yang bersangkutan, tidak pernah ke aku
 
 | Kunci | Kapan | Titik di kode |
 | :--- | :--- | :--- |
-| `security.login_failed` | Ada percobaan masuk gagal ke akun ini. **Dikumpulkan**: satu pesan setelah 3 kegagalan dalam 10 menit, lalu paling banyak satu per jam, memuat jumlah percobaan, alamat IP terakhir, browser, dan waktu | `handleLoginV2`, jalur gagal |
+| `security.login_failed` | Ada percobaan masuk gagal ke akun ini. **Tidak pernah dikirim untuk satu percobaan**: baru setelah ambang terlewati (bagian 2.3), memuat jumlah percobaan, jumlah alamat IP, IP terakhir, browser, dan waktu | `handleLoginV2`, jalur gagal |
 | `security.login_locked` | Akun terkunci sementara karena terlalu banyak kegagalan | `handleLoginV2`, pemeriksaan `loginFailures` |
 | `security.login_new` | Masuk berhasil dari perangkat yang belum dikenal (kombinasi jaringan IP dan jenis browser yang belum pernah terlihat dalam 30 hari). Login pertama sebuah akun tidak memicu pesan | `handleLoginV2`, jalur berhasil |
 | `security.host_denied` | Pemilik alamat panel (pembeli): akun lain dengan kata sandi yang benar mencoba masuk di alamat panelnya dan ditolak | `handleLoginV2`, pemeriksaan `userMayUseHost` |
@@ -57,32 +57,90 @@ Pesan keamanan tidak pernah memuat kata sandi atau token, dan memberi satu langk
 
 Peristiwa panel lain (project dibuat, token Cloudflare disimpan, dan seterusnya) tidak dikirim keluar. Bila nanti diminta, cukup ditambah kunci dan teks tanpa mengubah rancangan.
 
+### 2.3 Tanda serangan: ambang dan pengumpulan
+
+Prinsipnya: **satu kegagalan atau satu permintaan yang ditolak tidak pernah menjadi pesan.** Kesalahan ketik kata sandi, satu pemindai yang lewat, atau satu klik ganda tidak boleh membangunkan siapa pun. Pesan keluar hanya bila kejadian yang sama berulang melewati ambang dalam jendela waktu, dan setelah itu satu pesan ringkasan, bukan satu per kejadian.
+
+| Pendeteksi | Menghitung | Ambang bawaan | Penerima | Kunci |
+| :--- | :--- | :--- | :--- | :--- |
+| Tebakan kata sandi satu akun | Login gagal untuk satu akun yang ada | 3 dalam 10 menit (peringatan), 10 (tinggi), 30 (kritis) | Pemilik akun | `security.login_failed` |
+| Pemindaian akun | Nama pengguna berbeda yang dicoba dari satu IP | 10 nama dalam 10 menit | Superadmin | `attack.account_scan` |
+| Serangan login terdistribusi | Login gagal di seluruh panel dari banyak IP | 30 dalam 5 menit dari sedikitnya 5 IP | Superadmin | `attack.login_flood` |
+| Lonjakan permintaan (indikasi DDoS) | Permintaan yang ditolak pembatas laju (429), seluruh panel | 100 dalam 1 menit | Superadmin | `attack.request_flood` |
+| Penyalahgunaan formulir pesanan | Pesanan dan pemeriksaan alamat yang ditolak pembatas | 20 dalam 10 menit | Superadmin | `attack.order_abuse` |
+| Percobaan pada pembaca notifikasi | Webhook dengan kunci API salah atau tanda tangan salah | 5 dalam 10 menit | Superadmin | `attack.webhook_probe` |
+
+**Bagaimana peringatan dikirim setelah ambang terlewati**
+
+1. **Satu pesan saat ambang terlewati**, berisi ringkasan: jumlah, jendela waktu, jumlah dan contoh IP (paling banyak lima), jalur yang diserang, dan saran satu baris.
+2. **Masa tenang**: selama peringatan itu berlaku, kejadian baru **hanya dihitung**, tidak dikirim. Pesan lanjutan baru keluar bila jumlahnya naik ke tingkat berikutnya (peringatan, tinggi, kritis) atau masa tenang habis (15 menit) dan serangan masih berlangsung, dan isinya "masih berlangsung, N kejadian sejak pesan terakhir".
+3. **Pesan pemulihan**: bila 10 menit tanpa kejadian baru, satu pesan "sudah reda" dengan total kejadian dan lama serangan, supaya penerima tahu tidak perlu terus memantau.
+4. **Batas pesan per penerima dan per kanal** (mis. 6 pesan peringatan per jam). Di atas itu pesan ditahan dan digabung menjadi satu ringkasan, jadi serangan tidak bisa dipakai membanjiri Telegram atau WhatsApp seseorang, atau menghabiskan kuota berbayar Meta.
+5. Ambang dan masa tenang dapat diubah superadmin di Pengaturan > Notifikasi (satu tabel: pendeteksi, ambang, jendela). Nilai bawaan di atas berlaku bila tidak diubah.
+
+**Menghitung dengan aman saat diserang**
+- Penghitung berada **di memori**, bukan di database. Setiap permintaan yang ditolak yang menulis baris ke database justru memperbesar serangan. Hari ini `withRateLimit` menulis satu log ke database untuk setiap permintaan yang ditolak; setelah pendeteksi ini ada, penolakan hanya menaikkan penghitung dan log ke database dibatasi (sampel dan ringkasan per menit).
+- Penghitung memakai jendela berpetak (per menit) dengan jumlah kunci maksimal dan pembuangan kunci tertua, jadi penyerang yang memakai jutaan IP atau nama pengguna acak tidak bisa menghabiskan memori.
+- Keputusan "ambang terlewati" diambil di bawah kunci, sehingga **tepat satu** goroutine yang melewatinya dan mengirim pesan, sebesar apa pun lonjakannya (bagian 3.3).
+- Hanya peringatan yang benar-benar dikirim yang masuk ke antrian dan database. Keadaan terakhir tiap peringatan (kapan terakhir dikirim, tingkat) disimpan agar mulai ulang agent tidak mengulang pesan yang baru dikirim.
+
+**Yang tidak dilakukan:** panel tidak mencoba menahan serangan volumetrik yang sebenarnya; itu tugas lapisan depan (Cloudflare) dan pembatas laju yang sudah ada. Peringatan hanya memberi tahu, dan `attack.request_flood` menyebutkan bila lalu lintas masuk lewat Cloudflare sehingga IP yang terlihat bisa saja IP Cloudflare.
+
 ## 3. Arsitektur
+
+### 3.1 Alur
 
 ```
   titik di kode ──► notify.Emit(event, penerima, data)
-                         │
+                         │  (kejadian berulang lebih dulu lewat pendeteksi ambang, bagian 2.3)
                          ├─► lonceng panel (seperti sekarang)
                          └─► antrian keluar (tabel notification_outbox)
-                                    │
-                         pekerja (tiap beberapa detik)
+                                    │  INSERT, lalu Wake() seketika
+                         pekerja ◄──┘  (juga tiap 5 detik sebagai jaring pengaman)
                                     │
                     ┌───────────────┼────────────────┐
                  Telegram       WhatsApp Cloud      WAHA
 ```
 
-Pokok rancangan:
+- **Paket baru `internal/notify`.** Antarmuka kanal, katalog pesan, pendeteksi ambang, pembuat antrian, dan pekerja. Tidak tahu apa-apa soal HTTP handler.
+- **Antarmuka kanal**: `Send(ctx, pesan) (idKiriman, error)` dan `Test(ctx)`; satu berkas per kanal (`telegram.go`, `whatsapp_cloud.go`, `waha.go`). Kesalahan dikelompokkan *sementara* (jaringan, 429, 5xx: coba lagi) dan *tetap* (penerima memblokir bot, nomor tidak valid, templat tidak ada: jangan diulang).
+- **Pemasangan bertahap pada kode lama.** `notifyUserAction` dibiarkan. Titik di bagian 2 diganti satu per satu menjadi `Emit(...)` yang juga membuat notifikasi lonceng dengan teks yang sama seperti sekarang.
 
-- **Paket baru `internal/notify`.** Berisi antarmuka kanal, katalog pesan, pembuat antrian, dan pekerja. Isinya tidak tahu apa-apa soal HTTP handler.
-- **Antarmuka kanal**: `Send(ctx, pesan) (idKiriman, error)` dan `Test(ctx)`. Tiap kanal satu berkas: `telegram.go`, `whatsapp_cloud.go`, `waha.go`. Kesalahan dikelompokkan jadi *sementara* (coba lagi: jaringan, 429, 5xx) dan *tetap* (jangan diulang: penerima memblokir bot, nomor tidak valid, templat tidak ada).
-- **Antrian keluar (outbox) di database**, bukan kirim langsung di handler. Alasannya: pesanan dibuat dalam satu transaksi dan handler harus cepat; kanal luar bisa lambat atau mati; dan antrian memberi riwayat serta percobaan ulang.
-- **Pekerja** berjalan di proses agent, memakai pola yang sama dengan pemeriksa masa berlaku yang ada. Mengambil baris berstatus menunggu dengan `FOR UPDATE SKIP LOCKED`, mengirim, lalu menandai terkirim atau gagal. Percobaan ulang dengan jeda bertambah (1, 5, 30 menit, 2 jam, 12 jam), lima kali, lalu berhenti dan tampil di riwayat.
-- **Anti-ganda.** Tiap baris punya kunci idempoten (`peristiwa + penerima + kanal + id objek`) dengan indeks unik, jadi pesanan yang diproses dua kali atau pengingat yang diulang tidak mengirim dua pesan.
-- **Pemasangan bertahap pada kode lama.** `notifyUserAction` dibiarkan. Titik-titik di bagian 2 diganti satu per satu menjadi `Emit(...)` yang juga membuat notifikasi lonceng dengan teks yang sama seperti sekarang, sehingga perilaku panel tidak berubah.
+### 3.2 Realtime, dengan antrian
+
+Antrian dan realtime tidak bertentangan: antrian memberi keandalan, dan pekerja dibangunkan seketika supaya tidak ada jeda.
+
+- **Setelah `INSERT` ke antrian, `Emit` langsung membangunkan pekerja** lewat saluran berpenyangga satu (`Wake()` tidak pernah memblokir dan banyak panggilan digabung jadi satu). Pekerja mengambil barisnya pada saat itu juga. Targetnya: dari kejadian sampai permintaan ke kanal keluar **di bawah satu detik**, di luar waktu jawaban kanal itu sendiri.
+- **Pekerja juga memeriksa antrian tiap 5 detik.** Itu jaring pengaman untuk pembangunan yang terlewat, percobaan ulang yang waktunya tiba, dan baris yang tertinggal setelah agent mulai ulang. Realtime tidak bergantung padanya.
+- **Pekerja paralel**: beberapa goroutine (bawaan 4) mengambil baris secara bersamaan, dibatasi per kanal supaya pembatas laju kanal tetap dihormati.
+- **Prioritas**: baris punya `priority`. Peringatan serangan, kabar keamanan, dan hal yang perlu ditangani penjual (0) diambil lebih dulu dari pesan biasa (1), supaya antrean panjang pesan biasa tidak menunda peringatan.
+- **Riwayat realtime di panel**: perubahan status baris (menunggu, mengirim, terkirim, gagal) didorong lewat WebSocket notifikasi yang sudah ada, jadi kartu Antrian dan riwayat di Pengaturan > Notifikasi bergerak sendiri tanpa memuat ulang.
+- **Pesan yang gagal sementara tidak menahan yang lain**: percobaan ulang memakai jeda bertambah (5 detik, 30 detik, 5 menit, 30 menit, 2 jam, lalu berhenti dan tampil di riwayat), jadi pesan yang baru tetap berjalan seketika.
+
+### 3.3 Race condition dan jaminan
+
+Jaminan yang diberikan: **setiap peristiwa dikirim paling sedikit sekali, dan hampir selalu tepat sekali**. Duplikat hanya mungkin di jendela sempit saat kanal menerima pesan tetapi agent mati atau koneksi putus sebelum hasilnya dicatat; itu dicatat dan dibatasi satu percobaan ulang. Daftar kondisi balapan dan penangkalnya:
+
+| # | Kondisi | Penangkal |
+| :--- | :--- | :--- |
+| 1 | Dua pekerja mengambil baris yang sama | Satu pernyataan atomik: `UPDATE ... SET status='sending', locked_until=now()+lease WHERE id IN (SELECT id ... WHERE status='pending' AND next_attempt_at<=now() ORDER BY priority, id FOR UPDATE SKIP LOCKED LIMIT n) RETURNING *`. Baris yang sedang dipegang dilewati, bukan ditunggu |
+| 2 | Pekerja mati saat mengirim | Sewa (`locked_until`, 60 detik, lebih panjang dari batas waktu HTTP 15 detik). Baris `sending` yang sewanya lewat dikembalikan ke `pending` oleh pekerja lain. Tidak ada baris yang tertinggal selamanya |
+| 3 | Satu peristiwa dihasilkan dua kali (pesanan diproses dua kali, pengingat diulang) | Kunci idempoten (`peristiwa + penerima + kanal + id objek`) dengan indeks unik dan `INSERT ... ON CONFLICT DO NOTHING`. Untuk pesanan, hanya pemanggil yang benar-benar menutup pesanan (`MarkOrderPaid` bernilai benar) yang membuat peristiwa |
+| 4 | Peristiwa dikirim padahal perubahan bisnisnya dibatalkan, atau perubahan terjadi tanpa peristiwa | Pemasukan ke antrian dilakukan **dalam transaksi yang sama** dengan perubahan bisnis bila perubahannya satu transaksi (pola *transactional outbox*), dan segera setelah perubahan yang menutup bila tidak |
+| 5 | Dua pesan ke penerima yang sama saling mendahului (mis. "lunas" setelah "alamat siap") | Urutan per penerima: sebuah baris hanya boleh diambil bila tidak ada baris lebih lama untuk (kanal, alamat) yang masih `pending` atau `sending`. Baris yang gagal permanen tidak menahan antrian |
+| 6 | Penerima atau kanal diubah saat pesan menunggu (kanal dimatikan, penerima memblokir, berhenti) | Keadaan diperiksa ulang **saat mengirim**, bukan saat memasukkan; baris yang tidak boleh lagi dikirim ditandai `cancelled` dengan alasannya |
+| 7 | Ambang terlewati oleh banyak goroutine sekaligus (lonjakan) | Penghitung dan keputusan di bawah satu kunci per pendeteksi: hanya satu pemanggil yang melihat peralihan "di bawah ambang" menjadi "di atas ambang" dan membuat pesan; yang lain hanya menambah hitungan |
+| 8 | Kabar status dari kanal (terkirim, dibaca) tiba sebelum agent mencatat kiriman | Status memiliki peringkat (terkirim < sampai < dibaca) dan tidak pernah mundur; kabar yang tiba lebih awal disimpan di tabel kecil dan disatukan saat ID pesan dari kanal sudah dicatat |
+| 9 | Kode verifikasi dicoba paralel untuk melewati batas percobaan | Penghitung dinaikkan atomik: `UPDATE ... SET attempts=attempts+1 WHERE ... AND attempts<5 RETURNING` |
+| 10 | Pengguna menekan "Sambungkan WhatsApp" dua kali, atau dua perangkat serentak | `whatsapp_sessions.user_id` unik dengan `INSERT ... ON CONFLICT`; satu kunci per sesi untuk pembuatan dan QR; membuat sesi di WAHA bersifat idempoten |
+| 11 | Pembatas laju kanal dipakai bersamaan oleh banyak pekerja | Pembatas (ember token) di bawah satu kunci per kanal. Rancangan mengandaikan **satu proses agent**; bila nanti ada lebih dari satu, pembatas dipindahkan ke database |
+| 12 | Agent dimatikan saat ada pesan yang sedang dikirim | Penutupan berhenti mengambil baris baru, menunggu yang sedang berjalan sampai 10 detik, lalu melepas sewa sisanya |
+
+**Pengujian balapan** (database asli, dijalankan dengan `-race`): 50 goroutine mengambil dari antrian berisi 200 baris dan tiap baris dikirim tepat sekali; sewa kedaluwarsa dikembalikan dan dikirim sekali; 100 goroutine memasukkan kunci yang sama menghasilkan satu baris; urutan per penerima terjaga di bawah paralelisme; 1000 kejadian bersamaan melewati ambang menghasilkan tepat satu pesan; kabar status yang datang terbalik menghasilkan status akhir yang benar.
 
 ## 4. Data
 
-Tiga tabel baru (satu migrasi):
+Tabel baru, dibuat bertahap sesuai tahap kerja (bagian 10):
 
 **`notification_channels`**, satu baris per kanal, milik panel (superadmin):
 
@@ -117,7 +175,9 @@ Tiga tabel baru (satu migrasi):
 | `phone` | Nomor yang tersambung, setelah terhubung |
 | `updated_at` | Waktu status terakhir dibaca |
 
-**`notification_outbox`**: `id`, `event`, `user_id`, `kind`, `address`, `payload` (JSON, dipakai mengisi teks dan variabel templat), `idempotency_key` (unik), `status` (`pending`, `sent`, `failed`, `cancelled`), `attempts`, `next_attempt_at`, `provider_id` (ID pesan dari kanal, untuk mencocokkan status pengiriman), `error`, `created_at`, `sent_at`. Baris lama dihapus otomatis setelah 30 hari.
+**`notification_outbox`**: `id`, `event`, `user_id`, `kind`, `address`, `payload` (JSON, dipakai mengisi teks dan variabel templat), `idempotency_key` (unik), `priority` (0 mendesak, 1 biasa), `status` (`pending`, `sending`, `sent`, `failed`, `cancelled`), `attempts`, `next_attempt_at`, `locked_by` dan `locked_until` (sewa pekerja), `provider_id` (ID pesan dari kanal, untuk mencocokkan status pengiriman), `error`, `created_at`, `sent_at`. Indeks: `(status, priority, next_attempt_at)` untuk pengambilan, `(kind, address, id)` untuk urutan per penerima, dan unik pada `idempotency_key`. Baris lama dihapus otomatis setelah 30 hari.
+
+**`notification_alert_state`**: keadaan terakhir tiap peringatan serangan (`detector`, `scope`, `level`, `last_sent_at`, `count_since`), agar mulai ulang agent tidak mengulang pesan yang baru dikirim.
 
 ## 5. Ketiga kanal
 
@@ -208,7 +268,8 @@ Semua tampil di desktop dan ponsel dengan komponen UI yang sudah ada.
   - Kartu **Runtime WAHA** (superadmin): saklar jalankan atau matikan, status container, engine (GOWS), versi, jumlah sesi, tombol mulai ulang, dan tombol "Buka dasbor WAHA".
   - Tiga kartu kanal. Tiap kartu: saklar, isian kredensial (rahasia disamarkan setelah disimpan), tombol **Uji kirim** ke tujuan superadmin sendiri, status terakhir, dan panduan singkat persiapan di sisi Telegram, Meta, atau WAHA (seperti panduan izin token Cloudflare). Kartu WAHA memuat peringatan risiko. Kartu WhatsApp Cloud menampilkan status tiap templat (belum dibuat, menunggu, disetujui).
   - **Tujuan saya**: menyambungkan Telegram dan WhatsApp milik sendiri, memilih peristiwa admin.
-  - **Antrian dan riwayat**: daftar kiriman terakhir dengan status, kanal, dan galat, dan tombol kirim ulang. Memakai tabel daftar yang sudah ada.
+  - **Antrian dan riwayat**: daftar kiriman terakhir dengan status, kanal, dan galat, dan tombol kirim ulang. Memakai tabel daftar yang sudah ada, dan bergerak sendiri lewat WebSocket.
+  - **Ambang peringatan**: satu tabel berisi pendeteksi (bagian 2.3), ambang, jendela, dan masa tenang, dengan nilai bawaan dan tombol Kembalikan bawaan.
 - **Profil > Notifikasi saya** (semua peran): sambungkan Telegram atau nomor WhatsApp, verifikasi, pilih peristiwa (kabar keamanan di bagian atas, kabar pesanan dan paket di bawahnya), hentikan. Daftar perangkat yang dikenal untuk akun itu tampil di sini dan bisa dilupakan.
 - **Profil > WhatsApp saya** (semua peran, bila WAHA menyala): tombol Sambungkan menampilkan kode QR, status tersambung dan nomornya, dan tombol Putuskan. Pengguna tidak melihat WAHA, kunci API, atau sesi orang lain.
 - **Form pesanan**: nomor WhatsApp wajib, pilihan Telegram opsional (bagian 7). Halaman lunas menyebutkan ke mana kabar dikirim.
@@ -227,7 +288,7 @@ Semua tampil di desktop dan ponsel dengan komponen UI yang sudah ada.
 
 | Tahap | Isi | Pengujian |
 | :--- | :--- | :--- |
-| 1 | Paket `notify`, tiga tabel, antrian, pekerja, **Telegram**, peristiwa penjual (bagian 2.2) dan kabar keamanan superadmin (bagian 2.1), tab Notifikasi dengan kartu Telegram dan Uji kirim | Tes database (antrian, anti-ganda, percobaan ulang, `SKIP LOCKED`), server Telegram tiruan |
+| 1 | Paket `notify`, tiga tabel, antrian, pekerja, **Telegram**, peristiwa penjual (bagian 2.2) dan kabar keamanan superadmin (bagian 2.1) dengan **pendeteksi ambang** (bagian 2.3), tab Notifikasi dengan kartu Telegram dan Uji kirim | Tes database dengan `-race` (bagian 3.3: pengambilan paralel, sewa, anti-ganda, urutan per penerima, ambang), server Telegram tiruan, dan pengukuran waktu dari kejadian ke permintaan keluar |
 | 2 | **Runtime WAHA** (container yang dikelola agent, engine GOWS, kunci API, kesehatan), kanal WAHA, sesi per akun dengan QR di panel, dasbor khusus superadmin, pembatas laju | Pengecekan edisi WAHA lebih dulu; server WAHA tiruan untuk tes; uji nyata dengan container WAHA di Docker dan satu ponsel |
 | 3 | **WhatsApp Cloud**: templat, status templat, webhook status | Server Meta tiruan, uji tanda tangan webhook; uji nyata dengan nomor uji Meta |
 | 4 | Peristiwa pembeli, **kabar keamanan untuk semua akun** (pengumpulan percobaan gagal, perangkat dikenal), penerima terverifikasi, Profil, kolom di form pesanan, berhenti | Tes alur penuh terhadap Postgres seperti tes hosting |
@@ -250,7 +311,10 @@ Masih terbuka (usulan saya):
 | Sesi WhatsApp milik pengguna dan admin dipakai untuk apa selain tersambung? | Tahap awal hanya sambung, putus, dan status; kegunaannya ditentukan kemudian |
 | Jumlah sesi maksimal | 20 bawaan, dapat diubah superadmin |
 | Pengirim pesan sistem | Sesi WhatsApp superadmin |
-| Ambang kabar login gagal | 3 kegagalan dalam 10 menit, paling banyak satu pesan per jam per akun; dapat diubah superadmin |
+| Ambang tanda serangan | Tabel di bagian 2.3 (mis. login gagal 3 dalam 10 menit; lonjakan permintaan 100 per menit); dapat diubah superadmin |
+| Batas pesan peringatan | 6 per jam per penerima per kanal, selebihnya digabung jadi satu ringkasan |
+| Jeda dari kejadian ke pengiriman | Di bawah satu detik (pekerja dibangunkan seketika); pemeriksaan tiap 5 detik hanya jaring pengaman |
+| Jumlah pekerja | 4 bawaan |
 | Perangkat dikenal | 30 hari untuk menilai "baru", 90 hari baru dilupakan |
 | Retensi riwayat kiriman | 30 hari |
 | Grup Telegram untuk superadmin | Diterima |
