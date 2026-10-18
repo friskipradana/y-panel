@@ -21,5 +21,6 @@ Referensi lengkap (baca saat mengerjakan visual): [DESIGN.md](DESIGN.md).
 - `bun run lint`
 - `bun run check:ui` memvalidasi aturan UI (harus 0 error)
 - `go test ./...`
+- Tes yang butuh PostgreSQL asli (alur pesanan, trial, domain; paket `internal/database/dbtest`) dilewati kecuali `REN_TEST_DATABASE_URL` diisi, mis. `postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable`; tiap tes membuat dan menghapus database sendiri
 
 Branch aktif: `main-runtime-dev`. Rilis: `main-runtime`.
