@@ -39,9 +39,7 @@ export function MidtransSection({ settings, set, showSecrets, setShowSecrets }: 
           </Badge>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">
-        {t('settings.payment.midtransSubtitle')}
-      </p>
+      <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">{t('settings.payment.midtransSubtitle')}</p>
 
       <div className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

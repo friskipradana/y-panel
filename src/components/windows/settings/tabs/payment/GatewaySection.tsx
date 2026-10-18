@@ -130,9 +130,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
               )}
             </div>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">
-            {t('settings.payment.mainGatewaySubtitle')}
-          </p>
+          <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">{t('settings.payment.mainGatewaySubtitle')}</p>
 
           <div className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -186,13 +184,11 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
                   {copiedWebhook ? t('common.copied') : t('common.copy')}
                 </Button>
               </div>
-              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-                {t('settings.payment.webhookUrlHint')}
-              </p>
+              <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{t('settings.payment.webhookUrlHint')}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] h-[58px] gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 items-stretch gap-3 pt-1">
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] min-h-[58px] gap-3">
                 <div className="min-w-0">
                   <div className="text-[12px] font-semibold text-[var(--win-text)]">{t('settings.payment.autoConfirm')}</div>
                   <div className="text-[10.5px] text-[var(--text-secondary)] leading-tight mt-0.5">{t('settings.payment.autoConfirmDesc')}</div>
@@ -204,7 +200,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] h-[58px] gap-3">
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] min-h-[58px] gap-3">
                 <div className="min-w-0">
                   <div className="text-[12px] font-semibold text-[var(--win-text)]">{t('settings.payment.tolerance')}</div>
                   <div className="text-[10.5px] text-[var(--text-secondary)] leading-tight mt-0.5">{t('settings.payment.toleranceDesc')}</div>
@@ -293,4 +289,3 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
     </div>
   )
 }
-

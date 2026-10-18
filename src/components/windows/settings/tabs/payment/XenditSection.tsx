@@ -33,9 +33,7 @@ export function XenditSection({ settings, set, showSecrets, setShowSecrets }: Pr
           </Badge>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">
-        {t('settings.payment.xenditSubtitle')}
-      </p>
+      <p className="text-[11px] text-[var(--text-secondary)] mb-3 leading-relaxed">{t('settings.payment.xenditSubtitle')}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
