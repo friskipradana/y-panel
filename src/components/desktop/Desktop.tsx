@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { Taskbar } from '@/components/taskbar/Taskbar'
 import { MobileShell } from '@/components/mobile/MobileShell'
@@ -195,14 +195,22 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         <Dock />
         </>
       )}
-      {authenticated && wallpaperLoading ? (
-        <div className="pointer-events-none absolute inset-0 z-[1200] flex items-center justify-center bg-[var(--app-wallpaper-overlay-bg)] backdrop-blur-md">
-          <div className="flex items-center gap-3 rounded-full border border-[var(--app-wallpaper-loader-border)] bg-[var(--app-wallpaper-loader-bg)] px-5 py-3 text-sm font-medium text-[var(--app-wallpaper-loader-text)] shadow-[var(--app-wallpaper-loader-shadow)]">
-            <Loader2 size={16} className="animate-spin text-[var(--app-wallpaper-spinner)]" />
-            <span>{t('app.preparingWallpaper')}</span>
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {authenticated && wallpaperLoading ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="pointer-events-none absolute inset-0 z-[50] flex items-center justify-center bg-[var(--app-wallpaper-overlay-bg)] backdrop-blur-xs"
+          >
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--app-wallpaper-loader-border)] bg-[var(--app-wallpaper-loader-bg)] px-4 py-2.5 text-xs font-medium text-[var(--app-wallpaper-loader-text)] shadow-[var(--app-wallpaper-loader-shadow)] backdrop-blur-md">
+              <Loader2 size={15} className="animate-spin text-[var(--app-wallpaper-spinner)] shrink-0" />
+              <span>{t('app.preparingWallpaper')}</span>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {/* Lock Screen Overlay */}
       <AnimatePresence>

@@ -432,7 +432,10 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     },
 
     syncCustomImage: async () => {
-      set({ wallpaperLoading: true })
+      const isCustom = get().wallpaper === 'custom'
+      if (isCustom && !get().customImageUrl) {
+        set({ wallpaperLoading: true })
+      }
       try {
         const res = await getWallpaper()
         if (res && res.data) {

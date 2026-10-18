@@ -1,5 +1,5 @@
 import { useRef, type CSSProperties } from "react";
-import { CircleCheck, ImagePlus, Sliders, Trash2, Upload } from "lucide-react";
+import { CircleCheck, ImagePlus, Loader2, Sliders, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { WALLPAPERS, useThemeStore, type WallpaperKey } from "@/store/themeStore";
@@ -36,23 +36,30 @@ function WallpaperTile({
   style,
   selected,
   onClick,
+  loading,
 }: {
   label: string;
   style: CSSProperties;
   selected: boolean;
   onClick: () => void;
+  loading?: boolean;
 }) {
   return (
     <SelectableCard
       selected={selected}
       onClick={onClick}
-      className="group flex flex-col overflow-hidden rounded-lg text-left"
+      className="group relative flex flex-col overflow-hidden rounded-lg text-left"
     >
       <span
         className="block h-[58px] w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
         style={style}
         aria-hidden="true"
       />
+      {loading ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_srgb,var(--win-content-bg)_60%,transparent)] backdrop-blur-xs">
+          <Loader2 size={16} className="animate-spin text-[var(--panel-primary-solid)]" />
+        </div>
+      ) : null}
       <span
         className={`flex items-center justify-between gap-1.5 px-2 py-1.5 border-t border-[var(--win-border)] transition-colors ${
           selected ? "bg-[var(--panel-primary-bg)]" : "bg-[var(--panel-surface)]"
@@ -181,6 +188,7 @@ export function WallpaperTab() {
                 <WallpaperTile
                   label={t("settings.appearance.customWallpaper")}
                   selected={wallpaper === "custom"}
+                  loading={wallpaper === "custom" && wallpaperLoading}
                   onClick={() => setWallpaper("custom")}
                   style={{ backgroundImage: `url("${customImageUrl}")` }}
                 />

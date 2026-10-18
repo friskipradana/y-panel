@@ -249,12 +249,12 @@
   --app-loading-spinner: var(--panel-primary-solid);
   --app-loading-text: #475569;
   --app-loading-meta: #94a3b8;
-  --app-wallpaper-overlay-bg: rgba(6, 10, 20, 0.28);
-  --app-wallpaper-loader-border: rgba(255, 255, 255, 0.15);
-  --app-wallpaper-loader-bg: rgba(255, 255, 255, 0.10);
-  --app-wallpaper-loader-text: #ffffff;
-  --app-wallpaper-loader-shadow: 0 24px 80px rgba(15, 23, 42, 0.35);
-  --app-wallpaper-spinner: #67e8f9;
+  --app-wallpaper-overlay-bg: rgba(15, 23, 42, 0.14);
+  --app-wallpaper-loader-border: var(--win-border);
+  --app-wallpaper-loader-bg: var(--panel-surface);
+  --app-wallpaper-loader-text: var(--win-text);
+  --app-wallpaper-loader-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --app-wallpaper-spinner: var(--panel-primary-solid);
   --app-redirect-bg: #020617;
   --app-overlay-text: #ffffff;
   --app-glass-muted-text: rgba(255, 255, 255, 0.78);
@@ -457,6 +457,12 @@
   --terminal-bright-magenta: #c4b5fd;
   --terminal-bright-cyan: #67e8f9;
   --terminal-bright-white: #ffffff;
+  --app-wallpaper-overlay-bg: rgba(0, 0, 0, 0.30);
+  --app-wallpaper-loader-border: var(--win-border);
+  --app-wallpaper-loader-bg: var(--panel-surface);
+  --app-wallpaper-loader-text: var(--win-text);
+  --app-wallpaper-loader-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  --app-wallpaper-spinner: var(--panel-primary-solid);
 }
 
 * {
