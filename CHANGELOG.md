@@ -2,6 +2,25 @@
 
 All notable changes to the YPanel project will be documented in this file.
 
+## [4.10.0] - 2026-10-18
+
+### 🌟 Ringkasan Rilis (Release Overview)
+Rilis **v4.10.0** berisi 5 perubahan: 4 fitur, 1 perbaikan. (72 files changed, 2538 insertions(+), 3247 deletions(-))
+
+### 🚀 Fitur Baru (Added)
+- **settings:** Grouped menu, per-page headers, and tab content on the shared kit ([`86e11a2`](https://github.com/friskipradana/y-panel/commit/86e11a2))
+- **ui:** Finish the phone layout and tidy several windows ([`118ec91`](https://github.com/friskipradana/y-panel/commit/118ec91))
+- **ui:** Usage meters turn warning from 75% and danger from 90% ([`cda67b4`](https://github.com/friskipradana/y-panel/commit/cda67b4))
+- **ui:** Phone layout across the windows, settings save bar, and cleaner settings pages ([`52a7cd0`](https://github.com/friskipradana/y-panel/commit/52a7cd0))
+
+### 🐛 Perbaikan Bug (Fixed)
+- **ui:** Role and state of a user share a line on phones ([`1f31ac1`](https://github.com/friskipradana/y-panel/commit/1f31ac1))
+
+### 👥 Kontributor
+- AknalRe
+
+**Full Changelog**: https://github.com/friskipradana/y-panel/compare/v4.9.0...v4.10.0
+
 ## [4.9.0] - 2026-10-17
 
 ### 🌟 Ringkasan Rilis (Release Overview)
