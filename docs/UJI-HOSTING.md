@@ -170,6 +170,34 @@ Pengaturan > Notifikasi. Hanya superadmin yang melihatnya.
 
 Pastikan juga **tidak ada** pesan untuk satu percobaan login gagal, dan bahwa mematikan saklar kanal membatalkan pesan yang menunggu.
 
+### 8a. WhatsApp (WAHA)
+
+Perlu Docker di server dan akses internet untuk menarik image `devlikeapro/waha`. Runtime, banyak sesi, kode QR, memutus, dan menghapus akun sudah dibuktikan dengan container sungguhan (lihat NOTIFIKASI-KANAL.md bagian 14); yang belum: memindai QR dengan ponsel dan pengiriman pesan nyata.
+
+1. **Nyalakan:** Pengaturan > Notifikasi > kartu WhatsApp (WAHA), nyalakan "Jalankan WAHA". Harapan: status "Memulai" sambil image diunduh (beberapa menit pertama kali), lalu "Berjalan" dengan engine GOWS, versi, dan jumlah sesi. Bila gagal, alasannya tampil di kartu (mis. Docker tidak terpasang atau image tak bisa ditarik).
+2. **Pastikan tertutup:** `docker ps` menunjukkan container `reneo-waha` dengan port `127.0.0.1:...->3000`, bukan `0.0.0.0`. Kunci API tidak tampil di `docker inspect` argumen perintah, hanya sebagai variabel lingkungan.
+3. **Sambungkan:** di kartu WhatsApp saya tekan "Sambungkan WhatsApp". Harapan: kode QR tampil dan berganti sendiri; pindai dari WhatsApp > Perangkat tertaut. Dalam beberapa detik status "Tersambung" dan nomor tampil tersamar. Nama sesi di WAHA: `<peran>-<nama pengguna>` huruf kecil.
+4. **Uji kirim:** tekan "Kirim Pesan Uji". Harapan: pesan tiba di WhatsApp nomor itu (obrolan dengan diri sendiri) dengan judul tebal. Perlu diperiksa: apakah GOWS mengantar pesan ke nomor sendiri di versi WAHA yang terpasang; bila tidak, uji dengan nomor lain dan laporkan.
+5. **Akun lain:** masuk sebagai admin atau user biasa; kartu "WhatsApp saya" ada di Profil (hanya kabar keamanan). Sambungkan dengan ponsel lain, dan pastikan sesi dan kode QR tidak terlihat dari akun lain. Akun demo tidak bisa menyambungkan.
+6. **Putuskan:** tombol "Putuskan WhatsApp" mengeluarkan WhatsApp dari ponsel dan menghapus sesi. Mematikan WAHA menghentikan container tetapi sesi tetap tersimpan; menyalakan lagi tidak perlu memindai ulang.
+7. **Jeda kirim:** pesan WhatsApp dikirim berjarak (1,5 detik antarpesan, 4 detik ke nomor yang sama) untuk mengurangi risiko nomor diblokir.
+
+### 8b. WhatsApp Cloud (Meta) dan pesan untuk pembeli
+
+Perlu akun Meta Business dengan nomor terdaftar. Bagian ini diuji dengan Meta tiruan, belum dengan Meta sungguhan.
+
+1. **Siapkan:** Pengaturan > Notifikasi > WhatsApp Cloud: tempel Access token, Phone number ID, dan WhatsApp Business Account ID. Harapan: setelah simpan, tampil "Mengirim dari <nomor> (<nama terverifikasi>)". Token salah ditolak dengan pesan dari Meta dan tidak disimpan.
+2. **Templat:** tekan "Buat templat yang belum ada". Harapan: status berubah ke Menunggu, lalu Disetujui dalam beberapa menit sampai jam. Templat yang Ditolak perlu dibaca alasannya di Meta Business Manager.
+3. **Nomor penjual:** di kartu "Nomor WhatsApp Cloud saya" simpan nomor Anda lalu "Kirim Pesan Uji". Harapan: pesan tiba setelah templat `reneo_test` disetujui.
+4. **Pembeli:** buka halaman pesanan. Harapan: kolom Nomor WhatsApp muncul dan wajib; nomor yang salah ditolak dengan alasan. Buat pesanan dengan nomor ponsel lain. Harapan: cara bayar tiba di nomor itu (dari sesi WAHA superadmin bila tersambung, atau lewat WhatsApp Cloud) dan, setelah pesanan dikonfirmasi, pesan "akun aktif" dengan alamat masuk.
+5. **Batas:** pesanan berulang ke nomor yang sama tidak mengirim lebih dari tiga pesan sehari.
+
+### 8c. Jawaban BERHENTI dan status pesan
+
+1. **Telegram:** kirim `/stop` ke bot dari obrolan yang tersambung. Harapan: dalam beberapa detik bot membalas dihentikan dan semua saklar kabar di kartu "Telegram Pribadi Saya" mati. Kirim `/start` untuk menyalakannya lagi. Kalimat biasa yang memuat kata stop tidak mengubah apa pun.
+2. **WhatsApp Cloud:** isi App secret, salin alamat callback dan verify token ke Meta (WhatsApp > Configuration), langgananlah `messages`. Harapan: Meta menerima alamatnya; status terkirim, dibaca, atau gagal tampil di baris antrean. Balas BERHENTI dari nomor pembeli: dibalas teks biasa dan pesan berikutnya ke nomor itu tidak dikirim; MULAI menyalakannya lagi.
+3. **WAHA:** nyalakan ulang WAHA setelah memperbarui panel agar container dibuat dengan webhook. Balas BERHENTI dari nomor pembeli ke nomor sesi superadmin. Harapan: dibalas dan pesan berikutnya ke nomor itu tidak dikirim. Bila tidak ada reaksi, periksa log container (`docker logs reneo-waha`) untuk kegagalan menghubungi `host.docker.internal`, dan pastikan panel mendengarkan di alamat yang bukan `127.0.0.1`.
+
 ## 9. Bila ada yang gagal
 
 | Gejala | Kemungkinan penyebab |

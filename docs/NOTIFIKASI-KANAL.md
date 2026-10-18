@@ -1,6 +1,6 @@
 # Rancangan: Notifikasi lewat Telegram, WhatsApp Cloud API (Meta), dan WAHA
 
-Status: **tahap 1 sudah dibangun** (bagian 10): antrian realtime yang aman dari race condition, pendeteksi ambang, kanal Telegram untuk superadmin, peristiwa penjual dan kabar keamanan, serta tab Pengaturan > Notifikasi. Tahap 2 dan seterusnya belum. Penyimpangan dari rancangan di bawah dicatat di akhir dokumen. Dokumen ini menjawab apa yang dikirim, ke siapa, lewat apa, dan bagaimana dibuat bertahap. Keputusan pemilik (bagian 11) sudah dimasukkan: WAHA dijalankan Reneo sendiri dengan satu sesi WhatsApp per akun, dan nomor WhatsApp wajib diisi saat memesan.
+Status: **tahap 1, 2, 3, 5, dan sebagian 4 sudah dibangun** (bagian 10, 12 sampai 15): antrian realtime yang aman dari race condition, pendeteksi ambang, kanal Telegram untuk superadmin, peristiwa penjual dan kabar keamanan, serta tab Pengaturan > Notifikasi. Tahap 2 dan seterusnya belum. Penyimpangan dari rancangan di bawah dicatat di akhir dokumen. Dokumen ini menjawab apa yang dikirim, ke siapa, lewat apa, dan bagaimana dibuat bertahap. Keputusan pemilik (bagian 11) sudah dimasukkan: WAHA dijalankan Reneo sendiri dengan satu sesi WhatsApp per akun, dan nomor WhatsApp wajib diisi saat memesan.
 
 ## 1. Tujuan dan batas
 
@@ -334,3 +334,71 @@ Penyimpangan dari rancangan, dengan alasannya:
 | Penerima: semua akun | Tahap 1 hanya superadmin (UI dan API) | Kabar untuk pembeli dan admin ada di tahap 4 |
 
 Saat mengujinya muncul empat cacat yang sudah diperbaiki: percobaan ulang yang baru diambil pada sapuan berikutnya, alamat IP yang salah di pesan pemindaian akun, nama database uji yang bisa kembar di Windows, dan alamat obrolan pendek yang tampil utuh.
+
+## 13. Yang dibangun di tahap 2 (WhatsApp lewat WAHA), dan penyimpangannya
+
+Hasil pengecekan edisi: dokumentasi WAHA terbaru (halaman Support us) menyatakan **tidak ada lagi edisi Plus terpisah**; sesi tanpa batas, engine WEBJS, NOWEB, dan GOWS, dasbor, dan keamanan bawaan semuanya ada di edisi gratis. **Terbukti dengan container sungguhan** (bagian 14): image `devlikeapro/waha:latest` versi 2026.9.2 melapor `tier: CORE`, engine GOWS, dan tiga sesi berjalan bersamaan, masing-masing dengan kode QR sendiri.
+
+Dibangun: migrasi `000022_whatsapp_sessions.sql`; `internal/notify/waha.go` (klien WAHA, saluran per sesi, `ToWhatsApp`, `SessionName`), `service_waha.go` (container `reneo-waha` lewat docker, siklus sesi, kunci per akun), `internal/database/whatsapp.go`; endpoint `/api/v1/notify/waha` (superadmin) dan `/api/v1/me/whatsapp` (semua peran kecuali demo); kartu WAHA dan WhatsApp saya di tab Notifikasi, serta kartu WhatsApp saya di Profil. Pengujian: tes murni, dan tes dari handler lewat WAHA tiruan dan docker tiruan dengan Postgres asli dan `-race` (penyalaan dua kali satu container, penyambungan paralel satu sesi, sesi tiap akun terpisah, sesi hilang, putus, menyalakan ulang tanpa memindai).
+
+| Rancangan | Yang dibangun | Alasan |
+| :--- | :--- | :--- |
+| Dasbor WAHA hanya lewat rute panel milik superadmin | Dasbor hanya terbuka di `127.0.0.1` server; alamat, pengguna, dan kata sandi ditampilkan ke superadmin | Dibuktikan: dasbor WAHA adalah aplikasi Nuxt di `/dashboard/` yang memanggil `/api/` di akar yang sama, jadi tidak bisa dilayani di bawah subpath panel (`/api/` milik panel). Butuh alamat atau domain sendiri; belum dibuat |
+| Pesan sistem dikirim dari sesi superadmin | Tiap akun mengirim dari sesinya sendiri ke nomornya sendiri | Pesan ke pembeli yang belum menyambungkan WhatsApp baru ada di tahap 4 |
+| Aksi lewat docker diuji dengan container | Diuji dengan docker tiruan; tidak ada Docker di mesin uji | Wajib dicoba di server sungguhan (bagian 8a di UJI-HOSTING) |
+| Sesi akun yang dihapus dibersihkan | Dibersihkan: menghapus akun menghapus sesinya di WAHA lebih dulu (terbukti: 2 sesi menjadi 1). Bila WAHA sedang mati, sesinya tertinggal | Tanpa WAHA yang menjawab tidak ada yang bisa dihapus; penyapuan sesi yatim belum dibuat |
+| Ambang kecepatan | 1,5 detik antarpesan, 4 detik ke satu nomor | Mengurangi risiko blokir nomor; angka ini tebakan, bukan aturan WhatsApp |
+
+## 14. Tahap 3 dan 4 (sebagian), dan bukti dengan WAHA sungguhan
+
+**WhatsApp Cloud (tahap 3).** `internal/notify/whatsapp_cloud.go`, `service_cloud.go`, `/api/v1/notify/*whatsapp-cloud*`, kartu "WhatsApp Cloud (Meta)" dan "Nomor WhatsApp Cloud saya" di tab Notifikasi. Token dan Phone number ID diperiksa ke Meta sebelum disimpan. Templat dibuat otomatis dari katalog: satu templat per peristiwa dan bahasa (nama `reneo_<peristiwa>`, kategori Utility, contoh isian disertakan, setiap isi diakhiri baris tetap karena Meta menolak isi yang berakhir dengan variabel), dan tombol "Buat templat" mengirim yang belum ada ke Meta; status tiap templat dibaca dari Meta. Pengiriman memakai templat dan mengisi variabelnya (baris yang berubah pada peringatan serangan menjadi variabel terakhir). Kegagalan dipilah: token salah = masalah kanal, nomor tidak ada di WhatsApp = penerima tidak terjangkau, templat belum disetujui = hanya pesan itu yang gagal, batas laju Meta = coba lagi. Diuji dengan Meta tiruan; **belum diuji dengan akun Meta sungguhan**, dan kode kesalahan Meta yang dikelompokkan berasal dari dokumentasi, bukan dari percobaan.
+
+| Rancangan | Yang dibangun | Alasan |
+| :--- | :--- | :--- |
+| 10 templat bersama | Satu templat per peristiwa dan bahasa (sekitar 50), dibuat otomatis | Isi persis sama dengan teks katalog, tanpa tabel pemetaan; batas Meta jauh di atas jumlah ini. Kekurangannya: banyak yang harus disetujui |
+| Teks bebas dalam jendela 24 jam | Selalu templat | Panel tidak menerima balasan, jadi tidak ada jendela yang bisa dipakai |
+| Webhook status Meta | Belum | Butuh alamat publik HTTPS; status akhir (dibaca, gagal) belum terlihat |
+| Verifikasi nomor lewat kode | Nomor penjual diketik sendiri lalu diuji dengan pesan uji | Kode verifikasi lewat templat autentikasi memerlukan templat tambahan dan disetujui lebih dulu |
+
+**Pembeli (tahap 4, sebagian).** Form pesanan meminta nomor WhatsApp (wajib bila satu kanal bisa mengantar: WAHA dengan sesi superadmin tersambung, atau WhatsApp Cloud menyala). Nomor ditulis seperti kebiasaan (`0812-3456-7890`, `+62 ...`) dan dinormalkan; yang bukan nomor seluler ditolak sebelum akun dibuat. Pembeli menerima dua pesan: cara bayar tepat sesuai total (`buyer.order_created`) dan akun aktif beserta alamat masuk (`buyer.order_paid`, terkirim sekali walau pembayaran dikonfirmasi dua kali). Lewat WAHA pesan dikirim dari sesi superadmin (kolom `sender_user_id` pada antrian); bila pembeli sudah menyambungkan WhatsApp-nya sendiri, dari sesinya. Nomor yang belum terverifikasi dibatasi 3 pesan sehari. Penyimpangan dari bagian 7: teks pesan belum menyebut cara berhenti (jawaban BERHENTI baru bisa dihormati bila webhook terpasang, bagian 15), jadi tidak menjanjikannya; pembeli yang sudah masuk bisa mematikan kelompok "Pesanan saya" di Profil setelah menyambungkan WhatsApp. Kata BERHENTI sudah ditangani di tahap 5 (bagian 15). Belum dibuat: pesan kedaluwarsa (akun yang tidak membayar dihapus dan ikut menghapus antriannya). Kabar paket dan Telegram untuk semua akun ada di bagian 16.
+
+
+### Bukti dengan container sungguhan
+
+Dijalankan di Docker dalam WSL Ubuntu di mesin pengembang, memakai kode agent yang sama (bukan tiruan): agent memanggil `docker` lewat perantara yang meneruskan ke WSL, menarik `devlikeapro/waha:latest`, membuat container `reneo-waha`, dan memanggil API-nya.
+
+| Yang diuji | Hasil |
+| :--- | :--- |
+| Menyalakan runtime dari tombol | Image ditarik dan container dibuat; status `starting` lalu `running` (versi 2026.9.2, engine GOWS, tier CORE) dalam sekitar dua menit termasuk unduhan |
+| Port | Container terbuka hanya di `127.0.0.1`, kunci API lewat variabel lingkungan, bukan argumen perintah |
+| Tiga akun menyambung bersamaan | Tiga sesi (`superadmin-owner`, `user-wa-andi`, `user-wa-budi`) berstatus `SCAN_QR_CODE` serentak; WAHA melaporkan 3 sesi. Edisi CORE mengizinkan banyak sesi |
+| Kode QR | Panel mengembalikan PNG untuk tiap akun (7 KB), kode berbeda, bentuknya sesuai yang dibaca klien |
+| Memutus | Sesi hilang dari WAHA (3 menjadi 2) dan dari basis data |
+| Menghapus akun | Sesinya ikut hilang dari WAHA (2 menjadi 1) |
+| Status saat sesi gagal | Sesi yang tidak bisa menghubungi WhatsApp tampil `FAILED` dan QR ditolak dengan alasan WAHA; klien menafsirkannya sebagai kegagalan sementara |
+| Dasbor | `/dashboard/` menjawab 200 dengan Basic auth; menggunakan alamat mutlak sehingga tidak bisa dipasang di bawah subpath |
+
+**Yang belum bisa dibuktikan tanpa ponsel:** memindai kode QR (status `WORKING`), pengiriman pesan nyata, dan apakah GOWS mengantar ke nomor sendiri. Pesan WAHA hanya diuji dengan WAHA tiruan.
+
+**Temuan lingkungan:** bridge Docker di WSL ini tidak punya rute keluar (container tidak bisa menjangkau internet, `web.whatsapp.com` timeout) sehingga sesi berstatus `FAILED`. Untuk pengujian container dibuat ulang dengan `--network host`. Panel menjalankan container dengan jaringan bridge biasa; di server yang jaringan Docker-nya normal ini tidak terjadi, tetapi bila sesi tetap `FAILED`, periksa dulu apakah container bisa menjangkau `web.whatsapp.com`. Pembuatan sesi (`POST /api/sessions`) menunggu sampai WAHA selesai mencoba terhubung (10 sampai 20 detik saat koneksi buntu), jadi batas waktu permintaan pembuatan sesi dinaikkan.
+
+## 15. Tahap 5: jawaban dari orang, dan apa yang dikatakan kanal
+
+Yang dipahami: pesan yang isinya hanya kata itu (`stop`, `berhenti`, `unsubscribe`, `/stop`, `/stop@namabot` untuk berhenti; `mulai`, `start`, `/start`, `lanjut` untuk menyala lagi). Kalimat yang kebetulan memuat kata itu tidak menghentikan apa pun. "Berhenti" dicatat untuk alamatnya sendiri (`notification_optouts`; nomor pembeli belum punya akun) dan mematikan semua kelompok kabar bagi akun yang memakai alamat itu; "mulai" membatalkan keduanya, dan hanya dibalas bila alamat itu memang pernah berhenti atau dikenal, supaya orang asing tidak bisa menyuruh panel mengirim pesan ke sebuah nomor. Pesan untuk pembeli ke nomor yang berhenti tidak lagi diantrikan dan yang sudah menunggu dibatalkan.
+
+| Kanal | Cara pesan masuk diterima | Pemeriksaan |
+| :--- | :--- | :--- |
+| Telegram | Pemungut latar membaca bot tiap 4 detik selama kanal menyala (menggantikan pembacaan hanya saat tautan menunggu); `/start KODE` tetap menyambungkan | Tidak perlu alamat publik. Kata berhenti hanya berlaku untuk obrolan yang mengirimnya |
+| WhatsApp Cloud | `POST /api/v1/public/notify/whatsapp-cloud/webhook` (dan `GET` untuk verifikasi alamat dengan verify token yang dibuat panel) | Tanda tangan `X-Hub-Signature-256` (HMAC-SHA256 dengan App secret, dibandingkan dalam waktu tetap); tanpa App secret tersimpan semua permintaan ditolak. Salah tanda tangan dihitung sebagai percobaan webhook oleh pendeteksi serangan. Status `delivered`, `read`, `failed` (dengan kode galatnya) disimpan di samping pesan dan tampil di antrean. Balasan ke "berhenti" dikirim sebagai teks biasa (boleh karena orang itu baru menulis) |
+| WAHA | `POST /api/v1/public/notify/waha/webhook`; container dibuat dengan `WHATSAPP_HOOK_URL` ke `host.docker.internal` (`--add-host ...:host-gateway`), peristiwa `message`, dan kunci HMAC acak | Header `X-Webhook-Hmac` (HMAC-SHA512 badan permintaan, kunci hanya diketahui panel dan container, dikirim lewat variabel lingkungan bukan argumen). Pesan dari kita sendiri, dari grup, dan dari id selain `@c.us` diabaikan; balasan hanya lewat sesi milik akun panel |
+
+Semua rute webhook dibatasi laju per alamat IP (300 per menit) karena terbuka ke internet. Panel yang hanya mendengarkan di `127.0.0.1` tidak bisa dijangkau container, jadi container dibuat tanpa webhook.
+
+**Diuji:** tiga tes dari handler dengan Postgres asli dan `-race` (Telegram `/stop` dan `/start` termasuk kalimat yang memuat kata, Meta: verifikasi alamat, status, tanda tangan salah, berhenti dan mulai, orang asing; WAHA: kunci HMAC dan algoritma yang salah, pesan sendiri dan grup, berhenti dengan balasan lewat sesi), dan satu tes murni untuk pengenalan kata. **Belum diuji dengan Meta atau ponsel sungguhan.** Bentuk muatan webhook Meta dan WAHA ditulis dari dokumentasi masing-masing. Dua hal yang belum pasti: apakah container bisa menjangkau agent lewat `host.docker.internal` di server (di Docker Desktop dan WSL, `host-gateway` menunjuk ke mesin Linux, bukan Windows), dan apakah WAHA GOWS mengirim `from` sebagai `@c.us` (versi terbaru WhatsApp memakai `@lid` untuk sebagian kontak; pesan dari id itu diabaikan).
+
+## 16. Kabar paket untuk pembeli, dan Telegram untuk semua akun
+
+**Paket.** Dua peristiwa pembeli ditambahkan: `buyer.plan_reminder` (sekali per tanggal berakhir, tiga hari sebelumnya, dikirim oleh pemeriksa pengingat yang sudah ada) dan `buyer.plan_ended` (saat akun ditangguhkan karena paketnya berakhir). Keduanya lewat jalur pembeli yang sama (nomor dari form pesanan, WAHA dari sesi superadmin atau WhatsApp Cloud, batas tiga pesan sehari untuk nomor yang belum terverifikasi). Perpanjangan memakai alur pesanan yang sudah ada: pesanan perpanjangan juga memberi cara bayar, dan lunasnya memberi kabar paket aktif.
+
+**Telegram untuk semua peran.** Bot tetap milik superadmin, tetapi tiap akun selain demo menyambungkan obrolannya sendiri dari Profil (kartu "Telegram Pribadi Saya" dengan pesan uji), lewat rute `/api/v1/me/telegram`. Tautan lewat `/start KODE` yang sama; satu obrolan hanya milik satu akun karena kodenya satu kali pakai. Kabar yang dikirim ke akun admin dan user adalah kabar keamanan (login baru, kata sandi diubah, token dibuat, login gagal berulang); `/stop` dan `/start` di Telegram berlaku untuk obrolan itu. Akun tidak pernah melihat token bot, hanya apakah bot sudah diatur. Diuji dengan dua akun yang tersambung ke dua obrolan berbeda: kabar satu akun tidak sampai ke obrolan akun lain atau ke superadmin.
+
