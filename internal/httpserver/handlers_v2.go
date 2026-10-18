@@ -665,6 +665,8 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	// the DNS records of their subdomains must go before the rows do
 	s.releaseUserSubdomains(targetUser.ID)
 	s.releaseUserCustomDomains(targetUser.ID)
+	// the WhatsApp session lives in WAHA, outside the database, so it goes before the row does
+	s.forgetUserWhatsApp(targetUser.ID)
 	if err := s.database.DeleteUser(id); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return

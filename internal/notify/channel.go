@@ -16,6 +16,12 @@ type Channel interface {
 	Test(ctx context.Context) error
 }
 
+// UserSender is a channel that sends from the session of the account the notice belongs to (WhatsApp: each account
+// has its own); the worker uses it in place of Send when a channel has it
+type UserSender interface {
+	SendToUser(ctx context.Context, userID int64, address, text string) (providerID string, err error)
+}
+
 // SendError says what kind of failure a channel had, so the worker knows whether to try again.
 type SendError struct {
 	Message string

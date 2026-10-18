@@ -123,6 +123,8 @@ type createOrderRequest struct {
 	// the panel address: a name under one of the domains the superadmin offers
 	SubLabel  string `json:"subLabel"`
 	SubZoneID string `json:"subZoneId"`
+	// the WhatsApp number that gets the notices about the order; required while WhatsApp can deliver them
+	WhatsApp string `json:"whatsapp"`
 }
 
 // handlePublicCreateOrder signs a buyer up for a plan: the account waits for its payment (or for the trial to be approved)
@@ -181,6 +183,18 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// the number for the notices about the order
+	phone := ""
+	buyerKind := s.notify.BuyerChannel()
+	if strings.TrimSpace(req.WhatsApp) != "" || buyerKind != "" {
+		normalized, err := notify.NormalizePhone(req.WhatsApp)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		phone = normalized
+	}
+
 	// the panel address is part of the plan: picked now, held for the order, created when it is paid
 	var domain *database.HostingDomain
 	req.SubLabel = strings.ToLower(strings.TrimSpace(req.SubLabel))
@@ -235,11 +249,17 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		_ = s.database.SetUserParent(u.ID, superadmin)
 	}
 
+	if phone != "" && buyerKind != "" {
+		if err := s.database.SaveBuyerContact(u.ID, buyerKind, phone); err != nil {
+			log.Printf("[orders] the WhatsApp number of %q was not saved: %v", u.Username, err)
+		}
+	}
+
 	planID := plan.ID
 	order := database.HostingOrder{
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
 		AmountBase: plan.PriceAmount * int64(req.Periods), Status: database.OrderPending,
-		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()),
+		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
 	}
 	if domain != nil {
 		order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname = req.SubLabel, domain.ZoneID, domain.Name, hostnameFor(req.SubLabel, domain.Name)
@@ -281,6 +301,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	} else {
 		s.notifyAllAdmins("Pesanan hosting baru", fmt.Sprintf("%s memesan paket %s (%s).", u.Username, plan.Name, orderKindLabel(created)), "info")
 		s.emitOrderCreated(created, u.Username, plan.Name)
+		s.buyerOrderCreated(created, plan.Name)
 		if created.Status == database.OrderReview {
 			s.emitOrderReview(created.ID, u.Username, "pesanan ini menunggu persetujuan Anda.")
 		}
@@ -366,7 +387,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 	created, err := s.database.CreateHostingOrder(database.HostingOrder{
 		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
 		AmountBase: plan.PriceAmount * int64(req.Periods), Status: database.OrderPending,
-		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()),
+		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
 	}, settings.orderUniqueMax())
 	if err != nil {
 		if errors.Is(err, database.ErrNoFreeTotal) {
@@ -378,6 +399,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
 	s.emitOrderCreated(created, user.Username, plan.Name)
+	s.buyerOrderCreated(created, plan.Name)
 	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
 }
 
@@ -574,6 +596,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	s.recordRuntimeLog("info", "hosting order paid", map[string]any{"order": order.ID, "user": user.Username, "plan": plan.Name, "kind": order.Kind})
 	s.notifyAllAdmins("Pesanan terbayar", fmt.Sprintf("%s: paket %s aktif (%s).", user.Username, plan.Name, note), "success")
 	s.emitOrderPaid(order, user.Username, plan.Name, note)
+	s.buyerOrderPaid(order, user, plan.Name)
 	s.notifyBuyerOrderDone(order, user, plan, ends)
 	go s.syncHostingRoutes()
 	return nil

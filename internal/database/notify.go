@@ -37,16 +37,20 @@ type OutboxMessage struct {
 	Error         string          `json:"error"`
 	CreatedAt     time.Time       `json:"createdAt"`
 	SentAt        *time.Time      `json:"sentAt"`
+	// SenderUserID is the account whose WhatsApp session sends it; 0 is the recipient's own
+	SenderUserID int64 `json:"-"`
+	// ProviderStatus is what the channel said after sending: delivered, read, failed
+	ProviderStatus string `json:"providerStatus"`
 }
 
 const outboxColumns = `o.id, o.event, o.user_id, o.kind, o.address, o.payload, o.idempotency_key, o.priority, o.status, o.attempts,
-	o.next_attempt_at, o.provider_id, o.error, o.created_at, o.sent_at`
+	o.next_attempt_at, o.provider_id, o.error, o.created_at, o.sent_at, o.sender_user_id, o.provider_status`
 
 func scanOutbox(row rowScanner) (*OutboxMessage, error) {
 	var m OutboxMessage
 	var payload []byte
 	if err := row.Scan(&m.ID, &m.Event, &m.UserID, &m.Kind, &m.Address, &payload, &m.Key, &m.Priority, &m.Status, &m.Attempts,
-		&m.NextAttemptAt, &m.ProviderID, &m.Error, &m.CreatedAt, &m.SentAt); err != nil {
+		&m.NextAttemptAt, &m.ProviderID, &m.Error, &m.CreatedAt, &m.SentAt, &m.SenderUserID, &m.ProviderStatus); err != nil {
 		return nil, err
 	}
 	m.Payload = json.RawMessage(payload)
@@ -64,11 +68,11 @@ func (m *Manager) EnqueueOutbox(msg OutboxMessage) (id int64, created bool, err 
 		payload = json.RawMessage(`{}`)
 	}
 	err = m.db.QueryRow(`
-		INSERT INTO notification_outbox (event, user_id, kind, address, payload, idempotency_key, priority)
-		VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+		INSERT INTO notification_outbox (event, user_id, kind, address, payload, idempotency_key, priority, sender_user_id)
+		VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id
-	`, msg.Event, msg.UserID, msg.Kind, msg.Address, string(payload), msg.Key, msg.Priority).Scan(&id)
+	`, msg.Event, msg.UserID, msg.Kind, msg.Address, string(payload), msg.Key, msg.Priority, msg.SenderUserID).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, false, nil
 	}
@@ -578,5 +582,94 @@ func (m *Manager) ForgetOldDevices() error {
 		return nil
 	}
 	_, err := m.db.Exec(`DELETE FROM known_devices WHERE last_seen < NOW() - INTERVAL '90 days'`)
+	return err
+}
+
+// SaveBuyerContact keeps the number from the order form as an unverified place for the buyer's notices. A recipient the
+// account already has is left alone.
+func (m *Manager) SaveBuyerContact(userID int64, kind, address string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`INSERT INTO notification_recipients (user_id, kind, address) VALUES ($1, $2, $3) ON CONFLICT (user_id, kind) DO NOTHING`, userID, kind, address)
+	return err
+}
+
+// CountBuyerNotices is how many notices to buyers a number got since a time; an unverified number is capped on it
+func (m *Manager) CountBuyerNotices(kind, address string, since time.Time) (int, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	var n int
+	err := m.db.QueryRow(`SELECT COUNT(*) FROM notification_outbox WHERE kind = $1 AND address = $2 AND event LIKE 'buyer.%' AND created_at >= $3`, kind, address, since).Scan(&n)
+	return n, err
+}
+
+// WhatsAppSenderID is a superadmin whose WhatsApp session is connected, for the notices to buyers; 0 when there is none
+func (m *Manager) WhatsAppSenderID() (int64, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	var id int64
+	err := m.db.QueryRow(`
+		SELECT w.user_id FROM whatsapp_sessions w JOIN users u ON u.id = w.user_id
+		WHERE w.status = 'WORKING' AND u.role = 'superadmin' AND u.status = 'active' ORDER BY w.user_id LIMIT 1
+	`).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return id, err
+}
+
+// ─── Answers from people ──────────────────────────────────────────────────────
+
+func (m *Manager) AddNotifyOptOut(kind, address string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`INSERT INTO notification_optouts (kind, address) VALUES ($1, $2) ON CONFLICT DO NOTHING`, kind, address)
+	return err
+}
+
+func (m *Manager) RemoveNotifyOptOut(kind, address string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`DELETE FROM notification_optouts WHERE kind = $1 AND address = $2`, kind, address)
+	return err
+}
+
+func (m *Manager) IsNotifyOptedOut(kind, address string) (bool, error) {
+	if !m.IsConnected() {
+		return false, fmt.Errorf("database not connected")
+	}
+	var n int
+	err := m.db.QueryRow(`SELECT COUNT(*) FROM notification_optouts WHERE kind = $1 AND address = $2`, kind, address).Scan(&n)
+	return n > 0, err
+}
+
+// SetMutedAtAddress switches the given groups off (or on again, with none) for every account whose recipient on a
+// channel is this address, and returns how many accounts it touched
+func (m *Manager) SetMutedAtAddress(kind, address string, muted []string) (int64, error) {
+	if !m.IsConnected() {
+		return 0, fmt.Errorf("database not connected")
+	}
+	if muted == nil {
+		muted = []string{}
+	}
+	res, err := m.db.Exec(`UPDATE notification_recipients SET muted_events = $3, updated_at = NOW() WHERE kind = $1 AND address = $2`, kind, address, pq.Array(muted))
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// SetOutboxProviderStatus keeps what a channel said about a message it carried; a failure also shows as the message's error
+func (m *Manager) SetOutboxProviderStatus(kind, providerID, status, reason string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE notification_outbox SET provider_status = $3, error = CASE WHEN $4 <> '' THEN $4 ELSE error END
+		WHERE kind = $1 AND provider_id = $2 AND provider_id <> ''`, kind, providerID, status, reason)
 	return err
 }

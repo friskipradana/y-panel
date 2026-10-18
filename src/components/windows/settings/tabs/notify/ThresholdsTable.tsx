@@ -101,7 +101,7 @@ function ThresholdsForm({ detectors }: { detectors: Detector[] }) {
               </div>
               <div className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
                 {row.levels.map((value, i) => (
-                  <label key={i} className="flex flex-col gap-1 text-[11.5px] text-[var(--text-secondary)]">
+                  <label key={i} className="flex flex-col justify-end gap-1 text-[11.5px] text-[var(--text-secondary)]">
                     {levelLabels[i]} ({base.countDistinct ? t('notify.thr.unitNames') : t('notify.thr.unitEvents')})
                     <TextInput
                       mono
@@ -113,20 +113,20 @@ function ThresholdsForm({ detectors }: { detectors: Detector[] }) {
                     />
                   </label>
                 ))}
-                <label className="flex flex-col gap-1 text-[11.5px] text-[var(--text-secondary)]">
+                <label className="flex flex-col justify-end gap-1 text-[11.5px] text-[var(--text-secondary)]">
                   {t('notify.thr.window')}
                   <TextInput mono type="number" min={1} value={row.window} onChange={(e) => patch(row.event, { window: e.target.value })} />
                 </label>
-                <label className="flex flex-col gap-1 text-[11.5px] text-[var(--text-secondary)]">
+                <label className="flex flex-col justify-end gap-1 text-[11.5px] text-[var(--text-secondary)]">
                   {t('notify.thr.cooldown')}
                   <TextInput mono type="number" min={1} value={row.cooldown} onChange={(e) => patch(row.event, { cooldown: e.target.value })} />
                 </label>
-                <label className="flex flex-col gap-1 text-[11.5px] text-[var(--text-secondary)]">
+                <label className="flex flex-col justify-end gap-1 text-[11.5px] text-[var(--text-secondary)]">
                   {t('notify.thr.quiet')}
                   <TextInput mono type="number" min={1} value={row.quiet} onChange={(e) => patch(row.event, { quiet: e.target.value })} />
                 </label>
                 {base.minDistinct > 0 ? (
-                  <label className="flex flex-col gap-1 text-[11.5px] text-[var(--text-secondary)]">
+                  <label className="flex flex-col justify-end gap-1 text-[11.5px] text-[var(--text-secondary)]">
                     {t('notify.thr.minDistinct')}
                     <TextInput mono type="number" min={0} value={row.minDistinct} onChange={(e) => patch(row.event, { minDistinct: e.target.value })} />
                   </label>

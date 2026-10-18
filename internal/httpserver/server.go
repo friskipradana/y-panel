@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -158,6 +159,10 @@ func New(cfg config.Config) *Server {
 	s.notify = notify.New(db, cfg.EncryptionKey)
 	if db.IsConnected() {
 		s.notify.Start(4)
+		if port := listenPort(cfg.BindAddr); port != "" {
+			// the WAHA container reaches the panel through the host, to tell it what people answer
+			s.notify.SetInboundBase("http://host.docker.internal:" + port)
+		}
 	}
 
 	s.routes()
@@ -611,4 +616,17 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   </main>
 </body>
 </html>`, status, html.EscapeString(title), status, html.EscapeString(title), html.EscapeString(description), html.EscapeString(requestHost), html.EscapeString(requestPath), html.EscapeString(hint), actions)
+}
+
+// listenPort is the port of a bind address such as 0.0.0.0:8787; "" when the panel listens on the loopback address
+// only, which the WAHA container cannot reach
+func listenPort(bind string) string {
+	host, port, err := net.SplitHostPort(bind)
+	if err != nil {
+		return ""
+	}
+	if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+		return ""
+	}
+	return port
 }

@@ -37,13 +37,21 @@ type Service struct {
 	detMu     sync.RWMutex
 	detectors map[string]*Detector
 
-	chMu    sync.Mutex
-	cache   map[string]cachedChannel
-	tgBase  string
-	tgPoll  sync.Mutex
-	stopSwp chan struct{}
-	wg      sync.WaitGroup
-	now     func() time.Time
+	chMu   sync.Mutex
+	cache  map[string]cachedChannel
+	tgBase string
+	tgPoll sync.Mutex
+	// WhatsApp: the container being started, and one lock per account for its session
+	waha      wahaRuntime
+	wahaBase  string
+	cloudBase string
+	// where WAHA can reach the panel from inside its container, for the webhook of answers
+	inboundURL string
+	sessMu    sync.Mutex
+	sessLocks map[int64]*sync.Mutex
+	stopSwp   chan struct{}
+	wg        sync.WaitGroup
+	now       func() time.Time
 }
 
 type cachedChannel struct {
@@ -68,6 +76,22 @@ func (s *Service) UseTelegramBase(base string) {
 	s.chMu.Unlock()
 }
 
+// UseCloudBase points WhatsApp Cloud calls at another address; tests use it
+func (s *Service) UseCloudBase(base string) {
+	s.chMu.Lock()
+	s.cloudBase = base
+	s.cache = map[string]cachedChannel{}
+	s.chMu.Unlock()
+}
+
+// UseWahaBase points WhatsApp calls at another address; tests use it
+func (s *Service) UseWahaBase(base string) {
+	s.chMu.Lock()
+	s.wahaBase = base
+	s.cache = map[string]cachedChannel{}
+	s.chMu.Unlock()
+}
+
 // Start loads the settings of the detectors and starts the workers and the sweep of the detectors
 func (s *Service) Start(workers int) {
 	if s == nil || s.db == nil {
@@ -78,8 +102,9 @@ func (s *Service) Start(workers int) {
 	}
 	s.worker = NewWorker(s.db, workers, s.Channel)
 	s.worker.Start()
-	s.wg.Add(1)
+	s.wg.Add(2)
 	go s.sweepLoop()
+	go s.telegramLoop()
 }
 
 func (s *Service) Stop() {
@@ -140,6 +165,24 @@ func (s *Service) buildLocked(kind string, onlyEnabled bool) (Channel, error) {
 			t.WithBase(s.tgBase)
 		}
 		return t, nil
+	case cloudKind:
+		var cfg cloudConfig
+		_ = json.Unmarshal(row.Config, &cfg)
+		if cfg.PhoneID == "" {
+			return nil, nil
+		}
+		c := NewWhatsAppCloud(secret, cfg.PhoneID, cfg.WABAID, cfg.Version)
+		if s.cloudBase != "" {
+			c.WithBase(s.cloudBase)
+		}
+		return c, nil
+	case wahaKind:
+		var cfg wahaConfig
+		_ = json.Unmarshal(row.Config, &cfg)
+		if cfg.BaseURL == "" {
+			return nil, nil
+		}
+		return NewWahaChannel(NewWaha(cfg.BaseURL, secret), s.sessionOf), nil
 	}
 	return nil, fmt.Errorf("unknown channel %q", kind)
 }
@@ -160,10 +203,15 @@ type ChannelView struct {
 	CheckedAt   *time.Time `json:"checkedAt"`
 	BotUsername string     `json:"botUsername,omitempty"`
 	BotName     string     `json:"botName,omitempty"`
+	// the number WhatsApp Cloud sends from, and the name Meta verified for it
+	Phone     string `json:"phone,omitempty"`
+	PhoneName string `json:"phoneName,omitempty"`
+	PhoneID   string `json:"phoneId,omitempty"`
+	WABAID    string `json:"wabaId,omitempty"`
 }
 
 func (s *Service) ChannelViews() ([]ChannelView, error) {
-	views := []ChannelView{{Kind: telegramKind, Status: "unconfigured"}}
+	views := []ChannelView{{Kind: telegramKind, Status: "unconfigured"}, {Kind: wahaKind, Status: "unconfigured"}, {Kind: cloudKind, Status: "unconfigured"}}
 	for i := range views {
 		row, err := s.db.GetNotifyChannel(views[i].Kind)
 		if err != nil {
@@ -175,10 +223,15 @@ func (s *Service) ChannelViews() ([]ChannelView, error) {
 		var cfg struct {
 			BotUsername string `json:"botUsername"`
 			BotName     string `json:"botName"`
+			PhoneID     string `json:"phoneId"`
+			WABAID      string `json:"wabaId"`
+			Phone       string `json:"phone"`
+			PhoneName   string `json:"phoneName"`
 		}
 		_ = json.Unmarshal(row.Config, &cfg)
 		views[i] = ChannelView{Kind: row.Kind, Enabled: row.Enabled, Configured: row.SecretEncrypted != "", Status: row.Status,
-			LastError: row.LastError, CheckedAt: row.CheckedAt, BotUsername: cfg.BotUsername, BotName: cfg.BotName}
+			LastError: row.LastError, CheckedAt: row.CheckedAt, BotUsername: cfg.BotUsername, BotName: cfg.BotName,
+			Phone: cfg.Phone, PhoneName: cfg.PhoneName, PhoneID: cfg.PhoneID, WABAID: cfg.WABAID}
 	}
 	return views, nil
 }
@@ -235,6 +288,10 @@ func (s *Service) Emit(e Event) {
 		log.Printf("[notify] unknown event %q dropped", e.Name)
 		return
 	}
+	if Group(e.Name) == "buyer" {
+		s.emitBuyer(e)
+		return
+	}
 	ids := e.UserIDs
 	if len(ids) == 0 {
 		var err error
@@ -273,20 +330,86 @@ func (s *Service) Emit(e Event) {
 	}
 }
 
+// buyerDailyCap is how many notices an unverified number gets from sessions that are not its own in a day
+const buyerDailyCap = 3
+
+// emitBuyer tells a buyer about their order on WhatsApp. The number is the one from the order form, kept under the
+// channel that was on when they ordered. Through WAHA, when the buyer has not connected their own WhatsApp it is sent
+// from the superadmin's session; either way an unverified number gets at most buyerDailyCap notices a day.
+func (s *Service) emitBuyer(e Event) {
+	key := e.Key
+	if key == "" {
+		key = "once-" + randomHex(8)
+	}
+	queued := false
+	for _, id := range e.UserIDs {
+		for _, kind := range []string{wahaKind, cloudKind} {
+			row, err := s.db.GetNotifyChannel(kind)
+			if err != nil || row == nil || !row.Enabled {
+				continue
+			}
+			rec, err := s.db.GetNotifyRecipient(id, kind)
+			if err != nil || rec == nil || rec.Address == "" || rec.BlockedAt != nil || IsMuted(rec.MutedEvents, e.Name) {
+				continue
+			}
+			if out, _ := s.db.IsNotifyOptedOut(kind, rec.Address); out {
+				continue
+			}
+			var sender int64
+			if kind == wahaKind {
+				own, _ := s.db.GetWhatsAppSession(id)
+				if rec.VerifiedAt == nil || own == nil || own.Status != SessionWorking {
+					// not their own phone: a superadmin's connected session sends it
+					if sender, err = s.db.WhatsAppSenderID(); err != nil || sender == 0 {
+						log.Printf("[notify] no connected WhatsApp session to tell the buyer %d about %s", id, e.Name)
+						continue
+					}
+				}
+			}
+			if rec.VerifiedAt == nil {
+				if n, err := s.db.CountBuyerNotices(kind, rec.Address, s.now().Add(-24*time.Hour)); err == nil && n >= buyerDailyCap {
+					log.Printf("[notify] the number of buyer %d has had %d notices today; %s is not sent", id, n, e.Name)
+					continue
+				}
+			}
+			_, created, err := s.db.EnqueueOutbox(database.OutboxMessage{
+				Event: e.Name, UserID: id, Kind: kind, Address: rec.Address, Payload: mustJSON(e.Data),
+				Key: fmt.Sprintf("%s|%s|%d|%s", e.Name, key, id, kind), Priority: PriorityOf(e.Name), SenderUserID: sender,
+			})
+			if err != nil {
+				log.Printf("[notify] could not queue %s for buyer %d: %v", e.Name, id, err)
+				continue
+			}
+			queued = queued || created
+		}
+	}
+	if queued && s.worker != nil {
+		s.worker.Wake()
+	}
+}
+
+func mustJSON(v any) json.RawMessage {
+	raw, _ := json.Marshal(v)
+	return raw
+}
+
 // SendTest queues a test message to the account's own Telegram, through the same queue as everything else
-func (s *Service) SendTest(userID int64) (int64, error) {
+func (s *Service) SendTest(userID int64) (int64, error) { return s.SendTestVia(userID, telegramKind) }
+
+// SendTestVia queues a test message to the account's own place on a channel
+func (s *Service) SendTestVia(userID int64, kind string) (int64, error) {
 	if !s.ready() {
 		return 0, errors.New("the database is not connected")
 	}
-	rec, err := s.db.GetNotifyRecipient(userID, telegramKind)
+	rec, err := s.db.GetNotifyRecipient(userID, kind)
 	if err != nil {
 		return 0, err
 	}
 	if rec == nil || rec.VerifiedAt == nil || rec.Address == "" || rec.BlockedAt != nil {
-		return 0, errors.New("connect your Telegram first")
+		return 0, errors.New("connect first")
 	}
 	id, _, err := s.db.EnqueueOutbox(database.OutboxMessage{
-		Event: EventTest, UserID: userID, Kind: telegramKind, Address: rec.Address, Payload: json.RawMessage(`{}`),
+		Event: EventTest, UserID: userID, Kind: kind, Address: rec.Address, Payload: json.RawMessage(`{}`),
 		Key: "test|" + randomHex(8), Priority: PriorityUrgent,
 	})
 	if err == nil && s.worker != nil {
@@ -351,51 +474,8 @@ func (s *Service) StartTelegramLink(userID int64) (*Link, error) {
 // CheckTelegramLink reads what was sent to the bot and completes every link whose code arrived. It says whether this
 // account is now linked. Reading is one at a time, and each message is read once.
 func (s *Service) CheckTelegramLink(ctx context.Context, userID int64) (bool, error) {
-	s.tgPoll.Lock()
-	defer s.tgPoll.Unlock()
-
-	s.chMu.Lock()
-	ch, err := s.buildLocked(telegramKind, false)
-	s.chMu.Unlock()
-	if err != nil {
+	if err := s.readTelegram(ctx); err != nil {
 		return false, err
-	}
-	tg, ok := ch.(*Telegram)
-	if !ok || tg == nil {
-		return false, errors.New("set up the Telegram bot first")
-	}
-	offset := int64(0)
-	if raw, _ := s.db.GetNotifySetting(telegramOffsetKey); raw != "" {
-		offset, _ = strconv.ParseInt(raw, 10, 64)
-	}
-	updates, err := tg.GetUpdates(ctx, offset)
-	if err != nil {
-		return false, err
-	}
-	next := offset
-	for _, u := range updates {
-		if u.ID >= next {
-			next = u.ID + 1
-		}
-		if u.Message == nil {
-			continue
-		}
-		code := StartCode(u.Message.Text)
-		if code == "" {
-			continue
-		}
-		chat := strconv.FormatInt(u.Message.Chat.ID, 10)
-		linked, err := s.db.CompleteNotifyLink(telegramKind, code, chat)
-		if err != nil {
-			return false, err
-		}
-		if linked > 0 {
-			// tell the person in Telegram that it worked; failing to is not a failure of the link
-			_, _ = tg.Send(ctx, chat, Render(EventTest, "id", nil))
-		}
-	}
-	if next != offset {
-		_ = s.db.SetNotifySetting(telegramOffsetKey, strconv.FormatInt(next, 10))
 	}
 	rec, err := s.db.GetNotifyRecipient(userID, telegramKind)
 	if err != nil {
@@ -703,4 +783,83 @@ func (s *Service) SignedIn(userID int64, username, ip, userAgent string) {
 		Name: EventLoginNew, UserIDs: []int64{userID}, Key: fp + "|" + now.Format("2006-01-02"),
 		Data: map[string]any{"username": username, "ip": ip, "browser": Browser(userAgent), "time": now.Format("02 Jan 2006 15:04")},
 	})
+}
+
+// readTelegram reads what was sent to the bot, once, and acts on it: a code completes a link, "stop" switches the
+// notices of that chat off, and a plain "/start" switches them on again. One reader at a time.
+func (s *Service) readTelegram(ctx context.Context) error {
+	s.tgPoll.Lock()
+	defer s.tgPoll.Unlock()
+
+	s.chMu.Lock()
+	ch, err := s.buildLocked(telegramKind, false)
+	s.chMu.Unlock()
+	if err != nil {
+		return err
+	}
+	tg, ok := ch.(*Telegram)
+	if !ok || tg == nil {
+		return errors.New("set up the Telegram bot first")
+	}
+	offset := int64(0)
+	if raw, _ := s.db.GetNotifySetting(telegramOffsetKey); raw != "" {
+		offset, _ = strconv.ParseInt(raw, 10, 64)
+	}
+	updates, err := tg.GetUpdates(ctx, offset)
+	if err != nil {
+		return err
+	}
+	next := offset
+	for _, u := range updates {
+		if u.ID >= next {
+			next = u.ID + 1
+		}
+		if u.Message == nil {
+			continue
+		}
+		chat := strconv.FormatInt(u.Message.Chat.ID, 10)
+		if code := StartCode(u.Message.Text); code != "" {
+			linked, err := s.db.CompleteNotifyLink(telegramKind, code, chat)
+			if err != nil {
+				return err
+			}
+			if linked > 0 {
+				// tell the person in Telegram that it worked; failing to is not a failure of the link
+				_, _ = tg.Send(ctx, chat, Render(EventTest, "id", nil))
+			}
+			continue
+		}
+		if answer := InboundIntent(u.Message.Text); answer != "" {
+			if reply := s.HandleInbound(telegramKind, chat, answer); reply != "" {
+				_, _ = tg.Send(ctx, chat, reply)
+			}
+		}
+	}
+	if next != offset {
+		_ = s.db.SetNotifySetting(telegramOffsetKey, strconv.FormatInt(next, 10))
+	}
+	return nil
+}
+
+// telegramLoop keeps reading the bot while Telegram is on, so a "stop" is heard within seconds and not only while a link is waiting
+func (s *Service) telegramLoop() {
+	defer s.wg.Done()
+	tick := time.NewTicker(4 * time.Second)
+	defer tick.Stop()
+	for {
+		select {
+		case <-s.stopSwp:
+			return
+		case <-tick.C:
+		}
+		row, err := s.db.GetNotifyChannel(telegramKind)
+		if err != nil || row == nil || !row.Enabled || row.SecretEncrypted == "" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := s.readTelegram(ctx); err != nil {
+			log.Printf("[notify] reading the Telegram bot failed: %v", err)
+		}
+		cancel()
+	}
 }

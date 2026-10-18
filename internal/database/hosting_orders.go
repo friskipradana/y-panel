@@ -47,6 +47,8 @@ type HostingOrder struct {
 	Status      string     `json:"status"`
 	Note        string     `json:"note"`
 	CreatedIP   string     `json:"-"`
+	// PublicBase is the address the buyer ordered from (scheme and host)
+	PublicBase string `json:"-"`
 	// the panel address picked with the order (empty when the plan has none)
 	SubLabel    string `json:"-"`
 	SubZoneID   string `json:"-"`
@@ -59,13 +61,13 @@ type HostingOrder struct {
 }
 
 const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, COALESCE(u.username, ''), o.periods,
-	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname,
+	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 	o.created_at, o.expires_at, o.paid_at, o.notif_id`
 
 func scanOrder(row rowScanner) (*HostingOrder, error) {
 	var o HostingOrder
 	if err := row.Scan(&o.ID, &o.PublicID, &o.Kind, &o.PlanID, &o.PlanName, &o.UserID, &o.Username, &o.Periods,
-		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID); err != nil {
+		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.PublicBase, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID); err != nil {
 		return nil, err
 	}
 	return &o, nil
@@ -117,10 +119,10 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 		var id int64
 		err = m.db.QueryRow(`
 			INSERT INTO hosting_orders (public_id, kind, plan_id, plan_name, user_id, periods, amount_base, unique_code, amount_total, status, note, created_ip, expires_at,
-				sub_label, sub_zone_id, sub_domain, sub_hostname)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id
+				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
 		`, publicID, o.Kind, o.PlanID, o.PlanName, o.UserID, o.Periods, o.AmountBase, code, total, o.Status, o.Note, o.CreatedIP, o.ExpiresAt,
-				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname).Scan(&id)
+				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase).Scan(&id)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "idx_hosting_orders_sub_reserved" {
 			return nil, ErrSubdomainReserved
@@ -263,7 +265,7 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 	rows, err := m.db.Query(`UPDATE hosting_orders o SET status = 'expired'
 		WHERE o.status = 'pending' AND o.expires_at <= $1
 		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, '', o.periods,
-			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname,
+			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 			o.created_at, o.expires_at, o.paid_at, o.notif_id`, now)
 	if err != nil {
 		return nil, err

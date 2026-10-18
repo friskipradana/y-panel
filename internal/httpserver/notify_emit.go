@@ -47,6 +47,51 @@ func (s *Server) emitOrderCreated(o *database.HostingOrder, username, plan strin
 	})
 }
 
+// buyerOrderCreated tells the buyer, on the number they gave, how to pay; the order status page has the same facts
+func (s *Server) buyerOrderCreated(o *database.HostingOrder, plan string) {
+	if o.AmountTotal <= 0 {
+		return
+	}
+	settings := s.loadSiteSettings()
+	s.notify.Emit(notify.Event{
+		Name: notify.EventBuyerOrderCreated, UserIDs: []int64{o.UserID}, Key: fmt.Sprintf("order-%d", o.ID),
+		Data: map[string]any{
+			"plan": plan, "amount": rupiah(o.AmountTotal), "bank": settings.OrderBank, "account": settings.OrderAccount,
+			"holder": settings.OrderHolder, "deadline": o.ExpiresAt.Local().Format("02 Jan 2006 15:04"),
+			"url": strings.TrimRight(o.PublicBase, "/") + "/order/" + o.PublicID,
+		},
+	})
+}
+
+// buyerOrderPaid tells the buyer the account is active and where to sign in: their own address when they have one
+func (s *Server) buyerOrderPaid(o *database.HostingOrder, user *database.User, plan string) {
+	url := strings.TrimRight(o.PublicBase, "/") + "/login"
+	if o.SubHostname != "" {
+		url = "https://" + o.SubHostname + "/login"
+	}
+	s.notify.Emit(notify.Event{
+		Name: notify.EventBuyerOrderPaid, UserIDs: []int64{o.UserID}, Key: fmt.Sprintf("order-%d", o.ID),
+		Data: map[string]any{"plan": plan, "username": user.Username, "url": url},
+	})
+}
+
+// buyerPlanReminder tells the buyer, on the number they gave, that the plan runs out soon
+func (s *Server) buyerPlanReminder(user *database.User, planName string, ends time.Time, days int) {
+	s.notify.Emit(notify.Event{
+		Name: notify.EventBuyerPlanReminder, UserIDs: []int64{user.ID}, Key: fmt.Sprintf("plan-reminder-%d-%d", user.ID, ends.Unix()),
+		Data: map[string]any{"plan": planName, "until": ends.Local().Format("02 Jan 2006 15:04"), "days": days},
+	})
+}
+
+// buyerPlanEnded tells the buyer that the account was suspended because the plan ended
+func (s *Server) buyerPlanEnded(user *database.User, planName string, expired *time.Time) {
+	key := fmt.Sprintf("plan-ended-%d", user.ID)
+	if expired != nil {
+		key += fmt.Sprintf("-%d", expired.Unix())
+	}
+	s.notify.Emit(notify.Event{Name: notify.EventBuyerPlanEnded, UserIDs: []int64{user.ID}, Key: key, Data: map[string]any{"plan": planName, "username": user.Username}})
+}
+
 func (s *Server) emitOrderReview(orderID int64, username, reason string) {
 	s.notify.Emit(notify.Event{
 		Name: notify.EventOrderReview, Key: fmt.Sprintf("order-%d", orderID),

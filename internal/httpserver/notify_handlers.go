@@ -69,9 +69,10 @@ func (s *Server) handleNotifyOverview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec, _ := s.database.GetNotifyRecipient(u.ID, "telegram")
+	cloudRec, _ := s.database.GetNotifyRecipient(u.ID, "whatsapp_cloud")
 	pending, failed, _ := s.database.OutboxCounts()
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"channels": channels, "telegram": recipientViewOf(rec), "pending": pending, "failed": failed,
+		"channels": channels, "telegram": recipientViewOf(rec), "whatsappCloud": recipientViewOf(cloudRec), "cloudWebhook": cloudWebhookInfo(s), "pending": pending, "failed": failed,
 	})
 }
 
@@ -167,23 +168,20 @@ func validMute(key string) bool {
 		return true
 	}
 	switch key {
-	case "security", "attack", "order", "plan", "domain":
+	case "security", "attack", "order", "plan", "domain", "buyer":
 		return true
 	}
 	return false
 }
 
-func (s *Server) handleSetTelegramMuted(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	if !s.notifyReady(w) {
-		return
-	}
+// readMutedEvents reads and checks the list of notices an account switched off
+func (s *Server) readMutedEvents(w http.ResponseWriter, r *http.Request) ([]string, bool) {
 	var req struct {
 		MutedEvents []string `json:"mutedEvents"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
-		return
+		return nil, false
 	}
 	seen := map[string]bool{}
 	muted := []string{}
@@ -191,12 +189,24 @@ func (s *Server) handleSetTelegramMuted(w http.ResponseWriter, r *http.Request) 
 		key = strings.TrimSpace(key)
 		if !validMute(key) {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": key + " is not a notice that can be switched off"})
-			return
+			return nil, false
 		}
 		if !seen[key] {
 			seen[key] = true
 			muted = append(muted, key)
 		}
+	}
+	return muted, true
+}
+
+func (s *Server) handleSetTelegramMuted(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if !s.notifyReady(w) {
+		return
+	}
+	muted, ok := s.readMutedEvents(w, r)
+	if !ok {
+		return
 	}
 	u := userFromCtx(r)
 	if err := s.database.SetNotifyMuted(u.ID, "telegram", muted); err != nil {
@@ -311,4 +321,49 @@ func (s *Server) handleResetThresholds(w http.ResponseWriter, r *http.Request) {
 		s.auditSensitiveAction(r, actor, "notify.thresholds.reset", "ok", nil)
 	}
 	s.handleGetThresholds(w, r)
+}
+
+func cloudWebhookInfo(s *Server) any {
+	info, err := s.notify.CloudWebhookInfo()
+	if err != nil {
+		return nil
+	}
+	return info
+}
+
+// ─── Telegram for every account ───────────────────────────────────────────────
+
+// handleMyTelegram is what an account needs to link its own Telegram: whether the owner set the bot up, and where it
+// stands. Only what is not secret leaves; the shape is the one the settings tab uses, so one component serves both.
+func (s *Server) handleMyTelegram(w http.ResponseWriter, r *http.Request) {
+	if !s.whatsappAllowed(w, r) {
+		return
+	}
+	u := userFromCtx(r)
+	channels, err := s.notify.ChannelViews()
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	var telegram any = nil
+	for _, c := range channels {
+		if c.Kind == "telegram" {
+			telegram = jsonResponse{"kind": c.Kind, "enabled": c.Enabled, "configured": c.Configured, "status": c.Status, "botUsername": c.BotUsername, "lastError": "", "checkedAt": nil}
+		}
+	}
+	rec, _ := s.database.GetNotifyRecipient(u.ID, "telegram")
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"channels": []any{telegram}, "telegram": recipientViewOf(rec), "whatsappCloud": recipientViewOf(nil), "pending": 0, "failed": 0,
+	})
+}
+
+// forAccount lets an account use a Telegram handler on itself: the handlers act on the signed-in account, and the
+// demo account, which has no chat of its own, is refused
+func (s *Server) forAccount(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.whatsappAllowed(w, r) {
+			return
+		}
+		handler(w, r)
+	}
 }

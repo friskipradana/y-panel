@@ -166,6 +166,31 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/notify/recipients/telegram/link/check", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCheckTelegramLink)))
 	s.mux.Handle("PUT /api/v1/notify/recipients/telegram", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetTelegramMuted)))
 	s.mux.Handle("DELETE /api/v1/notify/recipients/telegram", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUnlinkTelegram)))
+	// WhatsApp (WAHA): the superadmin runs the container, every account connects its own session
+	s.mux.Handle("GET /api/v1/notify/waha", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleWahaStatus)))
+	s.mux.Handle("PUT /api/v1/notify/waha", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetWaha)))
+	s.mux.Handle("POST /api/v1/notify/waha/restart", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleRestartWaha)))
+	s.mux.Handle("GET /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleMyWhatsApp)))
+	s.mux.Handle("POST /api/v1/me/whatsapp/connect", s.requireAuthV2(http.HandlerFunc(s.handleConnectWhatsApp)))
+	s.mux.Handle("GET /api/v1/me/whatsapp/qr", s.requireAuthV2(http.HandlerFunc(s.handleWhatsAppQR)))
+	s.mux.Handle("PUT /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleSetWhatsAppMuted)))
+	s.mux.Handle("POST /api/v1/me/whatsapp/test", s.requireAuthV2(http.HandlerFunc(s.handleTestWhatsApp)))
+	s.mux.Handle("DELETE /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleDisconnectWhatsApp)))
+	// WhatsApp Cloud (Meta): the channel, its templates, and the number of the seller
+	s.mux.Handle("PUT /api/v1/notify/channels/whatsapp-cloud", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSaveCloudChannel)))
+	s.mux.Handle("POST /api/v1/notify/channels/whatsapp-cloud/test", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleTestCloud)))
+	s.mux.Handle("GET /api/v1/notify/whatsapp-cloud/templates", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCloudTemplates)))
+	s.mux.Handle("POST /api/v1/notify/whatsapp-cloud/templates", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreateCloudTemplates)))
+	s.mux.Handle("PUT /api/v1/notify/recipients/whatsapp-cloud", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetCloudNumber)))
+	s.mux.Handle("PUT /api/v1/notify/recipients/whatsapp-cloud/muted", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetCloudMuted)))
+	s.mux.Handle("DELETE /api/v1/notify/recipients/whatsapp-cloud", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteCloudNumber)))
+	// Telegram of the signed-in account, any role but the demo: security notices to its own chat
+	s.mux.Handle("GET /api/v1/me/telegram", s.requireAuthV2(http.HandlerFunc(s.handleMyTelegram)))
+	s.mux.Handle("POST /api/v1/me/telegram/link", s.requireAuthV2(s.forAccount(s.handleStartTelegramLink)))
+	s.mux.Handle("POST /api/v1/me/telegram/link/check", s.requireAuthV2(s.forAccount(s.handleCheckTelegramLink)))
+	s.mux.Handle("PUT /api/v1/me/telegram", s.requireAuthV2(s.forAccount(s.handleSetTelegramMuted)))
+	s.mux.Handle("DELETE /api/v1/me/telegram", s.requireAuthV2(s.forAccount(s.handleUnlinkTelegram)))
+	s.mux.Handle("POST /api/v1/me/telegram/test", s.requireAuthV2(s.forAccount(s.handleTestTelegram)))
 	s.mux.Handle("GET /api/v1/notify/outbox", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleListOutbox)))
 	s.mux.Handle("POST /api/v1/notify/outbox/{id}/retry", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleRetryOutbox)))
 	s.mux.Handle("GET /api/v1/notify/thresholds", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetThresholds)))
@@ -224,6 +249,10 @@ func (s *Server) routes() {
 
 	// ── Notification Webhook (Public — secured via API key in header) ────────
 	s.mux.HandleFunc("POST /api/v1/webhooks/notifications", s.handleNotificationWebhook)
+	// what Meta and the WAHA container send back (statuses, "stop"): open to the internet, guarded by their signatures
+	s.mux.HandleFunc("GET /api/v1/public/notify/whatsapp-cloud/webhook", s.handleCloudWebhookVerify)
+	s.mux.HandleFunc("POST /api/v1/public/notify/whatsapp-cloud/webhook", s.handleCloudWebhook)
+	s.mux.HandleFunc("POST /api/v1/public/notify/waha/webhook", s.handleWahaWebhook)
 
 	// ── Files ────────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/files/root-access/status", s.requireAuthV2(http.HandlerFunc(s.handleFileRootAccessStatus)))

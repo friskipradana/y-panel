@@ -171,7 +171,7 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 	for _, d := range s.enabledHostingDomains() {
 		offered = append(offered, map[string]string{"zoneId": d.ZoneID, "name": d.Name})
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "whatsapp": s.notify.BuyerChannel() != "", "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
 }
 
 // ─── Accounts on a plan ───────────────────────────────────────────────────────
@@ -446,6 +446,7 @@ func (s *Server) expirePlans(now time.Time) {
 				}
 			}
 			s.emitPlanEnded(user, planName, up.ExpiresAt)
+			s.buyerPlanEnded(user, planName, up.ExpiresAt)
 			s.terminalManager.CloseOwned(user.ID)
 			suspendedAny = true
 		}
@@ -480,6 +481,13 @@ func (s *Server) remindPlans(now time.Time) {
 		left := up.ExpiresAt.Sub(now)
 		days := int((left + 24*time.Hour - 1) / (24 * time.Hour))
 		s.notifyUserAction(user.ID, "Paket hosting segera berakhir", fmt.Sprintf("Paket Anda berakhir %s (sekitar %d hari lagi). Perpanjang dari Profil agar akun tidak ditangguhkan.", up.ExpiresAt.Local().Format("02 Jan 2006 15:04"), days), "warning")
+		planName := ""
+		if up.PlanID != nil {
+			if plan, _ := s.database.GetHostingPlan(*up.PlanID); plan != nil {
+				planName = plan.Name
+			}
+		}
+		s.buyerPlanReminder(user, planName, *up.ExpiresAt, days)
 		if err := s.database.MarkPlanReminded(user.ID, *up.ExpiresAt); err != nil {
 			log.Printf("[hosting] could not mark the reminder of %s: %v", user.Username, err)
 		}

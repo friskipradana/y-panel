@@ -178,7 +178,17 @@ func (w *Worker) process(id string, msg database.OutboxMessage) {
 		again(delay)
 	}
 
-	rec, err := w.db.NotifyRecipientAt(msg.UserID, msg.Kind, msg.Address)
+	// a notice to a buyer goes to the number from the order form, which is not verified yet
+	var rec *database.NotifyRecipient
+	var err error
+	if Group(msg.Event) == "buyer" {
+		rec, err = w.db.GetNotifyRecipient(msg.UserID, msg.Kind)
+		if rec != nil && rec.Address != msg.Address {
+			rec = nil
+		}
+	} else {
+		rec, err = w.db.NotifyRecipientAt(msg.UserID, msg.Kind, msg.Address)
+	}
 	if err != nil {
 		retry(DelayAfter(msg.Attempts, 0), "could not read the recipient: "+err.Error())
 		return
@@ -186,6 +196,12 @@ func (w *Worker) process(id string, msg database.OutboxMessage) {
 	if rec == nil || rec.BlockedAt != nil {
 		cancel("the recipient was removed or can no longer be reached")
 		return
+	}
+	if Group(msg.Event) == "buyer" {
+		if out, _ := w.db.IsNotifyOptedOut(msg.Kind, msg.Address); out {
+			cancel("the number asked to stop")
+			return
+		}
 	}
 	if msg.Event != EventTest && IsMuted(rec.MutedEvents, msg.Event) {
 		cancel("the recipient switched this notice off")
@@ -224,7 +240,18 @@ func (w *Worker) process(id string, msg database.OutboxMessage) {
 
 	ctx, stop := context.WithTimeout(context.Background(), sendTimeout)
 	defer stop()
-	providerID, err := ch.Send(ctx, msg.Address, text)
+	var providerID string
+	if es, ok := ch.(EventSender); ok {
+		providerID, err = es.SendEvent(ctx, msg.Address, msg.Event, rec.Locale, data)
+	} else if us, ok := ch.(UserSender); ok {
+		owner := msg.UserID
+		if msg.SenderUserID > 0 {
+			owner = msg.SenderUserID
+		}
+		providerID, err = us.SendToUser(ctx, owner, msg.Address, text)
+	} else {
+		providerID, err = ch.Send(ctx, msg.Address, text)
+	}
 	if err == nil {
 		report(w.db.CompleteOutbox(msg.ID, id, providerID))
 		return
@@ -259,13 +286,19 @@ type limiter struct {
 var (
 	telegramKindGap    = 40 * time.Millisecond
 	telegramAddressGap = time.Second
+	// WhatsApp is not an official channel and numbers get blocked for bursts, so it is sent slowly
+	wahaKindGap    = 1500 * time.Millisecond
+	wahaAddressGap = 4 * time.Second
+	// Meta allows far more, but one number is not sent to faster than this
+	cloudKindGap    = 50 * time.Millisecond
+	cloudAddressGap = time.Second
 )
 
 func newLimiter() *limiter {
 	return &limiter{
 		nextKind: map[string]time.Time{}, nextAddr: map[string]time.Time{},
-		kindGap:    map[string]time.Duration{"telegram": telegramKindGap},
-		addressGap: map[string]time.Duration{"telegram": telegramAddressGap},
+		kindGap:    map[string]time.Duration{"telegram": telegramKindGap, "waha": wahaKindGap, "whatsapp_cloud": cloudKindGap},
+		addressGap: map[string]time.Duration{"telegram": telegramAddressGap, "waha": wahaAddressGap, "whatsapp_cloud": cloudAddressGap},
 	}
 }
 
@@ -291,4 +324,14 @@ func (l *limiter) reserve(kind, address string, now time.Time) time.Duration {
 		}
 	}
 	return at.Sub(now)
+}
+
+// SetWhatsAppGaps changes how far apart WhatsApp messages (WAHA and Cloud) are sent, and returns what puts the old values back; tests
+// in other packages use it so they need not wait seconds
+func SetWhatsAppGaps(kind, address time.Duration) (restore func()) {
+	oldKind, oldAddress, oldCloudKind, oldCloudAddress := wahaKindGap, wahaAddressGap, cloudKindGap, cloudAddressGap
+	wahaKindGap, wahaAddressGap, cloudKindGap, cloudAddressGap = kind, address, kind, address
+	return func() {
+		wahaKindGap, wahaAddressGap, cloudKindGap, cloudAddressGap = oldKind, oldAddress, oldCloudKind, oldCloudAddress
+	}
 }

@@ -95,7 +95,7 @@ export function TelegramCard({ channel, recipient }: { channel: NotifyChannel | 
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
-        <Button variant="ghost" disabled={!canTest} loading={test.isPending} onClick={() => test.mutate()} title={canTest ? undefined : t('notify.telegram.testNeeds')}>
+        <Button variant="outline" disabled={!canTest} loading={test.isPending} onClick={() => test.mutate()} title={canTest ? undefined : t('notify.telegram.testNeeds')}>
           {t('notify.telegram.test')}
         </Button>
         <Button variant="primary" disabled={!dirty} loading={save.isPending} onClick={() => save.mutate()}>

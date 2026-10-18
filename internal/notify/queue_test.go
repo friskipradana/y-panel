@@ -680,7 +680,7 @@ func TestConfiguringTelegramChecksTheToken(t *testing.T) {
 		t.Fatal("a token Telegram refuses is not saved")
 	}
 	views, _ := f.svc.ChannelViews()
-	if len(views) != 1 || !views[0].Configured || views[0].BotUsername != "reneo_test_bot" {
+	if len(views) != 3 || !views[0].Configured || views[0].BotUsername != "reneo_test_bot" {
 		t.Fatalf("the earlier good token is still in use: %+v", views)
 	}
 	row, _ := f.db.GetNotifyChannel("telegram")

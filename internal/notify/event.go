@@ -16,6 +16,12 @@ const (
 	EventPlanEnded      = "plan.ended"
 	EventDomainError    = "domain.error"
 
+	// to the buyer, about their own order (the group "buyer")
+	EventBuyerOrderCreated = "buyer.order_created"
+	EventBuyerOrderPaid    = "buyer.order_paid"
+	EventBuyerPlanReminder = "buyer.plan_reminder"
+	EventBuyerPlanEnded    = "buyer.plan_ended"
+
 	EventLoginFailed     = "security.login_failed"
 	EventLoginLocked     = "security.login_locked"
 	EventLoginNew        = "security.login_new"
@@ -38,7 +44,7 @@ const (
 // PriorityOf is how soon an event goes out
 func PriorityOf(event string) int {
 	switch {
-	case strings.HasPrefix(event, "security."), strings.HasPrefix(event, "attack."), event == EventOrderAttention, event == EventOrderReview, event == EventTest:
+	case strings.HasPrefix(event, "security."), strings.HasPrefix(event, "attack."), event == EventOrderAttention, event == EventOrderReview, event == EventTest, event == EventBuyerOrderPaid:
 		return PriorityUrgent
 	}
 	return PriorityNormal

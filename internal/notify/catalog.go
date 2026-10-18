@@ -40,6 +40,22 @@ var catalog = map[string]texts{
 		id: "<b>Domain bermasalah</b>\n{hostname} ({username}): {note}",
 		en: "<b>Domain problem</b>\n{hostname} ({username}): {note}",
 	},
+	EventBuyerOrderCreated: {
+		id: "<b>Pesanan {plan} diterima</b>\nSilakan transfer tepat {amount} ke {bank} {account} a.n. {holder} sebelum {deadline}. Status pesanan: {url}",
+		en: "<b>Order for {plan} received</b>\nPlease transfer exactly {amount} to {bank} {account} ({holder}) before {deadline}. Order status: {url}",
+	},
+	EventBuyerOrderPaid: {
+		id: "<b>Pembayaran diterima, akun aktif</b>\nPaket {plan} sudah aktif untuk akun {username}. Masuk di {url}",
+		en: "<b>Payment received, your account is active</b>\nThe {plan} plan is active for the account {username}. Sign in at {url}",
+	},
+	EventBuyerPlanReminder: {
+		id: "<b>Paket {plan} segera berakhir</b>\nPaket Anda berakhir {until} (sekitar {days} hari lagi). Masuk ke panel Anda, buka Profil, lalu perpanjang agar akun tidak ditangguhkan.",
+		en: "<b>Your {plan} plan is running out</b>\nYour plan ends {until} (about {days} days from now). Sign in to your panel, open Profile, and renew so the account is not suspended.",
+	},
+	EventBuyerPlanEnded: {
+		id: "<b>Paket {plan} berakhir</b>\nAkun {username} ditangguhkan karena paketnya berakhir. Pesan perpanjangan lewat penjual agar akun aktif kembali.",
+		en: "<b>Your {plan} plan ended</b>\nThe account {username} is suspended because its plan ended. Order a renewal from the seller to switch it on again.",
+	},
 	EventLoginFailed: {
 		id: "<b>Peringatan keamanan</b>\n{count} percobaan masuk gagal ke akun {username} dalam {minutes} menit, dari {ips} alamat IP (terakhir {ip}). Jika itu bukan Anda, ganti kata sandi sekarang.",
 		en: "<b>Security warning</b>\n{count} failed sign-ins to the account {username} in {minutes} minutes, from {ips} addresses (last {ip}). If it was not you, change your password now.",
