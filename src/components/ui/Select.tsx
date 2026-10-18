@@ -25,6 +25,9 @@ type SelectProps = {
   searchable?: boolean
   clearable?: boolean
   emptyText?: string
+  dropdownWidth?: number | string
+  align?: 'left' | 'right' | 'auto'
+  optionLayout?: 'row' | 'stack'
 }
 
 export function Select({
@@ -42,6 +45,9 @@ export function Select({
   searchable = false,
   clearable = false,
   emptyText,
+  dropdownWidth,
+  align = 'auto',
+  optionLayout = 'row',
 }: SelectProps) {
   const { t } = useI18n()
   const effectivePlaceholder = placeholder ?? t('common.selectOption')
@@ -64,16 +70,40 @@ export function Select({
     const rect = el.getBoundingClientRect()
     const below = window.innerHeight - rect.bottom - 12
     const above = rect.top - 12
-    const wanted = 280
+    const wanted = 320
     const up = below < Math.min(wanted, 180) && above > below
+
+    const maxAvailWidth = window.innerWidth - 24
+    let targetWidth: number
+    if (typeof dropdownWidth === 'number') {
+      targetWidth = Math.min(dropdownWidth, maxAvailWidth)
+    } else if (typeof dropdownWidth === 'string' && dropdownWidth !== 'auto') {
+      const parsed = parseInt(dropdownWidth, 10)
+      targetWidth = isNaN(parsed) ? rect.width : Math.min(parsed, maxAvailWidth)
+    } else {
+      targetWidth = Math.min(rect.width, maxAvailWidth)
+    }
+
+    const shouldAlignRight =
+      align === 'right' ||
+      (align !== 'left' && (rect.left + targetWidth > window.innerWidth - 12 || rect.right > window.innerWidth * 0.65))
+
+    let leftPos: number
+    if (shouldAlignRight) {
+      leftPos = Math.max(12, rect.right - targetWidth)
+    } else {
+      leftPos = Math.min(rect.left, window.innerWidth - targetWidth - 12)
+    }
+
     setPanelStyle({
       position: 'fixed',
-      left: rect.left,
-      width: rect.width,
-      maxHeight: Math.max(120, Math.min(wanted, up ? above : below)),
+      left: leftPos,
+      width: targetWidth,
+      maxHeight: Math.max(140, Math.min(wanted, up ? above : below)),
+      overflowX: 'hidden',
       ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
     })
-  }, [])
+  }, [dropdownWidth, align])
 
   useLayoutEffect(() => {
     if (!open) return
@@ -255,20 +285,36 @@ export function Select({
             filteredOptions.map((option, index) => {
               const active = option.value === value
               const highlighted = index === highlightedIndex
+              const isStacked = optionLayout === 'stack'
+
               return (
                 <button
                   key={option.value}
                   type="button"
-                  className={`docker-image-combobox__item ${active ? 'docker-image-combobox__item--selected' : ''} ${highlighted ? 'docker-image-combobox__item--highlighted' : ''} ${itemClassName}`.trim()}
+                  className={`docker-image-combobox__item ${isStacked ? 'docker-image-combobox__item--stacked' : ''} ${active ? 'docker-image-combobox__item--selected' : ''} ${highlighted ? 'docker-image-combobox__item--highlighted' : ''} ${itemClassName}`.trim()}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onClick={() => commitSelection(option.value)}
                   role="option"
                   aria-selected={active}
                 >
-                  <span className="docker-image-combobox__item-name">{option.label}</span>
-                  {option.badge ? <span className="panel-badge panel-badge--neutral">{option.badge}</span> : null}
-                  {option.description ? <span className="docker-image-combobox__item-size">{option.description}</span> : null}
-                  {active ? <Check className="ml-auto h-3.5 w-3.5 flex-shrink-0" /> : null}
+                  {isStacked ? (
+                    <div className="docker-image-combobox__item-content">
+                      <div className="docker-image-combobox__item-top">
+                        <span className="docker-image-combobox__item-name">{option.label}</span>
+                        {option.badge ? <span className="docker-image-combobox__item-badge panel-badge panel-badge--neutral">{option.badge}</span> : null}
+                      </div>
+                      {option.description ? (
+                        <span className="docker-image-combobox__item-desc">{option.description}</span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <>
+                      <span className="docker-image-combobox__item-name">{option.label}</span>
+                      {option.badge ? <span className="docker-image-combobox__item-badge panel-badge panel-badge--neutral">{option.badge}</span> : null}
+                      {option.description ? <span className="docker-image-combobox__item-size">{option.description}</span> : null}
+                    </>
+                  )}
+                  {active ? <Check className="ml-auto h-3.5 w-3.5 flex-shrink-0 text-[var(--panel-primary-solid)]" /> : null}
                 </button>
               )
             })

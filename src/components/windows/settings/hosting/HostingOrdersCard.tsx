@@ -9,7 +9,6 @@ import { EntityRow } from '@/components/ui/EntityRow'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -71,33 +70,39 @@ export function HostingOrdersCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader
-        icon={<ReceiptText />}
-        title={t('hosting.orders.title')}
-        subtitle={t('hosting.orders.subtitle')}
-        actions={
-          <FilterMenu
-            label={t('hosting.orders.filter')}
-            value={filter}
-            onChange={(value) => setFilter(value as '' | OrderStatus)}
-            items={FILTERS.map((key) => ({ key, label: key === '' ? t('hosting.orders.all') : t(`hosting.orders.status.${key}`) }))}
-          />
-        }
-      />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <ReceiptText className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.orders.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.orders.subtitle')}</p>
+          </div>
+        </div>
+        <FilterMenu
+          label={t('hosting.orders.filter')}
+          value={filter}
+          onChange={(value) => setFilter(value as '' | OrderStatus)}
+          items={FILTERS.map((key) => ({ key, label: key === '' ? t('hosting.orders.all') : t(`hosting.orders.status.${key}`) }))}
+        />
+      </div>
 
       {list.isLoading ? (
         <LoadingState>{t('hosting.orders.loading')}</LoadingState>
       ) : list.isError ? (
         <ErrorState title={t('hosting.orders.loadFailed')} hint={t('hosting.plans.loadFailedHint')} />
       ) : list.data && list.data.items.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] overflow-hidden">
           {list.data.items.map((order) => {
             const open = order.status === 'pending' || order.status === 'review'
             return (
               <EntityRow
                 key={order.id}
-                leading={<IconBadge tone={TONE[order.status]}><ReceiptText /></IconBadge>}
+                leading={
+                  <IconBadge size="md">
+                    <ReceiptText />
+                  </IconBadge>
+                }
                 title={<span className="panel-mono">{order.username || '-'}</span>}
                 badges={<Badge tone={TONE[order.status]} dot>{t(`hosting.orders.status.${order.status}`)}</Badge>}
                 subtitle={`${order.planName} · ${t(`hosting.orders.kind.${order.kind}`)}${order.amountTotal > 0 ? ` · ${formatRupiah(order.amountTotal)}` : ''}`}
@@ -110,11 +115,11 @@ export function HostingOrdersCard() {
                 actions={
                   open ? (
                     <div className="flex items-center gap-1">
-                      <IconButton label={t('hosting.orders.confirmAction')} tone="success" disabled={busy} onClick={() => void askConfirm(order)}>
-                        <Check className="h-4 w-4" />
+                      <IconButton label={t('hosting.orders.confirmAction')} tone="success" disabled={busy} onClick={() => void askConfirm(order)} className="!h-7 !w-7">
+                        <Check className="h-3.5 w-3.5" />
                       </IconButton>
-                      <IconButton label={t('hosting.orders.cancelAction')} tone="danger" disabled={busy} onClick={() => void askCancel(order)}>
-                        <X className="h-4 w-4" />
+                      <IconButton label={t('hosting.orders.cancelAction')} tone="danger" disabled={busy} onClick={() => void askCancel(order)} className="!h-7 !w-7">
+                        <X className="h-3.5 w-3.5" />
                       </IconButton>
                     </div>
                   ) : undefined

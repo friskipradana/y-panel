@@ -12,6 +12,7 @@ import {
   LoaderCircle,
   ScrollText,
   Trash2,
+  RefreshCw,
 } from 'lucide-react'
 import {
   EMPTY_ENV_ROW,
@@ -23,6 +24,7 @@ import {
 import type { DockerWindowState } from './useDockerWindow'
 import type { Container } from '@/types'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { LoadingState } from '@/components/ui/states'
 import { ListTable } from '@/components/ui/ListTable'
 import { domainTargets } from './domainTargets'
@@ -170,22 +172,30 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
       ]}
     >
         {isLoading ? (
-          <div className="p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 my-auto min-h-[240px]">
             <LoadingState>{t('docker.connectingAgent')}</LoadingState>
           </div>
         ) : isError ? (
-          <div className="p-6">
-            <div className="panel-error-state">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 my-auto min-h-[240px]">
+            <div className="panel-error-state max-w-md w-full">
               <ContainerIcon className="h-5 w-5" strokeWidth={1.75} />
               <div>
                 <p className="font-semibold">{t('docker.containersLoadFailed')}</p>
                 <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
                 <p className="mt-1 text-[12px] leading-6 opacity-80">{t('docker.agentAccessHint')}</p>
               </div>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<RefreshCw size={12} />}
+                onClick={() => void containersQuery.refetch()}
+              >
+                {t('common.retry')}
+              </Button>
             </div>
           </div>
         ) : filteredContainers.length === 0 ? (
-          <div className="p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 my-auto min-h-[240px]">
             <div className="panel-empty panel-empty--wide">
               <Boxes className="h-8 w-8" strokeWidth={1.75} />
               <div className="space-y-1">

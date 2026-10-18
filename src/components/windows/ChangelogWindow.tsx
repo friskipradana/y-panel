@@ -112,7 +112,7 @@ export function ChangelogWindow() {
               title={t('changelog.loadFailed')}
               hint={t('changelog.loadFailedHint')}
               action={
-                <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
+                <Button variant="primary" size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>
                   {t('common.retry')}
                 </Button>
               }

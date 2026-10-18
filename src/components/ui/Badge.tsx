@@ -3,6 +3,7 @@ import type { UiTone } from './IconBadge'
 
 export interface BadgeProps {
   tone?: UiTone
+  size?: 'sm' | 'md'
   /** Titik status di depan label */
   dot?: boolean
   className?: string
@@ -13,8 +14,9 @@ export interface BadgeProps {
 }
 
 // Label status pendek; warna menandakan arti, bukan dekorasi
-export function Badge({ tone = 'neutral', dot = false, className = '', onClick, title, children }: BadgeProps) {
-  const cls = `panel-badge panel-badge--${tone} ${onClick ? 'panel-badge--action' : ''} ${className}`.trim()
+export function Badge({ tone = 'neutral', size = 'md', dot = false, className = '', onClick, title, children }: BadgeProps) {
+  const sizeCls = size === 'sm' ? 'panel-badge--sm' : ''
+  const cls = `panel-badge panel-badge--${tone} ${sizeCls} ${onClick ? 'panel-badge--action' : ''} ${className}`.trim()
   const content = (
     <>
       {dot ? <span className="panel-status-dot" /> : null}

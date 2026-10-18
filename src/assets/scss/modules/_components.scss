@@ -485,6 +485,9 @@
   gap: 2px;
   max-height: 280px;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   border-radius: 8px;
   border: 1px solid var(--win-border);
   background: var(--menu-bg);
@@ -492,6 +495,23 @@
   backdrop-filter: blur(12px);
   padding: 4px;
   animation: combobox-in 120ms ease-out;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
 }
 
 // A select's list is placed against the page by Select.tsx (portal), above windows and dialogs but under the taskbar
@@ -513,15 +533,18 @@
 
 .docker-image-combobox__search-wrap {
   position: sticky;
-  top: 0;
-  z-index: 1;
-  padding-bottom: 4px;
+  top: -4px;
+  z-index: 2;
+  margin: -4px -4px 4px -4px;
+  padding: 6px;
   background: var(--menu-bg);
+  border-bottom: 1px solid var(--win-border);
 }
 
 .docker-image-combobox__search-input {
-  min-height: 34px;
-  padding-inline: 12px;
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 0.75rem;
 }
 
 .docker-image-combobox__item {
@@ -559,7 +582,11 @@
 .docker-image-combobox__item-name {
   font-size: 0.75rem;
   font-weight: inherit;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .docker-image-combobox__item-size {
@@ -568,6 +595,77 @@
   color: var(--text-secondary);
   font-family: var(--font-mono);
   flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-image-combobox__item--stacked {
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  min-height: 44px;
+
+  .docker-image-combobox__item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .docker-image-combobox__item-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .docker-image-combobox__item-name {
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: var(--win-text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .docker-image-combobox__item-desc {
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono, monospace);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &.docker-image-combobox__item--selected {
+    .docker-image-combobox__item-name {
+      color: var(--panel-primary-text);
+    }
+
+    .docker-image-combobox__item-badge,
+    .panel-badge {
+      background: color-mix(in srgb, var(--panel-primary-solid) 16%, transparent);
+      color: var(--panel-primary-text);
+    }
+  }
+}
+
+.docker-image-combobox__item-badge,
+.docker-image-combobox__item .panel-badge {
+  flex-shrink: 0;
+  min-height: 0;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 18px;
+  border-radius: 4px;
 }
 
 .projects-attention-filter__item {

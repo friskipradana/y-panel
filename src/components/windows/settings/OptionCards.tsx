@@ -26,8 +26,8 @@ export function OptionCards<T extends string>({ label, value, onChange, options 
       {options.map((option) => {
         const selected = option.key === value;
         return (
-          <SelectableCard key={option.key} selected={selected} onClick={() => onChange(option.key)} className="flex items-center gap-3 rounded-xl p-3 text-left">
-            {option.icon ? <span className="shrink-0 text-[var(--panel-primary-text)] [&_svg]:h-[18px] [&_svg]:w-[18px]">{option.icon}</span> : null}
+          <SelectableCard key={option.key} selected={selected} onClick={() => onChange(option.key)} className="flex items-center gap-2.5 rounded-lg p-2.5 text-left">
+            {option.icon ? <span className="shrink-0 text-[var(--panel-primary-text)] [&_svg]:h-4 [&_svg]:w-4">{option.icon}</span> : null}
             <span className="min-w-0 flex-1">
               <span className="block text-[12.5px] font-semibold text-[var(--win-text)]">{option.label}</span>
               {option.description ? <span className="mt-0.5 block text-[11px] leading-snug text-[var(--text-secondary)]">{option.description}</span> : null}

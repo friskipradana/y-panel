@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/Button'
 import { EntityRow } from '@/components/ui/EntityRow'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
 import { getSiteSettings } from '@/api/system'
@@ -68,20 +67,24 @@ export function HostingPlansCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader
-        icon={<Boxes />}
-        title={t('hosting.plans.title')}
-        subtitle={t('hosting.plans.subtitle')}
-        actions={
-          <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setTarget('new')}>
-            {t('hosting.plans.add')}
-          </Button>
-        }
-      />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Boxes className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.plans.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.plans.subtitle')}</p>
+          </div>
+        </div>
+        <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setTarget('new')} className="!h-8 shrink-0">
+          {t('hosting.plans.add')}
+        </Button>
+      </div>
 
       {site.data?.examplePlansSeeded && plans.data?.some((plan) => ['starter', 'pro', 'bisnis'].includes(plan.slug)) ? (
-        <p className="settings-inset p-3 text-[12px] text-[var(--text-secondary)]">{t('hosting.plans.exampleHint')}</p>
+        <p className="settings-inset p-2.5 text-[11.5px] text-[var(--text-secondary)] rounded-md border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] leading-relaxed">
+          {t('hosting.plans.exampleHint')}
+        </p>
       ) : null}
 
       {plans.isLoading ? (
@@ -89,24 +92,40 @@ export function HostingPlansCard() {
       ) : plans.isError ? (
         <ErrorState title={t('hosting.plans.loadFailed')} hint={t('hosting.plans.loadFailedHint')} />
       ) : plans.data && plans.data.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] overflow-hidden">
           {plans.data.map((plan) => (
             <EntityRow
               key={plan.id}
-              leading={<IconBadge tone={plan.highlighted ? 'primary' : 'neutral'}><Boxes /></IconBadge>}
-              title={plan.name}
+              leading={
+                <IconBadge size="md" tone={plan.highlighted ? 'primary' : 'neutral'}>
+                  <Boxes />
+                </IconBadge>
+              }
+              title={
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span>{plan.name}</span>
+                  {plan.slug && plan.name.toLowerCase() !== plan.slug.toLowerCase() ? (
+                    <span className="panel-mono text-[11px] font-normal text-[var(--text-secondary)]">({plan.slug})</span>
+                  ) : null}
+                </div>
+              }
               badges={
                 <>
-                  <Badge tone="info">
-                    {formatRupiah(plan.priceAmount)} {t(`hosting.period.${plan.period}`)}
-                  </Badge>
-                  {!plan.visible ? <Badge tone="neutral">{t('hosting.plan.hidden')}</Badge> : null}
-                  {plan.highlighted ? <Badge tone="primary">{t('hosting.plan.highlightedBadge')}</Badge> : null}
+                  {plan.highlighted ? (
+                    <Badge size="sm" tone="primary">
+                      {t('hosting.plan.highlightedBadge')}
+                    </Badge>
+                  ) : null}
+                  {!plan.visible ? (
+                    <Badge size="sm" tone="neutral">
+                      {t('hosting.plan.hidden')}
+                    </Badge>
+                  ) : null}
                 </>
               }
-              subtitle={<span className="panel-mono">{plan.slug}</span>}
+              subtitle={plan.tagline ? plan.tagline : undefined}
               meta={
-                <span className="text-[11.5px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-[var(--text-secondary)]">
                   {t('hosting.plan.summary', {
                     projects: plan.maxProjects,
                     databases: plan.maxDatabases,
@@ -118,13 +137,24 @@ export function HostingPlansCard() {
                 </span>
               }
               actions={
-                <div className="flex items-center gap-1">
-                  <IconButton label={t('common.edit')} tone="primary" onClick={() => setTarget(plan)}>
-                    <Pencil className="h-4 w-4" />
-                  </IconButton>
-                  <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(plan)}>
-                    <Trash2 className="h-4 w-4" />
-                  </IconButton>
+                <div className="flex items-center gap-2.5">
+                  <div className="text-right shrink-0">
+                    <span className="panel-mono text-[12.5px] font-semibold text-[var(--win-text)]">
+                      {formatRupiah(plan.priceAmount)}
+                    </span>
+                    <span className="text-[10.5px] text-[var(--text-secondary)] ml-1 font-sans">
+                      /{t(`hosting.period.${plan.period}`)}
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-[var(--win-border)]" />
+                  <div className="flex items-center gap-1">
+                    <IconButton label={t('common.edit')} tone="primary" onClick={() => setTarget(plan)} className="!h-7 !w-7">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </IconButton>
+                    <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(plan)} className="!h-7 !w-7">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </IconButton>
+                  </div>
                 </div>
               }
             />

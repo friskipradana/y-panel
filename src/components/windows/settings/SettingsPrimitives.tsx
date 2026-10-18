@@ -15,7 +15,7 @@ export function FieldLabel({ label, hint }: { label: string; hint?: string }) {
         {label}
       </span>
       {hint ? (
-        <span className="panel-mono text-[11px] text-[var(--text-secondary)] opacity-70">
+        <span className="panel-mono text-[10px] text-[var(--text-secondary)] px-1.5 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
           {hint}
         </span>
       ) : null}
@@ -45,6 +45,9 @@ export function TimezoneSelect({
       placeholder={t("settings.timezonePlaceholder")}
       searchable
       searchPlaceholder={t("settings.timezoneSearchPlaceholder")}
+      buttonClassName="!h-8 text-[12px] px-2.5"
+      dropdownWidth={360}
+      align="right"
     />
   );
 }
@@ -81,37 +84,40 @@ export function DnsEditor({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {/* Active Nameservers List */}
       {nameservers.length === 0 ? (
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
-          <Globe2 size={15} className="opacity-50 shrink-0" />
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[11.5px] text-[var(--text-secondary)]">
+          <Globe2 size={13} className="opacity-50 shrink-0" />
           <span className="flex-1">{t("settings.noNameservers")}</span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)] opacity-75 shrink-0">
+          <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)] opacity-75 shrink-0">
             {t("settings.systemDefault")}
           </span>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+        <div className="flex flex-col gap-1 max-h-[140px] overflow-y-auto pr-0.5">
           {nameservers.map((nameserver, index) => (
             <div
               key={`${nameserver}-${index}`}
-              className="flex items-center justify-between px-3.5 py-2 settings-inset hover:border-[var(--panel-primary-solid)]/40 transition-colors"
+              className="flex items-center justify-between px-2.5 py-1 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40 transition-colors"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2
-                  size={13}
+                  size={12}
                   className="text-[var(--panel-success-text)] shrink-0"
                 />
-                <code className="panel-mono text-[12.5px] font-medium text-[var(--win-text)] truncate">
+                <code className="panel-mono text-[12px] font-medium text-[var(--win-text)] truncate">
                   {nameserver}
                 </code>
               </div>
               <IconButton
                 type="button"
-                tone="danger" onClick={() => removeEntry(index)} label={t("settings.removeNameserverAria", { nameserver })}
+                tone="danger"
+                onClick={() => removeEntry(index)}
+                label={t("settings.removeNameserverAria", { nameserver })}
+                className="!h-6 !w-6"
               >
-                <Trash2 size={13} />
+                <Trash2 size={12} />
               </IconButton>
             </div>
           ))}
@@ -119,7 +125,7 @@ export function DnsEditor({
       )}
 
       {entryError ? (
-        <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{t("settings.dnsInvalid")}</p>
+        <p role="alert" className="text-[11.5px] text-[var(--panel-danger-text)]">{t("settings.dnsInvalid")}</p>
       ) : null}
 
       {/* Add Custom DNS Input Group */}
@@ -138,26 +144,29 @@ export function DnsEditor({
                 addEntry();
               }
             }}
-            placeholder={t("settings.addDnsPlaceholder")} className="panel-mono h-[38px] w-full px-3.5 text-[12.5px]"
+            placeholder={t("settings.addDnsPlaceholder")}
+            className="panel-mono !h-8 w-full px-2.5 text-[12px]"
           />
         </div>
         <Button
           type="button"
           onClick={addEntry}
-          disabled={!newEntry.trim()} variant="primary" className="shrink-0"
+          disabled={!newEntry.trim()}
+          variant="primary"
+          className="shrink-0 !h-8 px-3 text-[11.5px]"
           aria-label={t("settings.addNameserverAria")}
         >
-          <Plus size={14} />
+          <Plus size={13} />
           <span>{t("common.add")}</span>
         </Button>
       </div>
 
       {/* Quick DNS Presets */}
       <div>
-        <div className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5 opacity-80">
+        <div className="text-[10.5px] font-semibold text-[var(--text-secondary)] mb-1">
           {t("settings.dnsPresets")}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
           {PRESET_DNS.map((preset) => {
             const active = nameservers.includes(preset.value);
             return (
@@ -166,70 +175,17 @@ export function DnsEditor({
                 type="button"
                 onClick={() => addPreset(preset.value)}
                 disabled={active}
-                className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium border transition-all ${
+                className={`flex items-center justify-between gap-1 px-2 py-1 rounded-md text-[10.5px] font-medium border transition-colors ${
                   active
-                    ? "border-[var(--panel-success-text)]/30 bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] opacity-60 cursor-default"
-                    : "border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-text)]/40 cursor-pointer"
+                    ? "border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] opacity-70 cursor-default"
+                    : "border-[var(--win-border)] bg-[var(--panel-surface-hover)] text-[var(--win-text)] hover:border-[var(--panel-primary-text)]/50 cursor-pointer"
                 }`}
               >
-                <div className="flex items-center gap-1.5 truncate">
-                  {active ? (
-                    <CheckCircle2 size={11} className="text-[var(--panel-success-text)] shrink-0" />
-                  ) : (
-                    <Plus size={11} className="opacity-60 shrink-0" />
-                  )}
-                  <span className="truncate">{preset.label}</span>
-                </div>
-                <span className="font-mono text-[9.5px] opacity-70 shrink-0">({preset.value})</span>
+                <span className="truncate">{preset.label}</span>
+                <span className="font-mono text-[9.5px] text-[var(--text-secondary)] shrink-0">{preset.value}</span>
               </button>
             );
           })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function AuditCard({
-  username,
-  createdAt,
-  hostname,
-  timezone,
-  nameservers,
-}: {
-  username?: string;
-  createdAt: string;
-  hostname?: string;
-  timezone?: string;
-  nameservers: string[];
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="panel-shell-card px-4 py-3.5 shadow-[var(--settings-audit-card-shadow)]">
-      <div className="mb-2.5 flex items-center gap-1.5 text-[12px] uppercase tracking-[0.10em] text-[var(--text-secondary)]">
-        <span>{username || "system"}</span>
-        <span>•</span>
-        <span>{new Date(createdAt).toLocaleString()}</span>
-      </div>
-      <div className="flex flex-col gap-1 text-[12px] text-[var(--win-text)]">
-        <div>
-          <strong className="text-[var(--text-secondary)]">
-            {t("settings.hostColon")}
-          </strong>{" "}
-          {hostname || "—"}
-        </div>
-        <div>
-          <strong className="text-[var(--text-secondary)]">
-            {t("settings.tzColon")}
-          </strong>{" "}
-          {timezone || "—"}
-        </div>
-        <div>
-          <strong className="text-[var(--text-secondary)]">
-            {t("settings.dnsColon")}
-          </strong>{" "}
-          {nameservers.length ? nameservers.join(", ") : "—"}
         </div>
       </div>
     </div>

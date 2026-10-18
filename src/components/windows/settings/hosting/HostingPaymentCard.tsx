@@ -7,7 +7,6 @@ import { getSiteSettings, setSiteSettings, type SiteSettings } from '@/api/syste
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field, TextInput } from '@/components/ui/Field'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { useI18n } from '@/lib/i18n'
@@ -41,30 +40,46 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
     },
     onError: (e) => toast.error(apiError(e, t('settings.site.failed'))),
   })
-  const [selfSignup, setSelfSignup] = useState(settings.selfSignup)
-  const [bank, setBank] = useState(settings.orderBank)
-  const [account, setAccount] = useState(settings.orderAccount)
-  const [holder, setHolder] = useState(settings.orderHolder)
-  const [hours, setHours] = useState(String(settings.orderExpiryMinutes > 0 ? settings.orderExpiryMinutes / 60 : DEFAULT_HOURS))
-  const [uniqueMax, setUniqueMax] = useState(String(settings.orderUniqueMax > 0 ? settings.orderUniqueMax : DEFAULT_UNIQUE_MAX))
-  const [trialApproval, setTrialApproval] = useState(settings.trialApproval)
+  const [selfSignup, setSelfSignup] = useState(settings.selfSignup ?? false)
+  const [bank, setBank] = useState(settings.orderBank ?? '')
+  const [account, setAccount] = useState(settings.orderAccount ?? '')
+  const [holder, setHolder] = useState(settings.orderHolder ?? '')
+  const [hours, setHours] = useState(String((settings.orderExpiryMinutes ?? 0) > 0 ? (settings.orderExpiryMinutes ?? 0) / 60 : DEFAULT_HOURS))
+  const [uniqueMax, setUniqueMax] = useState(String((settings.orderUniqueMax ?? 0) > 0 ? settings.orderUniqueMax : DEFAULT_UNIQUE_MAX))
+  const [trialApproval, setTrialApproval] = useState(settings.trialApproval ?? false)
   const [error, setError] = useState('')
 
-  const hoursNumber = Number(hours)
-  const uniqueNumber = Number(uniqueMax)
-  const hoursValid = hours.trim() !== '' && hoursNumber >= 0.5 && hoursNumber <= 168
-  const uniqueValid = uniqueMax.trim() !== '' && Number.isInteger(uniqueNumber) && uniqueNumber >= 9 && uniqueNumber <= 9999
+  const safeBank = bank ?? ''
+  const safeAccount = account ?? ''
+  const safeHolder = holder ?? ''
+  const safeHours = hours ?? ''
+  const safeUniqueMax = uniqueMax ?? ''
+
+  const hoursNumber = Number(safeHours)
+  const uniqueNumber = Number(safeUniqueMax)
+  const hoursValid = safeHours.trim() !== '' && hoursNumber >= 0.5 && hoursNumber <= 168
+  const uniqueValid = safeUniqueMax.trim() !== '' && Number.isInteger(uniqueNumber) && uniqueNumber >= 9 && uniqueNumber <= 9999
   const minutes = Math.round(hoursNumber * 60)
   const dirty =
-    selfSignup !== settings.selfSignup || bank.trim() !== settings.orderBank || account.trim() !== settings.orderAccount || holder.trim() !== settings.orderHolder ||
-    minutes !== (settings.orderExpiryMinutes || DEFAULT_HOURS * 60) || uniqueNumber !== (settings.orderUniqueMax || DEFAULT_UNIQUE_MAX) || trialApproval !== settings.trialApproval
-  const missingAccount = selfSignup && (account.trim() === '' || holder.trim() === '')
+    selfSignup !== settings.selfSignup ||
+    safeBank.trim() !== (settings.orderBank ?? '') ||
+    safeAccount.trim() !== (settings.orderAccount ?? '') ||
+    safeHolder.trim() !== (settings.orderHolder ?? '') ||
+    minutes !== (settings.orderExpiryMinutes || DEFAULT_HOURS * 60) ||
+    uniqueNumber !== (settings.orderUniqueMax || DEFAULT_UNIQUE_MAX) ||
+    trialApproval !== settings.trialApproval
+  const missingAccount = selfSignup && (safeAccount.trim() === '' || safeHolder.trim() === '')
 
   const mutation = useMutation({
     mutationFn: () =>
       setSiteSettings({
-        selfSignup, orderBank: bank.trim(), orderAccount: account.trim(), orderHolder: holder.trim(),
-        orderExpiryMinutes: minutes, orderUniqueMax: uniqueNumber, trialApproval,
+        selfSignup,
+        orderBank: safeBank.trim(),
+        orderAccount: safeAccount.trim(),
+        orderHolder: safeHolder.trim(),
+        orderExpiryMinutes: minutes,
+        orderUniqueMax: uniqueNumber,
+        trialApproval,
       }),
     onSuccess: (data) => {
       qc.setQueryData(['settings', 'site'], data)
@@ -76,8 +91,16 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
   })
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader icon={<Landmark />} title={t('hosting.payment.title')} subtitle={t('hosting.payment.subtitle')} />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Landmark className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.payment.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.payment.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
       <SettingRow
         title={t('hosting.payment.selfSignup')}
@@ -100,22 +123,22 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label={t('hosting.payment.bank')}>
-          <TextInput value={bank} maxLength={80} onChange={(e) => setBank(e.target.value)} placeholder="BCA" />
+          <TextInput value={safeBank} maxLength={80} onChange={(e) => setBank(e.target.value)} placeholder="BCA" className="!h-8 text-[12px]" />
         </Field>
-        <Field label={t('hosting.payment.account')} error={missingAccount && account.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
-          <TextInput mono value={account} maxLength={80} onChange={(e) => setAccount(e.target.value)} />
+        <Field label={t('hosting.payment.account')} error={missingAccount && safeAccount.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
+          <TextInput mono value={safeAccount} maxLength={80} onChange={(e) => setAccount(e.target.value)} className="!h-8 text-[12px]" />
         </Field>
-        <Field label={t('hosting.payment.holder')} error={missingAccount && holder.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
-          <TextInput value={holder} maxLength={80} onChange={(e) => setHolder(e.target.value)} />
+        <Field label={t('hosting.payment.holder')} error={missingAccount && safeHolder.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
+          <TextInput value={safeHolder} maxLength={80} onChange={(e) => setHolder(e.target.value)} className="!h-8 text-[12px]" />
         </Field>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t('hosting.payment.hours')} hint={t('hosting.payment.hoursHint')} error={hours !== '' && !hoursValid ? t('hosting.payment.hoursInvalid') : undefined}>
-          <TextInput mono type="number" min={0.5} max={168} step={0.5} value={hours} onChange={(e) => setHours(e.target.value)} />
+        <Field label={t('hosting.payment.hours')} hint={t('hosting.payment.hoursHint')} error={safeHours !== '' && !hoursValid ? t('hosting.payment.hoursInvalid') : undefined}>
+          <TextInput mono type="number" min={0.5} max={168} step={0.5} value={safeHours} onChange={(e) => setHours(e.target.value)} className="!h-8 text-[12px]" />
         </Field>
-        <Field label={t('hosting.payment.uniqueMax')} hint={t('hosting.payment.uniqueMaxHint')} error={uniqueMax !== '' && !uniqueValid ? t('hosting.payment.uniqueMaxInvalid') : undefined}>
-          <TextInput mono type="number" min={9} max={9999} value={uniqueMax} onChange={(e) => setUniqueMax(e.target.value)} />
+        <Field label={t('hosting.payment.uniqueMax')} hint={t('hosting.payment.uniqueMaxHint')} error={safeUniqueMax !== '' && !uniqueValid ? t('hosting.payment.uniqueMaxInvalid') : undefined}>
+          <TextInput mono type="number" min={9} max={9999} value={safeUniqueMax} onChange={(e) => setUniqueMax(e.target.value)} className="!h-8 text-[12px]" />
         </Field>
       </div>
 
@@ -124,7 +147,7 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
       {error ? <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{error}</p> : null}
 
       <div className="flex justify-end border-t border-[var(--win-border)] pt-3.5">
-        <Button variant="primary" disabled={!dirty || !hoursValid || !uniqueValid || missingAccount} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+        <Button variant="primary" size="sm" disabled={!dirty || !hoursValid || !uniqueValid || missingAccount} loading={mutation.isPending} onClick={() => mutation.mutate()} className="!h-8">
           {t('common.save')}
         </Button>
       </div>

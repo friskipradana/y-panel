@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { ArrowUpCircle, Check, CircleArrowUp, CircleCheck, Copy, ExternalLink, LoaderCircle, RefreshCw, Terminal } from "lucide-react";
+import { ArrowUpCircle, Check, Copy, ExternalLink, LoaderCircle, RefreshCw, Server, Terminal } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { IconBadge } from "@/components/ui/IconBadge";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { getUpdateInfo, getUpdateStatus, applyUpdate } from "@/api/system";
@@ -22,8 +20,18 @@ function doneSeen(version: string): boolean {
   }
 }
 
+interface UpdateCardProps {
+  systemSettings?: {
+    osName: string;
+    kernel: string;
+    dnsMode: string;
+    managedConfigPath?: string;
+  };
+  bare?: boolean;
+}
+
 // The version of Reneo, whether a newer one is out, and how to take it
-export function UpdateCard() {
+export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {}) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
@@ -85,7 +93,6 @@ export function UpdateCard() {
 
   const handleCopyCli = async () => {
     try {
-      // works on plain http too, where navigator.clipboard is unavailable
       if (await copyTextToClipboard("sudo reneo update")) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -112,143 +119,153 @@ export function UpdateCard() {
   const updateInfo = updateQuery.data;
 
   return (
-      <div className="panel-shell-card settings-card">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionHeader
-            icon={<ArrowUpCircle />}
-            title={t("settings.update.title")}
-            subtitle={t("settings.update.subtitle")}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCheckUpdate}
-            icon={<RefreshCw size={14} />}
-            loading={isRefreshing}
-          >
-            {isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[var(--win-border)] pt-4">
-          <div className="flex items-center gap-3">
-            <IconBadge size="md" tone={updateInfo?.available ? "warning" : "success"}>
-              {updateInfo?.available ? <CircleArrowUp /> : <CircleCheck />}
-            </IconBadge>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-[var(--win-text)]">
-                  Reneo <span className="font-mono text-[var(--panel-primary-text)] font-bold">v{updateInfo?.current || "..."}</span>
-                </span>
-                <Badge tone={updateInfo?.available ? "warning" : "success"} dot>
-                  {updateInfo?.available ? t("settings.update.updateAvailable") : t("settings.update.upToDate")}
-                </Badge>
-              </div>
-              <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                {updateInfo?.latest ? `${t("settings.update.latestVersion")}: v${updateInfo.latest}` : t("settings.update.checking")}
-                {updateInfo?.checkedAt && ` • ${t("settings.update.lastChecked")}: ${new Date(updateInfo.checkedAt).toLocaleTimeString()}`}
-              </div>
-            </div>
-          </div>
-
-          {updateInfo?.releaseUrl && (
-            <a
-              href={updateInfo.releaseUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12px] text-[var(--panel-primary-text)] hover:underline font-medium"
-            >
-              <span>{t("settings.update.releaseNotes")}</span>
-              <ExternalLink size={12} />
-            </a>
+    <div className={bare ? "flex flex-col gap-2.5" : "panel-shell-card settings-card !p-3.5 !gap-2.5"}>
+      {/* Top: Host System details + Check update action */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <Server className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
+          {systemSettings ? (
+            <>
+              <span className="text-[13px] font-semibold text-[var(--win-text)] capitalize">
+                {systemSettings.osName}
+              </span>
+              <span className="font-mono text-[10.5px] text-[var(--text-secondary)] px-1.5 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
+                {systemSettings.kernel}
+              </span>
+              <span className="font-mono text-[10.5px] text-[var(--text-secondary)] px-1.5 py-0.5 rounded bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
+                DNS: <strong className="text-[var(--win-text)] font-semibold">{systemSettings.dnsMode}</strong>
+              </span>
+            </>
+          ) : (
+            <span className="text-[13px] font-semibold text-[var(--win-text)]">
+              {t("settings.update.title")}
+            </span>
           )}
         </div>
 
-        {updateInfo?.available && (
-          <div className="space-y-3 pt-1">
-            <div className="text-[12px] text-[var(--text-secondary)]">
-              {t("settings.update.cliHint")}
-            </div>
-            <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)]">
-              <div className="flex items-center gap-2 font-mono text-[12px] text-[var(--win-text)] overflow-x-auto">
-                <Terminal size={13} className="text-[var(--text-secondary)] shrink-0" />
-                <span>sudo reneo update</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleCopyCli}
-                className="shrink-0"
-                icon={copied ? <Check size={12} className="text-[var(--panel-success-text)]" /> : <Copy size={12} />}
-              >
-                {copied ? t("settings.update.copied") : t("common.copy")}
-              </Button>
-            </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCheckUpdate}
+          icon={<RefreshCw size={12} />}
+          loading={isRefreshing}
+          className="!h-7 px-2.5 text-[11.5px]"
+        >
+          {isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}
+        </Button>
+      </div>
 
-            {updateInfo?.canApply && (
-              <div className="flex justify-end pt-1">
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleApplyUpdate}
-                  icon={<ArrowUpCircle size={13} />}
-                  loading={applyMutation.isPending || statusQuery.data?.state === "running"}
-                >
-                  {applyMutation.isPending || statusQuery.data?.state === "running"
-                    ? t("settings.update.applying")
-                    : t("settings.update.apply")}
-                </Button>
-              </div>
-            )}
-          </div>
+      {/* Version Status Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--win-border)]">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <ArrowUpCircle className="h-3.5 w-3.5 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
+          <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
+            Reneo <strong className="font-mono text-[var(--panel-primary-text)]">v{updateInfo?.current || "..."}</strong>
+          </span>
+          <Badge size="sm" tone={updateInfo?.available ? "warning" : "success"} dot>
+            {updateInfo?.available ? t("settings.update.updateAvailable") : t("settings.update.upToDate")}
+          </Badge>
+          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+            {updateInfo?.latest ? `v${updateInfo.latest}` : ""}
+            {updateInfo?.checkedAt && ` · ${new Date(updateInfo.checkedAt).toLocaleTimeString()}`}
+          </span>
+        </div>
+
+        {updateInfo?.releaseUrl && (
+          <a
+            href={updateInfo.releaseUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] text-[var(--panel-primary-text)] hover:underline font-medium shrink-0"
+          >
+            <span>{t("settings.update.releaseNotes")}</span>
+            <ExternalLink size={11} />
+          </a>
         )}
+      </div>
 
-        {statusQuery.data?.state === "done" && statusQuery.data.to && seenVersion !== statusQuery.data.to && !doneSeen(statusQuery.data.to) ? (
-          <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] text-[12px] font-medium">
-            <span>{t("settings.update.statusDone", { version: statusQuery.data.to })}</span>
+      {updateInfo?.available && (
+        <div className="space-y-2 pt-1 border-t border-[var(--win-border)]">
+          <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
+            <div className="flex items-center gap-2 font-mono text-[11.5px] text-[var(--win-text)] overflow-x-auto">
+              <Terminal size={12} className="text-[var(--text-secondary)] shrink-0" />
+              <span>sudo reneo update</span>
+            </div>
             <Button
               type="button"
               variant="ghost"
-              className="shrink-0 px-2.5 py-1 text-[11.5px]"
-              onClick={() => {
-                const version = statusQuery.data?.to ?? "";
-                try {
-                  window.localStorage.setItem(DONE_SEEN_KEY, version);
-                } catch {
-                  // told again next time; harmless
-                }
-                setSeenVersion(version);
-              }}
+              onClick={handleCopyCli}
+              className="shrink-0 h-6 px-2 text-[10.5px]"
+              icon={copied ? <Check size={11} className="text-[var(--panel-success-text)]" /> : <Copy size={11} />}
             >
-              {t("common.close")}
+              {copied ? t("settings.update.copied") : t("common.copy")}
             </Button>
           </div>
-        ) : null}
 
-        {statusQuery.data?.state === "failed" ? (
-          <div className="p-3 rounded-xl border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[12px] space-y-1.5">
-            <div className="font-medium">{t("settings.update.statusFailed")}</div>
-            {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-              <pre className="panel-mono max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[var(--panel-code-bg)] p-2 text-[11px] text-[var(--panel-code-text)]">
-                {statusQuery.data.log.slice(-8).join("\n")}
-              </pre>
-            )}
-          </div>
-        ) : null}
-
-        {statusQuery.data?.state === "running" && (
-          <div className="space-y-1.5 rounded-xl border border-[var(--panel-warning-text)]/30 bg-[var(--panel-warning-bg)] p-3 text-[12px] text-[var(--panel-warning-text)]">
-            <div className="flex items-center gap-2 font-medium">
-              <LoaderCircle size={13} className="animate-spin" />
-              <span>{t("settings.update.statusRunning")}</span>
+          {updateInfo?.canApply && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleApplyUpdate}
+                icon={<ArrowUpCircle size={12} />}
+                loading={applyMutation.isPending || statusQuery.data?.state === "running"}
+                className="!h-7 px-3 text-[11.5px]"
+              >
+                {applyMutation.isPending || statusQuery.data?.state === "running"
+                  ? t("settings.update.applying")
+                  : t("settings.update.apply")}
+              </Button>
             </div>
-            {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-              <pre className="panel-mono max-h-24 overflow-y-auto whitespace-pre-wrap rounded-lg bg-[var(--panel-code-bg)] p-2 text-[11px] text-[var(--panel-code-text)]">
-                {statusQuery.data.log.join("\n")}
-              </pre>
-            )}
+          )}
+        </div>
+      )}
+
+      {statusQuery.data?.state === "done" && statusQuery.data.to && seenVersion !== statusQuery.data.to && !doneSeen(statusQuery.data.to) ? (
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] text-[11.5px] font-medium">
+          <span>{t("settings.update.statusDone", { version: statusQuery.data.to })}</span>
+          <button
+            type="button"
+            className="shrink-0 text-[11px] font-semibold hover:underline cursor-pointer"
+            onClick={() => {
+              const version = statusQuery.data?.to ?? "";
+              try {
+                window.localStorage.setItem(DONE_SEEN_KEY, version);
+              } catch {
+                // told again next time; harmless
+              }
+              setSeenVersion(version);
+            }}
+          >
+            {t("common.close")}
+          </button>
+        </div>
+      ) : null}
+
+      {statusQuery.data?.state === "failed" ? (
+        <div className="p-2.5 rounded-md border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[11.5px] space-y-1">
+          <div className="font-semibold">{t("settings.update.statusFailed")}</div>
+          {statusQuery.data.log && statusQuery.data.log.length > 0 && (
+            <pre className="panel-mono max-h-20 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--panel-code-bg)] p-1.5 text-[10.5px] text-[var(--panel-code-text)]">
+              {statusQuery.data.log.slice(-6).join("\n")}
+            </pre>
+          )}
+        </div>
+      ) : null}
+
+      {statusQuery.data?.state === "running" && (
+        <div className="space-y-1 rounded-md border border-[var(--panel-warning-text)]/30 bg-[var(--panel-warning-bg)] p-2.5 text-[11.5px] text-[var(--panel-warning-text)]">
+          <div className="flex items-center gap-2 font-medium">
+            <LoaderCircle size={12} className="animate-spin" />
+            <span>{t("settings.update.statusRunning")}</span>
           </div>
-        )}
-      </div>
+          {statusQuery.data.log && statusQuery.data.log.length > 0 && (
+            <pre className="panel-mono max-h-20 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--panel-code-bg)] p-1.5 text-[10.5px] text-[var(--panel-code-text)]">
+              {statusQuery.data.log.join("\n")}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

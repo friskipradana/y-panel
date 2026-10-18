@@ -95,8 +95,7 @@
   transition: background 160ms ease;
   display: flex;
   flex-direction: column;
-  // gap: 6px;
-  padding: 10px 14px;
+  padding: 8px 12px;
 }
 
 .row-top {
@@ -122,24 +121,27 @@
 
 .panel-empty {
   display: flex;
-  min-height: 10rem;
+  min-height: 4.5rem;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  border-radius: 20px;
+  gap: 6px;
+  border-radius: 8px;
   border: 1px dashed var(--win-border);
   background: var(--panel-surface);
-  padding: 24px;
+  padding: 12px 14px;
   text-align: center;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
 .panel-empty--wide {
-  min-height: 14rem;
+  min-height: 8rem;
 }
 
 .panel-empty svg {
+  width: 18px;
+  height: 18px;
   opacity: 0.56;
 }
 
@@ -367,16 +369,33 @@ button:focus-visible,
 .panel-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 6px 12px;
-  min-height: 28px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: 5px;
+  border-radius: 4px;
+  padding: 2px 7px;
+  min-height: 20px;
+  font-size: 0.6875rem;
+  font-weight: 500;
   line-height: 1.2;
   // a status is one line: it takes the room it needs instead of folding into two
   white-space: nowrap;
   flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.panel-badge--sm {
+  min-height: 18px;
+  padding: 1px 5px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: 3px;
+  gap: 4px;
+
+  .panel-status-dot {
+    width: 4px;
+    height: 4px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 20%, transparent);
+  }
 }
 
 // Kotak centang
@@ -518,44 +537,50 @@ button:focus-visible,
 .panel-status--primary {
   background: var(--panel-primary-bg);
   color: var(--panel-primary-text);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 22%, transparent);
 }
 
 .panel-badge--neutral,
 .panel-status--neutral {
-  background: var(--panel-neutral-bg);
-  color: var(--panel-neutral-text);
+  background: var(--panel-surface-subtle);
+  color: var(--text-secondary);
+  border-color: var(--win-border);
 }
 
 .panel-badge--info,
 .panel-status--info {
   background: var(--panel-info-bg);
   color: var(--panel-info-text);
+  border-color: color-mix(in srgb, var(--panel-info-text) 22%, transparent);
 }
 
 .panel-badge--success,
 .panel-status--success {
   background: var(--panel-success-bg);
   color: var(--panel-success-text);
+  border-color: color-mix(in srgb, var(--panel-success-text) 22%, transparent);
 }
 
 .panel-badge--warning,
 .panel-status--warning {
   background: var(--panel-warning-bg);
   color: var(--panel-warning-text);
+  border-color: color-mix(in srgb, var(--panel-warning-text) 22%, transparent);
 }
 
 .panel-badge--danger,
 .panel-status--danger {
   background: var(--panel-danger-bg);
   color: var(--panel-danger-text);
+  border-color: color-mix(in srgb, var(--panel-danger-text) 22%, transparent);
 }
 
 .panel-status-dot {
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 20%, transparent);
 }
 
 .panel-avatar {
@@ -642,16 +667,16 @@ button:focus-visible,
 .panel-loading,
 .panel-error-state {
   display: flex;
-  min-height: 10rem;
+  min-height: 4.5rem;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  border-radius: 20px;
+  gap: 8px;
+  border-radius: 8px;
   border: 1px solid var(--win-border);
   background: var(--panel-surface);
-  padding: 20px;
+  padding: 12px 14px;
   text-align: center;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
 }
 
 .panel-loading {
@@ -1094,19 +1119,19 @@ button:focus-visible,
 .panel-entity-row {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
 }
 
 .panel-entity-row__main {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: 10px;
 }
 
 // Phones: actions drop below the title instead of squeezing it
 .layout-mobile .panel-entity-row__main {
   flex-wrap: wrap;
-  gap: 10px 14px;
+  gap: 8px 10px;
 }
 
 .layout-mobile .panel-entity-row__body {
@@ -1130,24 +1155,24 @@ button:focus-visible,
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
 }
 
 .panel-entity-row__title-line {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .panel-entity-row__title {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--win-text);
 }
 
 .panel-entity-row__subtitle {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: var(--text-secondary);
   word-break: break-all;
 }
@@ -1156,8 +1181,8 @@ button:focus-visible,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 0.72rem;
+  gap: 6px;
+  font-size: 0.7rem;
   color: var(--text-secondary);
 }
 
@@ -1165,7 +1190,7 @@ button:focus-visible,
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin-left: auto;
 }
 
@@ -1366,15 +1391,16 @@ button:focus-visible,
 .settings-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
 }
 
 // A live sample of a setting: on a surface that stands in for the desktop
 .settings-preview {
-  padding: 12px 16px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--win-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--win-content-bg);
 }
 
@@ -1453,8 +1479,8 @@ button:focus-visible,
 
 // Inside a Settings card a block is a tint, not another bordered card, and a setting is a line of the list
 .settings-inset {
-  padding: 12px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
   background: var(--panel-surface-hover);
 }
 
@@ -1511,6 +1537,7 @@ button:focus-visible,
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
+    line-clamp: 1;
     margin-top: 0;
   }
 
@@ -1533,29 +1560,34 @@ button:focus-visible,
 .settings-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .settings-chip {
-  padding: 2px 8px;
+  padding: 1.5px 7px;
   border: 1px solid var(--win-border);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--panel-surface);
   font-family: var(--font-mono);
-  font-size: 0.71875rem;
-  line-height: 1.6;
+  font-size: 0.6875rem;
+  line-height: 1.5;
   color: var(--win-text);
   overflow-wrap: anywhere;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--panel-primary-border);
+  }
 }
 
-// The editor of the origins: tall enough for a real list (the base field height would win over a utility class)
+// The editor of the origins: compact height with vertical resize allowed
 .panel-textarea.settings-origins {
-  min-height: 220px;
+  min-height: 120px;
   font-size: 0.75rem;
-  line-height: 1.7;
+  line-height: 1.6;
   resize: vertical;
 }
 

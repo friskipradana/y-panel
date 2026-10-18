@@ -3,23 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, FolderCog } from 'lucide-react'
 import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
-import { EmptyState, LoadingState } from '@/components/ui/states'
+import { LoadingState } from '@/components/ui/states'
+import { TextInput } from '@/components/ui/Field'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
 import { useLivePolling } from '@/hooks/useLivePolling'
 import type { RuntimeDatabaseLog } from '@/types'
-
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return (
-    <article className="panel-shell-card">
-      <div className="mb-2.5 flex items-center gap-2 text-[var(--text-secondary)]">
-        {icon}
-        <span className="text-[13px] font-semibold text-[var(--win-text)]">{title}</span>
-      </div>
-      {children}
-    </article>
-  )
-}
 
 function extractProjectId(metadata: string) {
   if (!metadata || metadata === '{}') return null
@@ -73,44 +62,78 @@ export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) 
     })
   }
 
-  if (summary.isLoading) return <LoadingState>{t('system.loadingRuntime')}</LoadingState>
+  if (summary.isLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[260px] my-auto">
+        <LoadingState>{t('system.loadingRuntime')}</LoadingState>
+      </div>
+    )
+  }
   const data = summary.data
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3">
-        <InfoCard icon={<FolderCog size={15} />} title={t('settings.runtime.statePath')}>
-          <code className="panel-mono block break-all text-[12px] leading-relaxed text-[var(--win-text)]">{data?.stateDir || '-'}</code>
-          <p className="panel-shell-card__meta">{t('settings.runtime.statePathMeta')}</p>
-        </InfoCard>
-      </div>
-
-      <InfoCard icon={<AlertTriangle size={15} />} title={t('system.recentIncidents')}>
-        {incidents.length === 0 ? (
-          <EmptyState icon={<AlertTriangle />}>{t('system.noRecentIncidents')}</EmptyState>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            {incidents.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => openProjectsAttention(entry)}
-                className="panel-muted-block rounded-[16px] px-3.5 py-3 text-left transition-colors hover:bg-[var(--panel-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={entry.level === 'warning' ? 'warning' : entry.level === 'error' ? 'danger' : 'info'}>{entry.level}</Badge>
-                  <span className="text-[12px] font-semibold text-[var(--win-text)]">{entry.message}</span>
-                  <span className="ml-auto text-[12px] text-[var(--text-secondary)]">{new Date(entry.createdAt).toLocaleString('id-ID')}</span>
-                </div>
-                <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
-                  {entry.metadata && entry.metadata !== '{}' ? entry.metadata : t('system.noIncidentMetadata')}
-                </p>
-                <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--panel-primary-text)]">{t('system.openProjectsAttention')}</p>
-              </button>
-            ))}
+    <div className="space-y-3">
+      {/* ── Single Unified Runtime Card ── */}
+      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <FolderCog className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.runtime.statePath')}</h2>
+            </div>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.runtime.statePathMeta')}</span>
           </div>
-        )}
-      </InfoCard>
+          <TextInput
+            id="settings-state-dir"
+            readOnly
+            mono
+            value={data?.stateDir || '-'}
+            className="!h-8 px-2.5 text-[12px] opacity-90 font-mono"
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-[var(--win-border)]" />
+
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('system.recentIncidents')}</h2>
+            </div>
+          </div>
+
+          {incidents.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-4 px-3 rounded-lg border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
+              <AlertTriangle className="h-4 w-4 opacity-50 shrink-0" />
+              <span>{t('system.noRecentIncidents')}</span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+              {incidents.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => openProjectsAttention(entry)}
+                  className="rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] p-2 text-left transition-colors hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-border)]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={entry.level === 'warning' ? 'warning' : entry.level === 'error' ? 'danger' : 'info'}>{entry.level}</Badge>
+                    <span className="text-[12px] font-semibold text-[var(--win-text)]">{entry.message}</span>
+                    <span className="ml-auto text-[11px] font-mono text-[var(--text-secondary)]">{new Date(entry.createdAt).toLocaleString('id-ID')}</span>
+                  </div>
+                  {entry.metadata && entry.metadata !== '{}' ? (
+                    <p className="mt-1 font-mono text-[11px] leading-relaxed text-[var(--text-secondary)] truncate">
+                      {entry.metadata}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--panel-primary-text)]">{t('system.openProjectsAttention')}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

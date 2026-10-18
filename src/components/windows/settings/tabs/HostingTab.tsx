@@ -4,7 +4,6 @@ import { Boxes, Eye, Globe2, Landmark, Link2, ReceiptText, ShoppingCart, Store }
 import { toast } from 'sonner'
 import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans } from '@/api/hosting'
 import { getDemoSettings, getSiteSettings, setSiteSettings } from '@/api/system'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { Tabs } from '@/components/ui/Tabs'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
@@ -67,26 +66,41 @@ export function HostingTab() {
   }
 
   return (
-    <div className="space-y-3.5">
-      <div className="panel-shell-card flex flex-col gap-4 settings-card">
-        <SectionHeader icon={<Store />} title={t('settings.hosting.title')} subtitle={t('settings.hosting.subtitle')} />
-        <SettingRow
-          title={t('settings.hosting.toggleTitle')}
-          description={enabled ? t('settings.hosting.onHint') : t('settings.hosting.offHint')}
-          control={
-            <ToggleSwitch
-              checked={enabled}
-              disabled={!site.data || mutation.isPending}
-              label={t('settings.hosting.toggleTitle')}
-              onChange={() => void toggle()}
-            />
-          }
-        />
+    <div className="space-y-3">
+      {/* ── Single Unified Hosting Mode & Readiness Card ── */}
+      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.hosting.title')}</h2>
+            </div>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.hosting.subtitle')}</span>
+          </div>
+          <SettingRow
+            title={t('settings.hosting.toggleTitle')}
+            description={enabled ? t('settings.hosting.onHint') : t('settings.hosting.offHint')}
+            control={
+              <ToggleSwitch
+                checked={enabled}
+                disabled={!site.data || mutation.isPending}
+                label={t('settings.hosting.toggleTitle')}
+                onChange={() => void toggle()}
+              />
+            }
+          />
+        </div>
+
+        {enabled ? (
+          <>
+            <div className="border-t border-[var(--win-border)]" />
+            <HostingChecklist onGo={setSection} bare />
+          </>
+        ) : null}
       </div>
 
       {enabled ? (
         <>
-          <HostingChecklist onGo={setSection} />
 
           <div className="overflow-x-auto">
             <Tabs

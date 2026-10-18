@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ActivitySquare, Database, HardDriveDownload, RefreshCcw, Search, ShieldCheck, Trash2 } from 'lucide-react'
+import { ActivitySquare, Database, RefreshCcw, ScrollText, Search, ShieldCheck, Trash2 } from 'lucide-react'
 import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { KpiCard } from '@/components/ui/KpiCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
-import { TextInput } from '@/components/ui/Field'
 
 const LOG_ROW_OPTIONS = [10, 20, 40, 80]
 const TRUNCATE_DAYS = [3, 7, 14, 30, 60]
@@ -23,11 +20,9 @@ const TRUNCATE_TARGETS = [
 
 function DetailRow({ label, value, tone = 'normal' }: { label: string; value: string; tone?: 'normal' | 'warning' }) {
   return (
-    <div className={`settings-inset ${tone === 'warning' ? 'border border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-        <span className="panel-section-label">{label}</span>
-        <span className={`max-w-[70%] break-words text-right text-[12px] ${tone === 'warning' ? 'text-[var(--panel-warning-text)]' : 'text-[var(--win-text)]'}`}>{value}</span>
-      </div>
+    <div className={`flex items-center justify-between px-2.5 py-1.5 rounded border border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] ${tone === 'warning' ? 'border-[color:var(--panel-warning-border)] bg-[color:var(--panel-warning-bg)]' : ''}`}>
+      <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{label}</span>
+      <span className={`text-right font-mono truncate max-w-[65%] ${tone === 'warning' ? 'text-[var(--panel-warning-text)]' : 'text-[var(--win-text)]'}`}>{value}</span>
     </div>
   )
 }
@@ -105,206 +100,297 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
 
   if (query.isLoading) {
     return (
-      <LoadingState>{t('database.loadingStatus')}</LoadingState>
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[260px] my-auto">
+        <LoadingState>{t('database.loadingStatus')}</LoadingState>
+      </div>
     )
   }
 
   if (query.isError || !query.data || !status) {
     return (
-      <ErrorState
-        title={t('database.statusLoadFailed')}
-        hint={t('database.statusLoadFailedHint')}
-        action={
-          <Button variant="ghost" loading={query.isFetching} onClick={() => void query.refetch()}>
-            {t('common.retry')}
-          </Button>
-        }
-      />
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[260px] my-auto">
+        <ErrorState
+          className="max-w-sm w-full"
+          title={t('database.statusLoadFailed')}
+          hint={t('database.statusLoadFailedHint')}
+          action={
+            <Button variant="primary" size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>
+              {t('common.retry')}
+            </Button>
+          }
+        />
+      </div>
     )
   }
 
   return (
-    <div className="space-y-3.5">
-      <section className="panel-shell-card settings-card">
-        <SectionHeader
-          icon={<Database />}
-          title={status.database || 'Database'}
-          subtitle={`${status.user}@${status.host}:${status.port}`}
-          actions={
-            <>
+    <div className="space-y-3">
+      {/* ── Single Unified Database Card ── */}
+      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+        {/* Section 1: Database Status & Metrics Overview */}
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{status.database || 'Database'}</h2>
+              <span className="text-[11px] font-mono text-[var(--text-secondary)]">
+                {status.user}@{status.host}:{status.port}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
               <Badge tone={status.connected ? 'success' : status.enabled ? 'danger' : 'neutral'} dot>
                 {status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
               </Badge>
-              <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
-                <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+              <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')} className="!h-7 !w-7">
+                <RefreshCcw size={13} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
               </IconButton>
-            </>
-          }
-        />
-      </section>
-
-      <section className="panel-shell-card settings-card">
-        <SectionHeader icon={<Trash2 />} title={t('settings.db.cleanupTitle')} subtitle={t('settings.db.cleanupSubtitle')} />
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            id="database-truncate-target"
-            value={truncateTarget}
-            onChange={setTruncateTarget}
-            options={TRUNCATE_TARGETS.map((target) => ({ value: target.value, label: t(target.label) }))}
-            className="min-w-[200px]"
-            dropdownClassName="min-w-[220px]"
-          />
-          <Select
-            id="database-truncate-day"
-            value={String(truncateDay)}
-            onChange={(value) => setTruncateDay(Number(value))}
-            options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: t('database.olderThanDays', { days: day }) }))}
-            className="min-w-[140px]"
-            dropdownClassName="min-w-[140px]"
-          />
-          <Button type="button" onClick={() => void handleTruncate()} loading={truncating} variant="danger">
-            {t('database.truncateButton')}
-          </Button>
-        </div>
-      </section>
-
-      <div className="panel-kpi-grid panel-kpi-grid--4">
-            <KpiCard
-              icon={<ShieldCheck size={16} />}
-              title={t('database.connectionLabel')}
-              value={status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
-              subtitle={
-                status.connected ? (
-                  <>
-                    <span className="block">{status.user}@{status.host}:{status.port}</span>
-                    <span className="block opacity-70">{status.database}</span>
-                  </>
-                ) : (
-                  status.lastError || t('database.noActiveConnection')
-                )
-              }
-            />
-            <KpiCard icon={<HardDriveDownload size={16} />} title={t('database.runtimeLogsLabel')} value={String(status.runtimeLogCount ?? 0)} subtitle={t('database.runtimeLogsDescription')} />
-            <KpiCard icon={<ActivitySquare size={16} />} title={t('database.changelogRowsLabel')} value={String(status.changelogCount ?? 0)} subtitle={t('database.changelogRowsDescription')} />
-            <KpiCard icon={<Database size={16} />} title={t('database.settingsAuditLabel')} value={String(status.settingsAuditCount ?? 0)} subtitle={t('database.settingsAuditDescription')} />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
-            <section className="panel-shell-card settings-card">
-              <SectionHeader icon={<Database />} title={t('database.connectionDetailsTitle')} subtitle={t('database.connectionDetailsMeta')} />
-
-              <div className="grid gap-3 text-[12px]">
-                <DetailRow label={t('database.enabledLabel')} value={status.enabled ? t('common.yes') : t('common.no')} />
-                <DetailRow label={t('database.hostLabel')} value={status.host || '-'} />
-                <DetailRow label={t('database.portLabel')} value={status.port || '-'} />
-                <DetailRow label={t('database.databaseLabel')} value={status.database || '-'} />
-                <DetailRow label={t('database.userLabel')} value={status.user || '-'} />
-                <DetailRow label={t('database.lastErrorLabel')} value={status.lastError || t('database.noRecentErrors')} tone={status.lastError ? 'warning' : 'normal'} />
-              </div>
-            </section>
-
-            <section className="panel-shell-card flex min-h-[340px] max-h-[461px] flex-col overflow-hidden p-0">
-              <div className="border-b border-[var(--win-border)] px-4 py-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="panel-shell-card__title">{t('database.persistedLogsTitle')}</div>
-                  <div className="panel-shell-card__meta !mt-0">{t('database.latestRows', { shown: filteredRuntimeLogs.length, total: runtimeLogs.length })}</div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative min-w-[220px] flex-1">
-                    <Search size={13} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-                    <TextInput
-                      id="database-log-search"
-                      value={logQuery}
-                      onChange={(e) => setLogQuery(e.target.value)}
-                      placeholder={t('database.logSearchPlaceholder')} className="h-9 pl-9 pr-3 text-[12px]"
-                    />
-                  </div>
-
-                  <Select
-                    id="database-log-limit"
-                    value={String(logLimit)}
-                    onChange={(value) => setLogLimit(Number(value))}
-                    options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: t('database.rowsOption', { count: option }) }))}
-                    className="max-w-[120px]"
-                    buttonClassName="h-9 px-3 text-[12px] panel-input--mono"
-                    dropdownClassName="min-w-[120px]"
-                    searchable
-                    searchPlaceholder={t('database.limitSearchPlaceholder')}
-                  />
-
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                {runtimeLogs.length === 0 ? (
-                  <EmptyState icon={<HardDriveDownload />} className="min-h-[220px]">{t('database.emptyRuntimeLogs')}</EmptyState>
-                ) : filteredRuntimeLogs.length === 0 ? (
-                  <EmptyState icon={<Search />} className="min-h-[220px]">{t('database.noMatchingLogs')}</EmptyState>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {filteredRuntimeLogs.map((entry) => {
-                      const isError = entry.level === 'error'
-                      return (
-                        <div
-                          key={entry.id}
-                          className={`settings-inset ${isError ? 'border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)]' : ''}`}
-                        >
-                          <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-                            <span>{entry.service}</span>
-                            <span>•</span>
-                            <span>{entry.level}</span>
-                            <span>•</span>
-                            <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                          </div>
-                          <div className={`mt-2 text-[13px] font-medium ${isError ? 'text-[var(--panel-danger-text)]' : 'text-[var(--win-text)]'}`}>{entry.message}</div>
-                          {entry.metadata ? (
-                            <pre className="panel-muted-block panel-mono mt-2 overflow-auto whitespace-pre-wrap break-words rounded-[14px] px-3 py-2 text-[12px] leading-5 text-[var(--text-secondary)]">
-                              {entry.metadata}
-                            </pre>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-
-          <section className="panel-shell-card settings-card">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="panel-shell-card__title">{t('database.recentAuditTitle')}</div>
-                <p className="panel-shell-card__meta">{t('database.recentAuditMeta')}</p>
-              </div>
-              <Badge tone="warning">{t('database.rowsCount', { count: settingsAudit.length })}</Badge>
             </div>
-            <div className="mt-4 flex max-h-[360px] flex-col gap-3 overflow-auto pr-1">
-              {settingsAudit.length === 0 ? (
-                <EmptyState icon={<ActivitySquare />} className="min-h-[140px]">{t('database.emptySettingsAudit')}</EmptyState>
+          </div>
+
+          {/* Compact 4-Metric Tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                <ShieldCheck size={12} className="text-[var(--panel-primary-text)]" />
+                {t('database.connectionLabel')}
+              </span>
+              <div className="mt-1">
+                <span className="text-[12px] font-semibold font-mono text-[var(--win-text)] truncate block">
+                  {status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
+                </span>
+                <span className="text-[10px] text-[var(--text-secondary)] font-mono truncate block">
+                  {status.host}:{status.port}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                <ScrollText size={12} className="text-[var(--panel-primary-text)]" />
+                {t('database.runtimeLogsLabel')}
+              </span>
+              <div className="mt-1">
+                <span className="text-[13px] font-bold font-mono text-[var(--win-text)] block">
+                  {status.runtimeLogCount?.toLocaleString() ?? 0}
+                </span>
+                <span className="text-[10px] text-[var(--text-secondary)] truncate block">
+                  {t('database.runtimeLogsDescription')}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                <ActivitySquare size={12} className="text-[var(--panel-primary-text)]" />
+                {t('database.changelogRowsLabel')}
+              </span>
+              <div className="mt-1">
+                <span className="text-[13px] font-bold font-mono text-[var(--win-text)] block">
+                  {status.changelogCount?.toLocaleString() ?? 0}
+                </span>
+                <span className="text-[10px] text-[var(--text-secondary)] truncate block">
+                  {t('database.changelogRowsDescription')}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col justify-between">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                <Database size={12} className="text-[var(--panel-primary-text)]" />
+                {t('database.settingsAuditLabel')}
+              </span>
+              <div className="mt-1">
+                <span className="text-[13px] font-bold font-mono text-[var(--win-text)] block">
+                  {status.settingsAuditCount?.toLocaleString() ?? 0}
+                </span>
+                <span className="text-[10px] text-[var(--text-secondary)] truncate block">
+                  {t('database.settingsAuditDescription')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-[var(--win-border)]" />
+
+        {/* Section 2: Pembersihan Data */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.db.cleanupTitle')}</h2>
+            </div>
+            <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.db.cleanupSubtitle')}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              id="database-truncate-target"
+              value={truncateTarget}
+              onChange={setTruncateTarget}
+              options={TRUNCATE_TARGETS.map((target) => ({ value: target.value, label: t(target.label) }))}
+              className="min-w-[180px]"
+              buttonClassName="!h-8 px-2.5 text-[12px]"
+              dropdownClassName="min-w-[200px]"
+            />
+            <Select
+              id="database-truncate-day"
+              value={String(truncateDay)}
+              onChange={(value) => setTruncateDay(Number(value))}
+              options={TRUNCATE_DAYS.map((day) => ({ value: String(day), label: t('database.olderThanDays', { days: day }) }))}
+              className="min-w-[130px]"
+              buttonClassName="!h-8 px-2.5 text-[12px]"
+              dropdownClassName="min-w-[130px]"
+            />
+            <Button type="button" size="sm" onClick={() => void handleTruncate()} loading={truncating} variant="danger">
+              {t('database.truncateButton')}
+            </Button>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-[var(--win-border)]" />
+
+        {/* Section 3: Detail Koneksi & Runtime Logs */}
+        <div className="grid gap-3.5 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+          {/* Left: Detail Koneksi */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+                <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('database.connectionDetailsTitle')}</h2>
+              </div>
+              <span className="text-[11px] text-[var(--text-secondary)]">{t('database.connectionDetailsMeta')}</span>
+            </div>
+
+            <div className="grid gap-1.5 text-[12px]">
+              <DetailRow label={t('database.enabledLabel')} value={status.enabled ? t('common.yes') : t('common.no')} />
+              <DetailRow label={t('database.hostLabel')} value={status.host || '-'} />
+              <DetailRow label={t('database.portLabel')} value={status.port || '-'} />
+              <DetailRow label={t('database.databaseLabel')} value={status.database || '-'} />
+              <DetailRow label={t('database.userLabel')} value={status.user || '-'} />
+              <DetailRow label={t('database.lastErrorLabel')} value={status.lastError || t('database.noRecentErrors')} tone={status.lastError ? 'warning' : 'normal'} />
+            </div>
+          </div>
+
+          {/* Right: Runtime Logs */}
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <ScrollText className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+                <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('database.persistedLogsTitle')}</h2>
+              </div>
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                {t('database.latestRows', { shown: filteredRuntimeLogs.length, total: runtimeLogs.length })}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <div className="docker-search-wrap flex-1 min-w-[180px]">
+                <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+                <input
+                  id="database-log-search"
+                  type="text"
+                  value={logQuery}
+                  onChange={(e) => setLogQuery(e.target.value)}
+                  placeholder={t('database.logSearchPlaceholder')}
+                  className="docker-search-input !w-full !h-8 text-[12px]"
+                />
+              </div>
+              <Select
+                id="database-log-limit"
+                value={String(logLimit)}
+                onChange={(value) => setLogLimit(Number(value))}
+                options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: t('database.rowsOption', { count: option }) }))}
+                className="max-w-[110px]"
+                buttonClassName="!h-8 px-2.5 text-[12px] panel-input--mono"
+                dropdownClassName="min-w-[110px]"
+                searchable
+                searchPlaceholder={t('database.limitSearchPlaceholder')}
+              />
+            </div>
+
+            <div className="max-h-[240px] overflow-y-auto pr-1 flex flex-col gap-1.5">
+              {runtimeLogs.length === 0 ? (
+                <EmptyState icon={<ScrollText />}>{t('database.emptyRuntimeLogs')}</EmptyState>
+              ) : filteredRuntimeLogs.length === 0 ? (
+                <EmptyState icon={<Search />}>{t('database.noMatchingLogs')}</EmptyState>
               ) : (
-                settingsAudit.map((entry) => (
-                  <div key={entry.id} className="settings-inset">
-                    <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.16em] text-[var(--text-secondary)]">
-                      <span>{entry.username || 'system'}</span>
-                      <span>•</span>
-                      <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                filteredRuntimeLogs.map((entry) => {
+                  const isError = entry.level === 'error';
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`p-2 rounded border border-[var(--win-border)] bg-[var(--panel-surface)] text-[11.5px] ${isError ? 'border-[color:var(--panel-danger-border)] bg-[color:var(--panel-danger-bg)]' : ''}`}
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase font-mono tracking-wider text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--panel-primary-text)]">{entry.service}</span>
+                        <span>•</span>
+                        <span className={isError ? 'text-[var(--panel-danger-text)] font-semibold' : ''}>{entry.level}</span>
+                        <span>•</span>
+                        <span>{new Date(entry.createdAt).toLocaleTimeString()}</span>
+                      </div>
+                      <div className={`mt-1 font-medium ${isError ? 'text-[var(--panel-danger-text)]' : 'text-[var(--win-text)]'}`}>
+                        {entry.message}
+                      </div>
+                      {entry.metadata && entry.metadata !== '{}' ? (
+                        <pre className="mt-1 p-1.5 rounded bg-[var(--panel-surface-hover)] font-mono text-[10.5px] text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap break-words">
+                          {entry.metadata}
+                        </pre>
+                      ) : null}
                     </div>
-                    <div className="mt-2 grid gap-2 text-[12px] text-[var(--win-text)] sm:grid-cols-3">
-                      <div><strong>{t('database.hostnameLabel')}:</strong> {entry.hostname || '-'}</div>
-                      <div><strong>{t('database.timezoneLabel')}:</strong> {entry.timezone || '-'}</div>
-                      <div><strong>{t('database.nameserverLabel')}:</strong> {entry.nameservers.length > 0 ? entry.nameservers.join(', ') : '—'}</div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
-          </section>
+          </div>
+        </div>
 
-          {!status.connected && status.enabled ? (
+        {/* Divider */}
+        <div className="border-t border-[var(--win-border)]" />
+
+        {/* Section 4: Audit Settings Terbaru */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <ActivitySquare className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('database.recentAuditTitle')}</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[var(--text-secondary)]">{t('database.recentAuditMeta')}</span>
+              <Badge tone="warning">{t('database.rowsCount', { count: settingsAudit.length })}</Badge>
+            </div>
+          </div>
+
+          <div className="max-h-[180px] overflow-y-auto pr-1 flex flex-col gap-1.5">
+            {settingsAudit.length === 0 ? (
+              <EmptyState icon={<ActivitySquare />}>{t('database.emptySettingsAudit')}</EmptyState>
+            ) : (
+              settingsAudit.map((entry) => (
+                <div key={entry.id} className="p-2 rounded border border-[var(--win-border)] bg-[var(--panel-surface)] text-[11.5px]">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] uppercase font-mono tracking-wider text-[var(--text-secondary)]">
+                    <span className="font-semibold text-[var(--win-text)]">{entry.username || 'system'}</span>
+                    <span>•</span>
+                    <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="mt-1.5 grid gap-2 text-[11.5px] text-[var(--win-text)] sm:grid-cols-3 font-mono">
+                    <div><strong className="text-[var(--text-secondary)]">{t('database.hostnameLabel')}:</strong> {entry.hostname || '-'}</div>
+                    <div><strong className="text-[var(--text-secondary)]">{t('database.timezoneLabel')}:</strong> {entry.timezone || '-'}</div>
+                    <div className="truncate"><strong className="text-[var(--text-secondary)]">{t('database.nameserverLabel')}:</strong> {entry.nameservers.length > 0 ? entry.nameservers.join(', ') : '—'}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {!status.connected && status.enabled ? (
+          <>
+            <div className="border-t border-[var(--win-border)]" />
             <ErrorState title={t('database.mariadbNotReady')} hint={t('database.mariadbNotReadyHint')} />
-          ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }

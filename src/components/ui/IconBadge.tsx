@@ -4,9 +4,9 @@ export type UiTone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 
 export type IconBadgeSize = 'sm' | 'md' | 'lg'
 
 const SIZE: Record<IconBadgeSize, string> = {
-  sm: 'h-7 w-7 rounded-lg text-[12px] [&_svg]:h-3.5 [&_svg]:w-3.5',
-  md: 'h-9 w-9 rounded-xl text-[13px] [&_svg]:h-4 [&_svg]:w-4',
-  lg: 'h-11 w-11 rounded-2xl text-[15px] [&_svg]:h-5 [&_svg]:w-5',
+  sm: 'h-6 w-6 rounded-md text-[11px] [&_svg]:h-3.5 [&_svg]:w-3.5',
+  md: 'h-7 w-7 rounded-md text-[12px] [&_svg]:h-3.5 [&_svg]:w-3.5',
+  lg: 'h-8 w-8 rounded-lg text-[13px] [&_svg]:h-4 [&_svg]:w-4',
 }
 
 const TONE: Record<UiTone, string> = {

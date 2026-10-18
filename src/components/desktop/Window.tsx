@@ -452,10 +452,11 @@ export function Window({ win, children }: Props) {
             >
               <div
                 style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
                   minHeight: '100%',
                   height: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? '100%' : undefined,
-                  display: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'flex' : undefined,
-                  flexDirection: (win.kind === 'host-terminal' || win.kind === 'system-logs') ? 'column' : undefined,
                 }}
               >
                 {children}

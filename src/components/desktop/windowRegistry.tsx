@@ -66,11 +66,11 @@ function TrashPlaceholder() {
 export function WindowFallback() {
   const { t } = useI18n()
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12">
-      <Loader2 size={32} className="animate-spin text-[var(--app-loading-spinner)] opacity-80" />
+    <div className="flex flex-1 flex-col items-center justify-center min-h-full h-full w-full my-auto gap-3 py-12 text-center select-none">
+      <Loader2 size={32} className="animate-spin text-[var(--panel-primary-text)] opacity-90" strokeWidth={1.75} />
       <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-semibold text-[var(--app-loading-text)]">{t('common.loadingApp')}</span>
-        <span className="text-[11px] text-[var(--app-loading-meta)] uppercase tracking-widest font-medium">{t('common.loadingModule')}</span>
+        <span className="text-sm font-semibold text-[var(--win-text)]">{t('common.loadingApp')}</span>
+        <span className="text-[11px] text-[var(--text-secondary)] uppercase tracking-wider font-medium">{t('common.loadingModule')}</span>
       </div>
     </div>
   )

@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/Badge'
 import { EntityRow } from '@/components/ui/EntityRow'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -43,19 +42,31 @@ export function HostingSubdomainsCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader icon={<Link2 />} title={t('hosting.subs.title')} subtitle={t('hosting.subs.subtitle')} />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Link2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.subs.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.subs.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
       {list.isLoading ? (
         <LoadingState>{t('hosting.subs.loading')}</LoadingState>
       ) : list.isError ? (
         <ErrorState title={t('hosting.subs.loadFailed')} hint={t('hosting.plans.loadFailedHint')} />
       ) : list.data && list.data.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] overflow-hidden">
           {list.data.map((row) => (
             <EntityRow
               key={row.id}
-              leading={<IconBadge tone={TONE[row.status] === 'neutral' ? 'neutral' : TONE[row.status]}><Link2 /></IconBadge>}
+              leading={
+                <IconBadge size="md">
+                  <Link2 />
+                </IconBadge>
+              }
               title={<span className="panel-mono">{row.hostname}</span>}
               badges={<Badge tone={TONE[row.status]} dot>{t(`hosting.sub.status.${row.status}`)}</Badge>}
               subtitle={t('hosting.subs.owner', { username: row.username ?? '-' })}
@@ -63,16 +74,16 @@ export function HostingSubdomainsCard() {
               actions={
                 <div className="flex items-center gap-1">
                   {row.status === 'suspended' ? (
-                    <IconButton label={t('hosting.subs.lift')} tone="success" disabled={status.isPending} onClick={() => status.mutate({ id: row.id, next: 'active' })}>
-                      <RotateCcw className="h-4 w-4" />
+                    <IconButton label={t('hosting.subs.lift')} tone="success" disabled={status.isPending} onClick={() => status.mutate({ id: row.id, next: 'active' })} className="!h-7 !w-7">
+                      <RotateCcw className="h-3.5 w-3.5" />
                     </IconButton>
                   ) : (
-                    <IconButton label={t('hosting.subs.suspend')} tone="warning" disabled={status.isPending} onClick={() => status.mutate({ id: row.id, next: 'suspended' })}>
-                      <Ban className="h-4 w-4" />
+                    <IconButton label={t('hosting.subs.suspend')} tone="warning" disabled={status.isPending} onClick={() => status.mutate({ id: row.id, next: 'suspended' })} className="!h-7 !w-7">
+                      <Ban className="h-3.5 w-3.5" />
                     </IconButton>
                   )}
-                  <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(row)}>
-                    <Trash2 className="h-4 w-4" />
+                  <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(row)} className="!h-7 !w-7">
+                    <Trash2 className="h-3.5 w-3.5" />
                   </IconButton>
                 </div>
               }

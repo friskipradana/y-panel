@@ -20,12 +20,12 @@ export function SectionHeader({
   tone = 'neutral',
   size = 'md',
   actions,
-  className = 'mb-3',
+  className = 'mb-2.5',
 }: SectionHeaderProps) {
-  const minH = size === 'sm' ? 'min-h-7' : size === 'lg' ? 'min-h-11' : 'min-h-9'
+  const minH = size === 'sm' ? 'min-h-6' : size === 'lg' ? 'min-h-8' : 'min-h-7'
   return (
-    <div className={`section-header flex items-center justify-between gap-3 mobile:flex-wrap ${className}`}>
-      <div className="flex min-w-0 items-center gap-3 mobile:flex-1 mobile:basis-[14rem]">
+    <div className={`section-header flex items-center justify-between gap-2.5 mobile:flex-wrap ${className}`}>
+      <div className="flex min-w-0 items-center gap-2.5 mobile:flex-1 mobile:basis-[14rem]">
         <IconBadge size={size} tone={tone}>
           {icon}
         </IconBadge>

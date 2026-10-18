@@ -54,7 +54,7 @@ export function TablesPanel({ databaseId }: { databaseId: number }) {
 
   if (tables.isLoading) return <LoadingState>{t('databases.admin.loading')}</LoadingState>
   if (tables.isError || !tables.data) {
-    return <ErrorState title={t('databases.admin.loadFailed')} hint={apiError(tables.error, t('databases.admin.loadFailedHint'))} action={<Button variant="ghost" onClick={() => void tables.refetch()}>{t('common.retry')}</Button>} />
+    return <ErrorState title={t('databases.admin.loadFailed')} hint={apiError(tables.error, t('databases.admin.loadFailedHint'))} action={<Button variant="primary" size="sm" onClick={() => void tables.refetch()}>{t('common.retry')}</Button>} />
   }
   const data = tables.data
 

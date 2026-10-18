@@ -27,8 +27,9 @@ import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsNavStore } from "@/store/settingsNavStore";
 import { AccountSecurityCard } from "./profile/AccountSecurityCard";
+import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/states"
-import { Database } from "lucide-react";
+import { Database, RefreshCw } from "lucide-react";
 
 export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
@@ -65,9 +66,9 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         <SettingsNav title={isSuperadmin ? t("settings.title") : t("settings.titleAccount")} groups={groups} active={shownTab} onSelect={setActiveTab} />
 
         {/* ── Right Content Area ── */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4">
+        <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4 flex flex-col">
           {current && CurrentIcon ? (
-            <header className="settings-page__head">
+            <header className="settings-page__head shrink-0">
               <CurrentIcon size={16} className="settings-page__icon" />
               <div className="min-w-0">
                 <h1 className="settings-page__title">{t(current.label)}</h1>
@@ -76,14 +77,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             </header>
           ) : null}
           {isSuperadmin && host.query.isLoading && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
               <LoadingState>{t("settings.loadingHostSettings")}</LoadingState>
             </div>
           )}
 
           {isSuperadmin && !host.query.isLoading && (host.query.isError || !host.query.data) && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
-              <div className="panel-error-state">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
+              <div className="panel-error-state max-w-sm w-full">
                 <Database className="h-5 w-5" />
                 <div>
                   <p className="font-semibold">
@@ -93,6 +94,14 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
                     {t("settings.hostLoadFailedHint")}
                   </p>
                 </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<RefreshCw size={12} />}
+                  onClick={() => void host.query.refetch()}
+                >
+                  {t("common.retry")}
+                </Button>
               </div>
             </div>
           )}

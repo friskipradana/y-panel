@@ -9,7 +9,6 @@ import { EntityRow } from '@/components/ui/EntityRow'
 import { Field } from '@/components/ui/Field'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
@@ -41,8 +40,16 @@ export function HostingDomainsCard() {
   const addable = all.filter((domain) => !domain.enabled)
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader icon={<Globe2 />} title={t('hosting.domains.title')} subtitle={t('hosting.domains.subtitle')} />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.domains.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.domains.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
       {domains.isLoading ? (
         <LoadingState>{t('hosting.domains.loading')}</LoadingState>
@@ -66,10 +73,12 @@ export function HostingDomainsCard() {
             </Field>
             <Button
               variant="primary"
+              size="sm"
               icon={<Plus className="h-3.5 w-3.5" />}
               disabled={pick === ''}
               loading={toggle.isPending}
               onClick={() => toggle.mutate({ zoneId: pick, enabled: true })}
+              className="!h-8"
             >
               {t('hosting.domains.offer')}
             </Button>
@@ -78,23 +87,29 @@ export function HostingDomainsCard() {
           <div className="flex flex-col gap-2">
             <p className="text-[12px] font-medium text-[var(--text-secondary)]">{t('hosting.domains.offeredTitle', { count: offered.length })}</p>
             {offered.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-[var(--win-border)] p-3 text-[12px] text-[var(--text-secondary)]">{t('hosting.domains.noneOffered')}</p>
+              <p className="rounded-lg border border-dashed border-[var(--win-border)] p-2.5 text-[12px] text-[var(--text-secondary)]">{t('hosting.domains.noneOffered')}</p>
             ) : (
-              offered.map((domain) => (
-                <EntityRow
-                  key={domain.zoneId}
-                  centered
-                  leading={<IconBadge tone="primary"><Globe2 /></IconBadge>}
-                  title={<span className="panel-mono">{domain.name}</span>}
-                  badges={domain.status && domain.status !== 'active' ? <Badge tone="warning">{domain.status}</Badge> : undefined}
-                  subtitle={t('hosting.domains.example', { name: domain.name })}
-                  actions={
-                    <IconButton label={t('hosting.domains.stop', { name: domain.name })} tone="danger" disabled={toggle.isPending} onClick={() => toggle.mutate({ zoneId: domain.zoneId, enabled: false })}>
-                      <X className="h-4 w-4" />
-                    </IconButton>
-                  }
-                />
-              ))
+              <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] overflow-hidden">
+                {offered.map((domain) => (
+                  <EntityRow
+                    key={domain.zoneId}
+                    centered
+                    leading={
+                      <IconBadge size="md" tone="primary">
+                        <Globe2 />
+                      </IconBadge>
+                    }
+                    title={<span className="panel-mono">{domain.name}</span>}
+                    badges={domain.status && domain.status !== 'active' ? <Badge size="sm" tone="warning">{domain.status}</Badge> : undefined}
+                    subtitle={t('hosting.domains.example', { name: domain.name })}
+                    actions={
+                      <IconButton label={t('hosting.domains.stop', { name: domain.name })} tone="danger" disabled={toggle.isPending} onClick={() => toggle.mutate({ zoneId: domain.zoneId, enabled: false })} className="!h-7 !w-7">
+                        <X className="h-3.5 w-3.5" />
+                      </IconButton>
+                    }
+                  />
+                ))}
+              </div>
             )}
             {offered.length > 0 ? <p className="text-[11.5px] text-[var(--text-secondary)]">{t('hosting.domains.stopHint')}</p> : null}
           </div>

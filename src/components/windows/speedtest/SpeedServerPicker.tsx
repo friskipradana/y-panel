@@ -18,12 +18,15 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
     <div className="flex min-w-0 items-center gap-2">
       <Select
         id="speedtest-server"
-        className="min-w-[13rem] max-w-[22rem] flex-1"
+        className="w-48 sm:w-60 max-w-[18rem]"
         buttonClassName="!h-8 text-[0.75rem]"
         value={selected?.id ?? ''}
         onChange={onChange}
         disabled={disabled}
-        searchable={servers.length > 8}
+        searchable={servers.length > 5}
+        dropdownWidth={360}
+        align="right"
+        optionLayout="stack"
         options={servers.map((server) => ({
           value: server.id,
           label: server.id === 'auto' ? t('speedtest.serverAuto') : `${server.name}, ${server.location}`,
@@ -35,3 +38,4 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
     </div>
   )
 }
+

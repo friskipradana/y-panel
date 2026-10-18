@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { getDemoSettings, setDemoSettings } from '@/api/system'
 import { IconButton } from '@/components/ui/IconButton'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { useI18n } from '@/lib/i18n'
@@ -33,8 +32,16 @@ export function DemoAccountCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
-      <SectionHeader icon={<Eye />} title={t('settings.demo.title')} subtitle={t('settings.demo.subtitle')} />
+    <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <Eye className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('settings.demo.title')}</h2>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('settings.demo.subtitle')}</p>
+          </div>
+        </div>
+      </div>
 
       <SettingRow
         title={t('settings.demo.toggleTitle')}
@@ -59,8 +66,8 @@ export function DemoAccountCard() {
                   <dt className="text-[11px] text-[var(--text-secondary)]">{row.label}</dt>
                   <dd className="panel-mono truncate text-[12.5px]">{row.value}</dd>
                 </div>
-                <IconButton label={t('common.copy')} onClick={() => void copy(row.value)}>
-                  <Copy className="h-4 w-4" />
+                <IconButton label={t('common.copy')} onClick={() => void copy(row.value)} className="!h-7 !w-7">
+                  <Copy className="h-3.5 w-3.5" />
                 </IconButton>
               </div>
             ))}

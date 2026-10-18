@@ -138,10 +138,10 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
   if (isLoading) {
     return (
-      <div className="panel-window docker-window-root">
+      <div className="panel-window docker-window-root flex flex-col h-full">
         <SystemBar summary={<span className="font-semibold text-[var(--win-text)]">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} />
-        <div className="panel-window__body">
-          <LoadingState>{t('system.loadingRuntime')}</LoadingState>
+        <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
+          <LoadingState className="my-auto">{t('system.loadingRuntime')}</LoadingState>
         </div>
       </div>
     )
@@ -149,14 +149,15 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
   if (isError || !data) {
     return (
-      <div className="panel-window docker-window-root">
+      <div className="panel-window docker-window-root flex flex-col h-full">
         <SystemBar summary={<span className="font-semibold text-[var(--win-text)]">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} />
-        <div className="panel-window__body">
+        <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
           <ErrorState
+            className="my-auto max-w-sm w-full"
             title={t('system.summaryLoadFailed')}
             hint={t('system.summaryLoadFailedHint')}
             action={
-              <Button variant="ghost" loading={isFetching} onClick={() => void refetch()}>
+              <Button variant="primary" size="sm" loading={isFetching} onClick={() => void refetch()}>
                 {t('common.retry')}
               </Button>
             }
