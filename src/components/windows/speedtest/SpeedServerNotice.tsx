@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { installSpeedtestCli, type SpeedServer } from '@/api/speedtest'
 import { setSiteSettings } from '@/api/system'
 import { Button } from '@/components/ui/Button'
+import { IconBadge } from '@/components/ui/IconBadge'
 import { useI18n } from '@/lib/i18n'
 
 const OOKLA_TERMS = 'https://www.speedtest.net/about/eula'
@@ -36,17 +37,29 @@ export function SpeedServerNotice({ server }: { server: SpeedServer }) {
 
   if (server.reason === 'no-cli') {
     return (
-      <div className="flex flex-col gap-2 rounded-xl border border-[var(--panel-warning-text)]/40 bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem] text-[var(--panel-warning-text)]">
-        <p className="flex items-start gap-2 font-semibold">
-          <TriangleAlert size={16} className="mt-0.5 shrink-0" />
-          {t('speedtest.notice.noCli.title')}
-        </p>
-        <p>{t('speedtest.notice.noCli.body')}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="primary" icon={<Download className="h-3.5 w-3.5" />} loading={install.isPending} onClick={() => install.mutate()}>
-            {t('speedtest.notice.noCli.install')}
-          </Button>
-          {install.isError ? <span className="min-w-0 break-words">{installError(install.error, t('speedtest.notice.noCli.failed'))}</span> : null}
+      <div className="flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--panel-warning-text)_25%,transparent)] bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem] text-[var(--panel-warning-text)]">
+        <IconBadge size="sm" tone="warning">
+          <TriangleAlert size={14} />
+        </IconBadge>
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="font-semibold">{t('speedtest.notice.noCli.title')}</p>
+          <p className="text-[12px] opacity-90 leading-relaxed">{t('speedtest.notice.noCli.body')}</p>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Download className="h-3.5 w-3.5" />}
+              loading={install.isPending}
+              onClick={() => install.mutate()}
+            >
+              {t('speedtest.notice.noCli.install')}
+            </Button>
+            {install.isError ? (
+              <span className="min-w-0 break-words text-[12px]">
+                {installError(install.error, t('speedtest.notice.noCli.failed'))}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     )
@@ -54,19 +67,26 @@ export function SpeedServerNotice({ server }: { server: SpeedServer }) {
 
   if (server.reason === 'license') {
     return (
-      <div className="flex flex-col gap-2 rounded-xl border border-[var(--panel-warning-text)]/40 bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem] text-[var(--panel-warning-text)]">
-        <p className="flex items-start gap-2 font-semibold">
-          <TriangleAlert size={16} className="mt-0.5 shrink-0" />
-          {t('speedtest.notice.license.title')}
-        </p>
-        <p>{t('speedtest.notice.license.body')}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="primary" loading={accept.isPending} onClick={() => accept.mutate()}>
-            {t('speedtest.notice.license.accept')}
-          </Button>
-          <a href={OOKLA_TERMS} target="_blank" rel="noreferrer" className="text-[var(--panel-info-text)] underline">
-            {t('speedtest.notice.license.terms')}
-          </a>
+      <div className="flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--panel-warning-text)_25%,transparent)] bg-[var(--panel-warning-bg)] p-3 text-[0.8125rem] text-[var(--panel-warning-text)]">
+        <IconBadge size="sm" tone="warning">
+          <TriangleAlert size={14} />
+        </IconBadge>
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="font-semibold">{t('speedtest.notice.license.title')}</p>
+          <p className="text-[12px] opacity-90 leading-relaxed">{t('speedtest.notice.license.body')}</p>
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Button variant="primary" size="sm" loading={accept.isPending} onClick={() => accept.mutate()}>
+              {t('speedtest.notice.license.accept')}
+            </Button>
+            <a
+              href={OOKLA_TERMS}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--panel-info-text)] hover:underline text-[12px]"
+            >
+              {t('speedtest.notice.license.terms')}
+            </a>
+          </div>
         </div>
       </div>
     )
@@ -74,11 +94,16 @@ export function SpeedServerNotice({ server }: { server: SpeedServer }) {
 
   if (server.note === 'mlab-public' || server.note === 'ookla-public') {
     return (
-      <p className="flex items-start gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[0.8125rem] text-[var(--text-secondary)]">
-        <Info size={16} className="mt-0.5 shrink-0" />
-        {t(server.note === 'mlab-public' ? 'speedtest.notice.mlab' : 'speedtest.notice.ookla')}
-      </p>
+      <div className="flex items-start gap-2.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[0.8125rem] text-[var(--text-secondary)]">
+        <IconBadge size="sm" tone="neutral">
+          <Info size={14} />
+        </IconBadge>
+        <p className="flex-1 text-[12px] leading-relaxed">
+          {t(server.note === 'mlab-public' ? 'speedtest.notice.mlab' : 'speedtest.notice.ookla')}
+        </p>
+      </div>
     )
   }
+
   return null
 }
