@@ -14,7 +14,7 @@ Perkiraan waktu: 45 menit, ditambah menunggu DNS dan sertifikat (biasanya bebera
 | Domain kedua | Untuk uji domain sendiri (bagian 7). Boleh di penyedia DNS mana pun. |
 | Reneo versi terbaru | Migrasi database harus sampai versi 20. Cek dengan `bun run db:migrate:status` (atau `panel-agent migrate status`); bila belum, jalankan `migrate up`. |
 | Rekening untuk transfer uji | Dengan jumlah kecil. Pesanan termurah cukup, mis. paket Rp 10.000. |
-| Pembaca notifikasi bank (opsional) | Aplikasi listener Android yang terdaftar di Pengaturan > Notifikasi. Tanpanya, pakai cara simulasi di bagian 5. |
+| Pembaca notifikasi bank (opsional) | Aplikasi listener Android yang terdaftar di Pengaturan > Pembayaran. Tanpanya, pakai cara simulasi di bagian 5. |
 | Dua peramban atau satu jendela samaran | Satu untuk superadmin, satu untuk pembeli. |
 
 ## 1. Token Cloudflare dan izinnya
@@ -105,7 +105,7 @@ Bila alamat tidak terbuka, lihat bagian 8.
 1. Pengaturan > Hosting > Pembayaran: nyalakan "Aktifkan otomatis saat transfer cocok".
 2. Buat pesanan baru seperti bagian 4 (nama subdomain berbeda).
 3. Transfer jumlah persis. Dua cara agar notifikasinya sampai ke Reneo:
-   - **Listener Android:** daftarkan perangkat di Pengaturan > Notifikasi. Aplikasi harus mengirim kolom jumlah (`amountDetected`); tanpa itu notifikasi tersimpan tetapi tidak dicocokkan.
+   - **Listener Android:** daftarkan perangkat di Pengaturan > Pembayaran. Aplikasi harus mengirim kolom jumlah (`amountDetected`); tanpa itu notifikasi tersimpan tetapi tidak dicocokkan.
    - **Simulasi** (tanpa transfer asli), dengan kunci API perangkat yang sama:
 
      ```bash

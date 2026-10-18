@@ -20,7 +20,6 @@ import { CloudflareTab } from "./settings/tabs/CloudflareTab";
 import { NetworkTab } from "./settings/tabs/NetworkTab";
 import { SecurityTab } from "./settings/tabs/SecurityTab";
 import { PaymentTab } from "./settings/tabs/PaymentTab";
-import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
 import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
@@ -128,9 +127,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 
-              {shownTab === "payment" && isSuperadmin && <PaymentTab payment={payment} />}
-
-              {shownTab === "notifications" && <NotificationsTab listener={listener} setActiveTab={setActiveTab} />}
+              {shownTab === "payment" && <PaymentTab payment={payment} listener={listener} setActiveTab={setActiveTab} canManageGateways={isSuperadmin} />}
 
               {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 

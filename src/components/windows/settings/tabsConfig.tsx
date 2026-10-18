@@ -1,4 +1,4 @@
-import { Activity, Bell, Clock, Cloud, CreditCard, Database, Globe2, ImagePlus, Key, Lock, LockKeyhole, Monitor, Palette, Server, Store, Volume2 } from 'lucide-react'
+import { Activity, Clock, Cloud, CreditCard, Database, Globe2, ImagePlus, Key, Lock, LockKeyhole, Monitor, Palette, Server, Store, Volume2 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { SettingsTabKey } from './constants'
 
@@ -55,7 +55,6 @@ export const SETTINGS_GROUPS: SettingsGroupDef[] = [
     tabs: [
       { key: 'cloudflare', label: 'settings.tabs.cloudflare', desc: 'settings.desc.cloudflare', icon: Cloud },
       { key: 'api_tokens', label: 'settings.tabs.apiTokens', desc: 'settings.desc.apiTokens', icon: Key },
-      { key: 'notifications', label: 'settings.tabs.notifications', desc: 'settings.desc.notifications', icon: Bell },
     ],
   },
   {
