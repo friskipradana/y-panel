@@ -461,3 +461,123 @@
   background: var(--panel-danger-bg) !important;
 }
 
+
+// View menu of the taskbar: size, order and place of the desktop icons
+.taskbar-view-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  z-index: 60020;
+}
+
+.taskbar-view-drawer {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 59990;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.taskbar-view-menu {
+  pointer-events: auto;
+  width: 268px;
+  padding: 6px;
+  border-radius: 0 0 16px 16px;
+  border: 1px solid var(--menu-border);
+  border-top: none;
+  background: var(--menu-bg);
+  backdrop-filter: blur(24px) saturate(1.25);
+  box-shadow: var(--menu-shadow);
+
+  &__group {
+    padding: 4px 0;
+
+    & + & {
+      border-top: 1px solid var(--win-border);
+    }
+  }
+
+  &__label {
+    margin: 0;
+    padding: 4px 10px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+}
+
+.taskbar-view-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px 0 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tb-text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--panel-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--panel-primary-text);
+    outline-offset: -2px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  // the checked state: a tick, or a dot for a choice of one
+  &__mark {
+    display: grid;
+    flex-shrink: 0;
+    width: 16px;
+    place-items: center;
+    color: var(--panel-primary-text);
+  }
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &__icon {
+    display: grid;
+    flex-shrink: 0;
+    width: 18px;
+    place-items: center;
+    color: var(--text-secondary);
+  }
+
+  &__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__hint {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+}

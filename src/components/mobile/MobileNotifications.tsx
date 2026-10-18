@@ -32,7 +32,7 @@ export function MobileNotifications() {
           <Bell className="h-5 w-5" />
         </IconButton>
         {unread > 0 ? (
-          <span className="panel-mono pointer-events-none absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-[var(--panel-danger-solid)] px-1 text-center text-[0.625rem] leading-4 text-white">
+          <span className="panel-mono pointer-events-none absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--panel-danger-solid)] px-0.5 text-[0.5625rem] font-bold leading-none text-white">
             {unread > 9 ? '9+' : unread}
           </span>
         ) : null}

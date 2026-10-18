@@ -11,7 +11,6 @@ import { MobileNotifications } from '@/components/mobile/MobileNotifications'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
-import { IconBadge } from '@/components/ui/IconBadge'
 import { useSystemSampler } from '@/hooks/useSystemSampler'
 import { useWidgetSync } from '@/hooks/useWidgetSync'
 import { setUiMode } from '@/hooks/useIsMobileLayout'
@@ -114,7 +113,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   return (
     <div className="layout-mobile flex h-dvh w-full flex-col bg-[var(--win-content-bg)] text-[var(--win-text)]">
       {/* Top bar */}
-      <header className="flex h-[calc(3rem+env(safe-area-inset-top))] shrink-0 items-center gap-1 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-2 pt-[env(safe-area-inset-top)]">
+      <header className="flex h-[calc(3rem+env(safe-area-inset-top))] shrink-0 items-center gap-0.5 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-2 pt-[env(safe-area-inset-top)]">
         {showingApp && current ? (
           <>
             <IconButton label={t('mobile.back')} onClick={goHome}>
@@ -148,7 +147,7 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               label={`${t('language.label')}: ${language === 'id' ? t('language.english') : t('language.indonesian')}`}
               onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
             >
-              <span className="text-[0.75rem] font-bold uppercase">{language}</span>
+              <span className="text-[0.75rem] font-bold uppercase leading-none">{language}</span>
             </IconButton>
             <IconButton
               label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
@@ -160,11 +159,9 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               type="button"
               onClick={() => setAccount(true)}
               aria-label={t('mobile.account')}
-              className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              className="mobile-topbar__account"
             >
-              <IconBadge size="md" tone="primary">
-                {(user?.displayName || user?.username || '?').charAt(0).toUpperCase()}
-              </IconBadge>
+              <span className="mobile-topbar__avatar">{(user?.displayName || user?.username || '?').charAt(0).toUpperCase()}</span>
             </button>
           </>
         )}

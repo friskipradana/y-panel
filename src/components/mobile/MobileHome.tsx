@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
-import { AppIcon } from '@/components/common/AppIcon'
+import { MobileAppsGrid } from '@/components/mobile/MobileAppsGrid'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { IconButton } from '@/components/ui/IconButton'
 import { orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
 import { alertLib } from '@/lib/alert'
-import { useI18n, windowTitleKey } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
 import type { WindowKind } from '@/types'
 
 interface MobileHomeProps {
@@ -100,23 +100,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
         </div>
       </section>
 
-      <section aria-label={t('mobile.apps')}>
-        <h2 className="mb-2 text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">{t('mobile.apps')}</h2>
-        <ul className="grid grid-cols-3 gap-2">
-          {apps.map((app) => (
-            <li key={app}>
-              <button
-                type="button"
-                onClick={() => onLaunch(app)}
-                className="flex min-h-[5.25rem] w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-1 py-3 text-center transition-colors active:bg-[var(--panel-surface-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-              >
-                <AppIcon kind={app} size={28} />
-                <span className="line-clamp-2 w-full break-words text-[0.75rem] font-medium leading-tight">{t(windowTitleKey(app))}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <MobileAppsGrid apps={apps} onLaunch={onLaunch} />
 
       {widgets.length > 0 ? (
         <section aria-label={t('mobile.widgets')} className="space-y-3">

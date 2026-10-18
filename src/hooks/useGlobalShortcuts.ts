@@ -3,6 +3,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { useAuthStore } from '@/store/authStore'
 import { useCommandStore } from '@/store/commandStore'
 import { canAccessWindow } from '@/components/desktop/Desktop'
+import { useThemeStore } from '@/store/themeStore'
 import type { WindowKind } from '@/types'
 
 // Alt + letter opens an app; the quick search shows the same keys next to the apps
@@ -36,6 +37,16 @@ export function useGlobalShortcuts(authenticated: boolean) {
         e.preventDefault()
         useCommandStore.getState().toggleCommandPalette()
         return
+      }
+
+      // Ctrl+Shift+2 / 3 / 4: large, medium, small icons (the View menu of the taskbar)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) {
+        const size = { Digit2: 'large', Digit3: 'medium', Digit4: 'small' }[e.code] as 'large' | 'medium' | 'small' | undefined
+        if (size) {
+          e.preventDefault()
+          useThemeStore.getState().setDesktopIconSize(size)
+          return
+        }
       }
 
       const isTyping =

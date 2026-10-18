@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type { PlacedWidget, WidgetConfig, WidgetType } from '@/types'
 import { useMetricsStore } from '@/store/metricsStore'
 import { isMobileLayoutNow } from '@/hooks/useIsMobileLayout'
+import { useDesktopIconStore } from '@/store/desktopIconStore'
 
 export interface WidgetCatalogItem {
   type: WidgetType
@@ -333,6 +334,11 @@ export function resolveWidgetOverlap(
 //  1. a light alignment to a neighbour's edge, but only if that spot is free;
 //  2. if the drop overlaps something, move the smallest distance that clears every widget;
 //  3. if nothing nearby is free, the widget goes back to where it was picked up.
+// Widgets are placed freely (View menu): no grid, no pushing apart, anywhere on the screen
+export function widgetsAreFree(): boolean {
+  return useDesktopIconStore.getState().freeWidgets
+}
+
 export function placeDroppedWidget(
   id: string,
   type: WidgetType,
@@ -358,6 +364,12 @@ export function placeDroppedWidget(
 
   let x = clampX(rawX)
   let y = clampY(rawY)
+
+  // free placement: exactly where it was let go
+  if (widgetsAreFree()) {
+    const fx = Math.min(Math.max(rawX, 0), Math.max(0, screenW - width))
+    return { x: Math.round(fx), y: Math.round(clampY(rawY)) }
+  }
 
   // 1. alignment: within a few pixels only, and never into an occupied spot
   const ALIGN = 8
@@ -422,9 +434,10 @@ export function sanitizeLayout(widgets: PlacedWidget[]): PlacedWidget[] {
     // The window size is never written back into the layout: shrinking the window or opening
     // devtools used to pull widgets up and the sync made that permanent. Only a negative or
     // off-canvas start is corrected, and overlaps are resolved by moving the lower widget down.
-    const x = Math.max(w.x, 12)
+    const free = widgetsAreFree()
+    const x = free ? Math.max(w.x, 0) : Math.max(w.x, 12)
     let y = Math.max(w.y, WIDGET_TOP)
-    for (let guard = 0; guard < 20; guard++) {
+    for (let guard = 0; !free && guard < 20; guard++) {
       const blocker = placed.find((o) => overlapsWidget(x, y, widgetWidthOf(w), height, o))
       if (!blocker) break
       y = blocker.y + widgetHeightOf(blocker) + WIDGET_GAP
@@ -550,9 +563,11 @@ export const useWidgetStore = create<WidgetState>()(
         const current = get().placedWidgets
         // A drop keeps the spot the user chose (snapped to neighbours); only overlaps are resolved
         const wanted = pos
-          ? snapWidgetPosition(id, type, pos.x, pos.y, current)
+          ? widgetsAreFree()
+            ? { x: Math.max(0, Math.round(pos.x)), y: Math.max(WIDGET_TOP, Math.round(pos.y)) }
+            : snapWidgetPosition(id, type, pos.x, pos.y, current)
           : findSmartSpawnPosition(current, type)
-        const finalPos = resolveWidgetOverlap(id, type, wanted.x, wanted.y, current)
+        const finalPos = pos && widgetsAreFree() ? wanted : resolveWidgetOverlap(id, type, wanted.x, wanted.y, current)
 
         const newWidget: PlacedWidget = {
           id,

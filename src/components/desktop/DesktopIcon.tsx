@@ -5,9 +5,11 @@ import { AppIcon } from '@/components/common/AppIcon'
 
 interface Props {
   app: AppShortcut
+  /** Arranging the icons: a press picks the icon up instead of opening the app */
+  editing?: boolean
 }
 
-export function DesktopIcon({ app }: Props) {
+export function DesktopIcon({ app, editing = false }: Props) {
   const { openWindow } = useWindowStore()
   const desktopIconStyle = useThemeStore((s) => s.desktopIconStyle)
   const desktopIconSize = useThemeStore((s) => s.desktopIconSize)
@@ -20,6 +22,7 @@ export function DesktopIcon({ app }: Props) {
   const isDark = mode === 'dark'
 
   const handleClick = () => {
+    if (editing) return
     if (app.url) {
       window.open(app.url, '_blank')
     } else if (app.windowId) {
@@ -75,7 +78,7 @@ export function DesktopIcon({ app }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none cursor-pointer transition-colors duration-150`}
+      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
     >
       <div
         className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${

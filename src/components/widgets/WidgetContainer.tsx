@@ -5,6 +5,7 @@ import type { PlacedWidget } from '@/types'
 import {
   forgetWidgetHeight,
   placeDroppedWidget,
+  widgetsAreFree,
   reportWidgetHeight,
   scheduleLayoutSettle,
   useWidgetStore,
@@ -147,7 +148,8 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
     const onPointerMove = (ev: PointerEvent) => {
       const newX = startWidgetX + ev.clientX - startX
       const newY = startWidgetY + ev.clientY - startY
-      const minSafeX = window.innerWidth < 640 ? EDGE : 200
+      // the strip of the icons is only kept clear when placement is not free
+      const minSafeX = widgetsAreFree() ? 0 : window.innerWidth < 640 ? EDGE : 200
       const maxX = Math.max(minSafeX, window.innerWidth - width - EDGE)
       const clampedX = Math.max(minSafeX, Math.min(maxX, newX))
       const clampedY = Math.max(TOP_MIN, Math.min(window.innerHeight - height - 24, newY))
@@ -231,7 +233,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
       window.removeEventListener('pointercancel', onUp)
       setIsDragging(false)
       // a size that would land on another widget is refused: the card returns to its old size
-      const overlaps = others.some(
+      const overlaps = !widgetsAreFree() && others.some(
         (o) =>
           rect.x < o.x + widgetWidthOf(o) + 2 &&
           rect.x + rect.w + 2 > o.x &&

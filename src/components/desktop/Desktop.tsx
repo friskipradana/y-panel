@@ -15,10 +15,10 @@ import type { WidgetType } from '@/types'
 import { useI18n } from '@/lib/i18n'
 
 import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
-import { WIDGET_TOP, useWidgetStore } from '@/store/widgetStore'
+import { WIDGET_TOP, useWidgetStore, widgetsAreFree } from '@/store/widgetStore'
 import { LockScreen } from '@/components/desktop/LockScreen'
 import { CommandPalette } from '@/components/common/CommandPalette'
-import { DesktopIcon } from '@/components/desktop/DesktopIcon'
+import { DesktopIconLayer } from '@/components/desktop/DesktopIconLayer'
 
 export { canAccessWindow }
 
@@ -105,7 +105,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const [dropGhost, setDropGhost] = useState<{ x: number; y: number } | null>(null)
 
   const dropPosition = (clientX: number, clientY: number) => {
-    const minSafeX = window.innerWidth >= 640 ? 200 : 16
+    const minSafeX = window.innerWidth >= 640 && !widgetsAreFree() ? 200 : 0
     return {
       x: Math.max(minSafeX, Math.min(window.innerWidth - 292, clientX - 140)),
       y: Math.max(WIDGET_TOP, Math.min(window.innerHeight - 120, clientY - 30)),
@@ -164,12 +164,8 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         <MobileShell authenticated={authenticated} onLogout={onLogout} />
       ) : (
         <>
-        {/* Desktop App Shortcuts (Left Grid) */}
-        <div className="absolute top-14 bottom-6 left-4 z-[10] flex flex-col flex-wrap content-start gap-2 pointer-events-auto select-none">
-          {desktopShortcuts.map((app) => (
-            <DesktopIcon key={app.id} app={app} />
-          ))}
-        </div>
+        {/* Desktop app shortcuts: on the grid or where they were put (View menu of the taskbar) */}
+        <DesktopIconLayer apps={desktopShortcuts} />
 
         {/* Desktop Widgets (Above wallpaper, behind active windows) */}
         <DesktopWidgetLayer />
