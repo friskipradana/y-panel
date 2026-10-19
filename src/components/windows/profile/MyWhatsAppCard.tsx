@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, PlugZap, Unplug } from 'lucide-react'
+import { MessageCircle, PlugZap, RotateCw, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
-import { connectWhatsApp, disconnectWhatsApp, getMyWhatsApp, getWhatsAppQR, setWhatsAppMuted, testWhatsApp, type MyWhatsApp } from '@/api/notify'
+import { connectWhatsApp, disconnectWhatsApp, getMyWhatsApp, getWhatsAppQR, restartWhatsApp, setWhatsAppMuted, testWhatsApp, type MyWhatsApp } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
@@ -47,6 +47,16 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
     onSuccess: set,
     onError: (error) => toast.error(apiError(error, t('notify.wa.connectFailed'))),
   })
+  const restart = useMutation({
+    mutationFn: restartWhatsApp,
+    onSuccess: (next) => {
+      set(next)
+      setImage(null)
+      void qc.invalidateQueries({ queryKey: ['whatsapp', 'qr'] })
+      toast.success(t('notify.wa.restarted'))
+    },
+    onError: (error) => toast.error(apiError(error, t('notify.wa.restartFailed'))),
+  })
   const disconnect = useMutation({
     mutationFn: disconnectWhatsApp,
     onSuccess: () => {
@@ -87,7 +97,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
   ) : undefined
 
   return (
-    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
+    <div className={bare ? 'flex flex-col gap-3' : 'panel-shell-card flex flex-col gap-3.5 settings-card'}>
       <SectionHeader icon={<MessageCircle />} title={t('notify.wa.title')} subtitle={t('notify.wa.subtitle')} actions={badge} />
 
       {me.isLoading ? (
@@ -95,26 +105,33 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
       ) : me.isError || !data ? (
         <ErrorState title={t('notify.wa.loadFailed')} hint={t('notify.queue.loadFailedHint')} />
       ) : !data.available ? (
-        <p className="text-[12.5px] text-[var(--text-secondary)]">{ownerHint ? t('notify.wa.offOwner') : t('notify.wa.offUser')}</p>
+        <p className="text-[12px] text-[var(--text-secondary)]">{ownerHint ? t('notify.wa.offOwner') : t('notify.wa.offUser')}</p>
       ) : connected ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5 text-[12.5px]">
-            <div className="min-w-0">
-              <p className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.wa.number')}</p>
-              <p className="panel-mono font-semibold">{data.phone}</p>
-              <p className="panel-mono text-[11.5px] text-[var(--text-secondary)]">{data.sessionName}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+            <div className="min-w-0 flex items-center gap-3">
+              <div>
+                <span className="block text-[11px] text-[var(--text-secondary)]">{t('notify.wa.number')}</span>
+                <span className="panel-mono font-semibold text-[13px] text-[var(--win-text)]">{data.phone}</span>
+              </div>
+              <span className="panel-mono rounded border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">
+                {data.sessionName}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button variant="outline" size="sm" loading={test.isPending} onClick={() => test.mutate()}>
                 {t('notify.telegram.test')}
+              </Button>
+              <Button variant="outline" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} onClick={() => restart.mutate()}>
+                {t('notify.wa.restart')}
               </Button>
               <Button variant="danger-soft" size="sm" icon={<Unplug className="h-3.5 w-3.5" />} loading={disconnect.isPending} onClick={() => void confirmDisconnect()}>
                 {t('notify.wa.disconnect')}
               </Button>
             </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <p className="text-[12px] font-medium text-[var(--text-secondary)]">{t('notify.me.which')}</p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[11.5px] font-medium text-[var(--text-secondary)]">{t('notify.me.which')}</p>
             {groups.map((group) => (
               <SettingRow
                 key={group}
@@ -133,35 +150,83 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
           </div>
         </>
       ) : scanning || data.status === 'STARTING' ? (
-        <div className="flex flex-wrap items-start gap-x-8 gap-y-4 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 text-[12.5px]">
-          <div className="flex min-w-[240px] flex-1 flex-col gap-3">
-            <ol className="list-decimal space-y-1.5 pl-4 text-[var(--text-secondary)]">
-              <li>{t('notify.wa.step1')}</li>
-              <li>{t('notify.wa.step2')}</li>
-              <li>{t('notify.wa.step3')}</li>
-            </ol>
-            {qr.isError ? <p role="alert" className="text-[var(--panel-danger-text)]">{apiError(qr.error, t('notify.wa.qrFailed'))}</p> : null}
-            <div>
-              <Button variant="ghost" size="sm" loading={disconnect.isPending} onClick={() => disconnect.mutate()}>
+        <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-6 lg:gap-12 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-5 sm:p-6 text-[12px]">
+          <div className="flex flex-col justify-between gap-5 py-1">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] text-[11px] font-bold text-[var(--panel-primary-text)]">
+                  1
+                </span>
+                <p className="pt-0.5 text-[12.5px] font-medium leading-snug text-[var(--win-text)]">{t('notify.wa.step1')}</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] text-[11px] font-bold text-[var(--panel-primary-text)]">
+                  2
+                </span>
+                <p className="pt-0.5 text-[12.5px] font-medium leading-snug text-[var(--win-text)]">{t('notify.wa.step2')}</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] text-[11px] font-bold text-[var(--panel-primary-text)]">
+                  3
+                </span>
+                <p className="pt-0.5 text-[12.5px] font-medium leading-snug text-[var(--win-text)]">{t('notify.wa.step3')}</p>
+              </div>
+            </div>
+
+            {qr.isError ? <p role="alert" className="text-[11.5px] text-[var(--panel-danger-text)]">{apiError(qr.error, t('notify.wa.qrFailed'))}</p> : null}
+
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--win-border)]">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RotateCw className="h-3.5 w-3.5" />}
+                loading={restart.isPending}
+                onClick={() => restart.mutate()}
+              >
+                {t('notify.wa.restart')}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={disconnect.isPending}
+                onClick={() => disconnect.mutate()}
+              >
                 {t('common.cancel')}
               </Button>
             </div>
           </div>
-          <div className="flex h-52 w-52 shrink-0 items-center justify-center rounded-xl border border-[var(--win-border)] bg-white p-2">
-            {image && scanning ? (
-              <img src={image} alt={t('notify.wa.qrAlt')} className="h-full w-full object-contain" />
-            ) : (
-              <LoadingState>{t('notify.wa.qrLoading')}</LoadingState>
-            )}
+
+          <div className="flex flex-col items-center justify-center gap-2.5 py-1">
+            <div className="flex h-44 w-44 sm:h-48 sm:w-48 items-center justify-center rounded-2xl border border-[var(--win-border)] bg-white p-3 shadow-md">
+              {image && scanning ? (
+                <img src={image} alt={t('notify.wa.qrAlt')} className="h-full w-full object-contain" />
+              ) : (
+                <LoadingState>{t('notify.wa.qrLoading')}</LoadingState>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full border border-[var(--win-border)] bg-[var(--panel-surface-hover)] px-3 py-1 text-[11px] text-[var(--text-secondary)]">
+              <span className="h-2 w-2 rounded-full bg-[var(--panel-warning-text)] animate-pulse" />
+              <span className="font-medium text-[var(--win-text)]">{t('notify.wa.waitingScan')}</span>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-2">
-          {data.status === 'FAILED' ? <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{t('notify.wa.failed')}</p> : null}
-          <p className="text-[12.5px] text-[var(--text-secondary)]">{t('notify.wa.notConnected')}</p>
-          <Button variant="primary" icon={<PlugZap className="h-3.5 w-3.5" />} loading={connect.isPending} onClick={() => connect.mutate()}>
-            {t('notify.wa.connect')}
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+          <div className="min-w-0">
+            {data.status === 'FAILED' || data.status === 'EXPIRED' ? (
+              <p role="alert" className="mb-0.5 text-[11.5px] text-[var(--panel-danger-text)]">{t(data.status === 'EXPIRED' ? 'notify.wa.expired' : 'notify.wa.failed')}</p>
+            ) : null}
+            <p className="text-[12px] text-[var(--text-secondary)]">{t('notify.wa.notConnected')}</p>
+          </div>
+          {data.status === 'FAILED' || data.status === 'EXPIRED' ? (
+            <Button variant="primary" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} onClick={() => restart.mutate()}>
+              {t('notify.wa.restart')}
+            </Button>
+          ) : (
+            <Button variant="primary" size="sm" icon={<PlugZap className="h-3.5 w-3.5" />} loading={connect.isPending} onClick={() => connect.mutate()}>
+              {t('notify.wa.connect')}
+            </Button>
+          )}
         </div>
       )}
     </div>

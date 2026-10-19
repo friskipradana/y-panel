@@ -262,15 +262,6 @@ func (s *Server) ensureFileManagerAccess(r *http.Request, targetPath string) err
 	return err
 }
 
-func (s *Server) ensureFileManagerPathPairAccess(r *http.Request, paths ...string) error {
-	for _, p := range paths {
-		if err := s.ensureFileManagerAccess(r, p); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *Server) handleFileManagerList(w http.ResponseWriter, r *http.Request) {
 	roots, rootsErr := s.allowedFileManagerRoots(r)
 	qPath := r.URL.Query().Get("path")

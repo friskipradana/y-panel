@@ -135,7 +135,8 @@ export const setWahaEnabled = (enabled: boolean) => agentApi.put<WahaStatus>('/a
 
 export const restartWaha = () => agentApi.post<WahaStatus>('/api/v1/notify/waha/restart').then((r) => r.data)
 
-export type WhatsAppStatus = 'STOPPED' | 'STARTING' | 'SCAN_QR_CODE' | 'WORKING' | 'FAILED'
+/** EXPIRED: the wait for a scan ended (five minutes, or three new codes) and the session was stopped */
+export type WhatsAppStatus = 'STOPPED' | 'STARTING' | 'SCAN_QR_CODE' | 'WORKING' | 'FAILED' | 'EXPIRED'
 
 export interface MyWhatsApp {
   /** The owner switched WhatsApp on and it answers */
@@ -151,6 +152,9 @@ export interface MyWhatsApp {
 export const getMyWhatsApp = () => agentApi.get<MyWhatsApp>('/api/v1/me/whatsapp').then((r) => r.data)
 
 export const connectWhatsApp = () => agentApi.post<MyWhatsApp>('/api/v1/me/whatsapp/connect').then((r) => r.data)
+
+/** Starts the session over: a working one keeps its phone, any other gets a new code */
+export const restartWhatsApp = () => agentApi.post<MyWhatsApp>('/api/v1/me/whatsapp/restart').then((r) => r.data)
 
 export const getWhatsAppQR = () => agentApi.get<Blob>('/api/v1/me/whatsapp/qr', { responseType: 'blob' }).then((r) => r.data)
 
@@ -201,9 +205,9 @@ export const removeCloudNumber = () => agentApi.delete<{ ok: boolean }>('/api/v1
 export const testCloud = () => agentApi.post<{ id: number }>('/api/v1/notify/channels/whatsapp-cloud/test').then((r) => r.data)
 
 /** The address the WAHA dashboard answers on ("" while none is set); only the superadmin may open it */
-export const getWahaDashboardHost = () => agentApi.get<{ host: string }>('/api/v1/notify/waha/dashboard').then((r) => r.data)
+export const getWahaDashboardHost = () => agentApi.get<{ host: string; panelPort: number }>('/api/v1/notify/waha/dashboard').then((r) => r.data)
 
-export const setWahaDashboardHost = (host: string) => agentApi.put<{ host: string }>('/api/v1/notify/waha/dashboard', { host }).then((r) => r.data)
+export const setWahaDashboardHost = (host: string) => agentApi.put<{ host: string; panelPort: number }>('/api/v1/notify/waha/dashboard', { host }).then((r) => r.data)
 
 /** A link that opens the dashboard once and for a minute and a half */
 export const openWahaDashboard = () => agentApi.post<{ url: string }>('/api/v1/notify/waha/dashboard/link').then((r) => r.data)

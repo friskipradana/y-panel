@@ -241,6 +241,16 @@ func (w *Waha) StartSession(ctx context.Context, name string) error {
 	return err
 }
 
+// StopSession stops a session without logging the phone out; one that is already stopped is fine
+func (w *Waha) StopSession(ctx context.Context, name string) error {
+	_, _, err := w.do(ctx, http.MethodPost, "/api/sessions/"+url.PathEscape(name)+"/stop", nil, "")
+	var se *SendError
+	if errors.As(err, &se) && (strings.HasSuffix(se.Message, "(422)") || strings.HasSuffix(se.Message, "(404)")) {
+		return nil
+	}
+	return err
+}
+
 // DeleteSession logs the phone out and removes the session; a session that is already gone is fine
 func (w *Waha) DeleteSession(ctx context.Context, name string) error {
 	_, _, _ = w.do(ctx, http.MethodPost, "/api/sessions/"+url.PathEscape(name)+"/logout", nil, "")

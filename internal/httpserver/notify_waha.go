@@ -78,7 +78,7 @@ type whatsappView struct {
 }
 
 // whatsappFor is the session of the account and where its notices go; the number is shown masked
-func (s *Server) whatsappFor(ctx context.Context, userID int64, state notify.WhatsAppState) whatsappView {
+func (s *Server) whatsappFor(userID int64, state notify.WhatsAppState) whatsappView {
 	rec, _ := s.database.GetNotifyRecipient(userID, "waha")
 	state.Phone = maskAddress(state.Phone)
 	return whatsappView{WhatsAppState: state, Recipient: recipientViewOf(rec)}
@@ -108,7 +108,7 @@ func (s *Server) handleMyWhatsApp(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.whatsappFor(ctx, u.ID, state))
+	s.writeJSON(w, http.StatusOK, s.whatsappFor(u.ID, state))
 }
 
 func (s *Server) handleConnectWhatsApp(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +128,7 @@ func (s *Server) handleConnectWhatsApp(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.whatsappFor(ctx, u.ID, state))
+	s.writeJSON(w, http.StatusOK, s.whatsappFor(u.ID, state))
 }
 
 // handleWhatsAppQR gives the image to scan, and only to the account that owns the session: the name never comes from the client
@@ -202,4 +202,25 @@ func (s *Server) forgetUserWhatsApp(userID int64) {
 	if err := s.notify.DisconnectWhatsApp(ctx, userID); err != nil {
 		log.Printf("[notify] the WhatsApp session of account %d was not removed from WAHA: %v", userID, err)
 	}
+}
+
+// handleRestartWhatsApp starts the session of the account over: a session that works is restarted and keeps the phone, any
+// other is made again with a new code
+func (s *Server) handleRestartWhatsApp(w http.ResponseWriter, r *http.Request) {
+	if !s.whatsappAllowed(w, r) {
+		return
+	}
+	u := userFromCtx(r)
+	if allowed, _ := s.allowRateLimit("wa-restart:"+u.Username, rateLimitRule{Window: time.Minute, Limit: 10}); !allowed {
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many attempts, wait a moment"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	state, err := s.notify.RestartWhatsApp(ctx, u.ID)
+	if err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, s.whatsappFor(u.ID, state))
 }

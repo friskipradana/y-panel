@@ -36,6 +36,9 @@ type wahaStub struct {
 	forbidden    int
 	// the key each text was sent with
 	sentWith []string
+	// the code of the QR changes with every call when this is on
+	qrVaries bool
+	qrCalls  int
 	// what the last request carried, for the dashboard proxy
 	lastHeader http.Header
 	lastPath   string
@@ -141,7 +144,17 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 			reply(out)
 		case len(parts) == 3 && parts[0] == "sessions" && parts[2] == "start":
 			if sess := stub.sessions[parts[1]]; sess != nil {
-				sess.status = "SCAN_QR_CODE"
+				// a session whose phone is linked comes back working; any other waits for a scan
+				if sess.me != "" {
+					sess.status = "WORKING"
+				} else {
+					sess.status = "SCAN_QR_CODE"
+				}
+			}
+			reply(map[string]string{"name": parts[1]})
+		case len(parts) == 3 && parts[0] == "sessions" && parts[2] == "stop":
+			if sess := stub.sessions[parts[1]]; sess != nil {
+				sess.status = "STOPPED"
 			}
 			reply(map[string]string{"name": parts[1]})
 		case len(parts) == 3 && parts[0] == "sessions" && parts[2] == "logout":
@@ -154,7 +167,12 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 			reply(map[string]string{})
 		case len(parts) == 3 && parts[1] == "auth" && parts[2] == "qr":
 			w.Header().Set("Content-Type", "image/png")
-			_, _ = w.Write([]byte("\x89PNG-fake-" + parts[0]))
+			stub.qrCalls++
+			code := "\x89PNG-fake-" + parts[0]
+			if stub.qrVaries {
+				code += "-" + strconv.Itoa(stub.qrCalls)
+			}
+			_, _ = w.Write([]byte(code))
 		case path == "sendText":
 			session, _ := body["session"].(string)
 			chat, _ := body["chatId"].(string)

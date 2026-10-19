@@ -79,6 +79,13 @@ func (s *Service) UseTelegramBase(base string) {
 	s.chMu.Unlock()
 }
 
+// SetClock changes what the service takes as now; tests use it to let a wait for a scan run out
+func (s *Service) SetClock(now func() time.Time) {
+	s.chMu.Lock()
+	s.now = now
+	s.chMu.Unlock()
+}
+
 // UseCloudBase points WhatsApp Cloud calls at another address; tests use it
 func (s *Service) UseCloudBase(base string) {
 	s.chMu.Lock()

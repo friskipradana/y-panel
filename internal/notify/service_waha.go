@@ -545,11 +545,25 @@ func (s *Service) ConnectWhatsApp(ctx context.Context, userID int64, role, usern
 			return WhatsAppState{}, err
 		}
 	}
-	return s.recordSession(userID, row.SessionName, session)
+	return s.recordSession(ctx, w, row, session)
 }
 
 // recordSession keeps what WAHA said, and when the phone is connected makes its number the place of the notices
-func (s *Service) recordSession(userID int64, name string, session *WahaSession) (WhatsAppState, error) {
+func (s *Service) recordSession(ctx context.Context, admin *Waha, row *database.WhatsAppSession, session *WahaSession) (WhatsAppState, error) {
+	userID, name := row.UserID, row.SessionName
+	// a wait for a scan has limits: it ends when it is too long, or when WAHA has shown too many different codes
+	switch {
+	case session.Status == SessionScanQR && row.ScanStartedAt == nil:
+		_ = s.db.StartWhatsAppScan(userID, s.now())
+	case session.Status == SessionScanQR && (s.now().Sub(*row.ScanStartedAt) > ScanWindow || row.QRChanges >= ScanMaxQRChanges):
+		return s.expireScan(ctx, admin, row)
+	case session.Status != SessionScanQR && row.ScanStartedAt != nil:
+		_ = s.db.EndWhatsAppScan(userID)
+	}
+	// the end of a wait stays an end until the account asks to start again
+	if row.Status == SessionExpired && session.Status == SessionStopped {
+		return WhatsAppState{Available: true, Status: SessionExpired, SessionName: name}, nil
+	}
 	phone := session.Phone()
 	if err := s.db.UpdateWhatsAppSession(userID, session.Status, phone); err != nil {
 		return WhatsAppState{}, err
@@ -587,7 +601,7 @@ func (s *Service) WhatsAppStatus(ctx context.Context, userID int64) (WhatsAppSta
 	if err != nil {
 		return WhatsAppState{}, err
 	}
-	return s.recordSession(userID, row.SessionName, session)
+	return s.recordSession(ctx, w, row, session)
 }
 
 // WhatsAppQR is the code to scan; only while the session waits for it
@@ -606,6 +620,9 @@ func (s *Service) WhatsAppQR(ctx context.Context, userID int64) ([]byte, string,
 	if row == nil {
 		return nil, "", errors.New("press connect first")
 	}
+	if row.Status == SessionExpired {
+		return nil, "", ErrScanExpired
+	}
 	var img []byte
 	var ctype string
 	err = s.callAs(ctx, w, row, func(sw *Waha) error {
@@ -613,7 +630,17 @@ func (s *Service) WhatsAppQR(ctx context.Context, userID int64) ([]byte, string,
 		img, ctype, e = sw.QR(ctx, row.SessionName)
 		return e
 	})
-	return img, ctype, err
+	if err != nil {
+		return nil, "", err
+	}
+	// too many different codes without a scan end the wait, the same as too long a wait
+	if s.noteQR(userID, img) {
+		if _, err := s.expireScan(ctx, w, row); err != nil {
+			return nil, "", err
+		}
+		return nil, "", ErrScanExpired
+	}
+	return img, ctype, nil
 }
 
 // DisconnectWhatsApp logs the phone out, removes the session, and stops the notices to it
