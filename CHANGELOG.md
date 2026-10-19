@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.33.0] - 2026-10-19
+
+2 perubahan, utamanya the update progress shows the step, the installer log with a copy button, and a way back to it.
+
+### Fitur baru
+- **notify:** The WAHA dashboard opens for the superadmin only, from an address of its own, and the QR scan is laid out side by side ([`ce2351e`](https://github.com/friskipradana/y-panel/commit/ce2351e))
+- **update:** The update progress shows the step, the installer log with a copy button, and a way back to it ([`50bc712`](https://github.com/friskipradana/y-panel/commit/50bc712))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.32.2...v1.33.0
+
 ## [1.32.2] - 2026-10-19
 
 A WAHA container that is still booting is not shown as a failure, and a real failure shows why.
