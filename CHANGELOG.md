@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.40.1] - 2026-10-19
+
+Orders stay when their account is deleted, and the search of the tables has the height of the other controls.
+
+### Perbaikan
+- **hosting:** Orders stay when their account is deleted, and the search of the tables has the height of the other controls ([`0991ba0`](https://github.com/friskipradana/y-panel/commit/0991ba0))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.40.0...v1.40.1
+
 ## [1.40.0] - 2026-10-19
 
 Orders, panel addresses, plans, vouchers and offered domains are tables with sorting and column filters.
