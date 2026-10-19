@@ -25,8 +25,14 @@ type CustomHostname struct {
 // CanReadCustomHostnames says whether the zone lists its custom hostnames: the token has the SSL and Certificates
 // permission and the feature is on for the zone
 func (c *Client) CanReadCustomHostnames(zoneID string) bool {
+	return c.ProbeCustomHostnames(zoneID) == nil
+}
+
+// ProbeCustomHostnames asks the zone for its custom hostnames and returns what Cloudflare answered when it refused, so the reason
+// (a missing permission, or Custom Hostnames not switched on for the zone) can be shown instead of a bare mark
+func (c *Client) ProbeCustomHostnames(zoneID string) error {
 	_, err := c.get(fmt.Sprintf("/zones/%s/custom_hostnames?per_page=5", url.PathEscape(zoneID)))
-	return err == nil
+	return err
 }
 
 // SetFallbackOrigin names the hostname in the zone that custom hostnames lead to; it has to exist as a proxied DNS record

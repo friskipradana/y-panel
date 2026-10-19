@@ -29,6 +29,8 @@ export interface CFPermissionDetails {
   canManageRedirects: boolean
   /** SSL and Certificates is on the token and Custom Hostnames is on for the zone (hosting sellers only) */
   canManageCustomHostnames: boolean
+  /** What Cloudflare answered when no zone could list custom hostnames */
+  customHostnamesError?: string
   missingScopes?: string[]
   summary: string
 }

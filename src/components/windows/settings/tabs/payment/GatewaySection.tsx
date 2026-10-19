@@ -109,7 +109,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
       <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
         {/* ── Section 1: Gateway Utama & Transaksi ── */}
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="mb-2 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1.5">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
               <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.payment.mainGateway')}</h2>
@@ -200,7 +200,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] min-h-[58px] gap-3">
+              <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-subtle)] min-h-[58px] gap-3 mobile:flex-col mobile:items-start">
                 <div className="min-w-0">
                   <div className="text-[12px] font-semibold text-[var(--win-text)]">{t('settings.payment.tolerance')}</div>
                   <div className="text-[10.5px] text-[var(--text-secondary)] leading-tight mt-0.5">{t('settings.payment.toleranceDesc')}</div>
@@ -217,7 +217,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
                     className="!h-7 w-20 text-center px-1.5 text-[12px]"
                     placeholder="300"
                   />
-                  <span className="text-[11px] text-[var(--text-secondary)] font-sans">dtk</span>
+                  <span className="text-[11px] text-[var(--text-secondary)] font-sans">{t('settings.payment.secondsShort')}</span>
                 </div>
               </div>
             </div>

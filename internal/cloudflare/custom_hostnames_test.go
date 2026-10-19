@@ -151,6 +151,9 @@ func TestVerifyTokenReportsCustomHostnameAccessSeparately(t *testing.T) {
 	if perm.CanManageCustomHostnames {
 		t.Fatal("without the SSL and Certificates permission custom hostnames are not reported")
 	}
+	if !strings.Contains(perm.CustomHostnamesError, "reneo.my.id") || !strings.Contains(perm.CustomHostnamesError, "1401") {
+		t.Fatalf("the answer of Cloudflare is kept so the reason can be shown: %q", perm.CustomHostnamesError)
+	}
 	if !perm.Valid || len(perm.MissingScopes) != 0 {
 		t.Fatalf("the missing hosting permission must not fail a token that serves tunnels and DNS: %+v", perm)
 	}

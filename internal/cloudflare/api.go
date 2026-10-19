@@ -68,6 +68,8 @@ type TokenPermissions struct {
 	// CanManageCustomHostnames reports that the zone answers for custom hostnames: the SSL and Certificates permission
 	// is on the token and Custom Hostnames (Cloudflare for SaaS) is switched on. Only the seller of hosting needs it.
 	CanManageCustomHostnames bool `json:"canManageCustomHostnames"`
+	// CustomHostnamesError is what Cloudflare answered when no zone could list custom hostnames
+	CustomHostnamesError string `json:"customHostnamesError,omitempty"`
 	AccountID          string   `json:"accountId,omitempty"`
 	MissingScopes      []string `json:"missingScopes,omitempty"`
 	Summary            string   `json:"summary"`
@@ -106,8 +108,22 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 			if _, redirErr := c.ListRedirectRules(zones[0].ID); redirErr == nil {
 				perm.CanManageRedirects = true
 			}
-			// so are custom hostnames: they matter only to the seller of hosting
-			perm.CanManageCustomHostnames = c.CanReadCustomHostnames(zones[0].ID)
+			// so are custom hostnames: they matter only to the seller of hosting. The permission can be given to some zones only,
+			// and the feature is switched on per zone, so any zone that answers is enough to know the token can do it.
+			for i, zone := range zones {
+				if i >= 20 {
+					break
+				}
+				probe := c.ProbeCustomHostnames(zone.ID)
+				if probe == nil {
+					perm.CanManageCustomHostnames = true
+					perm.CustomHostnamesError = ""
+					break
+				}
+				if perm.CustomHostnamesError == "" {
+					perm.CustomHostnamesError = zone.Name + ": " + probe.Error()
+				}
+			}
 		} else {
 			perm.CanManageDNS = true
 		}

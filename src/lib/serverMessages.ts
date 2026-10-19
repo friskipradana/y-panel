@@ -67,6 +67,8 @@ const RULES: [RegExp, string, string[]][] = [
   [/^(.+) is already used by another DNS record$/, 'server.dnsUsed', ['name']],
   [/^could not create the DNS record: (.+)$/, 'server.dnsCreateFailed', ['detail']],
   [/^Cloudflare did not answer: (.+)$/, 'server.cloudflareDown', ['detail']],
+  [/^could not create the hosting tunnel: (.+)$/, 'server.tunnelCreateFailed', ['detail']],
+  [/^Cloudflare did not accept the fallback origin \(is Custom Hostnames enabled on (.+)\?\): (.+)$/, 'server.fallbackOriginFailed', ['domain', 'detail']],
   [/^the superadmin's Cloudflare account is not connected or verified$/, 'server.cloudflareNotReady', []],
 ]
 

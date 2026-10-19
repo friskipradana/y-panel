@@ -21,12 +21,12 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 mobile:flex-col mobile:items-stretch mobile:gap-2">
         <div>
           <h3 className="text-[12.5px] font-semibold text-[var(--win-text)]">{t('hosting.payment.methods')}</h3>
           <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t('hosting.payment.methodsHint')}</p>
         </div>
-        <Button variant="outline" size="sm" icon={<Plus className="h-3.5 w-3.5" />} disabled={methods.length >= MAX_METHODS} onClick={() => onChange([...methods, blankMethod()])}>
+        <Button variant="outline" size="sm" className="mobile:w-full" icon={<Plus className="h-3.5 w-3.5" />} disabled={methods.length >= MAX_METHODS} onClick={() => onChange([...methods, blankMethod()])}>
           {t('hosting.payment.addMethod')}
         </Button>
       </div>
@@ -38,7 +38,7 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
           {methods.map((method, index) => (
             <li
               key={method.id || `new-${index}`}
-              className="grid items-center gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-2 sm:grid-cols-[7.5rem_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto_auto]"
+              className="grid items-center gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-2 sm:grid-cols-[7.5rem_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] mobile:grid-cols-[minmax(0,1fr)_auto_auto]"
             >
               <Select
                 value={method.kind}
@@ -55,7 +55,7 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
                 aria-label={t('hosting.payment.methodName')}
                 placeholder={method.kind === 'bank' ? 'BCA' : 'DANA'}
                 onChange={(e) => update(index, { name: e.target.value })}
-                className="!h-8 text-[12px]"
+                className="!h-8 text-[12px] mobile:order-4 mobile:col-span-3"
               />
               <TextInput
                 mono
@@ -64,7 +64,7 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
                 aria-label={t('hosting.payment.account')}
                 placeholder={t('hosting.payment.accountPlaceholder')}
                 onChange={(e) => update(index, { account: e.target.value })}
-                className="!h-8 text-[12px]"
+                className="!h-8 text-[12px] mobile:order-4 mobile:col-span-3"
               />
               <TextInput
                 value={method.holder}
@@ -72,7 +72,7 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
                 aria-label={t('hosting.payment.holder')}
                 placeholder={t('hosting.payment.holder')}
                 onChange={(e) => update(index, { holder: e.target.value })}
-                className="!h-8 text-[12px]"
+                className="!h-8 text-[12px] mobile:order-4 mobile:col-span-3"
               />
               <ToggleSwitch checked={method.enabled} label={t('hosting.payment.methodShown')} onChange={() => update(index, { enabled: !method.enabled })} />
               <IconButton label={t('common.delete')} tone="danger" onClick={() => onChange(methods.filter((_, i) => i !== index))}>

@@ -11,7 +11,7 @@ import { ListRowIcon } from '@/components/ui/ListTable'
 import { alertLib } from '@/lib/alert'
 import { UserQuotaPanel } from '@/components/windows/users/UserQuotaPanel'
 import { toast } from 'sonner'
-import { setUserPlan } from '@/api/hosting'
+import { RenewPlanModal } from '@/components/windows/users/RenewPlanModal'
 import { formatDateID } from '@/lib/datetime'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
@@ -97,30 +97,8 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
     },
   })
 
-  // renewing the plan of an account for one more period of that plan
-  const renewMut = useMutation({
-    mutationFn: (planId: number) => setUserPlan(user.id, { planId }),
-    onSuccess: () => {
-      alertLib.fire(t('hosting.userPlan.savedTitle'), t('hosting.userPlan.savedMessage', { username: user.username }), 'success', 'users')
-      qc.invalidateQueries({ queryKey: ['users'] })
-      qc.invalidateQueries({ queryKey: ['users-summary'] })
-      qc.invalidateQueries({ queryKey: ['user-plan', user.id] })
-    },
-    onError: (e: unknown) => alertLib.fire(t('hosting.userPlan.failedTitle'), apiError(e, t('hosting.userPlan.failedMessage')), 'error', 'users'),
-  })
   const plan = user.hosting
-  const confirmRenew = async () => {
-    if (!plan?.planId) return
-    const ok = await alertLib.confirm(
-      t('hosting.users.renewQuestion'),
-      t('hosting.users.renewMessage', { username: user.username, plan: plan.planName }),
-      t('hosting.userPlan.renew'),
-      t('common.cancel'),
-      'question',
-      'users',
-    )
-    if (ok) renewMut.mutate(plan.planId)
-  }
+  const [renewing, setRenewing] = useState(false)
 
   const [editingRole, setEditingRole] = useState(false)
   const [selectedRole, setSelectedRole] = useState(user.role)
@@ -226,7 +204,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
 
         <div className="docker-action-btns">
           {plan?.planId && !plan.trialEndsAt ? (
-            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('hosting.users.renewOne')} aria-label={t('hosting.users.renewOne')} disabled={renewMut.isPending} onClick={() => void confirmRenew()}>
+            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('hosting.users.renewOne')} aria-label={t('hosting.users.renewOne')} onClick={() => setRenewing(true)}>
               <CalendarPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
           ) : null}
@@ -264,6 +242,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
           <UserQuotaPanel user={user} quota={quota} saving={updateQuotaMut.isPending} showPlan={viewerIsSuperadmin && hosting && user.role !== 'superadmin'} onSave={(patch) => updateQuotaMut.mutate(patch)} />
         </div>
       ) : null}
+      {plan?.planId ? <RenewPlanModal user={user} open={renewing} onClose={() => setRenewing(false)} /> : null}
     </>
   )
 }

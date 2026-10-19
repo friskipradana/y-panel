@@ -69,6 +69,11 @@ export function CloudflareTokenGuide({ focus = 'all' }: Props) {
                   </Badge>
                 </div>
                 <p className="text-[10.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">{t(`cfguide.why.${p.key}`)}</p>
+                {ok === false && p.key === 'ssl' && details?.customHostnamesError ? (
+                  <p className="mt-1 text-[10.5px] leading-snug text-[var(--text-secondary)]">
+                    {t('cfguide.cloudflareSaid')} <span className="panel-mono break-all">{details.customHostnamesError}</span>
+                  </p>
+                ) : null}
               </div>
             </div>
           )

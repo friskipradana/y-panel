@@ -43,7 +43,7 @@ export function HostingChecklist({ onGo, bare }: { onGo: (section: HostingSectio
 
   const content = (
     <>
-      <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="mb-1.5 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1">
         <div className="flex items-center gap-2">
           <ListChecks className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
           <h3 className="text-[13px] font-semibold text-[var(--win-text)]">{t('hosting.check.title')}</h3>

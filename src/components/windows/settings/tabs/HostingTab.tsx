@@ -73,7 +73,7 @@ export function HostingTab() {
       {/* ── Single Unified Hosting Mode & Readiness Card ── */}
       <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
         <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="mb-2 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1">
             <div className="flex items-center gap-2">
               <Store className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
               <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.hosting.title')}</h2>

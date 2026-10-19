@@ -8,6 +8,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -453,6 +455,30 @@ func (s *Server) handleAdminCustomDomains(w http.ResponseWriter, _ *http.Request
 	s.writeJSON(w, http.StatusOK, customDomainAdminView{Ready: zoneID != "", ZoneID: zoneID, Target: target, Items: items})
 }
 
+// ensureHostingTunnel returns the hosting tunnel, creating it (and keeping its credentials for cloudflared) when it does not exist yet
+func (s *Server) ensureHostingTunnel(client *cloudflareapi.Client, superID int64) (string, error) {
+	hostingSyncMu.Lock()
+	defer hostingSyncMu.Unlock()
+	if id, _ := s.database.GetHostingState(hostingTunnelStateKey); id != "" {
+		return id, nil
+	}
+	info, creds, err := client.CreateTunnel(hostingTunnelName)
+	if err != nil {
+		return "", err
+	}
+	credFile := s.cfDaemon.CredFilePathFor(superID, info.ID)
+	if err := os.MkdirAll(filepath.Dir(credFile), 0o700); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(credFile, creds, 0o600); err != nil {
+		return "", err
+	}
+	if err := s.database.SetHostingState(hostingTunnelStateKey, info.ID); err != nil {
+		return "", err
+	}
+	return info.ID, nil
+}
+
 // handleSetupCustomDomains picks the zone whose "cname" name buyers point at, and tells Cloudflare it is the fallback origin
 func (s *Server) handleSetupCustomDomains(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -471,14 +497,15 @@ func (s *Server) handleSetupCustomDomains(w http.ResponseWriter, r *http.Request
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "pick one of the domains you offer"})
 		return
 	}
-	tunnelID, _ := s.database.GetHostingState(hostingTunnelStateKey)
-	if tunnelID == "" {
-		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "the hosting tunnel does not exist yet; it is created with the first panel subdomain"})
-		return
-	}
-	client, _, err := s.hostingCloudflare()
+	client, superID, err := s.hostingCloudflare()
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	// the tunnel normally comes with the first panel address; the seller must not have to sell one first to set this up
+	tunnelID, err := s.ensureHostingTunnel(client, superID)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "could not create the hosting tunnel: " + err.Error()})
 		return
 	}
 	target := hostnameFor(customTargetLabel, domain.Name)
