@@ -75,13 +75,16 @@ func (s *Server) handleRestartWaha(w http.ResponseWriter, r *http.Request) {
 type whatsappView struct {
 	notify.WhatsAppState
 	Recipient recipientView `json:"recipient"`
+	// DestinationIsSession: the notices go to the number of the session itself, which makes no sound on the phone
+	DestinationIsSession bool `json:"destinationIsSession"`
 }
 
 // whatsappFor is the session of the account and where its notices go; the number is shown masked
 func (s *Server) whatsappFor(userID int64, state notify.WhatsAppState) whatsappView {
 	rec, _ := s.database.GetNotifyRecipient(userID, "waha")
+	same := rec != nil && rec.Address != "" && rec.Address == state.Phone
 	state.Phone = maskAddress(state.Phone)
-	return whatsappView{WhatsAppState: state, Recipient: recipientViewOf(rec)}
+	return whatsappView{WhatsAppState: state, Recipient: recipientViewOf(rec), DestinationIsSession: same}
 }
 
 // whatsappAllowed refuses the demo account: a session belongs to a real phone
@@ -222,5 +225,38 @@ func (s *Server) handleRestartWhatsApp(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
 	}
+	s.writeJSON(w, http.StatusOK, s.whatsappFor(u.ID, state))
+}
+
+// handleSetWhatsAppDestination chooses the number the notices of the account are sent to; empty goes back to the session's own
+func (s *Server) handleSetWhatsAppDestination(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	if !s.whatsappAllowed(w, r) {
+		return
+	}
+	var req struct {
+		Number string `json:"number"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
+		return
+	}
+	u := userFromCtx(r)
+	if allowed, _ := s.allowRateLimit("wa-dest:"+u.Username, rateLimitRule{Window: time.Minute, Limit: 10}); !allowed {
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many attempts, wait a moment"})
+		return
+	}
+	if err := s.notify.SetWhatsAppDestination(u.ID, req.Number); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	state, err := s.notify.WhatsAppStatus(ctx, u.ID)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
+		return
+	}
+	s.auditSensitiveAction(r, u, "notify.waha.destination", "ok", map[string]any{"toSession": strings.TrimSpace(req.Number) == ""})
 	s.writeJSON(w, http.StatusOK, s.whatsappFor(u.ID, state))
 }

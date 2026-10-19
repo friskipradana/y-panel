@@ -212,7 +212,7 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
                 </Field>
               </div>
 
-              <Field label={t('docker.domain.target')} hint={t('docker.domain.targetHint')}>
+              <Field label={t('docker.domain.target')} hint={t(kind === 'waha' ? 'notify.waha.routeTargetHint' : 'docker.domain.targetHint')}>
                 <Select value={targetKey} onChange={setTargetKey} options={targets.map((item) => ({ value: item.key, label: item.label }))} />
               </Field>
 

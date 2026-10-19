@@ -147,6 +147,8 @@ export interface MyWhatsApp {
   phone: string
   sessionName: string
   recipient: NotifyRecipient
+  /** The notices go to the number of the session itself, which makes no sound on the phone */
+  destinationIsSession?: boolean
 }
 
 export const getMyWhatsApp = () => agentApi.get<MyWhatsApp>('/api/v1/me/whatsapp').then((r) => r.data)
@@ -155,6 +157,9 @@ export const connectWhatsApp = () => agentApi.post<MyWhatsApp>('/api/v1/me/whats
 
 /** Starts the session over: a working one keeps its phone, any other gets a new code */
 export const restartWhatsApp = () => agentApi.post<MyWhatsApp>('/api/v1/me/whatsapp/restart').then((r) => r.data)
+
+/** The number the notices are sent to; empty goes back to the number of the session */
+export const setWhatsAppDestination = (number: string) => agentApi.put<MyWhatsApp>('/api/v1/me/whatsapp/destination', { number }).then((r) => r.data)
 
 export const getWhatsAppQR = () => agentApi.get<Blob>('/api/v1/me/whatsapp/qr', { responseType: 'blob' }).then((r) => r.data)
 

@@ -570,12 +570,39 @@ func (s *Service) recordSession(ctx context.Context, admin *Waha, row *database.
 	}
 	state := WhatsAppState{Available: true, Status: session.Status, SessionName: name, Phone: phone}
 	if session.Status == SessionWorking && phone != "" {
-		if err := s.db.ConnectNotifyRecipient(userID, wahaKind, phone); err != nil {
-			return state, err
+		// the notices go to the number of the session until the account picks another number, which stays picked
+		rec, _ := s.db.GetNotifyRecipient(userID, wahaKind)
+		if rec == nil || rec.Address == "" || rec.Address == row.Phone {
+			if err := s.db.ConnectNotifyRecipient(userID, wahaKind, phone); err != nil {
+				return state, err
+			}
 		}
 		state.Connected = true
 	}
 	return state, nil
+}
+
+// SetWhatsAppDestination chooses the number the notices of an account are sent to. The session is only what sends them:
+// a message to the number of the session itself lands in the chat with oneself, which makes no sound on the phone, so the
+// number is best another one, such as the one of the admin. An empty number goes back to the number of the session.
+func (s *Service) SetWhatsAppDestination(userID int64, input string) error {
+	if !s.ready() {
+		return errors.New("the database is not connected")
+	}
+	row, err := s.db.GetWhatsAppSession(userID)
+	if err != nil {
+		return err
+	}
+	if row == nil || row.Status != SessionWorking || row.Phone == "" {
+		return errors.New("connect WhatsApp first: the notices are sent from that session")
+	}
+	phone := row.Phone
+	if strings.TrimSpace(input) != "" {
+		if phone, err = NormalizePhone(input); err != nil {
+			return err
+		}
+	}
+	return s.db.ConnectNotifyRecipient(userID, wahaKind, phone)
 }
 
 // WhatsAppStatus asks WAHA where the account's session is; the page asks every few seconds while it waits for the scan

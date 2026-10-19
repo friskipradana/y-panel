@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageCircle, PlugZap, RotateCw, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
-import { connectWhatsApp, disconnectWhatsApp, getMyWhatsApp, getWhatsAppQR, restartWhatsApp, setWhatsAppMuted, testWhatsApp, type MyWhatsApp } from '@/api/notify'
+import { connectWhatsApp, disconnectWhatsApp, getMyWhatsApp, getWhatsAppQR, restartWhatsApp, setWhatsAppDestination, setWhatsAppMuted, testWhatsApp, type MyWhatsApp } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TextInput } from '@/components/ui/Field'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
@@ -46,6 +47,18 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
     mutationFn: connectWhatsApp,
     onSuccess: set,
     onError: (error) => toast.error(apiError(error, t('notify.wa.connectFailed'))),
+  })
+  const [editing, setEditing] = useState(false)
+  const [number, setNumber] = useState('')
+  const destination = useMutation({
+    mutationFn: (value: string) => setWhatsAppDestination(value),
+    onSuccess: (next) => {
+      set(next)
+      setEditing(false)
+      setNumber('')
+      toast.success(t('notify.wa.destinationSaved'))
+    },
+    onError: (error) => toast.error(apiError(error, t('notify.wa.destinationFailed'))),
   })
   const restart = useMutation({
     mutationFn: restartWhatsApp,
@@ -129,6 +142,50 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
                 {t('notify.wa.disconnect')}
               </Button>
             </div>
+          </div>
+          <div className="flex flex-col gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="block text-[11px] text-[var(--text-secondary)]">{t('notify.wa.destination')}</span>
+                <span className="flex items-center gap-2">
+                  <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">{data.recipient.address}</span>
+                  {data.destinationIsSession ? <Badge tone="warning" size="sm">{t('notify.wa.ownNumber')}</Badge> : null}
+                </span>
+              </div>
+              {!editing ? (
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    {t('notify.wa.changeDestination')}
+                  </Button>
+                  {!data.destinationIsSession ? (
+                    <Button variant="ghost" size="sm" loading={destination.isPending} onClick={() => destination.mutate('')}>
+                      {t('notify.wa.useSessionNumber')}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            {data.destinationIsSession && !editing ? <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">{t('notify.wa.ownNumberHint')}</p> : null}
+            {editing ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-[200px] flex-1">
+                  <TextInput mono type="tel" inputMode="tel" autoComplete="off" placeholder="0812 3456 7890" value={number} onChange={(e) => setNumber(e.target.value)} className="!h-8 text-[12px]" />
+                </div>
+                <Button variant="primary" size="sm" disabled={number.trim() === ''} loading={destination.isPending} onClick={() => destination.mutate(number)}>
+                  {t('common.save')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(false)
+                    setNumber('')
+                  }}
+                >
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-col gap-0.5">
             <p className="text-[11.5px] font-medium text-[var(--text-secondary)]">{t('notify.me.which')}</p>

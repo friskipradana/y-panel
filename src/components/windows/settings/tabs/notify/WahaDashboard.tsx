@@ -4,7 +4,6 @@ import { ExternalLink, Globe2, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { getWahaDashboardHost, openWahaDashboard, setWahaDashboardHost } from '@/api/notify'
 import { Button } from '@/components/ui/Button'
-import { TextInput } from '@/components/ui/Field'
 import { RouteDomainModal, type RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 import { useI18n } from '@/lib/i18n'
 
@@ -19,7 +18,6 @@ export function WahaDashboard({ running }: { running: boolean }) {
   const qc = useQueryClient()
   const saved = useQuery({ queryKey: ['notify', 'waha-dashboard'], queryFn: getWahaDashboardHost, retry: 0 })
   const [routing, setRouting] = useState(false)
-  const [manual, setManual] = useState('')
 
   const current = saved.data?.host ?? ''
   const port = saved.data?.panelPort ?? 0
@@ -28,7 +26,6 @@ export function WahaDashboard({ running }: { running: boolean }) {
     mutationFn: (host: string) => setWahaDashboardHost(host),
     onSuccess: (data) => {
       qc.setQueryData(['notify', 'waha-dashboard'], data)
-      setManual('')
       toast.success(data.host ? t('notify.waha.hostSaved') : t('notify.waha.hostCleared'))
     },
     onError: (error) => toast.error(apiError(error, t('notify.waha.hostFailed'))),
@@ -70,24 +67,12 @@ export function WahaDashboard({ running }: { running: boolean }) {
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--win-content-bg)] px-3 py-2">
-          <span className="text-[12px] text-[var(--text-secondary)]">{t('notify.waha.hostHint')}</span>
+          <span className="text-[12px] text-[var(--text-secondary)]">{t('notify.waha.noDomain')}</span>
           <Button variant="primary" size="sm" icon={<Globe2 className="h-3.5 w-3.5" />} disabled={port === 0} onClick={() => setRouting(true)}>
             {t('notify.waha.connectDomain')}
           </Button>
         </div>
       )}
-
-      <details className="text-[12px]">
-        <summary className="cursor-pointer text-[11.5px] text-[var(--text-secondary)] hover:text-[var(--win-text)] select-none transition-colors">{t('notify.waha.ownDomain')}</summary>
-        <div className="mt-2 flex items-center gap-2 max-w-sm">
-          <div className="flex-1">
-            <TextInput id="waha-dashboard-host" mono autoComplete="off" placeholder="waha.example.com" value={manual} onChange={(e) => setManual(e.target.value)} />
-          </div>
-          <Button variant="outline" size="sm" disabled={manual.trim() === ''} loading={save.isPending} onClick={() => save.mutate(manual.trim())}>
-            {t('common.save')}
-          </Button>
-        </div>
-      </details>
 
       <RouteDomainModal subject={subject} onClose={() => setRouting(false)} onConnected={(hostname) => save.mutate(hostname)} />
     </div>

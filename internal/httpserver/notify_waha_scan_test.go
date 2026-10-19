@@ -1,6 +1,8 @@
 package httpserver
 
 import (
+	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 )
 
 // A session that waits for a scan has limits, and the account can always start it over.
@@ -32,6 +35,8 @@ func (c *fakeClock) Advance(d time.Duration) {
 
 func scanFixture(t *testing.T) (*notifyFixture, *wahaStub, *database.User, *fakeClock) {
 	t.Helper()
+	// the gaps are read when the worker starts, so they are set before the fixture makes it
+	t.Cleanup(notify.SetWhatsAppGaps(time.Millisecond, time.Millisecond))
 	f := newNotifyFixture(t)
 	stub := withWaha(t, f)
 	clock := &fakeClock{now: time.Now()}
@@ -175,5 +180,82 @@ func TestIntegrationARunningSessionRestartsWithoutLosingItsPhone(t *testing.T) {
 	// a scan that finished ends the wait: a working session is never expired
 	if body := f.waState(user); strings.Contains(body, "EXPIRED") {
 		t.Fatalf("a working session does not expire: %s", body)
+	}
+}
+
+func TestIntegrationNoticesGoToTheNumberTheAccountChoosesNotTheSessionItself(t *testing.T) {
+	f, stub, user, _ := scanFixture(t)
+	f.connectPhone(t, stub, user, "628111111111")
+	if body := f.waState(user); !strings.Contains(body, `"destinationIsSession":true`) {
+		t.Fatalf("by default the notices go to the session's own number: %s", body)
+	}
+
+	// another number is chosen: the session only sends
+	setDest := func(number string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"number": number})
+		return f.call(f.s.handleSetWhatsAppDestination, "PUT", "/", string(body), user)
+	}
+	if rec := setDest("0812 9999 0000"); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"destinationIsSession":false`) {
+		t.Fatalf("choose a destination: %d %s", rec.Code, rec.Body.String())
+	}
+	rec, _ := f.db.GetNotifyRecipient(user.ID, "waha")
+	if rec.Address != "6281299990000" {
+		t.Fatalf("the destination is kept normalised: %s", rec.Address)
+	}
+	// the page asking again, and the session being read again, do not put the session's number back
+	for i := 0; i < 3; i++ {
+		f.waState(user)
+	}
+	if rec, _ = f.db.GetNotifyRecipient(user.ID, "waha"); rec.Address != "6281299990000" {
+		t.Fatalf("a chosen number stays chosen: %s", rec.Address)
+	}
+
+	// what is sent goes from the session to the chosen number, and nothing goes to the session's own chat
+	if r := f.call(f.s.handleTestWhatsApp, "POST", "/", "", user); r.Code != 202 {
+		t.Fatalf("test: %d %s", r.Code, r.Body.String())
+	}
+	f.s.emitPasswordChanged(user, "")
+	eventually(t, "both messages at the chosen number", func() bool { return len(stub.textsTo("6281299990000@c.us")) >= 2 })
+	if len(stub.textsTo("628111111111@c.us")) != 0 {
+		t.Fatal("nothing is sent to the number of the session itself")
+	}
+	stub.mu.Lock()
+	for _, m := range stub.sent {
+		if m.session != "user-andi" {
+			t.Fatalf("it is sent from the session of the account: %s", m.session)
+		}
+	}
+	stub.mu.Unlock()
+
+	// another phone is scanned later: the chosen number still stands
+	stub.scanned("user-andi", "628333333333")
+	f.waState(user)
+	if rec, _ = f.db.GetNotifyRecipient(user.ID, "waha"); rec.Address != "6281299990000" {
+		t.Fatalf("a new phone does not take the chosen number's place: %s", rec.Address)
+	}
+
+	// back to the session's number: it then follows the session, also when another phone is connected
+	if r := setDest(""); r.Code != 200 || !strings.Contains(r.Body.String(), `"destinationIsSession":true`) {
+		t.Fatalf("back to the session: %d %s", r.Code, r.Body.String())
+	}
+	if rec, _ = f.db.GetNotifyRecipient(user.ID, "waha"); rec.Address != "628333333333" {
+		t.Fatalf("the session's number: %s", rec.Address)
+	}
+	stub.scanned("user-andi", "628444444444")
+	f.waState(user)
+	if rec, _ = f.db.GetNotifyRecipient(user.ID, "waha"); rec.Address != "628444444444" {
+		t.Fatalf("by default it follows the session: %s", rec.Address)
+	}
+
+	// a number that cannot be one is refused, and an account with no session cannot choose
+	for _, bad := range []string{"abc", "123", "0712345678"} {
+		if r := setDest(bad); r.Code != 400 {
+			t.Fatalf("%q: %d", bad, r.Code)
+		}
+	}
+	other, _ := f.db.CreateUser("budi", "budi@example.com", "hash", auth.UserRole, "Budi")
+	body, _ := json.Marshal(map[string]string{"number": "0812 5555 6666"})
+	if r := f.call(f.s.handleSetWhatsAppDestination, "PUT", "/", string(body), other); r.Code != 400 || !strings.Contains(r.Body.String(), "connect WhatsApp first") {
+		t.Fatalf("no session, no destination: %d %s", r.Code, r.Body.String())
 	}
 }
