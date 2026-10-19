@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.35.0] - 2026-10-19
+
+WhatsApp notices go to a destination number each account chooses, and the WAHA dashboard domain dialog explains it goes through the panel.
+
+### Fitur baru
+- **notify:** WhatsApp notices go to a destination number each account chooses, and the WAHA dashboard domain dialog explains it goes through the panel ([`49be7a5`](https://github.com/friskipradana/y-panel/commit/49be7a5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.34.1...v1.35.0
+
 ## [1.34.1] - 2026-10-19
 
 Changing a listener device that is not registered says so, and the Payments page is split into tabs and steps.
