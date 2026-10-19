@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -104,13 +105,25 @@ func requestIsHTTPS(r *http.Request) bool {
 
 type wahaDashboardView struct {
 	Host string `json:"host"`
+	// PanelPort is the port the panel listens on: what a tunnel route for the dashboard address leads to
+	PanelPort int `json:"panelPort"`
+}
+
+// panelPort is the port of the bind address of the panel, 0 when it cannot be read
+func (s *Server) panelPort() int {
+	_, port, err := net.SplitHostPort(s.cfg.BindAddr)
+	if err != nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(port)
+	return n
 }
 
 func (s *Server) handleGetWahaDashboardHost(w http.ResponseWriter, r *http.Request) {
 	if !s.notifyReady(w) {
 		return
 	}
-	s.writeJSON(w, http.StatusOK, wahaDashboardView{Host: s.notify.WahaDashboardHost()})
+	s.writeJSON(w, http.StatusOK, wahaDashboardView{Host: s.notify.WahaDashboardHost(), PanelPort: s.panelPort()})
 }
 
 // handleSetWahaDashboardHost saves the address the dashboard answers on; empty switches it off
@@ -140,7 +153,7 @@ func (s *Server) handleSetWahaDashboardHost(w http.ResponseWriter, r *http.Reque
 	if u := userFromCtx(r); u != nil {
 		s.auditSensitiveAction(r, u, "notify.waha.dashboard_host", "ok", map[string]any{"host": host})
 	}
-	s.writeJSON(w, http.StatusOK, wahaDashboardView{Host: host})
+	s.writeJSON(w, http.StatusOK, wahaDashboardView{Host: host, PanelPort: s.panelPort()})
 }
 
 // handleWahaDashboardLink gives the superadmin a link that works once and for a minute and a half

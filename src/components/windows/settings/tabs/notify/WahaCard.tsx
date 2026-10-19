@@ -65,7 +65,7 @@ export function WahaCard({ bare }: { bare?: boolean } = {}) {
   }
 
   return (
-    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
+    <div className={bare ? 'flex flex-col gap-3' : 'panel-shell-card flex flex-col gap-3.5 settings-card'}>
       <SectionHeader
         icon={<MessageCircle />}
         title={t('notify.waha.title')}
@@ -101,51 +101,80 @@ export function WahaCard({ bare }: { bare?: boolean } = {}) {
           ) : null}
 
           {data.state === 'running' ? (
-            <dl className="grid grid-cols-3 gap-2 text-[12px]">
-              {[
-                [t('notify.waha.engine'), data.engine || '-'],
-                [t('notify.waha.version'), data.version || '-'],
-                [t('notify.waha.sessions'), String(data.sessions)],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
-                  <dt className="text-[11.5px] text-[var(--text-secondary)]">{label}</dt>
-                  <dd className="panel-mono font-semibold">{value}</dd>
+            <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.waha.engine')}:</span>
+                  <span className="panel-mono font-semibold text-[var(--win-text)]">{data.engine || '-'}</span>
                 </div>
-              ))}
-            </dl>
-          ) : null}
-
-          <p className="text-[12px] text-[var(--text-secondary)]">{t('notify.waha.risk')}</p>
-
-          {on ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
-              <Button variant="outline" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} disabled={data.state !== 'running' && data.state !== 'error'} onClick={() => restart.mutate()}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.waha.version')}:</span>
+                  <span className="panel-mono font-semibold text-[var(--win-text)]">{data.version || '-'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.waha.sessions')}:</span>
+                  <span className="panel-mono font-semibold text-[var(--win-text)]">{data.sessions}</span>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RotateCw className="h-3.5 w-3.5" />}
+                loading={restart.isPending}
+                disabled={restart.isPending}
+                onClick={() => restart.mutate()}
+              >
+                {t('notify.waha.restart')}
+              </Button>
+            </div>
+          ) : on && data.state === 'error' ? (
+            <div className="flex items-center justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RotateCw className="h-3.5 w-3.5" />}
+                loading={restart.isPending}
+                onClick={() => restart.mutate()}
+              >
                 {t('notify.waha.restart')}
               </Button>
             </div>
           ) : null}
 
+          <p className="text-[11.5px] leading-relaxed text-[var(--text-secondary)]">{t('notify.waha.risk')}</p>
+
           {data.dashboardUrl ? (
-            <details className="text-[12px] text-[var(--text-secondary)]">
-              <summary className="cursor-pointer font-medium text-[var(--win-text)]">{t('notify.waha.dashboard')}</summary>
-              <div className="mt-2 flex flex-col gap-3">
+            <details className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-2.5 text-[12px]">
+              <summary className="cursor-pointer font-medium text-[var(--win-text)] hover:text-[var(--panel-primary-text)] select-none transition-colors">
+                {t('notify.waha.dashboard')}
+              </summary>
+              <div className="mt-2.5 flex flex-col gap-3 border-t border-[var(--win-border)] pt-2.5">
                 <WahaDashboard running={data.state === 'running'} />
-                <p className="border-t border-[var(--win-border)] pt-3">{t('notify.waha.dashboardHint')}</p>
-                {[
-                  [t('notify.waha.dashboardUrl'), data.dashboardUrl],
-                  [t('notify.waha.dashboardUser'), data.dashboardUser],
-                  [t('notify.waha.dashboardPassword'), data.dashboardPassword],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] py-1 pl-3 pr-1">
-                    <span className="min-w-0">
-                      <span className="block text-[11.5px]">{label}</span>
-                      <span className="panel-mono block truncate font-semibold text-[var(--win-text)]">{value || '-'}</span>
-                    </span>
-                    <IconButton label={t('common.copy')} disabled={!value} onClick={() => void copyTextToClipboard(value).then(() => toast.success(t('common.copied')))}>
-                      <Copy className="h-4 w-4" />
-                    </IconButton>
+
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.waha.dashboardHint')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      [t('notify.waha.dashboardUrl'), data.dashboardUrl],
+                      [t('notify.waha.dashboardUser'), data.dashboardUser],
+                      [t('notify.waha.dashboardPassword'), data.dashboardPassword],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--win-content-bg)] px-3 py-2 text-[12px]">
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-[11px] text-[var(--text-secondary)]">{label}</span>
+                          <span className="panel-mono block truncate font-medium text-[var(--win-text)]" title={value}>{value || '-'}</span>
+                        </div>
+                        <IconButton
+                          label={t('common.copy')}
+                          disabled={!value}
+                          onClick={() => void copyTextToClipboard(value).then(() => toast.success(t('common.copied')))}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </IconButton>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             </details>
           ) : null}

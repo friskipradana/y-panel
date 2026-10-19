@@ -196,3 +196,13 @@ func TestIntegrationTheWahaDashboardIsForTheSuperadminThroughAOneTimeLink(t *tes
 		t.Fatal("the address is cleared")
 	}
 }
+
+func TestThePanelPortIsWhatARouteToTheDashboardLeadsTo(t *testing.T) {
+	for bind, want := range map[string]int{"0.0.0.0:8787": 8787, "127.0.0.1:9000": 9000, "[::]:8800": 8800, ":8787": 8787, "nonsense": 0, "": 0} {
+		s := &Server{}
+		s.cfg.BindAddr = bind
+		if got := s.panelPort(); got != want {
+			t.Errorf("%q: got %d want %d", bind, got, want)
+		}
+	}
+}
