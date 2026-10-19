@@ -124,6 +124,9 @@ export interface WahaStatus {
   dashboardUrl: string
   dashboardUser: string
   dashboardPassword: string
+  /** What docker says when WAHA does not answer: the state of the container and the end of its log */
+  containerState?: string
+  logTail?: string
 }
 
 export const getWahaStatus = () => agentApi.get<WahaStatus>('/api/v1/notify/waha').then((r) => r.data)

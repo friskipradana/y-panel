@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -74,6 +75,22 @@ func lastLines(text string, n int) string {
 	return strings.Join(lines, " | ")
 }
 
+var ansiPattern = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// tailText is the last n non-empty lines of a log, one to a line, without the colour codes docker passes through
+func tailText(text string, n int) string {
+	var lines []string
+	for _, line := range strings.Split(ansiPattern.ReplaceAllString(text, ""), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
+}
+
 // wahaImage is the image to run: the one of the engine alone where it exists (x86), else the ARM one
 func wahaImage() string {
 	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
@@ -103,6 +120,9 @@ type WahaView struct {
 	DashboardURL      string `json:"dashboardUrl"`
 	DashboardUser     string `json:"dashboardUser"`
 	DashboardPassword string `json:"dashboardPassword"`
+	// What docker says about the container when WAHA does not answer: its state, how it ended, and the last log lines
+	ContainerState string `json:"containerState,omitempty"`
+	LogTail        string `json:"logTail,omitempty"`
 }
 
 type wahaRuntime struct {
@@ -180,11 +200,69 @@ func (s *Service) WahaStatus(ctx context.Context) (WahaView, error) {
 			if n, err := client.Sessions(ctx); err == nil {
 				view.Sessions = n
 			}
-		} else if view.LastError == "" {
-			view.LastError = err.Error()
+		} else {
+			// WAHA does not answer: ask docker why, so a container that is only booting is not shown as a failure
+			d := s.diagnoseWaha(ctx)
+			view.ContainerState, view.LogTail = d.describe(), d.logs
+			switch {
+			case d.booting(time.Now()):
+				view.State, view.LastError = "starting", ""
+			case d.known && view.LastError == "":
+				view.LastError = fmt.Sprintf("%s (%v)", d.describe(), err)
+			case view.LastError == "":
+				view.LastError = err.Error()
+			}
 		}
 	}
 	return view, nil
+}
+
+// wahaDiagnosis is what docker says about the container of WAHA
+type wahaDiagnosis struct {
+	known    bool
+	status   string // running, restarting, exited, created, ...
+	exitCode int
+	started  time.Time
+	logs     string
+}
+
+func (d wahaDiagnosis) describe() string {
+	switch {
+	case !d.known:
+		return ""
+	case d.status == "exited" || d.status == "dead":
+		return fmt.Sprintf("the container stopped (exit code %d)", d.exitCode)
+	case d.status == "restarting":
+		return fmt.Sprintf("the container keeps restarting (last exit code %d)", d.exitCode)
+	}
+	return "the container is " + d.status
+}
+
+// booting: the container runs and was started a moment ago, so WAHA is still coming up (it takes up to a minute)
+func (d wahaDiagnosis) booting(now time.Time) bool {
+	return d.known && d.status == "running" && !d.started.IsZero() && now.Sub(d.started) < 90*time.Second
+}
+
+// diagnoseWaha asks docker about the container and reads the end of its log. Without docker, or without the
+// container, nothing is known and the answer says so.
+func (s *Service) diagnoseWaha(ctx context.Context) wahaDiagnosis {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	out, err := DockerRun(ctx, nil, "inspect", "-f", "{{.State.Status}}|{{.State.ExitCode}}|{{.State.StartedAt}}", wahaContainer)
+	if err != nil {
+		return wahaDiagnosis{}
+	}
+	parts := strings.Split(strings.TrimSpace(out), "|")
+	if len(parts) != 3 {
+		return wahaDiagnosis{}
+	}
+	d := wahaDiagnosis{known: true, status: parts[0]}
+	fmt.Sscanf(parts[1], "%d", &d.exitCode)
+	d.started, _ = time.Parse(time.RFC3339Nano, parts[2])
+	if logs, err := DockerRun(ctx, nil, "logs", "--tail", "12", wahaContainer); err == nil || logs != "" {
+		d.logs = tailText(logs, 12)
+	}
+	return d
 }
 
 func (r *wahaRuntime) isStarting() bool {

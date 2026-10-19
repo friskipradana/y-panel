@@ -3328,6 +3328,8 @@ export const en: Record<string, string> = {
   'notify.waha.enable': 'Run WAHA',
   'notify.waha.enableHint': 'Creates a WAHA container with the GOWS engine on this server. The first time, an image of about 3 GB is downloaded (it needs disk space and can take a while).',
   'notify.waha.starting': 'Getting WAHA ready: downloading the image (about 3 GB, it can take a quarter of an hour on a slow line) and waiting for WAHA to answer...',
+  'notify.waha.booting': 'WAHA is coming up, usually within half a minute. This page checks again by itself.',
+  'notify.waha.logs': 'Last lines of the WAHA log',
   'notify.waha.engine': 'Engine',
   'notify.waha.version': 'Version',
   'notify.waha.sessions': 'Sessions',

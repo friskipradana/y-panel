@@ -89,7 +89,15 @@ export function WahaCard({ bare }: { bare?: boolean } = {}) {
             description={t('notify.waha.enableHint')}
             control={<ToggleSwitch checked={on} disabled={toggle.isPending || data.state === 'starting'} label={t('notify.waha.enable')} onChange={() => void flip()} />}
           />
-          {data.state === 'starting' ? <p className="text-[12px] text-[var(--text-secondary)]">{t('notify.waha.starting')}</p> : null}
+          {data.state === 'starting' ? (
+            <p className="text-[12px] text-[var(--text-secondary)]">{data.containerState ? t('notify.waha.booting') : t('notify.waha.starting')}</p>
+          ) : null}
+          {data.state === 'error' && data.logTail ? (
+            <details className="text-[12px] text-[var(--text-secondary)]">
+              <summary className="cursor-pointer font-medium text-[var(--win-text)]">{t('notify.waha.logs')}</summary>
+              <pre className="panel-mono mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-2.5 text-[11px] leading-relaxed">{data.logTail}</pre>
+            </details>
+          ) : null}
 
           {data.state === 'running' ? (
             <dl className="grid grid-cols-3 gap-2 text-[12px]">
@@ -110,7 +118,7 @@ export function WahaCard({ bare }: { bare?: boolean } = {}) {
 
           {on ? (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
-              <Button variant="outline" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} disabled={data.state !== 'running'} onClick={() => restart.mutate()}>
+              <Button variant="outline" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} disabled={data.state !== 'running' && data.state !== 'error'} onClick={() => restart.mutate()}>
                 {t('notify.waha.restart')}
               </Button>
             </div>

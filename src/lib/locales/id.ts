@@ -3328,6 +3328,8 @@ export const id: Record<string, string> = {
   'notify.waha.enable': 'Jalankan WAHA',
   'notify.waha.enableHint': 'Membuat container WAHA dengan engine GOWS di server ini. Pertama kali, image sekitar 3 GB diunduh (butuh ruang disk dan bisa memakan waktu).',
   'notify.waha.starting': 'Menyiapkan WAHA: mengunduh image (sekitar 3 GB, bisa belasan menit di koneksi lambat) dan menunggu WAHA menjawab...',
+  'notify.waha.booting': 'WAHA sedang menyala, biasanya selesai dalam setengah menit. Halaman ini memeriksa ulang sendiri.',
+  'notify.waha.logs': 'Log WAHA terakhir',
   'notify.waha.engine': 'Engine',
   'notify.waha.version': 'Versi',
   'notify.waha.sessions': 'Sesi',
