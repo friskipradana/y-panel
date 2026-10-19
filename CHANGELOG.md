@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.34.1] - 2026-10-19
+
+Changing a listener device that is not registered says so, and the Payments page is split into tabs and steps.
+
+### Perbaikan
+- **payment:** Changing a listener device that is not registered says so, and the Payments page is split into tabs and steps ([`de9f496`](https://github.com/friskipradana/y-panel/commit/de9f496))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.34.0...v1.34.1
+
 ## [1.34.0] - 2026-10-19
 
 2 perubahan, utamanya a session waiting for a scan ends after 5 minutes or 3 new codes, and any session can be restarted.
