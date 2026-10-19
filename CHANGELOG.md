@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.43.0] - 2026-10-19
+
+The SSL check tells a missing quota from a missing permission, and a guide for enabling Cloudflare for SaaS.
+
+### Fitur baru
+- **hosting:** The SSL check tells a missing quota from a missing permission, and a guide for enabling Cloudflare for SaaS ([`773e4db`](https://github.com/friskipradana/y-panel/commit/773e4db))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.42.0...v1.43.0
+
 ## [1.42.0] - 2026-10-19
 
 Renewing a plan asks how long and shows the new end date, the Cloudflare SSL check says why it fails, and settings read well on a phone.
