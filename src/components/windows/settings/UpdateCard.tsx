@@ -10,16 +10,6 @@ import { alertLib } from "@/lib/alert";
 import { toast } from "sonner";
 import { useUpdateProgress } from "@/store/updateStore";
 
-const DONE_SEEN_KEY = "reneo-update-done-seen";
-
-function doneSeen(version: string): boolean {
-  try {
-    return window.localStorage.getItem(DONE_SEEN_KEY) === version;
-  } catch {
-    return false;
-  }
-}
-
 interface UpdateCardProps {
   systemSettings?: {
     osName: string;
@@ -37,7 +27,6 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const showUpdateProgress = useUpdateProgress((s) => s.show);
-  const [seenVersion, setSeenVersion] = useState<string | null>(null);
 
   const updateQuery = useQuery({
     queryKey: ["system-update"],
@@ -221,26 +210,6 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
         </div>
       )}
 
-      {statusQuery.data?.state === "done" && statusQuery.data.to && seenVersion !== statusQuery.data.to && !doneSeen(statusQuery.data.to) ? (
-        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] text-[var(--panel-success-text)] text-[11.5px] font-medium">
-          <span>{t("settings.update.statusDone", { version: statusQuery.data.to })}</span>
-          <button
-            type="button"
-            className="shrink-0 text-[11px] font-semibold hover:underline cursor-pointer"
-            onClick={() => {
-              const version = statusQuery.data?.to ?? "";
-              try {
-                window.localStorage.setItem(DONE_SEEN_KEY, version);
-              } catch {
-                // told again next time; harmless
-              }
-              setSeenVersion(version);
-            }}
-          >
-            {t("common.close")}
-          </button>
-        </div>
-      ) : null}
 
       {statusQuery.data?.state === "failed" ? (
         <div className="p-2.5 rounded-md border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[11.5px] space-y-1">
@@ -254,16 +223,19 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
       ) : null}
 
       {statusQuery.data?.state === "running" && (
-        <div className="space-y-1 rounded-md border border-[var(--panel-warning-text)]/30 bg-[var(--panel-warning-bg)] p-2.5 text-[11.5px] text-[var(--panel-warning-text)]">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--panel-warning-text)]/30 bg-[var(--panel-warning-bg)] p-2.5 text-[11.5px] text-[var(--panel-warning-text)]">
           <div className="flex items-center gap-2 font-medium">
-            <LoaderCircle size={12} className="animate-spin" />
+            <LoaderCircle size={14} className="animate-spin shrink-0" />
             <span>{t("settings.update.statusRunning")}</span>
           </div>
-          {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-            <pre className="panel-mono max-h-20 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--panel-code-bg)] p-1.5 text-[10.5px] text-[var(--panel-code-text)]">
-              {statusQuery.data.log.join("\n")}
-            </pre>
-          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={showUpdateProgress}
+            className="!h-6 !px-2.5 text-[10.5px] shrink-0"
+          >
+            {t("settings.update.viewProgress")}
+          </Button>
         </div>
       )}
     </div>
