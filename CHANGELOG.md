@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.38.0] - 2026-10-19
+
+The seller lists the banks and e-wallets buyers pay to, and the order page shows the unique code, every way to pay and the stage of the order.
+
+### Fitur baru
+- **hosting:** The seller lists the banks and e-wallets buyers pay to, and the order page shows the unique code, every way to pay and the stage of the order ([`9b320c9`](https://github.com/friskipradana/y-panel/commit/9b320c9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.37.0...v1.38.0
+
 ## [1.37.0] - 2026-10-19
 
 Listener phones come in any number, each with an API key the panel makes, and the app's own test and address are accepted.
