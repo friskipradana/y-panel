@@ -203,6 +203,37 @@ func (s *Server) handleVouchersTable(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, tableResponse(vouchers, voucherSpec(), r.URL.Query()))
 }
 
+// ─── Domains of the buyers' own ──────────────────────────────────────────────
+
+func customDomainSpec() listquery.Spec[database.HostingCustomDomain] {
+	return listquery.Spec[database.HostingCustomDomain]{
+		Columns: []listquery.Column[database.HostingCustomDomain]{
+			{Key: "hostname", Value: func(d database.HostingCustomDomain) string { return d.Hostname }},
+			{Key: "owner", Value: func(d database.HostingCustomDomain) string { return d.Username }},
+			{Key: "status", Value: func(d database.HostingCustomDomain) string { return d.Status }},
+			{Key: "ssl", Value: func(d database.HostingCustomDomain) string { return d.SSLStatus }},
+			{Key: "created", Value: func(d database.HostingCustomDomain) string { return d.CreatedAt.Format("2006-01-02") },
+				Compare: func(a, b database.HostingCustomDomain) int { return compareTime(a.CreatedAt, b.CreatedAt) }},
+		},
+		Search: func(d database.HostingCustomDomain) string {
+			return lower(d.Hostname + " " + d.Username + " " + d.Status + " " + d.SSLStatus + " " + d.Note)
+		},
+		Tiebreak: func(a, b database.HostingCustomDomain) int { return compareText(a.Hostname, b.Hostname) },
+	}
+}
+
+func (s *Server) handleCustomDomainsTable(w http.ResponseWriter, r *http.Request) {
+	if !s.requireDatabase(w) {
+		return
+	}
+	items, err := s.database.ListHostingCustomDomains(0)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, tableResponse(items, customDomainSpec(), r.URL.Query()))
+}
+
 // ─── Offered domains ─────────────────────────────────────────────────────────
 
 func domainSpec() listquery.Spec[hostingDomainView] {

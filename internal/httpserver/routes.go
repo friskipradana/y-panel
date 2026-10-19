@@ -140,6 +140,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityDatabaseTruncate, http.HandlerFunc(s.handleDatabaseTruncate))))
 
 	// Databases users create themselves (containers bound to 127.0.0.1)
+	s.mux.Handle("GET /api/v1/hosting/custom-domains/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCustomDomainsTable)))
 	s.mux.Handle("GET /api/v1/hosting/plans/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePlansTable)))
 	s.mux.Handle("GET /api/v1/hosting/orders/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleOrdersTable)))
 	s.mux.Handle("GET /api/v1/hosting/subdomains/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSubdomainsTable)))

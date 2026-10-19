@@ -297,3 +297,100 @@ func TestIntegrationOrdersSurviveTheirAccounts(t *testing.T) {
 		t.Fatalf("a waiting order of a deleted buyer is cancelled and kept: %+v", after)
 	}
 }
+
+// The link a buyer gets goes to the public address of the seller, not to the address the form was opened from.
+func TestIntegrationOrderLinksUseTheMainDomain(t *testing.T) {
+	f := newHostingFixture(t)
+	request := func(host string) *http.Request {
+		req := httptest.NewRequest(http.MethodPost, "http://"+host+"/api/v1/public/hosting/orders", nil)
+		req.Host = host
+		return req
+	}
+	// without a domain offered, the address of the request is all there is
+	if got := f.s.orderBaseURL(request("100.70.209.107:8787")); got != "http://100.70.209.107:8787" {
+		t.Fatalf("no main domain: %s", got)
+	}
+	if err := f.db.SetHostingDomain("z1", "reneo.my.id", true); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.db.SetMainHostingDomain("z1")
+	forgetHostingHosts()
+	if got := f.s.orderBaseURL(request("100.70.209.107:8787")); got != "https://reneo.my.id" {
+		t.Fatalf("opened from an IP, the link still uses the domain: %s", got)
+	}
+	// opened from the domain itself or a name under it, the address stays what it was
+	req := request("reneo.my.id")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	if got := f.s.orderBaseURL(req); got != "https://reneo.my.id" {
+		t.Fatalf("from the domain: %s", got)
+	}
+	req = request("renal.reneo.my.id")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	if got := f.s.orderBaseURL(req); got != "https://renal.reneo.my.id" {
+		t.Fatalf("from a name under the domain: %s", got)
+	}
+}
+
+// The address of a buyer's panel opens that panel and nothing of the seller's public site. Skipped without REN_TEST_DATABASE_URL.
+func TestIntegrationBuyerPanelAddressesServeNoPublicSite(t *testing.T) {
+	f := newHostingFixture(t)
+	buyer, err := f.db.CreateUser("dewi", "dewi@example.com", "hash", "user", "Dewi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.CreateHostingSubdomain(buyer.ID, "dewi", "z1", "reneo.my.id", "dewi.reneo.my.id", true); err != nil {
+		t.Fatal(err)
+	}
+	forgetHostingHosts()
+
+	reached := false
+	page := f.s.requireHTMLAuthV2(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { reached = true }))
+	call := func(host, path string) *httptest.ResponseRecorder {
+		reached = false
+		req := httptest.NewRequest(http.MethodGet, "http://"+host+path, nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		page.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// the seller's own address keeps its landing page and the pages around it
+	for _, path := range []string{"/", "/articles", "/install", "/order", "/docs/mcp", "/sitemap.xml"} {
+		if call("reneo.my.id", path); !reached {
+			t.Errorf("%s is served on the seller's address", path)
+		}
+	}
+	// the buyer's panel address does not: the front page leads to the login, the rest does not exist
+	if rec := call("dewi.reneo.my.id", "/"); reached || rec.Code != http.StatusFound || rec.Header().Get("Location") != "/login" {
+		t.Errorf("the front page on a buyer address leads to the login: %d %q reached=%v", rec.Code, rec.Header().Get("Location"), reached)
+	}
+	for _, path := range []string{"/articles", "/articles/a-post", "/install", "/order", "/order/abc", "/docs/mcp", "/sitemap.xml", "/llms.txt"} {
+		if rec := call("dewi.reneo.my.id", path); reached || rec.Code != http.StatusNotFound {
+			t.Errorf("%s does not exist on a buyer address: %d reached=%v", path, rec.Code, reached)
+		}
+	}
+	// the login stays, it is the panel
+	if call("dewi.reneo.my.id", "/login"); !reached {
+		t.Error("the login is served on a buyer address")
+	}
+
+	// the public data goes the same way
+	apiCalled := false
+	api := f.s.requireLanding(func(w http.ResponseWriter, r *http.Request) { apiCalled = true })
+	for host, want := range map[string]bool{"reneo.my.id": true, "dewi.reneo.my.id": false} {
+		apiCalled = false
+		req := httptest.NewRequest(http.MethodGet, "http://"+host+"/api/v1/public/hosting", nil)
+		req.Host = host
+		api.ServeHTTP(httptest.NewRecorder(), req)
+		if apiCalled != want {
+			t.Errorf("public data on %s: served=%v, want %v", host, apiCalled, want)
+		}
+	}
+	req := httptest.NewRequest(http.MethodGet, "http://dewi.reneo.my.id/api/v1/public/site", nil)
+	req.Host = "dewi.reneo.my.id"
+	rec := httptest.NewRecorder()
+	f.s.handlePublicSite(rec, req)
+	if !strings.Contains(rec.Body.String(), `"landing":false`) {
+		t.Errorf("the page is told there is no landing here: %s", rec.Body.String())
+	}
+}

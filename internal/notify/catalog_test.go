@@ -35,8 +35,12 @@ func TestValuesAreEscapedSoTheyCannotAddMarkup(t *testing.T) {
 	if strings.Contains(out, "<b>x</b>") || !strings.Contains(out, "&lt;b&gt;x&lt;/b&gt;&amp;") {
 		t.Fatalf("a username must not add tags: %q", out)
 	}
-	if !strings.Contains(out, "<b>Pesanan terbayar</b>") {
+	if !strings.Contains(out, "lunas</b>") || !strings.HasPrefix(out, "<b>") {
 		t.Fatalf("the title of the catalog keeps its own tag: %q", out)
+	}
+	// a notice sent as text is signed, so it is known as Reneo's in a chat
+	if !strings.HasSuffix(out, "\n\n- Reneo") {
+		t.Fatalf("every notice ends with the brand: %q", out)
 	}
 }
 
@@ -44,7 +48,7 @@ func TestNumbersFromJSONReadAsWholeNumbers(t *testing.T) {
 	var data map[string]any
 	_ = json.Unmarshal([]byte(`{"count": 7, "ips": 3, "minutes": 10, "ip": "1.2.3.4", "username": "budi"}`), &data)
 	out := Render(EventLoginFailed, "id", data)
-	if !strings.Contains(out, "7 percobaan") || !strings.Contains(out, "dari 3 alamat IP") || strings.Contains(out, "7.0") {
+	if !strings.Contains(out, "Percobaan gagal: 7 dalam 10 menit") || !strings.Contains(out, "3 berbeda") || strings.Contains(out, "7.0") {
 		t.Fatalf("whole numbers are not shown with decimals: %q", out)
 	}
 }
@@ -221,5 +225,46 @@ func TestRetryDelaysGrowAndHonourWhatTheChannelAsked(t *testing.T) {
 	}
 	if MaxAttempts != len(RetryDelays)+1 {
 		t.Fatal("the first try and the retries")
+	}
+}
+
+// The words that come from the code are given in both languages and each recipient gets theirs, also after the event has
+// been stored as JSON and read back.
+func TestLocalizedValuesFollowTheLanguageOfTheRecipient(t *testing.T) {
+	data := map[string]any{
+		"order": 7, "username": "ani", "plan": "Pro", "amount": "Rp 450.300", "voucher": "HEMAT10 (-Rp 50.000)", "address": "ani.reneo.my.id",
+		"period": Localized{"id": "6 bulan", "en": "6 months"}, "kind": Localized{"id": "pesanan baru", "en": "new order"},
+	}
+	raw, _ := json.Marshal(data)
+	var stored map[string]any
+	_ = json.Unmarshal(raw, &stored)
+	for name, d := range map[string]map[string]any{"in memory": data, "from JSON": stored} {
+		id := Render(EventOrderCreated, "id", d)
+		en := Render(EventOrderCreated, "en", d)
+		if !strings.Contains(id, "Paket: Pro, 6 bulan") || !strings.Contains(id, "Jenis: pesanan baru") || !strings.Contains(id, "Pesanan baru #7") {
+			t.Errorf("%s, Indonesian: %q", name, id)
+		}
+		if !strings.Contains(en, "Plan: Pro, 6 months") || !strings.Contains(en, "Kind: new order") || !strings.Contains(en, "New order #7") {
+			t.Errorf("%s, English: %q", name, en)
+		}
+		if strings.Contains(en, "bulan") || strings.Contains(id, "months") {
+			t.Errorf("%s: a language leaks into the other: %q / %q", name, id, en)
+		}
+	}
+	// a language with no words falls back to Indonesian
+	if out := Render(EventOrderCreated, "id", map[string]any{"order": 1, "period": Localized{"id": "1 bulan"}}); !strings.Contains(out, "1 bulan") {
+		t.Errorf("a missing language falls back: %q", out)
+	}
+}
+
+func TestEveryNoticeStatesWhoOrWhatItIsAboutOnItsOwnLines(t *testing.T) {
+	for event, x := range catalog {
+		for _, text := range []string{x.id, x.en} {
+			// a title, then facts one to a line: more than one line, and the first is bold
+			lines := strings.Split(text, "\n")
+			if len(lines) < 2 || !strings.HasPrefix(lines[0], "<b>") || !strings.HasSuffix(lines[0], "</b>") {
+				t.Errorf("%s: a notice has a bold title and then its lines: %q", event, text)
+			}
+		}
 	}
 }

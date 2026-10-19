@@ -13,90 +13,94 @@ type texts struct{ id, en string }
 
 var catalog = map[string]texts{
 	EventTest: {
-		id: "<b>Uji kirim</b>\nPesan ini dikirim dari Reneo untuk memastikan kanal berjalan.",
-		en: "<b>Test message</b>\nThis message was sent by Reneo to make sure the channel works.",
+		id: "<b>Uji kirim berhasil</b>\nKanal ini sudah terhubung ke Reneo. Notifikasi panel masuk ke sini sesuai kelompok kabar yang Anda pilih di Pengaturan > Notifikasi.",
+		en: "<b>Test message delivered</b>\nThis channel is connected to Reneo. Panel notices arrive here according to the groups you chose in Settings > Notifications.",
 	},
 	EventOrderCreated: {
-		id: "<b>Pesanan baru</b>\n{username} memesan {plan} ({kind}). {amount}",
-		en: "<b>New order</b>\n{username} ordered {plan} ({kind}). {amount}",
+		id: "<b>Pesanan baru #{order}</b>\nPembeli: {username}\nPaket: {plan}, {period}\nJenis: {kind}\nTotal: {amount}\nVoucher: {voucher}\nAlamat panel: {address}\n\nLihat di Pengaturan > Hosting > Pesanan.",
+		en: "<b>New order #{order}</b>\nBuyer: {username}\nPlan: {plan}, {period}\nKind: {kind}\nTotal: {amount}\nVoucher: {voucher}\nPanel address: {address}\n\nSee it in Settings > Hosting > Orders.",
 	},
 	EventOrderReview: {
-		id: "<b>Perlu diperiksa</b>\nPesanan #{order} dari {username}: {reason} Buka Pengaturan > Hosting > Pesanan.",
-		en: "<b>Needs review</b>\nOrder #{order} from {username}: {reason} Open Settings > Hosting > Orders.",
+		id: "<b>Pesanan #{order} perlu diperiksa</b>\nPembeli: {username}\nAlasan: {reason}\n\nPutuskan di Pengaturan > Hosting > Pesanan.",
+		en: "<b>Order #{order} needs review</b>\nBuyer: {username}\nReason: {reason}\n\nDecide in Settings > Hosting > Orders.",
 	},
 	EventOrderPaid: {
-		id: "<b>Pesanan terbayar</b>\n{username}: paket {plan} aktif. {note}",
-		en: "<b>Order paid</b>\n{username}: the {plan} plan is active. {note}",
+		id: "<b>Pesanan #{order} lunas</b>\nPembeli: {username}\nPaket: {plan}\nTotal: {amount}\nCara: {note}\n\nAkun dan paketnya sudah aktif.",
+		en: "<b>Order #{order} paid</b>\nBuyer: {username}\nPlan: {plan}\nTotal: {amount}\nHow: {note}\n\nThe account and its plan are active.",
 	},
 	EventOrderAttention: {
-		id: "<b>Perlu ditangani</b>\n{detail}",
-		en: "<b>Needs your attention</b>\n{detail}",
+		id: "<b>Pesanan perlu ditangani</b>\n{detail}\n\nBuka Pengaturan > Hosting > Pesanan.",
+		en: "<b>An order needs your attention</b>\n{detail}\n\nOpen Settings > Hosting > Orders.",
 	},
 	EventPlanEnded: {
-		id: "<b>Paket berakhir</b>\n{username}: paket {plan} berakhir dan akun ditangguhkan.",
-		en: "<b>Plan ended</b>\n{username}: the {plan} plan ended and the account was suspended.",
+		id: "<b>Paket pembeli berakhir</b>\nAkun: {username}\nPaket: {plan}\nStatus: akun ditangguhkan\n\nPembeli bisa memperpanjang dari Profil; Anda juga bisa memperpanjangkan di Pengaturan > Pengguna.",
+		en: "<b>A buyer plan ended</b>\nAccount: {username}\nPlan: {plan}\nStatus: the account is suspended\n\nThe buyer can renew from Profile; you can also renew it in Settings > Users.",
 	},
 	EventDomainError: {
-		id: "<b>Domain bermasalah</b>\n{hostname} ({username}): {note}",
-		en: "<b>Domain problem</b>\n{hostname} ({username}): {note}",
+		id: "<b>Domain pembeli bermasalah</b>\nDomain: {hostname}\nPemilik: {username}\nMasalah: {note}\n\nPeriksa di Pengaturan > Hosting > Domain.",
+		en: "<b>A buyer domain has a problem</b>\nDomain: {hostname}\nOwner: {username}\nProblem: {note}\n\nCheck it in Settings > Hosting > Domains.",
 	},
 	EventBuyerOrderCreated: {
-		id: "<b>Pesanan {plan} diterima</b>\nSilakan transfer tepat {amount} ke {bank} {account} a.n. {holder} sebelum {deadline}. Status pesanan: {url}",
-		en: "<b>Order for {plan} received</b>\nPlease transfer exactly {amount} to {bank} {account} ({holder}) before {deadline}. Order status: {url}",
+		id: "<b>Pesanan {plan} diterima</b>\nTerima kasih sudah memesan. Selesaikan pembayaran sebelum {deadline}.\n\nPaket: {plan}, {period}\nTotal transfer: {amount}\nTujuan: {bank} {account}\nAtas nama: {holder}\n\nTransfer harus persis {amount}, sampai angka terakhir, supaya pembayaran Anda terbaca otomatis. Bank atau e-wallet lain dan status pesanan ada di sini:\n{url}",
+		en: "<b>Order for {plan} received</b>\nThank you for ordering. Please pay before {deadline}.\n\nPlan: {plan}, {period}\nAmount to transfer: {amount}\nTo: {bank} {account}\nAccount holder: {holder}\n\nTransfer exactly {amount}, down to the last digit, so your payment is read by itself. Other banks and e-wallets, and the status of the order, are here:\n{url}",
 	},
 	EventBuyerOrderPaid: {
-		id: "<b>Pembayaran diterima, akun aktif</b>\nPaket {plan} sudah aktif untuk akun {username}. Masuk di {url}",
-		en: "<b>Payment received, your account is active</b>\nThe {plan} plan is active for the account {username}. Sign in at {url}",
+		id: "<b>Pembayaran diterima, akun aktif</b>\nTerima kasih. Paket {plan} sudah aktif.\n\nAkun: {username}\nBerlaku sampai: {until}\nMasuk di: {url}\n\nPakai kata sandi yang Anda buat saat memesan.",
+		en: "<b>Payment received, your account is active</b>\nThank you. The {plan} plan is active.\n\nAccount: {username}\nValid until: {until}\nSign in at: {url}\n\nUse the password you made when you ordered.",
 	},
 	EventBuyerPlanReminder: {
-		id: "<b>Paket {plan} segera berakhir</b>\nPaket Anda berakhir {until} (sekitar {days} hari lagi). Masuk ke panel Anda, buka Profil, lalu perpanjang agar akun tidak ditangguhkan.",
-		en: "<b>Your {plan} plan is running out</b>\nYour plan ends {until} (about {days} days from now). Sign in to your panel, open Profile, and renew so the account is not suspended.",
+		id: "<b>Paket {plan} segera berakhir</b>\nAkun: {username}\nBerakhir: {until} (sekitar {days} hari lagi)\n\nMasuk ke panel Anda, buka Profil > Paket saya, lalu pilih Perpanjang supaya akun tidak ditangguhkan.",
+		en: "<b>Your {plan} plan is running out</b>\nAccount: {username}\nEnds: {until} (about {days} days from now)\n\nSign in to your panel, open Profile > My plan, and choose Renew so the account is not suspended.",
 	},
 	EventBuyerPlanEnded: {
-		id: "<b>Paket {plan} berakhir</b>\nAkun {username} ditangguhkan karena paketnya berakhir. Pesan perpanjangan lewat penjual agar akun aktif kembali.",
-		en: "<b>Your {plan} plan ended</b>\nThe account {username} is suspended because its plan ended. Order a renewal from the seller to switch it on again.",
+		id: "<b>Paket {plan} berakhir</b>\nAkun: {username}\nStatus: ditangguhkan karena paket berakhir\n\nHubungi penjual untuk memperpanjang. Akun aktif kembali begitu perpanjangan dibayar.",
+		en: "<b>Your {plan} plan ended</b>\nAccount: {username}\nStatus: suspended because the plan ended\n\nContact the seller to renew. The account is active again once the renewal is paid.",
 	},
 	EventLoginFailed: {
-		id: "<b>Peringatan keamanan</b>\n{count} percobaan masuk gagal ke akun {username} dalam {minutes} menit, dari {ips} alamat IP (terakhir {ip}). Jika itu bukan Anda, ganti kata sandi sekarang.",
-		en: "<b>Security warning</b>\n{count} failed sign-ins to the account {username} in {minutes} minutes, from {ips} addresses (last {ip}). If it was not you, change your password now.",
+		id: "<b>Peringatan keamanan: login gagal</b>\nAkun: {username}\nPercobaan gagal: {count} dalam {minutes} menit\nAlamat IP: {ips} berbeda (terakhir {ip})\n\nBukan Anda? Ganti kata sandi sekarang.",
+		en: "<b>Security warning: failed sign-ins</b>\nAccount: {username}\nFailed attempts: {count} in {minutes} minutes\nIP addresses: {ips} different (last {ip})\n\nNot you? Change your password now.",
 	},
 	EventLoginLocked: {
-		id: "<b>Akun dikunci sementara</b>\nAkun {username} dikunci sementara karena terlalu banyak percobaan masuk yang gagal. Jika itu bukan Anda, ganti kata sandi setelah masuk.",
-		en: "<b>Account locked for a while</b>\nThe account {username} is locked for a while after too many failed sign-ins. If it was not you, change your password once you are in.",
+		id: "<b>Akun dikunci sementara</b>\nAkun: {username}\nPenyebab: terlalu banyak percobaan masuk yang gagal\n\nBukan Anda? Ganti kata sandi begitu Anda bisa masuk.",
+		en: "<b>Account locked for a while</b>\nAccount: {username}\nCause: too many failed sign-ins\n\nNot you? Change your password once you can sign in.",
 	},
 	EventLoginNew: {
-		id: "<b>Masuk dari perangkat baru</b>\nAkun {username} masuk dari {ip} ({browser}) pada {time}. Bukan Anda? Ganti kata sandi sekarang.",
-		en: "<b>Sign-in from a new device</b>\nThe account {username} signed in from {ip} ({browser}) at {time}. Not you? Change your password now.",
+		id: "<b>Masuk dari perangkat baru</b>\nAkun: {username}\nWaktu: {time}\nAlamat IP: {ip}\nPeramban: {browser}\n\nBukan Anda? Ganti kata sandi sekarang.",
+		en: "<b>Sign-in from a new device</b>\nAccount: {username}\nTime: {time}\nIP address: {ip}\nBrowser: {browser}\n\nNot you? Change your password now.",
 	},
 	EventPasswordChanged: {
-		id: "<b>Kata sandi diganti</b>\nKata sandi akun {username} diganti pada {time}. Bukan Anda? Hubungi pengelola panel sekarang.",
-		en: "<b>Password changed</b>\nThe password of the account {username} was changed at {time}. Not you? Contact the panel owner now.",
+		id: "<b>Kata sandi diganti</b>\nAkun: {username}\nWaktu: {time}\nDiganti oleh: {by}\n\nBukan Anda? Hubungi pengelola panel sekarang.",
+		en: "<b>Password changed</b>\nAccount: {username}\nTime: {time}\nChanged by: {by}\n\nNot you? Contact the panel owner now.",
 	},
 	EventTokenCreated: {
-		id: "<b>Token API baru</b>\nToken API \"{name}\" dibuat untuk akun {username} pada {time}. Bukan Anda? Cabut token itu di Pengaturan > Token API & MCP.",
-		en: "<b>New API token</b>\nThe API token \"{name}\" was created for the account {username} at {time}. Not you? Revoke it in Settings > API & MCP tokens.",
+		id: "<b>Token API baru dibuat</b>\nAkun: {username}\nNama token: {name}\nWaktu: {time}\n\nBukan Anda? Cabut token itu di Pengaturan > Token API & MCP.",
+		en: "<b>New API token created</b>\nAccount: {username}\nToken name: {name}\nTime: {time}\n\nNot you? Revoke it in Settings > API & MCP tokens.",
 	},
 	EventAccountScan: {
-		id: "<b>Pemindaian akun</b>\nAlamat {ip} mencoba {count} nama pengguna berbeda dalam {minutes} menit.",
-		en: "<b>Account scan</b>\nThe address {ip} tried {count} different usernames in {minutes} minutes.",
+		id: "<b>Pemindaian akun terdeteksi</b>\nAlamat IP: {ip}\nNama pengguna dicoba: {count} berbeda\nDalam: {minutes} menit",
+		en: "<b>Account scan detected</b>\nIP address: {ip}\nUsernames tried: {count} different\nWithin: {minutes} minutes",
 	},
 	EventLoginFlood: {
-		id: "<b>Serangan login terdistribusi</b>\n{count} login gagal dalam {minutes} menit dari {ips} alamat IP (contoh: {samples}).",
-		en: "<b>Distributed sign-in attack</b>\n{count} failed sign-ins in {minutes} minutes from {ips} addresses (for example {samples}).",
+		id: "<b>Serangan login terdistribusi</b>\nLogin gagal: {count} dalam {minutes} menit\nAlamat IP: {ips} berbeda (contoh: {samples})",
+		en: "<b>Distributed sign-in attack</b>\nFailed sign-ins: {count} in {minutes} minutes\nIP addresses: {ips} different (for example {samples})",
 	},
 	EventRequestFlood: {
-		id: "<b>Lonjakan permintaan</b>\n{count} permintaan ditolak pembatas laju dalam {minutes} menit, dari {ips} alamat IP (contoh: {samples}). Bila lalu lintas lewat Cloudflare, alamat itu bisa saja alamat Cloudflare.",
-		en: "<b>Request flood</b>\n{count} requests were refused by the rate limit in {minutes} minutes, from {ips} addresses (for example {samples}). If traffic comes through Cloudflare, those may be Cloudflare addresses.",
+		id: "<b>Lonjakan permintaan</b>\nDitolak pembatas laju: {count} permintaan dalam {minutes} menit\nAlamat IP: {ips} berbeda (contoh: {samples})\n\nBila lalu lintas lewat Cloudflare, alamat itu bisa saja alamat Cloudflare.",
+		en: "<b>Request flood</b>\nRefused by the rate limit: {count} requests in {minutes} minutes\nIP addresses: {ips} different (for example {samples})\n\nIf traffic comes through Cloudflare, those may be Cloudflare addresses.",
 	},
 	EventOrderAbuse: {
-		id: "<b>Penyalahgunaan formulir pesanan</b>\n{count} permintaan pesanan atau pemeriksaan alamat ditolak dalam {minutes} menit, dari {ips} alamat IP (contoh: {samples}).",
-		en: "<b>Order form abuse</b>\n{count} order or address check requests were refused in {minutes} minutes, from {ips} addresses (for example {samples}).",
+		id: "<b>Penyalahgunaan formulir pesanan</b>\nDitolak: {count} permintaan pesanan atau pemeriksaan alamat dalam {minutes} menit\nAlamat IP: {ips} berbeda (contoh: {samples})",
+		en: "<b>Order form abuse</b>\nRefused: {count} order or address check requests in {minutes} minutes\nIP addresses: {ips} different (for example {samples})",
 	},
 	EventWebhookProbe: {
-		id: "<b>Percobaan pada pembaca notifikasi</b>\n{count} permintaan webhook dengan kunci salah dalam {minutes} menit, dari {ips} alamat IP (contoh: {samples}).",
-		en: "<b>Probing of the notification reader</b>\n{count} webhook requests with a wrong key in {minutes} minutes, from {ips} addresses (for example {samples}).",
+		id: "<b>Percobaan pada pembaca notifikasi</b>\nPermintaan webhook dengan kunci salah: {count} dalam {minutes} menit\nAlamat IP: {ips} berbeda (contoh: {samples})",
+		en: "<b>Probing of the notification reader</b>\nWebhook requests with a wrong key: {count} in {minutes} minutes\nIP addresses: {ips} different (for example {samples})",
 	},
 }
+
+// brandFooter closes every notice that goes out as text, so a message in a chat is known at a glance as Reneo's. The WhatsApp
+// Cloud templates carry their own footer (cloudFooter).
+const brandFooter = "\n\n- Reneo"
 
 var variantLines = map[string]texts{
 	"escalated": {id: "Meningkat ke tingkat {level}.", en: "Raised to level {level}."},
@@ -129,10 +133,10 @@ func Render(event, locale string, data map[string]any) string {
 			text += "\n" + pick(line)
 		}
 	}
-	return fill(text, data)
+	return fill(text, data, locale) + brandFooter
 }
 
-func fill(text string, data map[string]any) string {
+func fill(text string, data map[string]any, locale string) string {
 	var out strings.Builder
 	for {
 		i := strings.IndexByte(text, '{')
@@ -147,7 +151,7 @@ func fill(text string, data map[string]any) string {
 		}
 		out.WriteString(text[:i])
 		name := text[i+1 : i+j]
-		out.WriteString(escape(data[name]))
+		out.WriteString(escape(resolve(data[name], locale)))
 		text = text[i+j+1:]
 	}
 }

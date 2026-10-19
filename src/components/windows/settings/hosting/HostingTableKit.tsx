@@ -7,7 +7,7 @@ import { listParams, listQueryKey, type TableResult } from '@/lib/listQuery'
 import { useI18n } from '@/lib/i18n'
 import type { UiTone } from '@/components/ui/IconBadge'
 
-export type HostingTableName = 'orders' | 'plans' | 'subdomains' | 'vouchers' | 'domains'
+export type HostingTableName = 'orders' | 'plans' | 'subdomains' | 'vouchers' | 'domains' | 'custom-domains'
 
 // The pill of each tone: the classes the list windows share
 const TONE_PILL: Record<UiTone, string> = { success: 'running', primary: 'running', warning: 'paused', info: 'paused', danger: 'dead', neutral: 'exited' }

@@ -129,6 +129,13 @@ func (s *Server) saveSiteSettings(value siteSettings) error {
 }
 
 func (s *Server) landingEnabled() bool { return s.loadSiteSettings().LandingEnabled }
+
+// landingFor says whether the public pages exist at the address a request came to. The address of a buyer's panel (a sold
+// subdomain, or a domain of their own) opens the login of that panel and nothing of the seller's public site: no landing page,
+// articles, install guide, ordering or crawler files.
+func (s *Server) landingFor(r *http.Request) bool {
+	return s.landingEnabled() && s.hostingHostOwner(normalizeHost(r.Host)) == 0
+}
 func (s *Server) indexingAllowed() bool {
 	settings := s.loadSiteSettings()
 	return settings.LandingEnabled && settings.IndexingEnabled
@@ -138,7 +145,7 @@ func (s *Server) hostingEnabled() bool { return s.loadSiteSettings().HostingEnab
 // requireLanding hides public data (articles, contributors) while the public pages are off
 func (s *Server) requireLanding(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.landingEnabled() {
+		if !s.landingFor(r) {
 			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
 			return
 		}
@@ -147,10 +154,10 @@ func (s *Server) requireLanding(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // handlePublicSite tells the frontend which public pages exist
-func (s *Server) handlePublicSite(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handlePublicSite(w http.ResponseWriter, r *http.Request) {
 	settings := s.loadSiteSettings()
 	w.Header().Set("Cache-Control", "no-store")
-	s.writeJSON(w, http.StatusOK, jsonResponse{"landing": settings.LandingEnabled, "hosting": settings.HostingEnabled})
+	s.writeJSON(w, http.StatusOK, jsonResponse{"landing": s.landingFor(r), "hosting": settings.HostingEnabled})
 }
 
 func (s *Server) handleGetSiteSettings(w http.ResponseWriter, _ *http.Request) {

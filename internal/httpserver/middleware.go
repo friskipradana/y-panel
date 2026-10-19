@@ -54,7 +54,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 
 		// With the public site off only the login form stays open. "/" sends a visitor to the
 		// login form (or the app when signed in), every other public address does not exist.
-		if !s.landingEnabled() && isPublicSitePath(path) {
+		if !s.landingFor(r) && isPublicSitePath(path) {
 			if path == "/" {
 				if _, authed := s.currentUser(r); authed {
 					http.Redirect(w, r, "/home", http.StatusFound)

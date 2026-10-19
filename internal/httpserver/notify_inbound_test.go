@@ -77,7 +77,7 @@ func TestIntegrationStopAndStartOnTelegram(t *testing.T) {
 	f.s.notify.Emit(notify.Event{Name: notify.EventOrderPaid, Key: "after-start", Data: map[string]any{"username": "y", "plan": "P", "note": ""}})
 	eventually(t, "the notice after start", func() bool {
 		for _, text := range f.tg.textsTo("9001") {
-			if strings.Contains(text, "Pesanan terbayar") {
+			if strings.Contains(text, "lunas") {
 				return true
 			}
 		}

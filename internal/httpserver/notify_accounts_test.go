@@ -123,9 +123,9 @@ func TestIntegrationTheBuyerHearsThePlanIsRunningOutAndEnded(t *testing.T) {
 		}
 		return out
 	}
-	eventually(t, "both notices", func() bool { n := names(); return n["reneo_buyer_plan_reminder"] == 1 && n["reneo_buyer_plan_ended"] == 1 })
+	eventually(t, "both notices", func() bool { n := names(); return n["reneo_buyer_plan_reminder_r2"] == 1 && n["reneo_buyer_plan_ended_r2"] == 1 })
 	time.Sleep(300 * time.Millisecond)
-	if n := names(); n["reneo_buyer_plan_reminder"] != 1 {
+	if n := names(); n["reneo_buyer_plan_reminder_r2"] != 1 {
 		t.Fatalf("the reminder for one end date is told once: %v", n)
 	}
 }

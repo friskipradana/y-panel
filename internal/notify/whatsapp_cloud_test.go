@@ -133,14 +133,14 @@ func TestSendingATemplateFillsItsVariablesInOrder(t *testing.T) {
 	meta := newFakeMeta(t)
 	c := NewWhatsAppCloud("tok", "555", "777", "").WithBase(meta.URL)
 	id, err := c.SendEvent(context.Background(), "+62 812-3456-7890", EventBuyerOrderCreated, "id", map[string]any{
-		"plan": "Starter", "amount": "Rp 50.123", "bank": "BCA", "account": "1234", "holder": "Reneo\nPT", "deadline": "20 Okt", "url": "https://x/order/abc",
+		"plan": "Starter", "period": Localized{"id": "3 bulan", "en": "3 months"}, "amount": "Rp 50.123", "bank": "BCA", "account": "1234", "holder": "Reneo\nPT", "deadline": "20/10/2026 10:00", "url": "https://x/order/abc",
 	})
 	if err != nil || id != "wamid.ABC" {
 		t.Fatalf("%q %v", id, err)
 	}
 	body := meta.sent[0]
 	tpl := body["template"].(map[string]any)
-	if body["to"] != "6281234567890" || tpl["name"] != "reneo_buyer_order_created" {
+	if body["to"] != "6281234567890" || tpl["name"] != templateName(EventBuyerOrderCreated) {
 		t.Fatalf("the number is digits only and the name follows the event: %v", body)
 	}
 	if tpl["language"].(map[string]any)["code"] != "id" {
@@ -152,7 +152,7 @@ func TestSendingATemplateFillsItsVariablesInOrder(t *testing.T) {
 		texts = append(texts, p.(map[string]any)["text"].(string))
 	}
 	joined := strings.Join(texts, "|")
-	for _, w := range []string{"Starter", "Rp 50.123", "BCA", "Reneo PT", "https://x/order/abc"} {
+	for _, w := range []string{"Starter", "3 bulan", "Rp 50.123", "BCA", "Reneo PT", "https://x/order/abc"} {
 		if !strings.Contains(joined, w) {
 			t.Fatalf("%q is not among the variables: %s", w, joined)
 		}
@@ -230,8 +230,8 @@ func TestTemplatesAreMadeOnlyWhereMetHasNone(t *testing.T) {
 		}
 	}
 	// one is already there, approved
-	meta.templates["reneo_test|id"] = "APPROVED"
-	meta.templates["reneo_order_paid|en_US"] = "PENDING"
+	meta.templates[templateName(EventTest)+"|id"] = "APPROVED"
+	meta.templates[templateName(EventOrderPaid)+"|en_US"] = "PENDING"
 	created, err := c.CreateTemplates(ctx)
 	if err != nil || created != 2*len(catalog)-2 {
 		t.Fatalf("only the missing ones: %d %v", created, err)
@@ -250,10 +250,10 @@ func TestTemplatesAreMadeOnlyWhereMetHasNone(t *testing.T) {
 				t.Fatalf("Meta wants a sample for each of the %d variables, got %d", params, len(example))
 			}
 		}
-		if sent["name"] == "reneo_test" && sent["language"] == "id" {
+		if sent["name"] == templateName(EventTest) && sent["language"] == "id" {
 			t.Fatal("an existing template is not made again")
 		}
-		if sent["name"] == "reneo_order_paid" && sent["language"] == "en" {
+		if sent["name"] == templateName(EventOrderPaid) && sent["language"] == "en" {
 			t.Fatal("a regional version counts as the language")
 		}
 	}

@@ -174,8 +174,12 @@ var placeholderPattern = regexp.MustCompile(`\{([a-zA-Z]+)\}`)
 
 // templateName is the name of the template of an event: the same in both languages, which Meta keeps apart by language
 func templateName(event string) string {
-	return "reneo_" + strings.NewReplacer(".", "_", "-", "_").Replace(event)
+	return "reneo_" + strings.NewReplacer(".", "_", "-", "_").Replace(event) + "_" + templateRevision
 }
+
+// templateRevision changes whenever the text of the catalog changes: Meta keeps a template as it was approved, so a changed text
+// has to be a new template, or the variables sent would no longer fit the one Meta holds
+const templateRevision = "r2"
 
 // variantEvents carry a line that changes (first, raised, ongoing, ended); a template cannot change, so the line is a variable
 func hasVariant(event string) bool {
@@ -188,10 +192,11 @@ func hasVariant(event string) bool {
 }
 
 var sampleValues = map[string]string{
-	"plan": "Starter", "amount": "Rp 50.123", "bank": "BCA", "account": "1234567890", "holder": "Reneo", "deadline": "20 Okt 2026 10:00",
+	"plan": "Starter", "amount": "Rp 50.123", "bank": "BCA", "account": "1234567890", "holder": "Reneo", "deadline": "20/10/2026 10:00",
 	"url": "https://panel.example.com/login", "username": "andi", "note": "transfer cocok", "detail": "Pesanan 12 menunggu", "hostname": "andi.example.com",
-	"time": "20 Okt 2026 10:00", "ip": "203.0.113.5", "browser": "Chrome", "count": "5", "minutes": "10", "ips": "3", "samples": "203.0.113.5",
+	"time": "20/10/2026 10:00", "ip": "203.0.113.5", "browser": "Chrome", "count": "5", "minutes": "10", "ips": "3", "samples": "203.0.113.5",
 	"name": "deploy", "order": "12", "reason": "perlu persetujuan", "variantLine": "Meningkat ke tingkat 2.",
+	"period": "3 bulan", "kind": "baru", "voucher": "HEMAT10", "address": "andi.reneo.my.id", "until": "20/11/2026 10:00", "days": "7", "by": "pemilik akun",
 }
 
 // Templates is every template the catalog needs, in both languages
@@ -270,7 +275,7 @@ func (c *WhatsAppCloud) SendEvent(ctx context.Context, address, event, locale st
 			if lang == "en" {
 				picked = line.en
 			}
-			values["variantLine"] = fill(picked, data)
+			values["variantLine"] = fill(picked, data, lang)
 		}
 	}
 	if _, ok := values["variantLine"]; !ok {
@@ -278,7 +283,7 @@ func (c *WhatsAppCloud) SendEvent(ctx context.Context, address, event, locale st
 	}
 	parameters := make([]map[string]string, len(tpl.Params))
 	for i, name := range tpl.Params {
-		parameters[i] = map[string]string{"type": "text", "text": templateValue(values[name])}
+		parameters[i] = map[string]string{"type": "text", "text": templateValue(resolve(values[name], lang))}
 	}
 	components := []map[string]any{}
 	if len(parameters) > 0 {

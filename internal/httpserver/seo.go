@@ -47,6 +47,29 @@ func publicBaseURL(r *http.Request) string {
 	return scheme + "://" + r.Host
 }
 
+// orderBaseURL is the address put in the links a buyer gets (the page of the order): RENEO_PUBLIC_URL when set, else the main
+// hosting domain, which is where buyers find the landing page, and only without one the address the form was opened from.
+// A form opened from the main domain itself, or from a name under it, keeps the address it was opened from.
+func (s *Server) orderBaseURL(r *http.Request) string {
+	if configured := strings.TrimRight(runtimepath.Getenv("PUBLIC_URL"), "/"); configured != "" {
+		return configured
+	}
+	if s.database != nil && s.database.IsConnected() {
+		if main := s.mainHostingDomain(); main != nil && main.Name != "" {
+			host := strings.ToLower(r.Host)
+			if i := strings.LastIndex(host, ":"); i > 0 && !strings.Contains(host[i:], "]") {
+				host = host[:i]
+			}
+			name := strings.ToLower(main.Name)
+			if host == name || strings.HasSuffix(host, "."+name) {
+				return publicBaseURL(r)
+			}
+			return "https://" + name
+		}
+	}
+	return publicBaseURL(r)
+}
+
 // robotsTxtClosed keeps every well behaved crawler out
 const robotsTxtClosed = "# Reneo: nothing here is for search engines or AI crawlers\nUser-agent: *\nDisallow: /\n"
 

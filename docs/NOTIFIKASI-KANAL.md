@@ -437,3 +437,10 @@ Rancangan awal mengirim pesan dari sesi sebuah akun ke nomor sesi itu sendiri. I
 - Nomor ditulis seperti kebiasaan dan dinormalkan; nomor yang bukan nomor seluler ditolak. Akun tanpa sesi yang berjalan tidak bisa memilih.
 - Nomor tujuan belum diverifikasi dengan kode. Pesan keluar dari WhatsApp akun itu sendiri dan dibatasi jeda kirim, jadi penyalahgunaan terbatas pada akunnya; verifikasi kode ke nomor tujuan belum dibuat.
 - Dasar penjadwalan, kelompok kabar, dan pesan uji memakai nomor tujuan yang sama. Kabar untuk pembeli lewat sesi superadmin ke nomor dari form pesanan tidak berubah.
+
+## 21. Isi pesan: terstruktur, berlabel Reneo, dan dua bahasa
+
+Setiap notifikasi punya judul tebal, lalu fakta satu per baris (`Pembeli:`, `Paket:`, `Total:`, `Tujuan:`), lalu langkah berikutnya, dan ditutup `- Reneo`. Kata yang berasal dari kode (jenis pesanan, lama langganan, cara pembayaran, alasan) dikirim sebagai `notify.Localized` berisi `id` dan `en`, sehingga tiap penerima membaca bahasanya sendiri, juga setelah peristiwa disimpan sebagai JSON di antrean. Waktu ditulis `dd/mm/yyyy jj:mm` agar sama di kedua bahasa.
+
+- **Tautan pembeli** (status pesanan) memakai `RENEO_PUBLIC_URL` bila diisi, kalau tidak domain utama hosting (`https://<domain utama>`), dan alamat tempat formulir dibuka hanya bila belum ada domain. Formulir yang dibuka dari domain utama atau nama di bawahnya tetap memakai alamat itu.
+- **WhatsApp Cloud:** Meta menyimpan templat apa adanya saat disetujui, jadi teks yang berubah harus menjadi templat baru. Nama templat memuat revisi (`reneo_<peristiwa>_r2`): setelah pembaruan ini, buka Pengaturan > Notifikasi > WhatsApp Cloud dan tekan "Buat templat yang belum ada", lalu tunggu persetujuan Meta. Sebelum disetujui, kabar lewat Cloud untuk peristiwa itu gagal terkirim; Telegram dan WAHA tidak terpengaruh. Menaikkan `templateRevision` di `whatsapp_cloud.go` setiap kali teks katalog berubah.

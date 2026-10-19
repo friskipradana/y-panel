@@ -278,7 +278,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
 		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
 		AmountBase: quote.Subtotal, Status: database.OrderPending,
-		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
+		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}
 	if voucher != nil {
 		order.VoucherCode = voucher.Code
@@ -325,7 +325,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		s.emitOrderCreated(created, u.Username, plan.Name)
 		s.buyerOrderCreated(created, plan.Name)
 		if created.Status == database.OrderReview {
-			s.emitOrderReview(created.ID, u.Username, "pesanan ini menunggu persetujuan Anda.")
+			s.emitOrderReview(created.ID, u.Username, notify.Localized{"id": "pesanan ini menunggu persetujuan Anda.", "en": "this order waits for your approval."})
 		}
 	}
 	s.recordRuntimeLog("info", "hosting order created", map[string]any{"user": u.Username, "plan": plan.Name, "kind": created.Kind, "remote": ip})
@@ -392,7 +392,7 @@ func (s *Server) handlePublicOrderTransferred(w http.ResponseWriter, r *http.Req
 	}
 	if order.Status == database.OrderPending {
 		if _, already := orderClaims.LoadOrStore(order.ID, time.Now()); !already {
-			s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "info")
+			s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "en": fmt.Sprintf("Order #%d (%s): the buyer says they have transferred %s. Check that the transfer has arrived.", order.ID, order.Username, rupiah(order.AmountTotal))}, "info")
 		}
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": order.Status})
@@ -458,7 +458,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
 		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
 		AmountBase: quote.Subtotal, Status: database.OrderPending,
-		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
+		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}
 	if voucher != nil {
 		renewal.VoucherCode = voucher.Code
@@ -633,12 +633,12 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	}
 	user, _ := s.database.GetUserByID(order.UserID)
 	if user == nil || order.PlanID == nil {
-		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi akun atau paketnya sudah tidak ada.", order.ID), "warning")
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi akun atau paketnya sudah tidak ada.", order.ID), "en": fmt.Sprintf("Order #%d is paid, but its account or plan no longer exists.", order.ID)}, "warning")
 		return errors.New("the account or the plan of the order no longer exists")
 	}
 	plan, _ := s.database.GetHostingPlan(*order.PlanID)
 	if plan == nil {
-		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi paketnya sudah dihapus.", order.ID), "warning")
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paketnya sudah dihapus.", order.ID), "en": fmt.Sprintf("Order #%d is paid, but its plan has been deleted.", order.ID)}, "warning")
 		return errors.New("the plan of the order no longer exists")
 	}
 	// a trial upgrade in progress ends first, so its time is credited to the plan this order renews
@@ -660,7 +660,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 		}
 	}
 	if err := s.applyUserPlan(user.ID, plan, ends); err != nil {
-		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "warning")
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the plan %s could not be applied to %s.", order.ID, plan.Name, user.Username)}, "warning")
 		return err
 	}
 	if user.Status == "pending" {
@@ -685,7 +685,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 func (s *Server) notifyBuyerOrderDone(order *database.HostingOrder, user *database.User, plan *database.HostingPlan, ends *time.Time) {
 	until := "tanpa batas waktu"
 	if ends != nil {
-		until = "sampai " + ends.Local().Format("02 Jan 2006 15:04")
+		until = "sampai " + ends.Local().Format(notify.TimeLayout)
 	}
 	switch order.Kind {
 	case database.OrderRenew:
@@ -711,7 +711,7 @@ func (s *Server) giveOrderSubdomain(order *database.HostingOrder, user *database
 	}
 	if _, err := s.database.CreateHostingSubdomain(user.ID, order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname, true); err != nil {
 		log.Printf("[orders] could not create %s for %q: %v", order.SubHostname, user.Username, err)
-		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "warning")
+		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the address %s could not be created for %s. Create it from the Users window.", order.ID, order.SubHostname, user.Username)}, "warning")
 		return
 	}
 	forgetHostingHosts()
@@ -768,7 +768,7 @@ func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, 
 			log.Printf("[orders] %d waiting orders share the total %d: left for review", len(orders), total)
 			s.notify.Emit(notify.Event{
 				Name: notify.EventOrderAttention, Key: fmt.Sprintf("shared-total-%d-%d", total, notifID),
-				Data: map[string]any{"detail": fmt.Sprintf("%d pesanan menunggu dengan total %s yang sama, jadi transfernya tidak bisa dicocokkan sendiri. Periksa di tab Pesanan.", len(orders), rupiah(total))},
+				Data: map[string]any{"detail": notify.Localized{"id": fmt.Sprintf("%d pesanan menunggu dengan total %s yang sama, jadi transfernya tidak bisa dicocokkan sendiri. Periksa di tab Pesanan.", len(orders), rupiah(total)), "en": fmt.Sprintf("%d waiting orders share the total %s, so the transfer cannot be matched by itself. Check the Orders tab.", len(orders), rupiah(total))}},
 			})
 		}
 		return
@@ -778,7 +778,7 @@ func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, 
 	if auto, _ := s.database.GetPaymentSettingValue("auto_confirm"); auto != "true" {
 		if _, err := s.database.SetOrderStatus(order.ID, database.OrderReview, "pembayaran cocok, menunggu konfirmasi"); err == nil {
 			s.notifyAllAdmins("Pembayaran cocok, perlu konfirmasi", fmt.Sprintf("Pesanan #%d (%s, Rp %d) cocok dengan notifikasi. Konfirmasi di tab Hosting.", order.ID, order.Username, total), "info")
-			s.emitOrderReview(order.ID, order.Username, fmt.Sprintf("transfer %s cocok dengan notifikasi bank dan menunggu konfirmasi Anda.", rupiah(total)))
+			s.emitOrderReview(order.ID, order.Username, notify.Localized{"id": fmt.Sprintf("transfer %s cocok dengan notifikasi bank dan menunggu konfirmasi Anda.", rupiah(total)), "en": fmt.Sprintf("a transfer of %s matches a bank notification and waits for your confirmation.", rupiah(total))})
 		}
 		return
 	}

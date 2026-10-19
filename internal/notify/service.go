@@ -791,7 +791,7 @@ func (s *Service) SignedIn(userID int64, username, ip, userAgent string) {
 	now := s.now()
 	s.Emit(Event{
 		Name: EventLoginNew, UserIDs: []int64{userID}, Key: fp + "|" + now.Format("2006-01-02"),
-		Data: map[string]any{"username": username, "ip": ip, "browser": Browser(userAgent), "time": now.Format("02 Jan 2006 15:04")},
+		Data: map[string]any{"username": username, "ip": ip, "browser": Browser(userAgent), "time": now.Format(TimeLayout)},
 	})
 }
 

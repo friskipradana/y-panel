@@ -212,7 +212,7 @@ func TestIntegrationTheSellerHearsAboutTheOrderStepByStep(t *testing.T) {
 	})
 	eventually(t, "the new order notice", func() bool {
 		for _, text := range f.tg.textsTo("9001") {
-			if strings.Contains(text, "Pesanan baru") && strings.Contains(text, "andi") && strings.Contains(text, "Total Rp 50.") {
+			if strings.Contains(text, "Pesanan baru") && strings.Contains(text, "andi") && strings.Contains(text, "Total: Rp 50.") {
 				return true
 			}
 		}
@@ -223,7 +223,7 @@ func TestIntegrationTheSellerHearsAboutTheOrderStepByStep(t *testing.T) {
 	f.s.matchHostingOrderPayment(formatAmount(view.AmountTotal), 0, time.Now())
 	eventually(t, "the review notice", func() bool {
 		for _, text := range f.tg.textsTo("9001") {
-			if strings.Contains(text, "Perlu diperiksa") && strings.Contains(text, "andi") && strings.Contains(text, rupiah(view.AmountTotal)) {
+			if strings.Contains(text, "perlu diperiksa") && strings.Contains(text, "andi") && strings.Contains(text, rupiah(view.AmountTotal)) {
 				return true
 			}
 		}
@@ -236,7 +236,7 @@ func TestIntegrationTheSellerHearsAboutTheOrderStepByStep(t *testing.T) {
 	}
 	eventually(t, "the paid notice", func() bool {
 		for _, text := range f.tg.textsTo("9001") {
-			if strings.Contains(text, "Pesanan terbayar") && strings.Contains(text, "Starter") {
+			if strings.Contains(text, "lunas") && strings.Contains(text, "Starter") {
 				return true
 			}
 		}
@@ -274,7 +274,7 @@ func TestIntegrationAFailedOrderStepNeedsTheSellerAttention(t *testing.T) {
 	}
 	eventually(t, "the attention notice", func() bool {
 		for _, text := range f.tg.textsTo("9001") {
-			if strings.Contains(text, "Perlu ditangani") && strings.Contains(text, "rina.reneo.my.id") {
+			if strings.Contains(text, "perlu ditangani") && strings.Contains(text, "rina.reneo.my.id") {
 				return true
 			}
 		}
@@ -315,7 +315,7 @@ func TestIntegrationFailedSignInsAreToldOnlyWhenTheyPileUp(t *testing.T) {
 	postLogin(f, name, "wrong-password", chrome, "198.51.100.12")
 	eventually(t, "the warning", func() bool {
 		for _, text := range f.tg.textsTo(chat) {
-			if strings.Contains(text, "Peringatan keamanan") && strings.Contains(text, "3 percobaan") && strings.Contains(text, name) {
+			if strings.Contains(text, "Peringatan keamanan") && strings.Contains(text, "Percobaan gagal: 3") && strings.Contains(text, name) {
 				return true
 			}
 		}

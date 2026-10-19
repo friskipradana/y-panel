@@ -544,7 +544,7 @@ func TestFailedSignInsTellTheOwnerOnlyAfterThree(t *testing.T) {
 	f.svc.LoginFailed("budi", "1.1.1.3")
 	waitFor(t, "the warning", 3*time.Second, func() bool { return f.tg.total() == 1 })
 	text := f.tg.sentTo("200")[0]
-	if !strings.Contains(text, "3 percobaan") || !strings.Contains(text, "budi") || !strings.Contains(text, "3 alamat IP") {
+	if !strings.Contains(text, "Percobaan gagal: 3") || !strings.Contains(text, "budi") || !strings.Contains(text, "3 berbeda") {
 		t.Fatalf("the warning says how many, which account and from how many addresses: %q", text)
 	}
 	for i := 0; i < 5; i++ {

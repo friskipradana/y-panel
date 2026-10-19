@@ -21,6 +21,8 @@ export function HostingDomainsCard() {
   const qc = useQueryClient()
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0 })
   const table = useHostingTable<HostingDomain>('domains')
+  // the status Cloudflare gives a zone, in words; one that is not known is shown as Cloudflare wrote it
+  const domainStatus = (status?: string) => (status ? (['active', 'pending', 'initializing', 'moved', 'deleted', 'deactivated'].includes(status) ? t(`hosting.domains.zone.${status}`) : status) : '-')
   const [pick, setPick] = useState('')
 
   const toggle = useMutation({
@@ -68,41 +70,37 @@ export function HostingDomainsCard() {
         <EmptyState icon={<Globe2 size={18} />}>{t('hosting.domains.empty')}</EmptyState>
       ) : (
         <>
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <Field label={t('hosting.domains.addLabel')} hint={addable.length === 0 ? t('hosting.domains.allOffered') : t('hosting.domains.addHint', { count: addable.length })}>
-              <Select
-                value={pick}
-                onChange={setPick}
-                searchable
-                disabled={addable.length === 0}
-                placeholder={t('hosting.domains.pick')}
-                searchPlaceholder={t('hosting.domains.search')}
-                options={addable.map((domain) => ({ value: domain.zoneId, label: domain.name, description: domain.status && domain.status !== 'active' ? domain.status : undefined }))}
-              />
-            </Field>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus className="h-3.5 w-3.5" />}
-              disabled={pick === ''}
-              loading={toggle.isPending}
-              onClick={() => toggle.mutate({ zoneId: pick, enabled: true })}
-              className="!h-8"
-            >
-              {t('hosting.domains.offer')}
-            </Button>
-          </div>
+          <Field label={t('hosting.domains.addLabel')} className="max-w-[640px]" hint={addable.length === 0 ? t('hosting.domains.allOffered') : t('hosting.domains.addHint', { count: addable.length })}>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <Select
+                  value={pick}
+                  onChange={setPick}
+                  searchable
+                  disabled={addable.length === 0}
+                  placeholder={t('hosting.domains.pick')}
+                  searchPlaceholder={t('hosting.domains.search')}
+                  options={addable.map((domain) => ({ value: domain.zoneId, label: domain.name, description: domain.status && domain.status !== 'active' ? domainStatus(domain.status) : undefined }))}
+                />
+              </div>
+              <Button variant="primary" icon={<Plus className="h-4 w-4" />} disabled={pick === ''} loading={toggle.isPending} onClick={() => toggle.mutate({ zoneId: pick, enabled: true })}>
+                {t('hosting.domains.offer')}
+              </Button>
+            </div>
+          </Field>
 
           <div className="flex flex-col gap-2">
             <p className="text-[12px] font-medium text-[var(--text-secondary)]">{t('hosting.domains.offeredTitle', { count: offered.length })}</p>
-            <HostingTableBar text={table.list.text} setText={table.list.setText} placeholder={t('hosting.domains.searchOffered')} total={table.total} all={table.all} fetching={table.query.isFetching && !table.query.isLoading} onRefresh={() => void table.query.refetch()} />
+            {table.all > 5 || table.narrowed ? (
+              <HostingTableBar text={table.list.text} setText={table.list.setText} placeholder={t('hosting.domains.searchOffered')} total={table.total} all={table.all} fetching={table.query.isFetching && !table.query.isLoading} onRefresh={() => void table.query.refetch()} />
+            ) : null}
             <ListTable
               variant="hosting-domains"
               empty={table.query.isLoading || table.query.isError || table.items.length === 0}
               columns={[
                 { label: t('docker.colIndex') },
                 table.list.column('name', t('hosting.col.domain'), table.facets?.name, { filterable: false }),
-                table.list.column('status', t('hosting.col.status'), table.facets?.status),
+                table.list.column('status', t('hosting.col.status'), table.facets?.status, { labelOf: domainStatus }),
                 table.list.column('role', t('hosting.col.role'), table.facets?.role, { labelOf: (v) => t(v === 'main' ? 'hosting.domains.main' : 'hosting.domains.extra') }),
                 { label: t('hosting.col.actions'), actions: true },
               ]}
@@ -125,13 +123,15 @@ export function HostingDomainsCard() {
                       <div className="docker-row__text">
                         <span className="docker-app-name docker-app-name--mono" title={domain.name}>{domain.name}</span>
                         <span className="docker-row__sub">{domain.isMain ? t('hosting.domains.mainExample', { name: domain.name }) : t('hosting.domains.example', { name: domain.name })}</span>
-                        <span className="docker-row__meta">{`${domain.status ?? '-'} · ${t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}`}</span>
+                        <span className="docker-row__meta">{`${domainStatus(domain.status)} · ${t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}`}</span>
                       </div>
                     </div>
                     <div className="docker-cell--keep">
-                      <StatusPill tone={domain.status === 'active' ? 'success' : 'warning'}>{domain.status ?? '-'}</StatusPill>
+                      <StatusPill tone={domain.status === 'active' ? 'success' : 'warning'}>{domainStatus(domain.status)}</StatusPill>
                     </div>
-                    <div className="docker-cell">{t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}</div>
+                    <div className="docker-cell--keep">
+                      <StatusPill tone={domain.isMain ? 'primary' : 'neutral'}>{t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}</StatusPill>
+                    </div>
                     <div className="docker-action-btns">
                       {domain.isMain || offered.length < 2 ? null : (
                         <Button variant="outline" size="sm" disabled={makeMain.isPending} onClick={() => makeMain.mutate(domain.zoneId)}>

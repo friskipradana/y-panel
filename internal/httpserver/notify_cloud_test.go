@@ -133,7 +133,7 @@ func TestIntegrationWhatsAppCloudFromTheSettingsToTheBuyer(t *testing.T) {
 		t.Fatalf("test: %d %s", rec.Code, rec.Body.String())
 	}
 	eventually(t, "the test template", func() bool { return len(meta.to("6281122334455")) >= 1 })
-	if name := templateName(meta.to("6281122334455")[0]); name != "reneo_test" {
+	if name := templateName(meta.to("6281122334455")[0]); name != "reneo_test_r2" {
 		t.Fatalf("the test goes as its own template: %s", name)
 	}
 
@@ -141,7 +141,7 @@ func TestIntegrationWhatsAppCloudFromTheSettingsToTheBuyer(t *testing.T) {
 	f.s.notify.Emit(notify.Event{Name: notify.EventOrderPaid, Key: "o-9", Data: map[string]any{"username": "andi", "plan": "Pro", "note": "dikonfirmasi"}})
 	eventually(t, "the order notice on WhatsApp Cloud", func() bool {
 		for _, m := range meta.to("6281122334455") {
-			if templateName(m) == "reneo_order_paid" {
+			if templateName(m) == "reneo_order_paid_r2" {
 				return true
 			}
 		}
@@ -176,7 +176,7 @@ func TestIntegrationWhatsAppCloudFromTheSettingsToTheBuyer(t *testing.T) {
 	}
 	eventually(t, "the buyer's template", func() bool {
 		for _, m := range meta.to("6281399990000") {
-			if templateName(m) == "reneo_buyer_order_created" {
+			if templateName(m) == "reneo_buyer_order_created_r2" {
 				return true
 			}
 		}
@@ -194,7 +194,7 @@ func TestIntegrationWhatsAppCloudFromTheSettingsToTheBuyer(t *testing.T) {
 	}
 	eventually(t, "the buyer's activation template", func() bool {
 		for _, m := range meta.to("6281399990000") {
-			if templateName(m) == "reneo_buyer_order_paid" {
+			if templateName(m) == "reneo_buyer_order_paid_r2" {
 				return true
 			}
 		}
