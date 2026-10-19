@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.32.2] - 2026-10-19
+
+A WAHA container that is still booting is not shown as a failure, and a real failure shows why.
+
+### Perbaikan
+- **notify:** A WAHA container that is still booting is not shown as a failure, and a real failure shows why ([`d2f0f98`](https://github.com/friskipradana/y-panel/commit/d2f0f98))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.32.1...v1.32.2
+
 ## [1.32.1] - 2026-10-19
 
 WAHA runs from the smaller GOWS image, shows why a pull fails, and every session acts with its own key.
