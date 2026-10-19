@@ -752,6 +752,11 @@ func (m *Manager) DeleteUser(id int64) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
 	}
+	// the orders of the account stay as a record, but one still waiting would hold its total and address for nothing
+	if _, err := m.db.Exec(`UPDATE hosting_orders SET status = 'cancelled', note = CASE WHEN note = '' THEN 'account deleted' ELSE note END
+		WHERE user_id = $1 AND status IN ('pending', 'review')`, id); err != nil {
+		return err
+	}
 	_, err := m.db.Exec("DELETE FROM users WHERE id = $1", id)
 	return err
 }

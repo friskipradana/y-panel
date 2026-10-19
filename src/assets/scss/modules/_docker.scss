@@ -316,7 +316,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--win-border);
@@ -384,6 +384,28 @@
   align-items: center;
 }
 
+// The bar over a Hosting table: the search and the refresh button, with the height of the controls of the Docker bar
+.hosting-table-bar {
+  --docker-control-h: 32px;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .docker-search-wrap {
+    flex: 0 1 320px;
+    min-width: 0;
+  }
+
+  .docker-search-input {
+    width: 100%;
+  }
+
+  .hosting-table-bar__refresh {
+    margin-left: auto;
+  }
+}
+
 .docker-search-icon {
   position: absolute;
   left: 10px;
@@ -394,7 +416,7 @@
 .docker-search-input {
   box-sizing: border-box;
   width: 200px;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding-left: 32px;
   padding-right: 12px;
   border-radius: 8px;
@@ -421,8 +443,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--docker-control-h);
-  height: var(--docker-control-h);
+  width: var(--docker-control-h, 32px);
+  height: var(--docker-control-h, 32px);
   border-radius: 8px;
   border: 1px solid var(--win-border);
   background: var(--panel-surface-strong);
@@ -445,7 +467,7 @@
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding: 0 10px;
   border-radius: 8px;
   border: 1px solid var(--win-border);
@@ -738,7 +760,7 @@
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding: 0 12px;
   border-radius: 8px;
   // the border is there (transparent) so this button is exactly as tall as the bordered ones
@@ -976,7 +998,7 @@
   gap: 8px;
   min-width: 0;
   box-sizing: border-box;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding: 0 10px;
   border: 1px solid var(--win-border);
   border-radius: 8px;
@@ -1013,7 +1035,7 @@
   align-items: center;
   gap: 6px;
   box-sizing: border-box;
-  height: var(--docker-control-h);
+  height: var(--docker-control-h, 32px);
   padding: 0 10px;
   border-radius: 8px;
   border: 1px solid var(--win-border);

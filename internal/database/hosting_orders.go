@@ -66,7 +66,7 @@ type HostingOrder struct {
 	NotifID     *int64     `json:"notifId"`
 }
 
-const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, COALESCE(u.username, ''), o.periods,
+const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESCE(o.user_id, 0), COALESCE(NULLIF(o.username, ''), COALESCE(u.username, '')), o.periods,
 	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 	o.created_at, o.expires_at, o.paid_at, o.notif_id,
 	o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code`
@@ -135,10 +135,11 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 		var id int64
 		err = m.db.QueryRow(`
 			INSERT INTO hosting_orders (public_id, kind, plan_id, plan_name, user_id, periods, amount_base, unique_code, amount_total, status, note, created_ip, expires_at,
-				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id
+				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code, username)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+				COALESCE(NULLIF($23, ''), (SELECT username FROM users WHERE id = $5), '')) RETURNING id
 		`, publicID, o.Kind, o.PlanID, o.PlanName, o.UserID, o.Periods, o.AmountBase, code, total, o.Status, o.Note, o.CreatedIP, o.ExpiresAt,
-				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode).Scan(&id)
+				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode, o.Username).Scan(&id)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "idx_hosting_orders_sub_reserved" {
 			return nil, ErrSubdomainReserved
@@ -280,7 +281,7 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 	}
 	rows, err := m.db.Query(`UPDATE hosting_orders o SET status = 'expired'
 		WHERE o.status = 'pending' AND o.expires_at <= $1
-		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, '', o.periods,
+		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESCE(o.user_id, 0), o.username, o.periods,
 			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 			o.created_at, o.expires_at, o.paid_at, o.notif_id,
 			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code`, now)

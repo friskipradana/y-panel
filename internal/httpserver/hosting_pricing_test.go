@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -246,5 +247,53 @@ func TestIntegrationBuyerSayingTheyTransferredAlertsTheSellerOnce(t *testing.T) 
 	}
 	if rec := claim(strings.Repeat("x", 24)); rec.Code != http.StatusNotFound {
 		t.Fatalf("an unknown order: %d", rec.Code)
+	}
+}
+
+// An order is a record of money asked for: cancelling it drops the account made for it, and the order stays with the name of
+// its buyer; deleting a buyer cancels what still waits and keeps the rest. Skipped without REN_TEST_DATABASE_URL.
+func TestIntegrationOrdersSurviveTheirAccounts(t *testing.T) {
+	f := newHostingFixture(t)
+	plan := f.plan(t, "starter", 50000, 0, 0)
+	order := func(ip, name string) *database.HostingOrder {
+		rec, view := f.postOrder(t, ip, map[string]any{
+			"planId": plan.ID, "kind": "new", "periods": 1, "username": name, "email": name + "@example.com", "password": "Sup3r-secret-pass",
+		})
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("order of %s: %d %s", name, rec.Code, rec.Body.String())
+		}
+		o, _ := f.db.GetHostingOrderByPublicID(view.PublicID)
+		return o
+	}
+
+	// cancelled by the seller: the account that never paid goes, the order does not
+	first := order("203.0.113.80", "rani")
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.SetPathValue("id", strconv.FormatInt(first.ID, 10))
+	rec := httptest.NewRecorder()
+	f.s.handleCancelOrder(rec, asUser(req, f.super))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("cancel: %d %s", rec.Code, rec.Body.String())
+	}
+	if u, _ := f.db.GetUserByUsername("rani"); u != nil {
+		t.Fatal("the unpaid account is dropped with the cancelled order")
+	}
+	kept, _ := f.db.GetHostingOrder(first.ID)
+	if kept == nil || kept.Status != database.OrderCancelled || kept.Username != "rani" || kept.UserID != 0 {
+		t.Fatalf("the cancelled order stays, with the name of its buyer: %+v", kept)
+	}
+	if list, total, _ := f.db.ListHostingOrders(0, "", 50, 0); total != 1 || len(list) != 1 || list[0].Username != "rani" {
+		t.Fatalf("it still shows in the list of orders: %d %+v", total, list)
+	}
+
+	// a buyer deleted by the seller: a waiting order is cancelled, not left holding its total
+	second := order("203.0.113.81", "sinta")
+	user, _ := f.db.GetUserByUsername("sinta")
+	if err := f.db.DeleteUser(user.ID); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := f.db.GetHostingOrder(second.ID)
+	if after == nil || after.Status != database.OrderCancelled || after.Username != "sinta" {
+		t.Fatalf("a waiting order of a deleted buyer is cancelled and kept: %+v", after)
 	}
 }

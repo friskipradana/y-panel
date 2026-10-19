@@ -43,14 +43,14 @@ export function HostingTableBar({ text, setText, placeholder, total, all, fetchi
 }) {
   const { t } = useI18n()
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="docker-search-wrap min-w-[180px] flex-1">
+    <div className="hosting-table-bar">
+      <div className="docker-search-wrap">
         <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
         <input type="search" className="docker-search-input" aria-label={placeholder} placeholder={placeholder} value={text} onChange={(e) => setText(e.target.value)} />
       </div>
       {all > 0 && total !== all ? <span className="text-[11px] text-[var(--text-secondary)]">{t('hosting.table.shown', { shown: total, all })}</span> : null}
       {extra}
-      <button type="button" className="docker-icon-btn" title={t('common.refresh')} aria-label={t('common.refresh')} onClick={onRefresh}>
+      <button type="button" className="docker-icon-btn hosting-table-bar__refresh" title={t('common.refresh')} aria-label={t('common.refresh')} onClick={onRefresh}>
         <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
       </button>
     </div>
