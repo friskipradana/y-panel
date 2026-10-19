@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.41.0] - 2026-10-19
+
+Notices read clearly in both languages, and a buyer panel address serves no public site.
+
+### Fitur baru
+- **hosting:** Notices read clearly in both languages, and a buyer panel address serves no public site ([`0096c64`](https://github.com/friskipradana/y-panel/commit/0096c64))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.40.1...v1.41.0
+
 ## [1.40.1] - 2026-10-19
 
 Orders stay when their account is deleted, and the search of the tables has the height of the other controls.
