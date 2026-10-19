@@ -41,6 +41,11 @@ export async function registerNotificationDevice(payload: RegisterNotificationDe
   return data
 }
 
+export async function rotateNotificationDeviceKey(deviceId: string): Promise<NotificationDeviceMutationResponse> {
+  const { data } = await agentApi.post(`/api/v1/notification-devices/${encodeURIComponent(deviceId)}/key`)
+  return data
+}
+
 export async function updateNotificationDevice(deviceId: string, payload: UpdateNotificationDevicePayload): Promise<NotificationDeviceMutationResponse> {
   const { data } = await agentApi.put(`/api/v1/notification-devices/${encodeURIComponent(deviceId)}`, payload)
   return data

@@ -249,12 +249,15 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/notification-devices", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListNotificationDevices)))
 	s.mux.Handle("POST /api/v1/notification-devices", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleRegisterNotificationDevice)))
 	s.mux.Handle("PUT /api/v1/notification-devices/{deviceId}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleUpdateNotificationDevice)))
+	s.mux.Handle("POST /api/v1/notification-devices/{deviceId}/key", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleRotateNotificationDeviceKey)))
 	s.mux.Handle("DELETE /api/v1/notification-devices/{deviceId}", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleDeleteNotificationDevice)))
 	s.mux.Handle("GET /api/v1/captured-notifications", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleListCapturedNotifications)))
 	s.mux.Handle("GET /api/v1/captured-notifications/ws", s.requireRole(auth.AdminRole, http.HandlerFunc(s.handleCapturedNotificationsWS)))
 
 	// ── Notification Webhook (Public — secured via API key in header) ────────
 	s.mux.HandleFunc("POST /api/v1/webhooks/notifications", s.handleNotificationWebhook)
+	// the listener app asks only for the address of the webhooks, so the shorter one reaches the same place
+	s.mux.HandleFunc("POST /api/v1/webhooks", s.handleNotificationWebhook)
 	// what Meta and the WAHA container send back (statuses, "stop"): open to the internet, guarded by their signatures
 	s.mux.HandleFunc("GET /api/v1/public/notify/whatsapp-cloud/webhook", s.handleCloudWebhookVerify)
 	s.mux.HandleFunc("POST /api/v1/public/notify/whatsapp-cloud/webhook", s.handleCloudWebhook)

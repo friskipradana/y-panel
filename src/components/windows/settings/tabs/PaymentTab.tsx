@@ -7,7 +7,8 @@ import type { PaymentSettings } from "../hooks/usePaymentSettings";
 import type { NotificationSettings } from "../hooks/useNotificationSettings";
 import type { SettingsTabKey } from "../constants";
 import { GatewaySection } from "./payment/GatewaySection";
-import { ListenerEndpoints, ListenerKey } from "./payment/ListenerConnect";
+import { ListenerEndpoints } from "./payment/ListenerConnect";
+import { ListenerDeviceList } from "./payment/ListenerDeviceList";
 import { ListenerDevices } from "./payment/ListenerDevices";
 
 type Section = "bank" | "gateway";
@@ -86,7 +87,7 @@ export function PaymentTab({
 
           <div className="border-t border-[var(--win-border)] pt-3.5">
             {step === 1 ? <ListenerEndpoints listener={listener} /> : null}
-            {step === 2 ? <ListenerKey listener={listener} setActiveTab={setActiveTab} /> : null}
+            {step === 2 ? <ListenerDeviceList listener={listener} setActiveTab={setActiveTab} /> : null}
             {step === 3 ? <ListenerDevices bare listener={listener} /> : null}
           </div>
 

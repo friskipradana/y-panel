@@ -512,6 +512,9 @@ export interface NotificationDevice {
   status: string
   createdAt: string
   updatedAt: string
+  /** When the phone last sent a notification; null if it never did */
+  lastSeenAt: string | null
+  received: number
 }
 
 export interface NotificationDeviceListResponse {
@@ -521,7 +524,6 @@ export interface NotificationDeviceListResponse {
 
 export interface RegisterNotificationDevicePayload {
   deviceId: string
-  apiKey: string
   packageFilter?: string[]
 }
 
@@ -533,6 +535,8 @@ export interface UpdateNotificationDevicePayload {
 export interface NotificationDeviceMutationResponse {
   ok: boolean
   device: NotificationDevice
+  /** The API key, only in the answer that makes it (a new device or a new key); the panel keeps its hash only */
+  apiKey?: string
 }
 
 export interface CapturedNotification {

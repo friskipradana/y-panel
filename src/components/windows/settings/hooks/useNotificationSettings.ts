@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { deleteNotificationDevice, getCapturedNotifications, getNotificationDevices, registerNotificationDevice, updateNotificationDevice } from "@/api/agent";
+import { deleteNotificationDevice, getCapturedNotifications, getNotificationDevices, registerNotificationDevice, rotateNotificationDeviceKey, updateNotificationDevice } from "@/api/agent";
 import { useCapturedNotificationsSocket } from "@/hooks/useCapturedNotificationsSocket";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
@@ -21,13 +21,6 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   const canManage = role === "admin" || role === "superadmin";
 
   // ── Notification Devices ─────────────────────────────────────────────
-  const [listenerDeviceId, setListenerDeviceId] =
-    useState("wimboro-device-001");
-  const [listenerApiKey, setListenerApiKey] = useState("");
-  const [listenerPackageFilter, setListenerPackageFilter] = useState(
-    "id.dana, com.whatsapp, com.gojek.gopay",
-  );
-  const [listenerStatus, setListenerStatus] = useState("active");
   const notificationDevicesQuery = useQuery({
     queryKey: ["notification-devices"],
     queryFn: getNotificationDevices,
@@ -45,40 +38,18 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   const notificationDevices = notificationDevicesQuery.data?.devices ?? [];
   const capturedNotifications: CapturedNotification[] =
     capturedNotificationsQuery.data?.notifications ?? [];
-  const parsePackageFilter = () =>
-    listenerPackageFilter
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
   const panelOrigin =
     typeof window !== "undefined" ? window.location.origin : "";
-  const listenerRegisterUrl = `${panelOrigin}/api/v1/notification-devices`;
   const listenerWebhookUrl = `${panelOrigin}/api/v1/webhooks/notifications`;
   const listenerSocketUrl = `${panelOrigin.replace(/^http/, "ws")}/api/v1/captured-notifications/ws`;
 
+  const refreshDevices = () => queryClient.invalidateQueries({ queryKey: ["notification-devices"] });
+
+  // the key is in the answer once; the dialog that asked shows it, so there is no alert here
   const registerDeviceMutation = useMutation({
-    mutationFn: (payload: RegisterNotificationDevicePayload) =>
-      registerNotificationDevice(payload),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["notification-devices"], (old: any) => ({
-        ...(old ?? { ok: true }),
-        devices: [
-          data.device,
-          ...(old?.devices ?? []).filter(
-            (device: any) => device.deviceId !== data.device.deviceId,
-          ),
-        ],
-      }));
-      void notificationDevicesQuery.refetch();
-      alertLib.fire(
-        t("settings.listener.deviceSavedTitle"),
-        t("settings.listener.deviceSavedMessage"),
-        "success",
-        "settings",
-      );
-      setListenerApiKey("");
-    },
-    onError: (error: any) => {
+    mutationFn: (payload: RegisterNotificationDevicePayload) => registerNotificationDevice(payload),
+    onSuccess: () => void refreshDevices(),
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.listener.deviceSaveFailedTitle"),
         serverMessage(error) || t("settings.listener.deviceSaveFailedMessage"),
@@ -88,22 +59,24 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
     },
   });
 
+  const rotateKeyMutation = useMutation({
+    mutationFn: (deviceId: string) => rotateNotificationDeviceKey(deviceId),
+    onSuccess: () => void refreshDevices(),
+    onError: (error: unknown) => {
+      alertLib.fire(
+        t("settings.listener.keyFailedTitle"),
+        serverMessage(error) || t("settings.listener.keyFailedMessage"),
+        "error",
+        "settings",
+      );
+    },
+  });
+
   const updateDeviceMutation = useMutation({
-    mutationFn: ({
-      deviceId,
-      payload,
-    }: {
-      deviceId: string;
-      payload: UpdateNotificationDevicePayload;
-    }) => updateNotificationDevice(deviceId, payload),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["notification-devices"], (old: any) => ({
-        ...(old ?? { ok: true }),
-        devices: (old?.devices ?? []).map((device: any) =>
-          device.deviceId === data.device.deviceId ? data.device : device,
-        ),
-      }));
-      void notificationDevicesQuery.refetch();
+    mutationFn: ({ deviceId, payload }: { deviceId: string; payload: UpdateNotificationDevicePayload }) =>
+      updateNotificationDevice(deviceId, payload),
+    onSuccess: () => {
+      void refreshDevices();
       alertLib.fire(
         t("settings.listener.deviceUpdatedTitle"),
         t("settings.listener.deviceUpdatedMessage"),
@@ -111,7 +84,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
         "settings",
       );
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.listener.deviceUpdateFailedTitle"),
         serverMessage(error) || t("settings.listener.deviceUpdateFailedMessage"),
@@ -141,72 +114,6 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
       );
     },
   });
-
-  const handleSaveListenerDevice = async () => {
-    const deviceId = listenerDeviceId.trim();
-    const apiKey = listenerApiKey.trim();
-    if (!deviceId || !apiKey) {
-      alertLib.fire(
-        t("settings.listener.incompleteTitle"),
-        t("settings.listener.incompleteMessage"),
-        "warning",
-        "settings",
-      );
-      return;
-    }
-    const confirmed = await alertLib.confirm(
-      t("settings.listener.saveKeyConfirmTitle"),
-      t("settings.listener.saveKeyConfirmMessage"),
-      t("settings.listener.saveKeyConfirmAction"),
-      t("common.cancel"),
-      "question",
-      "settings",
-    );
-    if (!confirmed) return;
-    registerDeviceMutation.mutate({
-      deviceId,
-      apiKey,
-      packageFilter: parsePackageFilter(),
-    });
-  };
-
-  const handleUseDeviceForEdit = (
-    deviceId: string,
-    packageFilter: string[],
-    status: string,
-  ) => {
-    setListenerDeviceId(deviceId);
-    setListenerPackageFilter((packageFilter ?? []).join(", "));
-    setListenerStatus(status || "active");
-    setListenerApiKey("");
-  };
-
-  const handleUpdateListenerMetadata = () => {
-    const deviceId = listenerDeviceId.trim();
-    if (!deviceId) {
-      alertLib.fire(
-        t("settings.listener.emptyDeviceIdTitle"),
-        t("settings.listener.emptyDeviceIdMessage"),
-        "warning",
-        "settings",
-      );
-      return;
-    }
-    // a device that was never saved has nothing to change: its API key has to be saved first
-    if (!notificationDevices.some((device) => device.deviceId === deviceId)) {
-      alertLib.fire(
-        t("settings.listener.unknownDeviceTitle"),
-        t("settings.listener.unknownDeviceMessage", { deviceId }),
-        "warning",
-        "settings",
-      );
-      return;
-    }
-    updateDeviceMutation.mutate({
-      deviceId,
-      payload: { status: listenerStatus, packageFilter: parsePackageFilter() },
-    });
-  };
 
   const handleDeleteListenerDevice = async (deviceId: string) => {
     const confirmed = await alertLib.confirm(
@@ -248,27 +155,16 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   }, [authenticated]);
 
   return {
-    listenerDeviceId,
-    setListenerDeviceId,
-    listenerApiKey,
-    setListenerApiKey,
-    listenerPackageFilter,
-    setListenerPackageFilter,
-    listenerStatus,
-    setListenerStatus,
     notificationDevicesQuery,
     capturedNotificationsQuery,
     notificationDevices,
     capturedNotifications,
-    listenerRegisterUrl,
     listenerWebhookUrl,
     listenerSocketUrl,
     registerDeviceMutation,
+    rotateKeyMutation,
     updateDeviceMutation,
     deleteDeviceMutation,
-    handleSaveListenerDevice,
-    handleUseDeviceForEdit,
-    handleUpdateListenerMetadata,
     handleDeleteListenerDevice,
     capturedWS,
   };
