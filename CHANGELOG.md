@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.44.0] - 2026-10-19
+
+Invoices, notice texts the seller can change, and an own notification bot as a plan feature.
+
+### Fitur baru
+- **hosting:** Invoices, notice texts the seller can change, and an own notification bot as a plan feature ([`03167e7`](https://github.com/friskipradana/y-panel/commit/03167e7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.43.0...v1.44.0
+
 ## [1.43.0] - 2026-10-19
 
 The SSL check tells a missing quota from a missing permission, and a guide for enabling Cloudflare for SaaS.
