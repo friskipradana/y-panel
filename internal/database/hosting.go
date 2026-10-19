@@ -37,6 +37,8 @@ type HostingPlan struct {
 	MaxSubdomains int       `json:"maxSubdomains"`
 	// MaxCustomDomains is how many domains of their own a buyer may point at their panel; 0 means none
 	MaxCustomDomains int `json:"maxCustomDomains"`
+	// OwnNotify lets an account on this plan bring its own notification bot
+	OwnNotify bool `json:"ownNotify"`
 	// TrialDays is how long a buyer may try the plan for free; 0 offers no trial
 	TrialDays   int       `json:"trialDays"`
 	// DurationDiscounts make longer subscriptions cost less
@@ -55,7 +57,7 @@ var ErrPlanInUse = errors.New("plan is still assigned to accounts")
 
 const planColumns = `p.id, p.slug, p.name, p.tagline, p.price_amount, p.period, p.features,
 	p.max_projects, p.max_tunnels, p.max_databases, p.disk_quota_mb, p.cpu_limit_pct, p.memory_limit_mb, p.max_subdomains, p.max_custom_domains, p.trial_days, p.duration_discounts,
-	p.highlighted, p.visible, p.sort_order, p.created_at, p.updated_at,
+	p.own_notify, p.highlighted, p.visible, p.sort_order, p.created_at, p.updated_at,
 	(SELECT COUNT(*) FROM user_plans up WHERE up.plan_id = p.id)`
 
 func scanPlan(row rowScanner) (*HostingPlan, error) {
@@ -63,7 +65,7 @@ func scanPlan(row rowScanner) (*HostingPlan, error) {
 	var features, discounts []byte
 	if err := row.Scan(&p.ID, &p.Slug, &p.Name, &p.Tagline, &p.PriceAmount, &p.Period, &features,
 		&p.MaxProjects, &p.MaxTunnels, &p.MaxDatabases, &p.DiskQuotaMB, &p.CPULimitPct, &p.MemoryLimitMB, &p.MaxSubdomains, &p.MaxCustomDomains, &p.TrialDays, &discounts,
-		&p.Highlighted, &p.Visible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.Accounts); err != nil {
+		&p.OwnNotify, &p.Highlighted, &p.Visible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt, &p.Accounts); err != nil {
 		return nil, err
 	}
 	p.Features = []string{}
@@ -122,10 +124,10 @@ func (m *Manager) CreateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 	var id int64
 	err := m.db.QueryRow(`
 		INSERT INTO hosting_plans (slug, name, tagline, price_amount, period, features, max_projects, max_tunnels, max_databases,
-			disk_quota_mb, cpu_limit_pct, memory_limit_mb, max_subdomains, max_custom_domains, trial_days, highlighted, visible, sort_order, duration_discounts)
-		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb) RETURNING id
+			disk_quota_mb, cpu_limit_pct, memory_limit_mb, max_subdomains, max_custom_domains, trial_days, highlighted, visible, sort_order, duration_discounts, own_notify)
+		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb,$20) RETURNING id
 	`, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases,
-		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts)).Scan(&id)
+		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts), p.OwnNotify).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -141,10 +143,10 @@ func (m *Manager) UpdateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 	res, err := m.db.Exec(`
 		UPDATE hosting_plans SET slug=$2, name=$3, tagline=$4, price_amount=$5, period=$6, features=$7::jsonb,
 			max_projects=$8, max_tunnels=$9, max_databases=$10, disk_quota_mb=$11, cpu_limit_pct=$12, memory_limit_mb=$13,
-			max_subdomains=$14, max_custom_domains=$15, trial_days=$16, highlighted=$17, visible=$18, sort_order=$19, duration_discounts=$20::jsonb, updated_at=NOW()
+			max_subdomains=$14, max_custom_domains=$15, trial_days=$16, highlighted=$17, visible=$18, sort_order=$19, duration_discounts=$20::jsonb, own_notify=$21, updated_at=NOW()
 		WHERE id=$1
 	`, p.ID, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases,
-		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts))
+		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts), p.OwnNotify)
 	if err != nil {
 		return nil, err
 	}

@@ -18,6 +18,7 @@ import { IconBadge } from '@/components/ui/IconBadge'
 import { AccountSecurityCard } from '@/components/windows/profile/AccountSecurityCard'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
 import { MyTelegramCard } from '@/components/windows/profile/MyTelegramCard'
+import { OwnBotCard } from '@/components/windows/profile/OwnBotCard'
 import { MyWhatsAppCard } from '@/components/windows/profile/MyWhatsAppCard'
 
 export default function ProfileWindow() {
@@ -109,6 +110,7 @@ export default function ProfileWindow() {
           </div>
 
           <MyPlanCard />
+          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <OwnBotCard /> : null}
           {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyTelegramCard groups={['security']} /> : null}
           {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyWhatsAppCard groups={['security', 'buyer']} /> : null}
           <AccountSecurityCard />

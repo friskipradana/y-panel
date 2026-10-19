@@ -15,6 +15,7 @@ function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string
     t('hosting.landing.databases', { count: plan.maxDatabases }),
     ...(plan.maxSubdomains > 0 ? [t('hosting.landing.subdomains', { count: plan.maxSubdomains })] : []),
     ...(plan.maxCustomDomains > 0 ? [t('hosting.landing.customDomains', { count: plan.maxCustomDomains })] : []),
+    ...(plan.ownNotify ? [t('hosting.landing.ownNotify')] : []),
     t('hosting.landing.disk', { amount: disk }),
     t('hosting.landing.ram', { amount: ram }),
   ]

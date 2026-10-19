@@ -28,7 +28,9 @@ const (
 type Worker struct {
 	db      *database.Manager
 	channel func(kind string) (Channel, error)
-	n       int
+	// ownChannel gives the channel of the own bot of an account, or nil when it is off or the plan no longer includes it
+	ownChannel func(userID int64) (Channel, error)
+	n          int
 	wake    chan struct{}
 	stop    chan struct{}
 	wg      sync.WaitGroup
@@ -207,7 +209,19 @@ func (w *Worker) process(id string, msg database.OutboxMessage) {
 		cancel("the recipient switched this notice off")
 		return
 	}
-	ch, err := w.channel(msg.Kind)
+	// a chat linked through the own bot of an account is reached by that bot and by no other
+	var ch Channel
+	if rec.OwnBot {
+		if w.ownChannel != nil {
+			ch, err = w.ownChannel(msg.UserID)
+		}
+		if err == nil && ch == nil {
+			cancel("your own bot is switched off, or your plan no longer includes it")
+			return
+		}
+	} else {
+		ch, err = w.channel(msg.Kind)
+	}
 	if err != nil {
 		retry(DelayAfter(msg.Attempts, 0), "the channel is not ready: "+err.Error())
 		return
@@ -218,7 +232,8 @@ func (w *Worker) process(id string, msg database.OutboxMessage) {
 	}
 	var data map[string]any
 	_ = json.Unmarshal(msg.Payload, &data)
-	text := Render(msg.Event, rec.Locale, data)
+	custom, _ := w.db.GetNotificationTemplate(msg.Event, rec.Locale)
+	text := RenderWith(msg.Event, rec.Locale, data, custom)
 	if text == "" {
 		fail("no text is known for the event " + msg.Event)
 		return

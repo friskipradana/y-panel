@@ -115,12 +115,16 @@ func (s *Server) handleTestTelegram(w http.ResponseWriter, r *http.Request) {
 	if !s.notifyReady(w) {
 		return
 	}
-	channel, _ := s.notify.Channel("telegram")
-	if channel == nil {
-		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "switch the Telegram channel on first"})
-		return
+	u := userFromCtx(r)
+	// an account that brought its own bot tests through it; the others through the channel of the seller
+	if rec, _ := s.database.GetNotifyRecipient(u.ID, "telegram"); rec == nil || !rec.OwnBot {
+		channel, _ := s.notify.Channel("telegram")
+		if channel == nil {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "switch the Telegram channel on first"})
+			return
+		}
 	}
-	id, err := s.notify.SendTest(userFromCtx(r).ID)
+	id, err := s.notify.SendTest(u.ID)
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
@@ -350,6 +354,10 @@ func (s *Server) handleMyTelegram(w http.ResponseWriter, r *http.Request) {
 		if c.Kind == "telegram" {
 			telegram = jsonResponse{"kind": c.Kind, "enabled": c.Enabled, "configured": c.Configured, "status": c.Status, "botUsername": c.BotUsername, "lastError": "", "checkedAt": nil}
 		}
+	}
+	// an account with its own bot, on a plan that includes it, links and is told through that bot
+	if own, err := s.notify.OwnBot(u.ID); err == nil && own.Allowed && own.Configured && own.Enabled {
+		telegram = jsonResponse{"kind": "telegram", "enabled": true, "configured": true, "status": own.Status, "botUsername": own.BotUsername, "lastError": own.LastError, "checkedAt": own.CheckedAt, "own": true}
 	}
 	rec, _ := s.database.GetNotifyRecipient(u.ID, "telegram")
 	s.writeJSON(w, http.StatusOK, jsonResponse{

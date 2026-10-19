@@ -117,6 +117,11 @@ func Known(event string) bool {
 // Render makes the text of an event for a language ("id" or "en"; anything else is Indonesian). The data fills the
 // {name} placeholders; a missing value becomes a dash instead of staying as a raw placeholder.
 func Render(event, locale string, data map[string]any) string {
+	return RenderWith(event, locale, data, "")
+}
+
+// RenderWith is Render with the text the seller wrote for this event, used in place of the one that comes with Reneo when it is not empty
+func RenderWith(event, locale string, data map[string]any, custom string) string {
 	t, ok := catalog[event]
 	if !ok {
 		return ""
@@ -128,6 +133,9 @@ func Render(event, locale string, data map[string]any) string {
 		return x.id
 	}
 	text := pick(t)
+	if custom != "" {
+		text = custom
+	}
 	if variant, _ := data["variant"].(string); variant != "" {
 		if line, ok := variantLines[variant]; ok {
 			text += "\n" + pick(line)

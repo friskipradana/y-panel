@@ -219,3 +219,43 @@ export const openWahaDashboard = () => agentApi.post<{ url: string }>('/api/v1/n
 
 /** What an account needs to link its own Telegram, in the shape of the settings overview */
 export const getMyTelegramOverview = () => agentApi.get<NotifyOverview>('/api/v1/me/telegram').then((r) => r.data)
+
+/** The text of one event: what comes with Reneo, and what the seller changed (a language is there only when changed) */
+export interface NotifyTemplate {
+  event: string
+  group: string
+  seller: boolean
+  /** The {names} a text of this event may use */
+  vars: string[]
+  default: { id: string; en: string }
+  custom: Partial<Record<'id' | 'en', string>>
+}
+
+export const listNotifyTemplates = () =>
+  agentApi.get<{ items: NotifyTemplate[]; maxLength: number }>('/api/v1/notify/templates').then((r) => r.data)
+
+export const saveNotifyTemplate = (event: string, locale: 'id' | 'en', body: string) =>
+  agentApi.put<{ ok: boolean }>(`/api/v1/notify/templates/${event}/${locale}`, { body }).then((r) => r.data)
+
+export const resetNotifyTemplate = (event: string, locale: 'id' | 'en') =>
+  agentApi.delete<{ ok: boolean }>(`/api/v1/notify/templates/${event}/${locale}`).then((r) => r.data)
+
+/** The own notification bot of an account, for the plans that include it */
+export interface OwnBotState {
+  /** The plan of the account includes its own bot */
+  allowed: boolean
+  configured: boolean
+  enabled: boolean
+  botUsername: string
+  botName: string
+  status: string
+  lastError: string
+  checkedAt: string | null
+}
+
+export const getOwnBot = () => agentApi.get<OwnBotState>('/api/v1/me/telegram/bot').then((r) => r.data)
+
+export const saveOwnBot = (body: { enabled: boolean; botToken?: string }) =>
+  agentApi.put<OwnBotState>('/api/v1/me/telegram/bot', body).then((r) => r.data)
+
+export const removeOwnBot = () => agentApi.delete<{ ok: boolean }>('/api/v1/me/telegram/bot').then((r) => r.data)

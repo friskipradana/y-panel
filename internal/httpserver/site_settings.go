@@ -69,6 +69,11 @@ type siteSettings struct {
 	OrderUniqueMax int `json:"orderUniqueMax"`
 	// TrialApproval: a trial waits for the superadmin instead of starting at once
 	TrialApproval bool `json:"trialApproval"`
+	// The seller as an invoice shows them: name, address (a few lines), a line of contact and a note under every invoice
+	InvoiceName    string `json:"invoiceName"`
+	InvoiceAddress string `json:"invoiceAddress"`
+	InvoiceContact string `json:"invoiceContact"`
+	InvoiceNote    string `json:"invoiceNote"`
 }
 
 var (
@@ -183,6 +188,10 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		OrderExpiryMinutes   *int    `json:"orderExpiryMinutes"`
 		OrderUniqueMax       *int    `json:"orderUniqueMax"`
 		TrialApproval        *bool   `json:"trialApproval"`
+		InvoiceName          *string `json:"invoiceName"`
+		InvoiceAddress       *string `json:"invoiceAddress"`
+		InvoiceContact       *string `json:"invoiceContact"`
+		InvoiceNote          *string `json:"invoiceNote"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -265,6 +274,22 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.TrialApproval != nil {
 		next.TrialApproval = *req.TrialApproval
+	}
+	for _, field := range []struct {
+		in        *string
+		out       *string
+		max       int
+		multiline bool
+	}{{req.InvoiceName, &next.InvoiceName, 80, false}, {req.InvoiceContact, &next.InvoiceContact, 120, false}, {req.InvoiceAddress, &next.InvoiceAddress, 240, true}, {req.InvoiceNote, &next.InvoiceNote, 240, true}} {
+		if field.in == nil {
+			continue
+		}
+		text := strings.TrimSpace(strings.ReplaceAll(*field.in, "\r\n", "\n"))
+		if utf8.RuneCountInString(text) > field.max || (!field.multiline && strings.Contains(text, "\n")) || strings.Count(text, "\n") > 4 {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "the invoice details are too long"})
+			return
+		}
+		*field.out = text
 	}
 	if req.SelfSignup != nil {
 		// buyers pay to an account: it has to be named before orders are taken

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ReceiptText, X } from 'lucide-react'
+import { Check, FileText, ReceiptText, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cancelHostingOrder, confirmHostingOrder, formatRupiah, type AdminOrder, type OrderStatus } from '@/api/hosting'
 import { DateTimeText } from '@/components/common/DateTimeText'
@@ -136,6 +136,9 @@ export function HostingOrdersCard() {
                       </RowAction>
                     </>
                   ) : null}
+                  <RowAction label={t('invoice.open')} onClick={() => window.open(`/order/${order.publicId}/invoice`, '_blank', 'noopener')}>
+                    <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </RowAction>
                 </div>
               </div>
             )

@@ -138,6 +138,11 @@ export interface SiteSettings {
   orderUniqueMax: number
   /** A trial waits for the superadmin instead of starting at once */
   trialApproval: boolean
+  /** The seller as an invoice shows them */
+  invoiceName?: string
+  invoiceAddress?: string
+  invoiceContact?: string
+  invoiceNote?: string
 }
 
 export interface OrderMethod {

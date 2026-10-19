@@ -344,14 +344,16 @@ type NotifyRecipient struct {
 	BlockedAt     *time.Time `json:"blockedAt"`
 	LinkCode      string     `json:"-"`
 	LinkExpiresAt *time.Time `json:"linkExpiresAt"`
+	// OwnBot: the chat was linked through the account's own bot, so only that bot can reach it
+	OwnBot bool `json:"ownBot"`
 }
 
-const recipientColumns = `id, user_id, kind, address, verified_at, muted_events, locale, blocked_at, link_code, link_expires_at`
+const recipientColumns = `id, user_id, kind, address, verified_at, muted_events, locale, blocked_at, link_code, link_expires_at, own_bot`
 
 func scanRecipient(row rowScanner) (*NotifyRecipient, error) {
 	var r NotifyRecipient
 	var muted pq.StringArray
-	if err := row.Scan(&r.ID, &r.UserID, &r.Kind, &r.Address, &r.VerifiedAt, &muted, &r.Locale, &r.BlockedAt, &r.LinkCode, &r.LinkExpiresAt); err != nil {
+	if err := row.Scan(&r.ID, &r.UserID, &r.Kind, &r.Address, &r.VerifiedAt, &muted, &r.Locale, &r.BlockedAt, &r.LinkCode, &r.LinkExpiresAt, &r.OwnBot); err != nil {
 		return nil, err
 	}
 	r.MutedEvents = []string(muted)
@@ -395,7 +397,7 @@ func (m *Manager) CompleteNotifyLink(kind, code, address string) (int64, error) 
 	var userID int64
 	err := m.db.QueryRow(`
 		UPDATE notification_recipients
-		SET address = $3, verified_at = NOW(), blocked_at = NULL, link_code = '', link_expires_at = NULL, updated_at = NOW()
+		SET address = $3, verified_at = NOW(), blocked_at = NULL, link_code = '', link_expires_at = NULL, own_bot = false, updated_at = NOW()
 		WHERE kind = $1 AND link_code = $2 AND link_code <> '' AND link_expires_at > NOW()
 		RETURNING user_id
 	`, kind, code, address).Scan(&userID)
@@ -448,9 +450,13 @@ func (m *Manager) NotifyTargets(userIDs []int64) ([]NotifyRecipient, error) {
 		return nil, nil
 	}
 	rows, err := m.db.Query(`
-		SELECT r.id, r.user_id, r.kind, r.address, r.verified_at, r.muted_events, r.locale, r.blocked_at, r.link_code, r.link_expires_at
-		FROM notification_recipients r JOIN notification_channels c ON c.kind = r.kind AND c.enabled
+		SELECT r.id, r.user_id, r.kind, r.address, r.verified_at, r.muted_events, r.locale, r.blocked_at, r.link_code, r.link_expires_at, r.own_bot
+		FROM notification_recipients r LEFT JOIN notification_channels c ON c.kind = r.kind
 		WHERE r.user_id = ANY($1) AND r.verified_at IS NOT NULL AND r.blocked_at IS NULL AND r.address <> ''
+		  AND (
+		    (NOT r.own_bot AND COALESCE(c.enabled, false))
+		    OR (r.own_bot AND EXISTS (SELECT 1 FROM user_telegram_bots b WHERE b.user_id = r.user_id AND b.enabled) AND ` + fmt.Sprintf(ownNotifyAllowedSQL, "r.user_id") + `)
+		  )
 		ORDER BY r.user_id, r.kind
 	`, pq.Array(userIDs))
 	if err != nil {

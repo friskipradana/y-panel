@@ -97,7 +97,7 @@ func (s *Server) emitOrderCreated(o *database.HostingOrder, username, plan strin
 		Name: notify.EventOrderCreated, Key: fmt.Sprintf("order-%d", o.ID),
 		Data: map[string]any{
 			"order": o.ID, "username": username, "plan": plan, "period": s.periodText(o), "kind": orderKindWord(o.Kind),
-			"amount": amountText(o.AmountTotal), "voucher": voucherText(o), "address": o.SubHostname,
+			"amount": amountText(o.AmountTotal), "voucher": voucherText(o), "address": o.SubHostname, "invoice": invoiceURL(o),
 		},
 	})
 }
@@ -115,6 +115,7 @@ func (s *Server) buyerOrderCreated(o *database.HostingOrder, plan string) {
 	s.notify.Emit(notify.Event{
 		Name: notify.EventBuyerOrderCreated, UserIDs: []int64{o.UserID}, Key: fmt.Sprintf("order-%d", o.ID),
 		Data: map[string]any{
+			"order": o.ID, "invoice": invoiceURL(o),
 			"plan": plan, "period": s.periodText(o), "amount": rupiah(o.AmountTotal), "bank": first.Name, "account": first.Account,
 			"holder": first.Holder, "deadline": o.ExpiresAt.Local().Format(notify.TimeLayout),
 			"url": strings.TrimRight(o.PublicBase, "/") + "/order/" + o.PublicID,
@@ -135,7 +136,7 @@ func (s *Server) buyerOrderPaid(o *database.HostingOrder, user *database.User, p
 	}
 	s.notify.Emit(notify.Event{
 		Name: notify.EventBuyerOrderPaid, UserIDs: []int64{o.UserID}, Key: fmt.Sprintf("order-%d", o.ID),
-		Data: map[string]any{"plan": plan, "username": user.Username, "until": until, "url": url},
+		Data: map[string]any{"order": o.ID, "amount": amountText(o.AmountTotal), "invoice": invoiceURL(o), "plan": plan, "username": user.Username, "until": until, "url": url},
 	})
 }
 
@@ -166,7 +167,7 @@ func (s *Server) emitOrderReview(orderID int64, username string, reason notify.L
 func (s *Server) emitOrderPaid(o *database.HostingOrder, username, plan, note string) {
 	s.notify.Emit(notify.Event{
 		Name: notify.EventOrderPaid, Key: fmt.Sprintf("order-%d", o.ID),
-		Data: map[string]any{"order": o.ID, "username": username, "plan": plan, "amount": amountText(o.AmountTotal), "note": orderPaidHow(note)},
+		Data: map[string]any{"order": o.ID, "username": username, "plan": plan, "amount": amountText(o.AmountTotal), "note": orderPaidHow(note), "invoice": invoiceURL(o)},
 	})
 }
 

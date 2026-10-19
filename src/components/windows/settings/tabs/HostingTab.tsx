@@ -17,6 +17,7 @@ import { HostingOrdersCard } from '../hosting/HostingOrdersCard'
 import { HostingPaymentCard } from '../hosting/HostingPaymentCard'
 import { HostingPlansCard } from '../hosting/HostingPlansCard'
 import { HostingSubdomainsCard } from '../hosting/HostingSubdomainsCard'
+import { HostingInvoiceCard } from '../hosting/HostingInvoiceCard'
 import { HostingTermsCard } from '../hosting/HostingTermsCard'
 import { HostingVouchersCard } from '../hosting/HostingVouchersCard'
 
@@ -134,7 +135,12 @@ export function HostingTab() {
           {section === 'orders' ? <HostingOrdersCard /> : null}
           {section === 'vouchers' ? <HostingVouchersCard /> : null}
           {section === 'payment' ? <HostingPaymentCard /> : null}
-          {section === 'terms' ? <HostingTermsCard /> : null}
+          {section === 'terms' ? (
+            <>
+              <HostingTermsCard />
+              <HostingInvoiceCard />
+            </>
+          ) : null}
           {section === 'demo' ? <DemoAccountCard /> : null}
         </>
       ) : null}

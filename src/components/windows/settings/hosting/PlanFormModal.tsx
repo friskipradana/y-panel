@@ -25,6 +25,7 @@ const EMPTY: PlanInput = {
   maxSubdomains: 1,
   maxCustomDomains: 0,
   trialDays: 0,
+  ownNotify: false,
   durationDiscounts: [],
   highlighted: false,
   visible: true,
@@ -161,6 +162,7 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="flex flex-col gap-2.5">
+            <Checkbox checked={form.ownNotify} onChange={(ownNotify) => patch({ ownNotify })} label={t('hosting.plan.ownNotify')} description={t('hosting.plan.ownNotifyHint')} />
             <Checkbox checked={form.visible} onChange={(visible) => patch({ visible })} label={t('hosting.plan.visible')} description={t('hosting.plan.visibleHint')} />
             <Checkbox checked={form.highlighted} onChange={(highlighted) => patch({ highlighted })} label={t('hosting.plan.highlighted')} description={t('hosting.plan.highlightedHint')} />
           </div>

@@ -41,6 +41,8 @@ type Service struct {
 	cache  map[string]cachedChannel
 	tgBase string
 	tgPoll sync.Mutex
+	// one reader at a time for the own bot of each account
+	botLocks sync.Map
 	// WhatsApp: the container being started, and one lock per account for its session
 	waha      wahaRuntime
 	wahaBase  string
@@ -111,10 +113,12 @@ func (s *Service) Start(workers int) {
 		log.Printf("[notify] the saved thresholds are not used: %v", err)
 	}
 	s.worker = NewWorker(s.db, workers, s.Channel)
+	s.worker.ownChannel = s.OwnChannel
 	s.worker.Start()
-	s.wg.Add(2)
+	s.wg.Add(3)
 	go s.sweepLoop()
 	go s.telegramLoop()
+	go s.ownBotLoop()
 }
 
 func (s *Service) Stop() {
@@ -464,6 +468,16 @@ type Link struct {
 }
 
 func (s *Service) StartTelegramLink(userID int64) (*Link, error) {
+	// an account that brought its own bot links through it
+	if _, bot, err := s.ownTelegram(userID); err != nil {
+		return nil, err
+	} else if bot != nil && bot.BotUsername != "" {
+		code := NewLinkCode()
+		if err := s.db.StartNotifyLink(userID, telegramKind, code, linkLifetime); err != nil {
+			return nil, err
+		}
+		return &Link{Code: code, URL: "https://t.me/" + bot.BotUsername + "?start=" + code, ExpiresAt: s.now().Add(linkLifetime)}, nil
+	}
 	row, err := s.db.GetNotifyChannel(telegramKind)
 	if err != nil {
 		return nil, err
@@ -484,7 +498,13 @@ func (s *Service) StartTelegramLink(userID int64) (*Link, error) {
 // CheckTelegramLink reads what was sent to the bot and completes every link whose code arrived. It says whether this
 // account is now linked. Reading is one at a time, and each message is read once.
 func (s *Service) CheckTelegramLink(ctx context.Context, userID int64) (bool, error) {
-	if err := s.readTelegram(ctx); err != nil {
+	if tg, _, err := s.ownTelegram(userID); err != nil {
+		return false, err
+	} else if tg != nil {
+		if err := s.readOwnTelegram(ctx, userID); err != nil {
+			return false, err
+		}
+	} else if err := s.readTelegram(ctx); err != nil {
 		return false, err
 	}
 	rec, err := s.db.GetNotifyRecipient(userID, telegramKind)

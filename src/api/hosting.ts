@@ -28,6 +28,8 @@ export interface HostingPlan {
   maxCustomDomains: number
   /** Days of free trial; 0 offers none */
   trialDays: number
+  /** An account on the plan may bring its own notification bot */
+  ownNotify: boolean
   /** Longer subscriptions cost less */
   durationDiscounts: DurationDiscount[]
   highlighted: boolean

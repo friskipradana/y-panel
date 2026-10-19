@@ -24,6 +24,9 @@ type telegramStub struct {
 	mu      sync.Mutex
 	sent    []struct{ chat, text string }
 	updates []map[string]any
+	// what the bots of accounts were sent and what was said to them, by token (the bot of the panel is 123:TEST)
+	sentVia    []struct{ token, chat, text string }
+	updatesVia map[string][]map[string]any
 }
 
 func newTelegramStub(t *testing.T) *telegramStub {
@@ -34,15 +37,25 @@ func newTelegramStub(t *testing.T) *telegramStub {
 		var body map[string]any
 		_ = json.Unmarshal(raw, &body)
 		method := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+		token := strings.TrimPrefix(r.URL.Path[:strings.LastIndex(r.URL.Path, "/")], "/bot")
 		w.Header().Set("Content-Type", "application/json")
 		switch method {
 		case "getMe":
-			_, _ = w.Write([]byte(`{"ok":true,"result":{"id":9,"username":"reneo_test_bot","first_name":"Reneo"}}`))
+			username := "reneo_test_bot"
+			if token != "123:TEST" {
+				// the bot of another account is named after its token: 555:DEWI is dewi_bot
+				username = strings.ToLower(token[strings.Index(token, ":")+1:]) + "_bot"
+			}
+			_, _ = w.Write([]byte(`{"ok":true,"result":{"id":9,"username":"` + username + `","first_name":"Reneo"}}`))
 		case "getUpdates":
 			offset, _ := body["offset"].(float64)
 			stub.mu.Lock()
 			var out []map[string]any
-			for _, u := range stub.updates {
+			source := stub.updates
+			if own, ok := stub.updatesVia[token]; ok {
+				source = own
+			}
+			for _, u := range source {
 				if id, _ := u["update_id"].(int); float64(id) >= offset {
 					out = append(out, u)
 				}
@@ -55,6 +68,7 @@ func newTelegramStub(t *testing.T) *telegramStub {
 			text, _ := body["text"].(string)
 			stub.mu.Lock()
 			stub.sent = append(stub.sent, struct{ chat, text string }{chat, text})
+			stub.sentVia = append(stub.sentVia, struct{ token, chat, text string }{token, chat, text})
 			n := len(stub.sent)
 			stub.mu.Unlock()
 			_, _ = w.Write([]byte(`{"ok":true,"result":{"message_id":` + strconv.Itoa(n) + `}}`))

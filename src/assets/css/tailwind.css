@@ -58,3 +58,18 @@
     opacity: 0.55;
   }
 }
+
+/* Invoice paper: always light, so it reads and prints the same in a dark theme */
+.invoice-paper {
+  background: #fff;
+  color: #1b1f24;
+  --win-border: #d9dde3;
+  --win-text: #1b1f24;
+  --text-secondary: #5b6470;
+}
+
+@media print {
+  .invoice-paper {
+    box-shadow: none;
+  }
+}

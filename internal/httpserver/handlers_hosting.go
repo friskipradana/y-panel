@@ -141,6 +141,8 @@ type publicPlan struct {
 	MemoryLimitMB int      `json:"memoryLimitMb"`
 	MaxSubdomains int      `json:"maxSubdomains"`
 	MaxCustomDomains int   `json:"maxCustomDomains"`
+	// OwnNotify: the plan lets an account bring its own notification bot
+	OwnNotify     bool     `json:"ownNotify"`
 	Highlighted   bool     `json:"highlighted"`
 	TrialDays     int      `json:"trialDays"`
 	// DurationDiscounts: a percent off for buying more periods at once
@@ -166,7 +168,7 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 		out = append(out, publicPlan{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
 			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, DiskQuotaMB: p.DiskQuotaMB,
-			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
+			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, OwnNotify: p.OwnNotify, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
 			DurationDiscounts: p.DurationDiscounts,
 		})
 	}

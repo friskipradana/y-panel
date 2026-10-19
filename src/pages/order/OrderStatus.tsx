@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { CircleCheck } from 'lucide-react'
+import { CircleCheck, FileText } from 'lucide-react'
 import { getPublicOrder, notifyOrderTransferred } from '@/api/hosting'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { Badge } from '@/components/ui/Badge'
@@ -135,6 +135,9 @@ export function OrderStatus({ publicId }: { publicId: string }) {
           {t('order.again')}
         </Button>
       ) : null}
+      <Button variant="outline" block icon={<FileText className="h-4 w-4" />} onClick={() => navigate(`/order/${publicId}/invoice`)}>
+        {t('invoice.view')}
+      </Button>
     </div>
   )
 }

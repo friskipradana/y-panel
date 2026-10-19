@@ -11,6 +11,7 @@ import { SelectableCard } from '@/components/ui/SelectableCard'
 import { apiError } from '@/components/windows/users/apiError'
 import { alertLib } from '@/lib/alert'
 import { formatDateID } from '@/lib/datetime'
+import { monthsLabel } from '@/lib/duration'
 import { useI18n } from '@/lib/i18n'
 
 const CHOICES = [1, 3, 6, 12, 24]
@@ -61,7 +62,7 @@ export function RenewPlanModal({ user, open, onClose }: { user: PanelUser; open:
   const current = plan.expiresAt ? new Date(plan.expiresAt) : null
   const runs = !!current && current.getTime() > now.getTime()
   const next = addMonths(runs && current ? current : now, chosen)
-  const label = (count: number) => (count % 12 === 0 ? (count === 12 ? t('order.duration.year') : t('order.duration.years', { count: count / 12 })) : count === 1 ? t('order.duration.month') : t('order.duration.months', { count }))
+  const label = (count: number) => monthsLabel(t, count)
 
   return (
     <Modal
