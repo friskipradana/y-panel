@@ -331,7 +331,7 @@ func catalogSpecs() []apiSpec {
 				{Name: "memory_limit_mb", Key: "memoryLimitMb", In: inBody, Type: "integer", Desc: "Memory limit in MB."},
 			}},
 	}
-	return append(specs, extraSpecs()...)
+	return append(append(specs, extraSpecs()...), businessSpecs()...)
 }
 
 func tunnelParams(requireName bool) []apiParam {

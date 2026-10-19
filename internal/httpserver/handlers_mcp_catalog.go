@@ -36,6 +36,8 @@ func mcpToolGroup(name string) string {
 		{"databases", []string{"db_"}},
 		{"widgets", []string{"widget"}},
 		{"users", []string{"user_", "docs_"}},
+		{"notifications", []string{"notify_", "waha_", "my_whatsapp", "my_telegram"}},
+		{"hosting", []string{"hosting_", "my_hosting", "my_subdomain", "my_custom_domain"}},
 	}
 	for _, g := range groups {
 		for _, p := range g.prefixes {

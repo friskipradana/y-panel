@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/states'
 import type { ToolKind } from './toolsData'
 import { useMcpCatalog } from './useMcpCatalog'
 
-const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'databases', 'cloudflare', 'widgets', 'users'] as const
+const TOOL_GROUPS = ['overview', 'system', 'docker', 'files', 'projects', 'databases', 'cloudflare', 'widgets', 'users', 'notifications', 'hosting'] as const
 type GroupKey = 'all' | (typeof TOOL_GROUPS)[number]
 
 // One accent only: destructive tools stand out, everything else stays neutral

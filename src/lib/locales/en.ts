@@ -517,6 +517,8 @@ export const en: Record<string, string> = {
   'mcpGuide.group.cloudflare': "Cloudflare",
   'mcpGuide.group.widgets': "Widgets",
   'mcpGuide.group.users': "Users & docs",
+  'mcpGuide.group.notifications': "Notifications",
+  'mcpGuide.group.hosting': "Hosting",
   'mcpGuide.access.anonymous': "Anonymous",
   'mcpGuide.access.user': "User",
   'mcpGuide.access.admin': "Admin",

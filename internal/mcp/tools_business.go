@@ -1,0 +1,76 @@
+package mcp
+
+// Notification and hosting tools. Notification channel secrets (bot tokens, API keys) are never returned by the panel API,
+// so these tools can read channel state without exposing them. Money-related actions say so in their description.
+func businessSpecs() []apiSpec {
+	orderID := pathParam("id", "Order ID (from hosting_order_list).")
+	return []apiSpec{
+		// Notification channels
+		{Name: "notify_overview", Title: "Notification channels", SuperOnly: true, Method: "GET", Path: "/api/v1/notify/overview", AdminOnly: true,
+			Desc: "Read the state of the notification channels (Telegram, WhatsApp through WAHA, WhatsApp Cloud): which are on, who is linked, and the groups of news each account wants."},
+		{Name: "notify_outbox_list", Title: "Notification queue", SuperOnly: true, Method: "GET", Path: "/api/v1/notify/outbox", AdminOnly: true,
+			Desc: "List the notification delivery queue with status and the reason a delivery failed.",
+			Params: []apiParam{
+				{Name: "status", In: inQuery, Type: "string", Desc: "Filter by delivery status.", Enum: []string{"pending", "sending", "sent", "failed", "cancelled"}},
+				queryParam("limit", "integer", "Maximum rows to return (default 50)."),
+			}},
+		{Name: "notify_outbox_retry", Title: "Retry notification", SuperOnly: true, Method: "POST", Path: "/api/v1/notify/outbox/{id}/retry", AdminOnly: true, Hint: "write",
+			Desc:   "Queue a failed notification delivery again.",
+			Params: []apiParam{pathParam("id", "Outbox row ID (from notify_outbox_list).")}},
+		{Name: "notify_thresholds_get", Title: "Alert thresholds", SuperOnly: true, Method: "GET", Path: "/api/v1/notify/thresholds", AdminOnly: true,
+			Desc: "Read the warning thresholds of each detector (CPU, memory, disk, and so on)."},
+		{Name: "notify_thresholds_reset", Title: "Reset alert thresholds", SuperOnly: true, Method: "DELETE", Path: "/api/v1/notify/thresholds", AdminOnly: true, Hint: "write",
+			Desc: "Put every detector back to its default threshold."},
+		{Name: "waha_status", Title: "WhatsApp runtime status", SuperOnly: true, Method: "GET", Path: "/api/v1/notify/waha", AdminOnly: true,
+			Desc: "Read the WAHA container (WhatsApp runtime): whether it is on, running, its engine, version and number of sessions."},
+		{Name: "waha_restart", Title: "Restart WhatsApp runtime", SuperOnly: true, Method: "POST", Path: "/api/v1/notify/waha/restart", AdminOnly: true, Hint: "write",
+			Desc: "Restart the WAHA container. Every WhatsApp session reconnects, so notices pause for a moment."},
+		{Name: "my_whatsapp_status", Title: "My WhatsApp", Method: "GET", Path: "/api/v1/me/whatsapp",
+			Desc: "Read the WhatsApp connection of this account: session state, the number notices go to, and whether it is muted."},
+		{Name: "my_whatsapp_destination_set", Title: "Set WhatsApp destination", Method: "PUT", Path: "/api/v1/me/whatsapp/destination", Hint: "write",
+			Desc: "Choose the number this account's WhatsApp notices are sent to. An empty number goes back to the number of the session itself, which makes no sound on the phone.",
+			Params: []apiParam{strParam("number", "Mobile number such as 0812 3456 7890; empty to use the session number.", false)}},
+		{Name: "my_whatsapp_test", Title: "Test WhatsApp notice", Method: "POST", Path: "/api/v1/me/whatsapp/test", Hint: "write",
+			Desc: "Queue a test WhatsApp notice to this account's destination number."},
+		{Name: "my_telegram_status", Title: "My Telegram", Method: "GET", Path: "/api/v1/me/telegram",
+			Desc: "Read the Telegram link of this account and whether it is muted."},
+		{Name: "my_telegram_test", Title: "Test Telegram notice", Method: "POST", Path: "/api/v1/me/telegram/test", Hint: "write",
+			Desc: "Queue a test Telegram notice to this account."},
+
+		// Hosting
+		{Name: "hosting_plan_list", Title: "Hosting plans", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/plans", AdminOnly: true,
+			Desc: "List the hosting plans (price in rupiah, period, features, resource limits, subdomain count)."},
+		{Name: "hosting_plan_delete", Title: "Delete hosting plan", SuperOnly: true, Method: "DELETE", Path: "/api/v1/hosting/plans/{id}", AdminOnly: true,
+			Desc:   "Delete a hosting plan. Ask the user before calling.",
+			Params: []apiParam{pathParam("id", "Plan ID (from hosting_plan_list).")}},
+		{Name: "hosting_order_list", Title: "Hosting orders", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/orders", AdminOnly: true,
+			Desc: "List the orders of buyers, with the exact total to be paid, the status and whether a payment needs checking.",
+			Params: []apiParam{
+				{Name: "status", In: inQuery, Type: "string", Desc: "Filter by order status."},
+				queryParam("limit", "integer", "Maximum rows to return (default 50)."),
+				queryParam("offset", "integer", "Rows to skip."),
+			}},
+		{Name: "hosting_order_confirm", Title: "Confirm order paid", SuperOnly: true, Method: "POST", Path: "/api/v1/hosting/orders/{id}/confirm", AdminOnly: true, Hint: "write",
+			Desc:   "Mark an order as paid. This activates the buyer's account and plan and creates the panel address, so check the transfer first and ask the user before calling.",
+			Params: []apiParam{orderID}},
+		{Name: "hosting_order_cancel", Title: "Cancel order", SuperOnly: true, Method: "POST", Path: "/api/v1/hosting/orders/{id}/cancel", AdminOnly: true, Hint: "write",
+			Desc:   "Cancel an order and release the address reserved for it. Ask the user before calling.",
+			Params: []apiParam{orderID}},
+		{Name: "hosting_domain_list", Title: "Offered domains", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/domains", AdminOnly: true,
+			Desc: "List the Cloudflare domains and which are offered to buyers; the main domain hosts the panel addresses."},
+		{Name: "hosting_subdomain_list", Title: "Sold subdomains", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/subdomains", AdminOnly: true,
+			Desc: "List every subdomain sold to buyers with its owner and status."},
+		{Name: "hosting_subdomain_set_status", Title: "Suspend or activate subdomain", SuperOnly: true, Method: "PATCH", Path: "/api/v1/hosting/subdomains/{id}", AdminOnly: true, Hint: "write",
+			Desc: "Suspend or activate a sold subdomain.",
+			Params: []apiParam{
+				pathParam("id", "Subdomain ID (from hosting_subdomain_list)."),
+				{Name: "status", In: inBody, Type: "string", Desc: "New status.", Required: true, Enum: []string{"active", "suspended"}},
+			}},
+		{Name: "my_hosting_plan", Title: "My hosting plan", Method: "GET", Path: "/api/v1/me/hosting/plan",
+			Desc: "Read the hosting plan of this account: plan, expiry date and limits."},
+		{Name: "my_subdomain_list", Title: "My subdomains", Method: "GET", Path: "/api/v1/me/subdomains",
+			Desc: "List the subdomains of this account."},
+		{Name: "my_custom_domain_list", Title: "My custom domains", Method: "GET", Path: "/api/v1/me/custom-domains",
+			Desc: "List the own domains this account has connected, with their certificate status."},
+	}
+}
