@@ -2,9 +2,12 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
 // ─── Payment Settings Handlers ──────────────────────────────────────────────
@@ -162,9 +165,13 @@ type registerNotificationDeviceRequest struct {
 }
 
 type updateNotificationDeviceRequest struct {
-	Status        string   `json:"status,omitempty"`
-	PackageFilter []string `json:"packageFilter,omitempty"`
+	Status string `json:"status,omitempty"`
+	// absent leaves the filter as it is; an empty list clears it, which means every package
+	PackageFilter *[]string `json:"packageFilter,omitempty"`
 }
+
+// notificationDeviceStatuses are the states a device can be in
+var notificationDeviceStatuses = map[string]bool{"active": true, "inactive": true, "blocked": true}
 
 // handleListNotificationDevices returns all registered notification listener devices.
 func (s *Server) handleListNotificationDevices(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +239,15 @@ func (s *Server) handleUpdateNotificationDevice(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	if req.Status != "" && !notificationDeviceStatuses[req.Status] {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "status must be active, inactive or blocked"})
+		return
+	}
 	device, err := s.database.UpdateNotificationDevice(deviceID, req.Status, req.PackageFilter)
+	if errors.Is(err, database.ErrNotificationDeviceNotFound) {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "this device is not registered yet: save its API key first"})
+		return
+	}
 	if err != nil {
 		log.Printf("[notif-listener] update device failed deviceId=%q remote=%s err=%v", deviceID, remoteAddr(r), err)
 		s.writeError(w, http.StatusInternalServerError, err)

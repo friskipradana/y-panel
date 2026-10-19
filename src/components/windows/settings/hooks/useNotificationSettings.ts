@@ -7,6 +7,12 @@ import { useI18n } from "@/lib/i18n";
 import { useAuthStore } from "@/store/authStore";
 import { type CapturedNotification, type RegisterNotificationDevicePayload, type UpdateNotificationDevicePayload } from "@/types";
 
+// What the agent said, not the generic text of the failed request
+const serverMessage = (error: unknown): string | undefined => {
+  const e = error as { response?: { data?: { error?: string } }; message?: string };
+  return e?.response?.data?.error || e?.message;
+};
+
 export function useNotificationSettings({ authenticated }: { authenticated?: boolean }) {
   const queryClient = useQueryClient();
   const { t } = useI18n();
@@ -75,7 +81,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
     onError: (error: any) => {
       alertLib.fire(
         t("settings.listener.deviceSaveFailedTitle"),
-        error?.message || t("settings.listener.deviceSaveFailedMessage"),
+        serverMessage(error) || t("settings.listener.deviceSaveFailedMessage"),
         "error",
         "settings",
       );
@@ -108,7 +114,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
     onError: (error: any) => {
       alertLib.fire(
         t("settings.listener.deviceUpdateFailedTitle"),
-        error?.message || t("settings.listener.deviceUpdateFailedMessage"),
+        serverMessage(error) || t("settings.listener.deviceUpdateFailedMessage"),
         "error",
         "settings",
       );
@@ -129,7 +135,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
     onError: (error: any) => {
       alertLib.fire(
         t("settings.listener.deviceDeleteFailedTitle"),
-        error?.message || t("settings.listener.deviceDeleteFailedMessage"),
+        serverMessage(error) || t("settings.listener.deviceDeleteFailedMessage"),
         "error",
         "settings",
       );
@@ -181,6 +187,16 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
       alertLib.fire(
         t("settings.listener.emptyDeviceIdTitle"),
         t("settings.listener.emptyDeviceIdMessage"),
+        "warning",
+        "settings",
+      );
+      return;
+    }
+    // a device that was never saved has nothing to change: its API key has to be saved first
+    if (!notificationDevices.some((device) => device.deviceId === deviceId)) {
+      alertLib.fire(
+        t("settings.listener.unknownDeviceTitle"),
+        t("settings.listener.unknownDeviceMessage", { deviceId }),
         "warning",
         "settings",
       );

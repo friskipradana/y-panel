@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -114,36 +115,37 @@ func (m *Manager) GetNotificationDeviceByAPIKey(apiKey string) (*NotificationDev
 	return &d, nil
 }
 
-// UpdateNotificationDevice updates a device's status or package filter.
-func (m *Manager) UpdateNotificationDevice(deviceID, status string, packageFilter []string) (*NotificationDevice, error) {
+// ErrNotificationDeviceNotFound is an update of a device that was never registered, or was deleted
+var ErrNotificationDeviceNotFound = errors.New("the notification device is not registered")
+
+// UpdateNotificationDevice changes the status and the package filter of a device. An empty status leaves the status as it is;
+// a nil filter leaves the filter as it is, and an empty one clears it, which means every package.
+func (m *Manager) UpdateNotificationDevice(deviceID, status string, packageFilter *[]string) (*NotificationDevice, error) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, nil
 	}
-
-	if status != "" && len(packageFilter) > 0 {
-		pfJSON, _ := json.Marshal(packageFilter)
-		_, err := m.db.Exec(`UPDATE notification_devices SET status = $1, package_filter = $2::jsonb, updated_at = NOW() WHERE device_id = $3`,
-			status, string(pfJSON), deviceID)
-		if err != nil {
-			return nil, err
-		}
-	} else if status != "" {
-		_, err := m.db.Exec(`UPDATE notification_devices SET status = $1, updated_at = NOW() WHERE device_id = $2`, status, deviceID)
-		if err != nil {
-			return nil, err
-		}
-	} else if len(packageFilter) > 0 {
-		pfJSON, _ := json.Marshal(packageFilter)
-		_, err := m.db.Exec(`UPDATE notification_devices SET package_filter = $1::jsonb, updated_at = NOW() WHERE device_id = $2`,
-			string(pfJSON), deviceID)
-		if err != nil {
-			return nil, err
-		}
+	var filterJSON any
+	if packageFilter != nil {
+		raw, _ := json.Marshal(*packageFilter)
+		filterJSON = string(raw)
+	}
+	res, err := m.db.Exec(`
+		UPDATE notification_devices
+		SET status = CASE WHEN $2 <> '' THEN $2 ELSE status END,
+			package_filter = CASE WHEN $3::text IS NOT NULL THEN $3::jsonb ELSE package_filter END,
+			updated_at = NOW()
+		WHERE device_id = $1
+	`, deviceID, status, filterJSON)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, ErrNotificationDeviceNotFound
 	}
 
 	var d NotificationDevice
 	var pfJSON string
-	err := m.db.QueryRow(`
+	err = m.db.QueryRow(`
 		SELECT id, device_id, package_filter, status, created_at, updated_at
 		FROM notification_devices WHERE device_id = $1
 	`, deviceID).Scan(&d.ID, &d.DeviceID, &pfJSON, &d.Status, &d.CreatedAt, &d.UpdatedAt)
@@ -151,6 +153,9 @@ func (m *Manager) UpdateNotificationDevice(deviceID, status string, packageFilte
 		return nil, err
 	}
 	_ = json.Unmarshal([]byte(pfJSON), &d.PackageFilter)
+	if d.PackageFilter == nil {
+		d.PackageFilter = []string{}
+	}
 	return &d, nil
 }
 

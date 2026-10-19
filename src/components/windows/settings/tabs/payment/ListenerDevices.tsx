@@ -16,7 +16,7 @@ const STATUS_TONE: Record<string, UiTone> = {
 };
 
 // The devices that read the bank notifications, and what they sent last
-export function ListenerDevices({ listener }: { listener: NotificationSettings }) {
+export function ListenerDevices({ listener, bare }: { listener: NotificationSettings; bare?: boolean }) {
   const { t } = useI18n();
   const {
     capturedWS,
@@ -30,7 +30,7 @@ export function ListenerDevices({ listener }: { listener: NotificationSettings }
   } = listener;
 
   return (
-    <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+    <div className={bare ? "flex flex-col gap-3.5" : "panel-shell-card settings-card !p-3.5 !gap-3.5"}>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
         <div className="flex items-start gap-2.5 min-w-0">
           <Smartphone className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
@@ -39,7 +39,7 @@ export function ListenerDevices({ listener }: { listener: NotificationSettings }
             <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t("settings.listener.subtitle")}</p>
           </div>
         </div>
-        <Badge tone={capturedWS.connected ? "success" : "warning"} dot size="sm" className="shrink-0">
+        <Badge tone={capturedWS.connected ? "success" : "warning"} dot size="sm" className="shrink-0 self-start">
           {capturedWS.connected ? t("settings.listener.realtimeConnected") : t("settings.listener.realtimeReconnecting")}
         </Badge>
       </div>
