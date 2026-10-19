@@ -198,6 +198,14 @@ Perlu akun Meta Business dengan nomor terdaftar. Bagian ini diuji dengan Meta ti
 2. **WhatsApp Cloud:** isi App secret, salin alamat callback dan verify token ke Meta (WhatsApp > Configuration), langgananlah `messages`. Harapan: Meta menerima alamatnya; status terkirim, dibaca, atau gagal tampil di baris antrean. Balas BERHENTI dari nomor pembeli: dibalas teks biasa dan pesan berikutnya ke nomor itu tidak dikirim; MULAI menyalakannya lagi.
 3. **WAHA:** nyalakan ulang WAHA setelah memperbarui panel agar container dibuat dengan webhook. Balas BERHENTI dari nomor pembeli ke nomor sesi superadmin. Harapan: dibalas dan pesan berikutnya ke nomor itu tidak dikirim. Bila tidak ada reaksi, periksa log container (`docker logs reneo-waha`) untuk kegagalan menghubungi `host.docker.internal`, dan pastikan panel mendengarkan di alamat yang bukan `127.0.0.1`.
 
+### 8d. Alamat panel dan domain utama
+
+1. **Domain utama:** Pengaturan > Hosting > Domain. Domain pertama yang ditawarkan otomatis menjadi utama (lencana Utama). Dengan dua domain atau lebih, tombol "Jadikan utama" memindahkannya. Menghentikan penawaran domain utama menyerahkan tempatnya ke domain lain yang masih ditawarkan.
+2. **Halaman depan:** setiap kartu paket menulis "alamat panel di <domain utama>" untuk semua paket, termasuk yang jatah subdomainnya 0. "N subdomain aplikasi" hanya muncul bila N lebih dari 0. Domain selain yang utama tidak tampil.
+3. **Pesan paket:** tekan Pesan di salah satu paket. Harapan: form terbuka lebih dulu. Dengan pemesanan mandiri mati, form meminta paket, alamat panel (dicek), nama, nomor WhatsApp, dan email; tombol Kirim membuka WhatsApp atau email dengan pesan yang sudah terisi, atau menyalin pesan bila tautan pemesanan kosong. Dengan pemesanan mandiri menyala, form yang sama meminta kata sandi dan membuat akun.
+4. **Jatah:** setelah lunas, alamat panel pembeli terlihat di jendela Cloudflare dengan lencana "Alamat panel", tanpa tombol hapus, dan tidak mengurangi "terpakai dari N". Paket Starter (1 subdomain) masih bisa membuat 1 subdomain untuk aplikasi.
+5. **Akun lama:** migrasi 25 menandai alamat pertama setiap akun yang sudah punya alamat sebagai alamat panelnya, jadi satu jatah yang dulu terpakai oleh alamat itu kembali.
+
 ## 9. Bila ada yang gagal
 
 | Gejala | Kemungkinan penyebab |
