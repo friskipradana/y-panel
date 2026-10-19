@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.32.1] - 2026-10-19
+
+WAHA runs from the smaller GOWS image, shows why a pull fails, and every session acts with its own key.
+
+### Perbaikan
+- **notify:** WAHA runs from the smaller GOWS image, shows why a pull fails, and every session acts with its own key ([`1451e4a`](https://github.com/friskipradana/y-panel/commit/1451e4a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.32.0...v1.32.1
+
 ## [1.32.0] - 2026-10-19
 
 3 perubahan, utamanya the Order button opens a form first, and the landing shows the panel address on the main domain.
