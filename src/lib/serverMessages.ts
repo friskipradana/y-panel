@@ -62,6 +62,12 @@ const RULES: [RegExp, string, string[]][] = [
   [/^invalid JSON(?: body)?$/, 'server.invalidJson', []],
   [/^not found$/, 'server.notFound', []],
   [/^the database is not connected$/, 'server.dbDown', []],
+  [/^the hosting tunnel does not exist yet/, 'server.hostingTunnel', []],
+  [/^pick one of the domains you offer$/, 'server.pickOffered', []],
+  [/^(.+) is already used by another DNS record$/, 'server.dnsUsed', ['name']],
+  [/^could not create the DNS record: (.+)$/, 'server.dnsCreateFailed', ['detail']],
+  [/^Cloudflare did not answer: (.+)$/, 'server.cloudflareDown', ['detail']],
+  [/^the superadmin's Cloudflare account is not connected or verified$/, 'server.cloudflareNotReady', []],
 ]
 
 export function localizeServerMessage(message: unknown): string | undefined {

@@ -34,7 +34,8 @@ export function HostingTab() {
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled })
   const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled })
   const vouchers = useQuery({ queryKey: ['hosting', 'vouchers'], queryFn: listHostingVouchers, retry: 0, enabled })
-  const waiting = useQuery({ queryKey: ['hosting', 'orders', 'review'], queryFn: () => listHostingOrders('review'), retry: 0, enabled, refetchInterval: 30_000 })
+  // the same query as the list under "All", so the number on the tab is the number of orders in it
+  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, enabled, refetchInterval: 15_000 })
 
   const mutation = useMutation({
     mutationFn: (hostingEnabled: boolean) => setSiteSettings({ hostingEnabled }),
@@ -113,7 +114,7 @@ export function HostingTab() {
                 { key: 'plans', label: t('hosting.tab.plans'), icon: <Boxes />, count: plans.data?.length },
                 { key: 'domains', label: t('hosting.tab.domains'), icon: <Globe2 />, count: domains.data?.filter((domain) => domain.enabled).length },
                 { key: 'subdomains', label: t('hosting.tab.subdomains'), icon: <Link2 />, count: subdomains.data?.length },
-                { key: 'orders', label: t('hosting.tab.orders'), icon: <ShoppingCart />, count: waiting.data?.total },
+                { key: 'orders', label: t('hosting.tab.orders'), icon: <ShoppingCart />, count: orders.data?.total },
                 { key: 'vouchers', label: t('hosting.tab.vouchers'), icon: <Ticket />, count: vouchers.data?.filter((voucher) => voucher.enabled).length },
                 { key: 'payment', label: t('hosting.tab.payment'), icon: <Landmark /> },
                 { key: 'terms', label: t('hosting.tab.terms'), icon: <ReceiptText /> },

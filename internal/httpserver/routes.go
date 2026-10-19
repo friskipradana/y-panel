@@ -140,6 +140,11 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/database/truncate", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilityDatabaseTruncate, http.HandlerFunc(s.handleDatabaseTruncate))))
 
 	// Databases users create themselves (containers bound to 127.0.0.1)
+	s.mux.Handle("GET /api/v1/hosting/plans/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePlansTable)))
+	s.mux.Handle("GET /api/v1/hosting/orders/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleOrdersTable)))
+	s.mux.Handle("GET /api/v1/hosting/subdomains/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSubdomainsTable)))
+	s.mux.Handle("GET /api/v1/hosting/vouchers/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleVouchersTable)))
+	s.mux.Handle("GET /api/v1/hosting/domains/table", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDomainsTable)))
 	s.mux.Handle("GET /api/v1/hosting/plans", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleListHostingPlans)))
 	s.mux.Handle("POST /api/v1/hosting/plans", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreateHostingPlan)))
 	s.mux.Handle("PUT /api/v1/hosting/plans/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdateHostingPlan)))

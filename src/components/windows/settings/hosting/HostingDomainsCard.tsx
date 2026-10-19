@@ -2,16 +2,14 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { listHostingDomains, setHostingDomain, setMainHostingDomain } from '@/api/hosting'
-import { Badge } from '@/components/ui/Badge'
+import { listHostingDomains, setHostingDomain, setMainHostingDomain, type HostingDomain } from '@/api/hosting'
 import { Button } from '@/components/ui/Button'
-import { EntityRow } from '@/components/ui/EntityRow'
 import { Field } from '@/components/ui/Field'
-import { IconBadge } from '@/components/ui/IconBadge'
-import { IconButton } from '@/components/ui/IconButton'
+import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
+import { HostingTableBar, indexLabel, RowAction, StatusPill, useHostingTable } from './HostingTableKit'
 
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
@@ -22,6 +20,7 @@ export function HostingDomainsCard() {
   const { t } = useI18n()
   const qc = useQueryClient()
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0 })
+  const table = useHostingTable<HostingDomain>('domains')
   const [pick, setPick] = useState('')
 
   const toggle = useMutation({
@@ -96,43 +95,57 @@ export function HostingDomainsCard() {
 
           <div className="flex flex-col gap-2">
             <p className="text-[12px] font-medium text-[var(--text-secondary)]">{t('hosting.domains.offeredTitle', { count: offered.length })}</p>
-            {offered.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-[var(--win-border)] p-2.5 text-[12px] text-[var(--text-secondary)]">{t('hosting.domains.noneOffered')}</p>
-            ) : (
-              <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] overflow-hidden">
-                {offered.map((domain) => (
-                  <EntityRow
-                    key={domain.zoneId}
-                    centered
-                    leading={
-                      <IconBadge size="md" tone="primary">
-                        <Globe2 />
-                      </IconBadge>
-                    }
-                    title={<span className="panel-mono">{domain.name}</span>}
-                    badges={
-                      <>
-                        {domain.isMain ? <Badge size="sm" tone="primary">{t('hosting.domains.main')}</Badge> : null}
-                        {domain.status && domain.status !== 'active' ? <Badge size="sm" tone="warning">{domain.status}</Badge> : null}
-                      </>
-                    }
-                    subtitle={domain.isMain ? t('hosting.domains.mainExample', { name: domain.name }) : t('hosting.domains.example', { name: domain.name })}
-                    actions={
-                      <>
+            <HostingTableBar text={table.list.text} setText={table.list.setText} placeholder={t('hosting.domains.searchOffered')} total={table.total} all={table.all} fetching={table.query.isFetching && !table.query.isLoading} onRefresh={() => void table.query.refetch()} />
+            <ListTable
+              variant="hosting-domains"
+              empty={table.query.isLoading || table.query.isError || table.items.length === 0}
+              columns={[
+                { label: t('docker.colIndex') },
+                table.list.column('name', t('hosting.col.domain'), table.facets?.name, { filterable: false }),
+                table.list.column('status', t('hosting.col.status'), table.facets?.status),
+                table.list.column('role', t('hosting.col.role'), table.facets?.role, { labelOf: (v) => t(v === 'main' ? 'hosting.domains.main' : 'hosting.domains.extra') }),
+                { label: t('hosting.col.actions'), actions: true },
+              ]}
+            >
+              <ListState
+                loading={table.query.isLoading}
+                error={table.query.isError}
+                errorTitle={t('hosting.domains.loadFailed')}
+                errorHint={apiError(table.query.error, t('hosting.domains.loadFailedHint'))}
+                loadingText={t('hosting.domains.loading')}
+                empty={table.items.length === 0}
+                emptyIcon={<Globe2 />}
+                emptyTitle={table.narrowed ? t('docker.noResults') : t('hosting.domains.noneOffered')}
+              >
+                {table.items.map((domain, index) => (
+                  <div className="docker-row" key={domain.zoneId}>
+                    <div className="docker-row__num">{indexLabel(index)}</div>
+                    <div className="docker-row__app">
+                      <ListRowIcon><Globe2 className="h-3.5 w-3.5" /></ListRowIcon>
+                      <div className="docker-row__text">
+                        <span className="docker-app-name docker-app-name--mono" title={domain.name}>{domain.name}</span>
+                        <span className="docker-row__sub">{domain.isMain ? t('hosting.domains.mainExample', { name: domain.name }) : t('hosting.domains.example', { name: domain.name })}</span>
+                        <span className="docker-row__meta">{`${domain.status ?? '-'} · ${t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}`}</span>
+                      </div>
+                    </div>
+                    <div className="docker-cell--keep">
+                      <StatusPill tone={domain.status === 'active' ? 'success' : 'warning'}>{domain.status ?? '-'}</StatusPill>
+                    </div>
+                    <div className="docker-cell">{t(domain.isMain ? 'hosting.domains.main' : 'hosting.domains.extra')}</div>
+                    <div className="docker-action-btns">
                       {domain.isMain || offered.length < 2 ? null : (
                         <Button variant="outline" size="sm" disabled={makeMain.isPending} onClick={() => makeMain.mutate(domain.zoneId)}>
                           {t('hosting.domains.makeMain')}
                         </Button>
                       )}
-                      <IconButton label={t('hosting.domains.stop', { name: domain.name })} tone="danger" disabled={toggle.isPending} onClick={() => toggle.mutate({ zoneId: domain.zoneId, enabled: false })} className="!h-7 !w-7">
-                        <X className="h-3.5 w-3.5" />
-                      </IconButton>
-                      </>
-                    }
-                  />
+                      <RowAction label={t('hosting.domains.stop', { name: domain.name })} danger disabled={toggle.isPending} onClick={() => toggle.mutate({ zoneId: domain.zoneId, enabled: false })}>
+                        <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </RowAction>
+                    </div>
+                  </div>
                 ))}
-              </div>
-            )}
+              </ListState>
+            </ListTable>
             {offered.length > 0 ? <p className="text-[11.5px] text-[var(--text-secondary)]">{t('hosting.domains.stopHint')}</p> : null}
           </div>
         </>

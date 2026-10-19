@@ -321,15 +321,23 @@ type hostingDomainView struct {
 
 // handleListHostingDomains lists the zones of the superadmin's Cloudflare account with the choice made for each
 func (s *Server) handleListHostingDomains(w http.ResponseWriter, _ *http.Request) {
+	out, status, err := s.hostingDomainViews()
+	if err != nil {
+		s.writeJSON(w, status, jsonResponse{"error": err.Error()})
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"domains": out})
+}
+
+// hostingDomainViews is the zones of the Cloudflare account with the choice made for each; the status is the one to answer with on an error
+func (s *Server) hostingDomainViews() ([]hostingDomainView, int, error) {
 	client, _, err := s.hostingCloudflare()
 	if err != nil {
-		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
-		return
+		return nil, http.StatusConflict, err
 	}
 	zones, err := client.ListZones()
 	if err != nil {
-		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Cloudflare did not answer: " + err.Error()})
-		return
+		return nil, http.StatusBadGateway, errors.New("Cloudflare did not answer: " + err.Error())
 	}
 	chosen := map[string]bool{}
 	main := ""
@@ -344,7 +352,7 @@ func (s *Server) handleListHostingDomains(w http.ResponseWriter, _ *http.Request
 	for _, z := range zones {
 		out = append(out, hostingDomainView{ZoneID: z.ID, Name: z.Name, Status: z.Status, Enabled: chosen[z.ID], IsMain: z.ID == main})
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"domains": out})
+	return out, http.StatusOK, nil
 }
 
 func (s *Server) handleSetHostingDomain(w http.ResponseWriter, r *http.Request) {
