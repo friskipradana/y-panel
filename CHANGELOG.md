@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.39.0] - 2026-10-19
+
+Discounts for long subscriptions and vouchers, an order form in steps with a review, a payment page with a check, and copy that reads the same in both languages.
+
+### Fitur baru
+- **hosting:** Discounts for long subscriptions and vouchers, an order form in steps with a review, a payment page with a check, and copy that reads the same in both languages ([`b6c38c9`](https://github.com/friskipradana/y-panel/commit/b6c38c9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.38.0...v1.39.0
+
 ## [1.38.0] - 2026-10-19
 
 The seller lists the banks and e-wallets buyers pay to, and the order page shows the unique code, every way to pay and the stage of the order.
