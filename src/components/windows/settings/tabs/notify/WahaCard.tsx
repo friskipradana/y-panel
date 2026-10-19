@@ -25,7 +25,7 @@ const STATE_TONE: Record<WahaState, 'success' | 'warning' | 'danger' | 'neutral'
 }
 
 // The WhatsApp runtime (WAHA) the panel runs as one container: the switch, what runs, and the dashboard for the owner
-export function WahaCard() {
+export function WahaCard({ bare }: { bare?: boolean } = {}) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const status = useQuery({
@@ -64,7 +64,7 @@ export function WahaCard() {
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader
         icon={<MessageCircle />}
         title={t('notify.waha.title')}

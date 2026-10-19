@@ -20,7 +20,7 @@ const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 // Where the notices of this account go: the link to a Telegram chat, and which kinds of notice are wanted
-export function MyTelegram({ channel, recipient, groups = GROUPS }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined; groups?: readonly string[] }) {
+export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined; groups?: readonly string[]; bare?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [link, setLink] = useState<NotifyLink | null>(null)
@@ -90,7 +90,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS }: { channel: N
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader
         icon={<Link2 />}
         title={t('notify.me.title')}

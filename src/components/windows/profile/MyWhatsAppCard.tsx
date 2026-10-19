@@ -19,7 +19,7 @@ const KEY = ['whatsapp', 'me']
 
 // The WhatsApp of this account: connect a phone by scanning a code, and choose which notices come to it.
 // `groups` are the kinds of notice this account can get; the owner has more than the others.
-export function MyWhatsAppCard({ groups, ownerHint = false }: { groups: readonly string[]; ownerHint?: boolean }) {
+export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: readonly string[]; ownerHint?: boolean; bare?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const me = useQuery({
@@ -87,7 +87,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false }: { groups: readonly
   ) : undefined
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader icon={<MessageCircle />} title={t('notify.wa.title')} subtitle={t('notify.wa.subtitle')} actions={badge} />
 
       {me.isLoading ? (

@@ -32,7 +32,7 @@ const ORDER: TemplateStatus[] = ['APPROVED', 'PENDING', 'REJECTED', 'PAUSED', 'M
 
 // WhatsApp Cloud, the official API of Meta: its token and ids, and the templates Meta has to approve before the panel
 // can start a message
-export function CloudCard({ channel, webhook }: { channel: NotifyChannel | undefined; webhook?: { verifyToken: string; secretSet: boolean } | null }) {
+export function CloudCard({ channel, webhook, bare }: { channel: NotifyChannel | undefined; webhook?: { verifyToken: string; secretSet: boolean } | null; bare?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const configured = channel?.configured ?? false
@@ -70,7 +70,7 @@ export function CloudCard({ channel, webhook }: { channel: NotifyChannel | undef
   const missing = (templates.data ?? []).filter((x) => x.status === 'MISSING').length
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader
         icon={<ShieldCheck />}
         title={t('notify.cloud.title')}

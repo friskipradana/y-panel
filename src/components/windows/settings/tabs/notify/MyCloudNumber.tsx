@@ -18,7 +18,7 @@ const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
 // The number of the owner for WhatsApp Cloud: typed here, and a test message shows whether Meta delivers to it
-export function MyCloudNumber({ channel, recipient }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined }) {
+export function MyCloudNumber({ channel, recipient, bare }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined; bare?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [number, setNumber] = useState('')
@@ -64,7 +64,7 @@ export function MyCloudNumber({ channel, recipient }: { channel: NotifyChannel |
   }
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-4' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader
         icon={<Phone />}
         title={t('notify.cloud.mineTitle')}

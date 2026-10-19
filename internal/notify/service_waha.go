@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -26,13 +27,19 @@ import (
 const (
 	wahaContainer = "reneo-waha"
 	wahaVolume    = "reneo-waha-sessions"
-	wahaImage     = "devlikeapro/waha:latest"
+	// the image of the engine only, with no browser: about a gigabyte less than :latest, which also carries Chromium
+	wahaImageGOWS = "devlikeapro/waha:gows"
+	// there is no GOWS-only image for ARM; the ARM one carries every engine
+	wahaImageARM = "devlikeapro/waha:arm"
 	wahaEngine    = "GOWS"
 	wahaPort      = 3000
 	// the password of the WAHA dashboard, encrypted, kept beside the other settings
 	wahaDashboardKey = "waha_dashboard_password"
 	// the key WAHA signs what it sends to the panel with, encrypted
 	wahaHookKey = "waha_hook_hmac_key"
+	// the image is over 3 GB: pulling it can take a long time on a slow line, so it has its own, long, limit
+	wahaPullTimeout = 40 * time.Minute
+	// once the container runs, WAHA answers within a minute or two
 	wahaStartTimeout = 3 * time.Minute
 )
 
@@ -48,12 +55,31 @@ var DockerRun = func(ctx context.Context, env []string, args ...string) (string,
 		if text == "" {
 			text = err.Error()
 		}
-		if i := strings.IndexByte(text, '\n'); i > 0 {
-			text = text[:i]
-		}
-		return text, fmt.Errorf("docker %s: %s", args[0], text)
+		return text, fmt.Errorf("docker %s: %s", args[0], lastLines(text, 3))
 	}
 	return text, nil
+}
+
+// lastLines is the end of the output of a command, where docker says what went wrong; the beginning is progress
+func lastLines(text string, n int) string {
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, " | ")
+}
+
+// wahaImage is the image to run: the one of the engine alone where it exists (x86), else the ARM one
+func wahaImage() string {
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+		return wahaImageARM
+	}
+	return wahaImageGOWS
 }
 
 type wahaConfig struct {
@@ -107,7 +133,7 @@ func (s *Service) wahaKey(row *database.NotifyChannel) (string, error) {
 
 // WahaStatus reads the container and WAHA itself
 func (s *Service) WahaStatus(ctx context.Context) (WahaView, error) {
-	view := WahaView{State: "off", Image: wahaImage, Engine: wahaEngine}
+	view := WahaView{State: "off", Image: wahaImage(), Engine: wahaEngine}
 	if !s.ready() {
 		return view, errors.New("the database is not connected")
 	}
@@ -230,7 +256,7 @@ func (s *Service) EnableWaha() error {
 	if s.wahaBase != "" {
 		cfg.BaseURL = s.wahaBase
 	}
-	cfg.Image, cfg.Engine, cfg.DashboardUser = wahaImage, wahaEngine, "reneo"
+	cfg.Image, cfg.Engine, cfg.DashboardUser = wahaImage(), wahaEngine, "reneo"
 	password := ""
 	if raw, _ := s.db.GetNotifySetting(wahaDashboardKey); raw != "" {
 		password, _ = crypto.Decrypt(s.key, raw)
@@ -257,7 +283,7 @@ func (s *Service) EnableWaha() error {
 	go func() {
 		defer s.wg.Done()
 		defer s.waha.end()
-		ctx, cancel := context.WithTimeout(context.Background(), wahaStartTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), wahaPullTimeout+wahaStartTimeout)
 		defer cancel()
 		if err := s.runWahaContainer(ctx, cfg, key, password); err != nil {
 			log.Printf("[notify] WAHA did not start: %v", err)
@@ -272,8 +298,13 @@ func (s *Service) EnableWaha() error {
 }
 
 func (s *Service) runWahaContainer(ctx context.Context, cfg wahaConfig, key, dashboardPassword string) error {
-	if out, err := DockerRun(ctx, nil, "pull", cfg.Image); err != nil {
-		return fmt.Errorf("the WAHA image could not be pulled: %s", out)
+	pullCtx, stopPull := context.WithTimeout(ctx, wahaPullTimeout)
+	defer stopPull()
+	if out, err := DockerRun(pullCtx, nil, "pull", "-q", cfg.Image); err != nil {
+		if pullCtx.Err() != nil {
+			return fmt.Errorf("the WAHA image (%s, over 3 GB) was not downloaded in %d minutes; try again on a faster line", cfg.Image, int(wahaPullTimeout.Minutes()))
+		}
+		return fmt.Errorf("the WAHA image %s could not be pulled: %s", cfg.Image, lastLines(out, 3))
 	}
 	_, _ = DockerRun(ctx, nil, "rm", "-f", wahaContainer)
 	args := []string{
@@ -309,9 +340,12 @@ func (s *Service) runWahaContainer(ctx context.Context, cfg wahaConfig, key, das
 	}
 	args = append(args, cfg.Image)
 	if out, err := DockerRun(ctx, env, args...); err != nil {
-		return fmt.Errorf("the WAHA container could not be created: %s", out)
+		return fmt.Errorf("the WAHA container could not be created: %s", lastLines(out, 3))
 	}
 	client := NewWaha(cfg.BaseURL, key)
+	// from here WAHA has to answer soon; the long limit above was for the download
+	ctx, stopWait := context.WithTimeout(ctx, wahaStartTimeout)
+	defer stopWait()
 	for {
 		if _, _, err := client.Version(ctx); err == nil {
 			return nil
@@ -414,7 +448,12 @@ func (s *Service) ConnectWhatsApp(ctx context.Context, userID int64, role, usern
 		return WhatsAppState{}, err
 	}
 	if err := w.CreateSession(ctx, row.SessionName); err != nil {
-		return WhatsAppState{}, err
+		// WAHA starts a session as it makes it, and a container that cannot reach WhatsApp fails here
+		return WhatsAppState{}, fmt.Errorf("%w (does the WAHA container reach web.whatsapp.com? check its internet and DNS)", err)
+	}
+	// from here on the session is worked with its own key
+	if _, err := s.sessionClient(ctx, w, row, false); err != nil {
+		log.Printf("[notify] the key of the session %s was not made, the panel key is used: %v", row.SessionName, err)
 	}
 	session, err := w.Session(ctx, row.SessionName)
 	if err != nil {
@@ -489,7 +528,14 @@ func (s *Service) WhatsAppQR(ctx context.Context, userID int64) ([]byte, string,
 	if row == nil {
 		return nil, "", errors.New("press connect first")
 	}
-	return w.QR(ctx, row.SessionName)
+	var img []byte
+	var ctype string
+	err = s.callAs(ctx, w, row, func(sw *Waha) error {
+		var e error
+		img, ctype, e = sw.QR(ctx, row.SessionName)
+		return e
+	})
+	return img, ctype, err
 }
 
 // DisconnectWhatsApp logs the phone out, removes the session, and stops the notices to it
@@ -506,6 +552,12 @@ func (s *Service) DisconnectWhatsApp(ctx context.Context, userID int64) error {
 	}
 	if row != nil {
 		if w, err := s.wahaClient(); err == nil {
+			// its key goes first, then the session; the key is of no use without the session
+			if row.APIKeyID != "" {
+				if err := w.DeleteKey(ctx, row.APIKeyID); err != nil {
+					log.Printf("[notify] the key of the session %s was not removed: %v", row.SessionName, err)
+				}
+			}
 			if err := w.DeleteSession(ctx, row.SessionName); err != nil {
 				return err
 			}
@@ -596,15 +648,87 @@ func (s *Service) HandleWahaWebhook(ctx context.Context, body []byte, signature 
 	if reply == "" || !s.sessionExists(event.Session) {
 		return nil
 	}
-	w, err := s.wahaClient()
-	if err != nil {
-		return nil
+	if w, err := s.wahaClient(); err == nil {
+		if row, _ := s.db.GetWhatsAppSessionByName(event.Session); row != nil {
+			_ = s.callAs(ctx, w, row, func(sw *Waha) error {
+				_, e := sw.SendText(ctx, event.Session, phone, reply)
+				return e
+			})
+		}
 	}
-	_, _ = w.SendText(ctx, event.Session, phone, reply)
 	return nil
 }
 
 func (s *Service) sessionExists(name string) bool {
 	ok, err := s.db.WhatsAppSessionNamed(name)
 	return err == nil && ok
+}
+
+// ─── The key of a session ─────────────────────────────────────────────────────
+
+// sessionClient is the client that acts on a session with the key of that session, made on first use. fresh makes a
+// new key even when one is saved, for a key WAHA no longer accepts (the container was made again). When no key can be
+// made the panel key is used and the reason is returned with it, so the session still works.
+func (s *Service) sessionClient(ctx context.Context, admin *Waha, row *database.WhatsAppSession, fresh bool) (*Waha, error) {
+	if !fresh && row.APIKeyEncrypted != "" {
+		if key, err := crypto.Decrypt(s.key, row.APIKeyEncrypted); err == nil && key != "" {
+			return admin.WithKey(key), nil
+		}
+	}
+	id, key, err := admin.CreateSessionKey(ctx, row.SessionName)
+	if err != nil {
+		return admin, err
+	}
+	enc, err := crypto.Encrypt(s.key, key)
+	if err != nil {
+		return admin, err
+	}
+	if row.APIKeyID != "" {
+		_ = admin.DeleteKey(ctx, row.APIKeyID)
+	}
+	if err := s.db.SetWhatsAppSessionKey(row.UserID, id, enc); err != nil {
+		return admin, err
+	}
+	row.APIKeyID, row.APIKeyEncrypted = id, enc
+	return admin.WithKey(key), nil
+}
+
+// callAs does a call on a session with the key of the session. A key WAHA refuses is made again once, and the call
+// tried again; any other failure is the call's own.
+func (s *Service) callAs(ctx context.Context, admin *Waha, row *database.WhatsAppSession, fn func(*Waha) error) error {
+	client, err := s.sessionClient(ctx, admin, row, false)
+	if err != nil {
+		log.Printf("[notify] the panel key is used for the session %s: %v", row.SessionName, err)
+	}
+	err = fn(client)
+	var se *SendError
+	if errors.As(err, &se) && se.Config && client.key != admin.key {
+		if fresh, kerr := s.sessionClient(ctx, admin, row, true); kerr == nil {
+			return fn(fresh)
+		}
+	}
+	return err
+}
+
+// sendFromSession sends a text from the session of an account, with the key of that session. An account with no
+// session cannot be sent to, and that does not get better by trying again.
+func (s *Service) sendFromSession(ctx context.Context, userID int64, phone, text string) (string, error) {
+	row, err := s.db.GetWhatsAppSession(userID)
+	if err != nil {
+		return "", &SendError{Message: err.Error(), Temporary: true}
+	}
+	if row == nil {
+		return "", &SendError{Message: "this account has no WhatsApp connected", Blocked: true}
+	}
+	w, err := s.wahaClient()
+	if err != nil {
+		return "", &SendError{Message: err.Error(), Temporary: true}
+	}
+	var id string
+	err = s.callAs(ctx, w, row, func(sw *Waha) error {
+		var e error
+		id, e = sw.SendText(ctx, row.SessionName, phone, text)
+		return e
+	})
+	return id, err
 }

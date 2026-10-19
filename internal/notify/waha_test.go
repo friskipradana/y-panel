@@ -75,10 +75,38 @@ func TestWahaFailuresAreSortedForTheWorker(t *testing.T) {
 	}
 }
 
-func TestWahaChannelWithoutASessionStopsInsteadOfRetrying(t *testing.T) {
-	c := NewWahaChannel(NewWaha("http://127.0.0.1:1", "k"), func(int64) (string, error) { return "", nil })
-	_, err := c.SendToUser(context.Background(), 5, "62812", "hi")
-	if se := AsSendError(err); !se.Blocked || se.Temporary {
-		t.Fatalf("no session is final: %+v", se)
+
+func TestTheEndOfDockerOutputIsWhatTheOwnerSees(t *testing.T) {
+	out := "gows: Pulling from devlikeapro/waha\nea1: Pulling fs layer\nea1: Downloading\n\nerror pulling image configuration: download failed after attempts=6: dial tcp: i/o timeout\n"
+	got := lastLines(out, 2)
+	if strings.Contains(got, "Pulling from") || !strings.Contains(got, "i/o timeout") {
+		t.Fatalf("the error is at the end, not the first line of progress: %q", got)
+	}
+	if lastLines("one", 3) != "one" || lastLines("", 3) != "" {
+		t.Fatal("short and empty output stay as they are")
+	}
+}
+
+func TestAFailedPullSaysWhyAndTheImageHasNoBrowser(t *testing.T) {
+	if strings.HasSuffix(wahaImage(), ":latest") {
+		t.Fatalf("the image carries no browser: %s", wahaImage())
+	}
+	var seen []string
+	original := DockerRun
+	DockerRun = func(_ context.Context, _ []string, args ...string) (string, error) {
+		seen = append(seen, strings.Join(args, " "))
+		if args[0] == "pull" {
+			return "gows: Pulling from devlikeapro/waha\nabc: Downloading\nabc: Retrying in 2 seconds\nabc: Retrying in 4 seconds\nerror pulling image configuration: i/o timeout", &SendError{Message: "docker pull failed"}
+		}
+		return "", nil
+	}
+	defer func() { DockerRun = original }()
+	s := &Service{}
+	err := s.runWahaContainer(context.Background(), wahaConfig{Image: wahaImage(), Engine: "GOWS", Port: 1, BaseURL: "http://127.0.0.1:1"}, "k", "p")
+	if err == nil || !strings.Contains(err.Error(), "i/o timeout") || strings.Contains(err.Error(), "Pulling from") {
+		t.Fatalf("the reason of the failure, not the first line of progress: %v", err)
+	}
+	if len(seen) != 1 || !strings.HasPrefix(seen[0], "pull -q ") {
+		t.Fatalf("a quiet pull, and nothing runs after it failed: %v", seen)
 	}
 }

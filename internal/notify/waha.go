@@ -157,6 +157,36 @@ func (w *Waha) Test(ctx context.Context) error {
 	return err
 }
 
+// WithKey is the same client acting with another key: the key of one session, which WAHA limits to that session
+func (w *Waha) WithKey(key string) *Waha {
+	return &Waha{base: w.base, key: key, http: w.http}
+}
+
+// CreateSessionKey makes a key that works for one session only, and returns its id (to delete it later) and the key
+func (w *Waha) CreateSessionKey(ctx context.Context, session string) (id, key string, err error) {
+	data, _, err := w.do(ctx, http.MethodPost, "/api/keys", map[string]any{"isAdmin": false, "session": session, "isActive": true}, "")
+	if err != nil {
+		return "", "", err
+	}
+	var made struct {
+		ID  string `json:"id"`
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal(data, &made); err != nil || made.Key == "" {
+		return "", "", errors.New("WAHA did not return the key")
+	}
+	return made.ID, made.Key, nil
+}
+
+// DeleteKey removes a key; one that is already gone is fine
+func (w *Waha) DeleteKey(ctx context.Context, id string) error {
+	_, _, err := w.do(ctx, http.MethodDelete, "/api/keys/"+url.PathEscape(id), nil, "")
+	if err != nil && isNotFound(err) {
+		return nil
+	}
+	return err
+}
+
 func (w *Waha) Kind() string { return wahaKind }
 
 // Send is not used by itself: WhatsApp sends from the session of an account, see WahaChannel
@@ -273,22 +303,16 @@ func (w *Waha) SendText(ctx context.Context, session, phone, text string) (strin
 // WahaChannel sends from the session that belongs to the account of each notice
 type WahaChannel struct {
 	*Waha
-	session func(userID int64) (string, error)
+	send func(ctx context.Context, userID int64, phone, text string) (string, error)
 }
 
-func NewWahaChannel(w *Waha, session func(userID int64) (string, error)) *WahaChannel {
-	return &WahaChannel{Waha: w, session: session}
+// NewWahaChannel makes the channel; send sends a text from the session of an account, with the key of that session
+func NewWahaChannel(w *Waha, send func(ctx context.Context, userID int64, phone, text string) (string, error)) *WahaChannel {
+	return &WahaChannel{Waha: w, send: send}
 }
 
 func (c *WahaChannel) SendToUser(ctx context.Context, userID int64, address, text string) (string, error) {
-	name, err := c.session(userID)
-	if err != nil {
-		return "", &SendError{Message: err.Error(), Temporary: true}
-	}
-	if name == "" {
-		return "", &SendError{Message: "this account has no WhatsApp connected", Blocked: true}
-	}
-	return c.SendText(ctx, name, address, ToWhatsApp(text))
+	return c.send(ctx, userID, address, ToWhatsApp(text))
 }
 
 var tagPattern = regexp.MustCompile(`<[^>]+>`)

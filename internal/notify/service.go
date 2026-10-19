@@ -182,7 +182,7 @@ func (s *Service) buildLocked(kind string, onlyEnabled bool) (Channel, error) {
 		if cfg.BaseURL == "" {
 			return nil, nil
 		}
-		return NewWahaChannel(NewWaha(cfg.BaseURL, secret), s.sessionOf), nil
+		return NewWahaChannel(NewWaha(cfg.BaseURL, secret), s.sendFromSession), nil
 	}
 	return nil, fmt.Errorf("unknown channel %q", kind)
 }

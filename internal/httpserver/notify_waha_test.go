@@ -27,17 +27,28 @@ type wahaStub struct {
 	sessions map[string]*stubSession
 	sent     []struct{ session, chat, text string }
 	badKey   int
+	// the keys WAHA made for single sessions: key to session; and how many calls each kind of key made
+	keys         map[string]string
+	keyIDs       map[string]string
+	madeKeys     int
+	sessionCalls int
+	adminCalls   int
+	forbidden    int
+	// the key each text was sent with
+	sentWith []string
 }
 
 type stubSession struct{ status, me string }
 
 func newWahaStub(t *testing.T, key string) *wahaStub {
 	t.Helper()
-	stub := &wahaStub{key: key, sessions: map[string]*stubSession{}}
+	stub := &wahaStub{key: key, sessions: map[string]*stubSession{}, keys: map[string]string{}, keyIDs: map[string]string{}}
 	stub.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stub.mu.Lock()
 		defer stub.mu.Unlock()
-		if r.Header.Get("X-Api-Key") != stub.key {
+		presented := r.Header.Get("X-Api-Key")
+		keySession, isSessionKey := stub.keys[presented]
+		if presented != stub.key && !isSessionKey {
 			stub.badKey++
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -49,12 +60,51 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 		w.Header().Set("Content-Type", "application/json")
 		reply := func(v any) { _ = json.NewEncoder(w).Encode(v) }
 		parts := strings.Split(path, "/")
+		// a key of one session may only act on that session; the panel key does everything
+		if isSessionKey {
+			stub.sessionCalls++
+			target := ""
+			switch {
+			case len(parts) >= 2 && parts[0] == "sessions":
+				target = parts[1]
+			case len(parts) >= 2 && parts[1] == "auth":
+				target = parts[0]
+			case path == "sendText":
+				target, _ = body["session"].(string)
+			}
+			forbidden := strings.HasPrefix(path, "keys") || (path == "sessions" && r.Method == http.MethodPost) ||
+				(len(parts) >= 3 && parts[0] == "sessions" && parts[2] == "start") || (target != "" && target != keySession)
+			if forbidden {
+				stub.forbidden++
+				w.WriteHeader(http.StatusForbidden)
+				reply(map[string]string{"message": "forbidden for this key"})
+				return
+			}
+		} else {
+			stub.adminCalls++
+		}
 		switch {
+		case path == "keys" && r.Method == http.MethodPost:
+			session, _ := body["session"].(string)
+			stub.madeKeys++
+			id := "kid-" + strconv.Itoa(stub.madeKeys)
+			key := "key_" + strconv.Itoa(stub.madeKeys) + "_" + session
+			stub.keys[key], stub.keyIDs[id] = session, key
+			reply(map[string]any{"id": id, "key": key, "isAdmin": false, "isActive": true, "session": session})
+		case len(parts) == 2 && parts[0] == "keys" && r.Method == http.MethodDelete:
+			if key, ok := stub.keyIDs[parts[1]]; ok {
+				delete(stub.keys, key)
+				delete(stub.keyIDs, parts[1])
+			}
+			reply(map[string]string{})
 		case path == "server/version":
 			reply(map[string]string{"version": "2026.1.1", "engine": "GOWS"})
 		case path == "sessions" && r.Method == http.MethodGet:
 			list := []map[string]string{}
 			for name := range stub.sessions {
+				if isSessionKey && name != keySession {
+					continue
+				}
 				list = append(list, map[string]string{"name": name})
 			}
 			reply(list)
@@ -101,6 +151,7 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 			chat, _ := body["chatId"].(string)
 			text, _ := body["text"].(string)
 			stub.sent = append(stub.sent, struct{ session, chat, text string }{session, chat, text})
+			stub.sentWith = append(stub.sentWith, presented)
 			reply(map[string]any{"id": map[string]string{"_serialized": "true_" + chat + "_ABC"}})
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -469,5 +520,94 @@ func TestIntegrationTheBuyerHearsAboutTheOrderOnTheirNumber(t *testing.T) {
 	total := len(stub.textsTo("6281234567890@c.us"))
 	if total > 3 {
 		t.Fatalf("an unverified number is told at most 3 times a day, got %d", total)
+	}
+}
+
+func TestIntegrationEachSessionActsWithItsOwnKey(t *testing.T) {
+	t.Cleanup(notify.SetWhatsAppGaps(time.Millisecond, time.Millisecond))
+	f := newNotifyFixture(t)
+	stub := withWaha(t, f)
+	andi, _ := f.db.CreateUser("andi", "andi@example.com", "hash", auth.UserRole, "Andi")
+	budi, _ := f.db.CreateUser("budi", "budi@example.com", "hash", auth.UserRole, "Budi")
+	f.connectPhone(t, stub, andi, "628111111111")
+	f.connectPhone(t, stub, budi, "628222222222")
+
+	// WAHA made one key for each session, limited to it, and the panel keeps them where only the agent reads
+	stub.mu.Lock()
+	if len(stub.keys) != 2 {
+		t.Fatalf("one key a session: %v", stub.keys)
+	}
+	owners := map[string]bool{}
+	for _, session := range stub.keys {
+		owners[session] = true
+	}
+	stub.mu.Unlock()
+	if !owners["user-andi"] || !owners["user-budi"] {
+		t.Fatalf("each key belongs to its session: %v", owners)
+	}
+	row, _ := f.db.GetWhatsAppSession(andi.ID)
+	if row.APIKeyID == "" || row.APIKeyEncrypted == "" || strings.Contains(row.APIKeyEncrypted, "key_") {
+		t.Fatalf("the key is kept encrypted: %+v", row)
+	}
+	if body := f.call(f.s.handleMyWhatsApp, "GET", "/", "", andi).Body.String(); strings.Contains(body, "key_") || strings.Contains(strings.ToLower(body), "apikey") {
+		t.Fatalf("no key ever reaches the page: %s", body)
+	}
+
+	// what each account sends goes out with the key of its own session, and WAHA refused nothing
+	for _, u := range []*database.User{andi, budi} {
+		if rec := f.call(f.s.handleTestWhatsApp, "POST", "/", "", u); rec.Code != 202 {
+			t.Fatalf("test: %d", rec.Code)
+		}
+	}
+	eventually(t, "both test messages", func() bool {
+		return len(stub.textsTo("628111111111@c.us")) >= 1 && len(stub.textsTo("628222222222@c.us")) >= 1
+	})
+	stub.mu.Lock()
+	for i, m := range stub.sent {
+		if stub.keys[stub.sentWith[i]] != m.session {
+			t.Fatalf("a text of %s was sent with a key of %q, not its own", m.session, stub.keys[stub.sentWith[i]])
+		}
+	}
+	if stub.forbidden != 0 {
+		t.Fatalf("WAHA refused %d calls of the panel", stub.forbidden)
+	}
+	stub.mu.Unlock()
+
+	// the container was made again and its keys are gone: the next message gets a new key and still goes out
+	stub.mu.Lock()
+	stub.keys, stub.keyIDs = map[string]string{}, map[string]string{}
+	made := stub.madeKeys
+	stub.mu.Unlock()
+	if rec := f.call(f.s.handleTestWhatsApp, "POST", "/", "", andi); rec.Code != 202 {
+		t.Fatalf("test: %d", rec.Code)
+	}
+	eventually(t, "the message after the keys were lost", func() bool { return len(stub.textsTo("628111111111@c.us")) >= 2 })
+	stub.mu.Lock()
+	if stub.madeKeys != made+1 {
+		t.Fatalf("a new key was made once: %d then %d", made, stub.madeKeys)
+	}
+	stub.mu.Unlock()
+
+	// disconnecting removes the key with the session
+	if rec := f.call(f.s.handleDisconnectWhatsApp, "DELETE", "/", "", andi); rec.Code != 200 {
+		t.Fatalf("disconnect: %d", rec.Code)
+	}
+	stub.mu.Lock()
+	for _, session := range stub.keys {
+		if session == "user-andi" {
+			t.Fatal("the key of a disconnected session is removed")
+		}
+	}
+	stub.mu.Unlock()
+
+	// an account with no session cannot be sent to, and that is final
+	ch, _ := f.s.notify.Channel("waha")
+	sender, ok := ch.(notify.UserSender)
+	if !ok {
+		t.Fatal("the channel sends from sessions")
+	}
+	_, err := sender.SendToUser(context.Background(), andi.ID, "628111111111", "x")
+	if se := notify.AsSendError(err); !se.Blocked || se.Temporary {
+		t.Fatalf("no session is final: %+v", se)
 	}
 }

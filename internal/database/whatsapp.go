@@ -17,13 +17,16 @@ type WhatsAppSession struct {
 	Status      string    `json:"status"`
 	Phone       string    `json:"phone"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+	// the key of this session in WAHA (its id there, and the key itself encrypted); never leaves the agent
+	APIKeyID        string `json:"-"`
+	APIKeyEncrypted string `json:"-"`
 }
 
-const sessionColumns = `user_id, session_name, status, phone, updated_at`
+const sessionColumns = `user_id, session_name, status, phone, updated_at, api_key_id, api_key_encrypted`
 
 func scanSession(row rowScanner) (*WhatsAppSession, error) {
 	var s WhatsAppSession
-	err := row.Scan(&s.UserID, &s.SessionName, &s.Status, &s.Phone, &s.UpdatedAt)
+	err := row.Scan(&s.UserID, &s.SessionName, &s.Status, &s.Phone, &s.UpdatedAt, &s.APIKeyID, &s.APIKeyEncrypted)
 	return &s, err
 }
 
@@ -109,4 +112,25 @@ func (m *Manager) WhatsAppSessionNamed(name string) (bool, error) {
 	var n int
 	err := m.db.QueryRow(`SELECT COUNT(*) FROM whatsapp_sessions WHERE session_name = $1`, name).Scan(&n)
 	return n > 0, err
+}
+
+// SetWhatsAppSessionKey keeps the key WAHA made for a session
+func (m *Manager) SetWhatsAppSessionKey(userID int64, keyID, encrypted string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE whatsapp_sessions SET api_key_id = $2, api_key_encrypted = $3, updated_at = NOW() WHERE user_id = $1`, userID, keyID, encrypted)
+	return err
+}
+
+// GetWhatsAppSessionByName finds the session of that name, nil when none is ours
+func (m *Manager) GetWhatsAppSessionByName(name string) (*WhatsAppSession, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	s, err := scanSession(m.db.QueryRow(`SELECT `+sessionColumns+` FROM whatsapp_sessions WHERE session_name = $1`, name))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return s, err
 }

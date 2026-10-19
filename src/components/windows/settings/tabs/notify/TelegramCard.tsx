@@ -17,7 +17,7 @@ const apiError = (error: unknown, fallback: string) =>
 const STATUS_TONE = { active: 'success', error: 'danger', unconfigured: 'neutral' } as const
 
 // The Telegram bot that carries the notices: its token, the switch, and a test message through the same queue
-export function TelegramCard({ channel, recipient }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined }) {
+export function TelegramCard({ channel, recipient, bare }: { channel: NotifyChannel | undefined; recipient: NotifyRecipient | undefined; bare?: boolean }) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [token, setToken] = useState('')
@@ -47,7 +47,7 @@ export function TelegramCard({ channel, recipient }: { channel: NotifyChannel | 
   const canTest = configured && (channel?.enabled ?? false) && !dirty && !!recipient?.linked && !recipient.blocked
 
   return (
-    <div className="panel-shell-card flex flex-col gap-4 settings-card">
+    <div className={bare ? 'flex flex-col gap-3' : 'panel-shell-card flex flex-col gap-4 settings-card'}>
       <SectionHeader
         icon={<Send />}
         title={t('notify.telegram.title')}
