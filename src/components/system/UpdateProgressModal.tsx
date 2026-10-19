@@ -215,11 +215,11 @@ export function UpdateProgressModal() {
         </div>
 
         {/* Terminal Log Card */}
-        <div className="flex flex-1 min-h-[9rem] flex-col overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-code-bg)] shadow-inner">
+        <div className="flex flex-1 min-h-[9rem] flex-col overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--terminal-bg)] shadow-inner">
           <div className="flex h-8 items-center justify-between border-b border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-3 text-[11px]">
-            <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-              <Terminal size={12} />
-              <span className="font-medium text-[var(--win-text)]">{t('update.progress.terminalTitle')}</span>
+            <div className="flex items-center gap-2 text-[var(--win-text)]">
+              <Terminal size={12} className="text-[var(--panel-primary-text)] shrink-0" />
+              <span className="font-semibold text-[var(--win-text)]">{t('update.progress.terminalTitle')}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export function UpdateProgressModal() {
                 type="button"
                 variant="ghost"
                 onClick={handleCopyLog}
-                className="!h-6 !px-2 text-[10.5px]"
+                className="!h-6 !px-2 text-[10.5px] text-[var(--win-text)]"
                 icon={copied ? <Check size={11} className="text-[var(--panel-success-text)]" /> : <Copy size={11} />}
               >
                 {copied ? t('update.progress.copied') : t('update.progress.copyLog')}
@@ -245,7 +245,7 @@ export function UpdateProgressModal() {
             ref={logRef}
             aria-live="polite"
             aria-label={t('update.progress.logLabel')}
-            className="panel-mono flex-1 overflow-y-auto whitespace-pre-wrap break-words p-3 text-[11.5px] leading-relaxed text-[var(--panel-code-text)] select-text"
+            className="panel-mono flex-1 overflow-y-auto whitespace-pre-wrap break-words p-3 text-[11.5px] leading-relaxed text-[var(--terminal-fg)] select-text"
           >
             {log.length > 0 ? log.join('\n') : t('update.progress.waitingLog')}
           </pre>

@@ -215,7 +215,7 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
         <div className="p-2.5 rounded-md border border-[var(--panel-danger-border)] bg-[var(--panel-danger-bg)] text-[var(--panel-danger-text)] text-[11.5px] space-y-1">
           <div className="font-semibold">{t("settings.update.statusFailed")}</div>
           {statusQuery.data.log && statusQuery.data.log.length > 0 && (
-            <pre className="panel-mono max-h-20 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--panel-code-bg)] p-1.5 text-[10.5px] text-[var(--panel-code-text)]">
+            <pre className="panel-mono max-h-20 overflow-y-auto whitespace-pre-wrap rounded bg-[var(--terminal-bg)] border border-[var(--win-border)] p-1.5 text-[10.5px] text-[var(--terminal-fg)]">
               {statusQuery.data.log.slice(-6).join("\n")}
             </pre>
           )}

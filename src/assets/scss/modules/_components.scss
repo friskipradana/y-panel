@@ -1110,3 +1110,102 @@
   padding: 8px;
   color: var(--text-secondary);
 }
+
+// Desktop Toast & Notifications (Sonner Native Integration)
+[data-sonner-toaster] {
+  z-index: 999999;
+  font-family: var(--font-sans);
+  --border-radius: 8px;
+
+  --normal-bg: color-mix(in srgb, var(--win-bg) 95%, var(--panel-surface));
+  --normal-border: var(--win-border);
+  --normal-text: var(--win-text);
+
+  --success-bg: color-mix(in srgb, var(--panel-success-bg) 24%, var(--win-bg));
+  --success-border: color-mix(in srgb, var(--panel-success-text) 30%, var(--win-border));
+  --success-text: var(--win-text);
+
+  --error-bg: color-mix(in srgb, var(--panel-danger-bg) 24%, var(--win-bg));
+  --error-border: color-mix(in srgb, var(--panel-danger-text) 30%, var(--win-border));
+  --error-text: var(--win-text);
+
+  --warning-bg: color-mix(in srgb, var(--panel-warning-bg) 24%, var(--win-bg));
+  --warning-border: color-mix(in srgb, var(--panel-warning-text) 30%, var(--win-border));
+  --warning-text: var(--win-text);
+
+  --info-bg: color-mix(in srgb, var(--panel-primary-bg) 24%, var(--win-bg));
+  --info-border: color-mix(in srgb, var(--panel-primary-text) 30%, var(--win-border));
+  --info-text: var(--win-text);
+
+  [data-close-button] {
+    display: none;
+  }
+}
+
+[data-sonner-toast][data-styled='true'] {
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-family: var(--font-sans);
+  gap: 8px;
+
+  [data-content] {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  [data-title] {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--win-text);
+  }
+
+  [data-description] {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
+  [data-button] {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--panel-primary-solid);
+    color: #ffffff;
+    cursor: pointer;
+  }
+
+  [data-cancel] {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--win-border);
+    background: var(--panel-surface);
+    color: var(--win-text);
+    cursor: pointer;
+  }
+}
+
+[data-sonner-toast][data-type='success'] [data-icon] {
+  color: var(--panel-success-text);
+}
+[data-sonner-toast][data-type='error'] [data-icon] {
+  color: var(--panel-danger-text);
+}
+[data-sonner-toast][data-type='warning'] [data-icon] {
+  color: var(--panel-warning-text);
+}
+[data-sonner-toast][data-type='info'] [data-icon] {
+  color: var(--panel-primary-text);
+}
