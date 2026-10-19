@@ -42,6 +42,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `ColumnMenu` | `ColumnMenu.tsx` | Header kolom bergaya spreadsheet: urut naik/turun dan centang nilai kolom (cari, pilih semua, hapus filter). Dipasang `ListTable` lewat `ListColumn.sort/filter`; jangan dipakai terpisah | `label`, `sort`, `filter` |
 | `useListQuery` | `hooks/useListQuery.ts` | State pencarian, urutan, dan filter kolom satu tabel; `column(key, label, facets)` membuat header. Sort dan filter selalu di backend (`internal/listquery`, query `q`, `sort`, `order`, `f.<kolom>`; jawaban `items,total,all,facets`) | – |
 | `FilterMenu` | `FilterMenu.tsx` | Menu pilihan dari satu tombol (pengganti tab atau filter), gaya dropdown tab Docker | `label`, `items` (`key`, `label`, `count?`), `value`, `onChange` |
+| `Stepper` | `Stepper.tsx` | Langkah berurutan (centang untuk yang lewat, nama langkah aktif saja di layar sempit) | `items`, `value`, `onChange`, `canSelect?`, `label` |
 | `KpiCard` | `KpiCard.tsx` | Kartu metrik + progres | `title`, `value`, `subtitle?`, `percent?`, `icon?` |
 | `EmptyState`, `LoadingState`, `ErrorState` | `states.tsx` | Tiga state standar | `icon?`/`children`; `title` + `hint?` |
 

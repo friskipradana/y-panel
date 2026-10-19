@@ -81,7 +81,7 @@ func (s *Server) handleUpdatePaymentSettings(w http.ResponseWriter, r *http.Requ
 		"remote": remoteAddr(r),
 		"user":   username,
 	})
-	s.notifyCurrentServerUser(r, "Payment settings diperbarui 💳", "Konfigurasi payment gateway berhasil diperbarui.", "info")
+	s.notifyCurrentServerUser(r, "Pengaturan pembayaran disimpan", "Konfigurasi gateway pembayaran disimpan.", "info")
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":      true,
@@ -472,8 +472,8 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 					matched.ID, captured.ID)
 				// Notify all admins about the successful match
 				s.notifyAllAdmins(
-					"Transaksi otomatis terverifikasi ✅",
-					fmt.Sprintf("Transaksi #%d (Rp %s) berhasil dicocokkan dengan notifikasi dari %s",
+					"Transaksi lunas",
+					fmt.Sprintf("Transaksi #%d (Rp %s) cocok dengan notifikasi dari %s dan ditandai lunas.",
 						matched.ID, payload.AmountDetected, payload.AppName),
 					"success",
 				)
@@ -486,8 +486,8 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 
 	// Send panel notification to superadmin
 	s.notifyAllAdmins(
-		"Notifikasi pembayaran masuk 💰",
-		fmt.Sprintf("Dari %s: %s — Rp %s", payload.AppName, payload.Title, payload.AmountDetected),
+		"Pembayaran masuk",
+		fmt.Sprintf("Dari %s: %s (Rp %s)", payload.AppName, payload.Title, payload.AmountDetected),
 		"info",
 	)
 

@@ -1,20 +1,22 @@
+import { getInitialLanguage } from '@/lib/i18n'
+
 export type DateTimeInput = string | number | Date | null | undefined
 
-const INDONESIAN_DATE_TIME_FORMAT = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-})
+// Dates read in the language of the page: "19 Okt 2026" in Indonesian, "19 Oct 2026" in English
+const DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' }
+const formatters = new Map<string, Intl.DateTimeFormat>()
 
-const INDONESIAN_DATE_FORMAT = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
+function formatter(options: Intl.DateTimeFormatOptions, key: string): Intl.DateTimeFormat {
+  const locale = getInitialLanguage() === 'en' ? 'en-GB' : 'id-ID'
+  const cacheKey = `${locale}:${key}`
+  let found = formatters.get(cacheKey)
+  if (!found) {
+    found = new Intl.DateTimeFormat(locale, options)
+    formatters.set(cacheKey, found)
+  }
+  return found
+}
 
 const RELATIVE_DOCKER_DATE_TRANSLATIONS: Array<[RegExp, string]> = [
   [/^about an hour ago$/i, 'sekitar 1 jam lalu'],
@@ -59,13 +61,13 @@ export function parseDateTime(value: DateTimeInput): Date | null {
 export function formatDateTimeID(value: DateTimeInput, fallback = '-'): string {
   const date = parseDateTime(value)
   if (!date) return typeof value === 'string' && value.trim() ? value.trim() : fallback
-  return INDONESIAN_DATE_TIME_FORMAT.format(date).replace(' pukul ', ', ')
+  return formatter(DATE_TIME_OPTIONS, 'dateTime').format(date).replace(' pukul ', ', ')
 }
 
 export function formatDateID(value: DateTimeInput, fallback = '-'): string {
   const date = parseDateTime(value)
   if (!date) return typeof value === 'string' && value.trim() ? value.trim() : fallback
-  return INDONESIAN_DATE_FORMAT.format(date)
+  return formatter(DATE_OPTIONS, 'date').format(date)
 }
 
 export function formatDockerDateTimeID(value: DateTimeInput, fallback = '-'): string {

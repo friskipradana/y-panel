@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Boxes, Eye, Globe2, Landmark, Link2, ReceiptText, ShoppingCart, Store } from 'lucide-react'
+import { Boxes, Eye, Globe2, Landmark, Link2, ReceiptText, ShoppingCart, Store, Ticket } from 'lucide-react'
 import { toast } from 'sonner'
-import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans } from '@/api/hosting'
+import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans, listHostingVouchers } from '@/api/hosting'
 import { getDemoSettings, getSiteSettings, setSiteSettings } from '@/api/system'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { Tabs } from '@/components/ui/Tabs'
@@ -18,6 +18,7 @@ import { HostingPaymentCard } from '../hosting/HostingPaymentCard'
 import { HostingPlansCard } from '../hosting/HostingPlansCard'
 import { HostingSubdomainsCard } from '../hosting/HostingSubdomainsCard'
 import { HostingTermsCard } from '../hosting/HostingTermsCard'
+import { HostingVouchersCard } from '../hosting/HostingVouchersCard'
 
 // Hosting mode: the switch, what is still missing before selling, and the settings in sections
 export function HostingTab() {
@@ -32,6 +33,7 @@ export function HostingTab() {
   const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0, enabled })
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled })
   const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled })
+  const vouchers = useQuery({ queryKey: ['hosting', 'vouchers'], queryFn: listHostingVouchers, retry: 0, enabled })
   const waiting = useQuery({ queryKey: ['hosting', 'orders', 'review'], queryFn: () => listHostingOrders('review'), retry: 0, enabled, refetchInterval: 30_000 })
 
   const mutation = useMutation({
@@ -112,6 +114,7 @@ export function HostingTab() {
                 { key: 'domains', label: t('hosting.tab.domains'), icon: <Globe2 />, count: domains.data?.filter((domain) => domain.enabled).length },
                 { key: 'subdomains', label: t('hosting.tab.subdomains'), icon: <Link2 />, count: subdomains.data?.length },
                 { key: 'orders', label: t('hosting.tab.orders'), icon: <ShoppingCart />, count: waiting.data?.total },
+                { key: 'vouchers', label: t('hosting.tab.vouchers'), icon: <Ticket />, count: vouchers.data?.filter((voucher) => voucher.enabled).length },
                 { key: 'payment', label: t('hosting.tab.payment'), icon: <Landmark /> },
                 { key: 'terms', label: t('hosting.tab.terms'), icon: <ReceiptText /> },
                 { key: 'demo', label: t('hosting.tab.demo'), icon: <Eye /> },
@@ -128,6 +131,7 @@ export function HostingTab() {
           ) : null}
           {section === 'subdomains' ? <HostingSubdomainsCard /> : null}
           {section === 'orders' ? <HostingOrdersCard /> : null}
+          {section === 'vouchers' ? <HostingVouchersCard /> : null}
           {section === 'payment' ? <HostingPaymentCard /> : null}
           {section === 'terms' ? <HostingTermsCard /> : null}
           {section === 'demo' ? <DemoAccountCard /> : null}

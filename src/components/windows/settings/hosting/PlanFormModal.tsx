@@ -7,6 +7,7 @@ import { Field, TextInput, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
+import { discountsFromValues, discountsValid, PlanDiscountsEditor, valuesFromDiscounts } from './PlanDiscountsEditor'
 
 const EMPTY: PlanInput = {
   slug: '',
@@ -24,6 +25,7 @@ const EMPTY: PlanInput = {
   maxSubdomains: 1,
   maxCustomDomains: 0,
   trialDays: 0,
+  durationDiscounts: [],
   highlighted: false,
   visible: true,
   sortOrder: 0,
@@ -67,11 +69,13 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
   const [form, setForm] = useState<PlanInput>(() => (editing ? { ...editing } : EMPTY))
   const [featuresText, setFeaturesText] = useState(() => (editing ? editing.features.join('\n') : ''))
   const [slugTouched, setSlugTouched] = useState(editing !== null)
+  const [discountValues, setDiscountValues] = useState(() => valuesFromDiscounts(editing?.durationDiscounts))
 
   const patch = (next: Partial<PlanInput>) => setForm((current) => ({ ...current, ...next }))
-  const valid = form.name.trim() !== '' && form.slug.trim().length >= 2
+  const valid = form.name.trim() !== '' && form.slug.trim().length >= 2 && discountsValid(form.period, discountValues)
 
-  const submit = () => onSave({ ...form, features: featuresText.split('\n').map((line) => line.trim()).filter(Boolean) })
+  const submit = () =>
+    onSave({ ...form, features: featuresText.split('\n').map((line) => line.trim()).filter(Boolean), durationDiscounts: discountsFromValues(form.period, discountValues) })
 
   return (
     <Modal
@@ -133,6 +137,8 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
             />
           </Field>
         </div>
+
+        {form.period !== 'once' && form.priceAmount > 0 ? <PlanDiscountsEditor period={form.period} values={discountValues} onChange={setDiscountValues} /> : null}
 
         <Field label={t('hosting.plan.features')} hint={t('hosting.plan.featuresHint')}>
           <Textarea rows={4} value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} placeholder={t('hosting.plan.featuresPlaceholder')} />

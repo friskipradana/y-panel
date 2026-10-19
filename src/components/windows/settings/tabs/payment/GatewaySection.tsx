@@ -66,7 +66,7 @@ export function GatewaySection({ payment }: { payment: PaymentSettings }) {
       toast.success(t('common.copied'))
       setTimeout(() => setCopiedWebhook(false), 2000)
     } catch {
-      toast.error('Gagal menyalin URL')
+      toast.error(t('settings.listener.copyUrlFailed'))
     }
   }
 

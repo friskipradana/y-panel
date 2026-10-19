@@ -4,6 +4,7 @@ import { Check } from 'lucide-react'
 import { formatRupiah, getPublicHosting, type PublicPlan } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { useI18n } from '@/lib/i18n'
+import { maxDurationPercent } from '@/lib/planPricing'
 
 function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string, string | number>) => string, mainDomain?: string) {
   const disk = plan.diskQuotaMb >= 1024 ? `${Math.round((plan.diskQuotaMb / 1024) * 10) / 10} GB` : `${plan.diskQuotaMb} MB`
@@ -64,6 +65,11 @@ export function Pricing() {
                   </span>
                 ) : null}
               </div>
+              {maxDurationPercent(plan.durationDiscounts) > 0 ? (
+                <p className="mt-1 text-[0.75rem] font-medium text-[var(--panel-success-text)]">
+                  {t('hosting.landing.discountUpTo', { percent: maxDurationPercent(plan.durationDiscounts) })}
+                </p>
+              ) : null}
 
               <div className="mt-3.5 flex flex-wrap gap-1.5" aria-label={t('hosting.landing.limitsLabel')}>
                 {limits.map((limit) => (

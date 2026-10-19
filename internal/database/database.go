@@ -30,6 +30,9 @@ type Config struct {
 type Manager struct {
 	cfg       Config
 	db        *sql.DB
+	connector *passwordConnector
+	// voucherMu makes orders that use a voucher one at a time
+	voucherMu sync.Mutex
 	mu        sync.RWMutex
 	connected bool
 	lastError string
@@ -44,11 +47,8 @@ func New(cfg Config) *Manager {
 		return manager
 	}
 
-	db, err := sql.Open("postgres", cfg.DSN)
-	if err != nil {
-		manager.setError(fmt.Sprintf("sql open failed: %v", err))
-		return manager
-	}
+	connector := &passwordConnector{dsn: cfg.DSN}
+	db := sql.OpenDB(connector)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetMaxIdleConns(5)
 	db.SetMaxOpenConns(20)
@@ -62,6 +62,7 @@ func New(cfg Config) *Manager {
 	}
 
 	manager.db = db
+	manager.connector = connector
 	manager.setConnected(true)
 
 	if err := manager.ensureSchema(); err != nil {

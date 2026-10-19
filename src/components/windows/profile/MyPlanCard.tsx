@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Boxes } from 'lucide-react'
 import { toast } from 'sonner'
-import { getMyPlan, renewMyPlan, type PlanState } from '@/api/hosting'
+import { getMyPlan, quoteMyRenewal, renewMyPlan, type PlanState } from '@/api/hosting'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatDateID } from '@/lib/datetime'
-import { Field, TextInput } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
+import { PeriodPicker, periodChoices } from '@/components/hosting/PeriodPicker'
+import { PriceLines } from '@/components/hosting/PriceLines'
+import { VoucherField } from '@/components/hosting/VoucherField'
+import { priceFor } from '@/lib/planPricing'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PaymentInstructions } from '@/pages/order/PaymentInstructions'
 import { useI18n } from '@/lib/i18n'
@@ -22,11 +26,23 @@ export function MyPlanCard() {
   const { t } = useI18n()
   const qc = useQueryClient()
   const [periods, setPeriods] = useState('1')
+  const [voucherText, setVoucherText] = useState('')
+  const [voucherApplied, setVoucherApplied] = useState('')
   const query = useQuery({ queryKey: ['me-plan'], queryFn: getMyPlan, retry: 0, refetchInterval: (q) => (q.state.data?.openOrder ? 10_000 : false) })
   const plan = query.data
+  // what the renewal costs: the agent says if the voucher works, and what it takes off
+  const quoteQuery = useQuery({
+    queryKey: ['me-renew-quote', plan?.plan?.id, periods, voucherApplied],
+    queryFn: () => quoteMyRenewal({ planId: plan!.plan!.id, periods: Number(periods), voucher: voucherApplied }),
+    enabled: !!plan?.plan && !!plan.renewable && voucherApplied !== '',
+    staleTime: 10_000,
+    retry: 0,
+  })
+  const voucherValid = voucherApplied !== '' && quoteQuery.data?.voucher?.valid === true
+  const price = plan?.plan ? (voucherApplied && quoteQuery.data ? quoteQuery.data.quote : priceFor(plan.plan, Number(periods))) : null
 
   const renew = useMutation({
-    mutationFn: () => renewMyPlan(Math.min(Math.max(Number(periods) || 1, 1), plan?.maxPeriods ?? 1)),
+    mutationFn: () => renewMyPlan(Number(periods), voucherValid ? voucherApplied : undefined),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['me-plan'] }),
     onError: (error) => toast.error(apiError(error, t('profile.plan.renewFailed'))),
   })
@@ -64,15 +80,38 @@ export function MyPlanCard() {
           <PaymentInstructions order={plan.openOrder} />
         </>
       ) : plan.renewable ? (
-        <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto]">
-          {(plan.maxPeriods ?? 1) > 1 ? (
-            <Field label={t('order.periods')} htmlFor="renew-periods">
-              <TextInput id="renew-periods" mono type="number" min={1} max={plan.maxPeriods} value={periods} onChange={(e) => setPeriods(e.target.value)} />
+        <div className="space-y-3">
+          {plan.plan && periodChoices(plan.plan.period).filter((n) => n <= (plan.maxPeriods ?? 1)).length > 1 ? (
+            <Field label={t('order.periods')}>
+              <PeriodPicker plan={plan.plan} value={Number(periods)} maxPeriods={plan.maxPeriods ?? 1} onChange={(n) => setPeriods(String(n))} />
             </Field>
-          ) : (
-            <span />
-          )}
-          <Button variant="primary" loading={renew.isPending} onClick={() => renew.mutate()}>
+          ) : null}
+          <VoucherField
+            id="renew-voucher"
+            value={voucherText}
+            onChange={setVoucherText}
+            applied={voucherApplied}
+            onApply={() => setVoucherApplied(voucherText.trim().toUpperCase())}
+            onRemove={() => {
+              setVoucherApplied('')
+              setVoucherText('')
+            }}
+            answer={quoteQuery.data?.voucher}
+            discount={price?.voucherDiscount ?? 0}
+            checking={quoteQuery.isFetching}
+            failed={quoteQuery.isError}
+          />
+          {price ? (
+            <PriceLines
+              list={price.list}
+              durationPercent={price.durationPercent}
+              durationDiscount={price.durationDiscount}
+              voucherCode={voucherValid ? voucherApplied : undefined}
+              voucherDiscount={voucherValid ? price.voucherDiscount : 0}
+              subtotal={price.subtotal}
+            />
+          ) : null}
+          <Button variant="primary" loading={renew.isPending} disabled={voucherApplied !== '' && quoteQuery.isFetching} onClick={() => renew.mutate()}>
             {t('profile.plan.renew')}
           </Button>
         </div>

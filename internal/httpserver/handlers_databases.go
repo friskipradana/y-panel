@@ -183,11 +183,11 @@ func (s *Server) provisionUserDatabase(id, ownerID int64, spec userdb.Spec) {
 	if err := userdb.Create(spec); err != nil {
 		log.Printf("[databases] create id=%d engine=%s owner=%d: %v", id, spec.Engine.ID, ownerID, err)
 		_ = s.database.SetManagedDatabaseStatus(id, "error", err.Error())
-		s.notifyUserAction(ownerID, "Database gagal dibuat ⚠️", fmt.Sprintf("Database %s gagal dibuat: %s", spec.Engine.Label, err.Error()), "warning")
+		s.notifyUserAction(ownerID, "Database gagal dibuat", fmt.Sprintf("Database %s gagal dibuat: %s", spec.Engine.Label, err.Error()), "warning")
 		return
 	}
 	_ = s.database.SetManagedDatabaseStatus(id, "ready", "")
-	s.notifyUserAction(ownerID, "Database siap 🗄️", fmt.Sprintf("Database %s berhasil dibuat.", spec.Engine.Label), "success")
+	s.notifyUserAction(ownerID, "Database siap dipakai", fmt.Sprintf("Database %s sudah siap dipakai.", spec.Engine.Label), "success")
 }
 
 // allocateDatabasePort gives the first port of the database range that no project, database or container holds and nothing listens on

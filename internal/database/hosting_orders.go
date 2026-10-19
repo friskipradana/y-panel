@@ -41,6 +41,12 @@ type HostingOrder struct {
 	UserID      int64      `json:"userId"`
 	Username    string     `json:"username"`
 	Periods     int        `json:"periods"`
+	// AmountList is the price before any discount; DiscountDuration and DiscountVoucher are what each took off, and
+	// AmountBase is what is left (the unique code is added to it)
+	AmountList       int64      `json:"amountList"`
+	DiscountDuration int64      `json:"discountDuration"`
+	DiscountVoucher  int64      `json:"discountVoucher"`
+	VoucherCode      string     `json:"voucherCode"`
 	AmountBase  int64      `json:"amountBase"`
 	UniqueCode  int        `json:"uniqueCode"`
 	AmountTotal int64      `json:"amountTotal"`
@@ -62,12 +68,14 @@ type HostingOrder struct {
 
 const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, COALESCE(u.username, ''), o.periods,
 	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
-	o.created_at, o.expires_at, o.paid_at, o.notif_id`
+	o.created_at, o.expires_at, o.paid_at, o.notif_id,
+	o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code`
 
 func scanOrder(row rowScanner) (*HostingOrder, error) {
 	var o HostingOrder
 	if err := row.Scan(&o.ID, &o.PublicID, &o.Kind, &o.PlanID, &o.PlanName, &o.UserID, &o.Username, &o.Periods,
-		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.PublicBase, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID); err != nil {
+		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.PublicBase, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID,
+		&o.AmountList, &o.DiscountDuration, &o.DiscountVoucher, &o.VoucherCode); err != nil {
 		return nil, err
 	}
 	return &o, nil
@@ -100,6 +108,14 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 	if err != nil {
 		return nil, err
 	}
+	// orders that hold a voucher are made one at a time, so its last use cannot go to two of them
+	if o.VoucherCode != "" {
+		m.voucherMu.Lock()
+		defer m.voucherMu.Unlock()
+		if err := m.claimVoucher(o.VoucherCode, o.UserID); err != nil {
+			return nil, err
+		}
+	}
 	paid := o.AmountBase > 0
 	if paid && uniqueMax < 1 {
 		uniqueMax = 999
@@ -119,10 +135,10 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 		var id int64
 		err = m.db.QueryRow(`
 			INSERT INTO hosting_orders (public_id, kind, plan_id, plan_name, user_id, periods, amount_base, unique_code, amount_total, status, note, created_ip, expires_at,
-				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id
+				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id
 		`, publicID, o.Kind, o.PlanID, o.PlanName, o.UserID, o.Periods, o.AmountBase, code, total, o.Status, o.Note, o.CreatedIP, o.ExpiresAt,
-				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase).Scan(&id)
+				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode).Scan(&id)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "idx_hosting_orders_sub_reserved" {
 			return nil, ErrSubdomainReserved
@@ -266,7 +282,8 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 		WHERE o.status = 'pending' AND o.expires_at <= $1
 		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, o.user_id, '', o.periods,
 			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
-			o.created_at, o.expires_at, o.paid_at, o.notif_id`, now)
+			o.created_at, o.expires_at, o.paid_at, o.notif_id,
+			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code`, now)
 	if err != nil {
 		return nil, err
 	}

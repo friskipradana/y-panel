@@ -43,6 +43,11 @@ func businessSpecs() []apiSpec {
 		{Name: "hosting_plan_delete", Title: "Delete hosting plan", SuperOnly: true, Method: "DELETE", Path: "/api/v1/hosting/plans/{id}", AdminOnly: true,
 			Desc:   "Delete a hosting plan. Ask the user before calling.",
 			Params: []apiParam{pathParam("id", "Plan ID (from hosting_plan_list).")}},
+		{Name: "hosting_voucher_list", Title: "Discount vouchers", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/vouchers", AdminOnly: true,
+			Desc: "List the discount vouchers: code, kind (percent or fixed rupiah), value, limits, validity, which plans and kinds of order they apply to, and how many orders use each."},
+		{Name: "hosting_voucher_delete", Title: "Delete voucher", SuperOnly: true, Method: "DELETE", Path: "/api/v1/hosting/vouchers/{id}", AdminOnly: true,
+			Desc:   "Delete a discount voucher; orders that already used it keep their price. Ask the user before calling.",
+			Params: []apiParam{pathParam("id", "Voucher ID (from hosting_voucher_list).")}},
 		{Name: "hosting_order_list", Title: "Hosting orders", SuperOnly: true, Method: "GET", Path: "/api/v1/hosting/orders", AdminOnly: true,
 			Desc: "List the orders of buyers, with the exact total to be paid, the status and whether a payment needs checking.",
 			Params: []apiParam{

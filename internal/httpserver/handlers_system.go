@@ -358,7 +358,7 @@ func (s *Server) handleUpdateSystemSettings(w http.ResponseWriter, r *http.Reque
 	s.database.RecordSettingsAudit(auditUserID, snapshot.Hostname, snapshot.Timezone, snapshot.Nameservers)
 	log.Printf("[settings] update applied hostname=%q timezone=%q dns=%q remote=%s", snapshot.Hostname, snapshot.Timezone, strings.Join(snapshot.Nameservers, ","), remoteAddr(r))
 	s.recordRuntimeLog("info", "settings update applied", map[string]any{"hostname": snapshot.Hostname, "timezone": snapshot.Timezone, "nameservers": snapshot.Nameservers, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "System settings diperbarui ⚙️", fmt.Sprintf("Hostname '%s' dan timezone '%s' berhasil diperbarui.", snapshot.Hostname, snapshot.Timezone), "info")
+	s.notifyCurrentServerUser(r, "Pengaturan server disimpan", fmt.Sprintf("Hostname '%s' dan zona waktu '%s' diterapkan.", snapshot.Hostname, snapshot.Timezone), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -383,7 +383,7 @@ func (s *Server) handleUpdatePanelPort(w http.ResponseWriter, r *http.Request) {
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel port updated bind=%q remote=%s", snapshot.BindAddr, remoteAddr(r))
 	s.recordRuntimeLog("info", "panel port updated", map[string]any{"bindAddr": snapshot.BindAddr, "allowedOrigins": snapshot.AllowedOrigins, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "Port panel diperbarui 🔌", fmt.Sprintf("Panel sekarang menggunakan bind address %s.", snapshot.BindAddr), "info")
+	s.notifyCurrentServerUser(r, "Alamat bind panel diubah", fmt.Sprintf("Panel sekarang mendengarkan di %s.", snapshot.BindAddr), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -408,7 +408,7 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 	username, _ := s.currentUser(r)
 	log.Printf("[settings] panel origins updated count=%d remote=%s", len(snapshot.AllowedOrigins), remoteAddr(r))
 	s.recordRuntimeLog("info", "panel origins updated", map[string]any{"allowedOrigins": snapshot.AllowedOrigins, "originsRaw": snapshot.OriginsRaw, "remote": remoteAddr(r), "user": username})
-	s.notifyCurrentServerUser(r, "Allowed origins diperbarui 🌍", fmt.Sprintf("Daftar origin panel berhasil diperbarui menjadi %d entri.", len(snapshot.AllowedOrigins)), "info")
+	s.notifyCurrentServerUser(r, "Origin yang diizinkan disimpan", fmt.Sprintf("Daftar origin yang diizinkan sekarang berisi %d entri.", len(snapshot.AllowedOrigins)), "info")
 	s.writeJSON(w, http.StatusOK, snapshot)
 }
 
@@ -457,7 +457,7 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.notifyCurrentServerUser(r, "Wallpaper diperbarui 🖼️", "Wallpaper desktop berhasil diperbarui.", "success")
+	s.notifyCurrentServerUser(r, "Wallpaper diganti", "Wallpaper desktop diganti.", "success")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -476,7 +476,21 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// the password changes in PostgreSQL first, then in the env file; if the file cannot be written the old password goes back,
+	// otherwise the panel would be locked out of its own database at the next start
+	previous := s.database.Password()
+	if err := s.database.ChangePassword(password); err != nil {
+		log.Printf("[database] reset password failed remote=%s err=%v", remoteAddr(r), err)
+		s.recordRuntimeLog("error", "database password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error()})
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
 	if err := rotateDatabasePassword(s.cfg, password); err != nil {
+		if previous != "" {
+			if restoreErr := s.database.ChangePassword(previous); restoreErr != nil {
+				log.Printf("[database] could not put the old password back: %v", restoreErr)
+			}
+		}
 		log.Printf("[database] reset password failed remote=%s err=%v", remoteAddr(r), err)
 		s.recordRuntimeLog("error", "database password reset failed", map[string]any{"remote": remoteAddr(r), "error": err.Error()})
 		s.writeError(w, http.StatusBadGateway, err)
@@ -484,10 +498,10 @@ func (s *Server) handleResetDatabasePassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	username, _ := s.currentUser(r)
-	message := "Password database berhasil dirotasi dan env runtime diperbarui. Restart service agent bila koneksi lama masih aktif."
+	message := "Password database diganti di PostgreSQL dan di file env. Koneksi baru langsung memakainya."
 	log.Printf("[database] password rotated user=%q remote=%s dsn=%s", username, remoteAddr(r), redactDSNPassword(s.cfg.DatabaseDSN))
 	s.recordRuntimeLog("info", "database password rotated", map[string]any{"remote": remoteAddr(r), "user": username, "dsn": redactDSNPassword(s.cfg.DatabaseDSN)})
-	s.notifyCurrentServerUser(r, "Password database dirotasi 🔐", "Password database berhasil dirotasi dan kredensial runtime diperbarui.", "warning")
+	s.notifyCurrentServerUser(r, "Password database diganti", "Password database Reneo diganti di PostgreSQL dan di file env.", "warning")
 	s.writeJSON(w, http.StatusOK, resetDatabasePasswordResponse{OK: true, Password: password, Message: message})
 }
 
@@ -531,10 +545,10 @@ func (s *Server) handleResetPrimaryPanelPassword(w http.ResponseWriter, r *http.
 	}
 
 	actor, _ := s.currentUser(r)
-	message := fmt.Sprintf("Password akun utama Reneo (%s) berhasil diperbarui.", targetUser.Username)
+	message := fmt.Sprintf("Kata sandi akun utama Reneo (%s) diganti.", targetUser.Username)
 	log.Printf("[auth] primary Reneo password reset actor=%q target=%q remote=%s", actor, targetUser.Username, remoteAddr(r))
 	s.recordRuntimeLog("warning", "primary Reneo password reset", map[string]any{"remote": remoteAddr(r), "actor": actor, "targetUser": targetUser.Username})
-	s.notifyCurrentServerUser(r, "Password akun utama diperbarui 🔐", message, "warning")
+	s.notifyCurrentServerUser(r, "Kata sandi akun utama diganti", message, "warning")
 	s.writeJSON(w, http.StatusOK, resetPrimaryPanelPasswordResponse{OK: true, Message: message, Username: targetUser.Username})
 }
 

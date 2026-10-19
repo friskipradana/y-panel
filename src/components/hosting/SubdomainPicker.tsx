@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
+import { localizeServerMessage } from '@/lib/serverMessages'
 
 const LABEL_RE = /^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$/
 
@@ -68,7 +69,7 @@ export function SubdomainPicker({ domains, check, onChange, enabled = true, init
           ? t('hosting.sub.checkFailed')
           : query.data?.available
             ? t('hosting.sub.available')
-            : query.data?.reason || t('hosting.sub.taken')
+            : localizeServerMessage(query.data?.reason) ?? (query.data?.reason || t('hosting.sub.taken'))
 
   return (
     <div className="space-y-3">

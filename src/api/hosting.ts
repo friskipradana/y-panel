@@ -2,6 +2,12 @@ import { agentApi } from './client'
 
 export type PlanPeriod = 'monthly' | 'yearly' | 'once'
 
+/** A percent off when a plan is bought for at least this many of its periods */
+export interface DurationDiscount {
+  periods: number
+  percent: number
+}
+
 export interface HostingPlan {
   id: number
   slug: string
@@ -22,6 +28,8 @@ export interface HostingPlan {
   maxCustomDomains: number
   /** Days of free trial; 0 offers none */
   trialDays: number
+  /** Longer subscriptions cost less */
+  durationDiscounts: DurationDiscount[]
   highlighted: boolean
   visible: boolean
   sortOrder: number
@@ -104,6 +112,11 @@ export interface OrderView {
   planName: string
   periods: number
   amountBase: number
+  /** The price before discounts, and what each took off; amountBase is what is left */
+  amountList: number
+  discountDuration: number
+  discountVoucher: number
+  voucherCode?: string
   amountTotal: number
   createdAt: string
   expiresAt: string
@@ -127,10 +140,16 @@ export interface CreateOrderInput {
   subZoneId?: string
   /** Where the notices about the order go */
   whatsapp?: string
+  /** A voucher code that takes something off the price */
+  voucher?: string
 }
 
 export const createPublicOrder = (input: CreateOrderInput) =>
   agentApi.post<OrderView>('/api/v1/public/hosting/orders', input).then((r) => r.data)
+
+// The buyer saying they transferred: the seller is told once to check; the order itself does not change
+export const notifyOrderTransferred = (publicId: string) =>
+  agentApi.post<{ ok: boolean; status: OrderStatus }>(`/api/v1/public/hosting/orders/${publicId}/transferred`).then((r) => r.data)
 
 export const checkPublicSubdomain = (label: string, zoneId: string) =>
   agentApi
@@ -165,8 +184,69 @@ export interface MyPlanView {
 
 export const getMyPlan = () => agentApi.get<MyPlanView>('/api/v1/me/hosting/plan').then((r) => r.data)
 
-export const renewMyPlan = (periods: number) =>
-  agentApi.post<OrderView>('/api/v1/me/hosting/renew', { periods }).then((r) => r.data)
+export const renewMyPlan = (periods: number, voucher?: string) =>
+  agentApi.post<OrderView>('/api/v1/me/hosting/renew', { periods, voucher: voucher || undefined }).then((r) => r.data)
+
+// ── Vouchers ────────────────────────────────────────────────────────────
+
+export type VoucherKind = 'percent' | 'fixed'
+export type VoucherAppliesTo = 'both' | 'new' | 'renew'
+
+export interface HostingVoucher {
+  id: number
+  code: string
+  kind: VoucherKind
+  /** A percent (1 to 100) or rupiah, by kind */
+  value: number
+  /** Orders that may use it in all; 0 means no limit */
+  maxUses: number
+  /** Orders one account may use it on; 0 means no limit */
+  maxPerAccount: number
+  appliesTo: VoucherAppliesTo
+  /** Plans it is for; empty means every plan */
+  planIds: number[]
+  validFrom: string | null
+  validUntil: string | null
+  enabled: boolean
+  note: string
+  createdAt: string
+  /** Orders that hold it now: waiting, under review or paid */
+  used: number
+}
+
+export type VoucherInput = Omit<HostingVoucher, 'id' | 'createdAt' | 'used'>
+
+export const listHostingVouchers = () => agentApi.get<HostingVoucher[]>('/api/v1/hosting/vouchers').then((r) => r.data)
+export const createHostingVoucher = (voucher: VoucherInput) => agentApi.post<HostingVoucher>('/api/v1/hosting/vouchers', voucher).then((r) => r.data)
+export const updateHostingVoucher = (id: number, voucher: VoucherInput) => agentApi.put<HostingVoucher>(`/api/v1/hosting/vouchers/${id}`, voucher).then((r) => r.data)
+export const deleteHostingVoucher = (id: number) => agentApi.delete<{ ok: boolean }>(`/api/v1/hosting/vouchers/${id}`).then((r) => r.data)
+
+// ── The price before ordering ───────────────────────────────────────────
+
+export interface PriceQuote {
+  list: number
+  durationPercent: number
+  durationDiscount: number
+  voucherDiscount: number
+  subtotal: number
+}
+
+export type VoucherReason = 'unknown' | 'disabled' | 'notStarted' | 'expired' | 'usedUp' | 'usedByYou' | 'wrongPlan' | 'wrongKind'
+
+export interface QuoteAnswer {
+  quote: PriceQuote
+  voucher?: { code: string; valid: boolean; reason?: VoucherReason; kind?: VoucherKind; value?: number }
+}
+
+export interface QuoteInput {
+  planId: number
+  periods: number
+  voucher?: string
+}
+
+// A buyer who has no account yet asks the public one; an account that renews asks for itself
+export const quotePublicOrder = (input: QuoteInput) => agentApi.post<QuoteAnswer>('/api/v1/public/hosting/quote', input).then((r) => r.data)
+export const quoteMyRenewal = (input: QuoteInput) => agentApi.post<QuoteAnswer>('/api/v1/me/hosting/quote', input).then((r) => r.data)
 
 export const listHostingOrders = (status: '' | OrderStatus) =>
   agentApi.get<{ items: AdminOrder[]; total: number }>('/api/v1/hosting/orders', { params: { status: status || undefined } }).then((r) => r.data)

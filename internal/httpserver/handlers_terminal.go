@@ -330,7 +330,7 @@ func (s *Server) handleCreateTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	s.notifyCurrentServerUser(r, "Preset terminal dibuat 💻", fmt.Sprintf("Preset command '%s' berhasil ditambahkan.", preset.Command), "success")
+	s.notifyCurrentServerUser(r, "Preset terminal ditambah", fmt.Sprintf("Preset '%s' ditambahkan.", preset.Command), "success")
 	s.writeJSON(w, http.StatusCreated, jsonResponse{"preset": preset})
 }
 
@@ -350,7 +350,7 @@ func (s *Server) handleDeleteTerminalPreset(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusNotFound, err)
 		return
 	}
-	s.notifyCurrentServerUser(r, "Preset terminal dihapus 🗑️", "Preset terminal berhasil dihapus.", "warning")
+	s.notifyCurrentServerUser(r, "Preset terminal dihapus", "Satu preset terminal dihapus.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -365,6 +365,6 @@ func (s *Server) handleResetTerminalPresets(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	presets, _ := s.database.ListTerminalPresets(userID)
-	s.notifyCurrentServerUser(r, "Preset terminal direset ♻️", fmt.Sprintf("Preset terminal berhasil direset. Total preset aktif: %d.", len(presets)), "info")
+	s.notifyCurrentServerUser(r, "Preset terminal dikembalikan ke bawaan", fmt.Sprintf("Preset buatan Anda dihapus. Sekarang ada %d preset bawaan.", len(presets)), "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "presets": presets})
 }

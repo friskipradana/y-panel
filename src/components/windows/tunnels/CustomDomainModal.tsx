@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { useI18n } from '@/lib/i18n'
+import { localizeServerMessage } from '@/lib/serverMessages'
 
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
@@ -67,7 +68,7 @@ function CustomDomainForm({ open, target, onClose, onCreated }: Props) {
           ? t('hosting.sub.checkFailed')
           : check.data?.available
             ? t('hosting.custom.available')
-            : check.data?.reason || t('hosting.sub.taken')
+            : localizeServerMessage(check.data?.reason) ?? (check.data?.reason || t('hosting.sub.taken'))
 
   return (
     <Modal

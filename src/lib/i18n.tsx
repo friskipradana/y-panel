@@ -11,7 +11,7 @@ const STORAGE_KEY = 'reneo-language'
 
 const dictionaries: Record<Language, TranslationDictionary> = { id, en }
 
-function getInitialLanguage(): Language {
+export function getInitialLanguage(): Language {
   if (typeof window === 'undefined') return 'id'
   const stored = window.localStorage.getItem(STORAGE_KEY)
   if (stored === 'id' || stored === 'en') return stored

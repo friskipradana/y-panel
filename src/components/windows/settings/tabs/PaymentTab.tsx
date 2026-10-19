@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, CreditCard, Smartphone } from "lucide-react";
+import { ArrowLeft, ArrowRight, CreditCard, Smartphone } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
+import { Stepper } from "@/components/ui/Stepper";
 import { Tabs } from "@/components/ui/Tabs";
 import type { PaymentSettings } from "../hooks/usePaymentSettings";
 import type { NotificationSettings } from "../hooks/useNotificationSettings";
@@ -53,37 +54,7 @@ export function PaymentTab({
 
       {section === "bank" ? (
         <div className="panel-shell-card settings-card !p-3.5 flex flex-col gap-3.5">
-          <ol className="flex items-center gap-1 overflow-x-auto" aria-label={t("settings.payment.steps")}>
-            {steps.map((item, index) => {
-              const done = item.key < step;
-              const current = item.key === step;
-              return (
-                <li key={item.key} className="flex items-center gap-1">
-                  {index > 0 ? <span className="h-px w-3 bg-[var(--win-border)] sm:w-8" aria-hidden="true" /> : null}
-                  <button
-                    type="button"
-                    aria-current={current ? "step" : undefined}
-                    onClick={() => setStep(item.key)}
-                    className={`flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg border px-2.5 text-[12px] font-medium transition-colors ${
-                      current
-                        ? "border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)]"
-                        : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10.5px] font-semibold ${
-                        current || done ? "border-[var(--panel-primary-solid)] text-[var(--panel-primary-text)]" : "border-[var(--win-border)]"
-                      }`}
-                    >
-                      {done ? <Check size={11} aria-hidden="true" /> : item.key}
-                    </span>
-                    {/* on a narrow screen only the step being shown keeps its name, so the three always fit */}
-                    <span className={current ? "" : "hidden sm:inline"}>{item.label}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <Stepper label={t("settings.payment.steps")} items={steps} value={step} onChange={setStep} />
 
           <div className="border-t border-[var(--win-border)] pt-3.5">
             {step === 1 ? <ListenerEndpoints listener={listener} /> : null}

@@ -3,6 +3,8 @@ import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { formatRupiah, type OrderView } from '@/api/hosting'
+import { DateTimeText } from '@/components/common/DateTimeText'
+import { PriceLines } from '@/components/hosting/PriceLines'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { useI18n } from '@/lib/i18n'
@@ -20,17 +22,35 @@ function useCountdown(until: string, active: boolean) {
   return `${Math.floor(left / 3600)}:${pad(Math.floor((left % 3600) / 60))}:${pad(left % 60)}`
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
+function copyToast(t: (key: string, params?: Record<string, string>) => string, label: string, value: string) {
+  void copyTextToClipboard(value).then(() => toast.success(t('order.copied', { label })))
+}
+
+// The amount to transfer, big, with its copy button
+function AmountRow({ label, value }: { label: string; value: string }) {
   const { t } = useI18n()
-  const copy = () => void copyTextToClipboard(value).then(() => toast.success(t('order.copied', { label })))
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
       <div className="min-w-0">
         <p className="text-[0.75rem] text-[var(--text-secondary)]">{label}</p>
-        <p className="panel-mono truncate text-[0.9375rem] font-semibold text-[var(--win-text)]">{value}</p>
+        <p className="panel-mono truncate text-[1.125rem] font-semibold text-[var(--win-text)]">{value}</p>
       </div>
-      <IconButton label={`${t('order.copy')}: ${label}`} onClick={copy}>
+      <IconButton label={`${t('order.copy')}: ${label}`} onClick={() => copyToast(t, label, value)}>
         <Copy className="h-4 w-4" />
+      </IconButton>
+    </div>
+  )
+}
+
+// One fact of a bank or e-wallet on one line, with a small copy button
+function FactRow({ label, value }: { label: string; value: string }) {
+  const { t } = useI18n()
+  return (
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] items-center gap-x-2 text-[0.8125rem]">
+      <span className="text-[var(--text-secondary)]">{label}</span>
+      <span className="panel-mono min-w-0 break-all font-medium text-[var(--win-text)]">{value}</span>
+      <IconButton label={`${t('order.copy')}: ${label}`} onClick={() => copyToast(t, label, value)} className="!h-7 !w-7">
+        <Copy className="h-3.5 w-3.5" />
       </IconButton>
     </div>
   )
@@ -43,41 +63,54 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
   const countdown = useCountdown(order.expiresAt, !!payment)
   if (!payment) return null
   const code = order.amountTotal - order.amountBase
+  const several = payment.methods.length > 1
 
   return (
     <div className="space-y-3">
       <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
-        <CopyRow label={t('order.payExactly')} value={formatRupiah(order.amountTotal)} />
+        <AmountRow label={t('order.payExactly')} value={formatRupiah(order.amountTotal)} />
         {code > 0 ? (
-          <div className="flex items-center justify-between py-2.5 text-[0.8125rem]">
-            <span className="text-[var(--text-secondary)]">
-              {t('order.price')} {formatRupiah(order.amountBase)} + {t('order.uniqueCode')}
-            </span>
-            <span className="panel-mono font-semibold">{formatRupiah(code)}</span>
+          <div className="py-2.5">
+            <PriceLines
+              list={order.amountList || order.amountBase}
+              durationDiscount={order.discountDuration}
+              voucherCode={order.voucherCode}
+              voucherDiscount={order.discountVoucher}
+              subtotal={order.amountBase}
+              uniqueCode={code}
+            />
           </div>
         ) : null}
-        <div className="flex items-center justify-between py-2.5 text-[0.8125rem]">
-          <span className="text-[var(--text-secondary)]">{t('order.timeLeft')}</span>
-          <span className="panel-mono font-semibold">{countdown}</span>
+        <div className="space-y-1 py-2.5 text-[0.8125rem]">
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--text-secondary)]">{t('order.timeLeft')}</span>
+            <span className="panel-mono font-semibold">{countdown}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--text-secondary)]">{t('order.expiresAt')}</span>
+            <DateTimeText value={order.expiresAt} className="panel-mono text-[0.75rem] text-[var(--text-secondary)]" />
+          </div>
         </div>
       </section>
 
-      <p className="text-[0.75rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('order.payTo')}</p>
-      {payment.methods.map((method) => (
-        <section key={method.id} className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
-          <div className="flex items-center justify-between gap-2 pt-2.5">
-            <span className="text-[0.9375rem] font-semibold text-[var(--win-text)]">{method.name}</span>
-            <Badge tone="neutral" size="sm">
-              {t(method.kind === 'ewallet' ? 'order.kindEwallet' : 'order.kindBank')}
-            </Badge>
-          </div>
-          <div className="divide-y divide-[var(--win-border)]">
-            <CopyRow label={t(method.kind === 'ewallet' ? 'order.phoneNumber' : 'order.account')} value={method.account} />
-            <CopyRow label={t('order.holder')} value={method.holder} />
-          </div>
+      <div>
+        <p className="mb-1.5 text-[0.75rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t(several ? 'order.payToAny' : 'order.payTo')}</p>
+        <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4">
+          {payment.methods.map((method) => (
+            <div key={method.id} className="space-y-1 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[0.9375rem] font-semibold text-[var(--win-text)]">{method.name}</span>
+                <Badge tone="neutral" size="sm">
+                  {t(method.kind === 'ewallet' ? 'order.kindEwallet' : 'order.kindBank')}
+                </Badge>
+              </div>
+              <FactRow label={t(method.kind === 'ewallet' ? 'order.phoneNumber' : 'order.account')} value={method.account} />
+              <FactRow label={t('order.holder')} value={method.holder} />
+            </div>
+          ))}
         </section>
-      ))}
-      <p className="text-[0.8125rem] text-[var(--text-secondary)]">{t('order.exactNote', { amount: formatRupiah(order.amountTotal) })}</p>
+      </div>
+      <p className="px-1 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.exactNote', { amount: formatRupiah(order.amountTotal) })}</p>
     </div>
   )
 }

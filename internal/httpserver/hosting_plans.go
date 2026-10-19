@@ -83,6 +83,7 @@ func cleanPlan(p *database.HostingPlan) {
 		}
 	}
 	p.Features = features
+	cleanDurationDiscounts(p)
 }
 
 func validatePlan(p database.HostingPlan) error {
@@ -112,6 +113,9 @@ func validatePlan(p database.HostingPlan) error {
 		if utf8.RuneCountInString(feature) > planMaxFeatureLen {
 			return fmt.Errorf("a feature is at most %d characters", planMaxFeatureLen)
 		}
+	}
+	if err := validateDurationDiscounts(p); err != nil {
+		return err
 	}
 	// the resource limits are an account quota: the same bounds apply
 	return users.ValidateQuota(planQuota(p, 0))

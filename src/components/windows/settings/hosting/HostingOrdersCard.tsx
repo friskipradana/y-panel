@@ -105,7 +105,7 @@ export function HostingOrdersCard() {
                 }
                 title={<span className="panel-mono">{order.username || '-'}</span>}
                 badges={<Badge tone={TONE[order.status]} dot>{t(`hosting.orders.status.${order.status}`)}</Badge>}
-                subtitle={`${order.planName} · ${t(`hosting.orders.kind.${order.kind}`)}${order.amountTotal > 0 ? ` · ${formatRupiah(order.amountTotal)}` : ''}`}
+                subtitle={`${order.planName} · ${t(`hosting.orders.kind.${order.kind}`)}${order.amountTotal > 0 ? ` · ${formatRupiah(order.amountTotal)}` : ''}${order.voucherCode ? ` · ${t('hosting.orders.voucher', { code: order.voucherCode, amount: formatRupiah(order.discountVoucher) })}` : ''}`}
                 meta={
                   <span className="text-[11.5px] text-[var(--text-secondary)]">
                     <DateTimeText value={order.createdAt} />

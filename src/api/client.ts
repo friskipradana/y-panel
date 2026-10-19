@@ -3,6 +3,8 @@ import type { PaginationParams } from '@/types'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { isPublicRoute } from '@/lib/publicPaths'
+import { translateNow } from '@/lib/i18n'
+import { localizeServerMessage } from '@/lib/serverMessages'
 
 export const agentApi = axios.create({
   baseURL: import.meta.env.VITE_AGENT_BASE,
@@ -17,6 +19,13 @@ agentApi.interceptors.response.use(
   (error: AxiosError) => {
     // a request the caller aborted on purpose (end of a speed test phase) is not a failure
     if (axios.isCancel(error)) return Promise.reject(error)
+
+    // the agent answers in English: the messages people run into read in the language of the page
+    const data = error.response?.data as { error?: unknown } | undefined
+    if (data && typeof data === 'object') {
+      const localized = localizeServerMessage(data.error)
+      if (localized) data.error = localized
+    }
 
     const isPublicPath = isPublicRoute(window.location.pathname)
     const isUnauthorized = error.response?.status === 401
@@ -33,8 +42,8 @@ agentApi.interceptors.response.use(
     }
 
     if (!error.response) {
-      toast.error('Gagal terhubung ke agent', {
-        description: 'Pastikan service agent sudah berjalan di host.',
+      toast.error(translateNow('server.unreachable'), {
+        description: translateNow('server.unreachableHint'),
       })
     }
 

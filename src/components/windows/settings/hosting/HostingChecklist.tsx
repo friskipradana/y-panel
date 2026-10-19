@@ -6,7 +6,7 @@ import { getSiteSettings } from '@/api/system'
 import { Button } from '@/components/ui/Button'
 import { useI18n } from '@/lib/i18n'
 
-export type HostingSection = 'plans' | 'domains' | 'subdomains' | 'orders' | 'payment' | 'terms' | 'demo'
+export type HostingSection = 'plans' | 'domains' | 'subdomains' | 'orders' | 'vouchers' | 'payment' | 'terms' | 'demo'
 
 interface Step {
   key: string

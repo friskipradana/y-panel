@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -29,7 +30,7 @@ const (
 	// what one address may do: orders in an hour, and trials in a day
 	orderMaxPerHour   = 5
 	orderMaxTrialsDay = 1
-	orderMaxPeriods   = 12
+	orderMaxPeriods   = 24
 	orderTextMax      = 80
 )
 
@@ -61,6 +62,11 @@ type orderView struct {
 	PlanName    string               `json:"planName"`
 	Periods     int                  `json:"periods"`
 	AmountBase  int64                `json:"amountBase"`
+	// AmountList is the price before discounts; DiscountDuration and DiscountVoucher are what each took off
+	AmountList       int64  `json:"amountList"`
+	DiscountDuration int64  `json:"discountDuration"`
+	DiscountVoucher  int64  `json:"discountVoucher"`
+	VoucherCode      string `json:"voucherCode,omitempty"`
 	AmountTotal int64                `json:"amountTotal"`
 	CreatedAt   time.Time            `json:"createdAt"`
 	ExpiresAt   time.Time            `json:"expiresAt"`
@@ -73,7 +79,8 @@ type orderView struct {
 func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	view := orderView{
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
-		AmountBase: o.AmountBase, AmountTotal: o.AmountTotal, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
+		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AmountTotal: o.AmountTotal, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {
 		settings := s.loadSiteSettings()
@@ -118,6 +125,8 @@ type createOrderRequest struct {
 	Email       string `json:"email"`
 	DisplayName string `json:"displayName"`
 	Password    string `json:"password"`
+	// Voucher is a code that takes something off the price
+	Voucher string `json:"voucher"`
 	// the panel address: a name under one of the domains the superadmin offers
 	SubLabel  string `json:"subLabel"`
 	SubZoneID string `json:"subZoneId"`
@@ -180,6 +189,17 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this plan has no trial"})
 		return
 	}
+	// a trial costs nothing, so a voucher has nothing to take off
+	var voucher *database.HostingVoucher
+	if code := strings.TrimSpace(req.Voucher); code != "" && req.Kind == database.OrderNew {
+		v, reason := s.voucherCheck(code, plan, database.OrderNew, 0)
+		if reason != "" {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+			return
+		}
+		voucher = v
+	}
+	quote := priceFor(plan, req.Periods, voucher)
 
 	// the number for the notices about the order
 	phone := ""
@@ -233,7 +253,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	settings := s.loadSiteSettings()
 	u, err := s.auth.CreateUser(req.Username, req.Email, req.Password, auth.UserRole, req.DisplayName)
 	if err != nil {
-		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "that username or email is already used"})
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "that username or email is already used by another account: try a different username or email", "reason": "accountTaken"})
 		return
 	}
 	// from here a failure must not leave the account behind
@@ -256,8 +276,12 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	planID := plan.ID
 	order := database.HostingOrder{
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
-		AmountBase: plan.PriceAmount * int64(req.Periods), Status: database.OrderPending,
+		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal, Status: database.OrderPending,
 		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
+	}
+	if voucher != nil {
+		order.VoucherCode = voucher.Code
 	}
 	if domain != nil {
 		order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname = req.SubLabel, domain.ZoneID, domain.Name, hostnameFor(req.SubLabel, domain.Name)
@@ -265,12 +289,12 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	switch {
 	case req.Kind == database.OrderTrial:
 		// a trial costs nothing: it is switched on at once, or waits for the superadmin when approval is required
-		order.Periods, order.AmountBase = 1, 0
+		order.Periods, order.AmountBase, order.AmountList, order.DiscountDuration, order.DiscountVoucher, order.VoucherCode = 1, 0, 0, 0, 0, ""
 		if settings.TrialApproval {
 			order.Status = database.OrderReview
 		}
-	case plan.PriceAmount <= 0:
-		// a free plan is the superadmin's to grant
+	case plan.PriceAmount <= 0 || quote.Subtotal <= 0:
+		// a free plan, or a price a voucher took to nothing, is the superadmin's to grant
 		order.AmountBase = 0
 		order.Status = database.OrderReview
 	}
@@ -281,7 +305,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": err.Error()})
 			return
 		}
-		if errors.Is(err, database.ErrSubdomainReserved) {
+		if errors.Is(err, database.ErrSubdomainReserved) || errors.Is(err, database.ErrVoucherUnavailable) {
 			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 			return
 		}
@@ -342,6 +366,38 @@ func (s *Server) handlePublicGetOrder(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, s.orderViewFor(*order))
 }
 
+// orderClaims remembers the orders whose buyer already said they transferred, so pressing the button again does not alert the seller again
+var orderClaims sync.Map
+
+// handlePublicOrderTransferred is the buyer saying "I have transferred": the seller is told once that the payment of this
+// order is worth checking. It changes nothing on the order; only a matching bank notification, or the seller, can mark it paid.
+func (s *Server) handlePublicOrderTransferred(w http.ResponseWriter, r *http.Request) {
+	if !s.selfServiceOn() {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	if allowed, _ := s.allowRateLimit("claim:"+clientIP(r), rateLimitRule{Window: time.Minute, Limit: 10}); !allowed {
+		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many attempts, wait a moment"})
+		return
+	}
+	publicID := strings.TrimSpace(r.PathValue("publicId"))
+	if len(publicID) != 24 {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	order, _ := s.database.GetHostingOrderByPublicID(publicID)
+	if order == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "order not found"})
+		return
+	}
+	if order.Status == database.OrderPending {
+		if _, already := orderClaims.LoadOrStore(order.ID, time.Now()); !already {
+			s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d (%s): pembeli menyatakan sudah transfer %s. Periksa apakah transfernya sudah masuk.", order.ID, order.Username, rupiah(order.AmountTotal)), "info")
+		}
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "status": order.Status})
+}
+
 // handleRenewMyPlan makes the order that extends the plan of the signed-in account by some periods
 func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -355,7 +411,8 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Periods int `json:"periods"`
+		Periods int    `json:"periods"`
+		Voucher string `json:"voucher"`
 	}
 	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req)
 	if req.Periods < 1 {
@@ -380,14 +437,38 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, s.orderViewFor(*open))
 		return
 	}
+	var voucher *database.HostingVoucher
+	if code := strings.TrimSpace(req.Voucher); code != "" {
+		v, reason := s.voucherCheck(code, plan, database.OrderRenew, user.ID)
+		if reason != "" {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+			return
+		}
+		voucher = v
+	}
+	quote := priceFor(plan, req.Periods, voucher)
+	if quote.Subtotal <= 0 {
+		// a renewal that costs nothing has nothing to transfer: the seller grants it by hand
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this voucher takes the whole price off: ask the seller to renew the plan"})
+		return
+	}
 	settings := s.loadSiteSettings()
 	planID := plan.ID
-	created, err := s.database.CreateHostingOrder(database.HostingOrder{
+	renewal := database.HostingOrder{
 		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
-		AmountBase: plan.PriceAmount * int64(req.Periods), Status: database.OrderPending,
+		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal, Status: database.OrderPending,
 		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: publicBaseURL(r),
-	}, settings.orderUniqueMax())
+	}
+	if voucher != nil {
+		renewal.VoucherCode = voucher.Code
+	}
+	created, err := s.database.CreateHostingOrder(renewal, settings.orderUniqueMax())
 	if err != nil {
+		if errors.Is(err, database.ErrVoucherUnavailable) {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, database.ErrNoFreeTotal) {
 			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": err.Error()})
 			return

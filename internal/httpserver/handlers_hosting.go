@@ -142,6 +142,8 @@ type publicPlan struct {
 	MaxCustomDomains int   `json:"maxCustomDomains"`
 	Highlighted   bool     `json:"highlighted"`
 	TrialDays     int      `json:"trialDays"`
+	// DurationDiscounts: a percent off for buying more periods at once
+	DurationDiscounts []database.DurationDiscount `json:"durationDiscounts"`
 }
 
 // handlePublicHosting feeds the pricing section of the landing page. Nothing is offered while
@@ -164,6 +166,7 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
 			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, DiskQuotaMB: p.DiskQuotaMB,
 			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
+			DurationDiscounts: p.DurationDiscounts,
 		})
 	}
 	// ordering needs an address to give: without an offered domain the order buttons stay on the old way

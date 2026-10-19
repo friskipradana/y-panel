@@ -314,7 +314,8 @@ export function Select({
                       {option.description ? <span className="docker-image-combobox__item-size">{option.description}</span> : null}
                     </>
                   )}
-                  {active ? <Check className="ml-auto h-3.5 w-3.5 flex-shrink-0 text-[var(--panel-primary-solid)]" /> : null}
+                  {/* the description already pushes itself to the right; a second auto margin would share the free space and centre it */}
+                  {active ? <Check className={`${option.description && !isStacked ? '' : 'ml-auto'} h-3.5 w-3.5 flex-shrink-0 text-[var(--panel-primary-solid)]`.trim()} /> : null}
                 </button>
               )
             })
