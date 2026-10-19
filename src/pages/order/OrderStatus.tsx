@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
+import { OrderProgress } from './OrderProgress'
 import { PaymentInstructions } from './PaymentInstructions'
 
 const TONE = { pending: 'warning', review: 'info', paid: 'success', expired: 'neutral', cancelled: 'neutral' } as const
@@ -38,6 +39,8 @@ export function OrderStatus({ publicId }: { publicId: string }) {
           {t(`order.status.${status}.badge`)}
         </Badge>
       </div>
+
+      {status === 'pending' || status === 'review' || status === 'paid' ? <OrderProgress status={status} /> : null}
 
       {order.hostname ? (
         <div className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-3">

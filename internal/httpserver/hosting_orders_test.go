@@ -1,6 +1,9 @@
 package httpserver
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,7 +56,8 @@ func TestOrderViewShowsPaymentDetailsOnlyWhileWaiting(t *testing.T) {
 		t.Fatal(err)
 	}
 	waiting := s.orderViewFor(database.HostingOrder{Status: database.OrderPending, AmountTotal: 50123})
-	if waiting.Payment == nil || waiting.Payment.Account != "123" {
+	// the single account of older settings still counts, as a bank
+	if waiting.Payment == nil || len(waiting.Payment.Methods) != 1 || waiting.Payment.Methods[0].Account != "123" || waiting.Payment.Methods[0].Kind != "bank" {
 		t.Fatalf("a waiting order shows where to pay, got %+v", waiting.Payment)
 	}
 	for _, o := range []database.HostingOrder{
@@ -74,5 +78,51 @@ func TestOrdersAreOffUntilSelfSignupIsOn(t *testing.T) {
 	}
 	if s.selfServiceOn() {
 		t.Fatal("ordering is off until the seller turns it on")
+	}
+}
+
+func TestOrderMethodsListBanksAndWalletsAndOnlyEnabledOnesAreShown(t *testing.T) {
+	s := newSiteTestServer(t, config.Config{})
+	put := func(body string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		s.handleSetSiteSettings(rec, httptest.NewRequest(http.MethodPut, "/api/v1/settings/site", strings.NewReader(body)))
+		return rec
+	}
+	// orders cannot be turned on without a way to pay
+	if rec := put(`{"hostingEnabled":true,"selfSignup":true}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("no way to pay: %d %s", rec.Code, rec.Body.String())
+	}
+	for _, bad := range []string{
+		`{"orderMethods":[{"kind":"crypto","name":"X","account":"1","holder":"A","enabled":true}]}`,
+		`{"orderMethods":[{"kind":"bank","name":"BCA","account":"","holder":"A","enabled":true}]}`,
+		`{"orderMethods":[{"kind":"bank","name":"BCA","account":"1","holder":"A","enabled":true},{"kind":"bank","name":"bca","account":"1","holder":"A","enabled":true}]}`,
+		`{"orderMethods":[{"kind":"bank","name":"BCA","account":"1
+2","holder":"A","enabled":true}]}`,
+	} {
+		if rec := put(bad); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s must be refused, got %d", bad, rec.Code)
+		}
+	}
+	rec := put(`{"hostingEnabled":true,"orderMethods":[
+		{"kind":"bank","name":"BCA","account":"1234567890","holder":"Reneo","enabled":true},
+		{"kind":"ewallet","name":"DANA","account":"081234567890","holder":"Reneo","enabled":true},
+		{"kind":"ewallet","name":"OVO","account":"081200000000","holder":"Reneo","enabled":false}]}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("a list of ways to pay: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec = put(`{"selfSignup":true}`); rec.Code != http.StatusOK {
+		t.Fatalf("orders on with ways to pay: %d %s", rec.Code, rec.Body.String())
+	}
+	saved := s.loadSiteSettings()
+	if len(saved.OrderMethods) != 3 || saved.OrderMethods[0].ID == "" {
+		t.Fatalf("each way to pay gets an id: %+v", saved.OrderMethods)
+	}
+	view := s.orderViewFor(database.HostingOrder{Status: database.OrderPending, AmountTotal: 50123})
+	if view.Payment == nil || len(view.Payment.Methods) != 2 || view.Payment.Methods[1].Name != "DANA" {
+		t.Fatalf("the buyer sees the enabled ones only: %+v", view.Payment)
+	}
+	// switching every one off leaves nothing to pay to: orders cannot stay on
+	if rec = put(`{"orderMethods":[{"kind":"bank","name":"BCA","account":"1","holder":"A","enabled":false}],"selfSignup":true}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("all off: %d %s", rec.Code, rec.Body.String())
 	}
 }

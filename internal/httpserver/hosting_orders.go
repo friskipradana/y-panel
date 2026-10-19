@@ -48,11 +48,9 @@ func (s siteSettings) orderUniqueMax() int {
 	return s.OrderUniqueMax
 }
 
-// paymentInstructions is where the buyer sends the money
+// paymentInstructions is where the buyer sends the money: any of the banks and e-wallets the seller lists
 type paymentInstructions struct {
-	Bank    string `json:"bank"`
-	Account string `json:"account"`
-	Holder  string `json:"holder"`
+	Methods []orderMethod `json:"methods"`
 }
 
 // orderView is an order as the buyer sees it: no ids of the panel, no addresses, only what the page needs
@@ -79,7 +77,7 @@ func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {
 		settings := s.loadSiteSettings()
-		view.Payment = &paymentInstructions{Bank: settings.OrderBank, Account: settings.OrderAccount, Holder: settings.OrderHolder}
+		view.Payment = &paymentInstructions{Methods: activeOrderMethods(settings)}
 	}
 	return view
 }

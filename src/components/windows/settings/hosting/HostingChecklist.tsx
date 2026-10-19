@@ -33,7 +33,7 @@ export function HostingChecklist({ onGo, bare }: { onGo: (section: HostingSectio
     { key: 'landing', done: site.data.landingEnabled, required: true, go: null },
     { key: 'order', done: site.data.orderUrl !== '' || site.data.selfSignup, required: false, go: 'terms' },
     // self-service ordering: where to pay, the switch, and the listener that reads the transfers
-    { key: 'account', done: site.data.orderAccount !== '' && site.data.orderHolder !== '', required: false, go: 'payment' },
+    { key: 'account', done: (site.data.orderMethods ?? []).some((method) => method.enabled) || (site.data.orderAccount !== '' && site.data.orderHolder !== ''), required: false, go: 'payment' },
     { key: 'selfSignup', done: site.data.selfSignup, required: false, go: 'payment' },
     { key: 'listener', done: (devices.data?.devices ?? []).length > 0 || devices.isError, required: false, go: null },
     { key: 'customDomains', done: customSetup.data?.ready ?? true, required: false, go: 'domains' },

@@ -109,7 +109,7 @@ export interface OrderView {
   expiresAt: string
   paidAt: string | null
   /** Only while the order waits for money */
-  payment?: { bank: string; account: string; holder: string }
+  payment?: { methods: { id: string; kind: 'bank' | 'ewallet'; name: string; account: string; holder: string }[] }
   /** The panel address of the buyer: where they sign in once the order is paid */
   hostname?: string
 }

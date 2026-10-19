@@ -3,16 +3,24 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Landmark } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPaymentSettings, updatePaymentSettings } from '@/api/payment'
-import { getSiteSettings, setSiteSettings, type SiteSettings } from '@/api/system'
+import { getSiteSettings, setSiteSettings, type OrderMethod, type SiteSettings } from '@/api/system'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field, TextInput } from '@/components/ui/Field'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { useI18n } from '@/lib/i18n'
+import { blankMethod, methodReady, PaymentMethodsEditor } from './PaymentMethodsEditor'
 
 const DEFAULT_HOURS = 24
 const DEFAULT_UNIQUE_MAX = 999
+
+// The list as saved; settings from before the list had one account, which shows as a bank to edit
+const savedMethods = (settings: SiteSettings): OrderMethod[] => {
+  if ((settings.orderMethods ?? []).length > 0) return settings.orderMethods as OrderMethod[]
+  if (settings.orderAccount && settings.orderHolder) return [{ ...blankMethod(), name: settings.orderBank ?? '', account: settings.orderAccount, holder: settings.orderHolder }]
+  return []
+}
 
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
@@ -23,7 +31,7 @@ export function HostingPaymentCard() {
   if (!site.data) return null
   const s = site.data
   // keyed by the stored values so the form follows what the agent saved
-  return <PaymentForm key={[s.selfSignup, s.orderBank, s.orderAccount, s.orderHolder, s.orderExpiryMinutes, s.orderUniqueMax, s.trialApproval].join('|')} settings={s} />
+  return <PaymentForm key={[s.selfSignup, JSON.stringify(s.orderMethods ?? []), s.orderAccount, s.orderExpiryMinutes, s.orderUniqueMax, s.trialApproval].join('|')} settings={s} />
 }
 
 function PaymentForm({ settings }: { settings: SiteSettings }) {
@@ -41,17 +49,13 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
     onError: (e) => toast.error(apiError(e, t('settings.site.failed'))),
   })
   const [selfSignup, setSelfSignup] = useState(settings.selfSignup ?? false)
-  const [bank, setBank] = useState(settings.orderBank ?? '')
-  const [account, setAccount] = useState(settings.orderAccount ?? '')
-  const [holder, setHolder] = useState(settings.orderHolder ?? '')
+  const saved = savedMethods(settings)
+  const [methods, setMethods] = useState<OrderMethod[]>(saved)
   const [hours, setHours] = useState(String((settings.orderExpiryMinutes ?? 0) > 0 ? (settings.orderExpiryMinutes ?? 0) / 60 : DEFAULT_HOURS))
   const [uniqueMax, setUniqueMax] = useState(String((settings.orderUniqueMax ?? 0) > 0 ? settings.orderUniqueMax : DEFAULT_UNIQUE_MAX))
   const [trialApproval, setTrialApproval] = useState(settings.trialApproval ?? false)
   const [error, setError] = useState('')
 
-  const safeBank = bank ?? ''
-  const safeAccount = account ?? ''
-  const safeHolder = holder ?? ''
   const safeHours = hours ?? ''
   const safeUniqueMax = uniqueMax ?? ''
 
@@ -62,21 +66,18 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
   const minutes = Math.round(hoursNumber * 60)
   const dirty =
     selfSignup !== settings.selfSignup ||
-    safeBank.trim() !== (settings.orderBank ?? '') ||
-    safeAccount.trim() !== (settings.orderAccount ?? '') ||
-    safeHolder.trim() !== (settings.orderHolder ?? '') ||
+    JSON.stringify(methods) !== JSON.stringify(saved) ||
     minutes !== (settings.orderExpiryMinutes || DEFAULT_HOURS * 60) ||
     uniqueNumber !== (settings.orderUniqueMax || DEFAULT_UNIQUE_MAX) ||
     trialApproval !== settings.trialApproval
-  const missingAccount = selfSignup && (safeAccount.trim() === '' || safeHolder.trim() === '')
+  const incomplete = methods.some((method) => !methodReady(method))
+  const noneShown = selfSignup && !methods.some((method) => method.enabled && methodReady(method))
 
   const mutation = useMutation({
     mutationFn: () =>
       setSiteSettings({
         selfSignup,
-        orderBank: safeBank.trim(),
-        orderAccount: safeAccount.trim(),
-        orderHolder: safeHolder.trim(),
+        orderMethods: methods.map((method) => ({ ...method, name: method.name.trim(), account: method.account.trim(), holder: method.holder.trim() })),
         orderExpiryMinutes: minutes,
         orderUniqueMax: uniqueNumber,
         trialApproval,
@@ -121,17 +122,9 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label={t('hosting.payment.bank')}>
-          <TextInput value={safeBank} maxLength={80} onChange={(e) => setBank(e.target.value)} placeholder="BCA" className="!h-8 text-[12px]" />
-        </Field>
-        <Field label={t('hosting.payment.account')} error={missingAccount && safeAccount.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
-          <TextInput mono value={safeAccount} maxLength={80} onChange={(e) => setAccount(e.target.value)} className="!h-8 text-[12px]" />
-        </Field>
-        <Field label={t('hosting.payment.holder')} error={missingAccount && safeHolder.trim() === '' ? t('hosting.payment.accountRequired') : undefined}>
-          <TextInput value={safeHolder} maxLength={80} onChange={(e) => setHolder(e.target.value)} className="!h-8 text-[12px]" />
-        </Field>
-      </div>
+      <PaymentMethodsEditor methods={methods} onChange={setMethods} />
+      {incomplete ? <p className="text-[11.5px] text-[var(--panel-warning-text)]">{t('hosting.payment.methodIncomplete')}</p> : null}
+      {noneShown && !incomplete ? <p className="text-[11.5px] text-[var(--panel-warning-text)]">{t('hosting.payment.accountRequired')}</p> : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={t('hosting.payment.hours')} hint={t('hosting.payment.hoursHint')} error={safeHours !== '' && !hoursValid ? t('hosting.payment.hoursInvalid') : undefined}>
@@ -147,7 +140,7 @@ function PaymentForm({ settings }: { settings: SiteSettings }) {
       {error ? <p role="alert" className="text-[12px] text-[var(--panel-danger-text)]">{error}</p> : null}
 
       <div className="flex justify-end border-t border-[var(--win-border)] pt-3.5">
-        <Button variant="primary" size="sm" disabled={!dirty || !hoursValid || !uniqueValid || missingAccount} loading={mutation.isPending} onClick={() => mutation.mutate()} className="!h-8">
+        <Button variant="primary" size="sm" disabled={!dirty || !hoursValid || !uniqueValid || incomplete || noneShown} loading={mutation.isPending} onClick={() => mutation.mutate()} className="!h-8">
           {t('common.save')}
         </Button>
       </div>

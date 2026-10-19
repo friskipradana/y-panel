@@ -88,7 +88,7 @@ func TestIntegrationBuyerOrdersPaysAndGetsActivated(t *testing.T) {
 	if rec.Code != http.StatusCreated || view.Status != database.OrderPending {
 		t.Fatalf("an order is created and waits: %d %s", rec.Code, rec.Body.String())
 	}
-	if view.AmountTotal <= 50000 || view.AmountTotal > 50999 || view.Payment == nil || view.Payment.Account != "1234567890" {
+	if view.AmountTotal <= 50000 || view.AmountTotal > 50999 || view.Payment == nil || len(view.Payment.Methods) != 1 || view.Payment.Methods[0].Account != "1234567890" {
 		t.Fatalf("the buyer sees the exact total and where to pay: %+v", view)
 	}
 

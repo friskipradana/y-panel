@@ -3,6 +3,7 @@ import { Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { formatRupiah, type OrderView } from '@/api/hosting'
+import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { useI18n } from '@/lib/i18n'
 
@@ -41,19 +42,41 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
   const payment = order.payment
   const countdown = useCountdown(order.expiresAt, !!payment)
   if (!payment) return null
+  const code = order.amountTotal - order.amountBase
 
   return (
     <div className="space-y-3">
       <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
         <CopyRow label={t('order.payExactly')} value={formatRupiah(order.amountTotal)} />
-        {payment.bank ? <CopyRow label={t('order.bank')} value={payment.bank} /> : null}
-        <CopyRow label={t('order.account')} value={payment.account} />
-        <CopyRow label={t('order.holder')} value={payment.holder} />
+        {code > 0 ? (
+          <div className="flex items-center justify-between py-2.5 text-[0.8125rem]">
+            <span className="text-[var(--text-secondary)]">
+              {t('order.price')} {formatRupiah(order.amountBase)} + {t('order.uniqueCode')}
+            </span>
+            <span className="panel-mono font-semibold">{formatRupiah(code)}</span>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between py-2.5 text-[0.8125rem]">
           <span className="text-[var(--text-secondary)]">{t('order.timeLeft')}</span>
           <span className="panel-mono font-semibold">{countdown}</span>
         </div>
       </section>
+
+      <p className="text-[0.75rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t('order.payTo')}</p>
+      {payment.methods.map((method) => (
+        <section key={method.id} className="rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
+          <div className="flex items-center justify-between gap-2 pt-2.5">
+            <span className="text-[0.9375rem] font-semibold text-[var(--win-text)]">{method.name}</span>
+            <Badge tone="neutral" size="sm">
+              {t(method.kind === 'ewallet' ? 'order.kindEwallet' : 'order.kindBank')}
+            </Badge>
+          </div>
+          <div className="divide-y divide-[var(--win-border)]">
+            <CopyRow label={t(method.kind === 'ewallet' ? 'order.phoneNumber' : 'order.account')} value={method.account} />
+            <CopyRow label={t('order.holder')} value={method.holder} />
+          </div>
+        </section>
+      ))}
       <p className="text-[0.8125rem] text-[var(--text-secondary)]">{t('order.exactNote', { amount: formatRupiah(order.amountTotal) })}</p>
     </div>
   )

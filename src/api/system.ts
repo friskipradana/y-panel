@@ -126,15 +126,27 @@ export interface SiteSettings {
   examplePlansSeeded: boolean
   /** Buyers may sign up and pay from the landing page */
   selfSignup: boolean
-  orderBank: string
-  orderAccount: string
-  orderHolder: string
+  /** The banks and e-wallets buyers can pay to */
+  orderMethods?: OrderMethod[]
+  /** The single account of settings from before the list; read only */
+  orderBank?: string
+  orderAccount?: string
+  orderHolder?: string
   /** Minutes an order waits for its payment; 0 means a day */
   orderExpiryMinutes: number
   /** Largest unique code added to a price; 0 means 999 */
   orderUniqueMax: number
   /** A trial waits for the superadmin instead of starting at once */
   trialApproval: boolean
+}
+
+export interface OrderMethod {
+  id: string
+  kind: 'bank' | 'ewallet'
+  name: string
+  account: string
+  holder: string
+  enabled: boolean
 }
 
 export const getSiteSettings = () => agentApi.get<SiteSettings>('/api/v1/settings/site').then((r) => r.data)

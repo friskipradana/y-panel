@@ -57,10 +57,12 @@ type siteSettings struct {
 	// SelfSignup lets a buyer sign up and pay for a plan from the landing page. Off by default: the seller
 	// turns it on once the account to pay to is filled in.
 	SelfSignup bool `json:"selfSignup"`
-	// the account the buyer transfers to, shown on the page of an order
-	OrderBank    string `json:"orderBank"`
-	OrderAccount string `json:"orderAccount"`
-	OrderHolder  string `json:"orderHolder"`
+	// OrderMethods are the banks and e-wallets a buyer can pay to; the three fields below are the single account of
+	// older settings, still read when no method was saved
+	OrderMethods []orderMethod `json:"orderMethods"`
+	OrderBank    string        `json:"orderBank"`
+	OrderAccount string        `json:"orderAccount"`
+	OrderHolder  string        `json:"orderHolder"`
 	// OrderExpiryMinutes is how long an order waits for its payment; 0 means a day
 	OrderExpiryMinutes int `json:"orderExpiryMinutes"`
 	// OrderUniqueMax is the largest code added to a price to make the total unique; 0 means 999
@@ -167,14 +169,15 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		// OoklaLicenseAccepted can be given and taken back
 		OoklaLicenseAccepted *bool `json:"ooklaLicenseAccepted"`
 		SelfSignup           *bool   `json:"selfSignup"`
-		OrderBank            *string `json:"orderBank"`
-		OrderAccount         *string `json:"orderAccount"`
-		OrderHolder          *string `json:"orderHolder"`
+		OrderMethods         *[]orderMethod `json:"orderMethods"`
+		OrderBank            *string        `json:"orderBank"`
+		OrderAccount         *string        `json:"orderAccount"`
+		OrderHolder          *string        `json:"orderHolder"`
 		OrderExpiryMinutes   *int    `json:"orderExpiryMinutes"`
 		OrderUniqueMax       *int    `json:"orderUniqueMax"`
 		TrialApproval        *bool   `json:"trialApproval"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
 		return
 	}
@@ -229,6 +232,16 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		*field.out = text
 	}
+	if req.OrderMethods != nil {
+		methods, err := cleanOrderMethods(*req.OrderMethods)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		next.OrderMethods = methods
+		// the list replaces the single account of older settings
+		next.OrderBank, next.OrderAccount, next.OrderHolder = "", "", ""
+	}
 	if req.OrderExpiryMinutes != nil {
 		if *req.OrderExpiryMinutes != 0 && (*req.OrderExpiryMinutes < orderMinExpiryMinutes || *req.OrderExpiryMinutes > orderMaxExpiryMinutes) {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": fmt.Sprintf("an order waits between %d minutes and %d days", orderMinExpiryMinutes, orderMaxExpiryMinutes/1440)})
@@ -248,8 +261,8 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.SelfSignup != nil {
 		// buyers pay to an account: it has to be named before orders are taken
-		if *req.SelfSignup && (next.OrderAccount == "" || next.OrderHolder == "") {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "fill in the account number and its holder before turning on orders"})
+		if *req.SelfSignup && len(activeOrderMethods(next)) == 0 {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "add a bank or e-wallet to pay to, with its number and holder, before turning on orders"})
 			return
 		}
 		next.SelfSignup = *req.SelfSignup

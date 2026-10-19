@@ -52,12 +52,16 @@ func (s *Server) buyerOrderCreated(o *database.HostingOrder, plan string) {
 	if o.AmountTotal <= 0 {
 		return
 	}
-	settings := s.loadSiteSettings()
+	// the notice names the first way to pay; the order page it links to lists them all
+	var first orderMethod
+	if methods := activeOrderMethods(s.loadSiteSettings()); len(methods) > 0 {
+		first = methods[0]
+	}
 	s.notify.Emit(notify.Event{
 		Name: notify.EventBuyerOrderCreated, UserIDs: []int64{o.UserID}, Key: fmt.Sprintf("order-%d", o.ID),
 		Data: map[string]any{
-			"plan": plan, "amount": rupiah(o.AmountTotal), "bank": settings.OrderBank, "account": settings.OrderAccount,
-			"holder": settings.OrderHolder, "deadline": o.ExpiresAt.Local().Format("02 Jan 2006 15:04"),
+			"plan": plan, "amount": rupiah(o.AmountTotal), "bank": first.Name, "account": first.Account,
+			"holder": first.Holder, "deadline": o.ExpiresAt.Local().Format("02 Jan 2006 15:04"),
 			"url": strings.TrimRight(o.PublicBase, "/") + "/order/" + o.PublicID,
 		},
 	})
