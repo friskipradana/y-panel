@@ -195,11 +195,11 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		phone = normalized
 	}
 
-	// the panel address is part of the plan: picked now, held for the order, created when it is paid
+	// the panel address comes with every plan: picked now on the main domain, held for the order, created when it is paid
 	var domain *database.HostingDomain
 	req.SubLabel = strings.ToLower(strings.TrimSpace(req.SubLabel))
-	if plan.MaxSubdomains > 0 {
-		reason, offered, err := s.subdomainAvailability(req.SubLabel, req.SubZoneID)
+	if main := s.mainHostingDomain(); main != nil {
+		reason, offered, err := s.subdomainAvailability(req.SubLabel, main.ZoneID)
 		if err != nil {
 			log.Printf("[orders] subdomain check: %v", err)
 			s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "the address service is not ready, try again later"})
@@ -627,10 +627,10 @@ func addressSentence(order *database.HostingOrder) string {
 
 // giveOrderSubdomain creates the panel address the buyer picked with the order, so it is their sign-in address
 func (s *Server) giveOrderSubdomain(order *database.HostingOrder, user *database.User) {
-	if existing, _ := s.database.ListHostingSubdomains(user.ID); len(existing) > 0 {
+	if has, _ := s.database.HasPanelAddress(user.ID); has {
 		return
 	}
-	if _, err := s.database.CreateHostingSubdomain(user.ID, order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname); err != nil {
+	if _, err := s.database.CreateHostingSubdomain(user.ID, order.SubLabel, order.SubZoneID, order.SubDomain, order.SubHostname, true); err != nil {
 		log.Printf("[orders] could not create %s for %q: %v", order.SubHostname, user.Username, err)
 		s.alertSellerOrder(order.ID, fmt.Sprintf("Pesanan #%d dibayar, tetapi alamat %s gagal dibuat untuk %s. Buatkan dari jendela Pengguna.", order.ID, order.SubHostname, user.Username), "warning")
 		return
@@ -640,7 +640,8 @@ func (s *Server) giveOrderSubdomain(order *database.HostingOrder, user *database
 
 // handlePublicCheckSubdomain tells a buyer, while they type, whether a panel address is free
 func (s *Server) handlePublicCheckSubdomain(w http.ResponseWriter, r *http.Request) {
-	if !s.selfServiceOn() {
+	// the request form of a seller who takes orders by message checks the address too, so this needs only the public page
+	if settings := s.loadSiteSettings(); !settings.HostingEnabled || !settings.LandingEnabled || s.database == nil || !s.database.IsConnected() {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
 		return
 	}
@@ -653,7 +654,13 @@ func (s *Server) handlePublicCheckSubdomain(w http.ResponseWriter, r *http.Reque
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	label := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("label")))
-	reason, _, err := s.subdomainAvailability(label, r.URL.Query().Get("zoneId"))
+	// always on the main domain: that is where the panel address of a buyer is made
+	main := s.mainHostingDomain()
+	if main == nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "no domain is offered"})
+		return
+	}
+	reason, _, err := s.subdomainAvailability(label, main.ZoneID)
 	if err != nil {
 		log.Printf("[orders] availability check: %v", err)
 		s.writeJSON(w, http.StatusServiceUnavailable, jsonResponse{"error": "the address service is not ready, try again later"})

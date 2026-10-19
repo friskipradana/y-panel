@@ -148,6 +148,7 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/users/{id}/plan/trial", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleEndPlanTrial)))
 	s.mux.Handle("GET /api/v1/hosting/domains", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleListHostingDomains)))
 	s.mux.Handle("PUT /api/v1/hosting/domains/{zoneId}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetHostingDomain)))
+	s.mux.Handle("PUT /api/v1/hosting/domains/{zoneId}/main", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetMainHostingDomain)))
 	s.mux.Handle("GET /api/v1/hosting/subdomains", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleListAllSubdomains)))
 	s.mux.Handle("POST /api/v1/hosting/subdomains", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreateSubdomainForUser)))
 	s.mux.Handle("PATCH /api/v1/hosting/subdomains/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetSubdomainStatus)))

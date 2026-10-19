@@ -167,9 +167,10 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 		})
 	}
 	// ordering needs an address to give: without an offered domain the order buttons stay on the old way
+	// the panel address of a buyer is made on the main domain only, so that is the only one the landing page shows
 	offered := []map[string]string{}
-	for _, d := range s.enabledHostingDomains() {
-		offered = append(offered, map[string]string{"zoneId": d.ZoneID, "name": d.Name})
+	if main := s.mainHostingDomain(); main != nil {
+		offered = append(offered, map[string]string{"zoneId": main.ZoneID, "name": main.Name})
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "whatsapp": s.notify.BuyerChannel() != "", "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out})
 }

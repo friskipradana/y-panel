@@ -340,13 +340,15 @@ type HostingDomain struct {
 	ZoneID  string `json:"zoneId"`
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
+	// IsMain is the domain where the panel addresses of buyers are made
+	IsMain bool `json:"isMain"`
 }
 
 func (m *Manager) ListHostingDomains() ([]HostingDomain, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
-	rows, err := m.db.Query(`SELECT zone_id, name, enabled FROM hosting_domains ORDER BY name`)
+	rows, err := m.db.Query(`SELECT zone_id, name, enabled, is_main FROM hosting_domains ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
@@ -354,7 +356,7 @@ func (m *Manager) ListHostingDomains() ([]HostingDomain, error) {
 	out := []HostingDomain{}
 	for rows.Next() {
 		var d HostingDomain
-		if err := rows.Scan(&d.ZoneID, &d.Name, &d.Enabled); err != nil {
+		if err := rows.Scan(&d.ZoneID, &d.Name, &d.Enabled, &d.IsMain); err != nil {
 			return nil, err
 		}
 		out = append(out, d)
@@ -362,6 +364,8 @@ func (m *Manager) ListHostingDomains() ([]HostingDomain, error) {
 	return out, rows.Err()
 }
 
+// SetHostingDomain offers a domain or stops offering it. The first domain offered becomes the main one, and a main
+// domain that stops being offered hands the place to another offered domain, if there is one.
 func (m *Manager) SetHostingDomain(zoneID, name string, enabled bool) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")
@@ -370,7 +374,43 @@ func (m *Manager) SetHostingDomain(zoneID, name string, enabled bool) error {
 		INSERT INTO hosting_domains (zone_id, name, enabled) VALUES ($1, $2, $3)
 		ON CONFLICT (zone_id) DO UPDATE SET name = EXCLUDED.name, enabled = EXCLUDED.enabled, updated_at = NOW()
 	`, zoneID, name, enabled)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		if _, err := m.db.Exec(`UPDATE hosting_domains SET is_main = FALSE WHERE zone_id = $1`, zoneID); err != nil {
+			return err
+		}
+	}
+	_, err = m.db.Exec(`
+		UPDATE hosting_domains SET is_main = TRUE
+		WHERE zone_id = (SELECT zone_id FROM hosting_domains WHERE enabled ORDER BY created_at, name LIMIT 1)
+		  AND NOT EXISTS (SELECT 1 FROM hosting_domains WHERE is_main)
+	`)
 	return err
+}
+
+// SetMainHostingDomain makes an offered domain the one where panel addresses are made
+func (m *Manager) SetMainHostingDomain(zoneID string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	tx, err := m.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var enabled bool
+	if err := tx.QueryRow(`SELECT enabled FROM hosting_domains WHERE zone_id = $1`, zoneID).Scan(&enabled); err != nil || !enabled {
+		return fmt.Errorf("this domain is not offered")
+	}
+	if _, err := tx.Exec(`UPDATE hosting_domains SET is_main = FALSE WHERE is_main`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE hosting_domains SET is_main = TRUE, updated_at = NOW() WHERE zone_id = $1`, zoneID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type HostingSubdomain struct {
@@ -383,6 +423,8 @@ type HostingSubdomain struct {
 	Hostname  string    `json:"hostname"`
 	Status    string    `json:"status"`
 	Note      string    `json:"note"`
+	// Panel marks the address of the owner's own panel: it comes with every plan and does not use the quota
+	Panel     bool      `json:"panel"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -390,11 +432,11 @@ type HostingSubdomain struct {
 // ErrHostnameTaken is returned when a hostname is already held by someone
 var ErrHostnameTaken = errors.New("hostname is already taken")
 
-const subdomainColumns = `s.id, s.user_id, COALESCE(u.username,''), s.label, s.zone_id, s.domain, s.hostname, s.status, s.note, s.created_at, s.updated_at`
+const subdomainColumns = `s.id, s.user_id, COALESCE(u.username,''), s.label, s.zone_id, s.domain, s.hostname, s.status, s.note, s.panel, s.created_at, s.updated_at`
 
 func scanSubdomain(row rowScanner) (*HostingSubdomain, error) {
 	var s HostingSubdomain
-	if err := row.Scan(&s.ID, &s.UserID, &s.Username, &s.Label, &s.ZoneID, &s.Domain, &s.Hostname, &s.Status, &s.Note, &s.CreatedAt, &s.UpdatedAt); err != nil {
+	if err := row.Scan(&s.ID, &s.UserID, &s.Username, &s.Label, &s.ZoneID, &s.Domain, &s.Hostname, &s.Status, &s.Note, &s.Panel, &s.CreatedAt, &s.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &s, nil
@@ -471,15 +513,15 @@ func (m *Manager) GetHostingSubdomainByHostname(hostname string) (*HostingSubdom
 	return s, err
 }
 
-func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, hostname string) (*HostingSubdomain, error) {
+func (m *Manager) CreateHostingSubdomain(userID int64, label, zoneID, domain, hostname string, panel bool) (*HostingSubdomain, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
 	var id int64
 	err := m.db.QueryRow(`
-		INSERT INTO hosting_subdomains (user_id, label, zone_id, domain, hostname, status)
-		VALUES ($1, $2, $3, $4, $5, 'pending') RETURNING id
-	`, userID, label, zoneID, domain, hostname).Scan(&id)
+		INSERT INTO hosting_subdomains (user_id, label, zone_id, domain, hostname, status, panel)
+		VALUES ($1, $2, $3, $4, $5, 'pending', $6) RETURNING id
+	`, userID, label, zoneID, domain, hostname, panel).Scan(&id)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate key") {
 			return nil, ErrHostnameTaken
@@ -510,7 +552,7 @@ func (m *Manager) CountHostingSubdomains(userID int64) (int, error) {
 		return 0, fmt.Errorf("database not connected")
 	}
 	var n int
-	err := m.db.QueryRow(`SELECT COUNT(*) FROM hosting_subdomains WHERE user_id = $1`, userID).Scan(&n)
+	err := m.db.QueryRow(`SELECT COUNT(*) FROM hosting_subdomains WHERE user_id = $1 AND NOT panel`, userID).Scan(&n)
 	return n, err
 }
 
@@ -704,7 +746,7 @@ func (m *Manager) UserHostingInfo(ids []int64) (map[int64]UserHosting, error) {
 	}
 	rows.Close()
 
-	counts, err := m.db.Query(`SELECT user_id, COUNT(*) FROM hosting_subdomains WHERE user_id = ANY($1) GROUP BY user_id`, pq.Array(ids))
+	counts, err := m.db.Query(`SELECT user_id, COUNT(*) FROM hosting_subdomains WHERE user_id = ANY($1) AND NOT panel GROUP BY user_id`, pq.Array(ids))
 	if err != nil {
 		return nil, err
 	}
@@ -807,4 +849,14 @@ func (m *Manager) UserRoleCounts(ids []int64) (map[string]int, error) {
 		out[role] = count
 	}
 	return out, rows.Err()
+}
+
+// HasPanelAddress says whether an account already has the address of its own panel
+func (m *Manager) HasPanelAddress(userID int64) (bool, error) {
+	if !m.IsConnected() {
+		return false, fmt.Errorf("database not connected")
+	}
+	var n int
+	err := m.db.QueryRow(`SELECT COUNT(*) FROM hosting_subdomains WHERE user_id = $1 AND panel`, userID).Scan(&n)
+	return n > 0, err
 }

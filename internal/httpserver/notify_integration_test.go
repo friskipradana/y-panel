@@ -258,7 +258,7 @@ func TestIntegrationAFailedOrderStepNeedsTheSellerAttention(t *testing.T) {
 	_ = f.db.UpdateUser(buyer.ID, map[string]any{"status": "pending"})
 	// the address was taken by someone else in the meantime: it cannot be made when the order is paid
 	other, _ := f.db.CreateUser("lain", "lain@example.com", "hash", "user", "Lain")
-	if _, err := f.db.CreateHostingSubdomain(other.ID, "rina", "z1", "reneo.my.id", "rina.reneo.my.id"); err != nil {
+	if _, err := f.db.CreateHostingSubdomain(other.ID, "rina", "z1", "reneo.my.id", "rina.reneo.my.id", false); err != nil {
 		t.Fatal(err)
 	}
 	order, err := f.db.CreateHostingOrder(database.HostingOrder{

@@ -41,6 +41,21 @@ func (s *Server) enabledHostingDomains() []database.HostingDomain {
 	return out
 }
 
+// mainHostingDomain is where the panel address of every buyer is made: the domain the owner marked as main, or the
+// first one offered when none is marked. nil when no domain is offered.
+func (s *Server) mainHostingDomain() *database.HostingDomain {
+	offered := s.enabledHostingDomains()
+	for i := range offered {
+		if offered[i].IsMain {
+			return &offered[i]
+		}
+	}
+	if len(offered) > 0 {
+		return &offered[0]
+	}
+	return nil
+}
+
 type mySubdomainsView struct {
 	Enabled bool                       `json:"enabled"`
 	Limit   int                        `json:"limit"`
@@ -65,7 +80,12 @@ func (s *Server) handleListMySubdomains(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	view.Items = items
-	view.Used = len(items)
+	for _, item := range items {
+		// the panel address comes with every plan and is not one of its subdomains
+		if !item.Panel {
+			view.Used++
+		}
+	}
 	s.writeJSON(w, http.StatusOK, view)
 }
 
@@ -230,7 +250,13 @@ func (s *Server) createSubdomainFor(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
-	created, err := s.database.CreateHostingSubdomain(owner.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name))
+	// the owner of the panel gives an account its panel address first; every address after that is one of its subdomains
+	panel := false
+	if !enforceQuota {
+		has, _ := s.database.HasPanelAddress(owner.ID)
+		panel = !has
+	}
+	created, err := s.database.CreateHostingSubdomain(owner.ID, label, domain.ZoneID, domain.Name, hostnameFor(label, domain.Name), panel)
 	if errors.Is(err, database.ErrHostnameTaken) {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this name is taken"})
 		return
@@ -264,6 +290,11 @@ func (s *Server) handleDeleteMySubdomain(w http.ResponseWriter, r *http.Request)
 	if row == nil {
 		return
 	}
+	// the panel address is where the account signs in; only the owner of the panel can take it away
+	if row.Panel && u.Role != auth.SuperadminRole {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "the panel address cannot be removed"})
+		return
+	}
 	if err := s.removeHostingDNS(*row); err != nil {
 		log.Printf("[hosting] release %s: %v", row.Hostname, err)
 	}
@@ -284,6 +315,8 @@ type hostingDomainView struct {
 	Name    string `json:"name"`
 	Status  string `json:"status"`
 	Enabled bool   `json:"enabled"`
+	// IsMain: the panel addresses of buyers are made here
+	IsMain bool `json:"isMain"`
 }
 
 // handleListHostingDomains lists the zones of the superadmin's Cloudflare account with the choice made for each
@@ -299,13 +332,17 @@ func (s *Server) handleListHostingDomains(w http.ResponseWriter, _ *http.Request
 		return
 	}
 	chosen := map[string]bool{}
+	main := ""
 	stored, _ := s.database.ListHostingDomains()
 	for _, d := range stored {
 		chosen[d.ZoneID] = d.Enabled
+		if d.IsMain {
+			main = d.ZoneID
+		}
 	}
 	out := make([]hostingDomainView, 0, len(zones))
 	for _, z := range zones {
-		out = append(out, hostingDomainView{ZoneID: z.ID, Name: z.Name, Status: z.Status, Enabled: chosen[z.ID]})
+		out = append(out, hostingDomainView{ZoneID: z.ID, Name: z.Name, Status: z.Status, Enabled: chosen[z.ID], IsMain: z.ID == main})
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"domains": out})
 }
@@ -352,6 +389,22 @@ func (s *Server) handleSetHostingDomain(w http.ResponseWriter, r *http.Request) 
 		s.auditSensitiveAction(r, u, "hosting.domain.set", "ok", map[string]any{"domain": name, "enabled": req.Enabled})
 	}
 	s.writeJSON(w, http.StatusOK, hostingDomainView{ZoneID: zoneID, Name: name, Enabled: req.Enabled})
+}
+
+// handleSetMainHostingDomain chooses the offered domain where the panel addresses of buyers are made
+func (s *Server) handleSetMainHostingDomain(w http.ResponseWriter, r *http.Request) {
+	if !s.requireHostingMode(w) {
+		return
+	}
+	zoneID := r.PathValue("zoneId")
+	if err := s.database.SetMainHostingDomain(zoneID); err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	if u := userFromCtx(r); u != nil {
+		s.auditSensitiveAction(r, u, "hosting.domain.main", "ok", map[string]any{"zone": zoneID})
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
 func (s *Server) handleListAllSubdomains(w http.ResponseWriter, _ *http.Request) {
