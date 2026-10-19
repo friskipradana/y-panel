@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { WahaDashboard } from './WahaDashboard'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { ErrorState, LoadingState } from '@/components/ui/states'
@@ -127,8 +128,9 @@ export function WahaCard({ bare }: { bare?: boolean } = {}) {
           {data.dashboardUrl ? (
             <details className="text-[12px] text-[var(--text-secondary)]">
               <summary className="cursor-pointer font-medium text-[var(--win-text)]">{t('notify.waha.dashboard')}</summary>
-              <div className="mt-2 flex flex-col gap-1.5">
-                <p>{t('notify.waha.dashboardHint')}</p>
+              <div className="mt-2 flex flex-col gap-3">
+                <WahaDashboard running={data.state === 'running'} />
+                <p className="border-t border-[var(--win-border)] pt-3">{t('notify.waha.dashboardHint')}</p>
                 {[
                   [t('notify.waha.dashboardUrl'), data.dashboardUrl],
                   [t('notify.waha.dashboardUser'), data.dashboardUser],

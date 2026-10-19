@@ -200,5 +200,13 @@ export const removeCloudNumber = () => agentApi.delete<{ ok: boolean }>('/api/v1
 
 export const testCloud = () => agentApi.post<{ id: number }>('/api/v1/notify/channels/whatsapp-cloud/test').then((r) => r.data)
 
+/** The address the WAHA dashboard answers on ("" while none is set); only the superadmin may open it */
+export const getWahaDashboardHost = () => agentApi.get<{ host: string }>('/api/v1/notify/waha/dashboard').then((r) => r.data)
+
+export const setWahaDashboardHost = (host: string) => agentApi.put<{ host: string }>('/api/v1/notify/waha/dashboard', { host }).then((r) => r.data)
+
+/** A link that opens the dashboard once and for a minute and a half */
+export const openWahaDashboard = () => agentApi.post<{ url: string }>('/api/v1/notify/waha/dashboard/link').then((r) => r.data)
+
 /** What an account needs to link its own Telegram, in the shape of the settings overview */
 export const getMyTelegramOverview = () => agentApi.get<NotifyOverview>('/api/v1/me/telegram').then((r) => r.data)

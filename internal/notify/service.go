@@ -47,6 +47,9 @@ type Service struct {
 	cloudBase string
 	// where WAHA can reach the panel from inside its container, for the webhook of answers
 	inboundURL string
+	// the address the WAHA dashboard answers on, read from the settings and kept a few seconds
+	dashHost   string
+	dashHostAt time.Time
 	sessMu    sync.Mutex
 	sessLocks map[int64]*sync.Mutex
 	stopSwp   chan struct{}

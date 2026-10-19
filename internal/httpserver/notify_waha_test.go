@@ -36,6 +36,10 @@ type wahaStub struct {
 	forbidden    int
 	// the key each text was sent with
 	sentWith []string
+	// what the last request carried, for the dashboard proxy
+	lastHeader http.Header
+	lastPath   string
+	calls      int
 }
 
 type stubSession struct{ status, me string }
@@ -46,6 +50,8 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 	stub.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stub.mu.Lock()
 		defer stub.mu.Unlock()
+		stub.calls++
+		stub.lastHeader, stub.lastPath = r.Header.Clone(), r.URL.Path
 		presented := r.Header.Get("X-Api-Key")
 		keySession, isSessionKey := stub.keys[presented]
 		if presented != stub.key && !isSessionKey {
@@ -84,6 +90,9 @@ func newWahaStub(t *testing.T, key string) *wahaStub {
 			stub.adminCalls++
 		}
 		switch {
+		case strings.HasPrefix(r.URL.Path, "/dashboard"):
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<html>WAHA dashboard</html>"))
 		case path == "keys" && r.Method == http.MethodPost:
 			session, _ := body["session"].(string)
 			stub.madeKeys++

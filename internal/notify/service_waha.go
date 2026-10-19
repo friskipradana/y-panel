@@ -810,3 +810,64 @@ func (s *Service) sendFromSession(ctx context.Context, userID int64, phone, text
 	})
 	return id, err
 }
+
+// ─── The address of the dashboard ────────────────────────────────────────────
+
+const wahaDashboardHostKey = "waha_dashboard_host"
+
+var dashboardHostPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?$`)
+
+// WahaDashboardHost is the address the dashboard of WAHA answers on, "" while it is not set. The panel reads it for
+// every request, so it is kept for a few seconds.
+func (s *Service) WahaDashboardHost() string {
+	if s == nil || s.db == nil {
+		return ""
+	}
+	s.chMu.Lock()
+	defer s.chMu.Unlock()
+	if !s.dashHostAt.IsZero() && s.now().Sub(s.dashHostAt) < 10*time.Second {
+		return s.dashHost
+	}
+	host, _ := s.db.GetNotifySetting(wahaDashboardHostKey)
+	s.dashHost, s.dashHostAt = host, s.now()
+	return host
+}
+
+// SetWahaDashboardHost saves the address of the dashboard: a host name, with a port if it has one, and nothing else.
+// An empty one switches the dashboard address off.
+func (s *Service) SetWahaDashboardHost(host string) error {
+	if !s.ready() {
+		return errors.New("the database is not connected")
+	}
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host != "" && (!dashboardHostPattern.MatchString(host) || len(host) > 253) {
+		return errors.New("write only the address, such as waha.example.com, with no https:// and no path")
+	}
+	var err error
+	if host == "" {
+		err = s.db.DeleteNotifySetting(wahaDashboardHostKey)
+	} else {
+		err = s.db.SetNotifySetting(wahaDashboardHostKey, host)
+	}
+	s.chMu.Lock()
+	s.dashHost, s.dashHostAt = host, s.now()
+	s.chMu.Unlock()
+	return err
+}
+
+// WahaProxyTarget is what the panel needs to speak for the superadmin to the dashboard: where WAHA is, its key, and the
+// login of the dashboard. It fails while WAHA is not set up.
+func (s *Service) WahaProxyTarget() (base, key, user, password string, err error) {
+	if !s.ready() {
+		return "", "", "", "", errors.New("the database is not connected")
+	}
+	row, cfg, err := s.wahaRow()
+	if err != nil || row == nil || !row.Enabled || cfg.BaseURL == "" {
+		return "", "", "", "", errors.New("WAHA is not switched on")
+	}
+	key, err = s.wahaKey(row)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return cfg.BaseURL, key, cfg.DashboardUser, s.settingDecrypted(wahaDashboardKey), nil
+}

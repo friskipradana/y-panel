@@ -124,6 +124,11 @@ func isPublicSitePath(path string) bool {
 
 // ServeHTTP applies the middleware chain: access log → host guard → CORS → rate limit → mux.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// the address of the WAHA dashboard answers with nothing but WAHA, behind its own cookie
+	if s.wahaDashboardRequest(r) {
+		s.serveWahaDashboard(w, r)
+		return
+	}
 	s.withAccessLog(s.withHostGuard(s.withCORS(s.withRateLimit(s.mux)))).ServeHTTP(w, r)
 }
 

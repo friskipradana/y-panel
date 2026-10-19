@@ -133,21 +133,27 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
           </div>
         </>
       ) : scanning || data.status === 'STARTING' ? (
-        <div className="flex flex-col items-start gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12.5px]">
-          <ol className="list-decimal space-y-1 pl-4 text-[var(--text-secondary)]">
-            <li>{t('notify.wa.step1')}</li>
-            <li>{t('notify.wa.step2')}</li>
-            <li>{t('notify.wa.step3')}</li>
-          </ol>
-          {image && scanning ? (
-            <img src={image} alt={t('notify.wa.qrAlt')} className="h-48 w-48 rounded-lg border border-[var(--win-border)] bg-white p-1.5" />
-          ) : (
-            <LoadingState>{t('notify.wa.qrLoading')}</LoadingState>
-          )}
-          {qr.isError ? <p role="alert" className="text-[var(--panel-danger-text)]">{apiError(qr.error, t('notify.wa.qrFailed'))}</p> : null}
-          <Button variant="ghost" size="sm" loading={disconnect.isPending} onClick={() => disconnect.mutate()}>
-            {t('common.cancel')}
-          </Button>
+        <div className="flex flex-wrap items-start gap-x-8 gap-y-4 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 text-[12.5px]">
+          <div className="flex min-w-[240px] flex-1 flex-col gap-3">
+            <ol className="list-decimal space-y-1.5 pl-4 text-[var(--text-secondary)]">
+              <li>{t('notify.wa.step1')}</li>
+              <li>{t('notify.wa.step2')}</li>
+              <li>{t('notify.wa.step3')}</li>
+            </ol>
+            {qr.isError ? <p role="alert" className="text-[var(--panel-danger-text)]">{apiError(qr.error, t('notify.wa.qrFailed'))}</p> : null}
+            <div>
+              <Button variant="ghost" size="sm" loading={disconnect.isPending} onClick={() => disconnect.mutate()}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+          <div className="flex h-52 w-52 shrink-0 items-center justify-center rounded-xl border border-[var(--win-border)] bg-white p-2">
+            {image && scanning ? (
+              <img src={image} alt={t('notify.wa.qrAlt')} className="h-full w-full object-contain" />
+            ) : (
+              <LoadingState>{t('notify.wa.qrLoading')}</LoadingState>
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex flex-col items-start gap-2">
