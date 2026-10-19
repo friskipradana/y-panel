@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.42.0] - 2026-10-19
+
+Renewing a plan asks how long and shows the new end date, the Cloudflare SSL check says why it fails, and settings read well on a phone.
+
+### Fitur baru
+- **hosting:** Renewing a plan asks how long and shows the new end date, the Cloudflare SSL check says why it fails, and settings read well on a phone ([`bb07a01`](https://github.com/friskipradana/y-panel/commit/bb07a01))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.41.0...v1.42.0
+
 ## [1.41.0] - 2026-10-19
 
 Notices read clearly in both languages, and a buyer panel address serves no public site.
