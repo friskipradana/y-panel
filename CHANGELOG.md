@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.34.0] - 2026-10-19
+
+2 perubahan, utamanya a session waiting for a scan ends after 5 minutes or 3 new codes, and any session can be restarted.
+
+### Fitur baru
+- **notify:** A session waiting for a scan ends after 5 minutes or 3 new codes, and any session can be restarted ([`606666e`](https://github.com/friskipradana/y-panel/commit/606666e))
+- **notify:** The WAHA dashboard address is made with the same tunnel dialog as a container or a project ([`d723991`](https://github.com/friskipradana/y-panel/commit/d723991))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.33.0...v1.34.0
+
 ## [1.33.0] - 2026-10-19
 
 2 perubahan, utamanya the update progress shows the step, the installer log with a copy button, and a way back to it.
