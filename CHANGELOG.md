@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.37.0] - 2026-10-19
+
+Listener phones come in any number, each with an API key the panel makes, and the app's own test and address are accepted.
+
+### Fitur baru
+- **payment:** Listener phones come in any number, each with an API key the panel makes, and the app's own test and address are accepted ([`2e440f8`](https://github.com/friskipradana/y-panel/commit/2e440f8))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.36.0...v1.37.0
+
 ## [1.36.0] - 2026-10-19
 
 Tools for notification channels, the queue, WhatsApp and Telegram of an account, and hosting plans, orders, domains and subdomains.
