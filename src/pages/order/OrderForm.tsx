@@ -31,8 +31,8 @@ export function OrderForm() {
   const plans = query.data?.plans ?? []
   const plan = plans.find((p) => p.slug === slug) ?? plans[0]
   const trialOffered = !!plan && plan.trialDays > 0
-  // the panel address is part of every plan that has subdomains: picked here, created when the order is paid
-  const needsAddress = !!plan && plan.maxSubdomains > 0
+  // the panel address comes with every plan, on the main domain: picked here, created when the order is paid
+  const needsAddress = !!plan && (query.data?.domains?.length ?? 0) > 0
   const domains = query.data?.domains ?? []
   const isTrial = trial && trialOffered
   const whatsappRequired = !!query.data?.whatsapp

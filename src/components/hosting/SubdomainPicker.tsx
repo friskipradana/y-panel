@@ -12,6 +12,8 @@ export interface SubdomainChoice {
   zoneId: string
   /** The name has a valid shape and the agent said it is free */
   available: boolean
+  /** The agent could not say (no Cloudflare, no answer): the name has a valid shape but was not checked */
+  checkFailed?: boolean
 }
 
 interface SubdomainPickerProps {
@@ -49,10 +51,10 @@ export function SubdomainPicker({ domains, check, onChange, enabled = true, init
 
   const available = shapeOk && settled === label && query.data?.available === true
   useEffect(() => {
-    onChange({ label, zoneId, available })
+    onChange({ label, zoneId, available, checkFailed: shapeOk && settled === label && query.isError })
     // the parent only needs the latest choice
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [label, zoneId, available])
+  }, [label, zoneId, available, query.isError, shapeOk, settled])
 
   const domain = domains.find((d) => d.zoneId === zoneId)
   const busy = query.isFetching || (shapeOk && settled !== label)
@@ -84,7 +86,12 @@ export function SubdomainPicker({ domains, check, onChange, enabled = true, init
         </Field>
         <span className="hidden pb-2.5 text-[var(--text-secondary)] sm:block" aria-hidden="true">.</span>
         <Field label={t('hosting.sub.domain')}>
-          <Select value={zoneId} onChange={setZoneId} options={domains.map((d) => ({ value: d.zoneId, label: d.name }))} searchable />
+          {domains.length === 1 ? (
+            // one domain only (the main one on the order page): nothing to choose, so it is shown, not offered
+            <p className="panel-mono flex h-10 items-center rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-3 text-[13px]">{domains[0].name}</p>
+          ) : (
+            <Select value={zoneId} onChange={setZoneId} options={domains.map((d) => ({ value: d.zoneId, label: d.name }))} searchable />
+          )}
         </Field>
       </div>
 

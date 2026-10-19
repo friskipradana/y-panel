@@ -188,6 +188,8 @@ export interface HostingDomain {
   /** Cloudflare's own status for the zone (superadmin list only) */
   status?: string
   enabled: boolean
+  /** The panel addresses of buyers are made on this one */
+  isMain?: boolean
 }
 
 export const listHostingDomains = () =>
@@ -195,6 +197,9 @@ export const listHostingDomains = () =>
 
 export const setHostingDomain = (zoneId: string, enabled: boolean) =>
   agentApi.put<HostingDomain>(`/api/v1/hosting/domains/${encodeURIComponent(zoneId)}`, { enabled }).then((r) => r.data)
+
+export const setMainHostingDomain = (zoneId: string) =>
+  agentApi.put<{ ok: boolean }>(`/api/v1/hosting/domains/${encodeURIComponent(zoneId)}/main`).then((r) => r.data)
 
 export type SubdomainStatus = 'pending' | 'active' | 'suspended' | 'error'
 
@@ -210,6 +215,8 @@ export interface Subdomain {
   status: SubdomainStatus
   /** Why a subdomain waits or failed */
   note: string
+  /** The address of the owner's own panel: it comes with every plan and is not one of its subdomains */
+  panel?: boolean
   createdAt: string
 }
 

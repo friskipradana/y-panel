@@ -16,8 +16,8 @@ const TONE: Record<SubdomainStatus, 'success' | 'warning' | 'danger' | 'neutral'
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
-// The subdomains this account holds under the domains the server owner sells. Shown only while
-// hosting mode is on and the plan includes subdomains (or some are already held).
+// The addresses this account holds under the domains the server owner sells: the address of its own panel, which comes
+// with every plan, and the subdomains of its plan. Shown only while hosting mode is on and the account has any.
 export function HostingSubdomainsPanel() {
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -55,6 +55,8 @@ export function HostingSubdomainsPanel() {
   }
 
   const canAdd = data.used < data.limit && data.domains.length > 0
+  const panel = data.items.filter((row) => row.panel)
+  const extra = data.items.filter((row) => !row.panel)
 
   return (
     <div className="px-4 py-3">
@@ -62,11 +64,13 @@ export function HostingSubdomainsPanel() {
         <SectionHeader
           icon={<Globe2 />}
           title={t('hosting.sub.title')}
-          subtitle={t('hosting.sub.quota', { used: data.used, limit: data.limit })}
+          subtitle={data.limit > 0 ? t('hosting.sub.quota', { used: data.used, limit: data.limit }) : t('hosting.sub.panelOnly')}
           actions={
-            <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} disabled={!canAdd} onClick={() => setOpen(true)}>
-              {t('hosting.sub.add')}
-            </Button>
+            data.limit > 0 ? (
+              <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} disabled={!canAdd} onClick={() => setOpen(true)}>
+                {t('hosting.sub.add')}
+              </Button>
+            ) : undefined
           }
         />
 
@@ -75,12 +79,13 @@ export function HostingSubdomainsPanel() {
 
         {data.items.length > 0 ? (
           <ul className="divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)]">
-            {data.items.map((row) => (
+            {[...panel, ...extra].map((row) => (
               <li key={row.id} className="grid gap-2 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_5.5rem] sm:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="panel-mono truncate text-[13px] font-semibold">{row.hostname}</span>
                     <Badge tone={TONE[row.status]} dot>{t(`hosting.sub.status.${row.status}`)}</Badge>
+                    {row.panel ? <Badge tone="primary">{t('hosting.sub.panelBadge')}</Badge> : null}
                   </div>
                   {row.note ? <p className="mt-0.5 text-[11.5px] text-[var(--text-secondary)]">{row.note}</p> : null}
                 </div>
@@ -90,9 +95,11 @@ export function HostingSubdomainsPanel() {
                       <ExternalLink className="h-4 w-4" />
                     </IconButton>
                   ) : null}
-                  <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(row)}>
-                    <Trash2 className="h-4 w-4" />
-                  </IconButton>
+                  {row.panel ? null : (
+                    <IconButton label={t('common.delete')} tone="danger" onClick={() => void confirmDelete(row)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconButton>
+                  )}
                 </div>
               </li>
             ))}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Globe2, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { listHostingDomains, setHostingDomain } from '@/api/hosting'
+import { listHostingDomains, setHostingDomain, setMainHostingDomain } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EntityRow } from '@/components/ui/EntityRow'
@@ -31,6 +31,16 @@ export function HostingDomainsCard() {
       void qc.invalidateQueries({ queryKey: ['my-subdomains'] })
       if (vars.enabled) setPick('')
       toast.success(t('hosting.domains.saved'))
+    },
+    onError: (error) => toast.error(apiError(error, t('hosting.domains.saveFailed'))),
+  })
+
+  const makeMain = useMutation({
+    mutationFn: (zoneId: string) => setMainHostingDomain(zoneId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['hosting', 'domains'] })
+      void qc.invalidateQueries({ queryKey: ['public-hosting'] })
+      toast.success(t('hosting.domains.mainSaved'))
     },
     onError: (error) => toast.error(apiError(error, t('hosting.domains.saveFailed'))),
   })
@@ -100,12 +110,24 @@ export function HostingDomainsCard() {
                       </IconBadge>
                     }
                     title={<span className="panel-mono">{domain.name}</span>}
-                    badges={domain.status && domain.status !== 'active' ? <Badge size="sm" tone="warning">{domain.status}</Badge> : undefined}
-                    subtitle={t('hosting.domains.example', { name: domain.name })}
+                    badges={
+                      <>
+                        {domain.isMain ? <Badge size="sm" tone="primary">{t('hosting.domains.main')}</Badge> : null}
+                        {domain.status && domain.status !== 'active' ? <Badge size="sm" tone="warning">{domain.status}</Badge> : null}
+                      </>
+                    }
+                    subtitle={domain.isMain ? t('hosting.domains.mainExample', { name: domain.name }) : t('hosting.domains.example', { name: domain.name })}
                     actions={
+                      <>
+                      {domain.isMain || offered.length < 2 ? null : (
+                        <Button variant="outline" size="sm" disabled={makeMain.isPending} onClick={() => makeMain.mutate(domain.zoneId)}>
+                          {t('hosting.domains.makeMain')}
+                        </Button>
+                      )}
                       <IconButton label={t('hosting.domains.stop', { name: domain.name })} tone="danger" disabled={toggle.isPending} onClick={() => toggle.mutate({ zoneId: domain.zoneId, enabled: false })} className="!h-7 !w-7">
                         <X className="h-3.5 w-3.5" />
                       </IconButton>
+                      </>
                     }
                   />
                 ))}

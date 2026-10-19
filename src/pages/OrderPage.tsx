@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { PublicShell } from '@/components/public/PublicShell'
 import { Button } from '@/components/ui/Button'
-import { OrderForm } from '@/pages/order/OrderForm'
+import { OrderEntry } from '@/pages/order/OrderEntry'
 import { OrderStatus } from '@/pages/order/OrderStatus'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useI18n } from '@/lib/i18n'
@@ -21,7 +21,7 @@ export function OrderPage() {
           <ArrowLeft size={13} />
           <span>{t('install.back')}</span>
         </Button>
-        {publicId ? <OrderStatus publicId={publicId} /> : <OrderForm />}
+        {publicId ? <OrderStatus publicId={publicId} /> : <OrderEntry />}
       </main>
     </PublicShell>
   )

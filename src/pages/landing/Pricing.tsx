@@ -1,20 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Check, Copy } from 'lucide-react'
-import { toast } from 'sonner'
-import { copyTextToClipboard } from '@/api/agent'
+import { Check } from 'lucide-react'
 import { formatRupiah, getPublicHosting, type PublicPlan } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { useI18n } from '@/lib/i18n'
-import { buildOrderLink, fillOrderMessage } from '@/lib/orderMessage'
 
-function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string, string | number>) => string) {
+function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string, string | number>) => string, mainDomain?: string) {
   const disk = plan.diskQuotaMb >= 1024 ? `${Math.round((plan.diskQuotaMb / 1024) * 10) / 10} GB` : `${plan.diskQuotaMb} MB`
   const ram = plan.memoryLimitMb >= 1024 ? `${Math.round((plan.memoryLimitMb / 1024) * 10) / 10} GB` : `${plan.memoryLimitMb} MB`
   return [
+    ...(mainDomain ? [t('hosting.landing.panelAddress', { domain: mainDomain })] : []),
     t('hosting.landing.projects', { count: plan.maxProjects }),
     t('hosting.landing.databases', { count: plan.maxDatabases }),
-    t('hosting.landing.subdomains', { count: plan.maxSubdomains }),
+    ...(plan.maxSubdomains > 0 ? [t('hosting.landing.subdomains', { count: plan.maxSubdomains })] : []),
     ...(plan.maxCustomDomains > 0 ? [t('hosting.landing.customDomains', { count: plan.maxCustomDomains })] : []),
     t('hosting.landing.disk', { amount: disk }),
     t('hosting.landing.ram', { amount: ram }),
@@ -37,12 +35,7 @@ export function Pricing() {
 
       <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.plans.map((plan) => {
-          const limits = getPlanLimits(plan, t)
-          const message = fillOrderMessage(data.orderMessage || t('hosting.order.defaultMessage'), {
-            plan: plan.name,
-            price: plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(plan.priceAmount),
-            period: plan.priceAmount === 0 ? '' : t(`hosting.period.${plan.period}`),
-          })
+          const limits = getPlanLimits(plan, t, data.domains?.[0]?.name)
 
           return (
             <li
@@ -96,47 +89,19 @@ export function Pricing() {
                 </div>
               ) : null}
 
-              {data.selfSignup ? (
-                <div className="mt-auto space-y-2 pt-6">
-                  <Link
-                    to={`/order?plan=${encodeURIComponent(plan.slug)}`}
-                    className={`panel-btn w-full justify-center ${plan.highlighted ? 'panel-btn--primary' : 'panel-btn--outline'}`}
-                  >
-                    {t('hosting.landing.order', { name: plan.name })}
+              <div className="mt-auto space-y-2 pt-6">
+                <Link
+                  to={`/order?plan=${encodeURIComponent(plan.slug)}`}
+                  className={`panel-btn w-full justify-center ${plan.highlighted ? 'panel-btn--primary' : 'panel-btn--outline'}`}
+                >
+                  {t('hosting.landing.order', { name: plan.name })}
+                </Link>
+                {data.selfSignup && plan.trialDays > 0 ? (
+                  <Link to={`/order?plan=${encodeURIComponent(plan.slug)}&trial=1`} className="panel-btn panel-btn--ghost w-full justify-center">
+                    {t('order.trial', { days: plan.trialDays })}
                   </Link>
-                  {plan.trialDays > 0 ? (
-                    <Link to={`/order?plan=${encodeURIComponent(plan.slug)}&trial=1`} className="panel-btn panel-btn--ghost w-full justify-center">
-                      {t('order.trial', { days: plan.trialDays })}
-                    </Link>
-                  ) : null}
-                </div>
-              ) : data.orderUrl ? (
-                <div className="mt-auto pt-6">
-                  <a
-                    href={buildOrderLink(data.orderUrl, message, t('hosting.order.subject', { name: plan.name }))}
-                    target={data.orderUrl.startsWith('mailto:') ? undefined : '_blank'}
-                    rel="noreferrer"
-                    className={`panel-btn w-full justify-center ${
-                      plan.highlighted ? 'panel-btn--primary' : 'panel-btn--outline'
-                    }`}
-                  >
-                    {t('hosting.landing.order', { name: plan.name })}
-                  </a>
-                </div>
-              ) : (
-                <div className="mt-auto pt-6">
-                  <button
-                    type="button"
-                    className="panel-btn w-full justify-center panel-btn--outline"
-                    onClick={() => {
-                      void copyTextToClipboard(message).then(() => toast.success(t('hosting.order.copied')))
-                    }}
-                  >
-                    <Copy size={14} aria-hidden="true" />
-                    {t('hosting.order.copy')}
-                  </button>
-                </div>
-              )}
+                ) : null}
+              </div>
             </li>
           )
         })}

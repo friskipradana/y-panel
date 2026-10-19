@@ -4,9 +4,30 @@ export interface OrderVars {
   period: string
 }
 
+// What a buyer typed in the request form, for the seller who takes orders by message
+export interface OrderDetails {
+  name: string
+  email: string
+  whatsapp: string
+  address: string
+}
+
+const DETAIL_KEYS = ['name', 'email', 'whatsapp', 'address'] as const
+
 // The seller's message with {plan}, {price} and {period} filled in for the plan the buyer picked
 export const fillOrderMessage = (template: string, vars: OrderVars) =>
   template.replace(/\{(plan|price|period)\}/g, (_, key: keyof OrderVars) => vars[key]).replace(/ {2,}/g, ' ').trim()
+
+// The same, with what the buyer typed. A template that does not use {name}, {email}, {whatsapp} or {address} would
+// leave those out, so they follow it as lines under the message.
+export function fillRequestMessage(template: string, vars: OrderVars, details: OrderDetails, labels: Record<keyof OrderDetails, string>): string {
+  const uses = DETAIL_KEYS.some((key) => template.includes(`{${key}}`))
+  const filled = template.replace(/\{(name|email|whatsapp|address)\}/g, (_, key: keyof OrderDetails) => details[key] || '-')
+  const base = fillOrderMessage(filled, vars)
+  if (uses) return base
+  const lines = DETAIL_KEYS.filter((key) => details[key]).map((key) => `${labels[key]}: ${details[key]}`)
+  return lines.length > 0 ? `${base}\n\n${lines.join('\n')}` : base
+}
 
 const WHATSAPP_HOSTS = new Set(['wa.me', 'api.whatsapp.com', 'web.whatsapp.com'])
 
