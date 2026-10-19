@@ -3,6 +3,7 @@ package cloudflare
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // Custom hostnames (Cloudflare for SaaS): a domain that is not in our zone can be served through it once its owner
@@ -26,6 +27,19 @@ type CustomHostname struct {
 // permission and the feature is on for the zone
 func (c *Client) CanReadCustomHostnames(zoneID string) bool {
 	return c.ProbeCustomHostnames(zoneID) == nil
+}
+
+// customHostnamesReason sorts a refusal of the custom hostnames list: Cloudflare answers 1404 when the token is fine but the
+// account has no Cloudflare for SaaS quota, and 401 or 403 with another code when the token lacks the permission
+func customHostnamesReason(err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "[1404]") || strings.Contains(message, "No quota"):
+		return "quota"
+	case strings.Contains(message, "status 401") || strings.Contains(message, "status 403"):
+		return "permission"
+	}
+	return "error"
 }
 
 // ProbeCustomHostnames asks the zone for its custom hostnames and returns what Cloudflare answered when it refused, so the reason

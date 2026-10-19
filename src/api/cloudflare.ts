@@ -31,6 +31,8 @@ export interface CFPermissionDetails {
   canManageCustomHostnames: boolean
   /** What Cloudflare answered when no zone could list custom hostnames */
   customHostnamesError?: string
+  /** quota: the token works but the account has no Cloudflare for SaaS quota; permission: the token is refused */
+  customHostnamesReason?: 'quota' | 'permission' | 'error'
   missingScopes?: string[]
   summary: string
 }

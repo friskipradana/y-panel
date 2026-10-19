@@ -2,6 +2,7 @@ package cloudflare
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -150,6 +151,12 @@ func TestVerifyTokenReportsCustomHostnameAccessSeparately(t *testing.T) {
 	perm = client.VerifyTokenPermissions()
 	if perm.CanManageCustomHostnames {
 		t.Fatal("without the SSL and Certificates permission custom hostnames are not reported")
+	}
+	if perm.CustomHostnamesReason != "permission" {
+		t.Fatalf("a refused token is told apart from a missing quota: %q", perm.CustomHostnamesReason)
+	}
+	if got := customHostnamesReason(errors.New("cloudflare API GET /zones/z/custom_hostnames returned status 403: [[1404] No quota has been allocated]")); got != "quota" {
+		t.Fatalf("error 1404 means the account has no Cloudflare for SaaS quota, got %q", got)
 	}
 	if !strings.Contains(perm.CustomHostnamesError, "reneo.my.id") || !strings.Contains(perm.CustomHostnamesError, "1401") {
 		t.Fatalf("the answer of Cloudflare is kept so the reason can be shown: %q", perm.CustomHostnamesError)

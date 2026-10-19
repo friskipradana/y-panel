@@ -70,6 +70,9 @@ type TokenPermissions struct {
 	CanManageCustomHostnames bool `json:"canManageCustomHostnames"`
 	// CustomHostnamesError is what Cloudflare answered when no zone could list custom hostnames
 	CustomHostnamesError string `json:"customHostnamesError,omitempty"`
+	// CustomHostnamesReason tells why: "quota" = the token reaches the feature but the account has no Cloudflare for SaaS quota
+	// (error 1404), "permission" = the token is refused, "error" = anything else
+	CustomHostnamesReason string `json:"customHostnamesReason,omitempty"`
 	AccountID          string   `json:"accountId,omitempty"`
 	MissingScopes      []string `json:"missingScopes,omitempty"`
 	Summary            string   `json:"summary"`
@@ -118,10 +121,14 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 				if probe == nil {
 					perm.CanManageCustomHostnames = true
 					perm.CustomHostnamesError = ""
+					perm.CustomHostnamesReason = ""
 					break
 				}
-				if perm.CustomHostnamesError == "" {
+				reason := customHostnamesReason(probe)
+				// reaching the feature means the permission is there, so "quota" wins over what the first zone said
+				if perm.CustomHostnamesError == "" || (reason == "quota" && perm.CustomHostnamesReason != "quota") {
 					perm.CustomHostnamesError = zone.Name + ": " + probe.Error()
+					perm.CustomHostnamesReason = reason
 				}
 			}
 		} else {

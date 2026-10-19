@@ -1706,6 +1706,7 @@ export const en: Record<string, string> = {
   'cfguide.granted': "Detected",
   'cfguide.missing': "Missing",
   'cfguide.cloudflareSaid': "Cloudflare said:",
+  'cfguide.sslQuota': "The token permission is fine, but Custom Hostnames (Cloudflare for SaaS) is not on for your Cloudflare account: it has no quota yet. In the Cloudflare dashboard open the zone > SSL/TLS > Custom Hostnames and turn it on (usually a payment method is needed; the first 100 hostnames are generally free). If that option is not there, apply through the Cloudflare form. Until it is on, only the buyers' own domains do not work; panel subdomains and the rest keep working.",
   'cfguide.unknown': "Not checked",
   'cfguide.verifyHint': "The marks on the left appear once the token is verified.",
   'cfguide.resourcesTitle': "Resources",

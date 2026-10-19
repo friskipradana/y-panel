@@ -1706,6 +1706,7 @@ export const id: Record<string, string> = {
   'cfguide.granted': "Terbaca",
   'cfguide.missing': "Belum ada",
   'cfguide.cloudflareSaid': "Jawaban Cloudflare:",
+  'cfguide.sslQuota': "Izin token sudah benar, tetapi Custom Hostnames (Cloudflare for SaaS) belum aktif di akun Cloudflare Anda: akunnya belum diberi kuota. Di dashboard Cloudflare buka zona > SSL/TLS > Custom Hostnames lalu aktifkan (biasanya perlu metode pembayaran; 100 hostname pertama umumnya gratis). Bila pilihan itu tidak ada, ajukan lewat formulir Cloudflare. Selama belum aktif, hanya fitur domain milik pembeli yang tidak jalan; subdomain panel dan fitur lain tetap berfungsi.",
   'cfguide.unknown': "Belum dicek",
   'cfguide.verifyHint': "Tanda di sebelah kiri muncul setelah token diverifikasi.",
   'cfguide.resourcesTitle': "Cakupan (Resources)",
