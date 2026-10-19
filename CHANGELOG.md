@@ -2,6 +2,21 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.32.0] - 2026-10-19
+
+3 perubahan, utamanya the Order button opens a form first, and the landing shows the panel address on the main domain.
+
+### Fitur baru
+- **order:** The Order button opens a form first, and the landing shows the panel address on the main domain ([`427e42b`](https://github.com/friskipradana/y-panel/commit/427e42b))
+
+### Perbaikan
+- **hosting:** The panel address comes with every plan, on a main domain, and does not use the plan's subdomains ([`c992e84`](https://github.com/friskipradana/y-panel/commit/c992e84))
+
+### Dokumentasi
+- **hosting:** Panel address, main domain, and the request form ([`c552347`](https://github.com/friskipradana/y-panel/commit/c552347))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.31.0...v1.32.0
+
 ## [1.31.0] - 2026-10-18
 
 3 perubahan, utamanya whatsApp and Cloud cards, the buyer's number in the order form, and Telegram and WhatsApp in Profile.
