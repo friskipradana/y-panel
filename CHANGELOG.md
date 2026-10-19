@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.36.0] - 2026-10-19
+
+Tools for notification channels, the queue, WhatsApp and Telegram of an account, and hosting plans, orders, domains and subdomains.
+
+### Fitur baru
+- **mcp:** Tools for notification channels, the queue, WhatsApp and Telegram of an account, and hosting plans, orders, domains and subdomains ([`0a7682f`](https://github.com/friskipradana/y-panel/commit/0a7682f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.35.0...v1.36.0
+
 ## [1.35.0] - 2026-10-19
 
 WhatsApp notices go to a destination number each account chooses, and the WAHA dashboard domain dialog explains it goes through the panel.
