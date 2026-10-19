@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.40.0] - 2026-10-19
+
+Orders, panel addresses, plans, vouchers and offered domains are tables with sorting and column filters.
+
+### Fitur baru
+- **hosting:** Orders, panel addresses, plans, vouchers and offered domains are tables with sorting and column filters ([`73b0fe7`](https://github.com/friskipradana/y-panel/commit/73b0fe7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.39.1...v1.40.0
+
 ## [1.39.1] - 2026-10-19
 
 Toasts follow the light and dark theme and the update log reads in both themes.
