@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.46.0] - 2026-10-20
+
+Domains of buyers and of the seller can be served by Reneo, nginx or Apache, with or without Cloudflare.
+
+### Fitur baru
+- **hosting:** Domains of buyers and of the seller can be served by Reneo, nginx or Apache, with or without Cloudflare ([`9537acc`](https://github.com/friskipradana/y-panel/commit/9537acc))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.45.0...v1.46.0
+
 ## [1.45.0] - 2026-10-20
 
 Serve domains straight from a public IP when the superadmin confirms the server has one.
