@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.46.1] - 2026-10-20
+
+The texts of the landing page match what the page uses, and the keys nothing uses are removed.
+
+### Perbaikan
+- **i18n:** The texts of the landing page match what the page uses, and the keys nothing uses are removed ([`e01a322`](https://github.com/friskipradana/y-panel/commit/e01a322))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.46.0...v1.46.1
+
 ## [1.46.0] - 2026-10-20
 
 Domains of buyers and of the seller can be served by Reneo, nginx or Apache, with or without Cloudflare.
