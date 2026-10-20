@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.1] - 2026-10-20
+
+Desktop icons follow the wallpaper, a toolbar size for Select, validity of the plan now and after, no remove on a locked widget.
+
+### Perbaikan
+- **ui:** Desktop icons follow the wallpaper, a toolbar size for Select, validity of the plan now and after, no remove on a locked widget ([`5ecdebd`](https://github.com/friskipradana/y-panel/commit/5ecdebd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.0...v1.49.1
+
 ## [1.49.0] - 2026-10-20
 
 Plan upgrades, notices by plan with a verified WhatsApp number, plan expiry notice and a Profile window in the style of Settings.
