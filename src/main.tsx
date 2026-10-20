@@ -5,7 +5,8 @@ import '@/assets/css/tailwind.css'
 import '@/assets/scss/global.scss'
 import App from './App'
 import { registerServiceWorker } from './pwa'
-import { I18nProvider } from '@/lib/i18n'
+import { I18nProvider, getInitialLanguage, loadLanguage } from '@/lib/i18n'
+import { seedFromBoot } from '@/lib/bootData'
 
 registerServiceWorker()
 
@@ -18,11 +19,15 @@ function dismissBootSplash() {
   window.setTimeout(() => splash.remove(), 200)
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
-  </StrictMode>,
-)
-window.requestAnimationFrame(() => window.requestAnimationFrame(dismissBootSplash))
+// The text of the chosen language is in before the first frame, so nothing shows keys while it loads
+void loadLanguage(getInitialLanguage()).then(() => {
+  seedFromBoot()
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </StrictMode>,
+  )
+  window.requestAnimationFrame(() => window.requestAnimationFrame(dismissBootSplash))
+})

@@ -11,8 +11,10 @@ const fallback: McpCatalog = { tools: MCP_TOOLS, counts: { ...MCP_TOOL_COUNTS } 
 
 // The agent reports the tools it really registers per access level. The snapshot in
 // toolsData.ts is only the fallback for an agent that predates /api/v1/mcp-catalog.
-export function useMcpCatalog(): McpCatalog & { live: boolean } {
+// live = false keeps the snapshot and asks nothing (the landing page only needs the counts)
+export function useMcpCatalog(live = true): McpCatalog & { live: boolean } {
   const { data } = useQuery({
+    enabled: live,
     queryKey: ['mcp', 'catalog'],
     queryFn: () => agentApi.get<McpCatalog>('/api/v1/mcp-catalog').then((r) => r.data),
     staleTime: 5 * 60_000,

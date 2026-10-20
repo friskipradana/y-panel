@@ -86,7 +86,8 @@ export function Modules() {
         items={GROUPS.map((g) => ({ key: g.id, label: t(`landing.modules.group.${g.id}`), count: g.modules.length }))}
       />
 
-      <ul role="tabpanel" aria-label={t(`landing.modules.group.${group.id}`)} className="mt-3 divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
+      <div role="tabpanel" aria-label={t(`landing.modules.group.${group.id}`)} className="mt-3">
+      <ul className="divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
         {group.modules.map(({ id, icon: Icon }) => (
           <li key={id} className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 py-3 sm:grid-cols-[auto_8rem_1fr]">
             <Icon size={15} className="translate-y-0.5 text-[var(--text-secondary)]" />
@@ -106,6 +107,7 @@ export function Modules() {
           </li>
         ))}
       </ul>
+      </div>
     </section>
   )
 }

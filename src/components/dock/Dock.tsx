@@ -195,7 +195,7 @@ export function Dock() {
           <motion.div
             layout
             id="desktop-dock"
-            className={`relative flex items-end gap-2.5 rounded-2xl border px-3.5 py-2 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            className={`relative flex items-end gap-2.5 rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <AnimatePresence mode="popLayout">
@@ -280,14 +280,15 @@ export function Dock() {
                       <AppIcon kind={item.kind} size={22} />
                     </motion.div>
 
-                    {/* Status Indicator Dot */}
-                    <div className="flex min-h-[6px] items-center justify-center gap-1 mt-1">
+                    {/* What the window is doing, on a fixed line under the tile: the bar is the focused one, a dot is open,
+                        amber is minimized. It sits in the padding of the dock, so no tile has room reserved for it. */}
+                    <div className="pointer-events-none absolute -bottom-[8px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
                       {isFocused ? (
-                        <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] shadow-[0_0_8px_rgba(56,189,248,0.6)] transition-all duration-150" />
+                        <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] transition-all duration-150" />
                       ) : hasVisible ? (
                         <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-primary-solid)] opacity-90 transition-all duration-150" />
                       ) : allMinimized ? (
-                        <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)] transition-all duration-150" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-[var(--panel-warning-text)] transition-all duration-150" />
                       ) : isOpen ? (
                         <div className="h-1.5 w-1.5 rounded-full bg-[var(--dock-indicator-visible-bg)] opacity-70 transition-all duration-150" />
                       ) : null}

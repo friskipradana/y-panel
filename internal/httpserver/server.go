@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -162,6 +163,8 @@ func New(cfg config.Config) *Server {
 	s.updates = updater.New()
 	if docsync.Enabled() {
 		s.docsSync = docsync.New()
+		// the first list is fetched now, not by the first visitor of llms.txt or the articles page
+		go func() { _, _ = s.docsSync.Articles(context.Background(), false) }()
 	}
 
 	// notices outside the panel: the queue, its workers, and the detectors of attacks
@@ -449,6 +452,12 @@ func newFrontendHandler(frontendDir string) http.Handler {
 
 		target := filepath.Join(frontendDir, cleanPath)
 		if info, err := os.Stat(target); err == nil && !info.IsDir() {
+			// files in /assets/ carry a hash of their content in the name, so a browser can keep them for good
+			if strings.HasPrefix(r.URL.Path, "/assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else if strings.HasPrefix(r.URL.Path, "/brand/") || strings.HasPrefix(r.URL.Path, "/wallpapers/") {
+				w.Header().Set("Cache-Control", "public, max-age=86400")
+			}
 			fileServer.ServeHTTP(w, r)
 			return
 		} else if err != nil && !errors.Is(err, os.ErrNotExist) {

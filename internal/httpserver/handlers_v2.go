@@ -106,6 +106,20 @@ func (s *Server) notifyCurrentUserAction(r *http.Request, title, body, notifType
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 
 // requireAuthV2 validates the session cookie OR a Bearer API token and injects the User into context.
+// sessionProbe answers the page that only wants to know whether somebody is signed in (?probe=1) with a plain
+// "no" when there is no session cookie, so a visitor of the public pages does not get a 401 in the browser console.
+func (s *Server) sessionProbe(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("probe") == "1" && r.Header.Get("Authorization") == "" {
+			if _, err := requestSessionCookie(r); err != nil {
+				s.writeJSON(w, http.StatusOK, jsonResponse{"authenticated": false})
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) requireAuthV2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Try Bearer API token or query parameter (?key=... / ?token=...)

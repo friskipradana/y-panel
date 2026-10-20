@@ -1,18 +1,31 @@
+import { Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LandingPage } from '@/pages/LandingPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { DesktopPage } from '@/pages/DesktopPage'
-import { McpGuidePage } from '@/pages/McpGuidePage'
-import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
-import { InstallPage } from '@/pages/InstallPage'
-import { LegalPage } from '@/pages/legal/LegalPage'
-import { OrderInvoicePage } from '@/pages/OrderInvoicePage'
-import { OrderPage } from '@/pages/OrderPage'
-import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
+import { lazyNamed } from '@/lib/lazy'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
+
+const LoginPage = lazyNamed(() => import('@/pages/LoginPage'), 'LoginPage')
+const DesktopPage = lazyNamed(() => import('@/pages/DesktopPage'), 'DesktopPage')
+const McpGuidePage = lazyNamed(() => import('@/pages/McpGuidePage'), 'McpGuidePage')
+const ArticlesPage = lazyNamed(() => import('@/pages/ArticlesPage'), 'ArticlesPage')
+const ArticlePage = lazyNamed(() => import('@/pages/ArticlesPage'), 'ArticlePage')
+const InstallPage = lazyNamed(() => import('@/pages/InstallPage'), 'InstallPage')
+const LegalPage = lazyNamed(() => import('@/pages/legal/LegalPage'), 'LegalPage')
+const OrderInvoicePage = lazyNamed(() => import('@/pages/OrderInvoicePage'), 'OrderInvoicePage')
+const OrderPage = lazyNamed(() => import('@/pages/OrderPage'), 'OrderPage')
+const DatabaseAdminPage = lazyNamed(() => import('@/pages/DatabaseAdminPage'), 'DatabaseAdminPage')
+
+function PageFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <Loader2 size={18} className="animate-spin text-[var(--text-secondary)]" />
+    </div>
+  )
+}
 
 export const LOGIN_PATH = import.meta.env.VITE_LOGIN_PATH || '/login'
 export const HOME_PATH = '/home'
@@ -43,6 +56,7 @@ export function AppRouter() {
 
   return (
     <AnimatePresence mode="wait">
+      <Suspense fallback={<PageFallback />}>
       <Routes location={location} key={location.pathname}>
         <Route
           path={LANDING_PATH}
@@ -146,6 +160,7 @@ export function AppRouter() {
           }
         />
       </Routes>
+      </Suspense>
     </AnimatePresence>
   )
 }

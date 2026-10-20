@@ -58,6 +58,8 @@ type Client struct {
 	mu     sync.Mutex
 	cached []Article
 	at     time.Time
+	// refreshing is true while an update runs in the background
+	refreshing bool
 }
 
 // New builds a client for RENEO_DOCS_REPO (default: the project repository).
@@ -147,6 +149,12 @@ func (c *Client) Articles(ctx context.Context, force bool) ([]Article, error) {
 	if cached != nil && !force && time.Since(at) < cacheTTL {
 		return cached, nil
 	}
+	// A list that is only old is served at once and renewed in the background, so a request (llms.txt, the
+	// sitemap, the articles page) never waits on GitHub once the list has been fetched.
+	if cached != nil && !force {
+		c.refreshInBackground()
+		return cached, nil
+	}
 	items, err := c.fetch(ctx)
 	if err != nil {
 		// remember the attempt so an offline server does not retry on every request
@@ -159,6 +167,30 @@ func (c *Client) Articles(ctx context.Context, force bool) ([]Article, error) {
 	c.cached, c.at = items, time.Now()
 	c.mu.Unlock()
 	return items, nil
+}
+
+func (c *Client) refreshInBackground() {
+	c.mu.Lock()
+	if c.refreshing {
+		c.mu.Unlock()
+		return
+	}
+	c.refreshing = true
+	c.mu.Unlock()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		items, err := c.fetch(ctx)
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.refreshing = false
+		if err != nil {
+			// remember the attempt so an offline server does not retry on every request
+			c.at = time.Now().Add(-cacheTTL + 5*time.Minute)
+			return
+		}
+		c.cached, c.at = items, time.Now()
+	}()
 }
 
 // Find returns one official article by slug.

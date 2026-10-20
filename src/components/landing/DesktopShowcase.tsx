@@ -61,7 +61,7 @@ export function DesktopShowcase() {
               }`}
             >
               <Box size={12} className={activeWindow === 'docker' ? 'text-cyan-400' : 'text-slate-400'} />
-              <span className="hidden sm:inline">Docker</span>
+              <span className="max-sm:sr-only">Docker</span>
             </button>
             <button
               type="button"
@@ -73,7 +73,7 @@ export function DesktopShowcase() {
               }`}
             >
               <Globe size={12} className={activeWindow === 'cloudflare' ? 'text-sky-400' : 'text-slate-400'} />
-              <span className="hidden sm:inline">Cloudflare</span>
+              <span className="max-sm:sr-only">Cloudflare</span>
             </button>
             <button
               type="button"
@@ -85,7 +85,7 @@ export function DesktopShowcase() {
               }`}
             >
               <Terminal size={12} className={activeWindow === 'terminal' ? 'text-emerald-400' : 'text-slate-400'} />
-              <span className="hidden sm:inline">Terminal</span>
+              <span className="max-sm:sr-only">Terminal</span>
             </button>
           </div>
 
@@ -175,7 +175,7 @@ export function DesktopShowcase() {
                   <span className="font-mono text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded text-[9px]">Healthy</span>
                 </div>
                 <div className="flex items-center gap-1 text-[10px]">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-slate-400">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-slate-300">
                     <Search size={9} />
                     <span>Filter...</span>
                   </div>

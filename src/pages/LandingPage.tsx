@@ -32,7 +32,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { data: demo } = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, staleTime: 5 * 60_000, retry: false })
   const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
-  const { counts } = useMcpCatalog()
+  const { counts } = useMcpCatalog(false)
   usePageMeta(t('landing.metaTitle'), t('landing.description'))
 
   return (

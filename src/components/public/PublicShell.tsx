@@ -55,20 +55,20 @@ export function PublicShell({ children }: PublicShellProps) {
           <nav aria-label={t('public.navLabel')} className="flex items-center gap-1">
             <button type="button" onClick={() => navigate('/articles')} className={navLink}>
               <BookOpen size={14} />
-              <span className="hidden md:inline">{t('public.nav.articles')}</span>
+              <span className="max-md:sr-only">{t('public.nav.articles')}</span>
             </button>
             <button type="button" onClick={() => navigate('/docs/mcp')} className={navLink}>
               <Bot size={14} />
-              <span className="hidden md:inline">{t('public.nav.mcp')}</span>
+              <span className="max-md:sr-only">{t('public.nav.mcp')}</span>
             </button>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className={navLink}>
               <GitBranch size={14} />
-              <span className="hidden md:inline">GitHub</span>
+              <span className="max-md:sr-only">GitHub</span>
               <ExternalLink size={11} className="hidden opacity-60 md:inline" />
             </a>
             <a href={INSTALLER_URL} className={`${navLink} max-sm:hidden`}>
               <Download size={14} />
-              <span className="hidden md:inline">{t('public.nav.installer')}</span>
+              <span className="max-md:sr-only">{t('public.nav.installer')}</span>
             </a>
             <button
               type="button"

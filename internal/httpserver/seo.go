@@ -31,7 +31,11 @@ type seoPage struct {
 	Type        string // website | article
 	Updated     time.Time
 	Body        string // plain text fallback content
+	Keywords    string
+	Sections    []seoSection // headed blocks of the fallback content, for pages with more to say than a paragraph
 	JSONLD      map[string]any
+	// Boot is script markup that gives the page its first data (see bootPayload)
+	Boot string
 }
 
 // publicBaseURL is the address crawlers should use: RENEO_PUBLIC_URL when set,
@@ -76,7 +80,7 @@ const robotsTxtClosed = "# Reneo: nothing here is for search engines or AI crawl
 func robotsTxt(base string) string {
 	var b strings.Builder
 	b.WriteString("# Reneo: public pages are open to search engines and AI crawlers\n")
-	for _, agent := range []string{"*", "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web", "PerplexityBot", "Google-Extended"} {
+	for _, agent := range []string{"*", "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web", "Claude-SearchBot", "Claude-User", "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended", "Amazonbot", "DuckAssistBot", "MistralAI-User", "Meta-ExternalAgent"} {
 		fmt.Fprintf(&b, "User-agent: %s\nAllow: /\nDisallow: /api/\nDisallow: /home\nDisallow: /login\n\n", agent)
 	}
 	fmt.Fprintf(&b, "Sitemap: %s/sitemap.xml\n", base)
@@ -107,6 +111,7 @@ func llmsTxt(base string, docs []database.Doc) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n> %s\n\n", siteName, siteDescription)
 	b.WriteString("Reneo is a self-hosted server control panel (Go agent + React desktop UI). It manages Docker, projects, databases, files, terminals, Cloudflare tunnels and users, and exposes the same operations to AI agents through the Model Context Protocol (MCP).\n\n")
+	b.WriteString(landingBriefing(base))
 	b.WriteString("## Product\n\n")
 	fmt.Fprintf(&b, "- [Home](%s/): overview, install command and demo account\n", base)
 	fmt.Fprintf(&b, "- [MCP guide](%s/docs/mcp): connect Hermes, Claude Desktop, Cursor or cURL to the panel\n", base)
@@ -153,17 +158,23 @@ func injectSEO(index string, page seoPage, base string) string {
 	canonical := base + page.Path
 	title := html.EscapeString(page.Title)
 	desc := html.EscapeString(oneLine(page.Description, 300))
-	image := base + "/brand/reneo-icon-512.png"
+	image := base + "/brand/og-image.png"
 
 	var head strings.Builder
 	fmt.Fprintf(&head, `<link rel="canonical" href="%s" />`+"\n", html.EscapeString(canonical))
+	if page.Keywords != "" {
+		fmt.Fprintf(&head, `<meta name="keywords" content="%s" />`+"\n", html.EscapeString(page.Keywords))
+	}
+	head.WriteString(page.Boot)
 	fmt.Fprintf(&head, `<meta property="og:site_name" content="%s" />`+"\n", siteName)
 	fmt.Fprintf(&head, `<meta property="og:type" content="%s" />`+"\n", page.Type)
 	fmt.Fprintf(&head, `<meta property="og:title" content="%s" />`+"\n", title)
 	fmt.Fprintf(&head, `<meta property="og:description" content="%s" />`+"\n", desc)
 	fmt.Fprintf(&head, `<meta property="og:url" content="%s" />`+"\n", html.EscapeString(canonical))
 	fmt.Fprintf(&head, `<meta property="og:image" content="%s" />`+"\n", html.EscapeString(image))
-	head.WriteString(`<meta name="twitter:card" content="summary" />` + "\n")
+	head.WriteString(`<meta property="og:image:width" content="1200" />` + "\n")
+	head.WriteString(`<meta property="og:image:height" content="630" />` + "\n")
+	head.WriteString(`<meta name="twitter:card" content="summary_large_image" />` + "\n")
 	fmt.Fprintf(&head, `<meta name="twitter:title" content="%s" />`+"\n", title)
 	fmt.Fprintf(&head, `<meta name="twitter:description" content="%s" />`+"\n", desc)
 	if page.JSONLD != nil {
@@ -187,6 +198,20 @@ func injectSEO(index string, page seoPage, base string) string {
 			fmt.Fprintf(&body, "<p>%s</p>", html.EscapeString(para))
 		}
 	}
+	for _, section := range page.Sections {
+		fmt.Fprintf(&body, "<section><h2>%s</h2>", html.EscapeString(section.Heading))
+		for _, text := range section.Text {
+			fmt.Fprintf(&body, "<p>%s</p>", html.EscapeString(text))
+		}
+		if len(section.Items) > 0 {
+			body.WriteString("<ul>")
+			for _, item := range section.Items {
+				fmt.Fprintf(&body, "<li>%s</li>", html.EscapeString(item))
+			}
+			body.WriteString("</ul>")
+		}
+		body.WriteString("</section>")
+	}
 	body.WriteString(`<nav><a href="/">Reneo</a> <a href="/articles">Articles</a> <a href="/docs/mcp">MCP guide</a></nav></main>`)
 	out = strings.Replace(out, `<div id="root"></div>`, `<div id="root">`+body.String()+`</div>`, 1)
 	return out
@@ -208,31 +233,11 @@ func replaceMetaDescription(index, desc string) string {
 	return index[:valueStart] + desc + index[valueStart+end:]
 }
 
-func (s *Server) landingPage(base string) seoPage {
-	return seoPage{
-		Title:       siteName + " | " + siteTagline,
-		Description: siteDescription,
-		Path:        "/",
-		Type:        "website",
-		Body:        "Pasang dengan satu perintah: curl -fsSL https://install.reneo.my.id | sudo bash\nModul: Docker, Project, Database, Cloudflare, Terminal, File Manager, Pengguna, System, Widget, MCP.",
-		JSONLD: map[string]any{
-			"@context":            "https://schema.org",
-			"@type":               "SoftwareApplication",
-			"name":                siteName,
-			"applicationCategory": "DeveloperApplication",
-			"operatingSystem":     "Linux",
-			"description":         siteDescription,
-			"url":                 base + "/",
-			"offers":              map[string]any{"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-		},
-	}
-}
-
-func (s *Server) seoPageFor(r *http.Request, base string) (seoPage, bool) {
+func (s *Server) seoPageFor(r *http.Request, base string, boot map[string]json.RawMessage) (seoPage, bool) {
 	path := strings.TrimRight(r.URL.Path, "/")
 	switch {
 	case path == "":
-		return s.landingPage(base), true
+		return s.landingPage(base, boot), true
 	case path == "/docs/mcp":
 		return seoPage{
 			Title:       "Hubungkan agen AI ke Reneo (MCP) | " + siteName,
@@ -355,9 +360,14 @@ func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler
 			return
 		}
 
-		if page, ok := s.seoPageFor(r, base); ok && acceptsHTML(r) {
+		var boot map[string]json.RawMessage
+		if acceptsHTML(r) {
+			boot = s.bootPayload(r)
+		}
+		if page, ok := s.seoPageFor(r, base, boot); ok && acceptsHTML(r) {
 			raw, err := os.ReadFile(indexPath)
 			if err == nil {
+				page.Boot = bootScript(boot)
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.Header().Set("Cache-Control", "no-cache")
 				_, _ = w.Write([]byte(injectSEO(string(raw), page, base)))

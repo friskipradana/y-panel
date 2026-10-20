@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { getFrontendRevision } from '@/api/agent'
+import { queryClient } from '@/lib/queryClient'
 import { acquireLiveSocket } from '@/lib/liveSocket'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useLiveStore } from '@/store/liveStore'
@@ -47,7 +48,8 @@ export function useRevisionSync(authenticated: boolean) {
       if (live.connected && live.statePush) return
 
       try {
-        const response = await getFrontendRevision()
+        // the same answer the footer version uses, so the page asks the agent once
+        const response = await queryClient.fetchQuery({ queryKey: ['panel', 'version'], queryFn: getFrontendRevision, staleTime: 5_000 })
         if (disposed) return
         await apply(response.revision || 'unknown')
       } catch (error) {
@@ -63,9 +65,10 @@ export function useRevisionSync(authenticated: boolean) {
     if (pushed) void apply(pushed.revision || 'unknown')
     else void syncFrontendRevision()
 
+    // a signed-in desktop checks every 8 seconds when its live socket is down; a public page only now and then
     const intervalId = window.setInterval(() => {
       void syncFrontendRevision()
-    }, 8000)
+    }, authenticated ? 8000 : 60_000)
 
     window.addEventListener('visibilitychange', syncFrontendRevision)
 

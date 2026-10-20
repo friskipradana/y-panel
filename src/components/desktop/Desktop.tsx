@@ -47,8 +47,10 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const isMobile = useIsMobileLayout()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
+  // Sorted by id, not by stacking: the zIndex raises a window, so the DOM does not move when one comes to the front and a
+  // click on the controls of a window behind another is not lost when the first press brings it forward
   const visibleWindows = useMemo(
-    () => windows.filter((win) => canAccessWindow(win.kind, userRole)),
+    () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [userRole, windows],
   )
   const desktopShortcuts = useMemo(

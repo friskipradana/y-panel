@@ -63,7 +63,8 @@ export function AppShell() {
   useGlobalShortcuts(authenticated)
   useRevisionSync(authenticated)
 
-  if (checkingSession) {
+  // a public page does not wait for the answer: it shows at once and the check goes on beside it
+  if (checkingSession && !isPublicRoute(location.pathname)) {
     return <BootSplash message={t('app.checkingSession')} />
   }
 

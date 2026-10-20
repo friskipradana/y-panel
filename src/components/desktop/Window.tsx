@@ -335,7 +335,11 @@ export function Window({ win, children }: Props) {
         transition: 'box-shadow 100ms ease, border-color 100ms ease, border-radius 150ms ease',
         backdropFilter: 'blur(20px)',
       }}
-      onMouseDown={() => focusWindow(win.id)}
+      onMouseDown={(event) => {
+        // The controls act on their own: a press on them does not bring the window forward first
+        if ((event.target as HTMLElement).closest('[data-window-controls]')) return
+        focusWindow(win.id)
+      }}
     >
           {/* Window Titlebar */}
           <div
@@ -365,6 +369,7 @@ export function Window({ win, children }: Props) {
             {/* Window Action Controls (Right-aligned) */}
             <div
               className="flex items-center gap-1 shrink-0"
+              data-window-controls
               onPointerDown={(e) => e.stopPropagation()}
             >
               <button

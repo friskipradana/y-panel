@@ -1,10 +1,12 @@
 import { create } from 'zustand'
-import { getMe, getMeV2, logoutAgent } from '@/api/agent'
+import { getMeV2, logoutAgent, probeMe } from '@/api/agent'
 import type { AuthMeV2 } from '@/api/auth'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { useWindowStore } from '@/store/windowStore'
 
 const CACHE_KEY = 'me-v2-cache'
+
+let pendingSession: Promise<boolean> | null = null
 
 export interface AuthState {
   authenticated: boolean
@@ -34,39 +36,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkingSession: true,
   user: getInitialUser(),
 
-  initSession: async () => {
+  initSession: () => {
+    // one check at a time: a second call (React StrictMode mounts twice) shares the first one's answer
+    if (pendingSession) return pendingSession
     runtimeLogger.info('auth', 'checking existing session')
     set({ checkingSession: true })
-    try {
-      const basicMe = await getMe()
-      if (basicMe?.username) {
-        runtimeLogger.info('auth', 'existing session restored', { username: basicMe.username })
-        try {
-          const fullMe = await getMeV2()
+    pendingSession = (async () => {
+      try {
+        const me = await probeMe()
+        if (me?.username) {
+          runtimeLogger.info('auth', 'existing session restored', { username: me.username })
           if (typeof window !== 'undefined') {
-            window.localStorage.setItem(CACHE_KEY, JSON.stringify(fullMe))
+            window.localStorage.setItem(CACHE_KEY, JSON.stringify(me))
           }
-          set({ authenticated: true, user: fullMe, checkingSession: false })
+          set({ authenticated: true, user: me, checkingSession: false })
           return true
-        } catch {
-          const minimalUser: AuthMeV2 = {
-            id: 0,
-            username: basicMe.username,
-            email: '',
-            role: (basicMe.role as any) || 'user',
-            status: 'active',
-            displayName: basicMe.username,
-            avatarUrl: '',
-            cloudflareStatus: 'unconfigured',
-            createdAt: '',
-            lastLoginAt: null,
-          }
-          set({
-            authenticated: true,
-            user: minimalUser,
-            checkingSession: false,
-          })
-          return true
+        }
+      } catch (err: any) {
+        if (err?.response?.status !== 401) {
+          runtimeLogger.warn('auth', 'session check failed', { error: err })
         }
       }
       if (typeof window !== 'undefined') {
@@ -74,16 +62,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       set({ authenticated: false, user: null, checkingSession: false })
       return false
-    } catch (err: any) {
-      if (err?.response?.status !== 401) {
-        runtimeLogger.warn('auth', 'session check failed', { error: err })
-      }
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(CACHE_KEY)
-      }
-      set({ authenticated: false, user: null, checkingSession: false })
-      return false
-    }
+    })().finally(() => {
+      pendingSession = null
+    })
+    return pendingSession
   },
 
   loginSuccess: async (userFallback) => {

@@ -33,38 +33,40 @@ var planPeriods = map[string]bool{"monthly": true, "yearly": true, "once": true}
 
 // exampleHostingPlans are the plans a fresh hosting mode starts with, so the landing page has
 // something to show. The numbers are examples to be changed to the real offer. The features say only
-// what the panel really does.
+// what the panel really does. The limits are sized for a small host (12 GB RAM, about 15 GB of free disk,
+// the disk being what runs out first), so a few buyers of each plan fit; prices sit between shared hosting
+// (about Rp 15.000 to 25.000; the plans start at the low end and top out at Rp 80.000) and a small VPS (about Rp 105.000 to 180.000 for 2 cores and 4 GB).
 func exampleHostingPlans() []database.HostingPlan {
 	return []database.HostingPlan{
 		{
-			Slug: "starter", Name: "Starter", Tagline: "Untuk satu situs atau aplikasi kecil", PriceAmount: 25000, Period: "monthly",
+			Slug: "starter", Name: "Starter", Tagline: "Untuk satu situs atau aplikasi kecil", PriceAmount: 15000, Period: "monthly",
 			Features: []string{
 				"Proyek statis, Node.js, Python, dan PHP",
 				"Database PostgreSQL, MySQL, MariaDB, MongoDB, atau Redis",
 				"Subdomain dengan HTTPS lewat Cloudflare",
 				"Terminal dan File Manager di panel",
 			},
-			MaxProjects: 2, MaxTunnels: 2, MaxDatabases: 1, DiskQuotaMB: 2048, CPULimitPct: 100, MemoryLimitMB: 512, MaxSubdomains: 1,
+			MaxProjects: 2, MaxTunnels: 2, MaxDatabases: 1, DiskQuotaMB: 1024, CPULimitPct: 100, MemoryLimitMB: 512, MaxSubdomains: 1,
 			Visible: true, SortOrder: 0,
 		},
 		{
-			Slug: "pro", Name: "Pro", Tagline: "Untuk beberapa aplikasi dan database", PriceAmount: 75000, Period: "monthly",
+			Slug: "pro", Name: "Pro", Tagline: "Untuk beberapa aplikasi dan database", PriceAmount: 39000, Period: "monthly",
 			Features: []string{
 				"Semua fitur Starter",
 				"Beberapa proyek dan database sekaligus",
 				"Ruang disk dan RAM yang lebih besar",
 			},
-			MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 10240, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3, MaxCustomDomains: 1,
+			MaxProjects: 4, MaxTunnels: 4, MaxDatabases: 3, DiskQuotaMB: 3072, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3, MaxCustomDomains: 1,
 			Highlighted: true, Visible: true, SortOrder: 1,
 		},
 		{
-			Slug: "bisnis", Name: "Bisnis", Tagline: "Untuk layanan yang lebih ramai", PriceAmount: 150000, Period: "monthly",
+			Slug: "bisnis", Name: "Bisnis", Tagline: "Untuk layanan yang lebih ramai", PriceAmount: 80000, Period: "monthly",
 			Features: []string{
 				"Semua fitur Pro",
 				"Batas proyek, database, dan subdomain tertinggi",
-				"CPU dan RAM terbesar",
+				"RAM 2 GB dan domain milik sendiri",
 			},
-			MaxProjects: 15, MaxTunnels: 15, MaxDatabases: 10, DiskQuotaMB: 51200, CPULimitPct: 400, MemoryLimitMB: 4096, MaxSubdomains: 10, MaxCustomDomains: 3,
+			MaxProjects: 8, MaxTunnels: 8, MaxDatabases: 5, DiskQuotaMB: 6144, CPULimitPct: 200, MemoryLimitMB: 2048, MaxSubdomains: 6, MaxCustomDomains: 2,
 			Visible: true, SortOrder: 2,
 		},
 	}
