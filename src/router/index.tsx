@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { LandingPage } from '@/pages/LandingPage'
 import { lazyNamed } from '@/lib/lazy'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
@@ -55,35 +54,26 @@ export function AppRouter() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <Suspense fallback={<PageFallback />}>
+    <Suspense fallback={<PageFallback />}>
       <Routes location={location} key={location.pathname}>
         <Route
           path={LANDING_PATH}
           element={landing ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
-              className="w-full h-full overflow-y-auto"
+            <div
+              className="w-full h-full overflow-y-auto page-fade"
             >
               <LandingPage authenticated={authenticated} onNavigate={(path) => navigate(path)} />
-            </motion.div>
+            </div>
           ) : publicFallback}
         />
         <Route
           path="/docs/mcp"
           element={landing ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.14 }}
-              className="w-full h-full overflow-y-auto"
+            <div
+              className="w-full h-full overflow-y-auto page-fade"
             >
               <McpGuidePage />
-            </motion.div>
+            </div>
           ) : publicFallback}
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
@@ -101,18 +91,14 @@ export function AppRouter() {
             authenticated ? (
               <Navigate to={HOME_PATH} replace />
             ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
-                className="absolute inset-0 z-[10000] overflow-hidden"
+              <div
+                className="absolute inset-0 z-[10000] overflow-hidden page-fade"
               >
                 <LoginPage
                   onBack={landing ? () => navigate(LANDING_PATH) : undefined}
                   onLoginSuccess={handleLogin}
                 />
-              </motion.div>
+              </div>
             )
           }
         />
@@ -122,15 +108,11 @@ export function AppRouter() {
             !authenticated ? (
               <Navigate to={LOGIN_PATH} replace />
             ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.14, ease: [0.25, 1, 0.5, 1] }}
-                className="absolute inset-0 z-0"
+              <div
+                className="absolute inset-0 z-0 page-fade"
               >
                 <DesktopPage onLogout={handleLogout} />
-              </motion.div>
+              </div>
             )
           }
         />
@@ -149,18 +131,12 @@ export function AppRouter() {
         <Route
           path="*"
           element={
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[20000]"
-            >
+            <div className="absolute inset-0 z-[20000] page-fade">
               <FrontendNotFoundPage authenticated={authenticated} />
-            </motion.div>
+            </div>
           }
         />
       </Routes>
-      </Suspense>
-    </AnimatePresence>
+    </Suspense>
   )
 }

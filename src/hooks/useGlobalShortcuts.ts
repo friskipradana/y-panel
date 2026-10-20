@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useWindowStore } from '@/store/windowStore'
 import { useAuthStore } from '@/store/authStore'
 import { useCommandStore } from '@/store/commandStore'
-import { canAccessWindow } from '@/components/desktop/Desktop'
+import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useThemeStore } from '@/store/themeStore'
 import type { WindowKind } from '@/types'
 

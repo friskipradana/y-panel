@@ -455,8 +455,12 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			// files in /assets/ carry a hash of their content in the name, so a browser can keep them for good
 			if strings.HasPrefix(r.URL.Path, "/assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-			} else if strings.HasPrefix(r.URL.Path, "/brand/") || strings.HasPrefix(r.URL.Path, "/wallpapers/") {
+			} else if isStaticPicture(r.URL.Path) {
+				// pictures without a hash in the name are kept for a day; the page, the service worker and the manifest are not
 				w.Header().Set("Cache-Control", "public, max-age=86400")
+			}
+			if serveGzipped(w, r, target, info) {
+				return
 			}
 			fileServer.ServeHTTP(w, r)
 			return
@@ -648,4 +652,12 @@ func listenPort(bind string) string {
 		return ""
 	}
 	return port
+}
+
+func isStaticPicture(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".svg", ".ico", ".jpg", ".jpeg", ".webp", ".avif", ".woff2":
+		return true
+	}
+	return false
 }

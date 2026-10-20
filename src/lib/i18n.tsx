@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 export type Language = 'id' | 'en'
 
@@ -7,18 +7,45 @@ type TranslationDictionary = Record<string, string>
 
 const STORAGE_KEY = 'reneo-language'
 
-// Each language is its own file and is fetched when it is needed, so a first visit loads one of them, not both.
-// Indonesian is also the fallback for a key the other language lacks, and is fetched in the background then.
+// Each language is served in two parts (vite.config.ts, localeSplit): the text of the public pages, which is all a visitor
+// needs before logging in, and the rest, for the desktop and its windows. A first visit loads one part of one language.
 const dictionaries: Partial<Record<Language, TranslationDictionary>> = {}
+const parts: Partial<Record<Language, { public?: boolean; rest?: boolean }>> = {}
 
-const loaders: Record<Language, () => Promise<TranslationDictionary>> = {
-  id: () => import('@/lib/locales/id').then((module) => module.id),
-  en: () => import('@/lib/locales/en').then((module) => module.en),
+const loaders: Record<Language, Record<'public' | 'rest', () => Promise<{ default: TranslationDictionary }>>> = {
+  id: { public: () => import('virtual:locale/id/public'), rest: () => import('virtual:locale/id/rest') },
+  en: { public: () => import('virtual:locale/en/public'), rest: () => import('virtual:locale/en/rest') },
 }
 
-export async function loadLanguage(language: Language) {
-  if (!dictionaries[language]) dictionaries[language] = await loaders[language]()
-  if (language !== 'id' && !dictionaries.id) void loaders.id().then((dictionary) => { dictionaries.id = dictionary })
+// the provider and the screens that wait for the whole dictionary listen here
+let version = 0
+const listeners = new Set<() => void>()
+const subscribe = (listener: () => void) => {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+const getVersion = () => version
+
+async function loadPart(language: Language, part: 'public' | 'rest') {
+  const state = (parts[language] ??= {})
+  if (state[part]) return
+  const module = await loaders[language][part]()
+  dictionaries[language] = { ...dictionaries[language], ...module.default }
+  state[part] = true
+  version += 1
+  listeners.forEach((listener) => listener())
+}
+
+// 'public' is enough for the public pages; 'all' is the whole language, for the desktop
+export async function loadLanguage(language: Language, scope: 'public' | 'all' = 'public') {
+  await loadPart(language, 'public')
+  if (scope === 'all') await loadPart(language, 'rest')
+}
+
+export function isLanguageComplete(language: Language) {
+  return !!parts[language]?.rest
 }
 
 export function getInitialLanguage(): Language {
@@ -62,13 +89,33 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, language)
   }, [language])
 
+  // text that arrives later (the rest of the language) re-renders everything that reads it
+  const loadedVersion = useSyncExternalStore(subscribe, getVersion)
+
   const value = useMemo<I18nContextValue>(() => ({
     language,
-    setLanguage: (next) => { void loadLanguage(next).then(() => setLanguageState(next)) },
+    // a switch made on the desktop waits for the whole language, one made on a public page only for its text
+    setLanguage: (next) => {
+      void loadLanguage(next, isLanguageComplete(language) ? 'all' : 'public').then(() => {
+        setLanguageState(next)
+        void loadLanguage(next, 'all')
+      })
+    },
     t: (key, params) => translate(language, key, params),
-  }), [language])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [language, loadedVersion])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
+}
+
+// true once the whole language is in; asks for it while `needed` (the desktop, a signed-in account)
+export function useLanguageComplete(needed: boolean) {
+  const { language } = useI18n()
+  useSyncExternalStore(subscribe, getVersion)
+  useEffect(() => {
+    if (needed) void loadLanguage(language, 'all')
+  }, [needed, language])
+  return isLanguageComplete(language)
 }
 
 export function useI18n() {

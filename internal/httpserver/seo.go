@@ -370,7 +370,7 @@ func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler
 				page.Boot = bootScript(boot)
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.Header().Set("Cache-Control", "no-cache")
-				_, _ = w.Write([]byte(injectSEO(string(raw), page, base)))
+				writeMaybeGzipped(w, r, []byte(injectSEO(string(raw), page, base)))
 				return
 			}
 		}

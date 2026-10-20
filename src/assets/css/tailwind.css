@@ -22,6 +22,26 @@
   border-radius: 9999px;
 }
 
+/* A page appearing: a short fade, no animation library needed */
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-fade {
+  animation: page-fade 140ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade {
+    animation: none;
+  }
+}
+
 /* Boot / loading bar: a short block sliding across a track */
 @keyframes boot-slide {
   0% {

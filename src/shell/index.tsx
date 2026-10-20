@@ -5,7 +5,7 @@ import { DevOverlay } from '@/components/debug/DevOverlay'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 import { useRevisionSync } from '@/hooks/useRevisionSync'
 import { useAuthStore } from '@/store/authStore'
-import { useI18n } from '@/lib/i18n'
+import { loadLanguage, useI18n, useLanguageComplete } from '@/lib/i18n'
 import { BootSplash } from '@/components/system/BootSplash'
 import { PasswordGate } from '@/components/system/PasswordGate'
 import { UpdateProgressModal } from '@/components/system/UpdateProgressModal'
@@ -14,7 +14,7 @@ import { useUpdateProgress } from '@/store/updateStore'
 import { isPublicRoute } from '@/lib/publicPaths'
 
 export function AppShell() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
   const authenticated = useAuthStore((s) => s.authenticated)
@@ -44,6 +44,12 @@ export function AppShell() {
     }
   }, [authenticated, userRole, showUpdate])
 
+  // somebody at the login form is about to open the desktop: its text is fetched meanwhile
+  const atLogin = location.pathname === LOGIN_PATH
+  useEffect(() => {
+    if (atLogin) void loadLanguage(language, 'all')
+  }, [atLogin, language])
+
   // Session expired event listener
   useEffect(() => {
     const onSessionExpired = () => {
@@ -64,7 +70,11 @@ export function AppShell() {
   useRevisionSync(authenticated)
 
   // a public page does not wait for the answer: it shows at once and the check goes on beside it
-  if (checkingSession && !isPublicRoute(location.pathname)) {
+  // the desktop and an account need the whole language; a visitor of a public page does not
+  const languageComplete = useLanguageComplete(authenticated || !isPublicRoute(location.pathname))
+  const needsFullLanguage = authenticated || !isPublicRoute(location.pathname)
+
+  if ((checkingSession && !isPublicRoute(location.pathname)) || (needsFullLanguage && !languageComplete)) {
     return <BootSplash message={t('app.checkingSession')} />
   }
 

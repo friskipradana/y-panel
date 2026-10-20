@@ -19,8 +19,18 @@ function dismissBootSplash() {
   window.setTimeout(() => splash.remove(), 200)
 }
 
+// The stylesheet of the app loads beside the page (see vite.config.ts); the first frame of the app waits for it
+function stylesReady() {
+  const link = document.querySelector<HTMLLinkElement>('link[data-app-css]')
+  if (!link || link.sheet) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    link.addEventListener('load', () => resolve(), { once: true })
+    link.addEventListener('error', () => resolve(), { once: true })
+  })
+}
+
 // The text of the chosen language is in before the first frame, so nothing shows keys while it loads
-void loadLanguage(getInitialLanguage()).then(() => {
+void Promise.all([loadLanguage(getInitialLanguage()), stylesReady()]).then(() => {
   seedFromBoot()
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
