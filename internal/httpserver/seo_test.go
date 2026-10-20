@@ -49,12 +49,24 @@ func TestInjectSEOEscapesAndAddsStructuredData(t *testing.T) {
 	if strings.Contains(out, "<script>alert(1)") || strings.Contains(out, "<img src=x") {
 		t.Fatalf("user content must be escaped:\n%s", out)
 	}
-	for _, want := range []string{`<link rel="canonical" href="https://p.example/articles/x" />`, `og:type" content="article"`, `application/ld+json`, `<div id="root"><main>`, `<title>Judul &lt;script&gt;`} {
+	for _, want := range []string{`<link rel="canonical" href="https://p.example/articles/x" />`, `og:type" content="article"`, `application/ld+json`, `<div id="root"><main data-seo>`, `<title>Judul &lt;script&gt;`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
-	if strings.Count(out, "</script>") != 1 {
+	if strings.Count(out, "</script>") != 2 {
 		t.Fatalf("JSON-LD must not be able to close the script early:\n%s", out)
+	}
+}
+
+func TestPublicPageHasNoSplashAndABlockingStylesheet(t *testing.T) {
+	index := `<html lang="en"><head><title>Reneo</title><link rel="stylesheet" crossorigin href="/assets/a.css" media="print" data-app-css onload="this.media=&quot;all&quot;"></head><body><div id="boot-splash" aria-hidden="true"><div class="b"><div class="t"></div></div></div>
+<div id="root"></div></body></html>`
+	out := injectSEO(index, seoPage{Title: "T", Description: "D", Path: "/", Type: "website", Body: "x"}, "https://p.example")
+	if strings.Contains(out, "boot-splash\"") || strings.Contains(out, "data-app-css") || strings.Contains(out, "media=\"print\"") {
+		t.Fatalf("no loading screen and no deferred stylesheet on a public page:\n%s", out)
+	}
+	if !strings.Contains(out, `<link rel="stylesheet" crossorigin href="/assets/a.css">`) || !strings.Contains(out, `data-theme`) {
+		t.Fatalf("the stylesheet blocks and the theme is set early:\n%s", out)
 	}
 }

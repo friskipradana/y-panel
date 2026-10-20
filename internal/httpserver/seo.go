@@ -189,10 +189,11 @@ func injectSEO(index string, page seoPage, base string) string {
 	out = replaceFirst(out, `<html lang="en">`, `<html lang="id">`)
 	out = replaceFirst(out, "<title>Reneo</title>", "<title>"+title+"</title>")
 	out = replaceMetaDescription(out, desc)
-	out = strings.Replace(out, "</head>", head.String()+"</head>", 1)
+	out = strings.Replace(out, "</head>", head.String()+publicShellHead+"</head>", 1)
+	out = withoutSplash(out)
 
 	var body strings.Builder
-	fmt.Fprintf(&body, "<main><h1>%s</h1><p>%s</p>", title, desc)
+	fmt.Fprintf(&body, "<main data-seo><h1>%s</h1><p>%s</p>", title, desc)
 	for _, para := range strings.Split(page.Body, "\n") {
 		if para = strings.TrimSpace(para); para != "" {
 			fmt.Fprintf(&body, "<p>%s</p>", html.EscapeString(para))
@@ -381,4 +382,20 @@ func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// The public pages show no loading screen: the text below is what crawlers read, it is kept out of sight, the stylesheet is
+// fetched in front of the page, and the page takes the colour of its theme from the first frame on, so a visitor sees an empty
+// page of the right colour until the page itself is drawn.
+const publicShellHead = `<style>html{background:#fff}html[data-theme=dark]{background:#0f172a}#root>main[data-seo]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style>` + "\n" +
+	`<script>try{document.documentElement.setAttribute("data-theme",JSON.parse(localStorage.getItem("reneo-theme")||"{}").mode==="dark"?"dark":"light")}catch(e){}</script>` + "\n"
+
+// withoutSplash takes the loading screen of index.html out and makes the stylesheet of the app block rendering again
+func withoutSplash(index string) string {
+	if start := strings.Index(index, `<div id="boot-splash"`); start >= 0 {
+		if end := strings.Index(index[start:], `<div id="root">`); end > 0 {
+			index = index[:start] + index[start+end:]
+		}
+	}
+	return strings.Replace(index, ` media="print" data-app-css onload="this.media=&quot;all&quot;"`, "", 1)
 }
