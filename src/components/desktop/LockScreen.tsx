@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Lock, LogOut, Loader2, AlertCircle, ShieldCheck } from 'lucide-react'
+import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, LogOut } from 'lucide-react'
 import { loginAgent } from '@/api/agent'
 import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
@@ -24,6 +24,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
     [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl],
   )
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState('')
@@ -216,7 +217,6 @@ export function LockScreen({ onLogout }: LockScreenProps) {
   }, [requirePasswordOnWake, wakeOnMouseMove, setIsLocked])
 
   const username = user?.username || 'admin'
-  const displayName = user?.displayName || username
 
   const handleUnlock = async (e?: FormEvent) => {
     if (e) e.preventDefault()
@@ -241,7 +241,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-[999999] flex flex-col items-center justify-between p-6 select-none overflow-hidden text-white cursor-default"
+      className="fixed inset-0 z-[999999] flex flex-col items-center justify-center gap-8 p-6 select-none overflow-hidden text-white cursor-default"
     >
       {/* Dynamic wallpaper layer */}
       <div className="absolute inset-0 z-0" style={backgroundStyle} />
@@ -253,7 +253,7 @@ export function LockScreen({ onLogout }: LockScreenProps) {
             ? 'bg-black/95'
             : lockScreenStyle === 'matrix' || lockScreenStyle === 'starfield'
               ? 'bg-slate-950/80 backdrop-blur-md'
-              : 'bg-slate-950/55 backdrop-blur-xl'
+              : 'bg-slate-950/60 backdrop-blur-xl'
         }`}
       />
 
@@ -262,137 +262,112 @@ export function LockScreen({ onLogout }: LockScreenProps) {
         <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-[2]" />
       )}
 
-      {/* Top Section / Center Clock in Screensaver Mode */}
+      {/* Clock: top of the screen when a password is needed, centred in screensaver mode */}
       {lockScreenStyle !== 'none' && (
         <motion.div
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className={`relative z-10 flex flex-col items-center gap-1 text-center ${
-            requirePasswordOnWake ? 'pt-8' : 'my-auto'
-          }`}
+          transition={{ duration: 0.3 }}
+          className="relative z-10 flex flex-col items-center text-center"
         >
-          {/* Only show badge in password-protected locked mode */}
-          {requirePasswordOnWake && (
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-slate-300 bg-white/10 border border-white/15 px-3 py-1 rounded-full backdrop-blur-md shadow-sm">
-              <Lock size={12} className="text-amber-400" />
-              <span>{t('lockscreen.lockedBadge')}</span>
-            </div>
-          )}
-
           <div
-            className={`font-extralight tracking-tight text-white font-mono drop-shadow-lg ${
-              requirePasswordOnWake ? 'text-6xl sm:text-7xl mt-4' : 'text-7xl sm:text-8xl md:text-9xl'
+            className={`font-light tabular-nums tracking-tight text-white ${
+              requirePasswordOnWake ? 'text-5xl sm:text-6xl' : 'text-7xl sm:text-8xl md:text-9xl'
             }`}
             style={{ fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}
           >
             {currentTime || '00:00:00'}
           </div>
 
-          <div className={`font-medium text-slate-200 drop-shadow ${
-            requirePasswordOnWake ? 'text-sm mt-1' : 'text-base sm:text-lg mt-2'
-          }`}>
+          <p className={`text-slate-300 ${requirePasswordOnWake ? 'mt-1 text-[0.8125rem]' : 'mt-2 text-base sm:text-lg'}`}>
             {currentDate}
-          </div>
-
-          <div className="text-xs text-slate-400 font-light mt-0.5">
-            {greeting}, <span className="font-semibold text-slate-200">{displayName}</span>
-          </div>
+            <span aria-hidden="true"> · </span>
+            {greeting}
+          </p>
         </motion.div>
       )}
 
-      {/* Spacer for 'none' style */}
-      {lockScreenStyle === 'none' && <div className="pt-12" />}
-
-      {/* Center Section: User Card & Unlock Form (ONLY in Password Protected Mode) */}
+      {/* Sign-in, only when a password is needed: the password and what went wrong */}
       {requirePasswordOnWake && (
         <motion.div
-          initial={{ scale: 0.94, y: 15 }}
-          animate={{ scale: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          className="relative z-10 w-full max-w-[350px] flex flex-col items-center gap-5 p-6 rounded-3xl bg-slate-900/80 border border-white/15 backdrop-blur-2xl shadow-2xl shadow-black/60"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+          className="relative z-10 w-full max-w-[18rem]"
         >
-          <div className="relative">
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-indigo-700 flex items-center justify-center text-3xl font-bold text-white shadow-xl shadow-sky-500/25">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center shadow">
-              <span className="h-2 w-2 rounded-full bg-white" />
-            </div>
-          </div>
-
-          <div className="text-center">
-            <div className="text-lg font-bold text-white">{displayName}</div>
-            <div className="text-xs text-slate-400 font-mono mt-0.5 capitalize flex items-center justify-center gap-1">
-              <ShieldCheck size={13} className="text-sky-400" />
-              <span>{user?.role || 'Administrator'}</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleUnlock} className="w-full space-y-3">
+          <form onSubmit={handleUnlock} className="space-y-2">
             <div className="relative">
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('lockscreen.passwordPlaceholder')}
+                aria-label={t('lockscreen.passwordPlaceholder')}
+                aria-invalid={error ? true : undefined}
+                autoComplete="current-password"
                 autoFocus
-                className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3 pr-12 text-sm max-md:text-base text-white placeholder:text-slate-400 focus:border-sky-400 focus:bg-white/15 focus:outline-none transition-all shadow-inner"
+                className="h-10 w-full rounded-lg border border-white/20 bg-white/10 pl-3 pr-[4.75rem] text-sm text-white placeholder:text-slate-400 focus:border-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30 max-md:text-base"
               />
-              <button
-                type="submit"
-                disabled={loading || !password.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 flex items-center justify-center text-white transition-all cursor-pointer shadow-md"
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <ArrowRight size={16} />
-                )}
-              </button>
+              <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? t('ui.hidePassword') : t('ui.showPassword')}
+                  title={showPassword ? t('ui.hidePassword') : t('ui.showPassword')}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white/60"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !password.trim()}
+                  aria-label={t('lockscreen.unlock')}
+                  title={t('lockscreen.unlock')}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-[var(--panel-primary-solid)] text-white transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-white/60"
+                >
+                  {loading ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
+                </button>
+              </div>
             </div>
 
             <AnimatePresence>
               {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
+                <motion.p
+                  role="alert"
+                  initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 text-xs text-rose-400 font-medium px-1"
+                  className="flex items-center gap-1.5 text-[0.75rem] text-rose-300"
                 >
-                  <AlertCircle size={13} />
+                  <AlertCircle size={13} aria-hidden="true" />
                   <span>{error}</span>
-                </motion.div>
+                </motion.p>
               )}
             </AnimatePresence>
           </form>
         </motion.div>
       )}
 
-      {/* Bottom Section */}
-      <div className="relative z-10 pb-6">
+      {/* Switch account under the form, or how to wake the screensaver at the foot of the screen */}
+      <div className={requirePasswordOnWake ? 'relative z-10 -mt-4' : 'absolute inset-x-0 bottom-6 z-10 flex justify-center'}>
         {requirePasswordOnWake ? (
           <button
             type="button"
             onClick={onLogout}
-            className="flex items-center gap-2 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300 transition-all cursor-pointer shadow-sm backdrop-blur-md"
+            className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-[0.8125rem] font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white/60"
           >
-            <LogOut size={14} />
+            <LogOut size={14} aria-hidden="true" />
             <span>{t('lockscreen.changeAccountLogout')}</span>
           </button>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="flex items-center gap-2 text-[12px] font-medium text-slate-300/80 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/10 shadow-sm"
+            className="text-[0.75rem] text-slate-300/80"
           >
-            <span>
-              {wakeOnMouseMove
-                ? t('lockscreen.wakeHint')
-                : t('lockscreen.wakeHintNoMouse')}
-            </span>
-          </motion.div>
+            {wakeOnMouseMove ? t('lockscreen.wakeHint') : t('lockscreen.wakeHintNoMouse')}
+          </motion.p>
         )}
       </div>
     </motion.div>
