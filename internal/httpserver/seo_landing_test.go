@@ -40,8 +40,8 @@ func TestLandingPageCarriesTextPlansAndStructuredData(t *testing.T) {
 			t.Errorf("missing %q in the landing page shell", want)
 		}
 	}
-	if strings.Count(out, "</script>") != 2 {
-		t.Fatalf("structured data must stay in its own script block")
+	if strings.Count(out, "</script>") != 1 {
+		t.Fatalf("structured data must stay in one script block")
 	}
 	script := bootScript(map[string]json.RawMessage{"site": json.RawMessage(`{"landing":true,"x":"</script>"}`)})
 	if strings.Count(script, "</script>") != 1 || !strings.HasPrefix(script, "<script>window.__REN_BOOT__=") {
