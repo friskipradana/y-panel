@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.45.0] - 2026-10-20
+
+Serve domains straight from a public IP when the superadmin confirms the server has one.
+
+### Fitur baru
+- **hosting:** Serve domains straight from a public IP when the superadmin confirms the server has one ([`333a475`](https://github.com/friskipradana/y-panel/commit/333a475))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.44.0...v1.45.0
+
 ## [1.44.0] - 2026-10-19
 
 Invoices, notice texts the seller can change, and an own notification bot as a plan feature.
