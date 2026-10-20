@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.2] - 2026-10-20
+
+A lighter landing page, AI-readable public pages, a tidier dock, direct clicks on windows behind, hosting examples sized for a small host.
+
+### Fitur baru
+- **site:** A lighter landing page, AI-readable public pages, a tidier dock, direct clicks on windows behind, hosting examples sized for a small host ([`8b9f0b1`](https://github.com/friskipradana/y-panel/commit/8b9f0b1))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.1...v1.49.2
+
 ## [1.49.1] - 2026-10-20
 
 Desktop icons follow the wallpaper, a toolbar size for Select, validity of the plan now and after, no remove on a locked widget.
