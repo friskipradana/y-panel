@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.4] - 2026-10-20
+
+2 perubahan, utamanya no audio warning before the first touch, no white flash on reload.
+
+### Perbaikan
+- **ui:** No audio warning before the first touch, no white flash on reload ([`a58afc6`](https://github.com/friskipradana/y-panel/commit/a58afc6))
+
+### Performa
+- **site:** No loading screen on the public pages ([`f8535ff`](https://github.com/friskipradana/y-panel/commit/f8535ff))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.3...v1.49.4
+
 ## [1.49.3] - 2026-10-20
 
 The first screen of the landing page loads far less: no desktop code, one part of one language, no blocking stylesheet, gzip from the agent.
