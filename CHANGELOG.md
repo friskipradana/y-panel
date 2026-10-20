@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.5] - 2026-10-20
+
+Revert "perf(site): no loading screen on the public pages".
+
+### Lainnya
+- Revert "perf(site): no loading screen on the public pages" ([`8a94b1c`](https://github.com/friskipradana/y-panel/commit/8a94b1c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.4...v1.49.5
+
 ## [1.49.4] - 2026-10-20
 
 2 perubahan, utamanya no audio warning before the first touch, no white flash on reload.
