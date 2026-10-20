@@ -76,6 +76,9 @@ type Server struct {
 	databaseCreateMu             sync.Mutex
 	fileRootAccessMu             sync.Mutex
 	fileRootAccess               map[string]time.Time
+	// the public proxy of an install that has a public address, and the routes it answers for
+	publicProxy  publicProxyRuntime
+	publicRoutes publicRouteCache
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.
@@ -344,6 +347,7 @@ func (s *Server) Close() error {
 	if s.reconcileDone != nil {
 		<-s.reconcileDone
 	}
+	s.stopPublicProxy()
 	s.notify.Stop()
 	if s.database != nil {
 		return s.database.Close()
@@ -409,7 +413,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 			Path:     "/",
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
-			Secure:   false,
+			Secure:   requestIsHTTPS(r),
 			MaxAge:   -1,
 			Expires:  time.Unix(0, 0),
 		})

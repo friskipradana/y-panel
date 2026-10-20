@@ -1,4 +1,4 @@
-import { Activity, Bell, Clock, Cloud, CreditCard, Database, Globe2, ImagePlus, Key, Lock, LockKeyhole, Monitor, Palette, Server, Store, Volume2 } from 'lucide-react'
+import { Activity, Bell, Clock, Cloud, CreditCard, Database, Globe2, ImagePlus, Radio, Key, Lock, LockKeyhole, Monitor, Palette, Server, Store, Volume2 } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { SettingsTabKey } from './constants'
 
@@ -26,6 +26,7 @@ export const SETTINGS_GROUPS: SettingsGroupDef[] = [
     tabs: [
       { key: 'general', label: 'settings.tabs.general', desc: 'settings.desc.general', icon: Server },
       { key: 'network', label: 'settings.tabs.network', desc: 'settings.desc.network', icon: Globe2 },
+      { key: 'public_ip', label: 'settings.tabs.publicIp', desc: 'settings.desc.publicIp', icon: Radio },
       { key: 'reneo_runtime', label: 'settings.tabs.reneoRuntime', desc: 'settings.desc.reneoRuntime', icon: Activity },
       { key: 'reneo_database', label: 'settings.tabs.reneoDatabase', desc: 'settings.desc.reneoDatabase', icon: Database },
     ],

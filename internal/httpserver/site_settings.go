@@ -74,6 +74,12 @@ type siteSettings struct {
 	InvoiceAddress string `json:"invoiceAddress"`
 	InvoiceContact string `json:"invoiceContact"`
 	InvoiceNote    string `json:"invoiceNote"`
+	// The public proxy: serving domains straight from this machine, for an install that has a public address
+	PublicProxyEnabled bool   `json:"publicProxyEnabled"`
+	PublicProxyEmail   string `json:"publicProxyEmail"`
+	// Who confirmed, and when, that this server has a public address: the proxy is only turned on after that
+	PublicProxyConfirmedBy string     `json:"publicProxyConfirmedBy"`
+	PublicProxyConfirmedAt *time.Time `json:"publicProxyConfirmedAt"`
 }
 
 var (

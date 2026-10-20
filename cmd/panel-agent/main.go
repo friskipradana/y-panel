@@ -62,6 +62,7 @@ func main() {
 	srv.RestoreProjects()
 	srv.RecoverDatabases()
 	srv.RestoreTunnels()
+	srv.RestorePublicProxy()
 
 	log.Printf("Reneo agent listening on %s", cfg.BindAddr)
 	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {

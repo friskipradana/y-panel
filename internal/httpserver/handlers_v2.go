@@ -229,7 +229,8 @@ func (s *Server) needsSetup() bool {
 	return !s.database.HasUsers()
 }
 
-func (s *Server) issueSessionCookie(w http.ResponseWriter, token string) {
+// issueSessionCookie sets the session; over https (directly, or behind a proxy that says so) the cookie is marked Secure
+func (s *Server) issueSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{Name: legacySessionCookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1, Expires: time.Unix(0, 0)})
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
@@ -237,7 +238,7 @@ func (s *Server) issueSessionCookie(w http.ResponseWriter, token string) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   false,
+		Secure:   requestIsHTTPS(r),
 		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
 	})
 }
@@ -304,7 +305,7 @@ func (s *Server) handleInitializeSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("[auth] first-run setup completed user=%q remote=%s", u.Username, remoteAddr(r))
-	s.issueSessionCookie(w, token)
+	s.issueSessionCookie(w, r, token)
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
 		"ok":       true,
 		"username": loggedInUser.Username,
@@ -363,7 +364,7 @@ func (s *Server) handleLoginV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	loginFailures.clear(req.Username)
-	s.issueSessionCookie(w, token)
+	s.issueSessionCookie(w, r, token)
 	// a sign-in from a device the account has not used before is told to its owner
 	go s.notify.SignedIn(u.ID, u.Username, clientIP(r), r.UserAgent())
 

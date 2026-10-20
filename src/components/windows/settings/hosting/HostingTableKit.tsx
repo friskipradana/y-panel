@@ -7,7 +7,7 @@ import { listParams, listQueryKey, type TableResult } from '@/lib/listQuery'
 import { useI18n } from '@/lib/i18n'
 import type { UiTone } from '@/components/ui/IconBadge'
 
-export type HostingTableName = 'orders' | 'plans' | 'subdomains' | 'vouchers' | 'domains' | 'custom-domains'
+export type HostingTableName = 'orders' | 'plans' | 'subdomains' | 'vouchers' | 'domains' | 'custom-domains' | 'public-routes'
 
 // The pill of each tone: the classes the list windows share
 const TONE_PILL: Record<UiTone, string> = { success: 'running', primary: 'running', warning: 'paused', info: 'paused', danger: 'dead', neutral: 'exited' }
@@ -17,9 +17,11 @@ export const indexLabel = (index: number) => String(index + 1).padStart(2, '0')
 // A list of the Hosting settings as the agent sorts and filters it: the state of its search, order and column filters, and its rows
 export function useHostingTable<T>(name: HostingTableName, refetchMs = 20_000) {
   const list = useListQuery()
+  // the routes of the public proxy are listed by the agent the same way, from their own address
+  const path = name === 'public-routes' ? '/api/v1/public-proxy/routes' : `/api/v1/hosting/${name}/table`
   const query = useQuery({
-    queryKey: ['hosting', name, 'table', listQueryKey(list.query)],
-    queryFn: () => agentApi.get<TableResult<T>>(`/api/v1/hosting/${name}/table`, { params: listParams(list.query) }).then((r) => r.data),
+    queryKey: name === 'public-routes' ? ['public-proxy', 'routes', listQueryKey(list.query)] : ['hosting', name, 'table', listQueryKey(list.query)],
+    queryFn: () => agentApi.get<TableResult<T>>(path, { params: listParams(list.query) }).then((r) => r.data),
     retry: 0,
     refetchInterval: refetchMs,
     placeholderData: (previous) => previous,

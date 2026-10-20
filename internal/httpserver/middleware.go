@@ -311,6 +311,10 @@ func (s *Server) isKnownWorkloadHost(host string) bool {
 	if s.hostingHostOwner(host) != 0 {
 		return true
 	}
+	// a domain registered to show the panel through the public proxy
+	if s.isPublicPanelHost(host) {
+		return true
+	}
 	// Check base domain & its subdomains
 	if s.cfg.BaseDomain != "" {
 		bd := strings.ToLower(s.cfg.BaseDomain)

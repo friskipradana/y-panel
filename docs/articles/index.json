@@ -5,6 +5,7 @@
     { "slug": "mengelola-database", "title": "Membuat dan mengelola database", "excerpt": "PostgreSQL, MySQL, MariaDB, MongoDB, dan Redis: buat, kelola tabel, user, izin, dan password dari panel.", "file": "mengelola-database.md", "updatedAt": "2026-10-16" },
     { "slug": "project-dan-runtime", "title": "Project dan runtime yang didukung", "excerpt": "Static, Node.js, Python, PHP, dan custom: cara tiap tipe dijalankan dan aturan direktori kerja.", "file": "project-dan-runtime.md", "updatedAt": "2026-10-16" },
     { "slug": "akun-kuota-dan-demo", "title": "Akun, kuota, dan akun demo", "excerpt": "Role superadmin, admin, dan user, kuota sumber daya, reset password, serta akun demo hanya-baca.", "file": "akun-kuota-dan-demo.md", "updatedAt": "2026-10-16" },
-    { "slug": "mengaktifkan-cloudflare-for-saas", "title": "Mengaktifkan Cloudflare for SaaS untuk domain pembeli", "excerpt": "Kapan fitur ini dibutuhkan, cara mengaktifkannya di Cloudflare dan Reneo, serta mengatasi error kuota 1404.", "file": "mengaktifkan-cloudflare-for-saas.md", "updatedAt": "2026-10-19" }
+    { "slug": "mengaktifkan-cloudflare-for-saas", "title": "Mengaktifkan Cloudflare for SaaS untuk domain pembeli", "excerpt": "Kapan fitur ini dibutuhkan, cara mengaktifkannya di Cloudflare dan Reneo, serta mengatasi error kuota 1404.", "file": "mengaktifkan-cloudflare-for-saas.md", "updatedAt": "2026-10-19" },
+    { "slug": "ip-publik-tanpa-tunnel", "title": "Melayani domain langsung dari IP publik", "excerpt": "Untuk server yang punya IP publik: Reneo menerbitkan sertifikat HTTPS sendiri dan melayani domain tanpa Cloudflare Tunnel.", "file": "ip-publik-tanpa-tunnel.md", "updatedAt": "2026-10-20" }
   ]
 }

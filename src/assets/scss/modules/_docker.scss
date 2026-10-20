@@ -734,6 +734,10 @@
     --docker-cols: 48px minmax(0, 1.5fr) minmax(88px, 0.7fr) minmax(84px, 0.7fr) minmax(96px, 0.8fr) minmax(0, 1fr) minmax(104px, 0.8fr) minmax(124px, 0.9fr) 120px;
   }
 
+  &--public-routes {
+    --docker-cols: 48px minmax(0, 2fr) minmax(0, 1.3fr) minmax(104px, 0.8fr) minmax(112px, 0.8fr) 116px;
+  }
+
   &--hosting-custom-domains {
     --docker-cols: 48px minmax(0, 2fr) minmax(0, 1.1fr) minmax(104px, 0.8fr) minmax(88px, 0.7fr) minmax(128px, 0.9fr) 84px;
   }

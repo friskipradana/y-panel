@@ -18,6 +18,7 @@ import { ScreensaverTab } from "./settings/tabs/ScreensaverTab";
 import { SoundTab } from "./settings/tabs/SoundTab";
 import { CloudflareTab } from "./settings/tabs/CloudflareTab";
 import { NetworkTab } from "./settings/tabs/NetworkTab";
+import { PublicIpTab } from "./settings/tabs/PublicIpTab";
 import { SecurityTab } from "./settings/tabs/SecurityTab";
 import { PaymentTab } from "./settings/tabs/PaymentTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
@@ -144,6 +145,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {shownTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
 
               {shownTab === "network" && isSuperadmin && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
+
+              {shownTab === "public_ip" && isSuperadmin && <PublicIpTab />}
 
               {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 

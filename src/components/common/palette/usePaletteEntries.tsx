@@ -76,6 +76,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   sound: ['suara', 'audio', 'volume'],
   cloudflare: ['cloudflare', 'token', 'api'],
   network: ['jaringan', 'port', 'origin', 'host'],
+  public_ip: ['ip publik', 'public ip', 'domain', 'sertifikat', 'certificate', 'https', 'letsencrypt', 'proxy', 'port forward', 'tanpa tunnel'],
   security: ['kata sandi', 'password', 'keamanan', 'database'],
   payment: ['pembayaran', 'gateway', 'midtrans', 'xendit', 'notifikasi', 'listener', 'pembaca', 'perangkat', 'device', 'transfer', 'bank', 'wimboro'],
   notifications: ['notifikasi', 'telegram', 'kabar', 'peringatan', 'serangan', 'antrian', 'whatsapp'],
