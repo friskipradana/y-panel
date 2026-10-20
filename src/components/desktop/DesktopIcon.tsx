@@ -1,6 +1,7 @@
 import type { AppShortcut } from '@/types'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
+import { useWallpaperTone } from '@/lib/wallpaperTone'
 import { AppIcon } from '@/components/common/AppIcon'
 
 interface Props {
@@ -16,10 +17,10 @@ export function DesktopIcon({ app, editing = false }: Props) {
   const desktopIconFontSize = useThemeStore((s) => s.desktopIconFontSize)
   const desktopIconFontWeight = useThemeStore((s) => s.desktopIconFontWeight)
   const desktopIconShadow = useThemeStore((s) => s.desktopIconShadow)
-  const mode = useThemeStore((s) => s.mode)
+  // the labels are read against the wallpaper, so they follow how light it is, not the mode of the panel
+  const isDark = useWallpaperTone() === 'dark'
 
   const isPlain = desktopIconStyle === 'plain'
-  const isDark = mode === 'dark'
 
   const handleClick = () => {
     if (editing) return
@@ -78,7 +79,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
     <button
       type="button"
       onClick={handleClick}
-      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
+      className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
     >
       <div
         className={`flex ${sizeConfig.boxSize} items-center justify-center transition-all duration-150 ${

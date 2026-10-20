@@ -87,7 +87,7 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
             <span className="panel-mono font-semibold">{countdown}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[var(--text-secondary)]">{t('order.expiresAt')}</span>
+            <span className="text-[var(--text-secondary)]">{t('order.payBefore')}</span>
             <DateTimeText value={order.expiresAt} className="panel-mono text-[0.75rem] text-[var(--text-secondary)]" />
           </div>
         </div>

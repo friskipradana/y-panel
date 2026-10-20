@@ -19,7 +19,7 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
       <Select
         id="speedtest-server"
         className="w-48 sm:w-60 max-w-[18rem]"
-        buttonClassName="!h-8 text-[0.75rem]"
+        size="sm"
         value={selected?.id ?? ''}
         onChange={onChange}
         disabled={disabled}

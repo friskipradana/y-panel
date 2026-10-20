@@ -118,6 +118,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   const background = isNote ? noteBackground(asNoteColor(widget.config?.color)) : 'var(--widget-bg)'
 
   const handleRemove = async () => {
+    if (widget.isLocked) return
     const text = typeof widget.config?.text === 'string' ? widget.config.text.trim() : ''
     if (isNote && text) {
       const ok = await alertLib.confirm(t('widget.note.deleteTitle'), t('widget.note.deleteConfirm'), t('common.delete'), t('common.cancel'))
@@ -311,18 +312,21 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
               >
                 {widget.isLocked ? <Lock size={12} className="text-[var(--panel-warning-text)]" /> : <Unlock size={12} />}
               </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void handleRemove()
-                }}
-                title={t('widget.remove')}
-                aria-label={t('widget.remove')}
-                className="grid h-6 w-6 cursor-pointer place-items-center rounded-md transition-colors hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]"
-              >
-                <X size={12} />
-              </button>
+              {/* a locked widget cannot be removed from itself: unlock it first */}
+              {!widget.isLocked ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleRemove()
+                  }}
+                  title={t('widget.remove')}
+                  aria-label={t('widget.remove')}
+                  className="grid h-6 w-6 cursor-pointer place-items-center rounded-md transition-colors hover:bg-[var(--panel-danger-bg)] hover:text-[var(--panel-danger-text)]"
+                >
+                  <X size={12} />
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

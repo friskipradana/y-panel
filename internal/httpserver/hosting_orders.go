@@ -70,7 +70,9 @@ type orderView struct {
 	AmountTotal int64                `json:"amountTotal"`
 	// Difference: an upgrade paid as the price difference for the time left
 	Difference bool `json:"difference,omitempty"`
-	CreatedAt   time.Time            `json:"createdAt"`
+	// Months is how many months the order buys; 0 for a plan that does not end
+	Months    int       `json:"months,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 	ExpiresAt   time.Time            `json:"expiresAt"`
 	PaidAt      *time.Time           `json:"paidAt"`
 	Payment     *paymentInstructions `json:"payment,omitempty"`
@@ -83,6 +85,11 @@ func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
 		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
 		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
+	}
+	if o.PlanID != nil && s.database != nil {
+		if plan, _ := s.database.GetHostingPlan(*o.PlanID); plan != nil {
+			view.Months = orderMonths(plan, o.Periods)
+		}
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {
 		settings := s.loadSiteSettings()

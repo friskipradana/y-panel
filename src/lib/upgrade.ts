@@ -10,6 +10,13 @@ export function monthlyPrice(plan: Priced): number {
   return 0
 }
 
+// Where a plan ends once it is renewed for some months: from its end when it still runs, from now when it has ended
+export function renewedEnd(currentEnd: string | null | undefined, months: number, now = new Date()): Date {
+  const current = currentEnd ? new Date(currentEnd) : null
+  const base = current && current.getTime() > now.getTime() ? current : now
+  return addMonths(base, months)
+}
+
 // Where the target plan would end if it is bought for some periods now, with what is left of the own plan converted
 // into time on it by the ratio of the monthly prices (an estimate: the agent counts from the moment the payment is read)
 export function estimateUpgradeEnd(own: Priced, target: Priced & { period: HostingPlan['period'] }, ownEndsAt: string | null | undefined, periods: number, now = new Date()): Date {

@@ -433,6 +433,29 @@
   color: var(--text-secondary);
 }
 
+.docker-image-combobox--sm .docker-image-combobox__button {
+  min-height: 32px;
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 12px;
+  border-radius: 8px;
+  background: var(--panel-surface-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.docker-image-combobox--sm .docker-image-combobox__input {
+  padding-right: 34px !important;
+}
+
+.docker-image-combobox--sm .docker-image-combobox__toggle {
+  right: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
 .docker-image-combobox__clear {
   position: absolute;
   right: 46px;

@@ -19,6 +19,8 @@ type SelectProps = {
   searchPlaceholder?: string
   className?: string
   buttonClassName?: string
+  /** sm = the height of the buttons of a toolbar (32px, 12px text), the same as the menus of the tabs; md (default) is the height of a form field */
+  size?: 'md' | 'sm'
   dropdownClassName?: string
   itemClassName?: string
   disabled?: boolean
@@ -39,6 +41,7 @@ export function Select({
   searchPlaceholder,
   className = '',
   buttonClassName = '',
+  size = 'md',
   dropdownClassName = '',
   itemClassName = '',
   disabled = false,
@@ -218,7 +221,7 @@ export function Select({
   }
 
   return (
-    <div ref={rootRef} className={`docker-image-combobox ${className}`.trim()}>
+    <div ref={rootRef} className={`docker-image-combobox${size === 'sm' ? ' docker-image-combobox--sm' : ''} ${className}`.trim()}>
       <div className="docker-image-combobox__input-wrap">
         <button
           id={id}

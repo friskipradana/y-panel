@@ -55,7 +55,7 @@ export function OrderChecking({ order, checkedAt, refreshing, onRefresh, onBack,
           </IconButton>
         </div>
         <div className="flex items-center justify-between gap-3 py-2.5">
-          <dt className="text-[var(--text-secondary)]">{t('order.expiresAt')}</dt>
+          <dt className="text-[var(--text-secondary)]">{t('order.payBefore')}</dt>
           <dd>
             <DateTimeText value={order.expiresAt} className="panel-mono text-[0.75rem] text-[var(--text-secondary)]" />
           </dd>

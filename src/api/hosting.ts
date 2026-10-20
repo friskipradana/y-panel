@@ -129,6 +129,8 @@ export interface OrderView {
   hostname?: string
   /** An upgrade paid as the price difference for the time left */
   difference?: boolean
+  /** Months the order buys; 0 or missing for a plan that does not end */
+  months?: number
 }
 
 export interface CreateOrderInput {

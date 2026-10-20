@@ -3,6 +3,13 @@ import type { MyPlanView } from '@/api/hosting'
 // A plan that ends within this many days is called "expiring"
 export const EXPIRING_DAYS = 7
 
+// Whole days until a date, at least 1 while it is still ahead; 0 once it has passed
+export function daysUntil(end: string | null | undefined, now = Date.now()): number {
+  if (!end) return 0
+  const left = new Date(end).getTime() - now
+  return Number.isNaN(left) || left <= 0 ? 0 : Math.max(1, Math.ceil(left / 86_400_000))
+}
+
 export type PlanNoticeKind = 'expiring' | 'grace' | 'expired'
 
 export interface PlanNotice {

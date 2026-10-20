@@ -12,6 +12,7 @@ import { AccountPassword, AccountUsage } from '@/components/windows/profile/Acco
 import { MyNotices } from '@/components/windows/profile/MyNotices'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
 import { formatDateID } from '@/lib/datetime'
+import { daysUntil, planNotice } from '@/lib/planNotice'
 import { useI18n } from '@/lib/i18n'
 import { useSettingsNavStore } from '@/store/settingsNavStore'
 import { useWindowStore } from '@/store/windowStore'
@@ -26,6 +27,7 @@ const SECTIONS: Array<{ key: ProfileSection; icon: ComponentType<{ size?: number
 ]
 
 const VALUE = 'text-[12px] font-medium text-[var(--win-text)]'
+const PLAN_TONE = { active: 'success', grace: 'warning', expired: 'danger', none: 'neutral' } as const
 
 // The profile of the signed-in account, laid out like Settings: a menu on the left (a strip on a phone), a title, and the cards of one page
 export default function ProfileWindow() {
@@ -44,6 +46,9 @@ export default function ProfileWindow() {
   // the owner sets notices up in Settings; the demo account only looks
   const hasNotices = displayRole !== 'demo' && displayRole !== 'superadmin'
   const hasPlan = !!plan.data?.plan
+  const planView = plan.data
+  const notice = planNotice(planView)
+  const daysLeft = planView?.state === 'active' ? daysUntil(planView.expiresAt) : 0
   const sections = SECTIONS.filter((s) => (s.key === 'plan' ? hasPlan : s.key === 'notify' ? hasNotices : true))
   const shown = sections.some((s) => s.key === section) ? section : 'account'
   const current = sections.find((s) => s.key === shown) ?? sections[0]
@@ -137,6 +142,48 @@ export default function ProfileWindow() {
                     title={t('account.lastLogin')}
                     control={<span className={VALUE}>{me?.lastLoginAt ? <DateTimeText value={me.lastLoginAt} /> : t('account.currentSession')}</span>}
                   />
+                  {hasPlan && planView?.plan ? (
+                    <>
+                      <SettingRow
+                        title={t('profile.plan.title')}
+                        control={
+                          <span className="flex items-center gap-2">
+                            <span className={VALUE}>{planView.plan.name}</span>
+                            <Badge tone={notice?.kind === 'expiring' ? 'warning' : PLAN_TONE[planView.state]} dot>
+                              {notice?.kind === 'expiring' ? t('profile.plan.state.expiring') : t(`profile.plan.state.${planView.state}`)}
+                            </Badge>
+                          </span>
+                        }
+                      />
+                      <SettingRow
+                        title={t('profile.validity')}
+                        control={
+                          <span className={VALUE}>
+                            {!planView.expiresAt ? (
+                              t('profile.plan.noEnd')
+                            ) : planView.state === 'grace' && planView.graceEndsAt ? (
+                              t('profile.validity.grace', { date: formatDateID(planView.graceEndsAt) })
+                            ) : planView.state === 'expired' ? (
+                              t('profile.validity.ended', { date: formatDateID(planView.expiresAt) })
+                            ) : (
+                              <>
+                                {formatDateID(planView.expiresAt)}
+                                {daysLeft > 0 ? (
+                                  <span className={notice?.kind === 'expiring' ? 'font-semibold text-[var(--panel-warning-text)]' : 'text-[var(--text-secondary)]'}> · {t('profile.plan.daysLeft', { days: daysLeft })}</span>
+                                ) : null}
+                              </>
+                            )}
+                          </span>
+                        }
+                      />
+                      {planView.trial ? (
+                        <SettingRow
+                          title={t('profile.validity.trial')}
+                          control={<span className={VALUE}>{t('profile.validity.trialValue', { plan: planView.trial.plan?.name ?? '-', date: formatDateID(planView.trial.endsAt) })}</span>}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
                   {managesUsers ? <SettingRow title={t('profile.sessionHost')} control={<span className={`panel-mono ${VALUE}`}>{clientHost}</span>} /> : null}
                 </div>
                 <AccountUsage />
