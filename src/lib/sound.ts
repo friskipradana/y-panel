@@ -3,9 +3,12 @@ import { useThemeStore } from '@/store/themeStore'
 
 class SoundManager {
   private ctx: AudioContext | null = null
+  // The browser refuses audio until the page has been touched; no context is made (and no warning logged) before that
+  private unlocked = false
 
   public init() {
     if (typeof window === 'undefined') return
+    this.unlocked = true
     if (!this.ctx) {
       const AudioCtx =
         window.AudioContext ||
@@ -20,6 +23,7 @@ class SoundManager {
   }
 
   private getContext(): AudioContext | null {
+    if (!this.unlocked && !navigator.userActivation?.hasBeenActive) return null
     this.init()
     return this.ctx
   }

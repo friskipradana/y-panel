@@ -7,6 +7,7 @@ import App from './App'
 import { registerServiceWorker } from './pwa'
 import { I18nProvider, getInitialLanguage, loadLanguage } from '@/lib/i18n'
 import { seedFromBoot } from '@/lib/bootData'
+import { preloadRoute } from '@/router'
 
 registerServiceWorker()
 
@@ -29,8 +30,9 @@ function stylesReady() {
   })
 }
 
-// The text of the chosen language is in before the first frame, so nothing shows keys while it loads
-void Promise.all([loadLanguage(getInitialLanguage()), stylesReady()]).then(() => {
+// The text of the chosen language, the stylesheet and the code of the page are in before the first frame, so nothing shows keys
+// or an empty page while they load
+void Promise.all([loadLanguage(getInitialLanguage()), stylesReady(), preloadRoute(window.location.pathname).catch(() => undefined)]).then(() => {
   seedFromBoot()
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

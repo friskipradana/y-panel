@@ -18,6 +18,21 @@ const OrderInvoicePage = lazyNamed(() => import('@/pages/OrderInvoicePage'), 'Or
 const OrderPage = lazyNamed(() => import('@/pages/OrderPage'), 'OrderPage')
 const DatabaseAdminPage = lazyNamed(() => import('@/pages/DatabaseAdminPage'), 'DatabaseAdminPage')
 
+// The page of an address, fetched before the first frame of the app, so a reload does not flash an empty page while its code loads
+export function preloadRoute(pathname: string): Promise<unknown> {
+  if (pathname === LOGIN_PATH) return LoginPage.preload()
+  if (pathname === HOME_PATH || pathname.startsWith(HOME_PATH + '/')) return DesktopPage.preload()
+  if (pathname.startsWith('/database/')) return DatabaseAdminPage.preload()
+  if (pathname === '/docs/mcp') return McpGuidePage.preload()
+  if (pathname === '/install') return InstallPage.preload()
+  if (pathname === '/terms' || pathname === '/privacy') return LegalPage.preload()
+  if (/^\/order\/[^/]+\/invoice$/.test(pathname)) return OrderInvoicePage.preload()
+  if (pathname === '/order' || pathname.startsWith('/order/')) return OrderPage.preload()
+  if (pathname === '/articles') return ArticlesPage.preload()
+  if (pathname.startsWith('/articles/')) return ArticlePage.preload()
+  return Promise.resolve()
+}
+
 function PageFallback() {
   return (
     <div className="flex h-full w-full items-center justify-center">
@@ -59,9 +74,7 @@ export function AppRouter() {
         <Route
           path={LANDING_PATH}
           element={landing ? (
-            <div
-              className="w-full h-full overflow-y-auto page-fade"
-            >
+            <div className="w-full h-full overflow-y-auto">
               <LandingPage authenticated={authenticated} onNavigate={(path) => navigate(path)} />
             </div>
           ) : publicFallback}
@@ -69,9 +82,7 @@ export function AppRouter() {
         <Route
           path="/docs/mcp"
           element={landing ? (
-            <div
-              className="w-full h-full overflow-y-auto page-fade"
-            >
+            <div className="w-full h-full overflow-y-auto">
               <McpGuidePage />
             </div>
           ) : publicFallback}
@@ -92,7 +103,7 @@ export function AppRouter() {
               <Navigate to={HOME_PATH} replace />
             ) : (
               <div
-                className="absolute inset-0 z-[10000] overflow-hidden page-fade"
+                className="absolute inset-0 z-[10000] overflow-hidden"
               >
                 <LoginPage
                   onBack={landing ? () => navigate(LANDING_PATH) : undefined}
@@ -109,7 +120,7 @@ export function AppRouter() {
               <Navigate to={LOGIN_PATH} replace />
             ) : (
               <div
-                className="absolute inset-0 z-0 page-fade"
+                className="absolute inset-0 z-0"
               >
                 <DesktopPage onLogout={handleLogout} />
               </div>
@@ -131,7 +142,7 @@ export function AppRouter() {
         <Route
           path="*"
           element={
-            <div className="absolute inset-0 z-[20000] page-fade">
+            <div className="absolute inset-0 z-[20000]">
               <FrontendNotFoundPage authenticated={authenticated} />
             </div>
           }
