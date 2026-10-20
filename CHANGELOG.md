@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.48.0] - 2026-10-20
+
+2 perubahan, utamanya a compact lock screen without the card, the gradient avatar and the locked label.
+
+### Fitur baru
+- **lockscreen:** A compact lock screen without the card, the gradient avatar and the locked label ([`f829b66`](https://github.com/friskipradana/y-panel/commit/f829b66))
+- **public:** Terms, privacy and FAQ pages, a flatter order flow with a confirmation, and a lighter login on phones ([`46ee16a`](https://github.com/friskipradana/y-panel/commit/46ee16a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.47.0...v1.48.0
+
 ## [1.47.0] - 2026-10-20
 
 The story of the page is told in steps and tabs, with the homelab emphasis, the second tagline and a longer list of modules.
