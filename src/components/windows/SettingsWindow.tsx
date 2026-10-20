@@ -28,6 +28,7 @@ import { ReneoRuntimeTab } from "./settings/tabs/ReneoRuntimeTab";
 import { useAuthStore } from "@/store/authStore";
 import { useSettingsNavStore } from "@/store/settingsNavStore";
 import { AccountSecurityCard } from "./profile/AccountSecurityCard";
+import { MyNotices } from "./profile/MyNotices";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/states"
 import { Database, RefreshCw } from "lucide-react";
@@ -92,7 +93,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               <CurrentIcon size={16} className="settings-page__icon" />
               <div className="min-w-0">
                 <h1 className="settings-page__title">{t(current.label)}</h1>
-                <p className="settings-page__desc">{t(current.desc)}</p>
+                <p className="settings-page__desc">{t(current.key === "notifications" && !isSuperadmin ? "settings.desc.notificationsOwn" : current.desc)}</p>
               </div>
             </header>
           ) : null}
@@ -152,7 +153,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
               {shownTab === "payment" && <PaymentTab payment={payment} listener={listener} setActiveTab={setActiveTab} canManageGateways={isSuperadmin} />}
 
-              {shownTab === "notifications" && isSuperadmin && <NotificationsTab />}
+              {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab /> : <MyNotices />)}
 
               {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 

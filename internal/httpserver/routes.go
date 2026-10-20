@@ -207,6 +207,9 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/me/whatsapp/connect", s.requireAuthV2(http.HandlerFunc(s.handleConnectWhatsApp)))
 	s.mux.Handle("GET /api/v1/me/whatsapp/qr", s.requireAuthV2(http.HandlerFunc(s.handleWhatsAppQR)))
 	s.mux.Handle("PUT /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleSetWhatsAppMuted)))
+	s.mux.Handle("GET /api/v1/me/notify/mode", s.requireAuthV2(http.HandlerFunc(s.handleMyNotifyMode)))
+	s.mux.Handle("POST /api/v1/me/whatsapp/verify", s.requireAuthV2(http.HandlerFunc(s.handleStartWhatsAppVerify)))
+	s.mux.Handle("POST /api/v1/me/whatsapp/verify/confirm", s.requireAuthV2(http.HandlerFunc(s.handleConfirmWhatsAppVerify)))
 	s.mux.Handle("POST /api/v1/me/whatsapp/test", s.requireAuthV2(http.HandlerFunc(s.handleTestWhatsApp)))
 	s.mux.Handle("DELETE /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleDisconnectWhatsApp)))
 	// WhatsApp Cloud (Meta): the channel, its templates, and the number of the seller

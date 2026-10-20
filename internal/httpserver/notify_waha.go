@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 )
 
@@ -77,6 +78,8 @@ type whatsappView struct {
 	Recipient recipientView `json:"recipient"`
 	// DestinationIsSession: the notices go to the number of the session itself, which makes no sound on the phone
 	DestinationIsSession bool `json:"destinationIsSession"`
+	// ViaServer: the notices go to a verified number from the WhatsApp of the server, there is no session of the account
+	ViaServer bool `json:"viaServer"`
 }
 
 // whatsappFor is the session of the account and where its notices go; the number is shown masked
@@ -84,7 +87,7 @@ func (s *Server) whatsappFor(userID int64, state notify.WhatsAppState) whatsappV
 	rec, _ := s.database.GetNotifyRecipient(userID, "waha")
 	same := rec != nil && rec.Address != "" && rec.Address == state.Phone
 	state.Phone = maskAddress(state.Phone)
-	return whatsappView{WhatsAppState: state, Recipient: recipientViewOf(rec), DestinationIsSession: same}
+	return whatsappView{WhatsAppState: state, Recipient: recipientViewOf(rec), DestinationIsSession: same, ViaServer: rec != nil && rec.ViaServer}
 }
 
 // whatsappAllowed refuses the demo account: a session belongs to a real phone
@@ -119,6 +122,13 @@ func (s *Server) handleConnectWhatsApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFromCtx(r)
+	// scanning a phone of the account's own is for the plans that bring their own channels (and for the superadmin, who is the sender)
+	if session, _ := s.database.GetWhatsAppSession(u.ID); session == nil && u.Role != auth.SuperadminRole {
+		if own, _ := s.database.OwnNotifyAllowed(u.ID); !own {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "your plan gets its notices from the WhatsApp of the server: verify your number instead of scanning a phone"})
+			return
+		}
+	}
 	if allowed, _ := s.allowRateLimit("wa-connect:"+u.Username, rateLimitRule{Window: time.Minute, Limit: 10}); !allowed {
 		s.writeJSON(w, http.StatusTooManyRequests, jsonResponse{"error": "too many attempts, wait a moment"})
 		return

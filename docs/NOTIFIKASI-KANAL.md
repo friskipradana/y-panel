@@ -466,3 +466,19 @@ Sebuah paket bisa menyertakan **bot notifikasi sendiri** (kolom `hosting_plans.o
 - **Pengiriman.** `NotifyTargets` hanya memuat penerima `own_bot` bila botnya menyala dan paketnya masih menyertakan. Pekerja memilih saluran dari bot akun itu (`ownChannel`); bila botnya mati atau paket tidak lagi menyertakan, pesan yang sudah antre **dibatalkan** dengan alasan itu, dan **tidak** dialihkan ke bot penjual karena obrolan itu tidak pernah memulai bot penjual. Bot tetap tersimpan, jadi kabar kembali jalan begitu paketnya menyertakan lagi.
 - `GET`, `PUT`, `DELETE /api/v1/me/telegram/bot` (semua akun selain demo; `PUT` ditolak 403 bila paket tidak menyertakan). Batas laju 10 per menit per akun, dan tiap perubahan tercatat di audit.
 - **Belum ada:** WhatsApp Cloud milik sendiri dan WAHA milik sendiri. Kabar WhatsApp akun tetap lewat WAHA penjual dengan sesi akun itu sendiri.
+
+## 24. Saluran sendiri atau saluran server, dan verifikasi nomor WhatsApp
+
+Tiap akun (selain superadmin dan demo) mendapat kabar lewat salah satu dari dua cara, menurut paketnya (`GET /api/v1/me/notify/mode`: `own`, `serverTelegram`, `serverWhatsApp`, `hasSession`):
+
+| | Saluran sendiri (paket menyertakan `own_notify`) | Saluran server (paket lain) |
+| :--- | :--- | :--- |
+| Telegram | memasukkan token bot sendiri, lalu menautkan obrolan lewat bot itu (bagian 23) | menautkan obrolan ke bot penjual dengan kode `/start` (hanya bila bot penjual menyala) |
+| WhatsApp | memindai kode QR: sesi akun itu sendiri di WAHA, kabar keluar dari nomornya, tujuan bisa diatur | memverifikasi nomor dengan kode 6 angka yang dikirim dari WhatsApp penjual; kabar keluar dari sesi penjual |
+
+- **Verifikasi nomor** (`POST /api/v1/me/whatsapp/verify` dan `/verify/confirm`, `internal/notify/service_waha_verify.go`, tabel `whatsapp_verifications`, migrasi 36). Kode enam angka dibuat dari sumber acak sistem dan hanya hash-nya yang disimpan (bergaram dengan id akun). Berlaku 10 menit, lima salah coba, jeda satu menit antarpengiriman dan lima kode sehari, ditambah batas laju per akun. Kode dikirim dari sesi superadmin yang tersambung (`WhatsAppSenderID`); tanpa sesi itu verifikasi ditolak dengan alasan yang terbaca. Nomor yang benar disimpan sebagai penerima `waha` dengan `via_server = true`.
+- **Pengiriman.** `Emit` mengisi pengirim antrean dengan sesi penjual untuk penerima `via_server`, jadi pekerja mengirim dari sana (sama dengan kabar pembeli); pesan uji juga. Bila sesi penjual tidak tersambung, pesan itu tidak diantrekan dan dicatat di log.
+- **Pemindaian dibatasi paket.** `POST /api/v1/me/whatsapp/connect` ditolak 403 untuk akun yang paketnya tidak menyertakan saluran sendiri dan belum punya sesi (superadmin selalu boleh, karena ialah pengirim; sesi yang sudah ada tetap jalan). Memindai nomor sendiri menghapus tanda `via_server`.
+- **Pemakaian di panel.** `profile/MyNotices` memilih kartu menurut mode: `OwnBotCard` + `MyTelegramCard` + `MyWhatsAppCard` untuk saluran sendiri, `MyTelegramCard` + `WhatsAppVerifyCard` untuk saluran server. Dipakai jendela Profil (halaman Notifikasi) dan Pengaturan > Notifikasi bagi akun selain superadmin.
+- **Belum ada:** verifikasi nomor lewat WhatsApp Cloud (butuh templat yang disetujui Meta), dan pengiriman kode bila superadmin sendiri tidak punya sesi WhatsApp.
+

@@ -1,153 +1,150 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  KeyRound,
-  Mail,
-  Server,
-  Shield,
-  ShieldCheck,
-  User,
-  Users,
-} from 'lucide-react'
+import { Bell, Boxes, LockKeyhole, Mail, Settings, User, UserRound, Users } from 'lucide-react'
+import type { ComponentType } from 'react'
 import { getMeV2 } from '@/api/agent'
-import { useWindowStore } from '@/store/windowStore'
-import { useI18n } from '@/lib/i18n'
-import { IconBadge } from '@/components/ui/IconBadge'
-import { AccountSecurityCard } from '@/components/windows/profile/AccountSecurityCard'
+import { getMyPlan } from '@/api/hosting'
+import { DateTimeText } from '@/components/common/DateTimeText'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { SettingRow } from '@/components/ui/SettingRow'
+import { AccountPassword, AccountUsage } from '@/components/windows/profile/AccountSecurityCard'
+import { MyNotices } from '@/components/windows/profile/MyNotices'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
-import { MyTelegramCard } from '@/components/windows/profile/MyTelegramCard'
-import { OwnBotCard } from '@/components/windows/profile/OwnBotCard'
-import { MyWhatsAppCard } from '@/components/windows/profile/MyWhatsAppCard'
+import { formatDateID } from '@/lib/datetime'
+import { useI18n } from '@/lib/i18n'
+import { useSettingsNavStore } from '@/store/settingsNavStore'
+import { useWindowStore } from '@/store/windowStore'
 
+type ProfileSection = 'account' | 'plan' | 'notify' | 'security'
+
+const SECTIONS: Array<{ key: ProfileSection; icon: ComponentType<{ size?: number; className?: string }> }> = [
+  { key: 'account', icon: UserRound },
+  { key: 'plan', icon: Boxes },
+  { key: 'notify', icon: Bell },
+  { key: 'security', icon: LockKeyhole },
+]
+
+const VALUE = 'text-[12px] font-medium text-[var(--win-text)]'
+
+// The profile of the signed-in account, laid out like Settings: a menu on the left (a strip on a phone), a title, and the cards of one page
 export default function ProfileWindow() {
   const { t } = useI18n()
   const openWindow = useWindowStore((s) => s.openWindow)
-  const { data: me } = useQuery({
-    queryKey: ['me-v2'],
-    queryFn: getMeV2,
-    retry: 1,
-  })
+  const requestSettingsTab = useSettingsNavStore((s) => s.request)
+  const [section, setSection] = useState<ProfileSection>('account')
+  const { data: me } = useQuery({ queryKey: ['me-v2'], queryFn: getMeV2, retry: 1 })
+  const plan = useQuery({ queryKey: ['me-plan'], queryFn: getMyPlan, retry: 0, staleTime: 60_000 })
 
   const displayName = me?.displayName || me?.username || 'Admin'
   const displayRole = me?.role || 'superadmin'
   const clientHost = typeof window !== 'undefined' ? (window.location.hostname || '127.0.0.1') : '127.0.0.1'
+  // only the owner and the admins manage other accounts
+  const managesUsers = displayRole === 'superadmin' || displayRole === 'admin'
+  // the owner sets notices up in Settings; the demo account only looks
+  const hasNotices = displayRole !== 'demo' && displayRole !== 'superadmin'
+  const hasPlan = !!plan.data?.plan
+  const sections = SECTIONS.filter((s) => (s.key === 'plan' ? hasPlan : s.key === 'notify' ? hasNotices : true))
+  const shown = sections.some((s) => s.key === section) ? section : 'account'
+  const current = sections.find((s) => s.key === shown) ?? sections[0]
+  const CurrentIcon = current.icon
 
   return (
     <div className="panel-window flex flex-col h-full overflow-hidden">
-      <div className="panel-window__body flex-1 overflow-y-auto p-5">
-        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-4">
-          {/* ── User Overview Hero Card ── */}
-          <div className="panel-shell-card p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-            <div className="profile-avatar h-20 w-20 text-3xl font-bold rounded-2xl shadow-md">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                <h2 className="text-xl font-bold text-[var(--win-text)]">{displayName}</h2>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-primary-bg)] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[var(--panel-primary-text)]">
-                  <Shield size={12} />
-                  {displayRole}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--panel-success-bg)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--panel-success-text)]">
-                  <CheckCircle2 size={12} />
-                  Active
-                </span>
-              </div>
-
-              <div className="mt-2 flex flex-col sm:flex-row flex-wrap items-center gap-3 text-[12.5px] text-[var(--text-secondary)]">
-                {me?.username && (
-                  <span className="flex items-center gap-1 font-mono">
-                    <User size={13} className="opacity-70" />
-                    @{me.username}
-                  </span>
-                )}
-                {me?.email && (
-                  <span className="flex items-center gap-1">
-                    <Mail size={13} className="opacity-70" />
-                    {me.email}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex items-center justify-center sm:justify-start gap-2 text-[12px] text-[var(--text-secondary)] font-mono">
-                <Server size={13} className="text-[var(--panel-primary-text)]" />
-                <span>Active Session Host:</span>
-                <span className="font-bold text-[var(--win-text)]">{clientHost}</span>
-              </div>
-            </div>
+      <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0 mobile:flex-col">
+        <nav className="settings-nav" aria-label={t('profile.accountProfile')}>
+          <p className="settings-nav__title">{t('profile.accountProfile')}</p>
+          <div className="settings-nav__group" role="group">
+            {sections.map(({ key, icon: Icon }) => {
+              const active = key === shown
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSection(key)}
+                  aria-current={active ? 'page' : undefined}
+                  className={`settings-nav__item${active ? ' settings-nav__item--active' : ''}`}
+                >
+                  <Icon size={14} className="settings-nav__icon" />
+                  <span className="truncate">{t(`profile.section.${key}`)}</span>
+                </button>
+              )
+            })}
           </div>
+        </nav>
 
-          {/* ── Account Details Card ── */}
-          <div className="panel-shell-card p-5 space-y-3.5">
-            <div className="text-[13px] font-bold text-[var(--win-text)] flex items-center gap-2">
-              <ShieldCheck size={16} className="text-[var(--panel-primary-text)]" />
-              {t('account.metadataTitle')}
+        <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4 flex flex-col">
+          <header className="settings-page__head shrink-0">
+            <CurrentIcon size={16} className="settings-page__icon" />
+            <div className="min-w-0">
+              <h1 className="settings-page__title">{t(`profile.section.${shown}`)}</h1>
+              <p className="settings-page__desc">{t(`profile.section.${shown}.desc`)}</p>
             </div>
+          </header>
 
-            <div className="space-y-2.5 text-[12.5px]">
-              <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-                <span className="text-[var(--text-secondary)] flex items-center gap-2">
-                  <Calendar size={14} className="opacity-70" />
-                  {t('account.memberSince')}
-                </span>
-                <span className="font-medium text-[var(--win-text)]">
-                  {me?.createdAt ? new Date(me.createdAt).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '—'}
-                </span>
-              </div>
+          <div className="space-y-3">
+            {shown === 'account' ? (
+              <>
+                <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="profile-avatar h-11 w-11 shrink-0 rounded-lg text-lg font-semibold">{displayName.charAt(0).toUpperCase()}</div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <h2 className="truncate text-[13px] font-semibold text-[var(--win-text)]">{displayName}</h2>
+                          <Badge tone="primary">{displayRole}</Badge>
+                          <Badge tone="success" dot>
+                            {t('profile.plan.state.active')}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
+                          {me?.username ? (
+                            <span className="panel-mono inline-flex items-center gap-1">
+                              <User size={12} aria-hidden="true" />@{me.username}
+                            </span>
+                          ) : null}
+                          {me?.email ? (
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <Mail size={12} aria-hidden="true" />
+                              <span className="truncate">{me.email}</span>
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        icon={<Settings className="h-3.5 w-3.5" />}
+                        onClick={() => {
+                          requestSettingsTab('security')
+                          openWindow('settings')
+                        }}
+                      >
+                        {t('profile.securityTitle')}
+                      </Button>
+                      {managesUsers ? (
+                        <Button size="sm" variant="outline" icon={<Users className="h-3.5 w-3.5" />} onClick={() => openWindow('users')}>
+                          {t('profile.usersTitle')}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-                <span className="text-[var(--text-secondary)] flex items-center gap-2">
-                  <Clock size={14} className="opacity-70" />
-                  {t('account.lastLogin')}
-                </span>
-                <span className="font-medium text-[var(--win-text)]">
-                  {me?.lastLoginAt ? new Date(me.lastLoginAt).toLocaleString('id-ID') : t('account.currentSession')}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <MyPlanCard />
-          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <OwnBotCard /> : null}
-          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyTelegramCard groups={['security']} /> : null}
-          {displayRole !== 'demo' && displayRole !== 'superadmin' ? <MyWhatsAppCard groups={['security', 'buyer']} /> : null}
-          <AccountSecurityCard />
-
-          {/* ── Shortcuts / Quick Management ── */}
-          <div className="panel-shell-card p-5 space-y-3">
-            <div className="text-[13px] font-bold text-[var(--win-text)]">{t('profile.quickActions')}</div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => openWindow('settings')}
-                className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
-              >
-                <IconBadge size="md" tone="primary">
-                  <KeyRound />
-                </IconBadge>
-                <div>
-                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)]">{t('profile.securityTitle')}</div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{t('profile.securityDesc')}</div>
+                  <SettingRow title={t('account.memberSince')} control={<span className={VALUE}>{formatDateID(me?.createdAt)}</span>} />
+                  <SettingRow
+                    title={t('account.lastLogin')}
+                    control={<span className={VALUE}>{me?.lastLoginAt ? <DateTimeText value={me.lastLoginAt} /> : t('account.currentSession')}</span>}
+                  />
+                  {managesUsers ? <SettingRow title={t('profile.sessionHost')} control={<span className={`panel-mono ${VALUE}`}>{clientHost}</span>} /> : null}
                 </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openWindow('users')}
-                className="flex items-center gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:bg-[var(--panel-surface-hover)] transition-all text-left cursor-pointer group"
-              >
-                <IconBadge size="md" tone="success">
-                  <Users />
-                </IconBadge>
-                <div>
-                  <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-emerald-500">{t('profile.usersTitle')}</div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">{t('profile.usersDesc')}</div>
-                </div>
-              </button>
-            </div>
+                <AccountUsage />
+              </>
+            ) : null}
+            {shown === 'plan' ? <MyPlanCard /> : null}
+            {shown === 'notify' ? <MyNotices /> : null}
+            {shown === 'security' ? <AccountPassword /> : null}
           </div>
         </div>
       </div>

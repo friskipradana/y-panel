@@ -68,6 +68,8 @@ type orderView struct {
 	DiscountVoucher  int64  `json:"discountVoucher"`
 	VoucherCode      string `json:"voucherCode,omitempty"`
 	AmountTotal int64                `json:"amountTotal"`
+	// Difference: an upgrade paid as the price difference for the time left
+	Difference bool `json:"difference,omitempty"`
 	CreatedAt   time.Time            `json:"createdAt"`
 	ExpiresAt   time.Time            `json:"expiresAt"`
 	PaidAt      *time.Time           `json:"paidAt"`
@@ -80,7 +82,7 @@ func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	view := orderView{
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
 		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
-		AmountTotal: o.AmountTotal, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
+		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {
 		settings := s.loadSiteSettings()
@@ -413,6 +415,10 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Periods int    `json:"periods"`
 		Voucher string `json:"voucher"`
+		// PlanID names the plan to move to; empty or the plan the account is on renews that plan
+		PlanID int64 `json:"planId"`
+		// Mode "difference" pays only the price difference for the time left on the current plan (an upgrade)
+		Mode string `json:"mode"`
 	}
 	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req)
 	if req.Periods < 1 {
@@ -423,7 +429,17 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this account is not on a plan"})
 		return
 	}
-	plan, _ := s.database.GetHostingPlan(*userPlan.PlanID)
+	current, _ := s.database.GetHostingPlan(*userPlan.PlanID)
+	plan := current
+	upgrade := false
+	if req.PlanID != 0 && req.PlanID != *userPlan.PlanID {
+		target, _ := s.database.GetHostingPlan(req.PlanID)
+		if target == nil || !target.Visible || !isUpgrade(current, target) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "that plan is not an upgrade of the current one"})
+			return
+		}
+		plan, upgrade = target, true
+	}
 	if plan == nil || plan.PriceAmount <= 0 || plan.Period == "once" {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this plan is not renewed by an order"})
 		return
@@ -437,27 +453,43 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusOK, s.orderViewFor(*open))
 		return
 	}
+	difference := req.Mode == "difference"
 	var voucher *database.HostingVoucher
-	if code := strings.TrimSpace(req.Voucher); code != "" {
-		v, reason := s.voucherCheck(code, plan, database.OrderRenew, user.ID)
-		if reason != "" {
-			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+	var quote priceQuote
+	if difference {
+		// only the difference of the prices for the time that is left; no voucher, and the end date stays
+		amount := int64(0)
+		if upgrade && current != nil && userPlan.ExpiresAt != nil {
+			amount = upgradeDifference(current, plan, time.Until(*userPlan.ExpiresAt))
+		}
+		if amount < minUpgradeDifference {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "there is no difference to pay for this plan: renew with the new plan instead"})
 			return
 		}
-		voucher = v
-	}
-	quote := priceFor(plan, req.Periods, voucher)
-	if quote.Subtotal <= 0 {
-		// a renewal that costs nothing has nothing to transfer: the seller grants it by hand
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this voucher takes the whole price off: ask the seller to renew the plan"})
-		return
+		req.Periods = 1
+		quote = priceQuote{List: amount, Subtotal: amount}
+	} else {
+		if code := strings.TrimSpace(req.Voucher); code != "" {
+			v, reason := s.voucherCheck(code, plan, database.OrderRenew, user.ID)
+			if reason != "" {
+				s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": voucherReasonText(reason), "reason": reason})
+				return
+			}
+			voucher = v
+		}
+		quote = priceFor(plan, req.Periods, voucher)
+		if quote.Subtotal <= 0 {
+			// a renewal that costs nothing has nothing to transfer: the seller grants it by hand
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this voucher takes the whole price off: ask the seller to renew the plan"})
+			return
+		}
 	}
 	settings := s.loadSiteSettings()
 	planID := plan.ID
 	renewal := database.HostingOrder{
 		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
 		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
-		AmountBase: quote.Subtotal, Status: database.OrderPending,
+		AmountBase: quote.Subtotal, Status: database.OrderPending, Difference: difference,
 		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}
 	if voucher != nil {
@@ -476,7 +508,11 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, errors.New("could not create the order"))
 		return
 	}
-	s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	if upgrade {
+		s.notifyAllAdmins("Naik paket hosting", fmt.Sprintf("%s naik ke paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	} else {
+		s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
+	}
 	s.emitOrderCreated(created, user.Username, plan.Name)
 	s.buyerOrderCreated(created, plan.Name)
 	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
@@ -500,12 +536,35 @@ func (s *Server) handleMyPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	userPlan, _ := s.database.GetUserPlan(user.ID)
 	renewable := s.selfServiceOn() && view.Plan != nil && view.Plan.PriceAmount > 0 && view.Plan.Period != "once"
+	trial := s.trialViewFor(userPlan, time.Now())
+	upgrades := []database.HostingPlan{}
+	if s.selfServiceOn() && view.Plan != nil && trial == nil {
+		if visible, err := s.database.ListHostingPlans(true); err == nil {
+			for i := range visible {
+				if isUpgrade(view.Plan, &visible[i]) {
+					upgrades = append(upgrades, visible[i])
+				}
+			}
+		}
+	}
+	// what moving to each plan would cost as a difference for the time left (only while the plan runs)
+	differences := map[int64]jsonResponse{}
+	if view.State == "active" && userPlan != nil && userPlan.ExpiresAt != nil && userPlan.ExpiresAt.After(time.Now()) {
+		remaining := time.Until(*userPlan.ExpiresAt)
+		for i := range upgrades {
+			if amount := upgradeDifference(view.Plan, &upgrades[i], remaining); amount >= minUpgradeDifference {
+				differences[upgrades[i].ID] = jsonResponse{"amount": amount, "days": int(remaining.Hours()/24 + 0.999)}
+			}
+		}
+	}
 	resp := jsonResponse{
 		"plan": view.Plan, "expiresAt": view.ExpiresAt, "state": view.State, "graceEndsAt": view.GraceEndsAt,
-		"renewable": renewable, "trial": s.trialViewFor(userPlan, time.Now()),
+		"renewable": renewable, "trial": trial, "upgrades": upgrades, "upgradeDifferences": differences,
 	}
 	if renewable {
 		resp["maxPeriods"] = maxPeriods(view.Plan)
+	}
+	if renewable || len(upgrades) > 0 {
 		if open, _ := s.database.UserOpenOrder(user.ID, database.OrderRenew); open != nil && open.Status == database.OrderPending {
 			order := s.orderViewFor(*open)
 			resp["openOrder"] = &order
@@ -646,9 +705,15 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	previous, _ := s.database.GetUserPlan(user.ID)
 	now := time.Now()
 	var ends *time.Time
+	upgraded := false
 	if order.Kind == database.OrderTrial {
 		end := now.Add(time.Duration(plan.TrialDays) * 24 * time.Hour)
 		ends = &end
+	} else if order.Difference && previous != nil && previous.ExpiresAt != nil && previous.ExpiresAt.After(now) {
+		// the difference was paid for the time that is left: the plan changes, the end date stays
+		end := *previous.ExpiresAt
+		ends = &end
+		upgraded = true
 	} else {
 		months := orderMonths(plan, order.Periods)
 		var monthsArg *int
@@ -658,6 +723,16 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 		if ends, err = planEnd(plan, previous, nil, monthsArg, now); err != nil {
 			return err
 		}
+		// a move to another plan: what is left of the old one counts for the new one, by the ratio of the prices
+		if ends != nil && previous != nil && previous.PlanID != nil && *previous.PlanID != plan.ID && previous.ExpiresAt != nil && previous.ExpiresAt.After(now) {
+			if old, _ := s.database.GetHostingPlan(*previous.PlanID); old != nil {
+				if carry := upgradeCarry(old, plan, previous.ExpiresAt.Sub(now)); carry > 0 {
+					end := ends.Add(carry)
+					ends = &end
+				}
+			}
+		}
+		upgraded = previous != nil && previous.PlanID != nil && *previous.PlanID != plan.ID
 	}
 	if err := s.applyUserPlan(user.ID, plan, ends); err != nil {
 		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the plan %s could not be applied to %s.", order.ID, plan.Name, user.Username)}, "warning")
@@ -676,19 +751,23 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	s.notifyAllAdmins("Pesanan terbayar", fmt.Sprintf("%s: paket %s aktif (%s).", user.Username, plan.Name, note), "success")
 	s.emitOrderPaid(order, user.Username, plan.Name, note)
 	s.buyerOrderPaid(order, user, plan.Name)
-	s.notifyBuyerOrderDone(order, user, plan, ends)
+	s.notifyBuyerOrderDone(order, user, plan, ends, upgraded)
 	go s.syncHostingRoutes()
 	return nil
 }
 
 // notifyBuyerOrderDone tells the buyer, in their own panel, that the order went through and what they can use now
-func (s *Server) notifyBuyerOrderDone(order *database.HostingOrder, user *database.User, plan *database.HostingPlan, ends *time.Time) {
+func (s *Server) notifyBuyerOrderDone(order *database.HostingOrder, user *database.User, plan *database.HostingPlan, ends *time.Time, upgraded bool) {
 	until := "tanpa batas waktu"
 	if ends != nil {
 		until = "sampai " + ends.Local().Format(notify.TimeLayout)
 	}
 	switch order.Kind {
 	case database.OrderRenew:
+		if upgraded {
+			s.notifyUserAction(user.ID, "Paket dinaikkan", fmt.Sprintf("Akun Anda sekarang memakai paket %s, berlaku %s.", plan.Name, until), "success")
+			break
+		}
 		s.notifyUserAction(user.ID, "Perpanjangan berhasil", fmt.Sprintf("Paket %s diperpanjang, berlaku %s.", plan.Name, until), "success")
 	case database.OrderTrial:
 		s.notifyUserAction(user.ID, "Akun aktif", fmt.Sprintf("Percobaan paket %s dimulai dan akun Anda sudah bisa dipakai, berlaku %s.%s", plan.Name, until, addressSentence(order)), "success")

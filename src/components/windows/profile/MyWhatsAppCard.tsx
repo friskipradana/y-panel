@@ -121,7 +121,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
         <p className="text-[12px] text-[var(--text-secondary)]">{ownerHint ? t('notify.wa.offOwner') : t('notify.wa.offUser')}</p>
       ) : connected ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 notice-row text-[12px]">
             <div className="min-w-0 flex items-center gap-3">
               <div>
                 <span className="block text-[11px] text-[var(--text-secondary)]">{t('notify.wa.number')}</span>
@@ -143,7 +143,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
               </Button>
             </div>
           </div>
-          <div className="flex flex-col gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+          <div className="flex flex-col gap-2 notice-row text-[12px]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
                 <span className="block text-[11px] text-[var(--text-secondary)]">{t('notify.wa.destination')}</span>
@@ -232,7 +232,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
 
             {qr.isError ? <p role="alert" className="text-[11.5px] text-[var(--panel-danger-text)]">{apiError(qr.error, t('notify.wa.qrFailed'))}</p> : null}
 
-            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--win-border)]">
+            <div className="flex flex-wrap items-center gap-2 notice-foot">
               <Button
                 variant="outline"
                 size="sm"
@@ -268,7 +268,7 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2 text-[12px]">
+        <div className="flex flex-wrap items-center justify-between gap-3 notice-row text-[12px]">
           <div className="min-w-0">
             {data.status === 'FAILED' || data.status === 'EXPIRED' ? (
               <p role="alert" className="mb-0.5 text-[11.5px] text-[var(--panel-danger-text)]">{t(data.status === 'EXPIRED' ? 'notify.wa.expired' : 'notify.wa.failed')}</p>

@@ -28,15 +28,13 @@ const ROLE_ICON: Record<string, ReactElement> = {
 const STATUS_PILL: Record<string, string> = { active: 'running', suspended: 'dead', pending: 'paused' }
 const PLAN_PILL: Record<UserPlanState, string> = { active: 'running', grace: 'paused', expired: 'dead', none: 'exited' }
 
-// The line under the plan of an account: when it ends and how many subdomains are used
+// The line under the plan of an account: what the Ends column does not say (a trial, the grace period, no end) and how many subdomains are used
 function hostingMeta(hosting: UserHosting, t: (key: string, params?: Record<string, string | number>) => string) {
   const parts: string[] = []
   if (hosting.planId) {
     if (hosting.trialPlanName && hosting.trialEndsAt) parts.push(t('hosting.users.trialUntil', { plan: hosting.trialPlanName, date: formatDateID(hosting.trialEndsAt) }))
     else if (!hosting.expiresAt) parts.push(t('hosting.userPlan.noEnd'))
     else if (hosting.state === 'grace' && hosting.graceEndsAt) parts.push(t('hosting.users.graceUntil', { end: formatDateID(hosting.graceEndsAt) }))
-    else if (hosting.state === 'expired') parts.push(t('hosting.users.endedOn', { date: formatDateID(hosting.expiresAt) }))
-    else parts.push(t('hosting.users.until', { date: formatDateID(hosting.expiresAt) }))
   }
   if (hosting.maxSubdomains > 0 || hosting.subdomains > 0) parts.push(t('hosting.users.subdomains', { used: hosting.subdomains, limit: hosting.maxSubdomains }))
   return parts.join(' \u00b7 ')

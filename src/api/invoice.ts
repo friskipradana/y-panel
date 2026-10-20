@@ -12,6 +12,8 @@ export interface InvoiceView {
   buyer: { name: string; email?: string }
   note?: string
   kind: 'new' | 'renew' | 'trial'
+  /** An upgrade paid as the price difference for the time left */
+  difference?: boolean
   planName: string
   periods: number
   /** Months the order buys; 0 for a plan that does not end */

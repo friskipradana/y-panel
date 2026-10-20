@@ -115,7 +115,7 @@ export function OwnBotCard() {
         </>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 notice-foot">
         {state.configured ? (
           <Button variant="danger-soft" icon={<Trash2 className="h-3.5 w-3.5" />} loading={remove.isPending} onClick={() => void askRemove()}>
             {t('notify.own.remove')}

@@ -38,7 +38,7 @@ function Party({ title, name, lines }: { title: string; name: string; lines: (st
 function Sheet({ invoice }: { invoice: InvoiceView }) {
   const { t } = useI18n()
   const free = invoice.amountTotal <= 0
-  const period = invoice.kind === 'trial' ? t('hosting.orders.kind.trial') : invoice.months > 0 ? monthsLabel(t, invoice.months) : t('invoice.oneTime')
+  const period = invoice.difference ? t('invoice.difference') : invoice.kind === 'trial' ? t('hosting.orders.kind.trial') : invoice.months > 0 ? monthsLabel(t, invoice.months) : t('invoice.oneTime')
   return (
     <article className="invoice-paper mx-auto w-full max-w-[44rem] rounded-2xl border border-[var(--win-border)] p-5 text-[0.875rem] sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0">
       <header className="flex flex-wrap items-start justify-between gap-4">

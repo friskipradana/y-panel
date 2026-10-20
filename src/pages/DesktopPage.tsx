@@ -1,4 +1,5 @@
 import { Desktop } from '@/components/desktop/Desktop'
+import { PlanExpiryNotice } from '@/components/system/PlanExpiryNotice'
 import { useAuthStore } from '@/store/authStore'
 
 export interface DesktopPageProps {
@@ -9,7 +10,12 @@ export interface DesktopPageProps {
 export function DesktopPage({ onLogout, authenticated: authProp }: DesktopPageProps) {
   const storeAuthenticated = useAuthStore((s) => s.authenticated)
   const authenticated = authProp ?? storeAuthenticated
-  return <Desktop onLogout={onLogout} authenticated={authenticated} />
+  return (
+    <>
+      <Desktop onLogout={onLogout} authenticated={authenticated} />
+      <PlanExpiryNotice />
+    </>
+  )
 }
 
 export { DesktopPage as HomePage }

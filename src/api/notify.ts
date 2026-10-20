@@ -149,7 +149,27 @@ export interface MyWhatsApp {
   recipient: NotifyRecipient
   /** The notices go to the number of the session itself, which makes no sound on the phone */
   destinationIsSession?: boolean
+  /** The number was proved with a code and its notices come from the WhatsApp of the server */
+  viaServer?: boolean
 }
+
+/** How the account gets its notices: its own channels (by plan) or the server's, and what the server has ready */
+export interface NotifyMode {
+  own: boolean
+  serverTelegram: boolean
+  serverWhatsApp: boolean
+  whatsappViaServer: boolean
+  hasSession: boolean
+}
+
+export const getNotifyMode = () => agentApi.get<NotifyMode>('/api/v1/me/notify/mode').then((r) => r.data)
+
+/** Sends a code to a number from the WhatsApp of the server; the code is typed back to verify the number */
+export const startWhatsAppVerify = (number: string, language: string) =>
+  agentApi.post<{ sentTo: string; expiresAt: string }>('/api/v1/me/whatsapp/verify', { number, language }).then((r) => r.data)
+
+export const confirmWhatsAppVerify = (code: string) =>
+  agentApi.post<{ recipient: NotifyRecipient }>('/api/v1/me/whatsapp/verify/confirm', { code }).then((r) => r.data)
 
 export const getMyWhatsApp = () => agentApi.get<MyWhatsApp>('/api/v1/me/whatsapp').then((r) => r.data)
 

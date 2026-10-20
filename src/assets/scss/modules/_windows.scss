@@ -775,6 +775,20 @@ button:focus-visible,
   padding: 12px 14px;
 }
 
+// A row of status inside a notice card (a chat, a number)
+.notice-row {
+  border: 1px solid var(--win-border);
+  border-radius: 10px;
+  background: var(--panel-surface);
+  padding: 8px 12px;
+}
+
+// The line of buttons at the foot of a notice card, under a rule
+.notice-foot {
+  border-top: 1px solid var(--win-border);
+  padding-top: 14px;
+}
+
 .panel-shell-card__title {
   font-size: 0.875rem;
   font-weight: 600;

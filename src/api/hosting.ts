@@ -127,6 +127,8 @@ export interface OrderView {
   payment?: { methods: { id: string; kind: 'bank' | 'ewallet'; name: string; account: string; holder: string }[] }
   /** The panel address of the buyer: where they sign in once the order is paid */
   hostname?: string
+  /** An upgrade paid as the price difference for the time left */
+  difference?: boolean
 }
 
 export interface CreateOrderInput {
@@ -182,12 +184,18 @@ export interface MyPlanView {
   /** A renewal that already waits for its payment */
   openOrder?: OrderView
   trial?: PlanTrial | null
+  /** Plans the account may move up to, dearer per month than its own */
+  upgrades?: HostingPlan[]
+  /** What moving to each of them costs as a difference for the time left, by plan id; only while the plan runs */
+  upgradeDifferences?: Record<string, { amount: number; days: number }>
 }
 
 export const getMyPlan = () => agentApi.get<MyPlanView>('/api/v1/me/hosting/plan').then((r) => r.data)
 
-export const renewMyPlan = (periods: number, voucher?: string) =>
-  agentApi.post<OrderView>('/api/v1/me/hosting/renew', { periods, voucher: voucher || undefined }).then((r) => r.data)
+/** planId names a plan to move up to; without it the plan the account is on is renewed */
+/** mode "difference" pays only the price difference for the time left, and the end date stays */
+export const renewMyPlan = (periods: number, voucher?: string, planId?: number, mode?: 'difference') =>
+  agentApi.post<OrderView>('/api/v1/me/hosting/renew', { periods, voucher: voucher || undefined, planId, mode }).then((r) => r.data)
 
 // ── Vouchers ────────────────────────────────────────────────────────────
 

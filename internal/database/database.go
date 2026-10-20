@@ -964,9 +964,17 @@ type UserQuota struct {
 	MemoryLimitMB int   `json:"memoryLimitMb"`
 }
 
+// QuotaUnlimited is the count limit of an account that has none; disk, CPU and memory limits of 0 already mean no limit
+const QuotaUnlimited = 1 << 30
+
 func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
+	}
+	// the superadmin runs the server: a quota is for the accounts it gives out
+	var role string
+	if err := m.db.QueryRow(`SELECT role FROM users WHERE id = $1`, userID).Scan(&role); err == nil && role == "superadmin" {
+		return &UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited}, nil
 	}
 	var q UserQuota
 	err := m.db.QueryRow(`

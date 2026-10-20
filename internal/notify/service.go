@@ -325,13 +325,27 @@ func (s *Service) Emit(e Event) {
 		key = "once-" + randomHex(8)
 	}
 	queued := false
+	serverSender, senderRead := int64(0), false
 	for _, t := range targets {
 		if IsMuted(t.MutedEvents, e.Name) {
 			continue
 		}
+		// a number that was verified for the WhatsApp of the server is sent to from the session of the seller
+		var sender int64
+		if t.Kind == wahaKind && t.ViaServer {
+			if !senderRead {
+				serverSender, _ = s.db.WhatsAppSenderID()
+				senderRead = true
+			}
+			if serverSender == 0 {
+				log.Printf("[notify] no connected WhatsApp session of the server to tell account %d about %s", t.UserID, e.Name)
+				continue
+			}
+			sender = serverSender
+		}
 		_, created, err := s.db.EnqueueOutbox(database.OutboxMessage{
 			Event: e.Name, UserID: t.UserID, Kind: t.Kind, Address: t.Address, Payload: payload,
-			Key: fmt.Sprintf("%s|%s|%d|%s", e.Name, key, t.UserID, t.Kind), Priority: PriorityOf(e.Name),
+			Key: fmt.Sprintf("%s|%s|%d|%s", e.Name, key, t.UserID, t.Kind), Priority: PriorityOf(e.Name), SenderUserID: sender,
 		})
 		if err != nil {
 			log.Printf("[notify] could not queue %s for account %d: %v", e.Name, t.UserID, err)
@@ -422,9 +436,16 @@ func (s *Service) SendTestVia(userID int64, kind string) (int64, error) {
 	if rec == nil || rec.VerifiedAt == nil || rec.Address == "" || rec.BlockedAt != nil {
 		return 0, errors.New("connect first")
 	}
+	// a number verified for the WhatsApp of the server is tested from the session of the seller
+	var sender int64
+	if kind == wahaKind && rec.ViaServer {
+		if sender, _ = s.db.WhatsAppSenderID(); sender == 0 {
+			return 0, errors.New("the WhatsApp of the server is not connected")
+		}
+	}
 	id, _, err := s.db.EnqueueOutbox(database.OutboxMessage{
 		Event: EventTest, UserID: userID, Kind: kind, Address: rec.Address, Payload: json.RawMessage(`{}`),
-		Key: "test|" + randomHex(8), Priority: PriorityUrgent,
+		Key: "test|" + randomHex(8), Priority: PriorityUrgent, SenderUserID: sender,
 	})
 	if err == nil && s.worker != nil {
 		s.worker.Wake()

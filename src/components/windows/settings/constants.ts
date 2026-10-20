@@ -86,6 +86,8 @@ export function settingsTabAllowed(key: SettingsTabKey, role?: string | null): b
   if (role === "superadmin") return true;
   // the bank notification reader (inside Payments) is also for admins; the gateways stay with the superadmin
   if (key === "payment") return role === "admin";
+  // every account may link its own Telegram and WhatsApp; the demo account only looks
+  if (key === "notifications") return role !== "demo";
   return OWN_TABS.includes(key);
 }
 

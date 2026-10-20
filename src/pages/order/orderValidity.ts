@@ -1,7 +1,7 @@
 import type { HostingPlan } from '@/api/hosting'
 
 // Months added to a date, keeping the day inside the month (31 Jan + 1 month = 28 or 29 Feb)
-function addMonths(from: Date, months: number): Date {
+export function addMonths(from: Date, months: number): Date {
   const result = new Date(from)
   const day = result.getDate()
   result.setMonth(result.getMonth() + months)

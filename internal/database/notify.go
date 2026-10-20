@@ -346,14 +346,16 @@ type NotifyRecipient struct {
 	LinkExpiresAt *time.Time `json:"linkExpiresAt"`
 	// OwnBot: the chat was linked through the account's own bot, so only that bot can reach it
 	OwnBot bool `json:"ownBot"`
+	// ViaServer: a WhatsApp number that gets its notices from the session of the seller, not from one of its own
+	ViaServer bool `json:"viaServer"`
 }
 
-const recipientColumns = `id, user_id, kind, address, verified_at, muted_events, locale, blocked_at, link_code, link_expires_at, own_bot`
+const recipientColumns = `id, user_id, kind, address, verified_at, muted_events, locale, blocked_at, link_code, link_expires_at, own_bot, via_server`
 
 func scanRecipient(row rowScanner) (*NotifyRecipient, error) {
 	var r NotifyRecipient
 	var muted pq.StringArray
-	if err := row.Scan(&r.ID, &r.UserID, &r.Kind, &r.Address, &r.VerifiedAt, &muted, &r.Locale, &r.BlockedAt, &r.LinkCode, &r.LinkExpiresAt, &r.OwnBot); err != nil {
+	if err := row.Scan(&r.ID, &r.UserID, &r.Kind, &r.Address, &r.VerifiedAt, &muted, &r.Locale, &r.BlockedAt, &r.LinkCode, &r.LinkExpiresAt, &r.OwnBot, &r.ViaServer); err != nil {
 		return nil, err
 	}
 	r.MutedEvents = []string(muted)
@@ -450,7 +452,7 @@ func (m *Manager) NotifyTargets(userIDs []int64) ([]NotifyRecipient, error) {
 		return nil, nil
 	}
 	rows, err := m.db.Query(`
-		SELECT r.id, r.user_id, r.kind, r.address, r.verified_at, r.muted_events, r.locale, r.blocked_at, r.link_code, r.link_expires_at, r.own_bot
+		SELECT r.id, r.user_id, r.kind, r.address, r.verified_at, r.muted_events, r.locale, r.blocked_at, r.link_code, r.link_expires_at, r.own_bot, r.via_server
 		FROM notification_recipients r LEFT JOIN notification_channels c ON c.kind = r.kind
 		WHERE r.user_id = ANY($1) AND r.verified_at IS NOT NULL AND r.blocked_at IS NULL AND r.address <> ''
 		  AND (

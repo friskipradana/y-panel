@@ -30,6 +30,8 @@ type invoiceView struct {
 	// Note is the line the seller wants under every invoice
 	Note     string `json:"note,omitempty"`
 	Kind     string `json:"kind"`
+	// Difference: an upgrade paid as the price difference for the time left
+	Difference bool `json:"difference,omitempty"`
 	PlanName string `json:"planName"`
 	Periods  int    `json:"periods"`
 	// Months is how long the order buys; zero for a plan that does not end
@@ -86,7 +88,7 @@ func (s *Server) invoiceFor(o *database.HostingOrder) invoiceView {
 	view := invoiceView{
 		Number: invoiceNumber(o), Status: o.Status, IssuedAt: o.CreatedAt, DueAt: o.ExpiresAt, PaidAt: o.PaidAt,
 		Seller: seller, Buyer: buyer, Note: settings.InvoiceNote,
-		Kind: o.Kind, PlanName: o.PlanName, Periods: o.Periods, Months: months, Hostname: o.SubHostname,
+		Kind: o.Kind, Difference: o.Difference, PlanName: o.PlanName, Periods: o.Periods, Months: months, Hostname: o.SubHostname,
 		AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
 		AmountBase: o.AmountBase, UniqueCode: o.UniqueCode, AmountTotal: o.AmountTotal,
 	}

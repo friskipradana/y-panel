@@ -106,7 +106,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { chan
 
       {recipient?.linked ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5 text-[12.5px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 notice-row text-[12.5px]">
             <div className="min-w-0">
               <p className="text-[11.5px] text-[var(--text-secondary)]">{t('notify.me.chat')}</p>
               <p className="panel-mono font-semibold">{recipient.address}</p>
@@ -147,7 +147,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { chan
           </div>
         </>
       ) : link ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12.5px]">
+        <div className="flex flex-col gap-3 notice-row text-[12.5px]">
           <p className="font-medium">{t('notify.me.linkTitle')}</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="primary" icon={<ExternalLink className="h-3.5 w-3.5" />} onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}>

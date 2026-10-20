@@ -97,9 +97,9 @@ func (m *Manager) ConnectNotifyRecipient(userID int64, kind, address string) err
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		INSERT INTO notification_recipients (user_id, kind, address, verified_at)
-		VALUES ($1, $2, $3, NOW())
-		ON CONFLICT (user_id, kind) DO UPDATE SET address = EXCLUDED.address,
+		INSERT INTO notification_recipients (user_id, kind, address, verified_at, via_server)
+		VALUES ($1, $2, $3, NOW(), false)
+		ON CONFLICT (user_id, kind) DO UPDATE SET address = EXCLUDED.address, via_server = false,
 			verified_at = CASE WHEN notification_recipients.address = EXCLUDED.address AND notification_recipients.verified_at IS NOT NULL
 				THEN notification_recipients.verified_at ELSE NOW() END,
 			blocked_at = NULL,
