@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.3] - 2026-10-20
+
+The first screen of the landing page loads far less: no desktop code, one part of one language, no blocking stylesheet, gzip from the agent.
+
+### Performa
+- **site:** The first screen of the landing page loads far less: no desktop code, one part of one language, no blocking stylesheet, gzip from the agent ([`192a85b`](https://github.com/friskipradana/y-panel/commit/192a85b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.2...v1.49.3
+
 ## [1.49.2] - 2026-10-20
 
 A lighter landing page, AI-readable public pages, a tidier dock, direct clicks on windows behind, hosting examples sized for a small host.
