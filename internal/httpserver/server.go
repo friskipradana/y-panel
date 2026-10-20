@@ -24,6 +24,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/updater"
+	"github.com/friskipradana/panel-desktop-ui/internal/webserver"
 	"github.com/friskipradana/panel-desktop-ui/internal/terminal"
 	"github.com/gorilla/websocket"
 )
@@ -79,6 +80,11 @@ type Server struct {
 	// the public proxy of an install that has a public address, and the routes it answers for
 	publicProxy  publicProxyRuntime
 	publicRoutes publicRouteCache
+	// testIssuer stands in for the public proxy when a test asks for certificates, and testWebRunner for the commands of nginx and Apache
+	testIssuer    certIssuer
+	testWebRunner webserver.Runner
+	// testCloudflare stands in for the Cloudflare account of the superadmin
+	testCloudflare *cloudflareapi.Client
 }
 
 // ReloadAccessConfig reloads AllowedOrigins and AllowedHosts in-memory from disk.

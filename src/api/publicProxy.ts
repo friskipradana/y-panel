@@ -17,6 +17,14 @@ export interface PublicProxyStatus {
   /** Who said, and when, that this server has a public address */
   confirmedBy: string
   confirmedAt: string | null
+  /** The domains of buyers are served by this server, and the address they point at */
+  buyerDomains: boolean
+  target: string
+  /** What serves the domains: Reneo itself, or the nginx or Apache of this machine */
+  engine: PublicEngineName
+  engineStatus?: { name: PublicEngineName; confDir?: string; lastError?: string }
+  /** The Cloudflare account of the superadmin is connected, so a DNS record can be made */
+  cloudflare: boolean
   /** The addresses it is set to listen on, and the ones it holds while running */
   wantHttp: string
   wantHttps: string
@@ -24,6 +32,20 @@ export interface PublicProxyStatus {
   https?: string
   addresses: LocalAddress[]
   panelOnLoopback: boolean
+}
+
+export type PublicEngineName = 'builtin' | 'nginx' | 'apache'
+
+export interface EngineReport {
+  name: PublicEngineName
+  installed: boolean
+  version?: string
+  running: boolean
+  confDir?: string
+  certbot: boolean
+  missing?: string[]
+  /** The web ports that someone else holds right now (for the proxy of Reneo) */
+  portsBusy?: string[]
 }
 
 export type PublicRouteKind = 'panel' | 'project' | 'port'
@@ -68,7 +90,7 @@ export interface DetectedIp {
 
 export const getPublicProxy = () => agentApi.get<PublicProxyStatus>('/api/v1/public-proxy').then((r) => r.data)
 
-export const setPublicProxy = (body: { enabled?: boolean; email?: string; confirmPublicIp?: boolean }) =>
+export const setPublicProxy = (body: { enabled?: boolean; email?: string; confirmPublicIp?: boolean; buyerDomains?: boolean; target?: string; engine?: PublicEngineName }) =>
   agentApi.put<PublicProxyStatus>('/api/v1/public-proxy', body).then((r) => r.data)
 
 export const detectPublicIp = () => agentApi.post<DetectedIp>('/api/v1/public-proxy/detect').then((r) => r.data)
@@ -90,3 +112,16 @@ export interface PublicRouteCheck {
 // Asks the test service of Let's Encrypt for a certificate for the domain: it can take half a minute
 export const checkPublicRoute = (id: number) =>
   agentApi.post<PublicRouteCheck>(`/api/v1/public-proxy/routes/${id}/check`, undefined, { timeout: 110_000 }).then((r) => r.data)
+
+export const getPublicEngines = () => agentApi.get<{ engines: EngineReport[] }>('/api/v1/public-proxy/engines').then((r) => r.data.engines)
+
+export interface RouteDnsResult {
+  ok: boolean
+  created: boolean
+  type: string
+  content: string
+  zone: string
+}
+
+// Makes the DNS record of the domain at Cloudflare, when the domain is in the account of the superadmin
+export const createRouteDns = (id: number) => agentApi.post<RouteDnsResult>(`/api/v1/public-proxy/routes/${id}/dns`).then((r) => r.data)

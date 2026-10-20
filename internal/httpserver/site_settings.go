@@ -77,9 +77,15 @@ type siteSettings struct {
 	// The public proxy: serving domains straight from this machine, for an install that has a public address
 	PublicProxyEnabled bool   `json:"publicProxyEnabled"`
 	PublicProxyEmail   string `json:"publicProxyEmail"`
+	// PublicEngine is what serves the domains: "builtin" (the proxy of Reneo, also when empty), "nginx" or "apache"
+	PublicEngine string `json:"publicEngine"`
 	// Who confirmed, and when, that this server has a public address: the proxy is only turned on after that
 	PublicProxyConfirmedBy string     `json:"publicProxyConfirmedBy"`
 	PublicProxyConfirmedAt *time.Time `json:"publicProxyConfirmedAt"`
+	// PublicBuyerDomains: the domains of buyers are served by the public proxy; PublicProxyTarget is the address (an IP, or a
+	// name that leads to one) buyers point their domain at
+	PublicBuyerDomains bool   `json:"publicBuyerDomains"`
+	PublicProxyTarget  string `json:"publicProxyTarget"`
 }
 
 var (

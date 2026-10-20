@@ -6,15 +6,25 @@ import { checkCustomDomain, createMyCustomDomain } from '@/api/hosting'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
 import { localizeServerMessage } from '@/lib/serverMessages'
+import { addressRecordType } from '@/lib/directDomain'
+import { DirectDomainRecords } from './DirectDomainRecords'
 
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
+type Way = 'cloudflare' | 'direct'
+
 interface Props {
   open: boolean
-  target: string
+  /** The ways a domain can be connected now; with more than one the buyer picks */
+  providers: Way[]
+  provider: Way
+  /** What a domain is pointed at for each way */
+  cnameTarget: string
+  directTarget: string
   onClose: () => void
   onCreated: () => void
 }
@@ -25,11 +35,13 @@ export function CustomDomainModal(props: Props) {
   return <CustomDomainForm key={props.open ? 'open' : 'closed'} {...props} />
 }
 
-function CustomDomainForm({ open, target, onClose, onCreated }: Props) {
+function CustomDomainForm({ open, providers, provider: defaultWay, cnameTarget, directTarget, onClose, onCreated }: Props) {
   const { t } = useI18n()
   const [hostname, setHostname] = useState('')
   const [settled, setSettled] = useState('')
   const [error, setError] = useState('')
+  const [provider, setProvider] = useState<Way>(defaultWay)
+  const target = provider === 'direct' ? directTarget : cnameTarget
 
   // wait for a pause in typing before asking the agent
   useEffect(() => {
@@ -39,15 +51,15 @@ function CustomDomainForm({ open, target, onClose, onCreated }: Props) {
 
   const ready = hostname.includes('.') && settled === hostname
   const check = useQuery({
-    queryKey: ['custom-domain-check', settled],
-    queryFn: () => checkCustomDomain(settled),
+    queryKey: ['custom-domain-check', settled, provider],
+    queryFn: () => checkCustomDomain(settled, provider),
     enabled: open && ready,
     staleTime: 10_000,
     retry: 0,
   })
 
   const create = useMutation({
-    mutationFn: () => createMyCustomDomain(hostname),
+    mutationFn: () => createMyCustomDomain(hostname, provider),
     onSuccess: (row) => {
       toast.success(t('hosting.custom.created', { hostname: row.hostname }))
       onCreated()
@@ -88,6 +100,15 @@ function CustomDomainForm({ open, target, onClose, onCreated }: Props) {
       }
     >
       <div className="space-y-4">
+        {providers.length > 1 ? (
+          <Field label={t('hosting.custom.way')}>
+            <Select
+              value={provider}
+              onChange={(next) => setProvider(next as Way)}
+              options={providers.map((way) => ({ value: way, label: t(`hosting.custom.way.${way}`), description: t(`hosting.custom.way.${way}Hint`) }))}
+            />
+          </Field>
+        ) : null}
         <Field label={t('hosting.custom.domain')} htmlFor="custom-domain">
           <TextInput
             id="custom-domain"
@@ -113,10 +134,14 @@ function CustomDomainForm({ open, target, onClose, onCreated }: Props) {
 
         <div className="space-y-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2.5 text-[12.5px]">
           <p className="font-medium">{t('hosting.custom.stepsTitle')}</p>
-          <p className="text-[var(--text-secondary)]">{t('hosting.custom.steps')}</p>
-          <p className="panel-mono">
-            CNAME&nbsp; {hostname || 'toko.com'} &rarr; {target}
-          </p>
+          <p className="text-[var(--text-secondary)]">{t(provider === 'direct' ? 'hosting.custom.directSteps' : 'hosting.custom.steps')}</p>
+          {provider === 'direct' ? (
+            <DirectDomainRecords hostname={hostname || t('hosting.custom.placeholder')} target={target} />
+          ) : (
+            <p className="panel-mono">
+              {provider === 'cloudflare' ? 'CNAME' : addressRecordType(target)}&nbsp; {hostname || 'toko.com'} &rarr; {target}
+            </p>
+          )}
           {available && check.data ? (
             <p className={check.data.pointing ? 'text-[var(--panel-success-text)]' : 'text-[var(--text-secondary)]'}>
               {check.data.pointing ? t('hosting.custom.pointing') : t('hosting.custom.notPointing')}

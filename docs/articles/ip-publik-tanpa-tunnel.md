@@ -25,6 +25,28 @@ Tidak cocok bila penyedia internet memakai **CGNAT** (tidak ada IP publik dan po
 | Proyek | Sebuah proyek Reneo (statis, Node.js, Python, PHP, custom), mengikuti port proyek itu. |
 | Port | Layanan web di `127.0.0.1:<port>`, misalnya container Docker. Layanannya tidak perlu dibuka ke internet. |
 
+## Domain milik pembeli (untuk penjual hosting)
+
+Dengan IP publik, domain pembeli bisa dilayani server ini tanpa Cloudflare for SaaS dan tanpa kuota. Di **Pengaturan > IP publik**, kartu **Domain milik pembeli**: isi alamat yang dituju pembeli (IP publik server, atau nama yang mengarah ke sana) dan nyalakan. Setelah itu domain baru pembeli bekerja begini:
+
+1. Pembeli menambah domain di jendela Cloudflare. Panel menampilkan dua record untuk dibuat di DNS-nya: record alamat ke server, dan satu record **TXT** pembuktian.
+2. Panel memeriksa TXT lebih dulu: tanpa bukti itu domain tidak dilayani dan tidak meminta sertifikat. Lalu arah DNS, lalu sertifikat (uji dulu, kemudian yang asli).
+3. Begitu aktif, pembeli diberi tahu dan domainnya menjadi alamat masuk panelnya.
+
+Domain yang sudah lewat Cloudflare tidak berubah. Proxy harus menyala; bila dimatikan, domain baru pembeli kembali memakai Cloudflare (bila disiapkan).
+
+## Sudah punya nginx atau Apache?
+
+Bila port 80 dan 443 sudah dipakai nginx atau Apache, jangan hentikan: di kartu **Siapa yang melayani domain** pilih **nginx** atau **Apache**. Reneo tidak membuka port sendiri. Ia menulis satu file per domain (`reneo-*.conf`) di folder konfigurasi web server itu, menguji konfigurasi sebelum memuat ulang, dan mengembalikan semuanya bila ujinya gagal. Sertifikat dibuat `certbot` dan diperpanjang timer certbot. Syaratnya web server dan `certbot` terpasang; kartu menyebut bila ada yang kurang. Bagian lain konfigurasi Anda tidak disentuh.
+
+## Memakai Cloudflare bersama
+
+Cara ini tidak menggantikan Cloudflare, tetapi bisa dipakai bersama atau sendiri-sendiri:
+
+- Cloudflare Tunnel tetap berjalan untuk domain yang sudah memakainya.
+- Bila akun Cloudflare Anda terhubung, tombol **Buat record di Cloudflare** di baris domain membuat A record ke server ini (tanpa proksi, dan tidak menimpa record lain).
+- Untuk domain pembeli, bila jalur server dan Cloudflare for SaaS sama-sama siap, pembeli memilih sendiri cara menyambungkan domainnya.
+
 ## Yang perlu diketahui
 
 - Hanya domain yang Anda daftarkan yang dilayani dan boleh meminta sertifikat. Domain lain mendapat 404.

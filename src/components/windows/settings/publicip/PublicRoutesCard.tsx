@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Globe, Plus, Power, ShieldCheck, Trash2 } from 'lucide-react'
+import { Cloud, Globe, Plus, Power, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { checkPublicRoute, deletePublicRoute, getPublicProxy, updatePublicRoute, type PublicRoute, type PublicRouteState } from '@/api/publicProxy'
+import { checkPublicRoute, createRouteDns, deletePublicRoute, getPublicProxy, updatePublicRoute, type PublicRoute, type PublicRouteState } from '@/api/publicProxy'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { Button } from '@/components/ui/Button'
 import type { UiTone } from '@/components/ui/IconBadge'
@@ -40,6 +40,13 @@ export function PublicRoutesCard() {
       toast.success(t('publicip.route.deleted'))
     },
     onError: (e) => toast.error(apiError(e, t('publicip.route.saveFailed'))),
+  })
+  const dns = useMutation({
+    mutationFn: (row: PublicRoute) => createRouteDns(row.id),
+    onMutate: (row) => setBusyId(row.id),
+    onSettled: () => setBusyId(null),
+    onSuccess: (result) => toast.success(t(result.created ? 'publicip.route.dnsCreated' : 'publicip.route.dnsExists', { type: result.type, zone: result.zone })),
+    onError: (e) => toast.error(apiError(e, t('publicip.route.dnsFailed')), { description: undefined }),
   })
   const check = useMutation({
     mutationFn: (row: PublicRoute) => checkPublicRoute(row.id),
@@ -126,6 +133,11 @@ export function PublicRoutesCard() {
                 </div>
                 <div className="docker-cell">{row.certExpires ? <DateTimeText value={row.certExpires} /> : '-'}</div>
                 <div className="docker-action-btns">
+                  {status.data?.cloudflare ? (
+                    <RowAction label={t('publicip.route.makeDns')} disabled={working} onClick={() => dns.mutate(row)}>
+                      <Cloud className={`h-3.5 w-3.5 ${working && dns.isPending ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
+                    </RowAction>
+                  ) : null}
                   <RowAction label={t('publicip.route.check')} disabled={working || !running || !row.enabled} onClick={() => check.mutate(row)}>
                     <ShieldCheck className={`h-3.5 w-3.5 ${working ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
                   </RowAction>

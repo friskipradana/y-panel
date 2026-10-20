@@ -11,6 +11,8 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { CustomDomainModal } from './CustomDomainModal'
+import { directNoteText } from '@/lib/directDomain'
+import { DirectDomainRecords } from './DirectDomainRecords'
 
 const TONE: Record<SubdomainStatus, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', pending: 'warning', error: 'danger', suspended: 'neutral' }
 
@@ -73,9 +75,14 @@ export function HostingCustomDomainsPanel() {
                     <span className="panel-mono truncate text-[13px] font-semibold">{row.hostname}</span>
                     <Badge tone={TONE[row.status]} dot>{t(`hosting.custom.status.${row.status}`)}</Badge>
                   </div>
-                  {row.status === 'pending' ? (
+                  {row.provider === 'direct' && row.status !== 'active' ? (
+                    <div className="mt-1 space-y-1.5">
+                      {row.note ? <p className="text-[11.5px] text-[var(--text-secondary)]">{directNoteText(t, row.note)}</p> : null}
+                      <DirectDomainRecords hostname={row.hostname} target={data.directTarget || data.target} token={row.verifyToken} />
+                    </div>
+                  ) : row.status === 'pending' ? (
                     <p className="mt-0.5 text-[11.5px] text-[var(--text-secondary)]">
-                      {t('hosting.custom.pointHint', { target: data.target })}
+                      {t('hosting.custom.pointHint', { target: data.cnameTarget || data.target })}
                       {row.note ? ` (${row.note})` : ''}
                     </p>
                   ) : row.note ? (
@@ -105,7 +112,7 @@ export function HostingCustomDomainsPanel() {
 
         <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-3 py-2">
           <div className="min-w-0">
-            <p className="text-[11.5px] text-[var(--text-secondary)]">{t('hosting.custom.target')}</p>
+            <p className="text-[11.5px] text-[var(--text-secondary)]">{t(data.provider === 'direct' ? 'hosting.custom.directTarget' : 'hosting.custom.target')}</p>
             <p className="panel-mono truncate text-[12.5px] font-semibold">{data.target}</p>
           </div>
           <IconButton label={t('hosting.custom.copyTarget')} onClick={copyTarget}>
@@ -114,7 +121,7 @@ export function HostingCustomDomainsPanel() {
         </div>
       </div>
 
-      <CustomDomainModal open={open} target={data.target} onClose={() => setOpen(false)} onCreated={refresh} />
+      <CustomDomainModal open={open} providers={data.providers} provider={data.provider} cnameTarget={data.cnameTarget || data.target} directTarget={data.directTarget || data.target} onClose={() => setOpen(false)} onCreated={refresh} />
     </div>
   )
 }

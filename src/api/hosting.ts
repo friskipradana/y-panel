@@ -340,13 +340,25 @@ export interface CustomDomain {
   note: string
   createdAt: string
   updatedAt: string
+  /** cloudflare: Cloudflare for SaaS; direct: served by this server's public proxy */
+  provider?: 'cloudflare' | 'direct'
+  /** A direct domain puts this in a TXT record to prove it is theirs */
+  verifyToken?: string
+  verifiedAt?: string | null
 }
 
 export interface MyCustomDomains {
   /** The server owner set custom domains up */
   ready: boolean
+  /** The ways a new domain can be connected now, the first is the default */
+  providers: ('cloudflare' | 'direct')[]
+  /** How a new domain is served by default, and what to point it at */
+  provider: 'cloudflare' | 'direct'
   /** The name the buyer points their CNAME at */
   target: string
+  /** The two addresses, for the domains that were added each way */
+  cnameTarget: string
+  directTarget: string
   limit: number
   used: number
   items: CustomDomain[]
@@ -354,13 +366,13 @@ export interface MyCustomDomains {
 
 export const getMyCustomDomains = () => agentApi.get<MyCustomDomains>('/api/v1/me/custom-domains').then((r) => r.data)
 
-export const checkCustomDomain = (hostname: string) =>
+export const checkCustomDomain = (hostname: string, provider?: 'cloudflare' | 'direct') =>
   agentApi
-    .get<{ available: boolean; reason: string; target: string; pointing?: boolean }>('/api/v1/me/custom-domains/check', { params: { hostname } })
+    .get<{ available: boolean; reason: string; target: string; pointing?: boolean; provider?: 'cloudflare' | 'direct' }>('/api/v1/me/custom-domains/check', { params: { hostname, provider } })
     .then((r) => r.data)
 
-export const createMyCustomDomain = (hostname: string) =>
-  agentApi.post<CustomDomain>('/api/v1/me/custom-domains', { hostname }).then((r) => r.data)
+export const createMyCustomDomain = (hostname: string, provider?: 'cloudflare' | 'direct') =>
+  agentApi.post<CustomDomain>('/api/v1/me/custom-domains', { hostname, provider }).then((r) => r.data)
 
 export const refreshMyCustomDomain = (id: number) =>
   agentApi.post<CustomDomain>(`/api/v1/me/custom-domains/${id}/refresh`).then((r) => r.data)

@@ -355,6 +355,31 @@ func (p *Proxy) CheckDomain(ctx context.Context, host string) error {
 	}
 }
 
+// Obtain gets the production certificate of a registered domain now, instead of at its first visit. It is for a domain that
+// passed its check.
+func (p *Proxy) Obtain(ctx context.Context, host string) error {
+	host = normalize(host)
+	if !p.Running() {
+		return errors.New("the public proxy is not running")
+	}
+	if _, ok := p.opts.Resolve(host); !ok {
+		return fmt.Errorf("%s is not a registered domain", host)
+	}
+	ctx, cancel := context.WithTimeout(ctx, checkTimeout)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := p.prod.GetCertificate(&tls.ClientHelloInfo{ServerName: host})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return errors.New("Let's Encrypt did not finish in time")
+	}
+}
+
 // Certificate is what the cache holds for a domain
 type Certificate struct {
 	NotBefore time.Time

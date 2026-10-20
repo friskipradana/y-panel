@@ -184,11 +184,13 @@ func (s *Server) routes() {
 	// WhatsApp (WAHA): the superadmin runs the container, every account connects its own session
 	s.mux.Handle("GET /api/v1/public-proxy", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicProxyStatus)))
 	s.mux.Handle("PUT /api/v1/public-proxy", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetPublicProxy)))
+	s.mux.Handle("GET /api/v1/public-proxy/engines", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicEngines)))
 	s.mux.Handle("POST /api/v1/public-proxy/detect", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDetectPublicIP)))
 	s.mux.Handle("GET /api/v1/public-proxy/routes", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicRoutesTable)))
 	s.mux.Handle("POST /api/v1/public-proxy/routes", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreatePublicRoute)))
 	s.mux.Handle("PATCH /api/v1/public-proxy/routes/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleUpdatePublicRoute)))
 	s.mux.Handle("DELETE /api/v1/public-proxy/routes/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeletePublicRoute)))
+	s.mux.Handle("POST /api/v1/public-proxy/routes/{id}/dns", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleRouteCloudflareDNS)))
 	s.mux.Handle("POST /api/v1/public-proxy/routes/{id}/check", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCheckPublicRoute)))
 	s.mux.Handle("GET /api/v1/notify/templates", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleListNotifyTemplates)))
 	s.mux.Handle("PUT /api/v1/notify/templates/{event}/{locale}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSaveNotifyTemplate)))

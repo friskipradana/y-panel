@@ -67,7 +67,7 @@ export function PublicIpStatusCard() {
 
           <SettingRow
             title={t('publicip.toggle')}
-            description={t('publicip.toggleHint', { http: data.wantHttp, https: data.wantHttps })}
+            description={data.engine === 'builtin' ? t('publicip.toggleHint', { http: data.wantHttp, https: data.wantHttps }) : t('publicip.toggleHintWeb', { engine: t(`publicip.engine.${data.engine}`) })}
             control={<ToggleSwitch checked={data.enabled} disabled={save.isPending} label={t('publicip.toggle')} onChange={() => (data.enabled ? save.mutate({ enabled: false }) : setConfirming(true))} />}
           />
           {data.enabled && data.confirmedBy && data.confirmedAt ? (
@@ -77,6 +77,10 @@ export function PublicIpStatusCard() {
           ) : null}
           {data.error ? <p role="alert" className="text-[0.75rem] text-[var(--panel-danger-text)]">{localizeServerMessage(data.error) ?? data.error}</p> : null}
           {data.running && data.https ? <p className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{t('publicip.listening', { http: data.http ?? '-', https: data.https })}</p> : null}
+          {data.running && !data.https && data.engineStatus ? (
+            <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('publicip.managedBy', { engine: t(`publicip.engine.${data.engineStatus.name}`), dir: data.engineStatus.confDir ?? '-' })}</p>
+          ) : null}
+          {data.running && data.engineStatus?.lastError ? <p role="alert" className="whitespace-pre-line text-[0.75rem] text-[var(--panel-danger-text)]">{data.engineStatus.lastError}</p> : null}
 
           <Field label={t('publicip.email')} hint={t('publicip.emailHint')}>
             <div className="flex items-center gap-2">

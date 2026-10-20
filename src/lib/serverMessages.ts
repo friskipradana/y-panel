@@ -88,6 +88,8 @@ const RULES: [RegExp, string, string[]][] = [
   [/^the domain has no DNS record yet: point an A record \(or AAAA\) at this server's public address$/, 'server.publicNoDns', []],
   [/^too many checks, wait a moment$/, 'server.tooManyChecks', []],
   [/^confirm that this server has a public IP first$/, 'server.publicConfirm', []],
+  [/^set the address of this server first$/, 'server.publicNeedAddress', []],
+  [/^this domain is not in your Cloudflare account$/, 'server.publicNoZone', []],
   [/^the note is at most 200 characters$/, 'server.publicNote', []],
   [/^only the tags <b>, <i> and <code> are allowed$/, 'notify.templates.badTag', []],
   [/^a tag is not closed$/, 'notify.templates.tagOpen', []],

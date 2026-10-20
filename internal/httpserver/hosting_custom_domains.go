@@ -152,6 +152,9 @@ func (s *Server) customDomainAvailability(hostname, target string) string {
 	if sub, _ := s.database.GetHostingSubdomainByHostname(hostname); sub != nil {
 		return "this domain is already in use"
 	}
+	if taken, _ := s.database.PublicRouteHostnameTaken(hostname); taken {
+		return "this domain is already in use"
+	}
 	if hostname == target {
 		return "this domain cannot be used"
 	}
@@ -166,8 +169,15 @@ func (s *Server) customDomainAvailability(hostname, target string) string {
 }
 
 type customDomainsView struct {
-	Ready  bool                         `json:"ready"`
-	Target string                       `json:"target"`
+	Ready bool `json:"ready"`
+	// Providers are the ways a new domain can be served now ("direct": this server, "cloudflare"), the first is the default;
+	// Provider is that default and Target is what to point it at
+	Providers []string `json:"providers"`
+	Provider  string   `json:"provider"`
+	Target   string `json:"target"`
+	// CnameTarget and DirectTarget are the addresses of the two ways, for the domains that were added through each
+	CnameTarget  string                       `json:"cnameTarget"`
+	DirectTarget string                       `json:"directTarget"`
 	Limit  int                          `json:"limit"`
 	Used   int                          `json:"used"`
 	Items  []database.HostingCustomDomain `json:"items"`
@@ -208,12 +218,13 @@ func (s *Server) refreshPendingCustomDomains() {
 	if s.database == nil || !s.database.IsConnected() || !s.hostingEnabled() {
 		return
 	}
-	zoneID, _ := s.customDomainSetup()
-	if zoneID == "" {
-		return
-	}
 	rows, err := s.database.ListHostingCustomDomains(0)
 	if err != nil {
+		return
+	}
+	s.refreshPendingDirectDomains(rows)
+	zoneID, _ := s.customDomainSetup()
+	if zoneID == "" {
 		return
 	}
 	client, _, cfErr := s.hostingCloudflare()
@@ -221,7 +232,7 @@ func (s *Server) refreshPendingCustomDomains() {
 		return
 	}
 	for _, row := range rows {
-		if row.Status == "pending" || row.Status == "error" {
+		if row.Provider != database.CustomProviderDirect && (row.Status == "pending" || row.Status == "error") {
 			s.refreshCustomDomain(client, zoneID, row)
 		}
 	}
@@ -235,18 +246,35 @@ func (s *Server) handleListMyCustomDomains(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	zoneID, target := s.customDomainSetup()
-	view.Ready, view.Target = zoneID != "", target
+	view.CnameTarget = target
+	view.Providers = []string{}
+	view.Ready, view.Provider, view.Target = zoneID != "", "cloudflare", target
+	// when the server serves the domains of buyers itself, new ones go that way unless the buyer picks the other
+	if directTarget, ok := s.directDomainsReady(); ok {
+		view.Ready, view.Provider, view.Target = true, database.CustomProviderDirect, directTarget
+		view.Providers = append(view.Providers, database.CustomProviderDirect)
+	}
+	if zoneID != "" {
+		view.Providers = append(view.Providers, database.CustomProviderCloudflare)
+	}
+	if settings := s.loadSiteSettings(); settings.PublicBuyerDomains {
+		view.DirectTarget = settings.PublicProxyTarget
+	}
 	view.Limit = s.customDomainLimit(u)
 	items, err := s.database.ListHostingCustomDomains(u.ID)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if client, _, cfErr := s.hostingCloudflare(); cfErr == nil && zoneID != "" {
-		for i, row := range items {
-			if (row.Status == "pending" || row.Status == "error") && time.Since(row.UpdatedAt) > customRefreshAfter {
-				items[i] = s.refreshCustomDomain(client, zoneID, row)
-			}
+	client, _, cfErr := s.hostingCloudflare()
+	for i, row := range items {
+		if (row.Status != "pending" && row.Status != "error") || time.Since(row.UpdatedAt) <= customRefreshAfter {
+			continue
+		}
+		if row.Provider == database.CustomProviderDirect {
+			items[i] = s.refreshDirectCustomDomain(row, false)
+		} else if cfErr == nil && zoneID != "" {
+			items[i] = s.refreshCustomDomain(client, zoneID, row)
 		}
 	}
 	view.Items, view.Used = items, len(items)
@@ -262,11 +290,19 @@ func (s *Server) handleCheckCustomDomain(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	_, target := s.customDomainSetup()
+	direct := false
+	if directTarget, ok := s.directDomainsReady(); ok && r.URL.Query().Get("provider") != database.CustomProviderCloudflare {
+		target, direct = directTarget, true
+	}
 	hostname := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("hostname")))
 	reason := s.customDomainAvailability(hostname, target)
-	resp := jsonResponse{"available": reason == "", "reason": reason, "target": target}
+	resp := jsonResponse{"available": reason == "", "reason": reason, "target": target, "provider": map[bool]string{true: database.CustomProviderDirect, false: database.CustomProviderCloudflare}[direct]}
 	if reason == "" && target != "" {
-		resp["pointing"] = pointsAtTarget(hostname, target)
+		if direct {
+			_, resp["pointing"] = leadsToServer(hostname, target)
+		} else {
+			resp["pointing"] = pointsAtTarget(hostname, target)
+		}
 	}
 	s.writeJSON(w, http.StatusOK, resp)
 }
@@ -283,6 +319,8 @@ func (s *Server) handleCreateMyCustomDomain(w http.ResponseWriter, r *http.Reque
 	u := userFromCtx(r)
 	var req struct {
 		Hostname string `json:"hostname"`
+		// Provider picks the way when both are ready; empty takes the default (this server first)
+		Provider string `json:"provider"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -290,9 +328,24 @@ func (s *Server) handleCreateMyCustomDomain(w http.ResponseWriter, r *http.Reque
 	}
 	hostname := strings.ToLower(strings.TrimSpace(req.Hostname))
 	zoneID, target := s.customDomainSetup()
-	if zoneID == "" {
+	directTarget, directOK := s.directDomainsReady()
+	direct := directOK
+	switch req.Provider {
+	case database.CustomProviderCloudflare:
+		direct = false
+	case database.CustomProviderDirect:
+		direct = true
+	case "":
+	default:
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this is not a way to connect a domain"})
+		return
+	}
+	if (direct && !directOK) || (!direct && zoneID == "") {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "custom domains are not set up on this server yet"})
 		return
+	}
+	if direct {
+		target = directTarget
 	}
 	limit := s.customDomainLimit(u)
 	if limit <= 0 {
@@ -309,6 +362,22 @@ func (s *Server) handleCreateMyCustomDomain(w http.ResponseWriter, r *http.Reque
 			status = http.StatusConflict
 		}
 		s.writeJSON(w, status, jsonResponse{"error": reason})
+		return
+	}
+	if direct {
+		// served by this server: the buyer proves the domain with a TXT record before anything is served
+		created, err := s.database.CreateDirectCustomDomain(u.ID, hostname, newVerifyToken(), noteTXTMissing)
+		if errors.Is(err, database.ErrCustomDomainTaken) {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this domain is already in use"})
+			return
+		}
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		s.auditSensitiveAction(r, u, "hosting.customdomain.create", "ok", map[string]any{"hostname": hostname, "provider": database.CustomProviderDirect})
+		forgetHostingHosts()
+		s.writeJSON(w, http.StatusCreated, created)
 		return
 	}
 	client, _, cfErr := s.hostingCloudflare()
@@ -360,7 +429,9 @@ func (s *Server) handleRefreshMyCustomDomain(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	zoneID, _ := s.customDomainSetup()
-	if client, _, err := s.hostingCloudflare(); err == nil && zoneID != "" {
+	if row.Provider == database.CustomProviderDirect {
+		*row = s.refreshDirectCustomDomain(*row, true)
+	} else if client, _, err := s.hostingCloudflare(); err == nil && zoneID != "" {
 		*row = s.refreshCustomDomain(client, zoneID, *row)
 	}
 	s.writeJSON(w, http.StatusOK, row)
@@ -421,7 +492,8 @@ func (s *Server) customIngress(service string, hostingOn bool) []cloudflareapi.I
 	active := map[int64]bool{}
 	rules := []cloudflareapi.IngressRule{}
 	for _, row := range rows {
-		if row.Status == "suspended" {
+		// a domain served by this server is not the tunnel's business
+		if row.Status == "suspended" || row.Provider == database.CustomProviderDirect {
 			continue
 		}
 		if _, seen := active[row.UserID]; !seen {

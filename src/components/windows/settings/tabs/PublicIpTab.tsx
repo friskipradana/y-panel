@@ -1,3 +1,5 @@
+import { PublicBuyerDomainsCard } from '../publicip/PublicBuyerDomainsCard'
+import { PublicEngineCard } from '../publicip/PublicEngineCard'
 import { PublicIpStatusCard } from '../publicip/PublicIpStatusCard'
 import { PublicRoutesCard } from '../publicip/PublicRoutesCard'
 
@@ -5,7 +7,9 @@ import { PublicRoutesCard } from '../publicip/PublicRoutesCard'
 export function PublicIpTab() {
   return (
     <div className="space-y-3">
+      <PublicEngineCard />
       <PublicIpStatusCard />
+      <PublicBuyerDomainsCard />
       <PublicRoutesCard />
     </div>
   )

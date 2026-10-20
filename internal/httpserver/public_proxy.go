@@ -9,12 +9,12 @@ import (
 	"net"
 	"net/http"
 	"net/mail"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/listquery"
 	"github.com/friskipradana/panel-desktop-ui/internal/publicproxy"
@@ -30,7 +30,7 @@ const publicRoutesTTL = 3 * time.Second
 // publicProxyRuntime is the proxy while it runs, and why it did not start
 type publicProxyRuntime struct {
 	mu    sync.Mutex
-	proxy *publicproxy.Proxy
+	proxy publicEngine
 	err   string
 }
 
@@ -45,6 +45,10 @@ func (s *Server) forgetPublicRoutes() {
 	s.publicRoutes.mu.Lock()
 	s.publicRoutes.at = time.Time{}
 	s.publicRoutes.mu.Unlock()
+	// a web server that has files to write writes them again
+	if engine := s.runningPublicProxy(); engine != nil {
+		engine.Refresh()
+	}
 }
 
 // panelLoopbackPort is the port the panel answers on at 127.0.0.1; 0 when it listens on one other address only
@@ -93,6 +97,12 @@ func (s *Server) publicRoutesSnapshot() map[string]publicproxy.Route {
 			}
 			routes[r.Hostname] = route
 		}
+		// the domains of buyers that this server serves itself, whose owner was proven
+		for host, route := range s.directCustomRoutes(panelPort) {
+			if _, taken := routes[host]; !taken {
+				routes[host] = route
+			}
+		}
 	}
 	c.routes, c.at = routes, time.Now()
 	return routes
@@ -129,19 +139,17 @@ func (s *Server) startPublicProxy() error {
 	if rt.proxy != nil && rt.proxy.Running() {
 		return nil
 	}
-	httpAddr, httpsAddr := s.publicProxyAddrs()
-	dir := filepath.Join(s.cfg.StateDir, "public-tls")
-	proxy := publicproxy.New(publicproxy.Options{
-		HTTPAddr: httpAddr, HTTPSAddr: httpsAddr,
-		CacheDir: filepath.Join(dir, "production"), StagingCacheDir: filepath.Join(dir, "staging"),
-		Email: s.loadSiteSettings().PublicProxyEmail, Resolve: s.publicRoute,
-	})
-	if err := proxy.Start(); err != nil {
+	settings := s.loadSiteSettings()
+	proxy, err := s.newEngine(settings.PublicEngine, settings.PublicProxyEmail)
+	if err == nil {
+		err = proxy.Start()
+	}
+	if err != nil {
 		rt.proxy, rt.err = nil, err.Error()
 		return err
 	}
 	rt.proxy, rt.err = proxy, ""
-	log.Printf("[publicproxy] serving registered domains on %s and %s", httpAddr, httpsAddr)
+	log.Printf("[publicproxy] serving registered domains through %s", proxy.Status().Name)
 	return nil
 }
 
@@ -157,7 +165,7 @@ func (s *Server) stopPublicProxy() {
 }
 
 // runningPublicProxy is the proxy when it listens, else nil
-func (s *Server) runningPublicProxy() *publicproxy.Proxy {
+func (s *Server) runningPublicProxy() publicEngine {
 	rt := &s.publicProxy
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -214,6 +222,8 @@ func (s *Server) handlePublicProxyStatus(w http.ResponseWriter, _ *http.Request)
 		// on only counts when the superadmin confirmed it
 		"enabled": settings.PublicProxyEnabled && settings.PublicProxyConfirmedAt != nil, "email": settings.PublicProxyEmail,
 		"confirmedBy": settings.PublicProxyConfirmedBy, "confirmedAt": settings.PublicProxyConfirmedAt,
+		"buyerDomains": settings.PublicBuyerDomains, "target": settings.PublicProxyTarget, "cloudflare": s.publicCloudflareReady(),
+		"engine": map[bool]string{true: engineBuiltin, false: settings.PublicEngine}[settings.PublicEngine == ""],
 		"wantHttp": httpWant, "wantHttps": httpsWant, "addresses": localAddresses(), "panelOnLoopback": s.panelLoopbackPort() > 0,
 	}
 	rt := &s.publicProxy
@@ -222,6 +232,7 @@ func (s *Server) handlePublicProxyStatus(w http.ResponseWriter, _ *http.Request)
 	if rt.proxy != nil && rt.proxy.Running() {
 		status["running"] = true
 		status["http"], status["https"] = rt.proxy.Addrs()
+		status["engineStatus"] = rt.proxy.Status()
 	} else {
 		status["running"] = false
 	}
@@ -240,6 +251,11 @@ func (s *Server) handleSetPublicProxy(w http.ResponseWriter, r *http.Request) {
 		// ConfirmPublicIP is the superadmin saying that this server has a public address (or that the web ports are
 		// forwarded to it); turning the proxy on needs it every time
 		ConfirmPublicIP bool `json:"confirmPublicIp"`
+		// BuyerDomains serves the domains of buyers from this server; Target is the address they point at
+		BuyerDomains *bool   `json:"buyerDomains"`
+		Target       *string `json:"target"`
+		// Engine is what serves the domains: builtin, nginx or apache
+		Engine *string `json:"engine"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -272,8 +288,32 @@ func (s *Server) handleSetPublicProxy(w http.ResponseWriter, r *http.Request) {
 		}
 		next.PublicProxyEnabled = *req.Enabled
 	}
+	if req.Engine != nil {
+		if !validEngine(*req.Engine) {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this is not a way to serve domains"})
+			return
+		}
+		next.PublicEngine = *req.Engine
+	}
+	if req.Target != nil {
+		target := strings.TrimSpace(*req.Target)
+		if target != "" {
+			if err := validTarget(target); err != nil {
+				s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+				return
+			}
+		}
+		next.PublicProxyTarget = target
+	}
+	if req.BuyerDomains != nil {
+		if *req.BuyerDomains && next.PublicProxyTarget == "" {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "set the address buyers point their domain at first"})
+			return
+		}
+		next.PublicBuyerDomains = *req.BuyerDomains
+	}
 	// the email is read when the proxy starts, so a changed email starts it again
-	restart := next.PublicProxyEnabled && (!current.PublicProxyEnabled || next.PublicProxyEmail != current.PublicProxyEmail)
+	restart := next.PublicProxyEnabled && (!current.PublicProxyEnabled || next.PublicProxyEmail != current.PublicProxyEmail || next.PublicEngine != current.PublicEngine)
 	if !next.PublicProxyEnabled {
 		s.stopPublicProxy()
 	} else if restart {
@@ -587,7 +627,7 @@ func (s *Server) handleCheckPublicRoute(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	// what the name leads to, to tell the person when it is the first thing wrong
-	resolved, lookupErr := net.LookupHost(route.Hostname)
+	resolved, lookupErr := lookupHost(route.Hostname)
 	if lookupErr != nil || len(resolved) == 0 {
 		reason := "the domain has no DNS record yet: point an A record (or AAAA) at this server's public address"
 		_ = s.database.SetPublicRouteCheck(id, false, reason)
@@ -613,4 +653,137 @@ func (s *Server) respondCheckedRoute(w http.ResponseWriter, id int64, ok bool, r
 		return
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": ok, "error": reason, "resolved": resolved, "route": s.publicRouteViews([]database.PublicRoute{*updated})[0]})
+}
+
+// handlePublicEngines tells what each way to serve needs on this machine: what is installed and running, and whether the web
+// ports are free for the proxy of Reneo. It runs commands, so the page asks only when it is opened or when asked.
+func (s *Server) handlePublicEngines(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	s.writeJSON(w, http.StatusOK, jsonResponse{"engines": s.engineReports(ctx)})
+}
+
+// publicCloudflare is the Cloudflare account of the superadmin, which can make the DNS record of a domain
+func (s *Server) publicCloudflare() (*cloudflareapi.Client, error) {
+	if s.testCloudflare != nil {
+		return s.testCloudflare, nil
+	}
+	client, _, err := s.hostingCloudflare()
+	return client, err
+}
+
+func (s *Server) publicCloudflareReady() bool {
+	if s.testCloudflare != nil {
+		return true
+	}
+	if s.database == nil || !s.database.IsConnected() {
+		return false
+	}
+	_, err := s.publicCloudflare()
+	return err == nil
+}
+
+// publicAddressRecord is the DNS record that makes a domain lead to this server: an A or AAAA record for the address that was
+// set (or the first public address of the machine), or a CNAME when the address is a name
+func (s *Server) publicAddressRecord() (recordType, content string, err error) {
+	target := strings.TrimSpace(s.loadSiteSettings().PublicProxyTarget)
+	if target == "" {
+		for _, a := range localAddresses() {
+			if a.Public {
+				target = a.IP
+				break
+			}
+		}
+	}
+	if target == "" {
+		return "", "", errors.New("set the address of this server first")
+	}
+	if ip := net.ParseIP(target); ip != nil {
+		if ip.To4() != nil {
+			return "A", ip.String(), nil
+		}
+		return "AAAA", ip.String(), nil
+	}
+	return "CNAME", strings.TrimSuffix(strings.ToLower(target), "."), nil
+}
+
+// zoneFor finds the zone of the account that holds a domain: the one with the longest name that the domain ends with
+func zoneFor(hostname string, zones []cloudflareapi.ZoneInfo) *cloudflareapi.ZoneInfo {
+	var best *cloudflareapi.ZoneInfo
+	for i := range zones {
+		name := strings.ToLower(zones[i].Name)
+		if hostname == name || strings.HasSuffix(hostname, "."+name) {
+			if best == nil || len(name) > len(best.Name) {
+				best = &zones[i]
+			}
+		}
+	}
+	return best
+}
+
+// recordsAreOurs says whether what is at the name already is the record we would make
+func recordsAreOurs(records []cloudflareapi.DNSRecord, recordType, content string) bool {
+	if len(records) == 0 {
+		return false
+	}
+	for _, r := range records {
+		if !strings.EqualFold(r.Type, recordType) || !strings.EqualFold(strings.TrimSuffix(r.Content, "."), content) {
+			return false
+		}
+	}
+	return true
+}
+
+// handleRouteCloudflareDNS makes the DNS record of a domain at Cloudflare, when the domain is in the account of the superadmin.
+// The record is DNS only (not proxied): the certificate is asked for through the web ports of this server.
+func (s *Server) handleRouteCloudflareDNS(w http.ResponseWriter, r *http.Request) {
+	if !s.requireDatabase(w) {
+		return
+	}
+	route, _ := s.database.GetPublicRoute(parsePathID(r, "id"))
+	if route == nil {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "not found"})
+		return
+	}
+	recordType, content, err := s.publicAddressRecord()
+	if err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	client, err := s.publicCloudflare()
+	if err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	zones, err := client.ListZones()
+	if err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Cloudflare did not answer: " + err.Error()})
+		return
+	}
+	zone := zoneFor(route.Hostname, zones)
+	if zone == nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this domain is not in your Cloudflare account"})
+		return
+	}
+	records, err := client.DNSRecordsByName(zone.ID, route.Hostname)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Cloudflare did not answer: " + err.Error()})
+		return
+	}
+	created := false
+	if !recordsAreOurs(records, recordType, content) {
+		if len(records) > 0 {
+			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": route.Hostname + " is already used by another DNS record"})
+			return
+		}
+		if _, err := client.CreateDNSRecord(zone.ID, cloudflareapi.DNSRecordPayload{Type: recordType, Name: route.Hostname, Content: content, TTL: 1, Proxied: false, Comment: "Reneo public IP"}); err != nil {
+			s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "could not create the DNS record: " + err.Error()})
+			return
+		}
+		created = true
+	}
+	if u := userFromCtx(r); u != nil {
+		s.auditSensitiveAction(r, u, "publicproxy.route.dns", "ok", map[string]any{"hostname": route.Hostname, "type": recordType, "created": created})
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "created": created, "type": recordType, "content": content, "zone": zone.Name})
 }
