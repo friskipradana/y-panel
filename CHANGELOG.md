@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.47.0] - 2026-10-20
+
+The story of the page is told in steps and tabs, with the homelab emphasis, the second tagline and a longer list of modules.
+
+### Fitur baru
+- **landing:** The story of the page is told in steps and tabs, with the homelab emphasis, the second tagline and a longer list of modules ([`026f337`](https://github.com/friskipradana/y-panel/commit/026f337))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.46.1...v1.47.0
+
 ## [1.46.1] - 2026-10-20
 
 The texts of the landing page match what the page uses, and the keys nothing uses are removed.
