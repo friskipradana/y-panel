@@ -1,21 +1,4 @@
-import {
-  Activity,
-  ArrowRight,
-  Bot,
-  Box,
-  Database,
-  Download,
-  Eye,
-  FileText,
-  FolderKanban,
-  Globe,
-  HardDrive,
-  LayoutGrid,
-  Settings,
-  Terminal,
-  Users,
-} from 'lucide-react'
-import type { ComponentType } from 'react'
+import { ArrowRight, Bot, Download, Eye } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { DesktopShowcase } from '@/components/landing/DesktopShowcase'
 import { PublicShell, INSTALLER_URL } from '@/components/public/PublicShell'
@@ -24,6 +7,9 @@ import { Button } from '@/components/ui/Button'
 import { useQuery } from '@tanstack/react-query'
 import { getDemoInfo } from '@/api/agent'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
+import { Background } from '@/pages/landing/Background'
+import { Modules } from '@/pages/landing/Modules'
+import { Philosophy } from '@/pages/landing/Philosophy'
 import { Pricing } from '@/pages/landing/Pricing'
 
 export type LandingPageProps = {
@@ -34,22 +20,7 @@ export type LandingPageProps = {
 // Short redirect to the latest release asset (Cloudflare redirect rule); INSTALLER_URL is the direct fallback
 const INSTALL_COMMAND = 'curl -fsSL https://install.reneo.my.id | sudo bash'
 
-const MODULES: Array<{ id: string; icon: ComponentType<{ size?: number; className?: string }> }> = [
-  { id: 'docker', icon: Box },
-  { id: 'projects', icon: FolderKanban },
-  { id: 'cloudflare', icon: Globe },
-  { id: 'terminal', icon: Terminal },
-  { id: 'files', icon: HardDrive },
-  { id: 'users', icon: Users },
-  { id: 'database', icon: Database },
-  { id: 'system', icon: Activity },
-  { id: 'logs', icon: FileText },
-  { id: 'widgets', icon: LayoutGrid },
-  { id: 'settings', icon: Settings },
-  { id: 'mcp', icon: Bot },
-]
-
-const NAME_PARTS = ['rein', 'neo', 'rene'] as const
+const HERO_FACTS = ['linux', 'agent', 'reach', 'mcp'] as const
 
 const HERO_ACTION = '!h-11 w-full justify-center !px-4'
 // Login is solid blue, the demo is the same soft outline as the installer with a blue edge and label, the installer is a neutral outline
@@ -65,12 +36,22 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
     <PublicShell>
       <main className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14">
         {/* Hero */}
-        <section className="mx-auto max-w-3xl text-center">
-          <p className="panel-mono mb-3 text-[0.75rem] uppercase tracking-widest text-[var(--text-secondary)]">{t('landing.eyebrow')}</p>
-          <h1 className="mb-4 text-balance text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+        <section className="mx-auto max-w-4xl text-center">
+          <p className="panel-mono mb-4 text-[0.75rem] uppercase tracking-widest text-[var(--text-secondary)]">{t('landing.eyebrow')}</p>
+          <h1 className="mx-auto mb-4 max-w-3xl text-balance text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-5xl">
             {t('landing.hero.line1')} <span className="text-[var(--panel-info-text)]">{t('landing.hero.line2')}</span>
           </h1>
-          <p className="mx-auto mb-6 max-w-2xl text-[0.9375rem] leading-relaxed text-[var(--text-secondary)] sm:text-base">{t('landing.description')}</p>
+          <p className="mb-4 text-balance text-base font-semibold text-[var(--panel-info-text)] sm:text-lg">{t('landing.tagline')}</p>
+          <p className="mx-auto max-w-2xl text-balance text-[0.9375rem] leading-relaxed text-[var(--text-secondary)] sm:text-base">{t('landing.description')}</p>
+
+          {/* What it runs on and how it is reached, as plain facts */}
+          <ul className="mx-auto mb-7 mt-5 flex max-w-2xl flex-wrap justify-center gap-1.5" aria-label={t('landing.hero.factsLabel')}>
+            {HERO_FACTS.map((id) => (
+              <li key={id} className="panel-mono rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2 py-1 text-[0.75rem] leading-none text-[var(--text-secondary)]">
+                {t(`landing.hero.fact.${id}`)}
+              </li>
+            ))}
+          </ul>
 
           {/* Two actions side by side, the installer under them across the full width */}
           <div className="mx-auto mb-6 grid max-w-md grid-cols-2 gap-3">
@@ -117,28 +98,15 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <DesktopShowcase />
           <p className="mt-2 text-center text-[0.75rem] text-[var(--text-secondary)]">{t('landing.preview.caption')}</p>
         </section>
-        {/* Modules: one table instead of a grid of identical cards */}
 
-        <section className="mt-14" aria-labelledby="landing-modules">
-          <h2 id="landing-modules" className="text-xl font-bold tracking-tight sm:text-2xl">
-            {t('landing.modules.title')}
-          </h2>
-          <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{t('landing.modules.subtitle')}</p>
-
-          <ul className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-            {MODULES.map(({ id, icon: Icon }) => (
-              <li key={id} className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 sm:grid-cols-[auto_9rem_1fr]">
-                <Icon size={15} className="translate-y-0.5 text-[var(--text-secondary)]" />
-                <span className="text-[0.875rem] font-semibold">{t(`landing.module.${id}.title`)}</span>
-                <span className="col-start-2 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)] sm:col-start-3">
-                  {t(`landing.module.${id}.desc`)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
+        {/* What is offered comes first, then why the panel exists and what the name means */}
         <Pricing />
+
+        <Background />
+
+        <Philosophy />
+
+        <Modules />
 
         {/* AI agents */}
         <section className="mt-14" aria-labelledby="landing-agent">
@@ -155,28 +123,6 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <ArrowRight size={13} />
           </Button>
         </section>
-
-        {/* Name: three parts as one definition list */}
-        <section className="mt-14" aria-labelledby="landing-philosophy">
-          <h2 id="landing-philosophy" className="text-xl font-bold tracking-tight sm:text-2xl">
-            {t('landing.philosophy.title')}
-          </h2>
-          <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{t('landing.philosophy.subtitle')}</p>
-          <p className="panel-mono mt-1 text-[0.75rem] text-[var(--text-secondary)]">{t('landing.hero.name')}</p>
-
-          <dl className="mt-4 divide-y divide-[var(--win-border)] rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-            {NAME_PARTS.map((id) => (
-              <div key={id} className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_1fr] sm:gap-4">
-                <dt className="panel-mono text-[0.8125rem] text-[var(--panel-info-text)]">{t(`landing.philosophy.${id}.tag`)}</dt>
-                <dd>
-                  <span className="text-[0.875rem] font-semibold">{t(`landing.philosophy.${id}.title`)}</span>
-                  <span className="mt-0.5 block text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{t(`landing.philosophy.${id}.desc`)}</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
       </main>
     </PublicShell>
   )
