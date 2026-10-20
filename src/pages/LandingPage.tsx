@@ -6,8 +6,10 @@ import { CopyBlock } from '@/components/public/CopyBlock'
 import { Button } from '@/components/ui/Button'
 import { useQuery } from '@tanstack/react-query'
 import { getDemoInfo } from '@/api/agent'
+import { usePageMeta } from '@/hooks/usePageMeta'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 import { Background } from '@/pages/landing/Background'
+import { Faq } from '@/pages/landing/Faq'
 import { Modules } from '@/pages/landing/Modules'
 import { Philosophy } from '@/pages/landing/Philosophy'
 import { Pricing } from '@/pages/landing/Pricing'
@@ -31,6 +33,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
   const { t } = useI18n()
   const primaryPath = authenticated ? '/home' : '/login'
   const { counts } = useMcpCatalog()
+  usePageMeta(t('landing.metaTitle'), t('landing.description'))
 
   return (
     <PublicShell>
@@ -123,6 +126,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             <ArrowRight size={13} />
           </Button>
         </section>
+
+        <Faq />
       </main>
     </PublicShell>
   )

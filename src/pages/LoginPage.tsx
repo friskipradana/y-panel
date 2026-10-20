@@ -135,14 +135,15 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     <main className="login-page relative w-full h-full min-h-dvh overflow-hidden" id="panel-login-screen">
       {/* Dynamic wallpaper background layer */}
       <div className="absolute inset-0 z-0" style={backgroundStyle} />
-      {/* Ambient background contrast overlay */}
-      <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-[2px] z-[1] pointer-events-none" />
+      {/* Soft scrim in the colour of the theme, so the texts read on any wallpaper */}
+      <div className="absolute inset-0 login-scrim backdrop-blur-[2px] z-[1] pointer-events-none" />
       {onBack ? (
         <button
           id="login-back-button"
           type="button"
           onClick={onBack}
           title={t('login.back')}
+          aria-label={t('login.back')}
           style={pillStyle}
           className="absolute top-[max(1.5rem,env(safe-area-inset-top))] left-6 z-30 flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer"
         >
@@ -156,7 +157,8 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
           id="login-theme-toggle"
           type="button"
           onClick={toggleMode}
-          title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          title={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
+          aria-label={themeMode === 'dark' ? t('public.theme.toLight') : t('public.theme.toDark')}
           style={pillStyle}
           className="flex items-center justify-center w-11 h-11 sm:w-9 sm:h-9 rounded-full border login-pill login-pill-shadow text-[var(--win-text)] opacity-80 hover:opacity-100 cursor-pointer transition-all duration-150"
         >
@@ -164,14 +166,14 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
         </button>
       </div>
 
-      <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 px-6 pb-20 z-10 max-sm:pb-12">
-        <img src="/favicon.svg" alt="Reneo" className="mb-4 h-20 w-20 rounded-[1.375rem] shadow-2xl ring-1 ring-white/25" />
+      <div className="flex w-full max-w-sm flex-col items-center justify-center gap-1 px-6 pb-20 z-10 max-sm:pb-24">
+        <img src="/favicon.svg" alt="Reneo" className="mb-3 h-20 w-20 rounded-[1.375rem] max-sm:h-14 max-sm:w-14 max-sm:rounded-2xl shadow-2xl ring-1 ring-white/25" />
 
-        <div className="mb-3 text-center px-4">
-          <p className="text-base font-bold tracking-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">
+        <div className="mb-3 text-center px-4 max-sm:mb-2.5">
+          <p className="text-base font-bold tracking-tight login-title max-sm:text-[0.9375rem]">
             {mode === 'setup' ? t('login.firstRunSetup') : t('login.welcomeBack')}
           </p>
-          <p className="mt-1 text-[12.5px] font-medium text-slate-200 drop-shadow-[0_1px_6px_rgba(0,0,0,0.75)]">
+          <p className="mt-0.5 text-[12.5px] font-medium login-subtitle">
             {statusMessage}
           </p>
         </div>
@@ -195,7 +197,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type="text"
                 value={setupUsername}
                 onChange={(e) => setSetupUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
+                className="w-full bg-transparent px-4 py-2.5 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
                 placeholder={t('login.usernamePlaceholder')}
                 autoComplete="username"
               />
@@ -207,7 +209,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type="text"
                 value={setupDisplayName}
                 onChange={(e) => setSetupDisplayName(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
+                className="w-full bg-transparent px-4 py-2.5 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
                 placeholder={t('login.displayNamePlaceholder')}
                 autoComplete="name"
               />
@@ -219,7 +221,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type="email"
                 value={setupEmail}
                 onChange={(e) => setSetupEmail(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
+                className="w-full bg-transparent px-4 py-2.5 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
                 placeholder={t('login.adminEmailPlaceholder')}
                 autoComplete="email"
               />
@@ -231,15 +233,16 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type={showSetupPassword ? 'text' : 'password'}
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-12 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
+                className="w-full bg-transparent pl-4 pr-12 py-2.5 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
                 placeholder={t('login.passwordPlaceholder')}
                 autoComplete="new-password"
               />
               <button
                 type="button"
-                className="absolute right-3 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:h-auto sm:w-auto"
+                className="absolute right-1.5 flex h-9 w-9 items-center justify-center transition-colors login-icon-button sm:right-3 sm:h-auto sm:w-auto"
                 onClick={() => setShowSetupPassword(!showSetupPassword)}
                 title={showSetupPassword ? t('login.hidePassword') : t('login.showPassword')}
+                aria-label={showSetupPassword ? t('login.hidePassword') : t('login.showPassword')}
               >
                 {showSetupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -251,15 +254,16 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type={showSetupConfirmPassword ? 'text' : 'password'}
                 value={setupConfirmPassword}
                 onChange={(e) => setSetupConfirmPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-12 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
+                className="w-full bg-transparent pl-4 pr-12 py-2.5 text-base font-medium tracking-wider outline-none login-input sm:pr-10 sm:py-2 sm:text-sm"
                 placeholder={t('login.confirmPasswordPlaceholder')}
                 autoComplete="new-password"
               />
               <button
                 type="button"
-                className="absolute right-3 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:h-auto sm:w-auto"
+                className="absolute right-1.5 flex h-9 w-9 items-center justify-center transition-colors login-icon-button sm:right-3 sm:h-auto sm:w-auto"
                 onClick={() => setShowSetupConfirmPassword(!showSetupConfirmPassword)}
                 title={showSetupConfirmPassword ? t('login.hidePassword') : t('login.showPassword')}
+                aria-label={showSetupConfirmPassword ? t('login.hidePassword') : t('login.showPassword')}
               >
                 {showSetupConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -268,7 +272,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
             <button
               id="panel-setup-submit"
               type="submit"
-              className="mt-1 rounded-full border px-4 py-3 text-base font-medium transition-all sm:py-2 sm:text-sm disabled:cursor-not-allowed disabled:opacity-70 login-submit-wide login-pill-shadow"
+              className="mt-1 rounded-full border px-4 py-2.5 text-base font-medium transition-all sm:py-2 sm:text-sm disabled:cursor-not-allowed disabled:opacity-70 login-submit-wide login-pill-shadow"
               disabled={activePending}
             >
               {activePending ? t('login.processing') : t('login.createAdminAndLogin')}
@@ -276,7 +280,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
           </form>
         ) : (
           <form
-            className="w-[min(20rem,calc(100vw-3rem))] flex flex-col gap-2.5"
+            className="w-[min(20rem,calc(100vw-3rem))] flex flex-col gap-2.5 max-sm:w-[min(17.5rem,calc(100vw-3rem))] max-sm:gap-2"
             onSubmit={(e) => {
               e.preventDefault()
               loginMutation.mutate()
@@ -291,7 +295,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-transparent px-4 py-3 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
+                className="w-full bg-transparent px-4 py-2.5 text-base font-medium tracking-wide outline-none login-input sm:py-2 sm:text-sm"
                 placeholder={t('login.usernamePlaceholder')}
                 autoComplete="username"
               />
@@ -303,7 +307,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-transparent pl-4 pr-24 py-3 text-base font-medium tracking-wider outline-none login-input sm:pr-16 sm:py-2 sm:text-sm"
+                className="w-full bg-transparent pl-4 pr-14 py-2.5 text-base font-medium tracking-wider outline-none login-input sm:pr-16 sm:py-2 sm:text-sm"
                 placeholder={t('login.passwordPlaceholder')}
                 autoComplete="current-password"
                 autoFocus={FINE_POINTER}
@@ -311,9 +315,10 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
 
               <button
                 type="button"
-                className="absolute right-12 flex h-8 w-8 items-center justify-center transition-colors login-icon-button sm:right-8 sm:h-auto sm:w-auto"
+                className="absolute right-1.5 flex h-9 w-9 items-center justify-center transition-colors login-icon-button sm:right-8 sm:h-auto sm:w-auto"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
               >
                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -321,15 +326,33 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
               <button
                 id="panel-login-submit"
                 type="submit"
-                className="absolute right-1.5 flex h-[2.25rem] w-[2.25rem] items-center justify-center rounded-full border shadow-sm transition-all login-submit-round sm:right-1 sm:h-6 sm:w-6"
+                className="absolute right-1.5 flex h-[2.25rem] w-[2.25rem] items-center justify-center rounded-full border shadow-sm transition-all login-submit-round max-sm:hidden sm:right-1 sm:h-6 sm:w-6"
                 disabled={activePending}
               >
                 {activePending ? <LoaderCircle size={14} className="animate-spin" /> : <ArrowRight size={14} strokeWidth={2.5} />}
               </button>
             </div>
+
+            <button
+              id="panel-login-submit-mobile"
+              type="submit"
+              disabled={activePending}
+              className="mt-1 flex items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-base font-medium transition-all disabled:cursor-not-allowed disabled:opacity-70 border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white shadow-md hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] sm:hidden"
+            >
+              {activePending ? <LoaderCircle size={16} className="animate-spin" /> : null}
+              {activePending ? t('login.processing') : t('login.signIn')}
+            </button>
           </form>
         )}
       </div>
+
+      {/* The public pages, only where there is a public site */}
+      {onBack ? (
+        <nav aria-label={t('public.footer.legal')} className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 flex justify-center gap-4 text-[0.75rem] login-subtitle">
+          <a href="/terms" className="inline-flex h-8 items-center hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">{t('legal.link.terms')}</a>
+          <a href="/privacy" className="inline-flex h-8 items-center hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">{t('legal.link.privacy')}</a>
+        </nav>
+      ) : null}
     </main>
   )
 }

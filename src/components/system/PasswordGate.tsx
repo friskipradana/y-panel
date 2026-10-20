@@ -4,7 +4,8 @@ import { KeyRound, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { changeMyPassword } from '@/api/users'
 import { Button } from '@/components/ui/Button'
-import { Field, TextInput } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
@@ -58,13 +59,13 @@ export function PasswordGate() {
         </div>
 
         <Field label={t('gate.password.current')}>
-          <TextInput type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
         <Field label={t('users.newPassword')} error={tooShort ? t('users.passwordTooShort', { min: MIN_LENGTH }) : same ? t('gate.password.same') : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={next} invalid={tooShort || same} onChange={(e) => setNext(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={next} invalid={tooShort || same} onChange={(e) => setNext(e.target.value)} />
         </Field>
         <Field label={t('users.confirmPassword')} error={mismatch ? t('users.passwordMismatch') : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
 
         <div className="flex items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">

@@ -16,8 +16,8 @@ export function InstallPage() {
 
   return (
     <PublicShell>
-      <main className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
-        <Button variant="ghost" onClick={() => navigate('/')}>
+      <main className="mx-auto max-w-5xl px-4 pb-10 pt-3 sm:px-6 sm:pt-8">
+        <Button variant="ghost" className="-ml-2.5" onClick={() => navigate('/')}>
           <ArrowLeft size={13} />
           <span>{t('install.back')}</span>
         </Button>

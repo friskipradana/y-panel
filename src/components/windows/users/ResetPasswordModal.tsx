@@ -4,7 +4,8 @@ import { KeyRound } from 'lucide-react'
 import { resetUserPassword, type PanelUser } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
-import { Field, TextInput } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Modal } from '@/components/ui/Modal'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -79,10 +80,10 @@ function ResetPasswordForm({ user, onClose, onReset }: ResetPasswordModalProps &
       <div className="space-y-3">
         <p className="text-[0.8125rem] text-[var(--text-secondary)]">{t('users.resetPasswordHint')}</p>
         <Field label={t('users.newPassword')} error={tooShort ? t('users.passwordTooShort', { min: MIN_LENGTH }) : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={password} invalid={tooShort} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={password} invalid={tooShort} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label={t('users.confirmPassword')} error={mismatch ? t('users.passwordMismatch') : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Checkbox checked={forceChange} onChange={setForceChange} label={t('users.forceChange')} description={t('users.forceChangeHint')} />
       </div>

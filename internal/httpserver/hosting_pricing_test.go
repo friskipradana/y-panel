@@ -355,7 +355,7 @@ func TestIntegrationBuyerPanelAddressesServeNoPublicSite(t *testing.T) {
 	}
 
 	// the seller's own address keeps its landing page and the pages around it
-	for _, path := range []string{"/", "/articles", "/install", "/order", "/docs/mcp", "/sitemap.xml"} {
+	for _, path := range []string{"/", "/articles", "/install", "/terms", "/privacy", "/order", "/docs/mcp", "/sitemap.xml"} {
 		if call("reneo.my.id", path); !reached {
 			t.Errorf("%s is served on the seller's address", path)
 		}
@@ -364,7 +364,7 @@ func TestIntegrationBuyerPanelAddressesServeNoPublicSite(t *testing.T) {
 	if rec := call("dewi.reneo.my.id", "/"); reached || rec.Code != http.StatusFound || rec.Header().Get("Location") != "/login" {
 		t.Errorf("the front page on a buyer address leads to the login: %d %q reached=%v", rec.Code, rec.Header().Get("Location"), reached)
 	}
-	for _, path := range []string{"/articles", "/articles/a-post", "/install", "/order", "/order/abc", "/docs/mcp", "/sitemap.xml", "/llms.txt"} {
+	for _, path := range []string{"/articles", "/articles/a-post", "/install", "/terms", "/privacy", "/order", "/order/abc", "/docs/mcp", "/sitemap.xml", "/llms.txt"} {
 		if rec := call("dewi.reneo.my.id", path); reached || rec.Code != http.StatusNotFound {
 			t.Errorf("%s does not exist on a buyer address: %d reached=%v", path, rec.Code, reached)
 		}

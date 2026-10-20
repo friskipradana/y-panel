@@ -20,7 +20,7 @@ import (
 
 const (
 	siteName        = "Reneo"
-	siteTagline     = "Pembaruan kendali untuk server Anda"
+	siteTagline     = "Pembaruan kendali untuk server"
 	siteDescription = "Reneo adalah panel kontrol server Linux bergaya desktop: Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI lewat MCP, dalam satu ruang kerja."
 )
 
@@ -94,6 +94,8 @@ func sitemapXML(base string, docs []database.Doc, now time.Time) string {
 	add("/", now, "weekly")
 	add("/docs/mcp", now, "monthly")
 	add("/articles", now, "daily")
+	add("/terms", now, "yearly")
+	add("/privacy", now, "yearly")
 	for _, d := range docs {
 		add("/articles/"+d.Slug, d.UpdatedAt, "monthly")
 	}
@@ -109,6 +111,8 @@ func llmsTxt(base string, docs []database.Doc) string {
 	fmt.Fprintf(&b, "- [Home](%s/): overview, install command and demo account\n", base)
 	fmt.Fprintf(&b, "- [MCP guide](%s/docs/mcp): connect Hermes, Claude Desktop, Cursor or cURL to the panel\n", base)
 	fmt.Fprintf(&b, "- [Articles](%s/articles): guides and notes\n", base)
+	fmt.Fprintf(&b, "- [Terms and Conditions](%s/terms): the rules for using a panel\n", base)
+	fmt.Fprintf(&b, "- [Privacy Policy](%s/privacy): what a panel stores and where it is sent\n", base)
 	if len(docs) > 0 {
 		b.WriteString("\n## Articles\n\n")
 		for _, d := range docs {
@@ -206,7 +210,7 @@ func replaceMetaDescription(index, desc string) string {
 
 func (s *Server) landingPage(base string) seoPage {
 	return seoPage{
-		Title:       siteName + ": " + siteTagline,
+		Title:       siteName + " | " + siteTagline,
 		Description: siteDescription,
 		Path:        "/",
 		Type:        "website",
@@ -236,6 +240,22 @@ func (s *Server) seoPageFor(r *http.Request, base string) (seoPage, bool) {
 			Path:        "/docs/mcp",
 			Type:        "article",
 			Body:        "Buat token API di Settings, tambahkan server MCP Reneo ke klien Anda, lalu minta agen memeriksa server, Docker, file, dan Cloudflare.",
+		}, true
+	case path == "/terms":
+		return seoPage{
+			Title:       "Syarat dan Ketentuan | " + siteName,
+			Description: "Aturan memakai panel Reneo: akun, pemakaian yang diizinkan, paket dan pembayaran, masa berlaku, dan penghentian.",
+			Path:        "/terms",
+			Type:        "article",
+			Body:        "Setiap panel dijalankan oleh penyelenggaranya. Syarat ini mengatur akun, pemakaian, pesanan, pembayaran, masa berlaku, dan penghentian.",
+		}, true
+	case path == "/privacy":
+		return seoPage{
+			Title:       "Kebijakan Privasi | " + siteName,
+			Description: "Data apa yang disimpan panel Reneo, untuk apa dipakai, layanan pihak ketiga yang dihubungi, dan berapa lama data disimpan.",
+			Path:        "/privacy",
+			Type:        "article",
+			Body:        "Tidak ada analitik atau pelacak iklan. Panel hanya menghubungi GitHub dan layanan yang diaktifkan penyelenggara.",
 		}, true
 	case path == "/articles":
 		docs := s.publicArticles()

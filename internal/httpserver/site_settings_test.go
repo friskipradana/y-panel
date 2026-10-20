@@ -84,7 +84,7 @@ func TestLandingOffHidesPublicPages(t *testing.T) {
 	if rec := get("/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/login" {
 		t.Fatalf("/ must lead to the login form, got %d %q", rec.Code, rec.Header().Get("Location"))
 	}
-	for _, path := range []string{"/articles", "/articles/hello", "/install", "/docs/mcp", "/sitemap.xml", "/llms.txt"} {
+	for _, path := range []string{"/articles", "/articles/hello", "/install", "/terms", "/privacy", "/docs/mcp", "/sitemap.xml", "/llms.txt"} {
 		if rec := get(path); rec.Code != http.StatusNotFound || reached {
 			t.Fatalf("%s must not exist while the public site is off, got %d (reached=%v)", path, rec.Code, reached)
 		}

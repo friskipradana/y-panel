@@ -77,7 +77,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 
 		// Public pages: Landing (/), Login (/login), and Public MCP Tutorial (/docs/mcp, /mcp/guide)
 		isPublicPage := path == "/" || path == "/login" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
-			path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/order" || strings.HasPrefix(path, "/order/") ||
+			path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/terms" || path == "/privacy" || path == "/order" || strings.HasPrefix(path, "/order/") ||
 			path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 
 		// Files the login and landing pages need before any session exists
@@ -118,7 +118,7 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 // the files crawlers ask for. /login is not one of them.
 func isPublicSitePath(path string) bool {
 	return path == "/" || path == "/docs/mcp" || strings.HasPrefix(path, "/docs/") || path == "/mcp/guide" ||
-		path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/order" || strings.HasPrefix(path, "/order/") ||
+		path == "/articles" || strings.HasPrefix(path, "/articles/") || path == "/install" || path == "/terms" || path == "/privacy" || path == "/order" || strings.HasPrefix(path, "/order/") ||
 		path == "/robots.txt" || path == "/sitemap.xml" || path == "/llms.txt"
 }
 

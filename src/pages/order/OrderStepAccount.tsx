@@ -1,5 +1,6 @@
 import { CircleCheck } from 'lucide-react'
 import { Field, TextInput } from '@/components/ui/Field'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useI18n } from '@/lib/i18n'
 import type { FieldProblem } from './orderValidation'
 import type { AccountForm, OrderFormState } from './useOrderForm'
@@ -16,7 +17,7 @@ export function OrderStepAccount({ order }: { order: OrderFormState }) {
   const ok = (field: keyof AccountForm) => form[field] !== '' && problems[field] === null
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+    <section className="space-y-3">
       <Field label={t('order.username')} htmlFor="order-username" hint={t('order.usernameHint')} error={error('username')}>
         <TextInput
           id="order-username"
@@ -63,9 +64,8 @@ export function OrderStepAccount({ order }: { order: OrderFormState }) {
         <TextInput id="order-name" autoComplete="name" maxLength={60} value={form.displayName} onChange={(e) => patch({ displayName: e.target.value })} />
       </Field>
       <Field label={t('order.password')} htmlFor="order-password" hint={t('order.passwordHint')} error={error('password')}>
-        <TextInput
+        <PasswordInput
           id="order-password"
-          type="password"
           autoComplete="new-password"
           value={form.password}
           invalid={!!error('password')}
@@ -74,9 +74,8 @@ export function OrderStepAccount({ order }: { order: OrderFormState }) {
         />
       </Field>
       <Field label={t('order.repeatPassword')} htmlFor="order-repeat" error={error('repeat')}>
-        <TextInput
+        <PasswordInput
           id="order-repeat"
-          type="password"
           autoComplete="new-password"
           value={form.repeat}
           invalid={!!error('repeat')}

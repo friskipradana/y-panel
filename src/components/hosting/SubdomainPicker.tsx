@@ -25,14 +25,16 @@ interface SubdomainPickerProps {
   /** Only ask while the form is on screen */
   enabled?: boolean
   initialLabel?: string
+  /** The domain that was chosen before; used when it is still offered */
+  initialZoneId?: string
 }
 
 // The name of a panel address under one of the offered domains, checked against the agent while typing
 // so "taken" shows before the form is sent. Used by the order form and the buyer's own subdomain dialog.
-export function SubdomainPicker({ domains, check, onChange, enabled = true, initialLabel = '' }: SubdomainPickerProps) {
+export function SubdomainPicker({ domains, check, onChange, enabled = true, initialLabel = '', initialZoneId = '' }: SubdomainPickerProps) {
   const { t } = useI18n()
   const [label, setLabel] = useState(initialLabel)
-  const [zoneId, setZoneId] = useState(domains[0]?.zoneId ?? '')
+  const [zoneId, setZoneId] = useState(domains.some((d) => d.zoneId === initialZoneId) ? initialZoneId : domains[0]?.zoneId ?? '')
   const [settled, setSettled] = useState(initialLabel)
 
   // wait for a pause in typing before asking the agent

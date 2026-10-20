@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react'
-import { Pencil } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Eye, EyeOff, Pencil } from 'lucide-react'
 import { useDurationLabel } from '@/components/hosting/PeriodPicker'
 import { PriceLines } from '@/components/hosting/PriceLines'
 import { VoucherField } from '@/components/hosting/VoucherField'
 import { IconButton } from '@/components/ui/IconButton'
 import { useI18n } from '@/lib/i18n'
+import { formatDate, validUntil } from './orderValidity'
+import { LegalLinks } from '@/pages/legal/LegalLinks'
 import type { OrderFormState, OrderStep } from './useOrderForm'
 
 // One group of the review: its facts as label and value, and a single pencil that goes back to the step they came from
@@ -15,7 +17,7 @@ function Group({ rows, onEdit, editLabel }: { rows: { label: string; value: Reac
         {rows.map((row) => (
           <div key={row.label} className="contents">
             <dt className="text-[var(--text-secondary)]">{row.label}</dt>
-            <dd className={`min-w-0 font-medium text-[var(--win-text)] ${row.mono ? 'panel-mono break-all' : 'truncate'}`}>{row.value}</dd>
+            <dd className={`min-w-0 font-medium text-[var(--win-text)] ${row.mono ? 'panel-mono break-all' : 'break-words'}`}>{row.value}</dd>
           </div>
         ))}
       </dl>
@@ -23,6 +25,32 @@ function Group({ rows, onEdit, editLabel }: { rows: { label: string; value: Reac
         <Pencil className="h-3.5 w-3.5" />
       </IconButton>
     </div>
+  )
+}
+
+// The password as dots, with a button that shows what was typed
+function PasswordValue({ value }: { value: string }) {
+  const { t } = useI18n()
+  const [shown, setShown] = useState(false)
+  return (
+    <span className="flex items-center justify-between gap-2">
+      <span className="panel-mono min-w-0 break-all">{shown ? value : '\u2022'.repeat(Math.min(value.length, 12))}</span>
+      <IconButton label={shown ? t('ui.hidePassword') : t('ui.showPassword')} onClick={() => setShown((v) => !v)} className="-my-1 shrink-0 !h-[26px] !w-[26px]">
+        {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </IconButton>
+    </span>
+  )
+}
+
+// The day the plan ends, with a line saying it is counted from when the account is switched on
+function Validity({ end }: { end: Date | null }) {
+  const { t, language } = useI18n()
+  if (!end) return <>{t('order.review.noExpiry')}</>
+  return (
+    <>
+      {formatDate(end, language)}
+      <span className="block text-[0.75rem] font-normal text-[var(--text-secondary)]">{t('order.review.estimate')}</span>
+    </>
   )
 }
 
@@ -41,13 +69,14 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
 
   return (
     <div className="space-y-3">
-      <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
+      <section className="divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
         <Group
           onEdit={edit('plan')}
           editLabel={`${t('order.review.edit')}: ${t('order.step.plan')}`}
           rows={[
             { label: t('order.plan'), value: plan.name },
             { label: t('order.review.period'), value: isTrial ? t('order.trialNote', { days: plan.trialDays }) : durationLabel(count) },
+            { label: t('order.review.until'), value: <Validity end={validUntil(plan, count, isTrial)} /> },
           ]}
         />
         {needsAddress ? (
@@ -61,7 +90,7 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
             { label: t('order.email'), value: form.email.trim() },
             ...(phone ? [{ label: t('order.whatsapp'), value: `+${phone}`, mono: true }] : []),
             ...(form.displayName.trim() ? [{ label: t('order.displayName'), value: form.displayName.trim() }] : []),
-            { label: t('order.password'), value: '•'.repeat(Math.min(form.password.length, 12)) },
+            { label: t('order.password'), value: <PasswordValue value={form.password} /> },
           ]}
         />
         <div className="space-y-3 py-3">
@@ -97,9 +126,12 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
         </div>
       </section>
 
-      <p className="px-1 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
-        {isTrial ? t('order.review.trialNote') : total === 0 ? t('order.review.freeNote') : t('order.review.payNote')}
-      </p>
+      <div className="space-y-1.5 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+        <p>{isTrial ? t('order.review.trialNote') : total === 0 ? t('order.review.freeNote') : t('order.review.payNote')}</p>
+        <p>
+          <LegalLinks messageKey="legal.order.agree" />
+        </p>
+      </div>
     </div>
   )
 }

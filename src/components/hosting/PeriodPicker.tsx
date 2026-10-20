@@ -30,18 +30,18 @@ export function PeriodPicker({ plan, value, onChange, maxPeriods }: { plan: Pick
   if (choices.length < 2) return null
 
   return (
-    <div role="group" aria-label={t('order.periods')} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+    <div role="group" aria-label={t('order.periods')} className="grid gap-1.5">
       {choices.map((count) => {
         const price = priceFor(plan, count)
         return (
-          <SelectableCard key={count} selected={value === count} onClick={() => onChange(count)} className="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2 text-left">
-            <span className="flex w-full items-center justify-between gap-2">
+          <SelectableCard key={count} selected={value === count} onClick={() => onChange(count)} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left">
+            <span className="flex min-w-0 items-center gap-2">
               <span className="text-[0.875rem] font-semibold text-[var(--win-text)]">{label(count)}</span>
               {price.durationPercent > 0 ? <Badge tone="success" size="sm">{t('order.save', { percent: price.durationPercent })}</Badge> : null}
             </span>
-            <span className="panel-mono flex flex-wrap items-baseline gap-x-1.5 text-[0.75rem] text-[var(--text-secondary)]">
+            <span className="panel-mono flex shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 text-[0.8125rem] text-[var(--win-text)]">
+              {price.durationDiscount > 0 ? <s className="text-[0.75rem] text-[var(--text-secondary)] opacity-70">{formatRupiah(price.list)}</s> : null}
               {plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(price.subtotal)}
-              {price.durationDiscount > 0 ? <s className="opacity-60">{formatRupiah(price.list)}</s> : null}
             </span>
           </SelectableCard>
         )

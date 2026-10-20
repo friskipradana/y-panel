@@ -30,6 +30,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `Checkbox` | `Checkbox.tsx` | Kotak centang (opsi form, pilih baris) | `checked`, `onChange(checked)`, `label?`, `description?`, `tone?`, `indeterminate?` |
 | `SelectableCard` | `SelectableCard.tsx` | Pilihan tunggal berbentuk kartu | `selected`, `onClick`, `className` |
 | `Field`, `TextInput`, `Textarea` | `Field.tsx` | Label + kontrol + hint/error | `label`, `hint?`, `error?`; `mono`, `invalid` |
+| `PasswordInput` | `PasswordInput.tsx` | Kolom kata sandi akun dengan tombol lihat/sembunyikan (`aria-label` dari `ui.showPassword`/`ui.hidePassword`); pakai ini, bukan `TextInput type="password"`, untuk kata sandi yang diketik orang | semua prop `TextInput` kecuali `type` |
 | `Select` | `Select.tsx` | Dropdown (pencarian opsional); daftarnya digambar lewat portal di atas halaman, jadi tidak terpotong dialog atau window, dan berpindah ke atas tombol bila ruang di bawah sempit; tampilannya sama dengan menu dropdown tab Docker | `value`, `onChange`, `options`, `searchable`, `clearable` |
 | `SearchInput` | `SearchInput.tsx` | Kolom pencarian | `value`, `onChange`, `onSubmit?`, `placeholder`, `action?` |
 | `Tabs` | `Tabs.tsx` | Tab horizontal | `items`, `value`, `onChange`, `label` |

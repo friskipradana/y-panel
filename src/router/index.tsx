@@ -6,6 +6,7 @@ import { DesktopPage } from '@/pages/DesktopPage'
 import { McpGuidePage } from '@/pages/McpGuidePage'
 import { ArticlePage, ArticlesPage } from '@/pages/ArticlesPage'
 import { InstallPage } from '@/pages/InstallPage'
+import { LegalPage } from '@/pages/legal/LegalPage'
 import { OrderInvoicePage } from '@/pages/OrderInvoicePage'
 import { OrderPage } from '@/pages/OrderPage'
 import { DatabaseAdminPage } from '@/pages/DatabaseAdminPage'
@@ -73,6 +74,8 @@ export function AppRouter() {
         />
         <Route path="/mcp/guide" element={<Navigate to="/docs/mcp" replace />} />
         <Route path="/install" element={landing ? (<div className="h-full w-full overflow-y-auto"><InstallPage /></div>) : publicFallback} />
+        <Route path="/terms" element={landing ? (<div className="h-full w-full overflow-y-auto"><LegalPage kind="terms" /></div>) : publicFallback} />
+        <Route path="/privacy" element={landing ? (<div className="h-full w-full overflow-y-auto"><LegalPage kind="privacy" /></div>) : publicFallback} />
         <Route path="/order" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
         <Route path="/order/:publicId" element={landing ? (<div className="h-full w-full overflow-y-auto"><OrderPage /></div>) : publicFallback} />
         <Route path="/order/:publicId/invoice" element={landing ? <OrderInvoicePage /> : publicFallback} />

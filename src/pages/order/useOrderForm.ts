@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import { createPublicOrder, getPublicHosting, quotePublicOrder } from '@/api/hos
 import { priceFor } from '@/lib/planPricing'
 import type { SubdomainChoice } from '@/components/hosting/SubdomainPicker'
 import { periodChoices } from '@/components/hosting/PeriodPicker'
+import { clearOrderDraft, orderDraftIsEmpty, readOrderDraft, writeOrderDraft } from './orderDraft'
 import { emailProblem, normalizePhone, passwordProblem, usernameProblem, whatsappProblem, type FieldProblem } from './orderValidation'
 
 export type OrderStep = 'plan' | 'address' | 'account' | 'review'
@@ -28,14 +29,18 @@ export function useOrderForm() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const query = useQuery({ queryKey: ['public-hosting'], queryFn: getPublicHosting, staleTime: 30_000, retry: 0 })
-  const [slug, setPlanSlug] = useState(params.get('plan') ?? '')
-  const [trial, setTrial] = useState(params.get('trial') === '1')
-  const [periods, setPeriods] = useState('1')
-  const [form, setForm] = useState<AccountForm>({ username: '', email: '', whatsapp: '', displayName: '', password: '', repeat: '' })
+  // what was typed before a reload or a closed tab; a plan chosen through the address (?plan=) wins over the one that was kept
+  const [draft] = useState(readOrderDraft)
+  const [slug, setPlanSlug] = useState(params.get('plan') ?? draft?.slug ?? '')
+  const [trial, setTrial] = useState(params.has('trial') ? params.get('trial') === '1' : draft?.trial ?? false)
+  const [periods, setPeriods] = useState(params.get('plan') ? '1' : draft?.periods ?? '1')
+  const [form, setForm] = useState<AccountForm>({
+    username: draft?.username ?? '', email: draft?.email ?? '', whatsapp: draft?.whatsapp ?? '', displayName: draft?.displayName ?? '', password: '', repeat: '',
+  })
   const [touched, setTouched] = useState<Partial<Record<keyof AccountForm, boolean>>>({})
-  const [address, setAddress] = useState<SubdomainChoice>({ label: '', zoneId: '', available: false })
+  const [address, setAddress] = useState<SubdomainChoice>({ label: draft?.label ?? '', zoneId: draft?.zoneId ?? '', available: false })
   const [step, setStep] = useState<OrderStep>('plan')
-  const [voucherText, setVoucherText] = useState('')
+  const [voucherText, setVoucherText] = useState(draft?.voucher ?? '')
   const [voucherApplied, setVoucherApplied] = useState('')
 
   const plans = query.data?.plans ?? []
@@ -94,6 +99,14 @@ export function useOrderForm() {
   const valid: Record<OrderStep, boolean> = { plan: !!plan, address: addressValid, account: accountValid, review: accountValid && addressValid }
   const phone = normalizePhone(form.whatsapp).value
 
+  // keep the draft in step with the form, except the password
+  useEffect(() => {
+    writeOrderDraft({
+      slug: plan?.slug ?? slug, trial, periods, username: form.username, email: form.email, whatsapp: form.whatsapp, displayName: form.displayName,
+      label: address.label, zoneId: address.zoneId, voucher: voucherText,
+    })
+  }, [plan?.slug, slug, trial, periods, form.username, form.email, form.whatsapp, form.displayName, address.label, address.zoneId, voucherText])
+
   const submit = useMutation({
     mutationFn: () =>
       createPublicOrder({
@@ -108,7 +121,10 @@ export function useOrderForm() {
         voucher: voucherValid ? voucherApplied : undefined,
         ...(needsAddress ? { subLabel: address.label, subZoneId: address.zoneId } : {}),
       }),
-    onSuccess: (order) => navigate(`/order/${order.publicId}`),
+    onSuccess: (order) => {
+      clearOrderDraft()
+      navigate(`/order/${order.publicId}`)
+    },
     onError: (error) => {
       const { error: message, reason } = serverAnswer(error)
       if (reason === 'accountTaken') {
@@ -143,6 +159,8 @@ export function useOrderForm() {
     },
     form, patch, touch, shown, problems, address, setAddress, needsAddress, whatsappRequired, phone,
     steps, step, setStep, index, valid, canOpen, next, back, submit,
+    // the form was filled in from a draft: the buyer is told, and the password is the one thing to type again
+    restored: !orderDraftIsEmpty(draft),
   }
 }
 

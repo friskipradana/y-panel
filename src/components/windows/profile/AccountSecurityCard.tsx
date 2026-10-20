@@ -3,7 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
 import { changeMyPassword, getMyUsage } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
-import { Field, TextInput } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -85,13 +86,13 @@ export function AccountSecurityCard() {
       >
         <SectionHeader icon={<KeyRound />} title={t('account.passwordTitle')} subtitle={t('account.passwordSubtitle')} size="sm" />
         <Field label={t('account.currentPassword')}>
-          <TextInput type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
         <Field label={t('users.newPassword')} error={tooShort ? t('users.passwordTooShort', { min: MIN_LENGTH }) : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={next} invalid={tooShort} onChange={(e) => setNext(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={next} invalid={tooShort} onChange={(e) => setNext(e.target.value)} />
         </Field>
         <Field label={t('users.confirmPassword')} error={mismatch ? t('users.passwordMismatch') : undefined}>
-          <TextInput type="password" autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
+          <PasswordInput autoComplete="new-password" value={confirm} invalid={mismatch} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Button type="submit" variant="primary" disabled={!ready} loading={mutation.isPending}>
           {t('account.changePassword')}

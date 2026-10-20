@@ -14,7 +14,7 @@ export function OrderStepPlan({ order }: { order: OrderFormState }) {
   if (!plan) return null
 
   return (
-    <section className="space-y-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+    <section className="space-y-3">
       <Field label={t('order.plan')} htmlFor="order-plan">
         <Select
           id="order-plan"

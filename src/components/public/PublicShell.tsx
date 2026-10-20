@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getPublicContributors } from '@/api/system'
 import { BookOpen, Bot, Download, ExternalLink, GitBranch, Languages, Moon, Sun } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { RELEASES_URL, releaseUrl, usePanelVersion } from '@/lib/version'
@@ -10,6 +8,11 @@ import { useThemeStore } from '@/store/themeStore'
 
 export const GITHUB_URL = 'https://github.com/friskipradana/y-panel'
 export const INSTALLER_URL = `${GITHUB_URL}/releases/latest/download/reneo-installer.run`
+
+const LEGAL_LINKS = [
+  { path: '/terms', key: 'legal.link.terms' },
+  { path: '/privacy', key: 'legal.link.privacy' },
+] as const
 
 interface PublicShellProps {
   children: ReactNode
@@ -20,7 +23,6 @@ export function PublicShell({ children }: PublicShellProps) {
   const { t, language, setLanguage } = useI18n()
   const navigate = useNavigate()
   const { version } = usePanelVersion()
-  const contributors = useQuery({ queryKey: ['public-contributors'], queryFn: getPublicContributors, staleTime: 60 * 60_000, retry: false })
   const themeMode = useThemeStore((s) => s.mode)
   const toggleMode = useThemeStore((s) => s.toggleMode)
 
@@ -28,7 +30,7 @@ export function PublicShell({ children }: PublicShellProps) {
     'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[0.8125rem] text-[var(--text-secondary)] transition-colors hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]'
 
   return (
-    <div className="relative min-h-full w-full overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
+    <div className="relative flex min-h-full w-full flex-col overflow-x-clip bg-[var(--win-bg)] font-sans text-[var(--win-text)] antialiased">
 
       <header className="sticky top-0 z-50 border-b border-[var(--win-border)] bg-[var(--win-bg)]/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
@@ -85,36 +87,32 @@ export function PublicShell({ children }: PublicShellProps) {
         </div>
       </header>
 
-      <div className="relative z-10">{children}</div>
+      <div className="relative z-10 flex-1">{children}</div>
 
       <footer className="relative z-10 border-t border-[var(--win-border)]">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-[0.75rem] text-[var(--text-secondary)] sm:flex-row sm:px-6">
-          <span>
-            {contributors.data?.items?.length ? (
-              <>
-                {t('public.footer.contributors')}{' '}
-                {contributors.data.items.map((c, i) => (
-                  <span key={c.login}>
-                    {i > 0 ? ' · ' : ''}
-                    <a href={c.url} target="_blank" rel="noreferrer" className="font-semibold text-[var(--win-text)] hover:underline">
-                      {c.login}
-                    </a>
-                  </span>
-                ))}
-              </>
-            ) : (
-              <a href={`${GITHUB_URL}/graphs/contributors`} target="_blank" rel="noreferrer" className="hover:text-[var(--win-text)] hover:underline">
-                {t('public.footer.contributors')}
+        <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-2 text-center text-[0.6875rem] text-[var(--text-secondary)] sm:flex-row sm:justify-between sm:px-6 sm:text-left">
+          <nav aria-label={t('public.footer.legal')} className="flex flex-wrap items-center justify-center gap-x-2.5">
+            {LEGAL_LINKS.map(({ path, key }) => (
+              <a
+                key={path}
+                href={path}
+                onClick={(e) => {
+                  e.preventDefault()
+                  navigate(path)
+                }}
+                className="inline-flex h-5 items-center hover:text-[var(--win-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              >
+                {t(key)}
               </a>
-            )}
-          </span>
-          <span className="flex items-center gap-3">
-            <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="panel-mono hover:text-[var(--win-text)]">
+            ))}
+          </nav>
+          <p className="flex flex-wrap items-center justify-center gap-x-1.5 leading-5">
+            <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="panel-mono hover:text-[var(--win-text)] hover:underline">
               v{version}
             </a>
+            <span aria-hidden="true">·</span>
             <span>{t('public.footer.tagline')}</span>
-            <span className="hidden sm:inline">{t('public.footer.formerly')}</span>
-          </span>
+          </p>
         </div>
       </footer>
     </div>

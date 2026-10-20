@@ -67,7 +67,7 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
 
   return (
     <div className="space-y-3">
-      <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4 py-1">
+      <section className="divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
         <AmountRow label={t('order.payExactly')} value={formatRupiah(order.amountTotal)} />
         {code > 0 ? (
           <div className="py-2.5">
@@ -95,7 +95,7 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
 
       <div>
         <p className="mb-1.5 text-[0.75rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{t(several ? 'order.payToAny' : 'order.payTo')}</p>
-        <section className="divide-y divide-[var(--win-border)] rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] px-4">
+        <section className="divide-y divide-[var(--win-border)] border-y border-[var(--win-border)]">
           {payment.methods.map((method) => (
             <div key={method.id} className="space-y-1 py-3">
               <div className="flex items-center justify-between gap-2">
@@ -110,7 +110,7 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
           ))}
         </section>
       </div>
-      <p className="px-1 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.exactNote', { amount: formatRupiah(order.amountTotal) })}</p>
+      <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.exactNote', { amount: formatRupiah(order.amountTotal) })}</p>
     </div>
   )
 }

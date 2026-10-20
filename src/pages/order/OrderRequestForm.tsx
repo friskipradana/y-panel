@@ -62,7 +62,7 @@ export function OrderRequestForm() {
         <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{t('order.requestSubtitle')}</p>
       </div>
 
-      <section className="space-y-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+      <section className="space-y-3">
         <Field label={t('order.plan')} htmlFor="order-plan">
           <Select
             id="order-plan"
@@ -78,7 +78,7 @@ export function OrderRequestForm() {
       </section>
 
       {main ? (
-        <section className="space-y-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+        <section className="space-y-3">
           <div>
             <p className="panel-section-label">{t('order.address')}</p>
             <p className="text-[0.8125rem] text-[var(--text-secondary)]">{t('order.requestAddressHint')}</p>
@@ -87,7 +87,7 @@ export function OrderRequestForm() {
         </section>
       ) : null}
 
-      <section className="space-y-3 rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4">
+      <section className="space-y-3">
         <Field label={t('order.requestName')} htmlFor="request-name">
           <TextInput id="request-name" autoComplete="name" required maxLength={60} value={form.name} onChange={(e) => patch({ name: e.target.value })} />
         </Field>

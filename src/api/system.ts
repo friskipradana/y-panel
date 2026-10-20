@@ -102,13 +102,6 @@ export const getDemoSettings = () => agentApi.get<DemoSettings>('/api/v1/setting
 export const setDemoSettings = (enabled: boolean) =>
   agentApi.put<DemoSettings>('/api/v1/settings/demo', { enabled }).then((r) => r.data)
 
-export interface PublicContributors {
-  items: Array<{ login: string; url: string }>
-  repo: string
-}
-
-export const getPublicContributors = () =>
-  agentApi.get<PublicContributors>('/api/v1/public/contributors').then((r) => r.data)
 
 export interface SiteSettings {
   landingEnabled: boolean

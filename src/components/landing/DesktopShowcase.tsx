@@ -2,9 +2,6 @@ import { useState } from 'react'
 import {
   Box,
   Cpu,
-  Database,
-  Folder,
-  FolderKanban,
   Globe,
   HardDrive,
   Minus,
@@ -116,9 +113,6 @@ export function DesktopShowcase() {
               { id: 'docker', icon: Box, label: 'Docker', win: 'docker' as WindowId, isOpen: true },
               { id: 'cloudflare', icon: Globe, label: 'Cloudflare', win: 'cloudflare' as WindowId, isOpen: true },
               { id: 'terminal', icon: Terminal, label: 'Terminal', win: 'terminal' as WindowId, isOpen: true },
-              { id: 'projects', icon: FolderKanban, label: 'Projects', win: 'docker' as WindowId, isOpen: false },
-              { id: 'database', icon: Database, label: 'Database', win: 'docker' as WindowId, isOpen: false },
-              { id: 'files', icon: Folder, label: 'Files', win: 'terminal' as WindowId, isOpen: false },
             ].map((item) => (
               <button
                 key={item.id}
