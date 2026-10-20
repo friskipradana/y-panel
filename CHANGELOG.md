@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.49.0] - 2026-10-20
+
+Plan upgrades, notices by plan with a verified WhatsApp number, plan expiry notice and a Profile window in the style of Settings.
+
+### Fitur baru
+- **account:** Plan upgrades, notices by plan with a verified WhatsApp number, plan expiry notice and a Profile window in the style of Settings ([`3e44f28`](https://github.com/friskipradana/y-panel/commit/3e44f28))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.48.0...v1.49.0
+
 ## [1.48.0] - 2026-10-20
 
 2 perubahan, utamanya a compact lock screen without the card, the gradient avatar and the locked label.
