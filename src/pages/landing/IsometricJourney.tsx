@@ -330,9 +330,13 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
           )
         })}
 
-        {/* Mobile: Clean Floating Detail Card (Shows when a pin is tapped) */}
+        {/* Mobile: Clean Floating Detail Card (Positioned top for point 3 & 4 so point 4 stays visible) */}
         {activeIdx !== null && (
-          <div className="absolute bottom-2.5 left-2.5 right-2.5 z-30 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]/95 backdrop-blur-md p-3.5 shadow-xl transition-all">
+          <div
+            className={`absolute left-2.5 right-2.5 z-30 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]/95 backdrop-blur-md p-3.5 shadow-xl transition-all ${
+              activeIdx >= 2 ? 'top-2.5' : 'bottom-2.5'
+            }`}
+          >
             <h4
               className={`text-[0.875rem] font-bold leading-snug ${
                 steps[activeIdx].accent ? 'text-[var(--panel-info-text)]' : 'text-[var(--win-text)]'
