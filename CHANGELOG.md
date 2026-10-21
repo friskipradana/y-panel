@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.56.2] - 2026-10-21
+
+A compose file that joins bridge, host or none as a network no longer fails with network-scoped aliases.
+
+### Perbaikan
+- **docker:** A compose file that joins bridge, host or none as a network no longer fails with network-scoped aliases ([`07cc78e`](https://github.com/friskipradana/y-panel/commit/07cc78e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.56.1...v1.56.2
+
 ## [1.56.1] - 2026-10-21
 
 Icon-only buttons get accessible names, plan specs as a list instead of chips, drop unused gradient tokens.
