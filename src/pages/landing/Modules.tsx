@@ -109,23 +109,69 @@ export function Modules() {
         />
       </div>
 
+      {/* Mobile: Horizontal Swipe Carousel */}
+      <div className="mt-4 sm:hidden" role="tabpanel" aria-label={t(`landing.modules.group.${group.id}`)}>
+        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pt-1 pb-3.5 px-1 -mx-1">
+          {group.modules.map(({ id, icon: Icon }, idx) => (
+            <div
+              key={id}
+              className="flex w-[82vw] max-w-[310px] shrink-0 snap-start flex-col justify-between rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/40 p-4 shadow-2xs backdrop-blur-xs transition-colors hover:border-[var(--panel-primary-border)]"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <IconBadge size="lg" tone="neutral">
+                    <Icon />
+                  </IconBadge>
+                  <span className="panel-mono text-[0.6875rem] font-medium text-[var(--text-muted)]">
+                    {idx + 1} / {group.modules.length}
+                  </span>
+                </div>
+
+                <h3 className="mt-3.5 text-[0.9375rem] font-bold tracking-tight text-[var(--win-text)]">
+                  {t(`landing.module.${id}.title`)}
+                </h3>
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                  {t(`landing.module.${id}.desc`)}
+                </p>
+              </div>
+
+              <div className="mt-4 border-t border-[var(--win-border)]/50 pt-3">
+                <ul className="flex flex-wrap gap-1.5">
+                  {t(`landing.module.${id}.tags`)
+                    .split('|')
+                    .map((tag) => (
+                      <li
+                        key={tag}
+                        className="panel-mono rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)]/60 px-2 py-0.5 text-[0.6875rem] font-medium leading-none text-[var(--text-secondary)]"
+                      >
+                        {tag}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop / Tablet: Workstation List View */}
       <div
         role="tabpanel"
         aria-label={t(`landing.modules.group.${group.id}`)}
-        className="mt-4 overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 shadow-2xs backdrop-blur-xs"
+        className="mt-4 hidden overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 shadow-2xs backdrop-blur-xs sm:block"
       >
         <ul className="divide-y divide-[var(--win-border)]/50">
           {group.modules.map(({ id, icon: Icon }) => (
             <li
               key={id}
-              className="group flex flex-col justify-between gap-4 p-4 transition-all duration-150 hover:bg-[var(--panel-surface)]/60 sm:flex-row sm:items-center sm:p-4.5"
+              className="group flex flex-row items-center justify-between gap-4 p-4.5 transition-all duration-150 hover:bg-[var(--panel-surface)]/60"
             >
               {/* Left: IconBadge + Title + Description */}
-              <div className="flex items-start gap-3.5 sm:max-w-xl">
+              <div className="flex max-w-xl items-start gap-3.5">
                 <IconBadge
                   size="lg"
                   tone="neutral"
-                  className="mt-0.5 transition-colors group-hover:border-[var(--panel-primary-border)] group-hover:bg-[var(--panel-primary-subtle)] group-hover:text-[var(--panel-primary-text)]"
+                  className="mt-0.5 shrink-0 transition-colors group-hover:border-[var(--panel-primary-border)] group-hover:bg-[var(--panel-primary-subtle)] group-hover:text-[var(--panel-primary-text)]"
                 >
                   <Icon />
                 </IconBadge>
@@ -141,8 +187,8 @@ export function Modules() {
               </div>
 
               {/* Right: Feature Capabilities Chips */}
-              <div className="shrink-0 pl-11 sm:pl-0">
-                <ul className="flex flex-wrap gap-1.5 sm:justify-end sm:max-w-sm">
+              <div className="shrink-0">
+                <ul className="flex max-w-sm flex-wrap justify-end gap-1.5">
                   {t(`landing.module.${id}.tags`)
                     .split('|')
                     .map((tag) => (
