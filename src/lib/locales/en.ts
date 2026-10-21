@@ -579,6 +579,7 @@ export const en: Record<string, string> = {
   'landing.modules.title': "Modules",
   'landing.modules.subtitle': "{count} modules run as windows on the same desktop. Access follows the role of the account.",
   'landing.modules.viewSwipe': "Card swipe view",
+  'landing.modules.viewGrid': "Grid view",
   'landing.modules.viewList': "List view",
   'landing.modules.group.server': "Server",
   'landing.modules.group.network': "Network and domains",

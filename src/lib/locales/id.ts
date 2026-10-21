@@ -579,6 +579,7 @@ export const id: Record<string, string> = {
   'landing.modules.title': "Modul",
   'landing.modules.subtitle': "{count} modul berjalan sebagai jendela di desktop yang sama. Akses mengikuti peran akun.",
   'landing.modules.viewSwipe': "Tampilan swipe kartu",
+  'landing.modules.viewGrid': "Tampilan grid",
   'landing.modules.viewList': "Tampilan daftar",
   'landing.modules.group.server': "Server",
   'landing.modules.group.network': "Jaringan dan domain",

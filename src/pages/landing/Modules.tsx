@@ -75,6 +75,7 @@ export function Modules() {
   const { t } = useI18n()
   const [groupId, setGroupId] = useState(GROUPS[0].id)
   const [mobileMode, setMobileMode] = useState<'swipe' | 'list'>('swipe')
+  const [desktopMode, setDesktopMode] = useState<'grid' | 'list'>('grid')
   const group = GROUPS.find((g) => g.id === groupId) ?? GROUPS[0]
   return (
     <section className="mt-14" aria-labelledby="landing-modules">
@@ -139,15 +140,50 @@ export function Modules() {
         </div>
       </div>
 
-      {/* Desktop / Tablet Tabs */}
-      <div className="hidden sm:block">
+      {/* Desktop / Tablet Tabs & View Mode Toggle */}
+      <div className="mt-4 hidden sm:flex sm:items-center sm:justify-between sm:gap-4">
         <Tabs
           label={t('landing.modules.title')}
-          className="mt-4"
           value={groupId}
           onChange={setGroupId}
           items={GROUPS.map((g) => ({ key: g.id, label: t(`landing.modules.group.${g.id}`), count: g.modules.length }))}
         />
+
+        {/* Desktop View Mode Toggle: Grid vs List */}
+        <div
+          role="group"
+          aria-label={t('landing.modules.title')}
+          className="flex shrink-0 items-center rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)]/60 p-0.5 shadow-2xs"
+        >
+          <button
+            type="button"
+            onClick={() => setDesktopMode('grid')}
+            aria-label={t('landing.modules.viewGrid')}
+            title={t('landing.modules.viewGrid')}
+            aria-pressed={desktopMode === 'grid'}
+            className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+              desktopMode === 'grid'
+                ? 'border border-[var(--panel-primary-border)] bg-[var(--panel-primary-subtle)] text-[var(--panel-primary-text)] font-semibold'
+                : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+            }`}
+          >
+            <LayoutGrid size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setDesktopMode('list')}
+            aria-label={t('landing.modules.viewList')}
+            title={t('landing.modules.viewList')}
+            aria-pressed={desktopMode === 'list'}
+            className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+              desktopMode === 'list'
+                ? 'border border-[var(--panel-primary-border)] bg-[var(--panel-primary-subtle)] text-[var(--panel-primary-text)] font-semibold'
+                : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+            }`}
+          >
+            <List size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Mobile View: Swipe Carousel OR List View */}
@@ -242,41 +278,42 @@ export function Modules() {
         )}
       </div>
 
-      {/* Desktop / Tablet: Workstation List View */}
-      <div
-        role="tabpanel"
-        aria-label={t(`landing.modules.group.${group.id}`)}
-        className="mt-4 hidden overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 shadow-2xs backdrop-blur-xs sm:block"
-      >
-        <ul className="divide-y divide-[var(--win-border)]/50">
+      {/* Desktop / Tablet View: Grid OR List View */}
+      {desktopMode === 'grid' ? (
+        <div
+          role="tabpanel"
+          aria-label={t(`landing.modules.group.${group.id}`)}
+          className="mt-4 hidden sm:grid sm:grid-cols-2 gap-3.5"
+        >
           {group.modules.map(({ id, icon: Icon }) => (
-            <li
+            <div
               key={id}
-              className="group flex flex-row items-center justify-between gap-4 p-4.5 transition-all duration-150 hover:bg-[var(--panel-surface)]/60"
+              className="group flex flex-col justify-between rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/30 p-4.5 shadow-2xs backdrop-blur-xs transition-all duration-150 hover:border-[var(--panel-primary-border)] hover:bg-[var(--panel-surface)]/65"
             >
-              {/* Left: IconBadge + Title + Description */}
-              <div className="flex max-w-xl items-start gap-3.5">
-                <IconBadge
-                  size="lg"
-                  tone="neutral"
-                  className="mt-0.5 shrink-0 transition-colors group-hover:border-[var(--panel-primary-border)] group-hover:bg-[var(--panel-primary-subtle)] group-hover:text-[var(--panel-primary-text)]"
-                >
-                  <Icon />
-                </IconBadge>
+              {/* Top: IconBadge + Title + Description */}
+              <div>
+                <div className="flex items-center gap-3">
+                  <IconBadge
+                    size="md"
+                    tone="neutral"
+                    className="transition-colors group-hover:border-[var(--panel-primary-border)] group-hover:bg-[var(--panel-primary-subtle)] group-hover:text-[var(--panel-primary-text)]"
+                  >
+                    <Icon />
+                  </IconBadge>
 
-                <div>
                   <h3 className="text-[0.9375rem] font-bold tracking-tight text-[var(--win-text)] transition-colors group-hover:text-[var(--panel-primary-text)]">
                     {t(`landing.module.${id}.title`)}
                   </h3>
-                  <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
-                    {t(`landing.module.${id}.desc`)}
-                  </p>
                 </div>
+
+                <p className="mt-2.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                  {t(`landing.module.${id}.desc`)}
+                </p>
               </div>
 
-              {/* Right: Feature Capabilities Chips */}
-              <div className="shrink-0">
-                <ul className="flex max-w-sm flex-wrap justify-end gap-1.5">
+              {/* Bottom: Feature Capabilities Chips */}
+              <div className="mt-4 border-t border-[var(--win-border)]/40 pt-3">
+                <ul className="flex flex-wrap gap-1.5">
                   {t(`landing.module.${id}.tags`)
                     .split('|')
                     .map((tag) => (
@@ -289,10 +326,61 @@ export function Modules() {
                     ))}
                 </ul>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
-      </div>
+        </div>
+      ) : (
+        <div
+          role="tabpanel"
+          aria-label={t(`landing.modules.group.${group.id}`)}
+          className="mt-4 hidden overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 shadow-2xs backdrop-blur-xs sm:block"
+        >
+          <ul className="divide-y divide-[var(--win-border)]/50">
+            {group.modules.map(({ id, icon: Icon }) => (
+              <li
+                key={id}
+                className="group flex flex-row items-center justify-between gap-4 p-4.5 transition-all duration-150 hover:bg-[var(--panel-surface)]/60"
+              >
+                {/* Left: IconBadge + Title + Description */}
+                <div className="flex max-w-xl items-start gap-3.5">
+                  <IconBadge
+                    size="lg"
+                    tone="neutral"
+                    className="mt-0.5 shrink-0 transition-colors group-hover:border-[var(--panel-primary-border)] group-hover:bg-[var(--panel-primary-subtle)] group-hover:text-[var(--panel-primary-text)]"
+                  >
+                    <Icon />
+                  </IconBadge>
+
+                  <div>
+                    <h3 className="text-[0.9375rem] font-bold tracking-tight text-[var(--win-text)] transition-colors group-hover:text-[var(--panel-primary-text)]">
+                      {t(`landing.module.${id}.title`)}
+                    </h3>
+                    <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
+                      {t(`landing.module.${id}.desc`)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right: Feature Capabilities Chips */}
+                <div className="shrink-0">
+                  <ul className="flex max-w-sm flex-wrap justify-end gap-1.5">
+                    {t(`landing.module.${id}.tags`)
+                      .split('|')
+                      .map((tag) => (
+                        <li
+                          key={tag}
+                          className="panel-mono rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)]/60 px-2 py-0.5 text-[0.6875rem] font-medium leading-none text-[var(--text-secondary)] transition-colors group-hover:border-[var(--panel-border-focus)]"
+                        >
+                          {tag}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   )
 }
