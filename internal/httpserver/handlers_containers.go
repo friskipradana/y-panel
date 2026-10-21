@@ -12,8 +12,8 @@ import (
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
-	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
 
 // ─── Docker Container Handlers ──────────────────────────────────────────────
@@ -336,7 +336,10 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		s.writePortError(w, actor, err)
 		return
 	}
+	// what the container was, kept so it can be put back when the new one cannot be made
+	var previous *docker.ContainerConfig
 	if req.ReplaceContainerID != "" {
+		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -352,7 +355,7 @@ func (s *Server) handleContainerDeployImage(w http.ResponseWriter, r *http.Reque
 		Volumes:      req.Volumes,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusUnprocessableEntity, err)
+		s.writeError(w, http.StatusUnprocessableEntity, restoreAfterFailedReplace(owner, previous, err))
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
@@ -405,7 +408,9 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		s.writePortError(w, actor, err)
 		return
 	}
+	var previous *docker.ContainerConfig
 	if req.ReplaceContainerID != "" {
+		previous, _ = docker.InspectContainerConfig(req.ReplaceContainerID)
 		_ = docker.DeleteContainer(req.ReplaceContainerID, false, false)
 	}
 
@@ -415,7 +420,7 @@ func (s *Server) handleContainerDeployCompose(w http.ResponseWriter, r *http.Req
 		RegistryAuth: req.RegistryAuth,
 	})
 	if err != nil {
-		s.writeError(w, http.StatusUnprocessableEntity, err)
+		s.writeError(w, http.StatusUnprocessableEntity, restoreAfterFailedReplace(owner, previous, err))
 		return
 	}
 	s.writeJSON(w, http.StatusCreated, jsonResponse{
@@ -543,4 +548,20 @@ func (s *Server) resolveDockerOwnerContext(actor *database.User, ownerUserID int
 		CPULimitPct:   quota.CPULimitPct,
 		MemoryLimitMB: quota.MemoryLimitMB,
 	}, nil
+}
+
+// restoreAfterFailedReplace puts the container that was removed for an edit back, from what it was, when the new one could not
+// be made, and says so in the error: an edit that fails must not leave the account without its container.
+func restoreAfterFailedReplace(owner docker.OwnerContext, previous *docker.ContainerConfig, deployErr error) error {
+	if previous == nil || strings.TrimSpace(previous.Image) == "" || strings.TrimSpace(previous.Name) == "" {
+		return deployErr
+	}
+	_, restoreErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
+		Name: previous.Name, Image: previous.Image, Network: previous.Network, Ports: previous.Ports,
+		Env: previous.Env, EnvMode: previous.EnvMode, EnvRaw: previous.EnvRaw, Volumes: previous.Volumes,
+	})
+	if restoreErr != nil {
+		return fmt.Errorf("%w; the previous container could not be put back either: %v", deployErr, restoreErr)
+	}
+	return fmt.Errorf("%w; the previous container was put back as it was", deployErr)
 }
