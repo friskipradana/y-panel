@@ -31,7 +31,8 @@ func (m *Manager) ListNotificationDevices() ([]NotificationDevice, error) {
 		return []NotificationDevice{}, nil
 	}
 	rows, err := m.db.Query(`
-		SELECT d.id, d.device_id, d.package_filter, d.status, d.created_at, d.updated_at, c.last_seen, COALESCE(c.received, 0)
+		SELECT d.id, d.device_id, d.package_filter, d.status, d.created_at, d.updated_at,
+			GREATEST(c.last_seen, d.last_ping_at), COALESCE(c.received, 0)
 		FROM notification_devices d
 		LEFT JOIN (
 			SELECT device_ref_id, MAX(received_at) AS last_seen, COUNT(*) AS received
@@ -143,6 +144,14 @@ func (m *Manager) GetNotificationDeviceByAPIKey(apiKey string) (*NotificationDev
 	}
 	_ = json.Unmarshal([]byte(pfJSON), &d.PackageFilter)
 	return &d, nil
+}
+
+// TouchNotificationDevice records that the phone reached the panel with its key, whatever it sent
+func (m *Manager) TouchNotificationDevice(id int64) {
+	if !m.IsConnected() || m.db == nil {
+		return
+	}
+	_, _ = m.db.Exec(`UPDATE notification_devices SET last_ping_at = NOW() WHERE id = $1`, id)
 }
 
 // ErrNotificationDeviceNotFound is an update of a device that was never registered, or was deleted

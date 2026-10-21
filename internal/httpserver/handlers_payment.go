@@ -369,14 +369,10 @@ func (s *Server) handleListCapturedNotifications(w http.ResponseWriter, r *http.
 func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	// Validate API key from header
-	apiKey := r.Header.Get("X-API-Key")
-	if apiKey == "" {
-		apiKey = r.URL.Query().Get("api_key")
-	}
+	apiKey := webhookAPIKey(r)
 	if apiKey == "" {
 		s.notify.WebhookRejected(clientIP(r))
-		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "X-API-Key header required"})
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "API key required: send it in the X-API-Key header (or as a Bearer token, or api_key in the address)"})
 		return
 	}
 
@@ -388,8 +384,11 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// the phone is connected, whatever it sends next (the test of its app keeps nothing behind)
+	s.database.TouchNotificationDevice(device.ID)
+
 	if device.Status != "active" {
-		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "device is not active"})
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "device " + device.DeviceID + " is not active"})
 		return
 	}
 
@@ -408,7 +407,8 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	// a test of the app proves that the address and the key work; it is not a notification to keep
-	if payload.PackageName == "" && payload.Message != "" {
+	// an empty body is a ping the same way
+	if payload.PackageName == "" && (payload.Message != "" || (payload.Title == "" && payload.Text == "" && payload.BigText == "")) {
 		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "success": true, "message": "test received from " + device.DeviceID})
 		return
 	}
@@ -518,4 +518,26 @@ func parseIntParam(s string) (int, error) {
 		result = result*10 + int(c-'0')
 	}
 	return result, nil
+}
+
+// webhookAPIKey is the key of a listener phone: the header the panel shows, the same as a Bearer token (what many HTTP
+// clients and automation apps offer), or in the address
+func webhookAPIKey(r *http.Request) string {
+	if key := strings.TrimSpace(r.Header.Get("X-API-Key")); key != "" {
+		return key
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		for _, prefix := range []string{"Bearer ", "bearer ", "ApiKey ", "Api-Key "} {
+			if strings.HasPrefix(auth, prefix) {
+				return strings.TrimSpace(strings.TrimPrefix(auth, prefix))
+			}
+		}
+	}
+	query := r.URL.Query()
+	for _, name := range []string{"api_key", "apiKey", "key"} {
+		if key := strings.TrimSpace(query.Get(name)); key != "" {
+			return key
+		}
+	}
+	return ""
 }
