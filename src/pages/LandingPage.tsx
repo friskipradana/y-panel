@@ -47,10 +47,33 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
           <p className="mb-4 text-balance text-base font-semibold text-[var(--panel-info-text)] sm:text-lg">{t('landing.tagline')}</p>
           <p className="mx-auto max-w-2xl text-balance text-[0.9375rem] leading-relaxed text-[var(--text-secondary)] sm:text-base">{t('landing.description')}</p>
 
-          {/* What it runs on and how it is reached, as plain facts */}
-          <ul className="mx-auto mb-7 mt-5 flex max-w-2xl flex-wrap justify-center gap-1.5" aria-label={t('landing.hero.factsLabel')}>
+          {/* Mobile: Infinite smooth sliding ticker */}
+          <div
+            className="mx-auto mb-7 mt-5 w-full max-w-2xl overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)] sm:hidden"
+            aria-hidden="true"
+          >
+            <div className="hero-facts-marquee py-0.5">
+              {[...HERO_FACTS, ...HERO_FACTS].map((id, index) => (
+                <span
+                  key={`${id}-${index}`}
+                  className="panel-mono mr-2 flex shrink-0 items-center justify-center rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2.5 py-1 text-center text-[0.6875rem] leading-none text-[var(--text-secondary)] shadow-xs"
+                >
+                  {t(`landing.hero.fact.${id}`)}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop: Static centered row */}
+          <ul
+            className="mx-auto mb-7 mt-5 hidden sm:flex sm:max-w-2xl sm:flex-wrap sm:justify-center sm:gap-1.5"
+            aria-label={t('landing.hero.factsLabel')}
+          >
             {HERO_FACTS.map((id) => (
-              <li key={id} className="panel-mono rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2 py-1 text-[0.75rem] leading-none text-[var(--text-secondary)]">
+              <li
+                key={id}
+                className="panel-mono rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2 py-1 text-[0.75rem] leading-none text-[var(--text-secondary)]"
+              >
                 {t(`landing.hero.fact.${id}`)}
               </li>
             ))}

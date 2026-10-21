@@ -55,7 +55,7 @@ export function CopyBlock({ text, label, wrap = false, prompt }: CopyBlockProps)
                 ? 'custom-widget-scrollbar whitespace-pre-wrap break-words'
                 : wrap
                   ? 'whitespace-pre-wrap break-words'
-                  : 'overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                  : 'overflow-x-auto whitespace-nowrap scrollbar-none'
             }`}
           >
             {text}
