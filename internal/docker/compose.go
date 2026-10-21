@@ -61,6 +61,15 @@ func logoutRegistry(registry string) {
 	_, _ = cmd.CombinedOutput()
 }
 
+// builtinNetwork says whether a network is one of the three docker has from the start
+func builtinNetwork(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "bridge", "host", "none":
+		return true
+	}
+	return false
+}
+
 func buildComposeForImage(owner OwnerContext, projectName, image, network string, ports []PortBinding, env []EnvVar, volumes []VolumeBinding) (string, error) {
 	image = strings.TrimSpace(image)
 	if image == "" {
@@ -116,7 +125,11 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 			b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(mapping)))
 		}
 	}
-	if network != "" {
+	// the networks docker makes itself (bridge, host, none) cannot be joined as a network of the project: compose would give the
+	// service a name alias there, which only networks made by the user support. They are the network mode instead.
+	if builtinNetwork(network) {
+		b.WriteString(fmt.Sprintf("    network_mode: %s\n", network))
+	} else if network != "" {
 		b.WriteString("    networks:\n")
 		b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(network)))
 	}
@@ -125,7 +138,7 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 	b.WriteString("        limits:\n")
 	b.WriteString(fmt.Sprintf("          cpus: \"%.2f\"\n", cpuQuota(owner.CPULimitPct)))
 	b.WriteString(fmt.Sprintf("          memory: %s\n", yamlScalar(fmt.Sprintf("%dM", owner.MemoryLimitMB))))
-	if network != "" {
+	if network != "" && !builtinNetwork(network) {
 		b.WriteString("networks:\n")
 		b.WriteString(fmt.Sprintf("  %s:\n", yamlScalar(network)))
 		b.WriteString("    external: true\n")
