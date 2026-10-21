@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.51.1] - 2026-10-21
+
+Upload a RAR or a tar.gz, and upload source that is not built yet.
+
+### Perbaikan
+- **projects:** Upload a RAR or a tar.gz, and upload source that is not built yet ([`4dd9670`](https://github.com/friskipradana/y-panel/commit/4dd9670))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.51.0...v1.51.1
+
 ## [1.51.0] - 2026-10-21
 
 Update an image or a container, with the real log of the download and the state of the container.
