@@ -51,14 +51,12 @@ export function DesktopShowcase() {
       // Only react while card is near/in viewport
       if (rect.bottom < 0 || rect.top > vh) return
 
-      const containerMid = rect.top + rect.height / 2
-      const viewportMid = vh / 2
-
-      // As card moves to the upper/center half of screen -> Terminal
-      // As card moves to lower half -> Docker
-      if (containerMid <= viewportMid - 25) {
+      // Trigger earlier: as the curl block above is about to exit/close at top of screen
+      // (Showcase enters 66% of viewport), switch to Terminal
+      // When scrolling back up (Showcase returns below 78% of viewport), switch to Docker
+      if (rect.top <= vh * 0.66) {
         setActiveWindow((prev) => (prev !== 'terminal' ? 'terminal' : prev))
-      } else if (containerMid >= viewportMid + 35) {
+      } else if (rect.top >= vh * 0.78) {
         setActiveWindow((prev) => (prev !== 'docker' ? 'docker' : prev))
       }
     }
