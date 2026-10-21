@@ -4309,4 +4309,12 @@ export const id: Record<string, string> = {
   'terminal.copy.empty': "Belum ada teks di terminal.",
   'terminal.paste.failed': "Browser tidak mengizinkan membaca papan klip. Tekan lama di kolom terminal lalu pilih Tempel.",
   'projects.openFilesAt': "Buka folder di File Manager: {path}",
+  'terminal.zoomIn': "Perbesar teks",
+  'terminal.zoomOut': "Perkecil teks",
+  'fileEditor.zoomIn': "Perbesar teks",
+  'fileEditor.zoomOut': "Perkecil teks",
+  'fileEditor.copy': "Salin pilihan, atau seluruh isi bila tidak ada yang dipilih",
+  'fileEditor.copiedSelection': "Pilihan tersalin",
+  'fileEditor.copiedAll': "Seluruh isi berkas tersalin",
+  'fileEditor.copyFailed': "Gagal menyalin ke papan klip.",
 }

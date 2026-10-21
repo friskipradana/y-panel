@@ -1,6 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, type ComponentProps } from 'react'
 import Editor from '@monaco-editor/react'
-import { X, Save, RefreshCcw, FileCode2 } from 'lucide-react'
+import { X, Save, RefreshCcw, FileCode2, Copy, ZoomIn, ZoomOut } from 'lucide-react'
+import { toast } from 'sonner'
+import { copyTextToClipboard } from '@/api/agent'
+import { IconButton } from '@/components/ui/IconButton'
+import { usePinchZoom } from '@/hooks/usePinchZoom'
 import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useThemeStore } from '@/store/themeStore'
@@ -52,6 +56,38 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
   const isDark = useThemeStore((state) => state.mode) === 'dark'
   const { pendingFile, setPendingFile } = useEditorStore()
   const { t } = useI18n()
+
+  // Text size and copy for a phone: the mouse wheel zoom of Monaco does not exist on touch
+  const [fontSize, setFontSize] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('reneo-editor-font'))
+      return saved >= 9 && saved <= 28 ? saved : 14
+    } catch {
+      return 14
+    }
+  })
+  const editorBoxRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<Parameters<NonNullable<ComponentProps<typeof Editor>['onMount']>>[0] | null>(null)
+  const zoomEditor = useCallback((step: number) => {
+    setFontSize((size) => {
+      const next = Math.min(28, Math.max(9, size + step))
+      try { localStorage.setItem('reneo-editor-font', String(next)) } catch { /* storage unavailable */ }
+      return next
+    })
+  }, [])
+  usePinchZoom(editorBoxRef, zoomEditor)
+  const copyFromEditor = async () => {
+    const model = editorRef.current?.getModel()
+    if (!model) return
+    const selection = editorRef.current?.getSelection()
+    const picked = selection ? model.getValueInRange(selection) : ''
+    try {
+      await copyTextToClipboard(picked || model.getValue())
+      toast.success(t(picked ? 'fileEditor.copiedSelection' : 'fileEditor.copiedAll'))
+    } catch {
+      toast.error(t('fileEditor.copyFailed'))
+    }
+  }
 
   // ── Drag to scroll for tabs ─────────────────────────────────────────────
   const tabsScrollRef = useRef<HTMLDivElement>(null)
@@ -304,7 +340,10 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
           <div className="text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate max-w-[60%] select-all">
             {activeTab.path}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <IconButton label={t('fileEditor.zoomOut')} onClick={() => zoomEditor(-1)}><ZoomOut className="h-4 w-4" /></IconButton>
+            <IconButton label={t('fileEditor.zoomIn')} onClick={() => zoomEditor(1)}><ZoomIn className="h-4 w-4" /></IconButton>
+            <IconButton label={t('fileEditor.copy')} onClick={() => void copyFromEditor()}><Copy className="h-4 w-4" /></IconButton>
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
               className="px-3 py-2 flex items-center gap-1 whitespace-nowrap text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
@@ -327,7 +366,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       )}
 
       {/* ── Main Editor App ──────────────────────────────────────────────── */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={editorBoxRef}>
         {!activeTab ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center opacity-30 select-none">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="w-32 h-32 mb-4" strokeLinecap="round" strokeLinejoin="round">
@@ -352,9 +391,10 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             theme={isDark ? 'vs-dark' : 'light'}
             value={activeTab.content}
             onChange={handleUpdateContent}
+            onMount={(editor) => { editorRef.current = editor }}
             options={{
               minimap: { enabled: true, renderCharacters: false },
-              fontSize: 14,
+              fontSize,
               formatOnPaste: true,
               wordWrap: 'on',
               mouseWheelZoom: true,

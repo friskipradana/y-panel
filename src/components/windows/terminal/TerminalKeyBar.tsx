@@ -1,4 +1,4 @@
-import { ClipboardPaste, Copy } from 'lucide-react'
+import { ClipboardPaste, Copy, ZoomIn, ZoomOut } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 const KEYS: Array<{ label: string; seq: string; aria: string }> = [
   { label: 'Esc', seq: '\x1b', aria: 'Escape' },
@@ -16,13 +16,19 @@ const KEYS: Array<{ label: string; seq: string; aria: string }> = [
 ]
 
 // Phone only (the parent hides it elsewhere): keys the on-screen keyboard does not offer.
-export function TerminalKeyBar({ disabled, onKey, onCopy, onPaste }: { disabled: boolean; onKey: (sequence: string) => void; onCopy: () => void; onPaste: () => void }) {
+export function TerminalKeyBar({ disabled, onKey, onCopy, onPaste, onZoom }: { disabled: boolean; onKey: (sequence: string) => void; onCopy: () => void; onPaste: () => void; onZoom: (step: number) => void }) {
   const { t } = useI18n()
   return (
     <div className="ht-keybar" role="toolbar" aria-label={t('terminal.keys')}>
       <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.copy.title')} onClick={onCopy}>
         <Copy size={14} strokeWidth={1.75} aria-hidden="true" />
         {t('terminal.copy')}
+      </button>
+      <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.zoomOut')} onClick={() => onZoom(-1)}>
+        <ZoomOut size={15} strokeWidth={1.75} aria-hidden="true" />
+      </button>
+      <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.zoomIn')} onClick={() => onZoom(1)}>
+        <ZoomIn size={15} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.paste')} disabled={disabled} onClick={onPaste}>
         <ClipboardPaste size={14} strokeWidth={1.75} aria-hidden="true" />

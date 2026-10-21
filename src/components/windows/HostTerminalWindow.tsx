@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
 import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
 import { readTerminalText } from '@/components/windows/terminal/terminalText'
+import { usePinchZoom } from '@/hooks/usePinchZoom'
 import { ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -89,6 +90,8 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
   // the key and wheel handlers live as long as the terminal, so they read the current callback here
   const zoomRef     = useRef(onZoom)
   zoomRef.current = onZoom
+  // two fingers on the terminal make the text larger or smaller
+  usePinchZoom(viewportRef, (step) => zoomRef.current(step))
 
   useEffect(() => { onStart?.(start) }, [onStart, start])
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
@@ -905,6 +908,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           }}
           onCopy={() => setCopyText(readersRef.current.get(activeTab.id)?.() ?? '')}
           onPaste={() => void pasteFromClipboard()}
+          onZoom={zoom}
         />
       </div>
       <TerminalCopyModal text={copyText ?? ''} open={copyText !== null} onClose={() => setCopyText(null)} />

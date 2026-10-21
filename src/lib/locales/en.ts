@@ -4309,4 +4309,12 @@ export const en: Record<string, string> = {
   'terminal.copy.empty': "There is no text in the terminal yet.",
   'terminal.paste.failed': "The browser does not allow reading the clipboard. Press and hold in the terminal and choose Paste.",
   'projects.openFilesAt': "Open the folder in File Manager: {path}",
+  'terminal.zoomIn': "Larger text",
+  'terminal.zoomOut': "Smaller text",
+  'fileEditor.zoomIn': "Larger text",
+  'fileEditor.zoomOut': "Smaller text",
+  'fileEditor.copy': "Copy the selection, or the whole file if nothing is selected",
+  'fileEditor.copiedSelection': "Selection copied",
+  'fileEditor.copiedAll': "Whole file copied",
+  'fileEditor.copyFailed': "Could not copy to the clipboard.",
 }
