@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Box,
   Cpu,
@@ -15,11 +15,74 @@ import {
 type WindowId = 'docker' | 'cloudflare' | 'terminal'
 
 export function DesktopShowcase() {
-  const [activeWindow, setActiveWindow] = useState<WindowId>('terminal')
+  const [activeWindow, setActiveWindow] = useState<WindowId>('docker')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const userOverrideTimeout = useRef<number | null>(null)
 
-  const bringToFront = (win: WindowId) => {
+  const bringToFront = (win: WindowId, isUserTap = true) => {
+    if (isUserTap && typeof window !== 'undefined') {
+      if (userOverrideTimeout.current) window.clearTimeout(userOverrideTimeout.current)
+      // Pause scroll auto-switch for 6s after user explicitly taps
+      userOverrideTimeout.current = window.setTimeout(() => {
+        userOverrideTimeout.current = null
+      }, 6000)
+    }
     setActiveWindow(win)
   }
+
+  // Mobile scroll-driven switch: Docker when entering viewport, Terminal as user scrolls down
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Desktop defaults to terminal and does not listen to scroll
+    if (window.innerWidth >= 768) {
+      setActiveWindow('terminal')
+      return
+    }
+
+    const handleScroll = () => {
+      if (window.innerWidth >= 768) return
+      if (!containerRef.current) return
+      if (userOverrideTimeout.current !== null) return
+
+      const rect = containerRef.current.getBoundingClientRect()
+      const vh = window.innerHeight
+
+      // Only react while card is near/in viewport
+      if (rect.bottom < 0 || rect.top > vh) return
+
+      const containerMid = rect.top + rect.height / 2
+      const viewportMid = vh / 2
+
+      // As card moves to the upper/center half of screen -> Terminal
+      // As card moves to lower half -> Docker
+      if (containerMid <= viewportMid - 25) {
+        setActiveWindow((prev) => (prev !== 'terminal' ? 'terminal' : prev))
+      } else if (containerMid >= viewportMid + 35) {
+        setActiveWindow((prev) => (prev !== 'docker' ? 'docker' : prev))
+      }
+    }
+
+    const scrollParent = containerRef.current?.closest('.overflow-y-auto')
+
+    // capture: true intercepts scroll events from any nested scrollable parent container
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+    if (scrollParent) {
+      scrollParent.addEventListener('scroll', handleScroll, { passive: true })
+    }
+
+    handleScroll()
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, { capture: true })
+      if (scrollParent) {
+        scrollParent.removeEventListener('scroll', handleScroll)
+      }
+      if (userOverrideTimeout.current) {
+        window.clearTimeout(userOverrideTimeout.current)
+      }
+    }
+  }, [])
 
   // Z-index calculation for natural 3-layer stacking
   const getZIndex = (id: WindowId) => {
@@ -36,7 +99,7 @@ export function DesktopShowcase() {
   return (
     <div data-theme="dark" className="w-full max-w-5xl mx-auto select-none text-left font-sans">
       {/* Outer Desktop Canvas */}
-      <div className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[var(--win-bg)] shadow-lg">
+      <div ref={containerRef} className="relative w-full rounded-2xl overflow-hidden border border-white/[0.1] bg-[var(--win-bg)] shadow-lg">
         {/* Top Desktop Taskbar */}
         <div className="relative z-40 flex items-center justify-between px-3 sm:px-4 py-2 border-b border-white/[0.08] bg-[var(--panel-surface)]">
           {/* Left: Branding & Status */}
