@@ -1,5 +1,5 @@
 import { useI18n } from '@/lib/i18n'
-import { LandingSteps } from '@/pages/landing/LandingSteps'
+import { IsometricJourney } from '@/pages/landing/IsometricJourney'
 
 const STEPS = ['problem', 'origin', 'chance', 'reach'] as const
 
@@ -18,7 +18,7 @@ export function Background() {
         {t('landing.background.title')}
       </h2>
       <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{t('landing.background.subtitle')}</p>
-      <LandingSteps steps={steps} label={t('landing.background.title')} />
+      <IsometricJourney steps={steps} label={t('landing.background.title')} />
     </section>
   )
 }
