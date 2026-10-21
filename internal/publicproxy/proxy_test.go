@@ -116,9 +116,19 @@ func TestStartAndStop(t *testing.T) {
 	if f.p.Running() {
 		t.Fatal("stopped")
 	}
-	if _, err := net.DialTimeout("tcp", httpsAddr, 300*time.Millisecond); err == nil {
-		t.Fatal("nothing listens after Stop")
+	// The port is free again: it can be bound. (Dialing it is not a test: while the whole suite runs, another test can take the
+	// freed port at once and answer.) A port taken by somebody else is waited for a moment.
+	var rebind net.Listener
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		var err error
+		if rebind, err = net.Listen("tcp", httpsAddr); err == nil {
+			break
+		}
 	}
+	if rebind == nil {
+		t.Fatal("the port is still held after Stop")
+	}
+	_ = rebind.Close()
 	f.p.Stop() // stopping twice is fine
 }
 
