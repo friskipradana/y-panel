@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.53.0] - 2026-10-21
+
+2 perubahan, utamanya upload files from the file manager.
+
+### Fitur baru
+- **files:** Upload files from the file manager ([`e5e5705`](https://github.com/friskipradana/y-panel/commit/e5e5705))
+
+### Perbaikan
+- **docker:** Editing and redeploying a container no longer fails on its own ports ([`bfebf26`](https://github.com/friskipradana/y-panel/commit/bfebf26))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.52.0...v1.53.0
+
 ## [1.52.0] - 2026-10-21
 
 Development tools for every account without sudo (Node.js, Bun, pm2, pnpm, Yarn, uv), and an environment it can shape.
