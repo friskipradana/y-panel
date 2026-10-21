@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Container } from '@/types'
 import { STATE_STYLES } from './constants'
 import { Badge } from '@/components/ui/Badge'
+import { useI18n } from '@/lib/i18n'
 
 // ── StatusBadge ───────────────────────────────────────────────
 export function StatusBadge({ state }: { state: Container['State'] }) {
@@ -10,6 +11,22 @@ export function StatusBadge({ state }: { state: Container['State'] }) {
     <Badge tone={stateStyle.badge} dot>
       {state}
     </Badge>
+  )
+}
+
+// The state of a container as the Docker daemon names it, in the language of the panel
+const STATE_PILL: Record<string, string> = { running: 'running', exited: 'exited', stopped: 'exited', paused: 'paused', restarting: 'restarting' }
+
+export function StatusPill({ state }: { state: string }) {
+  const { t } = useI18n()
+  const norm = state.toLowerCase()
+  const kind = STATE_PILL[norm] ?? 'dead'
+  const label = STATE_PILL[norm] ? t(`docker.state.${kind}`) : norm || t('docker.state.dead')
+  return (
+    <span className={`docker-status-pill docker-status-pill--${kind}`}>
+      <span className="docker-status-dot" />
+      <span>{label}</span>
+    </span>
   )
 }
 

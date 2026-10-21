@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 import type { Container } from '@/types'
+import type { DockerUpdateTarget } from './DockerUpdateModal'
 import { useListQuery } from '@/hooks/useListQuery'
 import { DEFAULT_COMPOSE_YAML, createDefaultDeployForm, createDefaultPullImageForm, type DockerTab } from './constants'
 
@@ -91,6 +92,8 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
 
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; image: string } | null>(null)
   const [logModal, setLogModal] = useState<{ id: string; name: string } | null>(null)
+  // the image or container being updated, with the log of the download
+  const [updateTarget, setUpdateTarget] = useState<DockerUpdateTarget | null>(null)
   const [deleteOpts, setDeleteOpts] = useState({ removeVolumes: false, removeImage: false })
   const [editContainer, setEditContainer] = useState<{ id: string } | null>(null)
   const [editLoading, setEditLoading] = useState(false)
@@ -249,6 +252,8 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     setDeleteConfirm,
     logModal,
     setLogModal,
+    updateTarget,
+    setUpdateTarget,
     deleteOpts,
     setDeleteOpts,
     editContainer,

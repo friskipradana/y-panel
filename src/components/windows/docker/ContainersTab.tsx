@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { alertLib } from '@/lib/alert'
 import {
   Boxes,
+  CircleArrowUp,
   Container as ContainerIcon,
   SquarePen,
   Play,
@@ -24,6 +25,7 @@ import {
 import type { DockerWindowState } from './useDockerWindow'
 import type { Container } from '@/types'
 import { Badge } from '@/components/ui/Badge'
+import { StatusPill } from './DockerComponents'
 import { Button } from '@/components/ui/Button'
 import { LoadingState } from '@/components/ui/states'
 import { ListTable } from '@/components/ui/ListTable'
@@ -62,21 +64,6 @@ function formatContainerPorts(ports: Container['Ports']): string {
   return Array.from(new Set(priv)).join('\n')
 }
 
-// The state of a container as the Docker daemon names it, in the language of the panel
-const STATE_PILL: Record<string, string> = { running: 'running', exited: 'exited', stopped: 'exited', paused: 'paused', restarting: 'restarting' }
-
-function renderStatusPill(state: string, t: (key: string) => string) {
-  const norm = state.toLowerCase()
-  const kind = STATE_PILL[norm] ?? 'dead'
-  const label = STATE_PILL[norm] ? t(`docker.state.${kind}`) : norm || t('docker.state.dead')
-  return (
-    <span className={`docker-status-pill docker-status-pill--${kind}`}>
-      <span className="docker-status-dot" />
-      <span>{label}</span>
-    </span>
-  )
-}
-
 export function ContainersTab({ docker }: { docker: DockerWindowState }) {
   const {
     t,
@@ -88,6 +75,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
     setNetInputValue,
     setDeleteConfirm,
     setLogModal,
+    setUpdateTarget,
     setDeleteOpts,
     setEditContainer,
     setDomainContainer,
@@ -251,7 +239,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                 </div>
 
                 {/* Column 3: Status */}
-                <div className="docker-cell--keep">{renderStatusPill(container.State, t)}</div>
+                <div className="docker-cell--keep"><StatusPill state={container.State} /></div>
 
                 {/* Column 4: Port */}
                 <div className="docker-port-text">{portsText}</div>
@@ -309,6 +297,19 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                         <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
                       </button>
                     </>
+                  )}
+
+                  {/* Download the newest image and make the container again from it */}
+                  {isManaged || container.Image.startsWith('sha256:') ? null : (
+                    <button
+                      type="button"
+                      className="docker-act-btn"
+                      title={t('docker.update.action')}
+                      aria-label={t('docker.update.action')}
+                      onClick={() => setUpdateTarget({ kind: 'container', id: container.Id, name, image: container.Image })}
+                    >
+                      <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </button>
                   )}
 
                   {/* Point a domain at this container through a Cloudflare tunnel; a database is not a website */}

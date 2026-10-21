@@ -1506,3 +1506,108 @@
     grid-column: 2;
   }
 }
+
+// Update of an image or a container
+.docker-progress-line--error {
+  color: #fca5a5;
+}
+
+.docker-update {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docker-update__intro {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.docker-update__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.docker-update__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+
+  &--active {
+    color: var(--panel-primary-text);
+  }
+
+  &--done {
+    color: var(--panel-success-text);
+  }
+
+  &--failed {
+    color: var(--panel-danger-text);
+  }
+
+  &--skipped {
+    opacity: 0.6;
+  }
+}
+
+.docker-update__log {
+  height: 170px;
+}
+
+.docker-update__outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.docker-update__error {
+  font-size: 0.75rem;
+  color: var(--panel-danger-text);
+  word-break: break-word;
+}
+
+.docker-update__heading {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.docker-update__containers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.docker-update__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.docker-update__container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--win-border);
+}
+
+.docker-update__container-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}

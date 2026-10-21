@@ -1,11 +1,10 @@
 import { toast } from 'sonner'
-import { Box, Play, Trash2 } from 'lucide-react'
+import { Box, CircleArrowUp, Play, Trash2 } from 'lucide-react'
 import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
-import { DockerProgressOverlay } from './DockerProgressOverlay'
 import { ListState, ListRowIcon, ListTable } from '@/components/ui/ListTable'
 import { formatDockerDate } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
@@ -24,7 +23,7 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
     resetPullImageModal,
     pullImageForm,
     setPullImageForm,
-    pullImageMut,
+    setUpdateTarget,
     deleteImageMut,
     deployFromImage,
   } = docker
@@ -34,20 +33,14 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
   const pull = () => {
     const image = pullImageForm.image.trim()
     const auth = pullImageForm.registryAuth
-    pullImageMut.mutate(
-      {
-        image,
-        registryAuth: auth.enabled ? { enabled: true, registry: auth.registry || undefined, usernameOrEmail: auth.usernameOrEmail, password: auth.password } : undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success(t('docker.imagePulled', { image }))
-          resetPullImageModal()
-          void refetchImages()
-        },
-        onError: (e) => alertLib.fire(t('docker.pullImageFailed'), apiError(e, t('docker.unknownError')), 'error', 'apps'),
-      },
-    )
+    // the download is shown with what Docker prints, in the update window
+    setUpdateTarget({
+      kind: 'image',
+      image,
+      registryAuth: auth.enabled ? { enabled: true, registry: auth.registry || undefined, usernameOrEmail: auth.usernameOrEmail, password: auth.password } : undefined,
+      autoStart: true,
+    })
+    resetPullImageModal()
   }
 
   const remove = async (id: string, label: string) => {
@@ -69,11 +62,10 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
         onClose={resetPullImageModal}
         title={t('docker.pullDockerImage')}
         size="lg"
-        busyOverlay={pullImageMut.isPending && <DockerProgressOverlay title={t('docker.pullDockerImage')} subtitle={pullImageForm.image.trim()} type="pull" />}
         footer={
           <>
             <Button type="button" variant="ghost" onClick={resetPullImageModal}>{t('common.cancel')}</Button>
-            <Button type="button" variant="primary" loading={pullImageMut.isPending} disabled={!pullImageForm.image.trim()} onClick={pull}>
+            <Button type="button" variant="primary" disabled={!pullImageForm.image.trim()} onClick={pull}>
               {t('docker.pullImage')}
             </Button>
           </>
@@ -154,6 +146,9 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
                 <div className="docker-cell docker-cell--mono">{img.Size}</div>
                 <div className="docker-cell">{formatDockerDate(img.CreatedAt)}</div>
                 <div className="docker-action-btns">
+                  <button type="button" className="docker-act-btn" title={t('docker.update.imageAction')} aria-label={t('docker.update.imageAction')} disabled={untagged} onClick={() => setUpdateTarget({ kind: 'image', image: label })}>
+                    <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
                   <button type="button" className="docker-act-btn docker-act-btn--start" title={t('docker.deployFromImage')} aria-label={t('docker.deployFromImage')} disabled={untagged} onClick={() => deployFromImage(label)}>
                     <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>
