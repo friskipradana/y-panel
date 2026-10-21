@@ -56,8 +56,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             ))}
           </ul>
 
-          {/* Two actions side by side, the installer under them across the full width */}
-          <div className="mx-auto mb-6 grid max-w-md grid-cols-2 gap-3">
+          {/* Primary actions: Login and Demo */}
+          <div className="mx-auto mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md">
             <Button variant="primary" onClick={() => onNavigate(primaryPath)} className={HERO_ACTION}>
               <span>{authenticated ? t('landing.openDashboard') : t('landing.loginAgent')}</span>
               <ArrowRight size={15} />
@@ -68,19 +68,20 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
                 <span>{t('landing.demo.heroCta')}</span>
               </Button>
             ) : null}
-            <a
-              href={INSTALLER_URL}
-              className={`panel-btn panel-btn--outline ${HERO_ACTION} ${!authenticated && demo?.enabled ? 'col-span-2' : ''}`}
-            >
-              <Download size={15} />
-              <span>{t('landing.downloadInstaller')}</span>
-            </a>
           </div>
 
           <div className="mx-auto max-w-2xl text-left">
             <CopyBlock text={INSTALL_COMMAND} prompt="$" />
-            <p className="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[0.75rem] text-[var(--text-secondary)]">
+            <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-center text-[0.75rem] text-[var(--text-secondary)]">
               <span>{t('landing.pasteTerminal')}</span>
+              <span aria-hidden="true">·</span>
+              <a
+                href={INSTALLER_URL}
+                className="inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--win-text)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              >
+                <Download size={13} />
+                <span>{t('landing.downloadInstaller')}</span>
+              </a>
               <span aria-hidden="true">·</span>
               <a
                 href="/install"
