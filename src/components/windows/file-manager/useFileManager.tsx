@@ -315,6 +315,11 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     }
   }
 
+  // A terminal that starts in the folder that is open; one already open gets another tab there (cwdRequest says "again")
+  const openTerminalHere = () => {
+    openWindow('host-terminal', { cwd: activeTab.currentPath, cwdRequest: Date.now() })
+  }
+
   const handleRootAccessButton = async () => {
     if (!isSuperadmin) return
     if (!rootAccess.enabled) {
@@ -580,6 +585,7 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     handleDownload,
     openModal,
     submitRootAccess,
+    openTerminalHere,
     handleRootAccessButton,
     moveItems,
     setClipboardItem,

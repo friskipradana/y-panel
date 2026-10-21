@@ -80,7 +80,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   apps: (win, auth) => <DockerWindow win={win} authenticated={auth} />,
   system: (_win, auth) => <SystemWindow authenticated={auth} />,
   'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
-  'host-terminal': (_win, auth) => <HostTerminalWindow authenticated={auth} />,
+  'host-terminal': (win, auth) => <HostTerminalWindow win={win} authenticated={auth} />,
   terminal: () => <TerminalPlaceholder />,
   docs: () => <DocsWindow />,
   changelog: () => <ChangelogWindow />,

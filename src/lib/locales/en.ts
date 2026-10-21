@@ -4317,4 +4317,6 @@ export const en: Record<string, string> = {
   'fileEditor.copiedSelection': "Selection copied",
   'fileEditor.copiedAll': "Whole file copied",
   'fileEditor.copyFailed': "Could not copy to the clipboard.",
+  'fileManager.openTerminalTitle': "Open a terminal in this folder",
+  'fileManager.terminal': "Terminal",
 }

@@ -274,7 +274,7 @@ export function useTerminalSession() {
     connectSocketRef.current = connectSocket
   }, [connectSocket])
 
-  const start = useCallback(async (target = 'local') => {
+  const start = useCallback(async (target = 'local', cwd?: string) => {
     if (startInFlightRef.current) return
 
     startInFlightRef.current = true
@@ -302,7 +302,7 @@ export function useTerminalSession() {
 
     try {
       runtimeLogger.info('terminal', 'starting terminal session', { epoch, target })
-      const result = await startTerminalSession(target)
+      const result = await startTerminalSession(target, cwd)
       if (sessionEpochRef.current !== epoch) {
         runtimeLogger.warn('terminal', 'discarding stale terminal session result', { epoch, sessionId: result.sessionId })
         await releaseSession(result.sessionId)

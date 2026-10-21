@@ -4317,4 +4317,6 @@ export const id: Record<string, string> = {
   'fileEditor.copiedSelection': "Pilihan tersalin",
   'fileEditor.copiedAll': "Seluruh isi berkas tersalin",
   'fileEditor.copyFailed': "Gagal menyalin ke papan klip.",
+  'fileManager.openTerminalTitle': "Buka terminal di folder ini",
+  'fileManager.terminal': "Terminal",
 }

@@ -8,8 +8,8 @@ export interface TerminalPreset {
   createdAt: string
 }
 
-export const startTerminalSession = (target = 'local') =>
-  agentApi.post<import('@/types').TerminalSessionStartResponse>('/api/v1/terminal/sessions', { target }).then((r) => r.data)
+export const startTerminalSession = (target = 'local', cwd?: string) =>
+  agentApi.post<import('@/types').TerminalSessionStartResponse>('/api/v1/terminal/sessions', cwd ? { target, cwd } : { target }).then((r) => r.data)
 
 export const closeTerminalSession = (sessionId: string) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/terminal/sessions/${sessionId}`).then((r) => r.data)

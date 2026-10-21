@@ -18,6 +18,7 @@ import {
   type TerminalPreset,
 } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import type { WindowState } from '@/types'
 import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -66,6 +67,8 @@ interface TerminalTabPaneProps {
   authenticated?: boolean
   active: boolean
   target?: string
+  /** the folder a local shell starts in; without it the account's home */
+  cwd?: string
   fontFamily: string
   fontSize: number
   /** Ctrl + wheel and Ctrl + / - / 0: 1 or -1 steps the text size, 0 resets it */
@@ -77,7 +80,7 @@ interface TerminalTabPaneProps {
   onReadText?: (read: () => string) => void
 }
 
-function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput, onReadText }: TerminalTabPaneProps) {
+function TerminalTabPane({ authenticated, active, target = 'local', cwd, fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput, onReadText }: TerminalTabPaneProps) {
   const {
     sessionId, starting, connected, reconnecting, error,
     start, sendInput, updateTerminalSize, setOutputListener, close,
@@ -93,7 +96,9 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
   // two fingers on the terminal make the text larger or smaller
   usePinchZoom(viewportRef, (step) => zoomRef.current(step))
 
-  useEffect(() => { onStart?.(start) }, [onStart, start])
+  // a restart of this terminal starts in the same folder
+  const startHere = useCallback((next?: string) => start(next ?? 'local', cwd), [start, cwd])
+  useEffect(() => { onStart?.(startHere) }, [onStart, startHere])
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
   useEffect(() => { onReadText?.(() => (xtermRef.current ? readTerminalText(xtermRef.current) : '')) }, [onReadText])
   useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
@@ -101,7 +106,7 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
   // Auto-start once authenticated; an existing session is re-attached by the hook itself
   useEffect(() => {
     if (authenticated && !sessionId && !starting) {
-      void start(target)
+      void start(target, cwd)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated]) 
@@ -252,6 +257,7 @@ interface Tab {
   id: number
   label: string
   target: string
+  cwd?: string
   connected: boolean
   error: boolean
   reconnecting: boolean
@@ -268,7 +274,13 @@ function statusOf(tab: Tab) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function HostTerminalWindow({ authenticated }: { authenticated?: boolean }) {
+// The folder named last in a path, for the label of a terminal opened there
+function folderLabel(path: string) {
+  const parts = path.split('/').filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : '/'
+}
+
+export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const globalContentZoom      = useWindowStore(selectGlobalContentZoom)
   const globalFontIndex        = useWindowStore(selectGlobalFontIndex)
   const globalTerminalFontSize = useWindowStore(selectGlobalTerminalFontSize)
@@ -297,8 +309,11 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
   const { t } = useI18n()
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
+  // a window opened from the File Manager starts its first terminal in that folder
+  const requestedCwd = typeof win?.params?.cwd === 'string' ? win.params.cwd : ''
+  const cwdRequest = win?.params?.cwdRequest
   const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: t('hostTerminal.localServer'), target: 'local', connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
+    { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
   ])
   const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
 
@@ -312,12 +327,13 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
-  const addTab = useCallback((target = 'local', label?: string) => {
+  const addTab = useCallback((target = 'local', label?: string, cwd?: string) => {
     const id = nextTabId++
     setTabs((prev) => [...prev, { 
       id, 
-      label: label || (target === 'local' ? t('hostTerminal.localServer') : target), 
+      label: label || (cwd ? folderLabel(cwd) : target === 'local' ? t('hostTerminal.localServer') : target), 
       target,
+      cwd,
       connected: false, 
       error: false, 
       reconnecting: false,
@@ -326,6 +342,14 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
     }])
     setActiveTabId(id)
   }, [])
+
+  // Asked again while the window is open (the File Manager's Terminal button): a new terminal in that folder
+  const lastCwdRequest = useRef(cwdRequest)
+  useEffect(() => {
+    if (cwdRequest === undefined || cwdRequest === lastCwdRequest.current) return
+    lastCwdRequest.current = cwdRequest
+    if (requestedCwd) addTab('local', undefined, requestedCwd)
+  }, [cwdRequest, requestedCwd, addTab])
 
   const handleSshConnect = () => {
     const t = sshInput.trim()
@@ -823,6 +847,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
               authenticated={authenticated}
               active={tab.id === activeTabId}
               target={tab.target}
+              cwd={tab.cwd}
               fontFamily={fontFamily}
               fontSize={fontSize}
               onZoom={zoom}
