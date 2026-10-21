@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,8 @@ const (
 	dbxImage      = "t8y2/dbx:latest"
 	dbxDataVolume = "reneo-dbx-data"
 )
+
+var dbxEnsureMu sync.Mutex
 
 func dbxPort() int {
 	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv("PANEL_DBX_PORT"))); err == nil && v > 1024 && v < 65536 {
@@ -43,6 +46,12 @@ func ensureDbx(ctx context.Context) error {
 	if dbxReachable() {
 		return nil
 	}
+	dbxEnsureMu.Lock()
+	defer dbxEnsureMu.Unlock()
+	if dbxReachable() {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer cancel()
 
@@ -113,14 +122,12 @@ func (s *Server) dbxProxy() http.Handler {
 			pr.Out.URL.Scheme = target.Scheme
 			pr.Out.URL.Host = target.Host
 			pr.Out.Host = target.Host
-			p := strings.TrimPrefix(pr.In.URL.Path, "/dbx")
-			if !strings.HasPrefix(p, "/") {
-				p = "/" + p
-			}
-			pr.Out.URL.Path = p
-			pr.Out.URL.RawPath = ""
+			pr.Out.URL.Path = pr.In.URL.Path
+			pr.Out.URL.RawPath = pr.In.URL.RawPath
+			pr.SetXForwarded()
 			pr.Out.Header.Del("Authorization")
 		},
+		FlushInterval: -1,
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, _ error) {
 			http.Error(w, "DBX is not running. Open it again from the Database window.", http.StatusBadGateway)
 		},
@@ -134,6 +141,12 @@ func (s *Server) dbxProxy() http.Handler {
 		if r.URL.Path == "/dbx" {
 			http.Redirect(w, r, "/dbx/", http.StatusPermanentRedirect)
 			return
+		}
+		if !dbxReachable() {
+			if err := ensureDbx(r.Context()); err != nil {
+				http.Error(w, "DBX could not be started: "+err.Error(), http.StatusBadGateway)
+				return
+			}
 		}
 		proxy.ServeHTTP(w, r)
 	})

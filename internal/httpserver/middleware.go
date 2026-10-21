@@ -519,7 +519,10 @@ func (s *Server) auditFileAction(r *http.Request, action, result string, metadat
 
 // isProtectedPagePath lists the application's pages that need a session.
 func isProtectedPagePath(path string) bool {
-	return path == "/home" || strings.HasPrefix(path, "/home/") || strings.HasPrefix(path, "/database/") || strings.HasPrefix(path, "/adminer/") || strings.HasPrefix(path, "/dbx/")
+	return path == "/home" || strings.HasPrefix(path, "/home/") ||
+		path == "/database" || strings.HasPrefix(path, "/database/") ||
+		path == "/adminer" || strings.HasPrefix(path, "/adminer/") ||
+		path == "/dbx" || strings.HasPrefix(path, "/dbx/")
 }
 
 // isPublicStaticFile reports files served without a session (PWA manifest, service worker,
