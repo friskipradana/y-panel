@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.53.3] - 2026-10-21
+
+The example plans that were never edited move to the new prices.
+
+### Fitur baru
+- **hosting:** The example plans that were never edited move to the new prices ([`448f411`](https://github.com/friskipradana/y-panel/commit/448f411))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.53.2...v1.53.3
+
 ## [1.53.2] - 2026-10-21
 
 An edit and redeploy that fails puts the old container back.
