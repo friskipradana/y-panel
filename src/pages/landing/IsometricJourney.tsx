@@ -6,7 +6,7 @@ interface IsometricJourneyProps {
   label: string
 }
 
-// 4 Milestone Pins placed precisely at the proportional curve apexes with safe margins
+// 4 Milestone Pins placed precisely at the proportional curve apexes
 const DESKTOP_PINS = [
   {
     // Valley 1 (bottom apex)
@@ -24,9 +24,9 @@ const DESKTOP_PINS = [
     y: 350,
   },
   {
-    // Peak 2 (top apex)
+    // Peak 2 (gently elevated to y=235 with balanced top margin)
     x: 780,
-    y: 210,
+    y: 235,
   },
 ] as const
 
@@ -55,11 +55,10 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
 
   const activeIdx = hoveredStep !== null ? hoveredStep : activeStep
 
-  // ── Desktop 2D Proportional Serpentine Curve (Bleeds seamlessly through container edges) ──
-  // Amplitude = 70, Centerline = 280, Valleys = 350, Peaks = 210, Spacing = 200px
-  // Provides 60px top headroom and 36px side safety margin so popups never clip
+  // ── Desktop 2D Proportional Serpentine Curve ──
+  // First hill reaches y=210, while the end hill peaks at y=235 for an ideal top margin
   const desktopRoad =
-    'M -40,280 C 70,280 70,350 180,350 C 280,350 280,210 380,210 C 480,210 480,350 580,350 C 680,350 680,210 780,210 C 890,210 890,280 1000,280'
+    'M -40,280 C 70,280 70,350 180,350 C 280,350 280,210 380,210 C 480,210 480,350 580,350 C 680,350 680,235 780,235 C 890,235 890,290 1000,290'
 
   // ── Mobile 2D Proportional Vertical Serpentine Curve (Bleeds seamlessly top and bottom) ──
   const mobileRoad =
