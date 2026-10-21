@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.4] - 2026-10-21
+
+DBX opens the chosen database at once, for every account from one container, and is no longer open to everyone.
+
+### Perbaikan
+- **database:** DBX opens the chosen database at once, for every account from one container, and is no longer open to everyone ([`939bf4e`](https://github.com/friskipradana/y-panel/commit/939bf4e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.3...v1.50.4
+
 ## [1.50.3] - 2026-10-21
 
 A listener phone that only tested shows as connected, and its key is read from more places.
