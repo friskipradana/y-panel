@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/toolchain"
 )
 
 const usernamePrefix = "panel-"
@@ -140,7 +142,15 @@ func WrapCommand(cmd *exec.Cmd, osUsername string) (*exec.Cmd, error) {
 	if cmd == nil || runtime.GOOS != "linux" || strings.TrimSpace(osUsername) == "" {
 		return cmd, nil
 	}
-	wrapped := exec.Command("runuser", append([]string{"-u", osUsername, "--", cmd.Path}, cmd.Args[1:]...)...)
+	account, accountErr := osuser.Lookup(osUsername)
+	program := cmd.Path
+	// a command called by its bare name ("node", "bun", "npm") runs the one the account installed, when it has one
+	if accountErr == nil && account.HomeDir != "" && len(cmd.Args) > 0 {
+		if own := toolchain.ResolveCommand(cmd.Args[0], account.HomeDir); own != "" {
+			program = own
+		}
+	}
+	wrapped := exec.Command("runuser", append([]string{"-u", osUsername, "--", program}, cmd.Args[1:]...)...)
 	wrapped.Dir = cmd.Dir
 	// a command without its own environment must not fall back to the agent's
 	if cmd.Env == nil {
@@ -151,12 +161,14 @@ func WrapCommand(cmd *exec.Cmd, osUsername string) (*exec.Cmd, error) {
 	wrapped.Stdin = cmd.Stdin
 	wrapped.Stdout = cmd.Stdout
 	wrapped.Stderr = cmd.Stderr
-	if account, err := osuser.Lookup(osUsername); err == nil && account.HomeDir != "" {
+	if accountErr == nil && account.HomeDir != "" {
 		wrapped.Env = append(wrapped.Env,
 			"HOME="+account.HomeDir,
 			"USER="+osUsername,
 			"LOGNAME="+osUsername,
 		)
+		// the folders of the tools of the account and its own variables, in front of the system ones
+		wrapped.Env = toolchain.EnvFor(wrapped.Env, account.HomeDir)
 	}
 	return wrapped, nil
 }

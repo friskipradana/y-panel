@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Boxes, LockKeyhole, Mail, Settings, User, UserRound, Users } from 'lucide-react'
+import { Bell, Boxes, LockKeyhole, Mail, Settings, User, UserRound, Users, Wrench } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { getMeV2 } from '@/api/agent'
 import { getMyPlan } from '@/api/hosting'
@@ -11,18 +11,20 @@ import { SettingRow } from '@/components/ui/SettingRow'
 import { AccountPassword, AccountUsage } from '@/components/windows/profile/AccountSecurityCard'
 import { MyNotices } from '@/components/windows/profile/MyNotices'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
+import { ToolchainTools } from '@/components/windows/profile/ToolchainTools'
 import { formatDateID } from '@/lib/datetime'
 import { daysUntil, planNotice } from '@/lib/planNotice'
 import { useI18n } from '@/lib/i18n'
 import { useSettingsNavStore } from '@/store/settingsNavStore'
 import { useWindowStore } from '@/store/windowStore'
 
-type ProfileSection = 'account' | 'plan' | 'notify' | 'security'
+type ProfileSection = 'account' | 'plan' | 'notify' | 'tools' | 'security'
 
 const SECTIONS: Array<{ key: ProfileSection; icon: ComponentType<{ size?: number; className?: string }> }> = [
   { key: 'account', icon: UserRound },
   { key: 'plan', icon: Boxes },
   { key: 'notify', icon: Bell },
+  { key: 'tools', icon: Wrench },
   { key: 'security', icon: LockKeyhole },
 ]
 
@@ -49,7 +51,9 @@ export default function ProfileWindow() {
   const planView = plan.data
   const notice = planNotice(planView)
   const daysLeft = planView?.state === 'active' ? daysUntil(planView.expiresAt) : 0
-  const sections = SECTIONS.filter((s) => (s.key === 'plan' ? hasPlan : s.key === 'notify' ? hasNotices : true))
+  // the demo account only looks: it installs nothing
+  const hasTools = displayRole !== 'demo'
+  const sections = SECTIONS.filter((s) => (s.key === 'plan' ? hasPlan : s.key === 'notify' ? hasNotices : s.key === 'tools' ? hasTools : true))
   const shown = sections.some((s) => s.key === section) ? section : 'account'
   const current = sections.find((s) => s.key === shown) ?? sections[0]
   const CurrentIcon = current.icon
@@ -191,6 +195,7 @@ export default function ProfileWindow() {
             ) : null}
             {shown === 'plan' ? <MyPlanCard /> : null}
             {shown === 'notify' ? <MyNotices /> : null}
+            {shown === 'tools' ? <ToolchainTools /> : null}
             {shown === 'security' ? <AccountPassword /> : null}
           </div>
         </div>
