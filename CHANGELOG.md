@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.56.1] - 2026-10-21
+
+Icon-only buttons get accessible names, plan specs as a list instead of chips, drop unused gradient tokens.
+
+### Perbaikan
+- **ui:** Icon-only buttons get accessible names, plan specs as a list instead of chips, drop unused gradient tokens ([`6e59f92`](https://github.com/friskipradana/y-panel/commit/6e59f92))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.56.0...v1.56.1
+
 ## [1.56.0] - 2026-10-21
 
 2 perubahan, utamanya zoom and copy in the code editor, zoom in the terminal.
