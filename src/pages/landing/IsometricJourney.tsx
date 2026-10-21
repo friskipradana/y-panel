@@ -89,14 +89,7 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1"
-                className="text-[var(--win-border)] opacity-40 dark:opacity-20"
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r="1.75"
-                fill="currentColor"
-                className="text-[var(--win-border)] opacity-80 dark:opacity-45"
+                className="text-[var(--win-border)] opacity-45 dark:opacity-25"
               />
             </pattern>
           </defs>
@@ -282,14 +275,7 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1"
-                className="text-[var(--win-border)] opacity-40 dark:opacity-20"
-              />
-              <circle
-                cx="0"
-                cy="0"
-                r="1.5"
-                fill="currentColor"
-                className="text-[var(--win-border)] opacity-80 dark:opacity-45"
+                className="text-[var(--win-border)] opacity-45 dark:opacity-25"
               />
             </pattern>
           </defs>
