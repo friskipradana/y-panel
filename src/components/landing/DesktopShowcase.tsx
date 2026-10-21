@@ -105,8 +105,8 @@ export function DesktopShowcase() {
           </div>
         </div>
 
-        {/* Desktop Workspace Stage (Vertically Balanced) */}
-        <div className="relative flex flex-col gap-3 p-3 md:block md:h-[490px] md:p-5 md:overflow-hidden">
+        {/* Desktop Workspace Stage (Diagonal overlapping stack on mobile, multi-window on desktop) */}
+        <div className="relative max-md:h-[285px] max-md:overflow-hidden max-md:p-3 md:block md:h-[490px] md:p-5 md:overflow-hidden">
           {/* Left Desktop Shortcuts Column */}
           <div className="absolute top-6 left-4 z-10 hidden flex-col gap-1.5 md:flex">
             {[
@@ -145,10 +145,10 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('docker')}
             style={{ zIndex: getZIndex('docker') }}
-            className={`relative z-10 w-full md:absolute md:top-7 md:left-24 md:w-[46%] rounded-xl border transition-all duration-200 shadow-lg cursor-pointer ${
+            className={`w-full md:absolute md:top-7 md:left-24 md:w-[46%] rounded-xl border transition-all duration-300 shadow-lg cursor-pointer ${
               activeWindow === 'docker'
-                ? 'border-cyan-500/50 bg-[var(--win-bg)] scale-[1.01]'
-                : 'border-white/[0.08] bg-[var(--panel-surface)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
+                ? 'max-md:absolute max-md:top-3 max-md:left-3 max-md:right-8 max-md:z-20 max-md:scale-100 max-md:opacity-100 max-md:shadow-2xl border-cyan-500/50 bg-[var(--win-bg)] scale-[1.01]'
+                : 'max-md:absolute max-md:top-9 max-md:left-8 max-md:right-3 max-md:z-10 max-md:scale-[0.98] max-md:opacity-80 max-md:hover:opacity-100 border-white/[0.08] bg-[var(--panel-surface)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -273,10 +273,10 @@ export function DesktopShowcase() {
           <div
             onClick={() => bringToFront('terminal')}
             style={{ zIndex: getZIndex('terminal') }}
-            className={`relative w-full md:absolute md:bottom-16 md:left-32 md:w-[48%] rounded-xl border transition-all duration-200 shadow-lg cursor-pointer ${
+            className={`w-full md:absolute md:bottom-16 md:left-32 md:w-[48%] rounded-xl border transition-all duration-300 shadow-lg cursor-pointer ${
               activeWindow === 'terminal'
-                ? 'border-emerald-500/50 bg-[var(--panel-surface-strong)] scale-[1.01]'
-                : 'border-white/[0.08] bg-[var(--panel-surface-strong)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
+                ? 'max-md:absolute max-md:top-3 max-md:left-3 max-md:right-8 max-md:z-20 max-md:scale-100 max-md:opacity-100 max-md:shadow-2xl border-emerald-500/50 bg-[var(--panel-surface-strong)] scale-[1.01]'
+                : 'max-md:absolute max-md:top-9 max-md:left-8 max-md:right-3 max-md:z-10 max-md:scale-[0.98] max-md:opacity-80 max-md:hover:opacity-100 border-white/[0.08] bg-[var(--panel-surface-strong)] opacity-90 hover:opacity-100 hover:border-white/[0.18]'
             }`}
           >
             {/* Titlebar */}
@@ -306,6 +306,9 @@ export function DesktopShowcase() {
               </div>
               <div className="text-cyan-400 text-[9px]">
                 [ok] Docker engine connected (v26.1.1) · 3 containers up
+              </div>
+              <div className="text-slate-400 text-[9px]">
+                [ok] Memory: 2.2 GB / 8.0 GB (27%) · 0 errors
               </div>
               <div className="text-slate-400 flex items-center gap-1 pt-0.5">
                 <span className="text-emerald-400">root@reneo-node</span>
