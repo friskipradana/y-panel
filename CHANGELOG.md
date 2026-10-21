@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.0] - 2026-10-21
+
+Add DBX support and client choice modal between Adminer and DBX.
+
+### Fitur baru
+- **database:** Add DBX support and client choice modal between Adminer and DBX ([`95d7793`](https://github.com/friskipradana/y-panel/commit/95d7793))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.49.5...v1.50.0
+
 ## [1.49.5] - 2026-10-20
 
 Revert "perf(site): no loading screen on the public pages".
