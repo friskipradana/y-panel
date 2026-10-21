@@ -106,7 +106,7 @@ export function DesktopShowcase() {
         </div>
 
         {/* Desktop Workspace Stage (Diagonal overlapping stack on mobile, multi-window on desktop) */}
-        <div className="relative max-md:h-[325px] max-md:overflow-hidden max-md:p-3 md:block md:h-[490px] md:p-5 md:overflow-hidden">
+        <div className="relative max-md:h-[250px] max-md:overflow-hidden max-md:p-3 md:block md:h-[490px] md:p-5 md:overflow-hidden">
           {/* Left Desktop Shortcuts Column */}
           <div className="absolute top-6 left-4 z-10 hidden flex-col gap-1.5 md:flex">
             {[
