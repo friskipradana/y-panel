@@ -114,7 +114,7 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 			return nil, err
 		}
 	}
-	content = namespaceComposeContainerNames(content, projectName)
+	content = normalizeBuiltinNetworks(namespaceComposeContainerNames(content, projectName))
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
 	}

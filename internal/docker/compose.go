@@ -164,3 +164,158 @@ func yamlScalar(value string) string {
 	escaped := strings.ReplaceAll(value, "\"", "\\\"")
 	return fmt.Sprintf("\"%s\"", escaped)
 }
+
+var (
+	networksKeyLine    = regexp.MustCompile(`^(\s*)networks\s*:\s*(.*?)\s*$`)
+	networkModeKeyLine = regexp.MustCompile(`^\s*network_mode\s*:`)
+)
+
+func lineIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
+}
+
+func yamlKeyName(raw string) string {
+	name := strings.TrimSpace(raw)
+	name = strings.TrimSuffix(name, ":")
+	return strings.Trim(strings.TrimSpace(name), `"'`)
+}
+
+// normalizeBuiltinNetworks rewrites a compose file that joins the networks docker made itself (bridge, host, none) as if they were
+// networks of the project: compose then gives the service a name alias there and docker refuses it ("network-scoped aliases are
+// only supported for user-defined networks"). A service that lists such a network gets it as its network_mode, and the top-level
+// declaration of it goes away. Everything else in the file is left as written.
+func normalizeBuiltinNetworks(content string) string {
+	lines := strings.Split(content, "\n")
+	out := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); i++ {
+		m := networksKeyLine.FindStringSubmatch(strings.TrimRight(lines[i], "\r"))
+		if m == nil || strings.HasPrefix(strings.TrimSpace(lines[i]), "#") {
+			out = append(out, lines[i])
+			continue
+		}
+		indent := len(m[1])
+		inline := m[2]
+		// the lines that belong to the key: deeper than it, or blank
+		end := i + 1
+		for end < len(lines) && (strings.TrimSpace(lines[end]) == "" || lineIndent(lines[end]) > indent) {
+			end++
+		}
+		children := lines[i+1 : end]
+		var kept []string
+		var removed []string
+		stillJoins := false
+		if inline != "" && !strings.HasPrefix(inline, "#") {
+			// networks: [bridge, my-net]
+			if !strings.HasPrefix(inline, "[") || !strings.Contains(inline, "]") {
+				out = append(out, lines[i])
+				continue
+			}
+			items := strings.Split(strings.Trim(inline[:strings.Index(inline, "]")+1], "[]"), ",")
+			var keep []string
+			for _, item := range items {
+				name := strings.Trim(strings.TrimSpace(item), `"'`)
+				if name == "" {
+					continue
+				}
+				if builtinNetwork(name) {
+					removed = append(removed, name)
+				} else {
+					keep = append(keep, strings.TrimSpace(item))
+				}
+			}
+			if len(removed) == 0 {
+				out = append(out, lines[i])
+				continue
+			}
+			if len(keep) > 0 {
+				stillJoins = true
+				out = append(out, m[1]+"networks: ["+strings.Join(keep, ", ")+"]")
+			}
+		} else {
+			// block form: "- name" items or "name:" entries with their own deeper lines
+			childIndent := -1
+			skipping := false
+			for _, child := range children {
+				trimmed := strings.TrimSpace(child)
+				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+					if !skipping {
+						kept = append(kept, child)
+					}
+					continue
+				}
+				ci := lineIndent(child)
+				if childIndent < 0 {
+					childIndent = ci
+				}
+				if ci > childIndent {
+					if !skipping {
+						kept = append(kept, child)
+					}
+					continue
+				}
+				name := ""
+				if strings.HasPrefix(trimmed, "- ") {
+					name = strings.Trim(strings.TrimSpace(trimmed[2:]), `"'`)
+				} else {
+					name = yamlKeyName(strings.SplitN(trimmed, ":", 2)[0] + ":")
+				}
+				if builtinNetwork(name) {
+					skipping = true
+					removed = append(removed, name)
+					continue
+				}
+				skipping = false
+				kept = append(kept, child)
+			}
+			if len(removed) == 0 {
+				out = append(out, lines[i])
+				out = append(out, children...)
+				i = end - 1
+				continue
+			}
+			for _, child := range kept {
+				if strings.TrimSpace(child) != "" && !strings.HasPrefix(strings.TrimSpace(child), "#") {
+					stillJoins = true
+					break
+				}
+			}
+			if stillJoins {
+				out = append(out, lines[i])
+				out = append(out, kept...)
+			}
+		}
+		// a service (not the top level) that lost its only network gets it as network mode
+		if indent > 0 && !stillJoins && !serviceHasNetworkMode(lines, i, indent) {
+			out = append(out, m[1]+"network_mode: "+removed[0])
+		}
+		i = end - 1
+	}
+	return strings.Join(out, "\n")
+}
+
+// serviceHasNetworkMode says whether the service that holds the line at index already sets a network_mode
+func serviceHasNetworkMode(lines []string, at, indent int) bool {
+	for i := at - 1; i >= 0; i-- {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		if lineIndent(lines[i]) < indent {
+			break
+		}
+		if lineIndent(lines[i]) == indent && networkModeKeyLine.MatchString(lines[i]) {
+			return true
+		}
+	}
+	for i := at + 1; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		if lineIndent(lines[i]) < indent {
+			break
+		}
+		if lineIndent(lines[i]) == indent && networkModeKeyLine.MatchString(lines[i]) {
+			return true
+		}
+	}
+	return false
+}
