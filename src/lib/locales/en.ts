@@ -4308,4 +4308,5 @@ export const en: Record<string, string> = {
   'terminal.copy.failed': "Could not copy; press and hold the text to copy from the menu.",
   'terminal.copy.empty': "There is no text in the terminal yet.",
   'terminal.paste.failed': "The browser does not allow reading the clipboard. Press and hold in the terminal and choose Paste.",
+  'projects.openFilesAt': "Open the folder in File Manager: {path}",
 }

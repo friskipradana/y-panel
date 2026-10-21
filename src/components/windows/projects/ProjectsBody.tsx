@@ -28,6 +28,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
     deleteMut,
     uploadStaticMut,
     highlightedProject,
+    openProjectFiles,
     openHighlightedProjectFiles,
     copyHighlightedProjectPath,
     openHighlightedProjectLogs,
@@ -135,6 +136,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               onTunnel={() => openTunnelForProject(p)}
               onUpload={() => openStaticUpload(p)}
               onLogs={() => setLogProject(p)}
+              onFiles={() => openProjectFiles(p)}
               onEdit={() => openEditProject(p)}
               onDelete={async () => {
                 const confirmed = await alertLib.confirm(

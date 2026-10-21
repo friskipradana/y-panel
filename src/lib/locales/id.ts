@@ -4308,4 +4308,5 @@ export const id: Record<string, string> = {
   'terminal.copy.failed': "Gagal menyalin; tekan lama pada teks untuk menyalin dari menu.",
   'terminal.copy.empty': "Belum ada teks di terminal.",
   'terminal.paste.failed': "Browser tidak mengizinkan membaca papan klip. Tekan lama di kolom terminal lalu pilih Tempel.",
+  'projects.openFilesAt': "Buka folder di File Manager: {path}",
 }

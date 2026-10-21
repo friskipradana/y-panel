@@ -171,6 +171,17 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
     void loadDirectory(path, activeTabId, query)
   }
 
+  // A request from outside (the Projects window) to show a folder, also while this window is already open
+  const lastOpenRequest = useRef(win.params?.openRequest)
+  const requested = win.params?.openRequest
+  const requestedPath = win.params?.openPath
+  useEffect(() => {
+    if (requested === undefined || requested === lastOpenRequest.current) return
+    lastOpenRequest.current = requested
+    if (typeof requestedPath === 'string' && requestedPath) setCurrentPath(requestedPath)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requested, requestedPath])
+
   const changeQuery = (patch: Partial<ListQuery>) => {
     const next: ListQuery = { ...activeTab.query, ...patch }
     setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, query: next } : t))

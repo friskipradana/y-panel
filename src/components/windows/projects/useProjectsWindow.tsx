@@ -186,12 +186,17 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     window.setTimeout(() => element.focus(), 180)
   }, [highlightedProjectId, visibleProjects])
 
-  const openHighlightedProjectFiles = async () => {
-    if (!highlightedProject?.workingDir) {
+  // The File Manager at the folder of a project; a File Manager that is already open goes to it too (openRequest says "again")
+  const openProjectFiles = (project: Project) => {
+    if (!project.workingDir) {
       toast.error(t('projects.workingDirUnavailableTitle'), { description: t('projects.openFilesUnavailable') })
       return
     }
-    openWindow('file-manager', { currentPath: highlightedProject.workingDir })
+    openWindow('file-manager', { currentPath: project.workingDir, openPath: project.workingDir, openRequest: Date.now() })
+  }
+
+  const openHighlightedProjectFiles = async () => {
+    if (highlightedProject) openProjectFiles(highlightedProject)
   }
 
   const copyHighlightedProjectPath = async () => {
@@ -302,6 +307,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     updateMut,
     uploadStaticMut,
     highlightedProject,
+    openProjectFiles,
     openHighlightedProjectFiles,
     copyHighlightedProjectPath,
     openHighlightedProjectLogs,
