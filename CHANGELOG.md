@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.53.1] - 2026-10-21
+
+Deploying on the bridge network no longer fails with network-scoped aliases.
+
+### Perbaikan
+- **docker:** Deploying on the bridge network no longer fails with network-scoped aliases ([`7221af5`](https://github.com/friskipradana/y-panel/commit/7221af5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.53.0...v1.53.1
+
 ## [1.53.0] - 2026-10-21
 
 2 perubahan, utamanya upload files from the file manager.
