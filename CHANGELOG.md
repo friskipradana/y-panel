@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.55.0] - 2026-10-21
+
+A button on each project opens the File Manager at its folder.
+
+### Fitur baru
+- **projects:** A button on each project opens the File Manager at its folder ([`33677a9`](https://github.com/friskipradana/y-panel/commit/33677a9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.54.0...v1.55.0
+
 ## [1.54.0] - 2026-10-21
 
 Select and copy text in the terminal on a phone, and paste.
