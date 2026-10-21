@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.53.2] - 2026-10-21
+
+An edit and redeploy that fails puts the old container back.
+
+### Perbaikan
+- **docker:** An edit and redeploy that fails puts the old container back ([`25e4254`](https://github.com/friskipradana/y-panel/commit/25e4254))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.53.1...v1.53.2
+
 ## [1.53.1] - 2026-10-21
 
 Deploying on the bridge network no longer fails with network-scoped aliases.
