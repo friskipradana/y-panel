@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.56.0] - 2026-10-21
+
+2 perubahan, utamanya zoom and copy in the code editor, zoom in the terminal.
+
+### Fitur baru
+- **mobile:** Zoom and copy in the code editor, zoom in the terminal ([`4d7c359`](https://github.com/friskipradana/y-panel/commit/4d7c359))
+
+### Dokumentasi
+- Component list for mobile zoom and copy ([`25a200f`](https://github.com/friskipradana/y-panel/commit/25a200f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.55.0...v1.56.0
+
 ## [1.55.0] - 2026-10-21
 
 A button on each project opens the File Manager at its folder.
