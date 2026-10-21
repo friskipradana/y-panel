@@ -1,8 +1,11 @@
-import { CornerLeftUp, FilePlus, FolderPlus, Key, LoaderCircle, RefreshCw, Search } from 'lucide-react'
+import { useRef } from 'react'
+import { CornerLeftUp, FilePlus, FolderPlus, Key, LoaderCircle, RefreshCw, Search, Upload } from 'lucide-react'
 import type { FileManagerState } from './useFileManager'
+import type { FileUpload } from './useFileUpload'
 
 // The bar of the Docker window: up, the path, search, the creating actions, and refresh
-export function FileToolbar({ fm }: { fm: FileManagerState }) {
+export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: FileUpload }) {
+  const picker = useRef<HTMLInputElement>(null)
   const {
     t,
     activeTabId,
@@ -74,6 +77,20 @@ export function FileToolbar({ fm }: { fm: FileManagerState }) {
             <span className="docker-secondary-btn__text">{rootAccess.enabled ? t('fileManager.rootActive') : t('fileManager.rootAccess')}</span>
           </button>
         ) : null}
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            void upload.start(Array.from(e.target.files ?? []))
+            e.target.value = ''
+          }}
+        />
+        <button type="button" className="docker-secondary-btn" title={t('fileManager.uploadTitle')} aria-label={t('fileManager.uploadTitle')} disabled={!!upload.upload} onClick={() => picker.current?.click()}>
+          <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <span className="docker-secondary-btn__text">{t('fileManager.upload')}</span>
+        </button>
         <button type="button" className="docker-secondary-btn" title={t('fileManager.newFile')} aria-label={t('fileManager.newFile')} onClick={() => openModal({ type: 'touch' })}>
           <FilePlus className="h-3.5 w-3.5" strokeWidth={1.75} />
           <span className="docker-secondary-btn__text">{t('fileManager.file')}</span>
