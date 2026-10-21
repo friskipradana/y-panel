@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.5] - 2026-10-21
+
+A window opened from the apps list is in front at once, and the dock icons can be seen on a light dock.
+
+### Perbaikan
+- **ui:** A window opened from the apps list is in front at once, and the dock icons can be seen on a light dock ([`cc92a48`](https://github.com/friskipradana/y-panel/commit/cc92a48))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.4...v1.50.5
+
 ## [1.50.4] - 2026-10-21
 
 DBX opens the chosen database at once, for every account from one container, and is no longer open to everyone.
