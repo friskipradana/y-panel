@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.52.0] - 2026-10-21
+
+Development tools for every account without sudo (Node.js, Bun, pm2, pnpm, Yarn, uv), and an environment it can shape.
+
+### Fitur baru
+- **account:** Development tools for every account without sudo (Node.js, Bun, pm2, pnpm, Yarn, uv), and an environment it can shape ([`e831fbc`](https://github.com/friskipradana/y-panel/commit/e831fbc))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.51.1...v1.52.0
+
 ## [1.51.1] - 2026-10-21
 
 Upload a RAR or a tar.gz, and upload source that is not built yet.
