@@ -277,7 +277,7 @@ export function Dock() {
                               : itemIdleClass,
                       ].join(' ')}
                     >
-                      <AppIcon kind={item.kind} size={22} />
+                      <AppIcon kind={item.kind} size={22} style={{ filter: 'var(--dock-icon-filter)' }} />
                     </motion.div>
 
                     {/* What the window is doing, on a fixed line under the tile: the bar is the focused one, a dot is open,

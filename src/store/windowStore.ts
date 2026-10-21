@@ -214,6 +214,9 @@ export const useWindowStore = create<WindowStore>()(
             params: params || {},
           });
 
+          // the window that was in front gives up its place at the front: two at the focused level would be told apart by
+          // their order in the page, and the new one would not be the one on top
+          bringToFront(state.windows, id);
           state.focusedId = id;
         });
         return openedId;
