@@ -161,7 +161,7 @@ export function Modules() {
             aria-label={t('landing.modules.viewGrid')}
             title={t('landing.modules.viewGrid')}
             aria-pressed={desktopMode === 'grid'}
-            className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+            className={`flex h-8.5 w-8.5 items-center justify-center rounded-md transition-colors ${
               desktopMode === 'grid'
                 ? 'border border-[var(--panel-primary-border)] bg-[var(--panel-primary-subtle)] text-[var(--panel-primary-text)] font-semibold'
                 : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
@@ -175,7 +175,7 @@ export function Modules() {
             aria-label={t('landing.modules.viewList')}
             title={t('landing.modules.viewList')}
             aria-pressed={desktopMode === 'list'}
-            className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+            className={`flex h-8.5 w-8.5 items-center justify-center rounded-md transition-colors ${
               desktopMode === 'list'
                 ? 'border border-[var(--panel-primary-border)] bg-[var(--panel-primary-subtle)] text-[var(--panel-primary-text)] font-semibold'
                 : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
