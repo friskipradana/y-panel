@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.3] - 2026-10-21
+
+A listener phone that only tested shows as connected, and its key is read from more places.
+
+### Perbaikan
+- **payment:** A listener phone that only tested shows as connected, and its key is read from more places ([`4972763`](https://github.com/friskipradana/y-panel/commit/4972763))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.2...v1.50.3
+
 ## [1.50.2] - 2026-10-21
 
 The public proxy stop test no longer fails when another test takes the freed port.
