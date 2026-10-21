@@ -85,7 +85,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
 
         <button
           id="taskbar-search-button"
-          title={t('taskbar.commandPaletteTitle')}
+          title={t('taskbar.commandPaletteTitle')} aria-label={t('taskbar.commandPaletteTitle')}
           className="taskbar-icon-btn text-[var(--panel-primary-text)] hover:text-cyan-400"
           onClick={() => toggleCommandPalette()}
         >
@@ -97,7 +97,7 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
         {isSuperadmin && updateInfo?.available && (
           <button
             id="taskbar-update-available"
-            title={t('taskbar.updateAvailable', { version: updateInfo.latest })}
+            title={t('taskbar.updateAvailable', { version: updateInfo.latest })} aria-label={t('taskbar.updateAvailable', { version: updateInfo.latest })}
             className="taskbar-icon-btn text-amber-500 hover:text-amber-400 relative"
             onClick={() => openWindow('settings')}
           >

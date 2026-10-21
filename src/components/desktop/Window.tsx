@@ -378,7 +378,7 @@ export function Window({ win, children }: Props) {
                 style={controlButtonStyle}
                 onMouseEnter={(e) => applyHover(e.currentTarget)}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title={t('window.minimize')}
+                title={t('window.minimize')} aria-label={t('window.minimize')}
               >
                 <Minus size={13} strokeWidth={1.75} />
               </button>
@@ -422,7 +422,7 @@ export function Window({ win, children }: Props) {
                   e.currentTarget.style.color = 'var(--window-close-hover-text, #ffffff)'
                 }}
                 onMouseLeave={(e) => resetHover(e.currentTarget)}
-                title={t('common.close')}
+                title={t('common.close')} aria-label={t('common.close')}
               >
                 <X size={13} strokeWidth={1.75} />
               </button>

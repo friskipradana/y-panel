@@ -249,7 +249,7 @@ export function Select({
               setSearch('')
               setHighlightedIndex(-1)
             }}
-            title={t('common.resetSelection')}
+            title={t('common.resetSelection')} aria-label={t('common.resetSelection')}
           >
             <X className="h-3 w-3" />
           </button>

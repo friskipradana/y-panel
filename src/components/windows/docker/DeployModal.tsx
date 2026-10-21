@@ -177,12 +177,12 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
               readOnly={!!editContainer}
             />
             {deployForm.name && !editContainer && (
-              <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, name: '' }); setNameDropdownOpen(false) }} title={t('docker.clear')}>
+              <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, name: '' }); setNameDropdownOpen(false) }} title={t('docker.clear')} aria-label={t('docker.clear')}>
                 <X className="h-3 w-3" />
               </button>
             )}
             {(deployType === 'compose' ? (templatesData?.items?.length ?? 0) : 0) > 0 && (
-              <button type="button" className="docker-image-combobox__toggle" onClick={() => { setNameDropdownOpen((v) => !v); setImgDropdownOpen(false); setNetDropdownOpen(false) }}>
+              <button type="button" className="docker-image-combobox__toggle" aria-label={t('common.toggleDropdown')} onClick={() => { setNameDropdownOpen((v) => !v); setImgDropdownOpen(false); setNetDropdownOpen(false) }}>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
             )}
@@ -228,11 +228,11 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                     autoComplete="off"
                   />
                   {deployForm.image && (
-                    <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, image: '' }); setImgInputValue(''); setImgDropdownOpen(false) }} title={t('docker.clear')}>
+                    <button type="button" className="docker-image-combobox__clear" onClick={() => { setDeployForm({ ...deployForm, image: '' }); setImgInputValue(''); setImgDropdownOpen(false) }} title={t('docker.clear')} aria-label={t('docker.clear')}>
                       <X className="h-3 w-3" />
                     </button>
                   )}
-                  <button type="button" className="docker-image-combobox__toggle" onClick={() => { setImgDropdownOpen((v) => !v); setNameDropdownOpen(false); setNetDropdownOpen(false) }}>
+                  <button type="button" className="docker-image-combobox__toggle" aria-label={t('common.toggleDropdown')} onClick={() => { setImgDropdownOpen((v) => !v); setNameDropdownOpen(false); setNetDropdownOpen(false) }}>
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -341,12 +341,12 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                         setNetInputValue('')
                         setNetDropdownOpen(false)
                       }}
-                      title={t('docker.resetDefault')}
+                      title={t('docker.resetDefault')} aria-label={t('docker.resetDefault')}
                     >
                       <X className="h-3 w-3" />
                     </button>
                   )}
-                  <button type="button" className="docker-image-combobox__toggle" onClick={() => { setNetDropdownOpen((v) => !v); setImgDropdownOpen(false); setNameDropdownOpen(false) }}>
+                  <button type="button" className="docker-image-combobox__toggle" aria-label={t('common.toggleDropdown')} onClick={() => { setNetDropdownOpen((v) => !v); setImgDropdownOpen(false); setNameDropdownOpen(false) }}>
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>

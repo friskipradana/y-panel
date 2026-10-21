@@ -45,7 +45,7 @@ export function LanguageSwitcher() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title={t('language.label')}
+        title={t('language.label')} aria-label={t('language.label')}
       >
         <Languages size={14} />
       </button>

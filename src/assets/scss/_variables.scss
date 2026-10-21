@@ -62,7 +62,6 @@
   --panel-neutral-bg: rgba(100, 116, 139, 0.12);
   --panel-neutral-text: #475569;
   --panel-primary-soft: rgba(59, 130, 246, 0.10);
-  --panel-accent-gradient: linear-gradient(135deg, rgba(5, 150, 105, 0.10), rgba(2, 132, 199, 0.10), rgba(37, 99, 235, 0.10));
   --panel-elevated-surface: rgba(255, 255, 255, 0.66);
   --panel-elevated-border: rgba(203, 213, 225, 0.55);
   --panel-code-bg: #0f172a;
@@ -103,7 +102,6 @@
   --profile-modal-card-bg: rgba(15, 23, 42, 0.02);
   --profile-modal-close-hover: rgba(15, 23, 42, 0.05);
   --profile-resource-scope-bg: var(--panel-elevated-surface);
-  --action-cloudflare-gradient: linear-gradient(135deg, #f97316, #fb923c);
   --action-cloudflare-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
   --action-warning-hover: rgba(249, 115, 22, 0.18);
   --file-manager-confirm-danger-bg: rgba(239, 68, 68, 0.90);
@@ -151,7 +149,6 @@
   --dock-preview-close-bg: #ffffff;
   --dock-preview-close-border: #e2e8f0;
   --dock-preview-close-hover-border: #fca5a5;
-  --dock-indicator-active-bg: linear-gradient(90deg, #38bdf8, #6366f1);
   --dock-indicator-visible-bg: rgba(30, 41, 59, 0.80);
   --dock-indicator-muted-bg: rgba(255, 255, 255, 0.70);
   // the app icons are light colours, so on a light dock they are darkened and outlined
@@ -183,9 +180,7 @@
   --debug-grid-preset-yellow: #ffff00;
   --debug-grid-preset-white: #ffffff;
   --system-incident-hover-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
-  --global-alert-card-bg: linear-gradient(135deg, color-mix(in srgb, var(--win-bg) 94%, transparent), color-mix(in srgb, var(--panel-surface) 88%, transparent));
   --global-alert-card-highlight: inset 0 1px 0 color-mix(in srgb, white 28%, transparent);
-  --global-alert-confirm-bg: linear-gradient(135deg, var(--panel-primary-solid), var(--panel-primary-text));
   --global-alert-confirm-shadow: 0 2px 12px rgba(14, 165, 233, 0.30);
   --global-alert-question-text: #a78bfa;
   --desktop-icon-hover-bg: rgba(0, 0, 0, 0.08);
@@ -226,17 +221,14 @@
   --status-page-badge-border: rgba(255, 255, 255, 0.12);
   --status-page-badge-bg: rgba(255, 255, 255, 0.06);
   --status-page-badge-text: rgba(255, 255, 255, 0.78);
-  --status-page-accent-gradient: linear-gradient(135deg, #38bdf8, #8b5cf6, #f97316);
   --status-page-accent-glow: 0 0 20px rgba(56, 189, 248, 0.42);
   --status-page-eyebrow-text: rgba(125, 211, 252, 0.82);
-  --status-page-code-gradient: linear-gradient(135deg, #f8fafc 0%, #7dd3fc 34%, #c4b5fd 68%, #fdba74 100%);
   --status-page-title-text: #ffffff;
   --status-page-copy-text: rgba(255, 255, 255, 0.70);
   --status-page-card-border: rgba(255, 255, 255, 0.08);
   --status-page-card-bg: rgba(255, 255, 255, 0.05);
   --status-page-muted-text: rgba(255, 255, 255, 0.42);
   --status-page-value-text: #f8fafc;
-  --status-page-action-primary-bg: linear-gradient(135deg, #f97316, #fb7185 48%, #818cf8 100%);
   --status-page-action-primary-shadow: 0 18px 34px rgba(249, 115, 22, 0.24);
   --status-page-action-secondary-text: #dbeafe;
   --status-page-action-secondary-bg: rgba(255, 255, 255, 0.06);
@@ -359,7 +351,6 @@
   --panel-neutral-bg: rgba(148, 163, 184, 0.16);
   --panel-neutral-text: #cbd5e1;
   --panel-primary-soft: rgba(96, 165, 250, 0.14);
-  --panel-accent-gradient: linear-gradient(135deg, rgba(52, 211, 153, 0.11), rgba(56, 189, 248, 0.11), rgba(96, 165, 250, 0.12));
   --panel-elevated-surface: rgba(15, 23, 42, 0.34);
   --panel-elevated-border: rgba(255, 255, 255, 0.10);
   --panel-code-bg: rgba(2, 6, 23, 0.86);

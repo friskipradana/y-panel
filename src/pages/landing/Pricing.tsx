@@ -35,7 +35,7 @@ export function Pricing() {
       </h2>
       <p className="mt-1 text-[0.875rem] text-[var(--text-secondary)]">{t('hosting.landing.subtitle')}</p>
 
-      <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-5 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(15.5rem,1fr))]">
         {data.plans.map((plan) => {
           const limits = getPlanLimits(plan, t, data.domains?.[0]?.name)
 
@@ -72,16 +72,13 @@ export function Pricing() {
                 </p>
               ) : null}
 
-              <div className="mt-3.5 flex flex-wrap gap-1.5" aria-label={t('hosting.landing.limitsLabel')}>
+              <ul className="panel-mono mt-3.5 space-y-1 border-t border-[var(--win-border)] pt-3 text-[0.75rem] text-[var(--win-text)]" aria-label={t('hosting.landing.limitsLabel')}>
                 {limits.map((limit) => (
-                  <span
-                    key={limit}
-                    className="panel-mono inline-flex items-center rounded-md border border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-2 py-0.5 text-[0.71875rem] font-medium text-[var(--win-text)] whitespace-nowrap"
-                  >
+                  <li key={limit}>
                     {limit}
-                  </span>
+                  </li>
                 ))}
-              </div>
+              </ul>
 
               {plan.features.length > 0 ? (
                 <div className="mt-5 border-t border-[var(--win-border)] pt-4">
