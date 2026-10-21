@@ -167,6 +167,8 @@ func New(cfg config.Config) *Server {
 		go func() { _, _ = s.docsSync.Articles(context.Background(), false) }()
 	}
 
+	go s.retireOpenDbx()
+
 	// notices outside the panel: the queue, its workers, and the detectors of attacks
 	s.notify = notify.New(db, cfg.EncryptionKey)
 	if db.IsConnected() {
