@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.1] - 2026-10-21
+
+Preserve base path in dbx proxy and auto-start container on direct access.
+
+### Perbaikan
+- **database:** Preserve base path in dbx proxy and auto-start container on direct access ([`01276ea`](https://github.com/friskipradana/y-panel/commit/01276ea))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.0...v1.50.1
+
 ## [1.50.0] - 2026-10-21
 
 Add DBX support and client choice modal between Adminer and DBX.
