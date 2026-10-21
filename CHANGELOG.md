@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.50.2] - 2026-10-21
+
+The public proxy stop test no longer fails when another test takes the freed port.
+
+### Perbaikan
+- **test:** The public proxy stop test no longer fails when another test takes the freed port ([`bb439bb`](https://github.com/friskipradana/y-panel/commit/bb439bb))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.1...v1.50.2
+
 ## [1.50.1] - 2026-10-21
 
 Preserve base path in dbx proxy and auto-start container on direct access.
