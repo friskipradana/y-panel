@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.51.0] - 2026-10-21
+
+Update an image or a container, with the real log of the download and the state of the container.
+
+### Fitur baru
+- **docker:** Update an image or a container, with the real log of the download and the state of the container ([`3303db6`](https://github.com/friskipradana/y-panel/commit/3303db6))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.50.5...v1.51.0
+
 ## [1.50.5] - 2026-10-21
 
 A window opened from the apps list is in front at once, and the dock icons can be seen on a light dock.
