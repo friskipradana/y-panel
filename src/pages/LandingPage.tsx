@@ -93,7 +93,7 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
             ) : null}
           </div>
 
-          <div className="mx-auto max-w-2xl text-left">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 sm:p-4 text-left shadow-xs">
             <CopyBlock text={INSTALL_COMMAND} prompt="$" />
             <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-center text-[0.75rem] text-[var(--text-secondary)]">
               <span>{t('landing.pasteTerminal')}</span>
