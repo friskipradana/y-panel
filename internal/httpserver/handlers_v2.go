@@ -1710,6 +1710,9 @@ func findStaticRootCandidates(tempDir string) ([]string, error) {
 	return paths, nil
 }
 
+// handleUploadStaticProject puts an uploaded site in the folder of a static project. The archive (zip, rar, tar.gz, tar) holds
+// either the built site or its source: a source with a build script is built here, as the owner of the project. The answer is
+// a stream of JSON lines (phase, log, done, error) so the window shows how far it is.
 func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	u := userFromCtx(r)
@@ -1745,16 +1748,16 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "file ZIP harus dikirim"})
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "arsip harus dikirim"})
 		return
 	}
 	defer file.Close()
-	if header == nil || !strings.HasSuffix(strings.ToLower(header.Filename), ".zip") {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "hanya file .zip yang didukung"})
+	if header == nil || !isArchiveName(header.Filename) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "format arsip tidak didukung: gunakan .zip, .rar, .tar.gz, atau .tar"})
 		return
 	}
 
-	tempFile, err := os.CreateTemp("", "reneo-static-upload-*.zip")
+	tempFile, err := os.CreateTemp("", "reneo-static-upload-*")
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -1783,40 +1786,71 @@ func (s *Server) handleUploadStaticProject(w http.ResponseWriter, r *http.Reques
 	}
 	defer os.RemoveAll(stageDir)
 
-	if err := extractProjectZip(tempPath, stageDir); err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "gagal extract ZIP: " + err.Error()})
-		return
-	}
-	sourceDir, err := detectStaticUploadSource(stageDir, strings.TrimSpace(r.FormValue("rootDir")))
-	if err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
-		return
-	}
-	if _, err := os.Stat(filepath.Join(sourceDir, "index.html")); err != nil {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "ZIP tidak berisi index.html; isi folder root jika build ada di dalam folder"})
+	// from here on the answer is a stream: what happens can take minutes
+	send := startLineStream(w)
+	phase := func(name string) { send(map[string]any{"type": "phase", "phase": name}) }
+	logLine := func(line string) { send(map[string]any{"type": "log", "line": line}) }
+	fail := func(message string) { send(map[string]any{"type": "error", "error": message}) }
+
+	phase("extracting")
+	if err := extractProjectArchive(tempPath, stageDir); err != nil {
+		fail("gagal extract arsip: " + err.Error())
 		return
 	}
 	osUsername := panelosuser.MappedUsername(u.Username)
-	if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+	requestedRoot := strings.TrimSpace(r.FormValue("rootDir"))
+	sourceDir, err := detectStaticUploadSource(stageDir, requestedRoot)
+	if err != nil {
+		fail(err.Error())
 		return
 	}
+	built := false
+	if _, err := os.Stat(filepath.Join(sourceDir, "index.html")); err != nil {
+		// no built site in it: a source with a build script is built here
+		srcDir := findSourceDir(stageDir, requestedRoot)
+		plan, planErr := planBuild(srcDir)
+		if srcDir == "" || planErr != nil {
+			reason := "tidak ada package.json"
+			if planErr != nil {
+				reason = planErr.Error()
+			}
+			fail("arsip tidak berisi index.html dan juga bukan source yang bisa di-build (" + reason + "). Unggah hasil build (dist), atau source yang punya script build.")
+			return
+		}
+		// the build runs as the owner of the project, so the folder must be theirs first
+		if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
+			fail(err.Error())
+			return
+		}
+		logLine("Arsip berisi source (" + plan.Manager + "); dibangun di server.")
+		out, buildErr := buildSource(r.Context(), plan, osUsername, phase, logLine)
+		if buildErr != nil {
+			fail(buildErr.Error())
+			return
+		}
+		sourceDir, built = out, true
+	}
+	if err := chownTreeNoFollow(stageDir, osUsername); err != nil {
+		fail(err.Error())
+		return
+	}
+	phase("placing")
 	// a clean upload swaps entries one by one, so the site is never empty in between
 	place := mergeTree
 	if strings.EqualFold(r.FormValue("clean"), "true") {
 		place = replaceTree
 	}
 	if err := place(sourceDir, projectDir); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+		fail(err.Error())
 		return
 	}
 	if err := chownTreeNoFollow(projectDir, osUsername); err != nil {
-		s.writeError(w, http.StatusInternalServerError, err)
+		fail(err.Error())
 		return
 	}
 
-	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "file": header.Filename})
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "project": project, "workingDir": projectDir})
+	s.auditFileAction(r, "project.static_upload", "success", map[string]any{"projectId": project.ID, "dest": projectDir, "file": header.Filename, "built": built})
+	send(map[string]any{"type": "done", "workingDir": projectDir, "built": built})
 }
 
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {

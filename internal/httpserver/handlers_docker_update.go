@@ -13,8 +13,8 @@ import (
 // again from it. What docker prints is sent as it comes, one JSON line each, so the window shows the download and then the state
 // of the container.
 
-// startEventStream answers with a stream of lines; the returned function sends one.
-func startEventStream(w http.ResponseWriter) func(docker.UpdateEvent) {
+// startLineStream answers with a stream of JSON lines; the returned function sends one.
+func startLineStream(w http.ResponseWriter) func(any) {
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.Header().Set("Cache-Control", "no-store")
 	// a proxy in front must not hold the lines back
@@ -22,12 +22,18 @@ func startEventStream(w http.ResponseWriter) func(docker.UpdateEvent) {
 	w.WriteHeader(http.StatusOK)
 	flusher, _ := w.(http.Flusher)
 	encoder := json.NewEncoder(w)
-	return func(event docker.UpdateEvent) {
+	return func(event any) {
 		_ = encoder.Encode(event)
 		if flusher != nil {
 			flusher.Flush()
 		}
 	}
+}
+
+// startEventStream is the stream of the update window
+func startEventStream(w http.ResponseWriter) func(docker.UpdateEvent) {
+	send := startLineStream(w)
+	return func(event docker.UpdateEvent) { send(event) }
 }
 
 func (s *Server) handleContainerUpdate(w http.ResponseWriter, r *http.Request) {

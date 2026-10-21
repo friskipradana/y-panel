@@ -1,7 +1,10 @@
 package httpserver
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +15,8 @@ import (
 	"strings"
 
 	osuserpkg "os/user"
+
+	"github.com/nwaples/rardecode/v2"
 )
 
 // The agent runs as root and writes into folders their owners control. Everything below treats a
@@ -22,44 +27,179 @@ const (
 	maxUploadBytes = int64(1) << 30
 )
 
-// extractProjectZip unpacks an uploaded build into an empty directory. Links and special files
-// are left out, modes are reduced to plain file/executable, and the size is capped by what is
-// really written, not by what the archive claims.
-func extractProjectZip(zipPath, dest string) error {
-	reader, err := zip.OpenReader(zipPath)
+// archiveEntry is one item of an uploaded archive, whatever the format
+type archiveEntry struct {
+	name string
+	mode os.FileMode
+	dir  bool
+	// link marks what is not a plain file or folder (links and special files): it is left out
+	link bool
+	open func() (io.ReadCloser, error)
+}
+
+// archiveFormat tells the format from the first bytes, not from the name, so a renamed file is not trusted
+func archiveFormat(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	head = head[:n]
+	switch {
+	case bytes.HasPrefix(head, []byte("PK\x03\x04")), bytes.HasPrefix(head, []byte("PK\x05\x06")):
+		return "zip", nil
+	case bytes.HasPrefix(head, []byte("Rar!\x1a\x07")):
+		return "rar", nil
+	case bytes.HasPrefix(head, []byte{0x1f, 0x8b}):
+		return "targz", nil
+	case len(head) >= 262 && bytes.Equal(head[257:262], []byte("ustar")):
+		return "tar", nil
+	}
+	return "", errors.New("format arsip tidak dikenali: gunakan .zip, .rar, .tar.gz, atau .tar")
+}
+
+// IsArchiveName says whether an uploaded name looks like an archive the agent unpacks
+func isArchiveName(name string) bool {
+	lower := strings.ToLower(name)
+	for _, suffix := range []string{".zip", ".rar", ".tar.gz", ".tgz", ".tar"} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func eachZip(path string, fn func(archiveEntry) error) error {
+	reader, err := zip.OpenReader(path)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
 	if len(reader.File) > maxUploadFiles {
-		return fmt.Errorf("arsip ZIP berisi lebih dari %d berkas", maxUploadFiles)
+		return fmt.Errorf("arsip berisi lebih dari %d berkas", maxUploadFiles)
 	}
+	for _, file := range reader.File {
+		file := file
+		mode := file.Mode()
+		if err := fn(archiveEntry{
+			name: file.Name, mode: mode, dir: file.FileInfo().IsDir(), link: !file.FileInfo().IsDir() && !mode.IsRegular(),
+			open: func() (io.ReadCloser, error) { return file.Open() },
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func eachTar(path string, gzipped bool, fn func(archiveEntry) error) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	var in io.Reader = f
+	if gzipped {
+		zr, err := gzip.NewReader(f)
+		if err != nil {
+			return err
+		}
+		defer zr.Close()
+		in = zr
+	}
+	reader := tar.NewReader(in)
+	count := 0
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if count++; count > maxUploadFiles {
+			return fmt.Errorf("arsip berisi lebih dari %d berkas", maxUploadFiles)
+		}
+		dir := header.Typeflag == tar.TypeDir
+		regular := header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA
+		if err := fn(archiveEntry{
+			name: header.Name, mode: os.FileMode(header.Mode).Perm(), dir: dir, link: !dir && !regular,
+			open: func() (io.ReadCloser, error) { return io.NopCloser(reader), nil },
+		}); err != nil {
+			return err
+		}
+	}
+}
+
+func eachRar(path string, fn func(archiveEntry) error) error {
+	reader, err := rardecode.OpenReader(path)
+	if err != nil {
+		return rarError(err)
+	}
+	defer reader.Close()
+	count := 0
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return rarError(err)
+		}
+		if header.Encrypted || header.HeaderEncrypted {
+			return errors.New("arsip RAR yang memakai kata sandi tidak didukung")
+		}
+		if count++; count > maxUploadFiles {
+			return fmt.Errorf("arsip berisi lebih dari %d berkas", maxUploadFiles)
+		}
+		mode := header.Mode()
+		if err := fn(archiveEntry{
+			name: header.Name, mode: mode, dir: header.IsDir, link: header.LinkType != 0 || (!header.IsDir && !mode.IsRegular() && mode&os.ModeType != 0),
+			open: func() (io.ReadCloser, error) { return io.NopCloser(reader), nil },
+		}); err != nil {
+			return err
+		}
+	}
+}
+
+func rarError(err error) error {
+	if strings.Contains(strings.ToLower(err.Error()), "password") || strings.Contains(strings.ToLower(err.Error()), "encrypt") {
+		return errors.New("arsip RAR yang memakai kata sandi tidak didukung")
+	}
+	return fmt.Errorf("arsip RAR tidak bisa dibaca: %w", err)
+}
+
+// extractProjectArchive unpacks an uploaded archive (zip, rar, tar.gz or tar) into an empty directory. Links and special
+// files are left out, modes are reduced to plain file/executable, and the size is capped by what is really written, not by
+// what the archive claims.
+func extractProjectArchive(archivePath, dest string) error {
+	format, err := archiveFormat(archivePath)
+	if err != nil {
+		return err
+	}
 	base := filepath.Clean(dest)
 	var total int64
-	for _, file := range reader.File {
-		target := filepath.Join(base, filepath.FromSlash(file.Name))
+	extract := func(entry archiveEntry) error {
+		name := strings.ReplaceAll(entry.name, "\\", "/")
+		target := filepath.Join(base, filepath.FromSlash(name))
 		if target != base && !strings.HasPrefix(target, base+string(os.PathSeparator)) {
-			return errors.New("arsip ZIP mengandung path tidak aman")
+			return errors.New("arsip mengandung path tidak aman")
 		}
-		mode := file.Mode()
-		if file.FileInfo().IsDir() {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return err
-			}
-			continue
+		if entry.dir {
+			return os.MkdirAll(target, 0o755)
 		}
-		if !mode.IsRegular() {
-			continue
+		if entry.link {
+			return nil
 		}
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err
 		}
 		perm := os.FileMode(0o644)
-		if mode&0o111 != 0 {
+		if entry.mode&0o111 != 0 {
 			perm = 0o755
 		}
-		src, err := file.Open()
+		src, err := entry.open()
 		if err != nil {
 			return err
 		}
@@ -73,17 +213,27 @@ func extractProjectZip(zipPath, dest string) error {
 		closeErr := dst.Close()
 		total += n
 		if total > maxUploadBytes {
-			return fmt.Errorf("isi arsip ZIP melebihi %d MB setelah diekstrak", maxUploadBytes>>20)
+			return fmt.Errorf("isi arsip melebihi %d MB setelah diekstrak", maxUploadBytes>>20)
 		}
 		if copyErr != nil {
 			return copyErr
 		}
-		if closeErr != nil {
-			return closeErr
-		}
+		return closeErr
 	}
-	return nil
+	switch format {
+	case "zip":
+		return eachZip(archivePath, extract)
+	case "rar":
+		return eachRar(archivePath, extract)
+	case "targz":
+		return eachTar(archivePath, true, extract)
+	default:
+		return eachTar(archivePath, false, extract)
+	}
 }
+
+// extractProjectZip is kept for callers that only know zip archives
+func extractProjectZip(zipPath, dest string) error { return extractProjectArchive(zipPath, dest) }
 
 // mergeTree copies the unpacked build over the project folder. Whatever sits at a destination
 // path (a file, a folder of the wrong kind, a symlink) is removed first, and files are created

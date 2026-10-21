@@ -22,6 +22,7 @@ import {
   LIST_LIMIT,
   type StaticUploadState,
   type UploadDraft,
+  isArchiveName,
 } from './projectsConfig'
 
 export interface ProjectsWindowProps {
@@ -141,10 +142,20 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const uploadStaticMut = useMutation({
     mutationFn: async ({ project, file, rootDir, clean }: { project: Project; file: File; rootDir: string; clean: boolean }) => {
       if (uploadClearTimerRef.current) window.clearTimeout(uploadClearTimerRef.current)
-      setStaticUpload({ projectName: project.name, fileName: file.name, percent: 0, phase: 'uploading' })
-      return uploadStaticProjectBuild(project.id, file, clean, rootDir, (percent) => {
-        setStaticUpload((current) => (current ? { ...current, percent, phase: percent >= 100 ? 'extracting' : 'uploading' } : current))
-      })
+      setStaticUpload({ projectName: project.name, fileName: file.name, percent: 0, phase: 'uploading', log: [] })
+      return uploadStaticProjectBuild(
+        project.id,
+        file,
+        clean,
+        rootDir,
+        (percent) => {
+          setStaticUpload((current) => (current && current.phase === 'uploading' ? { ...current, percent, phase: percent >= 100 ? 'extracting' : 'uploading' } : current))
+        },
+        (event) => {
+          if (event.type === 'phase') setStaticUpload((current) => (current ? { ...current, phase: event.phase, percent: 100 } : current))
+          if (event.type === 'log') setStaticUpload((current) => (current ? { ...current, log: [...current.log.slice(-300), event.line] } : current))
+        },
+      )
     },
     onSuccess: (_, variables) => {
       setStaticUpload((current) => (current ? { ...current, percent: 100, phase: 'done' } : current))
@@ -247,7 +258,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
       return
     }
     const file = uploadDraft.file
-    if (!file.name.toLowerCase().endsWith('.zip')) {
+    if (!isArchiveName(file.name)) {
       toast.error(t('projects.zipFormatTitle'), { description: t('projects.zipFormatMessage') })
       return
     }

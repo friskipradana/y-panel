@@ -50,13 +50,19 @@ export const STATE_PILL: Record<ProjectStateKey, string> = {
   drift: 'paused',
 }
 
-export type UploadPhase = 'uploading' | 'extracting' | 'done' | 'error'
+export type UploadPhase = 'uploading' | 'extracting' | 'installing' | 'building' | 'placing' | 'done' | 'error'
+
+// The kinds of archive the agent unpacks
+export const ARCHIVE_ACCEPT = '.zip,.rar,.tar.gz,.tgz,.tar'
+export const isArchiveName = (name: string) => /\.(zip|rar|tar\.gz|tgz|tar)$/i.test(name)
 
 export type StaticUploadState = {
   projectName: string
   fileName: string
   percent: number
   phase: UploadPhase
+  // what the build prints, when the archive holds source
+  log: string[]
 }
 
 export type UploadDraft = {

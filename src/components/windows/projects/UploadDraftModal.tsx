@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { ARCHIVE_ACCEPT } from './projectsConfig'
+import { UploadLog } from './StaticUploadOverlay'
 
 export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
   const {
@@ -27,7 +29,7 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
         <>
           <Button type="button" onClick={() => setUploadDraft(null)} variant="ghost">{t('common.cancel')}</Button>
           <Button type="button" onClick={submitStaticUpload} loading={uploadStaticMut.isPending} disabled={!uploadDraft.file} variant="primary">
-            {uploadStaticMut.isPending ? t(`projects.upload.${staticUpload?.phase ?? 'uploading'}`) + (staticUpload ? ` ${staticUpload.percent}%` : '') : t('projects.uploadAndExtract')}
+            {uploadStaticMut.isPending ? t(`projects.upload.${staticUpload?.phase ?? 'uploading'}`) + (staticUpload?.phase === 'uploading' ? ` ${staticUpload.percent}%` : '') : t('projects.uploadAndExtract')}
           </Button>
         </>
       }
@@ -40,7 +42,7 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
           <label className="panel-section-label">{t('projects.zipFile')}</label>
           <input
             type="file"
-            accept=".zip,application/zip"
+            accept={ARCHIVE_ACCEPT}
             className="panel-input"
             onChange={(event) => setUploadDraft((current) => current ? { ...current, file: event.target.files?.[0] ?? null } : current)}
           />
@@ -60,6 +62,8 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
           label={t('projects.cleanBeforeExtract')}
         />
         <p className="mt-[-10px] text-[11px] leading-5 text-[var(--text-secondary)]">{t('projects.zipRootNote')}</p>
+        <p className="text-[11px] leading-5 text-[var(--text-secondary)]">{t('projects.sourceNote')}</p>
+        {uploadStaticMut.isPending && staticUpload ? <UploadLog upload={staticUpload} /> : null}
       </div>
     </Modal>
   )

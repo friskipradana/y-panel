@@ -95,18 +95,65 @@ export const getProjectLogs = (id: number, lines = 300) =>
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)
 
-export const uploadStaticProjectBuild = (id: number, file: File, clean = true, rootDir = '', onProgress?: (percent: number) => void) => {
+export type StaticUploadEvent =
+  | { type: 'phase'; phase: 'extracting' | 'installing' | 'building' | 'placing' }
+  | { type: 'log'; line: string }
+  | { type: 'done'; workingDir: string; built: boolean }
+  | { type: 'error'; error: string }
+
+// What went wrong, in the shape the windows read errors from (response.data.error)
+class UploadError extends Error {
+  response: { data: { error: string } }
+  constructor(message: string) {
+    super(message)
+    this.response = { data: { error: message } }
+  }
+}
+
+// An archive of the built site, or of its source: the agent builds the source. It answers with one JSON line per event.
+export const uploadStaticProjectBuild = async (
+  id: number,
+  file: File,
+  clean = true,
+  rootDir = '',
+  onProgress?: (percent: number) => void,
+  onEvent?: (event: StaticUploadEvent) => void,
+) => {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('clean', clean ? 'true' : 'false')
   formData.append('rootDir', rootDir)
-  return agentApi
-    .post<{ ok: boolean; project: Project; workingDir: string }>(`/api/v1/projects/${id}/upload-static`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (event) => {
-        if (!event.total) return
-        onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
-      },
-    })
-    .then((r) => r.data)
+  let seen = 0
+  let result: { workingDir: string; built: boolean } | null = null
+  let failure = ''
+  const read = (text: string, final: boolean) => {
+    const upTo = final ? text.length : text.lastIndexOf('\n') + 1
+    if (upTo <= seen) return
+    for (const line of text.slice(seen, upTo).split('\n')) {
+      if (!line.trim()) continue
+      const event = JSON.parse(line) as StaticUploadEvent
+      onEvent?.(event)
+      if (event.type === 'done') result = { workingDir: event.workingDir, built: event.built }
+      if (event.type === 'error') failure = event.error
+    }
+    seen = upTo
+  }
+  const response = await agentApi.post<string>(`/api/v1/projects/${id}/upload-static`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    responseType: 'text',
+    transformResponse: (data) => data,
+    timeout: 0,
+    onUploadProgress: (event) => {
+      if (!event.total) return
+      onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+    },
+    onDownloadProgress: (event) => {
+      const text = (event.event?.target as XMLHttpRequest | undefined)?.responseText
+      if (typeof text === 'string') read(text, false)
+    },
+  })
+  read(typeof response.data === 'string' ? response.data : '', true)
+  if (failure) throw new UploadError(failure)
+  if (!result) throw new UploadError('the upload ended without an answer')
+  return result as { workingDir: string; built: boolean }
 }
