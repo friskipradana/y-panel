@@ -578,6 +578,8 @@ export const en: Record<string, string> = {
   'landing.background.reach.desc': "One Go agent, tens of megabytes of RAM when idle, for amd64 and arm64. Domains go out through Cloudflare Tunnel without opening a port, or directly through the proxy of Reneo, nginx or Apache when there is a public IP.",
   'landing.modules.title': "Modules",
   'landing.modules.subtitle': "{count} modules run as windows on the same desktop. Access follows the role of the account.",
+  'landing.modules.viewSwipe': "Card swipe view",
+  'landing.modules.viewList': "List view",
   'landing.modules.group.server': "Server",
   'landing.modules.group.network': "Network and domains",
   'landing.modules.group.business': "Hosting business",
