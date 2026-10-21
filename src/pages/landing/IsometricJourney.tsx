@@ -6,31 +6,27 @@ interface IsometricJourneyProps {
   label: string
 }
 
-// 4 Milestone Pins placed precisely at the proportional curve apexes
+// 4 Milestone Pins placed precisely at the proportional curve apexes with safe margins
 const DESKTOP_PINS = [
   {
     // Valley 1 (bottom apex)
-    x: 150,
-    y: 290,
-    popupPos: 'above',
+    x: 180,
+    y: 350,
   },
   {
     // Peak 1 (top apex)
     x: 380,
-    y: 110,
-    popupPos: 'below',
+    y: 210,
   },
   {
     // Valley 2 (bottom apex)
-    x: 610,
-    y: 290,
-    popupPos: 'above',
+    x: 580,
+    y: 350,
   },
   {
     // Peak 2 (top apex)
-    x: 830,
-    y: 110,
-    popupPos: 'below',
+    x: 780,
+    y: 210,
   },
 ] as const
 
@@ -60,9 +56,10 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
   const activeIdx = hoveredStep !== null ? hoveredStep : activeStep
 
   // ── Desktop 2D Proportional Serpentine Curve (Bleeds seamlessly through container edges) ──
-  // Starts at (-40, 200) -> Valley 1 (150, 290) -> Peak 1 (380, 110) -> Valley 2 (610, 290) -> Peak 2 (830, 110) -> Exits at (1000, 200)
+  // Amplitude = 70, Centerline = 280, Valleys = 350, Peaks = 210, Spacing = 200px
+  // Provides 60px top headroom and 36px side safety margin so popups never clip
   const desktopRoad =
-    'M -40,200 C 65,200 75,290 150,290 C 265,290 265,110 380,110 C 495,110 495,290 610,290 C 720,290 720,110 830,110 C 905,110 915,200 1000,200'
+    'M -40,280 C 70,280 70,350 180,350 C 280,350 280,210 380,210 C 480,210 480,350 580,350 C 680,350 680,210 780,210 C 890,210 890,280 1000,280'
 
   // ── Mobile 2D Proportional Vertical Serpentine Curve (Bleeds seamlessly top and bottom) ──
   const mobileRoad =
@@ -73,7 +70,7 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
       {/* ═══════════════════════════════════════════════════════
           DESKTOP 2D PROPORTIONAL ROAD TIMELINE (Seamless Edge-to-Edge)
           ═══════════════════════════════════════════════════════ */}
-      <div className="relative hidden w-full overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 sm:block sm:h-[400px] md:h-[420px]">
+      <div className="relative hidden w-full overflow-hidden rounded-2xl border border-[var(--win-border)] bg-[var(--panel-surface)]/25 sm:block sm:h-[440px] md:h-[470px]">
         {/* Soft background grid texture */}
         <svg
           className="absolute inset-0 h-full w-full opacity-10 pointer-events-none rounded-2xl"
@@ -91,7 +88,7 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
 
         {/* 2D Road SVG Canvas (Bleeds edge to edge with preserveAspectRatio="none") */}
         <svg
-          viewBox="0 0 960 400"
+          viewBox="0 0 960 440"
           preserveAspectRatio="none"
           className="relative z-10 h-full w-full"
           fill="none"
@@ -140,27 +137,15 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
           const isHovered = activeIdx === idx
 
           const leftPct = (meta.x / 960) * 100
-          const topPct = (meta.y / 400) * 100
-
-          const popupAlign =
-            idx === 0
-              ? 'left-1/2 -translate-x-[25%]'
-              : idx === 3
-              ? 'left-1/2 -translate-x-[75%]'
-              : 'left-1/2 -translate-x-1/2'
-
-          const arrowAlign =
-            idx === 0
-              ? 'left-[25%]'
-              : idx === 3
-              ? 'left-[75%]'
-              : 'left-1/2 -translate-x-1/2'
+          const topPct = (meta.y / 440) * 100
 
           return (
             <div
               key={`desktop-pin-${idx + 1}`}
               style={{ left: `${leftPct}%`, top: `${topPct}%` }}
-              className="absolute z-20 -translate-x-1/2 -translate-y-[92%]"
+              className={`absolute -translate-x-1/2 -translate-y-[92%] transition-all ${
+                isHovered ? 'z-50' : 'z-20'
+              }`}
             >
               {/* Teardrop Pin Button */}
               <button
@@ -205,25 +190,15 @@ export function IsometricJourney({ steps, label }: IsometricJourneyProps) {
                 </svg>
               </button>
 
-              {/* ── Hover Popup Card (Anchored cleanly without overlapping neighboring pins) ── */}
+              {/* ── Hover Popup Card (Always cleanly placed ABOVE the pin, perfectly centered) ── */}
               {isHovered && (
                 <div
                   onMouseEnter={() => setHoveredStep(idx)}
                   onMouseLeave={() => setHoveredStep(null)}
-                  className={`absolute z-40 w-72 md:w-80 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]/95 backdrop-blur-md p-4 shadow-2xl pointer-events-auto transition-all ${popupAlign} ${
-                    meta.popupPos === 'below'
-                      ? 'top-[calc(100%+14px)]'
-                      : 'bottom-[calc(100%+14px)]'
-                  }`}
+                  className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 z-50 w-72 md:w-80 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]/95 backdrop-blur-md p-4 shadow-2xl pointer-events-auto transition-all"
                 >
-                  {/* Arrow Pointer aligned to pin */}
-                  <div
-                    className={`absolute h-2.5 w-2.5 rotate-45 border-[var(--win-border)] bg-[var(--win-bg)] ${arrowAlign} ${
-                      meta.popupPos === 'below'
-                        ? '-top-1.5 border-t border-l'
-                        : '-bottom-1.5 border-b border-r'
-                    }`}
-                  />
+                  {/* Arrow Pointer (Dead-center, perfectly aligned above the pin tip) */}
+                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-2.5 w-2.5 rotate-45 border-b border-r border-[var(--win-border)] bg-[var(--win-bg)]" />
 
                   {/* Step Title */}
                   <h4
