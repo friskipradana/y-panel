@@ -30,6 +30,7 @@ export function useDatabasesWindow(win?: WindowState) {
   const [showCreate, setShowCreate] = useState(false)
   const [connectionTarget, setConnectionTarget] = useState<UserDatabase | null>(null)
   const [manageTarget, setManageTarget] = useState<UserDatabase | null>(null)
+  const [openClientTarget, setOpenClientTarget] = useState<UserDatabase | null>(null)
 
   // the search, the order and the column filters; the agent applies them
   const list = useListQuery()
@@ -88,6 +89,8 @@ export function useDatabasesWindow(win?: WindowState) {
     setConnectionTarget,
     manageTarget,
     setManageTarget,
+    openClientTarget,
+    setOpenClientTarget,
     createMut,
     startMut,
     stopMut,

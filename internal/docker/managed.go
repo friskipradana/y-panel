@@ -8,8 +8,11 @@ const (
 	KindDatabaseControl = "database-control"
 )
 
-// adminerName is the web client of the Database window; containers made before it carried a label are known by it
-const adminerName = "reneo-adminer"
+// Web clients of the Database window; containers made before they carried a label are known by name
+const (
+	adminerName = "reneo-adminer"
+	dbxName     = "reneo-dbx"
+)
 
 // ManagedKind says which panel feature a container belongs to, or "" for an ordinary one
 func ManagedKind(c Container) string {
@@ -18,7 +21,8 @@ func ManagedKind(c Container) string {
 		return kind
 	}
 	for _, name := range c.Names {
-		if strings.TrimPrefix(name, "/") == adminerName {
+		clean := strings.TrimPrefix(name, "/")
+		if clean == adminerName || clean == dbxName {
 			return KindDatabaseControl
 		}
 	}

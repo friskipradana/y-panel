@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Database } from 'lucide-react'
+import { ArrowLeft, Database, ExternalLink } from 'lucide-react'
 import { listUserDatabases } from '@/api/agent'
 import { ManageDatabaseContent } from '@/components/windows/database/ManageDatabaseContent'
 import { Badge } from '@/components/ui/Badge'
@@ -10,6 +10,8 @@ import { ErrorState, LoadingState } from '@/components/ui/states'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useI18n } from '@/lib/i18n'
 
+const SQL_ENGINES = ['postgres', 'mysql', 'mariadb']
+
 // Full page database manager at /database/{accessKey} (an opaque key, not the numeric ID): opens in its own tab, on the panel's own domain,
 // behind the same login as the panel.
 export function DatabaseAdminPage() {
@@ -18,6 +20,7 @@ export function DatabaseAdminPage() {
   const { key = '' } = useParams()
   const query = useQuery({ queryKey: ['user-databases'], queryFn: () => listUserDatabases().then((r) => r.items), refetchInterval: 15_000 })
   const target = query.data?.find((item) => item.accessKey === key)
+  const isSql = target ? SQL_ENGINES.includes(target.engine) : false
   usePageMeta(target ? `${target.name} | ${t('databases.admin.title')}` : t('databases.admin.title'))
 
   return (
@@ -42,6 +45,28 @@ export function DatabaseAdminPage() {
           <Badge tone={target.state === 'running' ? 'success' : 'warning'} dot>
             {t(`databases.state.${target.state}`)}
           </Badge>
+        ) : null}
+        {target && target.state === 'running' ? (
+          <div className="ml-auto flex items-center gap-2">
+            {isSql ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`/api/v1/db-open/${target.accessKey}`, '_blank', 'noopener')}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t('databases.openAdminer')}
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`/api/v1/db-open-dbx/${target.accessKey}`, '_blank', 'noopener')}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              {t('databases.openDbx')}
+            </Button>
+          </div>
         ) : null}
       </header>
 

@@ -259,6 +259,8 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/databases/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteUserDatabase)))
 	s.mux.Handle("GET /api/v1/db-open/{key}", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseAdminer)))
 	s.mux.Handle("/adminer/", s.requireAuthV2(s.adminerProxy()))
+	s.mux.Handle("GET /api/v1/db-open-dbx/{key}", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseDbx)))
+	s.mux.Handle("/dbx/", s.requireAuthV2(s.dbxProxy()))
 	s.mux.Handle("GET /api/v1/databases/{id}/tables", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseTables)))
 	s.mux.Handle("POST /api/v1/databases/{id}/tables", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseCreateTable)))
 	s.mux.Handle("GET /api/v1/databases/{id}/tables/{table}", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseBrowse)))

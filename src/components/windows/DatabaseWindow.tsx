@@ -5,9 +5,8 @@ import type { WindowState } from '@/types'
 import { ConnectionModal } from './database/ConnectionModal'
 import { CreateDatabaseModal } from './database/CreateDatabaseModal'
 import { ManageDatabaseModal } from './database/ManageDatabaseModal'
+import { OpenClientModal } from './database/OpenClientModal'
 import { useDatabasesWindow } from './database/useDatabasesWindow'
-
-const SQL_ENGINES = ['postgres', 'mysql', 'mariadb']
 
 // The pill of each state: the classes the list windows share
 function statePill(item: UserDatabase) {
@@ -21,7 +20,7 @@ function statePill(item: UserDatabase) {
 // The panel's own database lives in Settings and is for the superadmin only.
 export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boolean }) {
   const dbw = useDatabasesWindow(win)
-  const { t, query, list, items, all, facets, narrowed, startMut, stopMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget } = dbw
+  const { t, query, list, items, all, facets, narrowed, startMut, stopMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget, setOpenClientTarget } = dbw
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
@@ -78,7 +77,6 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
             const running = item.state === 'running'
             const pending = item.status === 'creating'
             const broken = item.status === 'error'
-            const sql = SQL_ENGINES.includes(item.engine)
             const address = `${item.host}:${item.port}`
             const starting = startMut.isPending && startMut.variables === item.id
             const stopping = stopMut.isPending && stopMut.variables === item.id
@@ -107,10 +105,10 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                   <button
                     type="button"
                     className="docker-act-btn"
-                    title={sql ? t('databases.admin.openAdminer') : t('databases.admin.openTab')}
-                    aria-label={sql ? t('databases.admin.openAdminer') : t('databases.admin.openTab')}
+                    title={t('databases.chooseClientTitle')}
+                    aria-label={t('databases.chooseClientTitle')}
                     disabled={pending || broken || !running}
-                    onClick={() => window.open(sql ? `/api/v1/db-open/${item.accessKey}` : `/database/${item.accessKey}`, '_blank', 'noopener')}
+                    onClick={() => setOpenClientTarget(item)}
                   >
                     <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>
@@ -146,6 +144,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
       <CreateDatabaseModal dbw={dbw} />
       <ConnectionModal dbw={dbw} />
       <ManageDatabaseModal dbw={dbw} />
+      <OpenClientModal dbw={dbw} />
     </div>
   )
 }
