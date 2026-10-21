@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.57.0] - 2026-10-21
+
+A Terminal button in the File Manager opens a terminal in the open folder.
+
+### Fitur baru
+- **files:** A Terminal button in the File Manager opens a terminal in the open folder ([`aa7a035`](https://github.com/friskipradana/y-panel/commit/aa7a035))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.56.2...v1.57.0
+
 ## [1.56.2] - 2026-10-21
 
 A compose file that joins bridge, host or none as a network no longer fails with network-scoped aliases.
