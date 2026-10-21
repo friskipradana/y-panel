@@ -244,6 +244,8 @@ export interface VolumeBindingInput {
 
 export interface DockerDeployImagePayload {
   ownerUserId?: number
+  /** the container this deployment replaces (edit and redeploy): its ports are free to take again */
+  replaceContainerId?: string
   name: string
   image: string
   network?: string

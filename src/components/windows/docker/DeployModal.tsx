@@ -78,6 +78,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                   deployImageMut.mutate(
                     {
                       name: deployForm.name.trim(),
+                      replaceContainerId: editContainer?.id,
                       image: deployForm.image.trim(),
                       network: deployForm.network.trim() || undefined,
                       ports: deployForm.ports
@@ -111,6 +112,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                   deployComposeMut.mutate(
                     {
                       name: deployForm.name.trim(),
+                      replaceContainerId: editContainer?.id,
                       composeYaml: deployForm.composeYaml,
                     },
                     {
