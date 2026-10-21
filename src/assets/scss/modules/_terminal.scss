@@ -818,3 +818,37 @@
     opacity: 1;
   }
 }
+
+// The key bar buttons that act (copy, paste) carry an icon next to their word
+.ht-keybar__key--action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+// The text of the terminal in the copy sheet: ordinary text, so a phone can select it
+.ht-copy__text {
+  margin: 0;
+  max-height: 100%;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--terminal-bg);
+  color: var(--terminal-chrome-fg-strong);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.ht-copy__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}

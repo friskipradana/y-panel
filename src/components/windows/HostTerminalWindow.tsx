@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
+import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
+import { readTerminalText } from '@/components/windows/terminal/terminalText'
 import { ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -70,9 +72,11 @@ interface TerminalTabPaneProps {
   onStatusChange?: (connected: boolean, error: boolean, reconnecting: boolean) => void
   onStart?: (start: (target?: string) => Promise<void>) => void
   onSendInput?: (fn: (cmd: string) => Promise<void>) => void
+  /** hands over a function that reads the text of this terminal */
+  onReadText?: (read: () => string) => void
 }
 
-function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput }: TerminalTabPaneProps) {
+function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput, onReadText }: TerminalTabPaneProps) {
   const {
     sessionId, starting, connected, reconnecting, error,
     start, sendInput, updateTerminalSize, setOutputListener, close,
@@ -88,6 +92,7 @@ function TerminalTabPane({ authenticated, active, target = 'local', fontFamily, 
 
   useEffect(() => { onStart?.(start) }, [onStart, start])
   useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
+  useEffect(() => { onReadText?.(() => (xtermRef.current ? readTerminalText(xtermRef.current) : '')) }, [onReadText])
   useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
 
   // Auto-start once authenticated; an existing session is re-attached by the hook itself
@@ -358,6 +363,18 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
   }, [])
 
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
+
+  // the text of a terminal, for a phone that cannot select from the screen: the copy sheet shows it as plain text
+  const readersRef = useRef(new Map<number, () => string>())
+  const [copyText, setCopyText] = useState<string | null>(null)
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) await activeTab.sendInputFn?.(text)
+    } catch {
+      alertLib.fire(t('terminal.paste'), t('terminal.paste.failed'), 'warning', 'host-terminal')
+    }
+  }
 
   const handleReconnect = () => activeTab.startFn?.(activeTab.target)
 
@@ -809,6 +826,7 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
               onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
               onStart={(fn) => handleStart(tab.id, fn)}
               onSendInput={(fn) => handleSendInput(tab.id, fn)}
+              onReadText={(read) => { readersRef.current.set(tab.id, read) }}
             />
           ))}
         </div>
@@ -885,8 +903,11 @@ export function HostTerminalWindow({ authenticated }: { authenticated?: boolean 
           onKey={(sequence) => {
             void activeTab.sendInputFn?.(sequence)
           }}
+          onCopy={() => setCopyText(readersRef.current.get(activeTab.id)?.() ?? '')}
+          onPaste={() => void pasteFromClipboard()}
         />
       </div>
+      <TerminalCopyModal text={copyText ?? ''} open={copyText !== null} onClose={() => setCopyText(null)} />
     </div>
   )
 }

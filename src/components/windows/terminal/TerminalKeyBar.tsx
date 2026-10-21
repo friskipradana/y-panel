@@ -1,3 +1,4 @@
+import { ClipboardPaste, Copy } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 const KEYS: Array<{ label: string; seq: string; aria: string }> = [
   { label: 'Esc', seq: '\x1b', aria: 'Escape' },
@@ -15,10 +16,18 @@ const KEYS: Array<{ label: string; seq: string; aria: string }> = [
 ]
 
 // Phone only (the parent hides it elsewhere): keys the on-screen keyboard does not offer.
-export function TerminalKeyBar({ disabled, onKey }: { disabled: boolean; onKey: (sequence: string) => void }) {
+export function TerminalKeyBar({ disabled, onKey, onCopy, onPaste }: { disabled: boolean; onKey: (sequence: string) => void; onCopy: () => void; onPaste: () => void }) {
   const { t } = useI18n()
   return (
     <div className="ht-keybar" role="toolbar" aria-label={t('terminal.keys')}>
+      <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.copy.title')} onClick={onCopy}>
+        <Copy size={14} strokeWidth={1.75} aria-hidden="true" />
+        {t('terminal.copy')}
+      </button>
+      <button type="button" className="ht-keybar__key ht-keybar__key--action" aria-label={t('terminal.paste')} disabled={disabled} onClick={onPaste}>
+        <ClipboardPaste size={14} strokeWidth={1.75} aria-hidden="true" />
+        {t('terminal.paste')}
+      </button>
       {KEYS.map((key) => (
         <button key={key.aria} type="button" className="ht-keybar__key" aria-label={key.aria} disabled={disabled} onClick={() => onKey(key.seq)}>
           {key.label}
