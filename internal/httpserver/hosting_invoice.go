@@ -38,6 +38,7 @@ type invoiceView struct {
 	Months           int    `json:"months"`
 	Hostname         string `json:"hostname,omitempty"`
 	AmountList       int64  `json:"amountList"`
+	DiscountPromo    int64  `json:"discountPromo"`
 	DiscountDuration int64  `json:"discountDuration"`
 	DiscountVoucher  int64  `json:"discountVoucher"`
 	VoucherCode      string `json:"voucherCode,omitempty"`
@@ -89,7 +90,7 @@ func (s *Server) invoiceFor(o *database.HostingOrder) invoiceView {
 		Number: invoiceNumber(o), Status: o.Status, IssuedAt: o.CreatedAt, DueAt: o.ExpiresAt, PaidAt: o.PaidAt,
 		Seller: seller, Buyer: buyer, Note: settings.InvoiceNote,
 		Kind: o.Kind, Difference: o.Difference, PlanName: o.PlanName, Periods: o.Periods, Months: months, Hostname: o.SubHostname,
-		AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AmountList: o.AmountList, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
 		AmountBase: o.AmountBase, UniqueCode: o.UniqueCode, AmountTotal: o.AmountTotal,
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {

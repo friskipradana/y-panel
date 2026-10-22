@@ -65,6 +65,7 @@ type orderView struct {
 	// AmountList is the price before discounts; DiscountDuration and DiscountVoucher are what each took off
 	AmountList       int64  `json:"amountList"`
 	DiscountDuration int64  `json:"discountDuration"`
+	DiscountPromo    int64  `json:"discountPromo"`
 	DiscountVoucher  int64  `json:"discountVoucher"`
 	VoucherCode      string `json:"voucherCode,omitempty"`
 	AmountTotal int64                `json:"amountTotal"`
@@ -83,7 +84,7 @@ type orderView struct {
 func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	view := orderView{
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
-		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
 		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
 	}
 	if o.PlanID != nil && s.database != nil {
@@ -208,7 +209,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		}
 		voucher = v
 	}
-	quote := priceFor(plan, req.Periods, voucher)
+	quote := priceFor(plan, req.Periods, voucher, req.Kind, time.Now())
 
 	// the number for the notices about the order
 	phone := ""
@@ -285,7 +286,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	planID := plan.ID
 	order := database.HostingOrder{
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
-		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountList: quote.List, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
 		AmountBase: quote.Subtotal, Status: database.OrderPending,
 		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}
@@ -484,7 +485,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 			}
 			voucher = v
 		}
-		quote = priceFor(plan, req.Periods, voucher)
+		quote = priceFor(plan, req.Periods, voucher, database.OrderRenew, time.Now())
 		if quote.Subtotal <= 0 {
 			// a renewal that costs nothing has nothing to transfer: the seller grants it by hand
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "this voucher takes the whole price off: ask the seller to renew the plan"})
@@ -495,7 +496,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 	planID := plan.ID
 	renewal := database.HostingOrder{
 		Kind: database.OrderRenew, PlanID: &planID, PlanName: plan.Name, UserID: user.ID, Periods: req.Periods,
-		AmountList: quote.List, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountList: quote.List, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
 		AmountBase: quote.Subtotal, Status: database.OrderPending, Difference: difference,
 		CreatedIP: clientIP(r), ExpiresAt: time.Now().Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}

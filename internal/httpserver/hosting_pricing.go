@@ -14,7 +14,8 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 )
 
-// What an order costs: the list price of the periods, minus the discount of a longer subscription, minus a voucher.
+// What an order costs: the list price of the periods, minus the promo of the plan while it runs, minus the discount of a longer
+// subscription, minus a voucher. A promo set as exclusive leaves out the last two.
 // The unique code that makes the total recognisable is added to the result when the order is made.
 
 const (
@@ -32,7 +33,12 @@ var voucherCodeRe = regexp.MustCompile(`^[A-Z0-9][A-Z0-9_-]{2,31}$`)
 
 // priceQuote is the price of an order and where it comes from
 type priceQuote struct {
-	List             int64 `json:"list"`
+	List int64 `json:"list"`
+	// PromoPercent and PromoDiscount are the promo of the plan, when it runs for this kind of order; PromoExclusive says it
+	// cannot be combined with a voucher or the discount of a long subscription
+	PromoPercent     int   `json:"promoPercent"`
+	PromoDiscount    int64 `json:"promoDiscount"`
+	PromoExclusive   bool  `json:"promoExclusive"`
 	DurationPercent  int   `json:"durationPercent"`
 	DurationDiscount int64 `json:"durationDiscount"`
 	VoucherDiscount  int64 `json:"voucherDiscount"`
@@ -51,15 +57,40 @@ func durationPercent(plan *database.HostingPlan, periods int) int {
 	return best
 }
 
-// priceFor works out the price of some periods of a plan with a voucher (or none)
-func priceFor(plan *database.HostingPlan, periods int, voucher *database.HostingVoucher) priceQuote {
+// promoActive says whether the promo of a plan runs for this kind of order at this moment. The end date decides: after it the
+// list price applies again with nothing to change. A trial costs nothing, so no promo applies to it.
+func promoActive(plan *database.HostingPlan, kind string, now time.Time) bool {
+	if plan == nil || plan.PromoPercent <= 0 || plan.PromoEndsAt == nil || !now.Before(*plan.PromoEndsAt) {
+		return false
+	}
+	switch kind {
+	case database.OrderNew:
+		return plan.PromoAppliesTo != "renew"
+	case database.OrderRenew:
+		return plan.PromoAppliesTo != "new"
+	}
+	return false
+}
+
+// priceFor works out the price of some periods of a plan for a kind of order at a moment, with a voucher (or none)
+func priceFor(plan *database.HostingPlan, periods int, voucher *database.HostingVoucher, kind string, now time.Time) priceQuote {
 	q := priceQuote{List: plan.PriceAmount * int64(periods)}
 	if q.List <= 0 {
 		return q
 	}
+	if promoActive(plan, kind, now) {
+		q.PromoPercent = plan.PromoPercent
+		q.PromoDiscount = q.List * int64(q.PromoPercent) / 100
+		q.PromoExclusive = plan.PromoExclusive
+	}
+	afterPromo := q.List - q.PromoDiscount
+	if q.PromoExclusive {
+		q.Subtotal = afterPromo
+		return q
+	}
 	q.DurationPercent = durationPercent(plan, periods)
-	q.DurationDiscount = q.List * int64(q.DurationPercent) / 100
-	after := q.List - q.DurationDiscount
+	q.DurationDiscount = afterPromo * int64(q.DurationPercent) / 100
+	after := afterPromo - q.DurationDiscount
 	if voucher != nil {
 		switch voucher.Kind {
 		case database.VoucherPercent:
@@ -77,6 +108,9 @@ func priceFor(plan *database.HostingPlan, periods int, voucher *database.Hosting
 
 // voucherCheck is why a code cannot be used for this order, as a short reason; empty means it can
 func (s *Server) voucherCheck(code string, plan *database.HostingPlan, kind string, userID int64) (*database.HostingVoucher, string) {
+	if promoActive(plan, kind, time.Now()) && plan.PromoExclusive {
+		return nil, "promoExclusive"
+	}
 	v, err := s.database.GetHostingVoucherByCode(code)
 	if err != nil || v == nil {
 		return nil, "unknown"
@@ -131,6 +165,8 @@ func voucherReasonText(reason string) string {
 		return "this voucher is not for this plan"
 	case "wrongKind":
 		return "this voucher does not apply to this kind of order"
+	case "promoExclusive":
+		return "the promo of this plan cannot be combined with a voucher"
 	}
 	return "this voucher code is not known"
 }
@@ -358,7 +394,7 @@ func (s *Server) quoteFor(w http.ResponseWriter, r *http.Request, kind string, u
 			answer["voucher"] = voucherAnswer{Code: strings.ToUpper(code), Valid: false, Reason: reason}
 		}
 	}
-	answer["quote"] = priceFor(plan, req.Periods, voucher)
+	answer["quote"] = priceFor(plan, req.Periods, voucher, kind, time.Now())
 	s.writeJSON(w, http.StatusOK, answer)
 }
 

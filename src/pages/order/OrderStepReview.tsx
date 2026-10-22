@@ -94,7 +94,10 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
           ]}
         />
         <div className="space-y-3 py-3">
-          {!free ? (
+          {!free && price.promoExclusive ? (
+            <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.voucher.promoExclusiveNote')}</p>
+          ) : null}
+          {!free && !price.promoExclusive ? (
             <VoucherField
               id="order-voucher"
               value={voucherText}
@@ -116,6 +119,8 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
           ) : (
             <PriceLines
               list={price.list}
+              promoPercent={price.promoPercent}
+              promoDiscount={price.promoDiscount}
               durationPercent={price.durationPercent}
               durationDiscount={price.durationDiscount}
               voucherCode={voucherValid ? voucherApplied : undefined}

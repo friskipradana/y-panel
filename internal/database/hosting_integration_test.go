@@ -364,3 +364,46 @@ func TestIntegrationNewMigrationsGoDownAndUpAgain(t *testing.T) {
 		t.Fatalf("the custom domain table is back: %v", err)
 	}
 }
+
+func TestIntegrationPlanPromoRoundTrip(t *testing.T) {
+	m := newIntegrationManager(t)
+	ends := time.Now().Add(48 * time.Hour).Truncate(time.Second)
+	p, err := m.CreateHostingPlan(database.HostingPlan{
+		Slug: "promo", Name: "Promo", Period: "monthly", PriceAmount: 40000, Features: []string{"a"},
+		MaxProjects: 1, MaxTunnels: 1, MaxDatabases: 1, DiskQuotaMB: 100, CPULimitPct: 100, MemoryLimitMB: 256, Visible: true,
+		PromoPercent: 25, PromoEndsAt: &ends, PromoAppliesTo: "renew", PromoExclusive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.PromoPercent != 25 || p.PromoEndsAt == nil || !p.PromoEndsAt.Equal(ends) || p.PromoAppliesTo != "renew" || !p.PromoExclusive {
+		t.Fatalf("the promo must come back as written: %+v", p)
+	}
+	plain := testPlan(t, m, "plain", 1000)
+	if plain.PromoPercent != 0 || plain.PromoEndsAt != nil || plain.PromoAppliesTo != "both" || plain.PromoExclusive {
+		t.Fatalf("a plan without a promo has none: %+v", plain)
+	}
+	p.PromoPercent, p.PromoEndsAt, p.PromoExclusive = 0, nil, false
+	p.PromoAppliesTo = ""
+	updated, err := m.UpdateHostingPlan(*p)
+	if err != nil || updated.PromoPercent != 0 || updated.PromoEndsAt != nil || updated.PromoAppliesTo != "both" {
+		t.Fatalf("a promo can be removed: %v %+v", err, updated)
+	}
+}
+
+func TestIntegrationOrderKeepsWhatThePromoTookOff(t *testing.T) {
+	m := newIntegrationManager(t)
+	plan := testPlan(t, m, "starter", 40000)
+	u := testUser(t, m, "promobuyer")
+	o, err := m.CreateHostingOrder(database.HostingOrder{
+		Kind: database.OrderNew, PlanID: &plan.ID, PlanName: plan.Name, UserID: u.ID, Periods: 1,
+		AmountList: 40000, DiscountPromo: 10000, AmountBase: 30000, Status: database.OrderPending, ExpiresAt: time.Now().Add(time.Hour),
+	}, 99)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.GetHostingOrder(o.ID)
+	if err != nil || got.DiscountPromo != 10000 || got.AmountList != 40000 || got.AmountBase != 30000 {
+		t.Fatalf("the promo discount must be kept with the order: %v %+v", err, got)
+	}
+}

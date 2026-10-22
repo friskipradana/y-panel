@@ -36,12 +36,12 @@ func TestPriceForTakesTheDurationDiscountThenTheVoucher(t *testing.T) {
 		{1, &database.HostingVoucher{Kind: database.VoucherPercent, Value: 100}, 75000, 0, 75000, 0, 0},
 	}
 	for _, c := range cases {
-		q := priceFor(plan, c.periods, c.voucher)
+		q := priceFor(plan, c.periods, c.voucher, database.OrderNew, time.Now())
 		if q.List != c.list || q.DurationDiscount != c.duration || q.VoucherDiscount != c.off || q.DurationPercent != c.percent || q.Subtotal != c.subtotal {
 			t.Errorf("%d periods: %+v, want list %d duration %d voucher %d (%d%%) subtotal %d", c.periods, q, c.list, c.duration, c.off, c.percent, c.subtotal)
 		}
 	}
-	if q := priceFor(&database.HostingPlan{PriceAmount: 0}, 6, nil); q.Subtotal != 0 || q.List != 0 {
+	if q := priceFor(&database.HostingPlan{PriceAmount: 0}, 6, nil, database.OrderNew, time.Now()); q.Subtotal != 0 || q.List != 0 {
 		t.Errorf("a free plan stays free: %+v", q)
 	}
 }
@@ -392,5 +392,96 @@ func TestIntegrationBuyerPanelAddressesServeNoPublicSite(t *testing.T) {
 	f.s.handlePublicSite(rec, req)
 	if !strings.Contains(rec.Body.String(), `"landing":false`) {
 		t.Errorf("the page is told there is no landing here: %s", rec.Body.String())
+	}
+}
+
+func TestPromoRunsUntilItsEndDateThenTheListPriceIsBack(t *testing.T) {
+	now := time.Date(2026, 10, 22, 12, 0, 0, 0, time.UTC)
+	ends := now.Add(48 * time.Hour)
+	plan := &database.HostingPlan{PriceAmount: 40000, Period: "monthly", PromoPercent: 25, PromoEndsAt: &ends, PromoAppliesTo: "both",
+		DurationDiscounts: []database.DurationDiscount{{Periods: 6, Percent: 10}}}
+
+	q := priceFor(plan, 1, nil, database.OrderNew, now)
+	if q.PromoPercent != 25 || q.PromoDiscount != 10000 || q.Subtotal != 30000 {
+		t.Fatalf("running promo: %+v", q)
+	}
+	// the promo comes first, the long-subscription discount takes its part of what is left, then a voucher
+	q = priceFor(plan, 6, &database.HostingVoucher{Kind: database.VoucherFixed, Value: 5000}, database.OrderNew, now)
+	// list 240000, promo 60000, left 180000, 10% of that 18000, left 162000, voucher 5000
+	if q.PromoDiscount != 60000 || q.DurationDiscount != 18000 || q.VoucherDiscount != 5000 || q.Subtotal != 157000 {
+		t.Fatalf("promo, duration and voucher together: %+v", q)
+	}
+
+	// at the end date and after it, the list price is back with nothing changed
+	for _, at := range []time.Time{ends, ends.Add(time.Second), ends.Add(30 * 24 * time.Hour)} {
+		if q := priceFor(plan, 1, nil, database.OrderNew, at); q.PromoDiscount != 0 || q.Subtotal != 40000 {
+			t.Fatalf("after the end: %+v", q)
+		}
+	}
+
+	// who the promo is for
+	plan.PromoAppliesTo = "new"
+	if q := priceFor(plan, 1, nil, database.OrderRenew, now); q.PromoDiscount != 0 {
+		t.Fatalf("a new-orders promo does not apply to a renewal: %+v", q)
+	}
+	plan.PromoAppliesTo = "renew"
+	if q := priceFor(plan, 1, nil, database.OrderNew, now); q.PromoDiscount != 0 {
+		t.Fatalf("a renewal promo does not apply to a new order: %+v", q)
+	}
+	if q := priceFor(plan, 1, nil, database.OrderRenew, now); q.PromoDiscount != 10000 {
+		t.Fatalf("a renewal promo applies to a renewal: %+v", q)
+	}
+	if q := priceFor(plan, 1, nil, database.OrderTrial, now); q.PromoDiscount != 0 {
+		t.Fatalf("a trial has no promo: %+v", q)
+	}
+}
+
+func TestAnExclusivePromoTakesNoVoucherAndNoLongSubscriptionDiscount(t *testing.T) {
+	now := time.Now()
+	ends := now.Add(time.Hour)
+	plan := &database.HostingPlan{PriceAmount: 40000, Period: "monthly", PromoPercent: 25, PromoEndsAt: &ends, PromoAppliesTo: "both", PromoExclusive: true,
+		DurationDiscounts: []database.DurationDiscount{{Periods: 6, Percent: 10}}}
+	q := priceFor(plan, 6, &database.HostingVoucher{Kind: database.VoucherPercent, Value: 50}, database.OrderNew, now)
+	if q.DurationDiscount != 0 || q.VoucherDiscount != 0 || !q.PromoExclusive || q.Subtotal != 180000 {
+		t.Fatalf("only the promo counts: %+v", q)
+	}
+	// once the promo is over, the plan takes a voucher and the discount again
+	later := ends.Add(time.Minute)
+	if q := priceFor(plan, 6, nil, database.OrderNew, later); q.DurationDiscount != 24000 || q.PromoExclusive {
+		t.Fatalf("after the promo: %+v", q)
+	}
+}
+
+func TestPlanPromoRules(t *testing.T) {
+	ends := time.Now().Add(time.Hour)
+	base := database.HostingPlan{Slug: "starter", Name: "Starter", Period: "monthly", PriceAmount: 15000, MaxProjects: 1, MaxTunnels: 1, MaxDatabases: 1,
+		DiskQuotaMB: 1024, CPULimitPct: 100, MemoryLimitMB: 256, Features: []string{}}
+	good := base
+	good.PromoPercent, good.PromoEndsAt = 20, &ends
+	cleanPlan(&good)
+	if err := validatePlan(good); err != nil || good.PromoAppliesTo != "both" {
+		t.Fatalf("a promo with an end date is fine: %v %+v", err, good)
+	}
+	noDate := base
+	noDate.PromoPercent = 20
+	cleanPlan(&noDate)
+	if validatePlan(noDate) == nil {
+		t.Fatal("a promo needs an end date")
+	}
+	tooBig := good
+	tooBig.PromoPercent = 95
+	if validatePlan(tooBig) == nil {
+		t.Fatal("a promo is at most 90 percent")
+	}
+	bad := good
+	bad.PromoAppliesTo = "later"
+	if validatePlan(bad) == nil {
+		t.Fatal("a promo is for new, renew or both")
+	}
+	off := base
+	off.PromoPercent, off.PromoEndsAt, off.PromoExclusive, off.PromoAppliesTo = 0, &ends, true, "new"
+	cleanPlan(&off)
+	if off.PromoEndsAt != nil || off.PromoExclusive || off.PromoAppliesTo != "both" {
+		t.Fatalf("without a percent nothing of a promo is kept: %+v", off)
 	}
 }

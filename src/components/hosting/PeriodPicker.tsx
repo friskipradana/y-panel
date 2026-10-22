@@ -1,5 +1,5 @@
 import { formatRupiah, type HostingPlan } from '@/api/hosting'
-import { priceFor } from '@/lib/planPricing'
+import { priceFor, type PromoFields } from '@/lib/planPricing'
 import { Badge } from '@/components/ui/Badge'
 import { SelectableCard } from '@/components/ui/SelectableCard'
 import { useI18n } from '@/lib/i18n'
@@ -23,7 +23,7 @@ export function useDurationLabel(period: HostingPlan['period']) {
   }
 }
 
-export function PeriodPicker({ plan, value, onChange, maxPeriods }: { plan: Pick<HostingPlan, 'period' | 'priceAmount' | 'durationDiscounts'>; value: number; onChange: (periods: number) => void; maxPeriods: number }) {
+export function PeriodPicker({ plan, value, onChange, maxPeriods, kind = 'new' }: { plan: Pick<HostingPlan, 'period' | 'priceAmount' | 'durationDiscounts'> & PromoFields; value: number; onChange: (periods: number) => void; maxPeriods: number; kind?: 'new' | 'renew' }) {
   const { t } = useI18n()
   const label = useDurationLabel(plan.period)
   const choices = periodChoices(plan.period).filter((count) => count <= maxPeriods)
@@ -32,7 +32,7 @@ export function PeriodPicker({ plan, value, onChange, maxPeriods }: { plan: Pick
   return (
     <div role="group" aria-label={t('order.periods')} className="grid gap-1.5">
       {choices.map((count) => {
-        const price = priceFor(plan, count)
+        const price = priceFor(plan, count, null, kind)
         return (
           <SelectableCard key={count} selected={value === count} onClick={() => onChange(count)} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left">
             <span className="flex min-w-0 items-center gap-2">
@@ -40,7 +40,7 @@ export function PeriodPicker({ plan, value, onChange, maxPeriods }: { plan: Pick
               {price.durationPercent > 0 ? <Badge tone="success" size="sm">{t('order.save', { percent: price.durationPercent })}</Badge> : null}
             </span>
             <span className="panel-mono flex shrink-0 flex-wrap items-baseline justify-end gap-x-1.5 text-[0.8125rem] text-[var(--win-text)]">
-              {price.durationDiscount > 0 ? <s className="text-[0.75rem] text-[var(--text-secondary)] opacity-70">{formatRupiah(price.list)}</s> : null}
+              {price.durationDiscount > 0 || price.promoDiscount > 0 ? <s className="text-[0.75rem] text-[var(--text-secondary)] opacity-70">{formatRupiah(price.list)}</s> : null}
               {plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(price.subtotal)}
             </span>
           </SelectableCard>

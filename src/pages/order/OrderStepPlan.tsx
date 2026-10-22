@@ -55,11 +55,13 @@ export function OrderStepPlan({ order }: { order: OrderFormState }) {
       ) : (
         <PriceLines
           list={price.list}
+          promoPercent={price.promoPercent}
+          promoDiscount={price.promoDiscount}
           durationPercent={price.durationPercent}
           durationDiscount={price.durationDiscount}
           voucherCode={voucherValid ? voucherApplied : undefined}
           voucherDiscount={voucherValid ? price.voucherDiscount : 0}
-          subtotal={voucherValid || !voucherApplied ? price.subtotal : price.list - price.durationDiscount}
+          subtotal={voucherValid || !voucherApplied ? price.subtotal : price.list - price.promoDiscount - price.durationDiscount}
         />
       )}
     </section>

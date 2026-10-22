@@ -7,9 +7,14 @@ import { getSiteSettings } from '@/api/system'
 import { Button } from '@/components/ui/Button'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { alertLib } from '@/lib/alert'
+import { formatDateID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
+import { promoActive } from '@/lib/planPricing'
 import { HostingTableBar, indexLabel, RowAction, StatusPill, useHostingTable } from './HostingTableKit'
 import { PlanFormModal } from './PlanFormModal'
+
+// a promo that runs now for new orders or renewals
+const promoRunning = (plan: HostingPlan) => promoActive(plan, 'new') || promoActive(plan, 'renew')
 
 const apiError = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
@@ -118,6 +123,7 @@ export function HostingPlansCard() {
                     </span>
                     <span className="docker-row__sub" title={plan.tagline}>{plan.tagline || plan.slug}</span>
                     <span className="docker-row__meta">{`${price} · ${t('hosting.plan.accounts', { count: plan.accounts })}`}</span>
+                    {promoRunning(plan) ? <span className="docker-row__meta text-[var(--panel-success-text)]">{t('hosting.plan.promoRow', { percent: plan.promoPercent, date: formatDateID(plan.promoEndsAt) })}</span> : null}
                   </div>
                 </div>
                 <div className="docker-cell docker-cell--mono">{price}</div>

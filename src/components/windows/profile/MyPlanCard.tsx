@@ -84,7 +84,7 @@ export function MyPlanCard() {
     retry: 0,
   })
   const voucherValid = voucherApplied !== '' && quoteQuery.data?.voucher?.valid === true
-  const price = target ? (voucherApplied && quoteQuery.data ? quoteQuery.data.quote : priceFor(target, Number(periods))) : null
+  const price = target ? (voucherApplied && quoteQuery.data ? quoteQuery.data.quote : priceFor(target, Number(periods), null, 'renew')) : null
 
   const renew = useMutation({
     mutationFn: () => renewMyPlan(Number(periods), voucherValid ? voucherApplied : undefined, upgrading && target ? target.id : undefined, payDifference ? 'difference' : undefined),
@@ -220,11 +220,14 @@ export function MyPlanCard() {
           ) : null}
           {!payDifference && periodChoices(target.period).filter((n) => n <= targetMaxPeriods).length > 1 ? (
             <Field label={t('profile.plan.renewFor')}>
-              <PeriodPicker plan={target} value={Number(periods)} maxPeriods={targetMaxPeriods} onChange={(n) => setPeriods(String(n))} />
+              <PeriodPicker plan={target} kind="renew" value={Number(periods)} maxPeriods={targetMaxPeriods} onChange={(n) => setPeriods(String(n))} />
             </Field>
           ) : null}
           {!payDifference ? (
           <>
+          {price?.promoExclusive ? (
+            <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('order.voucher.promoExclusiveNote')}</p>
+          ) : (
           <VoucherField
             id="renew-voucher"
             value={voucherText}
@@ -240,9 +243,12 @@ export function MyPlanCard() {
             checking={quoteQuery.isFetching}
             failed={quoteQuery.isError}
           />
+          )}
           {price ? (
             <PriceLines
               list={price.list}
+              promoPercent={price.promoPercent}
+              promoDiscount={price.promoDiscount}
               durationPercent={price.durationPercent}
               durationDiscount={price.durationDiscount}
               voucherCode={voucherValid ? voucherApplied : undefined}

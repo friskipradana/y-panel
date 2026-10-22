@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
 import { discountsFromValues, discountsValid, PlanDiscountsEditor, valuesFromDiscounts } from './PlanDiscountsEditor'
+import { PlanPromoEditor, promoFromPlan, promoToInput, promoValid } from './PlanPromoEditor'
 
 const EMPTY: PlanInput = {
   slug: '',
@@ -27,6 +28,10 @@ const EMPTY: PlanInput = {
   trialDays: 0,
   ownNotify: false,
   durationDiscounts: [],
+  promoPercent: 0,
+  promoEndsAt: null,
+  promoAppliesTo: 'both',
+  promoExclusive: false,
   highlighted: false,
   visible: true,
   sortOrder: 0,
@@ -71,12 +76,13 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
   const [featuresText, setFeaturesText] = useState(() => (editing ? editing.features.join('\n') : ''))
   const [slugTouched, setSlugTouched] = useState(editing !== null)
   const [discountValues, setDiscountValues] = useState(() => valuesFromDiscounts(editing?.durationDiscounts))
+  const [promo, setPromo] = useState(() => promoFromPlan(editing))
 
   const patch = (next: Partial<PlanInput>) => setForm((current) => ({ ...current, ...next }))
-  const valid = form.name.trim() !== '' && form.slug.trim().length >= 2 && discountsValid(form.period, discountValues)
+  const valid = form.name.trim() !== '' && form.slug.trim().length >= 2 && discountsValid(form.period, discountValues) && promoValid(promo)
 
   const submit = () =>
-    onSave({ ...form, features: featuresText.split('\n').map((line) => line.trim()).filter(Boolean), durationDiscounts: discountsFromValues(form.period, discountValues) })
+    onSave({ ...form, features: featuresText.split('\n').map((line) => line.trim()).filter(Boolean), durationDiscounts: discountsFromValues(form.period, discountValues), ...promoToInput(form.priceAmount > 0 ? promo : { ...promo, percent: '' }) })
 
   return (
     <Modal
@@ -140,6 +146,8 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
         </div>
 
         {form.period !== 'once' && form.priceAmount > 0 ? <PlanDiscountsEditor period={form.period} values={discountValues} onChange={setDiscountValues} /> : null}
+
+        {form.priceAmount > 0 ? <PlanPromoEditor values={promo} priceAmount={form.priceAmount} onChange={setPromo} /> : null}
 
         <Field label={t('hosting.plan.features')} hint={t('hosting.plan.featuresHint')}>
           <Textarea rows={4} value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} placeholder={t('hosting.plan.featuresPlaceholder')} />

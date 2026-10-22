@@ -73,6 +73,7 @@ export function PaymentInstructions({ order }: { order: OrderView }) {
           <div className="py-2.5">
             <PriceLines
               list={order.amountList || order.amountBase}
+              promoDiscount={order.discountPromo}
               durationDiscount={order.discountDuration}
               voucherCode={order.voucherCode}
               voucherDiscount={order.discountVoucher}

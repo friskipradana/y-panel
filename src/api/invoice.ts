@@ -20,6 +20,7 @@ export interface InvoiceView {
   months: number
   hostname?: string
   amountList: number
+  discountPromo?: number
   discountDuration: number
   discountVoucher: number
   voucherCode?: string

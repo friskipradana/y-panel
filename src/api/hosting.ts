@@ -8,6 +8,8 @@ export interface DurationDiscount {
   percent: number
 }
 
+export type PromoAppliesTo = 'both' | 'new' | 'renew'
+
 export interface HostingPlan {
   id: number
   slug: string
@@ -32,6 +34,12 @@ export interface HostingPlan {
   ownNotify: boolean
   /** Longer subscriptions cost less */
   durationDiscounts: DurationDiscount[]
+  /** A percent off the list price until promoEndsAt; 0 means no promo. After the date the list price applies again. */
+  promoPercent: number
+  promoEndsAt: string | null
+  promoAppliesTo: PromoAppliesTo
+  /** While the promo runs, no voucher and no long-subscription discount can be added to it */
+  promoExclusive: boolean
   highlighted: boolean
   visible: boolean
   sortOrder: number
@@ -86,7 +94,10 @@ export const startPlanTrial = (userId: number, body: { planId: number; days: num
 export const endPlanTrial = (userId: number) =>
   agentApi.delete<UserPlanView>(`/api/v1/users/${userId}/plan/trial`).then((r) => r.data)
 
-export type PublicPlan = Omit<HostingPlan, 'accounts' | 'cpuLimitPct' | 'visible' | 'sortOrder'>
+type PromoKeys = 'promoPercent' | 'promoEndsAt' | 'promoAppliesTo' | 'promoExclusive'
+
+// The promo comes only while it runs
+export type PublicPlan = Omit<HostingPlan, 'accounts' | 'cpuLimitPct' | 'visible' | 'sortOrder' | PromoKeys> & Partial<Pick<HostingPlan, PromoKeys>>
 
 export interface PublicHosting {
   enabled: boolean
@@ -116,6 +127,7 @@ export interface OrderView {
   amountBase: number
   /** The price before discounts, and what each took off; amountBase is what is left */
   amountList: number
+  discountPromo?: number
   discountDuration: number
   discountVoucher: number
   voucherCode?: string
@@ -237,13 +249,16 @@ export const deleteHostingVoucher = (id: number) => agentApi.delete<{ ok: boolea
 
 export interface PriceQuote {
   list: number
+  promoPercent: number
+  promoDiscount: number
+  promoExclusive: boolean
   durationPercent: number
   durationDiscount: number
   voucherDiscount: number
   subtotal: number
 }
 
-export type VoucherReason = 'unknown' | 'disabled' | 'notStarted' | 'expired' | 'usedUp' | 'usedByYou' | 'wrongPlan' | 'wrongKind'
+export type VoucherReason = 'unknown' | 'disabled' | 'notStarted' | 'expired' | 'usedUp' | 'usedByYou' | 'wrongPlan' | 'wrongKind' | 'promoExclusive'
 
 export interface QuoteAnswer {
   quote: PriceQuote

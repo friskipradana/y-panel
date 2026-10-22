@@ -147,6 +147,11 @@ type publicPlan struct {
 	TrialDays     int      `json:"trialDays"`
 	// DurationDiscounts: a percent off for buying more periods at once
 	DurationDiscounts []database.DurationDiscount `json:"durationDiscounts"`
+	// The promo, only while it runs: the percent, when it ends, who it is for, and whether it excludes vouchers and other discounts
+	PromoPercent   int        `json:"promoPercent,omitempty"`
+	PromoEndsAt    *time.Time `json:"promoEndsAt,omitempty"`
+	PromoAppliesTo string     `json:"promoAppliesTo,omitempty"`
+	PromoExclusive bool       `json:"promoExclusive,omitempty"`
 }
 
 // handlePublicHosting feeds the pricing section of the landing page. Nothing is offered while
@@ -164,13 +169,18 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	out := make([]publicPlan, 0, len(plans))
+	now := time.Now()
 	for _, p := range plans {
-		out = append(out, publicPlan{
+		entry := publicPlan{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
 			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, DiskQuotaMB: p.DiskQuotaMB,
 			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, OwnNotify: p.OwnNotify, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
 			DurationDiscounts: p.DurationDiscounts,
-		})
+		}
+		if promoActive(&p, database.OrderNew, now) || promoActive(&p, database.OrderRenew, now) {
+			entry.PromoPercent, entry.PromoEndsAt, entry.PromoAppliesTo, entry.PromoExclusive = p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive
+		}
+		out = append(out, entry)
 	}
 	// ordering needs an address to give: without an offered domain the order buttons stay on the old way
 	// the panel address of a buyer is made on the main domain only, so that is the only one the landing page shows

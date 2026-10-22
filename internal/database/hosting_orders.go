@@ -45,6 +45,8 @@ type HostingOrder struct {
 	// AmountBase is what is left (the unique code is added to it)
 	AmountList       int64      `json:"amountList"`
 	DiscountDuration int64      `json:"discountDuration"`
+	// DiscountPromo is what the promo of the plan took off
+	DiscountPromo    int64      `json:"discountPromo"`
 	DiscountVoucher  int64      `json:"discountVoucher"`
 	VoucherCode      string     `json:"voucherCode"`
 	// Difference marks an upgrade paid as the price difference for the time left: the plan changes and the end date stays
@@ -71,13 +73,13 @@ type HostingOrder struct {
 const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESCE(o.user_id, 0), COALESCE(NULLIF(o.username, ''), COALESCE(u.username, '')), o.periods,
 	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 	o.created_at, o.expires_at, o.paid_at, o.notif_id,
-	o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference`
+	o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo`
 
 func scanOrder(row rowScanner) (*HostingOrder, error) {
 	var o HostingOrder
 	if err := row.Scan(&o.ID, &o.PublicID, &o.Kind, &o.PlanID, &o.PlanName, &o.UserID, &o.Username, &o.Periods,
 		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.PublicBase, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID,
-		&o.AmountList, &o.DiscountDuration, &o.DiscountVoucher, &o.VoucherCode, &o.Difference); err != nil {
+		&o.AmountList, &o.DiscountDuration, &o.DiscountVoucher, &o.VoucherCode, &o.Difference, &o.DiscountPromo); err != nil {
 		return nil, err
 	}
 	return &o, nil
@@ -137,11 +139,11 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 		var id int64
 		err = m.db.QueryRow(`
 			INSERT INTO hosting_orders (public_id, kind, plan_id, plan_name, user_id, periods, amount_base, unique_code, amount_total, status, note, created_ip, expires_at,
-				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code, username, upgrade_difference)
+				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code, username, upgrade_difference, discount_promo)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-				COALESCE(NULLIF($23, ''), (SELECT username FROM users WHERE id = $5), ''), $24) RETURNING id
+				COALESCE(NULLIF($23, ''), (SELECT username FROM users WHERE id = $5), ''), $24, $25) RETURNING id
 		`, publicID, o.Kind, o.PlanID, o.PlanName, o.UserID, o.Periods, o.AmountBase, code, total, o.Status, o.Note, o.CreatedIP, o.ExpiresAt,
-				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode, o.Username, o.Difference).Scan(&id)
+				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode, o.Username, o.Difference, o.DiscountPromo).Scan(&id)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "idx_hosting_orders_sub_reserved" {
 			return nil, ErrSubdomainReserved
@@ -286,7 +288,7 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESCE(o.user_id, 0), o.username, o.periods,
 			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 			o.created_at, o.expires_at, o.paid_at, o.notif_id,
-			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference`, now)
+			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo`, now)
 	if err != nil {
 		return nil, err
 	}

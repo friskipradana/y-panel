@@ -27,7 +27,7 @@ type SeedPlanResult struct {
 }
 
 // planDifferences lists how a plan differs from the example it was made from. Trial days, the long-subscription discounts, and
-// the own-notification switch are the seller's own settings and are not compared.
+// the own-notification switch, and the promo are the seller's own settings and are not compared.
 func planDifferences(have, want database.HostingPlan) []string {
 	var out []string
 	add := func(field string, a, b any) {
@@ -104,6 +104,7 @@ func SeedHostingPlans(db *database.Manager, opt SeedPlansOptions) ([]SeedPlanRes
 				next.DurationDiscounts = have.DurationDiscounts
 				next.OwnNotify = have.OwnNotify
 				next.SortOrder = have.SortOrder
+				next.PromoPercent, next.PromoEndsAt, next.PromoAppliesTo, next.PromoExclusive = have.PromoPercent, have.PromoEndsAt, have.PromoAppliesTo, have.PromoExclusive
 				if _, err := db.UpdateHostingPlan(next); err != nil {
 					return results, fmt.Errorf("update %s: %w", example.Slug, err)
 				}

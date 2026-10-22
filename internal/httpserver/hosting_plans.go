@@ -86,6 +86,14 @@ func cleanPlan(p *database.HostingPlan) {
 	}
 	p.Features = features
 	cleanDurationDiscounts(p)
+	p.PromoAppliesTo = strings.ToLower(strings.TrimSpace(p.PromoAppliesTo))
+	if p.PromoAppliesTo == "" {
+		p.PromoAppliesTo = "both"
+	}
+	if p.PromoPercent <= 0 {
+		// no promo: nothing of it is kept
+		p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive = 0, nil, "both", false
+	}
 }
 
 func validatePlan(p database.HostingPlan) error {
@@ -118,6 +126,14 @@ func validatePlan(p database.HostingPlan) error {
 	}
 	if err := validateDurationDiscounts(p); err != nil {
 		return err
+	}
+	switch {
+	case p.PromoPercent < 0 || p.PromoPercent > discountMaxPercent:
+		return fmt.Errorf("a promo takes off between 1 and %d percent", discountMaxPercent)
+	case p.PromoPercent > 0 && p.PromoEndsAt == nil:
+		return errors.New("a promo needs an end date")
+	case p.PromoAppliesTo != "" && p.PromoAppliesTo != "both" && p.PromoAppliesTo != "new" && p.PromoAppliesTo != "renew":
+		return errors.New("a promo applies to new orders, renewals or both")
 	}
 	// the resource limits are an account quota: the same bounds apply
 	return users.ValidateQuota(planQuota(p, 0))

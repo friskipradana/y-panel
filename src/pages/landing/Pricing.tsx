@@ -4,7 +4,8 @@ import { Check } from 'lucide-react'
 import { formatRupiah, getPublicHosting, type PublicPlan } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { useI18n } from '@/lib/i18n'
-import { maxDurationPercent } from '@/lib/planPricing'
+import { formatDateID } from '@/lib/datetime'
+import { maxDurationPercent, priceFor, promoActive } from '@/lib/planPricing'
 
 function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string, string | number>) => string, mainDomain?: string) {
   const disk = plan.diskQuotaMb >= 1024 ? `${Math.round((plan.diskQuotaMb / 1024) * 10) / 10} GB` : `${plan.diskQuotaMb} MB`
@@ -38,6 +39,8 @@ export function Pricing() {
       <ul className="mt-5 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(15.5rem,1fr))]">
         {data.plans.map((plan) => {
           const limits = getPlanLimits(plan, t, data.domains?.[0]?.name)
+          // a promo of the plan, while it runs for a new order: the list price struck through, the promo price, and when it ends
+          const promo = promoActive(plan, 'new') ? priceFor(plan, 1, null, 'new') : null
 
           return (
             <li
@@ -56,17 +59,25 @@ export function Pricing() {
                 <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">{plan.tagline}</p>
               ) : null}
 
-              <div className="mt-4 flex items-baseline gap-1.5">
+              <div className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+                {promo ? (
+                  <s className="text-[0.9375rem] font-medium text-[var(--text-secondary)] opacity-70" aria-label={t('hosting.landing.listPrice')}>{formatRupiah(plan.priceAmount)}</s>
+                ) : null}
                 <span className="text-2xl font-extrabold tracking-tight text-[var(--win-text)] sm:text-[1.75rem]">
-                  {plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(plan.priceAmount)}
+                  {plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(promo ? promo.subtotal : plan.priceAmount)}
                 </span>
                 {plan.priceAmount > 0 ? (
-                  <span className="text-[0.8125rem] font-medium text-[var(--text-secondary)]">
+                  <span className="whitespace-nowrap text-[0.8125rem] font-medium text-[var(--text-secondary)]">
                     {t(`hosting.period.${plan.period}`)}
                   </span>
                 ) : null}
               </div>
-              {maxDurationPercent(plan.durationDiscounts) > 0 ? (
+              {promo ? (
+                <p className="mt-1 text-[0.75rem] font-medium text-[var(--panel-success-text)]">
+                  {t('hosting.landing.promoUntil', { percent: promo.promoPercent, date: formatDateID(plan.promoEndsAt) })}
+                </p>
+              ) : null}
+              {!promo?.promoExclusive && maxDurationPercent(plan.durationDiscounts) > 0 ? (
                 <p className="mt-1 text-[0.75rem] font-medium text-[var(--panel-success-text)]">
                   {t('hosting.landing.discountUpTo', { percent: maxDurationPercent(plan.durationDiscounts) })}
                 </p>

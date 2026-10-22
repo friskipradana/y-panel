@@ -77,6 +77,7 @@ function Sheet({ invoice }: { invoice: InvoiceView }) {
           hint={`${t(`hosting.orders.kind.${invoice.kind}`)} · ${period}${invoice.hostname ? ` · ${invoice.hostname}` : ''}`}
           amount={free && invoice.amountList <= 0 ? t('hosting.landing.free') : formatRupiah(invoice.amountList)}
         />
+        {(invoice.discountPromo ?? 0) > 0 ? <Line label={t('invoice.promo')} amount={`- ${formatRupiah(invoice.discountPromo ?? 0)}`} /> : null}
         {invoice.discountDuration > 0 ? <Line label={t('invoice.durationDiscount')} amount={`- ${formatRupiah(invoice.discountDuration)}`} /> : null}
         {invoice.discountVoucher > 0 ? <Line label={t('invoice.voucher', { code: invoice.voucherCode ?? '' })} amount={`- ${formatRupiah(invoice.discountVoucher)}`} /> : null}
         {invoice.uniqueCode > 0 && !free ? <Line label={t('invoice.uniqueCode')} hint={t('invoice.uniqueCodeHint')} amount={formatRupiah(invoice.uniqueCode)} /> : null}
