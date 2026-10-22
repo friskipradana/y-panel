@@ -273,12 +273,12 @@ button:focus-visible,
 // Outlined secondary action: dialogs, hero rows, anywhere a plain button must still read as a button
 .panel-btn--outline {
   border-color: var(--win-border);
-  background: var(--panel-surface);
+  background: var(--panel-surface-strong);
   color: var(--win-text);
 }
 
 .panel-btn--outline:hover:not(:disabled) {
-  background: var(--panel-surface-hover);
+  background: var(--tb-hover);
 }
 
 .panel-btn--primary-soft {
