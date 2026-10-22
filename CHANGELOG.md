@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.65.1] - 2026-10-22
+
+Add legal page, i18n locales, HTTP server implementation, and core views.
+
+### Fitur baru
+- Add legal page, i18n locales, HTTP server implementation, and core views ([`3ea2cbb`](https://github.com/friskipradana/y-panel/commit/3ea2cbb))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.65.0...v1.65.1
+
 ## [1.65.0] - 2026-10-22
 
 Own install, build and start commands (Node, Bun, pnpm, Yarn), encrypted variables, rebuild, and a Fullstack type of several processes on one address.
