@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.60.0] - 2026-10-22
+
+Reneo seed-plans, and the CLI and the agent maintenance commands are for root and superadmin only.
+
+### Fitur baru
+- **cli:** Reneo seed-plans, and the CLI and the agent maintenance commands are for root and superadmin only ([`b3ef8a0`](https://github.com/friskipradana/y-panel/commit/b3ef8a0))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.59.0...v1.60.0
+
 ## [1.59.0] - 2026-10-22
 
 Reneo status, start, logs, doctor, info, config and help.
