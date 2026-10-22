@@ -36,7 +36,10 @@ Pengaturan port, origin, DNS, dan pembaruan ada di window Settings.
 - `sudo reneo status`, `start`, `stop`, `restart`: ringkasan dan kendali service
 - `sudo reneo logs -f`: log langsung, sama seperti `journalctl`
 - `sudo reneo doctor`: periksa service, port, database, Docker, dan disk, lalu tunjukkan yang bermasalah
+- `sudo reneo seed-plans`: pasang paket hosting contoh (`--force` menimpa yang berbeda, `--dry-run` hanya menampilkan)
 - `sudo reneo help`: daftar semua perintah
+
+Perintah `reneo` hanya untuk root dan superadmin. Akun admin dan user di panel tidak bisa menjalankannya, dan perubahan yang dilakukan lewat CLI dicatat di journal (`journalctl -t reneo-cli`).
 - `sudo reneo check-update`: cek versi baru
 - `sudo reneo update`: perbarui panel, konfigurasi tetap
 

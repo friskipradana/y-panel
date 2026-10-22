@@ -27,7 +27,10 @@ Lalu buka `http://IP-SERVER:8787` dan selesaikan penyiapan pertama untuk membuat
 | `sudo reneo logs -f` | Log langsung (`-n N` jumlah baris) |
 | `sudo reneo doctor` | Periksa service, port, kesehatan, database, Docker, dan disk |
 | `sudo reneo info` / `config [KEY]` / `version` | Alamat dan lokasi berkas, isi konfigurasi (rahasia disamarkan), versi |
+| `sudo reneo seed-plans` | Pasang paket hosting contoh (Starter, Pro, Bisnis); tanpa `--force` hanya menambah yang belum ada, `--force` menimpa yang berbeda setelah konfirmasi, `--dry-run` hanya menampilkan |
 | `sudo reneo help` | Semua perintah |
+
+CLI `reneo` hanya untuk root dan superadmin panel lewat sudo: berkasnya `root:root` mode 750, akun admin dan user panel tidak punya sudo, dan akun `panel-*` tanpa izin sudo superadmin ditolak. Perintah pemeliharaan agent (`reset-primary-password`, `migrate`, `seed-plans`) juga menolak pengguna selain root. Perintah yang mengubah data dicatat di journal (`journalctl -t reneo-cli`).
 | `sudo reneo check-update` / `sudo reneo update` | Cek dan terapkan pembaruan |
 | `sudo bash /opt/reneo/installer/uninstall.sh` | Mencopot |
 

@@ -847,6 +847,24 @@ require_root_cli() {
   fi
 }
 
+# Who may use the CLI: root, or a superadmin of the panel through sudo. The accounts the panel makes for its admins and users
+# (panel-*) get no sudo, so they never get this far; one that was given sudo some other way is refused here, because the panel
+# grants sudo to superadmins only (the drop-in /etc/sudoers.d/<account> it writes for them).
+authorize_caller() {
+  local caller="${SUDO_USER:-}"
+  if [[ -z "$caller" || "$caller" == "root" ]]; then
+    return 0
+  fi
+  if [[ "$caller" == panel-* && ! -f "/etc/sudoers.d/${caller}" ]]; then
+    logger -t reneo-cli "ditolak: ${caller} bukan superadmin panel (perintah: $*)" 2>/dev/null || true
+    printf '
+reneo hanya untuk root dan superadmin panel. Akun %s bukan superadmin.
+' "$caller" >&2
+    exit 1
+  fi
+  return 0
+}
+
 env_file_exists() {
   [[ -f "$ENV_FILE" ]]
 }
@@ -1261,11 +1279,15 @@ Informasi
   config [KEY]           isi agent.env dengan rahasia disamarkan, atau satu nilai
   version                versi terpasang
 
+Hak akses: hanya root dan superadmin panel (lewat sudo). Akun admin dan user panel tidak bisa memakainya.
+
 Pembaruan
   check-update           cek versi baru
   update [--yes] [--version X.Y.Z]
 
 Akun dan database
+  seed-plans [--force] [--dry-run] [--yes] [--only starter,pro,bisnis]
+                         pasang paket hosting contoh (tanpa --force hanya menambah yang belum ada)
   reset-password         ganti password akun utama
   reset-db-password      ganti password PostgreSQL panel
   migrate-up | migrate-rollback | migrate-status
@@ -1505,6 +1527,12 @@ run_action() {
     migrate-status)
       migration_status
       ;;
+    seed-plans)
+      env_file_exists || { printf '
+File konfigurasi tidak ditemukan: %s
+' "$ENV_FILE" >&2; exit 1; }
+      "$AGENT_BIN" seed-plans "$@"
+      ;;
     version)
       printf 'Reneo v%s\n' "$(installed_version)"
       ;;
@@ -1572,6 +1600,14 @@ case "${1:-}" in
 esac
 
 require_root_cli
+authorize_caller "$@"
+
+# what changes data or secrets is written to the journal with who ran it
+case "${1:-}" in
+  reset-password|reset-db-password|change-port|edit-origins|migrate-up|migrate-rollback|seed-plans|update|uninstall|stop|restart|start)
+    logger -t reneo-cli "${SUDO_USER:-root}: reneo $*" 2>/dev/null || true
+    ;;
+esac
 
 if [[ $# -gt 0 ]]; then
   run_action "$@"
@@ -1579,12 +1615,14 @@ else
   show_menu
 fi
 EOF
-  chmod 755 "${CLI_PATH}.new"
+  # root only: the panel's other accounts cannot even start it
+  chmod 750 "${CLI_PATH}.new"
+  chown root:root "${CLI_PATH}.new" 2>/dev/null || true
   mv -f "${CLI_PATH}.new" "$CLI_PATH"
 
   mkdir -p "$INSTALL_ROOT/installer"
   cp "$REPO_ROOT/installer/linux/uninstall.sh" "$INSTALL_ROOT/installer/uninstall.sh"
-  chmod 755 "$INSTALL_ROOT/installer/uninstall.sh"
+  chmod 750 "$INSTALL_ROOT/installer/uninstall.sh"
 }
 
 disable_portainer() {

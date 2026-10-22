@@ -28,6 +28,13 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
+		case "reset-primary-password", "migrate", "seed-plans":
+			// the maintenance commands change the panel's data and read its configuration: root only
+			if err := requireRoot(); err != nil {
+				log.Fatalf("%s: %v", os.Args[1], err)
+			}
+		}
+		switch os.Args[1] {
 		case "reset-primary-password":
 			if err := runResetPrimaryPassword(os.Args[2:]); err != nil {
 				log.Fatalf("reset primary password: %v", err)
@@ -36,6 +43,11 @@ func main() {
 		case "migrate":
 			if err := runMigrate(os.Args[2:]); err != nil {
 				log.Fatalf("migrate: %v", err)
+			}
+			return
+		case "seed-plans":
+			if err := runSeedPlans(os.Args[2:]); err != nil {
+				log.Fatalf("seed-plans: %v", err)
 			}
 			return
 		case "mcp":
