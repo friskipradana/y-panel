@@ -1,4 +1,4 @@
-import { FileText, FolderCode, FolderOpen, Globe2, LoaderCircle, Pencil, Play, Square, Trash2, Upload } from 'lucide-react'
+import { FileText, FolderCode, FolderOpen, Globe2, Hammer, LoaderCircle, Pencil, Play, Square, Trash2, Upload } from 'lucide-react'
 import { type Project } from '@/api/agent'
 import { ListRowIcon } from '@/components/ui/ListTable'
 import { useI18n } from '@/lib/i18n'
@@ -13,6 +13,7 @@ interface ProjectRowProps {
   onTunnel: () => void
   onUpload: () => void
   onLogs: () => void
+  onRebuild: () => void
   onFiles: () => void
   onEdit: () => void
   onDelete: () => void
@@ -22,7 +23,7 @@ interface ProjectRowProps {
 }
 
 // One project, in the same row as a container: icon and name, state, port, and its actions
-export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onUpload, onLogs, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
+export function ProjectRow({ project: p, index, highlighted, onStart, onStop, onTunnel, onUpload, onLogs, onRebuild, onFiles, onEdit, onDelete, busy, deleting }: ProjectRowProps) {
   const { t } = useI18n()
   const state = projectState(p)
   const drift = p.runtime?.drift ? (p.runtime.driftReason ? p.runtime.driftReason.split('_').join(' ') : t('projects.runtimeMismatch')) : ''
@@ -74,6 +75,11 @@ export function ProjectRow({ project: p, index, highlighted, onStart, onStop, on
         >
           <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
+        {p.projectType === 'stack' || p.run?.startCommand ? (
+          <button type="button" className="docker-act-btn" title={t('projects.rebuild')} aria-label={t('projects.rebuild')} disabled={busy} onClick={onRebuild}>
+            <Hammer className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        ) : null}
         {isRunnableProject(p) ? (
           <button type="button" className="docker-act-btn" title={t('projects.logs')} aria-label={t('projects.logs')} onClick={onLogs}>
             <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />

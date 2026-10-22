@@ -12,10 +12,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
 )
@@ -60,10 +62,18 @@ func AllocatePort(userID int64, projectIndex int) int {
 
 // Process Manager
 
-// entry is one supervised project: the process that runs now, and what is needed to run it again.
+// entry is one supervised process: the one that runs now, and what is needed to run it again. A project of one process has one
+// entry, a project of several has one for each process.
 type entry struct {
-	user      *database.User
-	project   database.Project
+	user    *database.User
+	project database.Project
+	// key names the entry in the manager: the project id, and for a process of a project of several, its name after a slash
+	key string
+	// service is the name of the process of a project of several; empty for a project of one
+	service string
+	// build makes the command that runs it; the folder it runs in is dir
+	build     func() (*exec.Cmd, error)
+	dir       string
 	cmd       *exec.Cmd
 	done      chan struct{} // closed when the current process has ended
 	startedAt time.Time
@@ -81,11 +91,32 @@ func (e *entry) alive() bool {
 	}
 }
 
+// stack is a project made of several processes: the gateway on its port, and the keys of the entries that run its processes
+type stack struct {
+	gateway *gateway
+	keys    []string
+	// ports are the ports of the processes behind the gateway
+	ports []int
+}
+
 // Manager tracks running project processes in memory and keeps them running.
 type Manager struct {
 	mu       sync.RWMutex
-	procs    map[int64]*entry // key = project ID
+	procs    map[string]*entry // key = project ID, or project ID/process for a project of several
+	stacks   map[int64]*stack
 	stateDir string
+	// envKey opens the variables a project keeps encrypted
+	envKey string
+}
+
+func procKey(projectID int64) string { return strconv.FormatInt(projectID, 10) }
+
+// tag is what a line of the log says about which process it is of, for a project of several
+func (e *entry) tag() string {
+	if e.service == "" {
+		return ""
+	}
+	return "[" + e.service + "] "
 }
 
 type RuntimeSnapshot struct {
@@ -100,9 +131,32 @@ type RuntimeSnapshot struct {
 // NewManager creates a project process Manager.
 func NewManager(stateDir string) *Manager {
 	return &Manager{
-		procs:    make(map[int64]*entry),
+		procs:    make(map[string]*entry),
+		stacks:   make(map[int64]*stack),
 		stateDir: stateDir,
 	}
+}
+
+// SetEnvKey gives the manager the key that opens the variables of projects
+func (m *Manager) SetEnvKey(hexKey string) { m.envKey = hexKey }
+
+// projectEnv are the variables a project runs with, opened from what is stored encrypted
+func (m *Manager) projectEnv(p *database.Project) ([]string, error) {
+	if p.Run.EnvEnc == "" {
+		return EnvPairs(p.Run.Env), nil
+	}
+	if m.envKey == "" {
+		return nil, errors.New("the variables of the project cannot be opened: no encryption key")
+	}
+	plain, err := crypto.Decrypt(m.envKey, p.Run.EnvEnc)
+	if err != nil {
+		return nil, fmt.Errorf("the variables of the project cannot be opened: %w", err)
+	}
+	var env map[string]string
+	if err := json.Unmarshal([]byte(plain), &env); err != nil {
+		return nil, fmt.Errorf("the variables of the project cannot be read: %w", err)
+	}
+	return EnvPairs(env), nil
 }
 
 // Start launches a project process based on its type and working directory, and keeps it
@@ -112,8 +166,11 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, ok := m.procs[project.ID]; ok {
+	if _, ok := m.procs[procKey(project.ID)]; ok {
 		return nil // already running, or waiting to be started again
+	}
+	if _, ok := m.stacks[project.ID]; ok {
+		return nil
 	}
 	// a project the agent did not start itself (it outlived an agent restart) keeps its port
 	if isLocalPortOpen(project.AssignedPort) {
@@ -127,7 +184,12 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 		}
 	}
 
-	e := &entry{project: *project, stopCh: make(chan struct{})}
+	if project.ProjectType == "stack" {
+		return m.startStack(user, project)
+	}
+
+	e := &entry{project: *project, key: procKey(project.ID), dir: project.WorkingDir, stopCh: make(chan struct{})}
+	e.build = func() (*exec.Cmd, error) { return buildCommand(e.user, &e.project) }
 	if user != nil {
 		owner := *user
 		e.user = &owner
@@ -135,7 +197,7 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 	if err := m.launch(e); err != nil {
 		return err
 	}
-	m.procs[project.ID] = e
+	m.procs[e.key] = e
 	go m.watch(e)
 	return nil
 }
@@ -149,13 +211,17 @@ func (m *Manager) StartAndWait(user *database.User, project *database.Project, w
 	}
 	deadline := time.Now().Add(wait)
 	for {
-		if isLocalPortOpen(project.AssignedPort) {
+		if m.ready(project) {
 			return true, nil
 		}
 		m.mu.RLock()
-		e, ok := m.procs[project.ID]
+		e, ok := m.procs[procKey(project.ID)]
 		exited := ok && !e.alive()
+		_, isStack := m.stacks[project.ID]
 		m.mu.RUnlock()
+		if isStack {
+			ok, exited = true, false
+		}
 		if !ok || exited {
 			_ = m.Stop(project.ID)
 			return false, m.exitError(project.ID)
@@ -178,20 +244,29 @@ func (m *Manager) exitError(projectID int64) error {
 
 // launch runs the project once; the caller holds the lock.
 func (m *Manager) launch(e *entry) error {
-	cmd, err := buildCommand(e.user, &e.project)
+	cmd, err := e.build()
 	if err != nil {
 		return err
 	}
-	cmd.Dir = e.project.WorkingDir
+	cmd.Dir = e.dir
 	// never hand the agent's own environment (secrets, DSN, keys) to user code
 	cmd.Env = RuntimeEnv(e.project.AssignedPort)
+	// the variables of the project, then the one the panel gives a static process
+	env, err := m.projectEnv(&e.project)
+	if err != nil {
+		return err
+	}
+	cmd.Env = append(cmd.Env, env...)
+	if e.service != "" && e.project.ProjectType == "static-service" {
+		cmd.Env = append(cmd.Env, "RENEO_STATIC_SERVER="+staticSPAServerScript())
+	}
 	setProcessGroup(cmd)
 
 	logFile := m.openLog(e.project.ID)
 	if logFile != nil {
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
-		fmt.Fprintf(logFile, "[reneo] %s start %s on port %d\n", time.Now().Format("2006-01-02 15:04:05"), e.project.ProjectType, e.project.AssignedPort)
+		fmt.Fprintf(logFile, "[reneo] %s start %s%s on port %d\n", time.Now().Format("2006-01-02 15:04:05"), e.tag(), e.project.ProjectType, e.project.AssignedPort)
 	}
 	if err := cmd.Start(); err != nil {
 		if logFile != nil {
@@ -203,8 +278,10 @@ func (m *Manager) launch(e *entry) error {
 	done := make(chan struct{})
 	e.cmd, e.done, e.startedAt = cmd, done, time.Now()
 	go func() {
-		_ = cmd.Wait()
+		waitErr := cmd.Wait()
 		if logFile != nil {
+			// how it ended, so a process that dies at once does not leave a log with nothing in it
+			fmt.Fprintf(logFile, "[reneo] %s%s\n", e.tag(), exitNote(waitErr))
 			logFile.Close()
 		}
 		close(done)
@@ -236,17 +313,17 @@ func (m *Manager) watch(e *entry) {
 		e.restarts++
 		attempt := e.restarts
 		if attempt > maxRestarts {
-			if m.procs[id] == e {
-				delete(m.procs, id)
+			if m.procs[e.key] == e {
+				delete(m.procs, e.key)
 			}
 			m.mu.Unlock()
-			m.logLine(id, "stopped after %d failed attempts to keep it running", maxRestarts)
+			m.logLine(id, "%sstopped after %d failed attempts to keep it running", e.tag(), maxRestarts)
 			return
 		}
 		m.mu.Unlock()
 
 		delay := time.Duration(1<<attempt) * time.Second
-		m.logLine(id, "the process ended on its own; starting it again in %s (attempt %d of %d)", delay, attempt, maxRestarts)
+		m.logLine(id, "%sthe process ended on its own; starting it again in %s (attempt %d of %d)", e.tag(), delay, attempt, maxRestarts)
 		select {
 		case <-e.stopCh:
 			return
@@ -264,19 +341,37 @@ func (m *Manager) watch(e *entry) {
 			close(ended)
 			e.done, e.startedAt = ended, time.Now()
 			m.mu.Unlock()
-			m.logLine(id, "could not start: %v", err)
+			m.logLine(id, "%scould not start: %v", e.tag(), err)
 			continue
 		}
 		m.mu.Unlock()
 	}
 }
 
-// Stop ends a project process and the children it started.
+// Stop ends a project and everything it started: its process, or the gateway and the processes of a project of several.
 func (m *Manager) Stop(projectID int64) error {
 	m.mu.Lock()
-	e, ok := m.procs[projectID]
+	st, isStack := m.stacks[projectID]
+	if isStack {
+		delete(m.stacks, projectID)
+	}
+	m.mu.Unlock()
+	if isStack {
+		st.gateway.Close()
+		for _, key := range st.keys {
+			_ = m.stopKey(key)
+		}
+		return nil
+	}
+	return m.stopKey(procKey(projectID))
+}
+
+// stopKey ends one supervised process and the children it started.
+func (m *Manager) stopKey(key string) error {
+	m.mu.Lock()
+	e, ok := m.procs[key]
 	if ok {
-		delete(m.procs, projectID)
+		delete(m.procs, key)
 		e.stopping = true
 		close(e.stopCh)
 	}
@@ -332,10 +427,19 @@ func (m *Manager) SnapshotProject(project database.Project) RuntimeSnapshot {
 
 func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort int) RuntimeSnapshot {
 	m.mu.RLock()
-	e, ok := m.procs[projectID]
-	processRunning := ok && e.alive()
+	e, single := m.procs[procKey(projectID)]
+	processRunning := single && e.alive()
+	st, isStack := m.stacks[projectID]
+	if isStack {
+		for _, key := range st.keys {
+			if child, found := m.procs[key]; found && child.alive() {
+				processRunning = true
+			}
+		}
+	}
+	ok := single || isStack
 	port := assignedPort
-	if port <= 0 && ok {
+	if port <= 0 && single {
 		port = e.project.AssignedPort
 	}
 	m.mu.RUnlock()
@@ -388,12 +492,15 @@ func (m *Manager) SnapshotAll(projects []database.Project) map[int64]RuntimeSnap
 // StopAll terminates all running projects.
 func (m *Manager) StopAll() {
 	m.mu.Lock()
-	ids := make([]int64, 0, len(m.procs))
-	for id := range m.procs {
-		ids = append(ids, id)
+	seen := map[int64]bool{}
+	for _, e := range m.procs {
+		seen[e.project.ID] = true
+	}
+	for id := range m.stacks {
+		seen[id] = true
 	}
 	m.mu.Unlock()
-	for _, id := range ids {
+	for id := range seen {
 		_ = m.Stop(id)
 	}
 }
@@ -403,7 +510,7 @@ func (m *Manager) StopAll() {
 // Runnable says whether a project type runs as a process of its own (docker and proxy do not)
 func Runnable(projectType string) bool {
 	switch projectType {
-	case "nodejs", "python", "php", "static", "custom":
+	case "nodejs", "python", "php", "static", "custom", "stack":
 		return true
 	}
 	return false
@@ -443,6 +550,11 @@ func buildCommand(user *database.User, p *database.Project) (*exec.Cmd, error) {
 
 	port := p.AssignedPort
 	var cmd *exec.Cmd
+	// told how to run (a start command, and maybe an install and a build step), the project runs that, not what its folder suggests
+	if p.Run.Start != "" && p.ProjectType != "static" && p.ProjectType != "stack" {
+		cmd = exec.Command("sh", "-c", composeScript(p.Run.Install, p.Run.Build, p.Run.Start))
+		return finishCommand(user, cmd)
+	}
 	switch p.ProjectType {
 	case "nodejs":
 		hasPackage := fileExists(filepath.Join(p.WorkingDir, "package.json"))
@@ -532,6 +644,11 @@ func buildCommand(user *database.User, p *database.Project) (*exec.Cmd, error) {
 	default:
 		return nil, fmt.Errorf("unknown project type: %s", p.ProjectType)
 	}
+	return finishCommand(user, cmd)
+}
+
+// finishCommand puts a command under the limits and the account of the project
+func finishCommand(user *database.User, cmd *exec.Cmd) (*exec.Cmd, error) {
 	// a program that is not installed says so now, not as a process that ends at once
 	if cmd.Err != nil {
 		return nil, cmd.Err
@@ -642,4 +759,12 @@ func terminateLocalPort(port int) error {
 	}
 
 	return fmt.Errorf("port %d masih menerima koneksi setelah stop", port)
+}
+
+// exitNote says in a line how a process ended
+func exitNote(err error) string {
+	if err == nil {
+		return "the process exited"
+	}
+	return "the process exited: " + err.Error()
 }

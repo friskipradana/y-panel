@@ -407,3 +407,41 @@ func TestIntegrationOrderKeepsWhatThePromoTookOff(t *testing.T) {
 		t.Fatalf("the promo discount must be kept with the order: %v %+v", err, got)
 	}
 }
+
+func TestIntegrationProjectRunRoundTrip(t *testing.T) {
+	m := newIntegrationManager(t)
+	u := testUser(t, m, "runowner")
+	p, err := m.CreateProject(u.ID, "Fullstack", "fullstack", "", "stack", "", "/home/x/fullstack", true, 10001)
+	if err != nil {
+		t.Fatalf("a project of several processes has its own type: %v", err)
+	}
+	if p.Run.Services == nil || len(p.Run.Services) != 0 || p.Run.Start != "" {
+		t.Fatalf("a new project has an empty way of running: %+v", p.Run)
+	}
+	run := database.ProjectRun{
+		Services: []database.ProjectService{
+			{Name: "web", Kind: "static", Dir: "web", Serve: "dist", Path: "/", Build: "bun run build"},
+			{Name: "api", Kind: "process", Dir: "api", Path: "/api", Command: "bun run start", Port: 3001},
+		},
+		Env:    map[string]string{"NEVER": "stored in clear"},
+		EnvEnc: "ciphertext-here",
+	}
+	saved, err := m.UpdateProjectRun(p.ID, u.ID, run)
+	if err != nil || saved == nil {
+		t.Fatalf("save: %v", err)
+	}
+	got, err := m.GetProject(p.ID, u.ID)
+	if err != nil || got == nil {
+		t.Fatalf("read: %v", err)
+	}
+	if len(got.Run.Services) != 2 || got.Run.Services[1].Port != 3001 || got.Run.Services[0].Serve != "dist" || got.Run.EnvEnc != "ciphertext-here" {
+		t.Fatalf("the way of running must come back as saved: %+v", got.Run)
+	}
+	if got.Run.Env != nil {
+		t.Fatalf("the variables are never read back in clear: %+v", got.Run.Env)
+	}
+	list, _, err := m.ListProjectsFiltered(u.ID, false, "", 10, 0)
+	if err != nil || len(list) != 1 || len(list[0].Run.Services) != 2 {
+		t.Fatalf("the list carries it too: %v %+v", err, list)
+	}
+}

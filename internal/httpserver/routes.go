@@ -100,6 +100,7 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/projects/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteProject)))
 	s.mux.Handle("POST /api/v1/projects/{id}/start", s.requireAuthV2(http.HandlerFunc(s.handleStartProject)))
 	s.mux.Handle("POST /api/v1/projects/{id}/stop", s.requireAuthV2(http.HandlerFunc(s.handleStopProject)))
+	s.mux.Handle("POST /api/v1/projects/{id}/rebuild", s.requireAuthV2(http.HandlerFunc(s.handleRebuildProject)))
 	s.mux.Handle("GET /api/v1/projects/{id}/logs", s.requireAuthV2(http.HandlerFunc(s.handleProjectLogs)))
 
 	// ── Tunnels ───────────────────────────────────────────────────────────────

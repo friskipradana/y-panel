@@ -1310,6 +1310,9 @@ type createProjectRequest struct {
 	RepoURL     string `json:"repoUrl"`
 	WorkingDir  string `json:"workingDir"`
 	SPAFallback *bool  `json:"spaFallback"`
+	// Run is how the project is installed, built and started, its variables, and the processes of a project made of several;
+	// left out, what is saved stays
+	Run *projectRunRequest `json:"run"`
 }
 
 type projectRuntimeState struct {
@@ -1354,7 +1357,13 @@ func shouldLogDrift(projectID int64, reason string, now time.Time) bool {
 }
 
 func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime {
+	return s.projectView(project, false)
+}
+
+// projectView is a project with its runtime; the variables it runs with are shown with their values only when asked (the form that edits it)
+func (s *Server) projectView(project database.Project, reveal bool) projectWithRuntime {
 	snapshot := s.projectManager.SnapshotProject(project)
+	project.Run = s.runView(project.Run, reveal)
 	if snapshot.Drift && shouldLogDrift(project.ID, snapshot.DriftReason, time.Now()) {
 		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
 			"projectId":     project.ID,
@@ -1486,6 +1495,11 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
 		return
 	}
+	run, err := s.runFromRequest(req.Run, req.ProjectType, assignedPort, nil)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	workingDir, err := prepareProjectWorkingDir(u, slug, req.WorkingDir, req.ProjectType)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
@@ -1501,9 +1515,17 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	if req.Run != nil {
+		saved, runErr := s.database.UpdateProjectRun(p.ID, u.ID, run)
+		if runErr != nil {
+			s.writeError(w, http.StatusInternalServerError, runErr)
+			return
+		}
+		p = saved
+	}
 	log.Printf("[projects] created id=%d name=%q user=%q port=%d", p.ID, p.Name, u.Username, p.AssignedPort)
 	s.notifyUserAction(u.ID, "Project dibuat", fmt.Sprintf("Project '%s' dibuat di port %d.", p.Name, p.AssignedPort), "success")
-	s.writeJSON(w, http.StatusCreated, p)
+	s.writeJSON(w, http.StatusCreated, s.projectView(*p, true))
 }
 
 func prepareProjectWorkingDir(u *database.User, slug, requestedDir, projectType string) (string, error) {
@@ -1861,7 +1883,7 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "project not found"})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
+	s.writeJSON(w, http.StatusOK, s.projectView(*p, true))
 }
 
 func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -1899,6 +1921,11 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.WorkingDir) == "" {
 		req.WorkingDir = existing.WorkingDir
 	}
+	run, err := s.runFromRequest(req.Run, projectType, existing.AssignedPort, &existing.Run)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 	workingDir, err := prepareProjectWorkingDir(u, existing.Slug, req.WorkingDir, projectType)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, fmt.Errorf("prepare project directory: %w", err))
@@ -1914,8 +1941,14 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	// what runs must match what is saved: a changed folder, type, script or SPA setting needs a new process
-	if existing.WorkingDir != p.WorkingDir || existing.ProjectType != p.ProjectType || existing.RepoURL != p.RepoURL || existing.SPAFallback != p.SPAFallback {
+	if req.Run != nil {
+		if p, err = s.database.UpdateProjectRun(id, u.ID, run); err != nil {
+			s.writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
+	// what runs must match what is saved: a changed folder, type, script, SPA setting or way of running needs a new process
+	if existing.WorkingDir != p.WorkingDir || existing.ProjectType != p.ProjectType || existing.RepoURL != p.RepoURL || existing.SPAFallback != p.SPAFallback || projects.RunChanged(existing.Run, p.Run) {
 		if status, restartErr := s.restartProject(u, existing, p); restartErr != nil {
 			log.Printf("[projects] restart after update failed id=%d: %v", p.ID, restartErr)
 		} else if status != "" {
@@ -1924,7 +1957,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("[projects] updated id=%d name=%q user=%q", p.ID, p.Name, u.Username)
 	s.notifyUserAction(u.ID, "Project diperbarui", fmt.Sprintf("Project '%s' diperbarui.", p.Name), "success")
-	s.writeJSON(w, http.StatusOK, s.projectWithRuntime(*p))
+	s.writeJSON(w, http.StatusOK, s.projectView(*p, true))
 }
 
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
@@ -2663,7 +2696,7 @@ func slugify(name string) string {
 // runnableProjectTypes are the types the agent can start as a process. "docker" and
 // "proxy" rows only exist from older versions: containers belong in the Docker
 // window and public routes in Cloudflare tunnels.
-var runnableProjectTypes = map[string]bool{"static": true, "nodejs": true, "python": true, "php": true, "custom": true}
+var runnableProjectTypes = map[string]bool{"static": true, "nodejs": true, "python": true, "php": true, "custom": true, "stack": true}
 
 func validateProjectType(projectType string) error {
 	if runnableProjectTypes[projectType] {
@@ -2677,7 +2710,7 @@ func validateProjectType(projectType string) error {
 	case "":
 		return errors.New("project type is required")
 	}
-	return fmt.Errorf("unsupported project type %q (use static, nodejs, python, php or custom)", projectType)
+	return fmt.Errorf("unsupported project type %q (use static, nodejs, python, php, custom or stack)", projectType)
 }
 
 // allocateProjectPort gives a project the first free port of its owner's block. A port that a

@@ -1,6 +1,6 @@
 import { type ReactElement } from 'react'
 import { type Project } from '@/api/agent'
-import { FolderCode, Globe, Server, Code, Box } from 'lucide-react'
+import { FolderCode, Globe, Server, Code, Box, Layers } from 'lucide-react'
 import type { RouteSubject } from '@/components/windows/tunnels/RouteDomainModal'
 
 export const TYPE_ICON: Record<string, ReactElement> = {
@@ -11,10 +11,11 @@ export const TYPE_ICON: Record<string, ReactElement> = {
   docker: <Box className="h-3.5 w-3.5" />,
   proxy: <Server className="h-3.5 w-3.5" />,
   custom: <FolderCode className="h-3.5 w-3.5" />,
+  stack: <Layers className="h-3.5 w-3.5" />,
 }
 
 // docker and proxy rows from older versions still render; new projects can only be runnable types
-export const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'custom']
+export const PROJECT_TYPES = ['static', 'nodejs', 'python', 'php', 'custom', 'stack']
 
 // The most projects one list loads; the search narrows it when there are more
 export const LIST_LIMIT = 100

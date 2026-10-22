@@ -25,6 +25,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
     incidentAt,
     startMut,
     stopMut,
+    rebuildMut,
     deleteMut,
     uploadStaticMut,
     highlightedProject,
@@ -136,6 +137,17 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               onTunnel={() => openTunnelForProject(p)}
               onUpload={() => openStaticUpload(p)}
               onLogs={() => setLogProject(p)}
+              onRebuild={async () => {
+                const confirmed = await alertLib.confirm(
+                  t('projects.rebuildConfirmTitle'),
+                  t('projects.rebuildConfirmMessage', { name: p.name }),
+                  t('projects.rebuildConfirmAction'),
+                  t('common.cancel'),
+                  'warning',
+                  'projects',
+                )
+                if (confirmed) rebuildMut.mutate(p.id)
+              }}
               onFiles={() => openProjectFiles(p)}
               onEdit={() => openEditProject(p)}
               onDelete={async () => {
@@ -152,6 +164,7 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               busy={
                 (startMut.isPending && startMut.variables === p.id) ||
                 (stopMut.isPending && stopMut.variables === p.id) ||
+                (rebuildMut.isPending && rebuildMut.variables === p.id) ||
                 (uploadStaticMut.isPending && uploadStaticMut.variables?.project.id === p.id)
               }
               deleting={deleteMut.isPending && deleteMut.variables === p.id}

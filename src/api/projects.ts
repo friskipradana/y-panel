@@ -10,6 +10,35 @@ export interface ProjectRuntimeState {
   driftReason?: string
 }
 
+// One process of a project made of several (a frontend, a backend); one address serves them all
+export interface ProjectService {
+  name: string
+  kind: 'process' | 'static'
+  installCommand: string
+  buildCommand: string
+  startCommand: string
+  /** The folder of the process, inside the project folder */
+  dir: string
+  /** For a static process: the folder it serves, inside dir */
+  serve: string
+  /** Where it sits in the address: "/" takes the rest, "/api" a backend */
+  path: string
+  /** 0 lets the agent pick the port and hand it over as PORT */
+  port: number
+}
+
+// How a project runs when its folder says too little. The variables are shown with their values in the project read on its own, and with
+// the values hidden in the list.
+export interface ProjectRun {
+  installCommand: string
+  buildCommand: string
+  startCommand: string
+  services: ProjectService[]
+  env?: Record<string, string>
+}
+
+export type ProjectRunInput = Required<ProjectRun>
+
 export interface Project {
   id: number
   userId: number
@@ -17,7 +46,7 @@ export interface Project {
   slug: string
   description: string
   status: 'active' | 'stopped' | 'building' | 'error' | 'draft' | 'degraded'
-  projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom'
+  projectType: 'static' | 'nodejs' | 'python' | 'php' | 'docker' | 'proxy' | 'custom' | 'stack'
   repoUrl: string
   workingDir: string
   spaFallback: boolean
@@ -25,6 +54,7 @@ export interface Project {
   assignedPort: number
   running: boolean
   runtime: ProjectRuntimeState
+  run?: ProjectRun
   createdAt: string
   updatedAt: string
 }
@@ -68,6 +98,7 @@ export const createProject = (payload: {
   repoUrl?: string
   workingDir?: string
   spaFallback?: boolean
+  run?: ProjectRunInput
 }) => agentApi.post<Project>('/api/v1/projects', payload).then((r) => r.data)
 
 export const updateProject = (id: number, payload: {
@@ -77,6 +108,7 @@ export const updateProject = (id: number, payload: {
   repoUrl?: string
   workingDir?: string
   spaFallback?: boolean
+  run?: ProjectRunInput
 }) => agentApi.put<Project>(`/api/v1/projects/${id}`, payload).then((r) => r.data)
 
 export const getProject = (id: number) =>
@@ -91,6 +123,10 @@ export const startProject = (id: number) =>
 // The end of what the project wrote, and what the agent did to it (starts, crashes, restarts)
 export const getProjectLogs = (id: number, lines = 300) =>
   agentApi.get<{ lines: string[] }>(`/api/v1/projects/${id}/logs`, { params: { lines } }).then((r) => r.data.lines)
+
+// Takes away the marks that say the project was installed and built, stops it and starts it: the install and build steps run again
+export const rebuildProject = (id: number) =>
+  agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/rebuild`).then((r) => r.data)
 
 export const stopProject = (id: number) =>
   agentApi.post<{ ok: boolean; status: string; project: Project }>(`/api/v1/projects/${id}/stop`).then((r) => r.data)

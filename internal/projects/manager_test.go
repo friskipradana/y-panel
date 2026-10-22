@@ -54,13 +54,13 @@ func TestStartTwiceKeepsOneProcess(t *testing.T) {
 	}
 	defer m.Stop(p.ID)
 	m.mu.RLock()
-	first := m.procs[p.ID]
+	first := m.procs[procKey(p.ID)]
 	m.mu.RUnlock()
 	if err := m.Start(nil, p); err != nil {
 		t.Fatal(err)
 	}
 	m.mu.RLock()
-	second := m.procs[p.ID]
+	second := m.procs[procKey(p.ID)]
 	m.mu.RUnlock()
 	if first != second {
 		t.Fatal("a second start must not launch another process")

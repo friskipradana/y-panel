@@ -167,6 +167,9 @@ func New(cfg config.Config) *Server {
 		go func() { _, _ = s.docsSync.Articles(context.Background(), false) }()
 	}
 
+	// the variables of a project are kept encrypted; the manager opens them when it starts the project
+	s.projectManager.SetEnvKey(cfg.EncryptionKey)
+
 	go s.retireOpenDbx()
 
 	// notices outside the panel: the queue, its workers, and the detectors of attacks

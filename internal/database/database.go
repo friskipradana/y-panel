@@ -1090,6 +1090,60 @@ type Project struct {
 	AssignedPort int       `json:"assignedPort"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	// Run is how the project is installed, built and started when its folder says too little, and the processes of a
+	// project made of several
+	Run ProjectRun `json:"run"`
+}
+
+// ProjectService is one process of a project made of several (a frontend, a backend). One address serves them all: a request goes
+// to the service with the longest Path that starts it.
+type ProjectService struct {
+	Name string `json:"name"`
+	// Kind is process (runs Command) or static (serves the folder Dir, with a fallback to index.html for a single-page app)
+	Kind    string `json:"kind"`
+	Install string `json:"installCommand"`
+	Build   string `json:"buildCommand"`
+	Command string `json:"startCommand"`
+	// Dir is the folder of the service, inside the project folder; empty is the project folder itself
+	Dir string `json:"dir"`
+	// Serve is, for a static service, the folder it serves inside Dir (a build's dist); empty serves Dir itself
+	Serve string `json:"serve"`
+	// Path is where the service sits in the address: "/" for the one that takes the rest, "/api" for a backend
+	Path string `json:"path"`
+	// Port is the port the service listens on; 0 lets the agent pick one and hand it over as PORT
+	Port int `json:"port"`
+}
+
+// ProjectRun is how a project runs. For a project of one process the three commands apply to it; for a project of several each
+// service has its own.
+type ProjectRun struct {
+	Install  string           `json:"installCommand"`
+	Build    string           `json:"buildCommand"`
+	Start    string           `json:"startCommand"`
+	Services []ProjectService `json:"services"`
+	// Env are the variables the project runs with, as typed; they are kept only in EnvEnc, encrypted, and the server fills Env
+	// when it needs to show or use them
+	Env    map[string]string `json:"env,omitempty"`
+	EnvEnc string            `json:"envEnc,omitempty"`
+}
+
+// projectColumns are the columns a Project is read from, in the order scanProject takes them
+const projectColumns = `id, user_id, name, slug, COALESCE(description,''), status, project_type,
+			COALESCE(repo_url,''), COALESCE(working_dir,''),
+			COALESCE(spa_fallback, true),
+			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at, run_config`
+
+func decodeProjectRun(raw []byte) ProjectRun {
+	var run ProjectRun
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &run)
+	}
+	if run.Services == nil {
+		run.Services = []ProjectService{}
+	}
+	// the variables are never read from what is stored in clear: only EnvEnc is kept
+	run.Env = nil
+	return run
 }
 
 func (m *Manager) ListProjects(userID int64) ([]Project, error) {
@@ -1127,10 +1181,7 @@ func (m *Manager) ListProjectsFiltered(userID int64, includeAll bool, query stri
 	}
 
 	listQuery := fmt.Sprintf(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+		SELECT `+projectColumns+`
 		FROM projects
 		WHERE %s
 		ORDER BY created_at DESC
@@ -1155,10 +1206,7 @@ func (m *Manager) GetProject(id, userID int64) (*Project, error) {
 		return nil, fmt.Errorf("database not connected")
 	}
 	row := m.db.QueryRow(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+		SELECT `+projectColumns+`
 		FROM projects WHERE id = $1 AND user_id = $2
 	`, id, userID)
 	return scanProject(row)
@@ -1168,19 +1216,12 @@ func (m *Manager) CreateProject(userID int64, name, slug, description, projectTy
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
-	var p Project
-	err := m.db.QueryRow(`
+	row := m.db.QueryRow(`
 		INSERT INTO projects (user_id, name, slug, description, project_type, repo_url, working_dir, spa_fallback, assigned_port)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, userID, name, slug, description, projectType, repoURL, workingDir, spaFallback, assignedPort).Scan(
-		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
-	)
-	return &p, err
+		RETURNING `+projectColumns+`
+	`, userID, name, slug, description, projectType, repoURL, workingDir, spaFallback, assignedPort)
+	return scanProject(row)
 }
 
 func (m *Manager) UpdateProjectStatus(id int64, status string) error {
@@ -1195,20 +1236,34 @@ func (m *Manager) UpdateProject(id, userID int64, name, description, projectType
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
-	var p Project
-	err := m.db.QueryRow(`
+	row := m.db.QueryRow(`
 		UPDATE projects
 		SET name = $3, description = $4, project_type = $5, repo_url = $6, working_dir = $7, spa_fallback = $8, updated_at = NOW()
 		WHERE id = $1 AND user_id = $2
-		RETURNING id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
-	`, id, userID, name, description, projectType, repoURL, workingDir, spaFallback).Scan(
-		&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType,
-		&p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt,
-	)
-	return &p, err
+		RETURNING `+projectColumns+`
+	`, id, userID, name, description, projectType, repoURL, workingDir, spaFallback)
+	return scanProject(row)
+}
+
+// UpdateProjectRun saves how a project runs
+func (m *Manager) UpdateProjectRun(id, userID int64, run ProjectRun) (*Project, error) {
+	if !m.IsConnected() {
+		return nil, fmt.Errorf("database not connected")
+	}
+	if run.Services == nil {
+		run.Services = []ProjectService{}
+	}
+	// the variables are stored only encrypted
+	run.Env = nil
+	raw, err := json.Marshal(run)
+	if err != nil {
+		return nil, err
+	}
+	row := m.db.QueryRow(`
+		UPDATE projects SET run_config = $3::jsonb, updated_at = NOW() WHERE id = $1 AND user_id = $2
+		RETURNING `+projectColumns+`
+	`, id, userID, string(raw))
+	return scanProject(row)
 }
 
 func (m *Manager) DeleteProject(id, userID int64) error {
@@ -2142,10 +2197,12 @@ func scanUserFromRows(rows *sql.Rows) (*User, error) {
 
 func scanProject(row rowScanner) (*Project, error) {
 	var p Project
-	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt)
+	var run []byte
+	err := row.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt, &run)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
+	p.Run = decodeProjectRun(run)
 	return &p, err
 }
 
@@ -2153,9 +2210,11 @@ func scanProjects(rows *sql.Rows) ([]Project, error) {
 	result := make([]Project, 0)
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		var run []byte
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Slug, &p.Description, &p.Status, &p.ProjectType, &p.RepoURL, &p.WorkingDir, &p.SPAFallback, &p.ExposedPort, &p.AssignedPort, &p.CreatedAt, &p.UpdatedAt, &run); err != nil {
 			return nil, err
 		}
+		p.Run = decodeProjectRun(run)
 		result = append(result, p)
 	}
 	return result, rows.Err()

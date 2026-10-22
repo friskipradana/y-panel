@@ -101,7 +101,8 @@ func RuntimeEnv(port int) []string {
 		"LANG=C.UTF-8",
 		fmt.Sprintf("PORT=%d", port),
 	}
-	for _, key := range []string{"TZ", "LC_ALL", "TMPDIR"} {
+	// SystemRoot, TEMP and TMP: a program on Windows (the panel is run there only for development) does not start without them
+	for _, key := range []string{"TZ", "LC_ALL", "TMPDIR", "SYSTEMROOT", "TEMP", "TMP"} {
 		if value := os.Getenv(key); value != "" {
 			env = append(env, key+"="+value)
 		}

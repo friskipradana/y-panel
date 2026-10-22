@@ -115,10 +115,7 @@ func (m *Manager) ListProjectsForOwners(ownerIDs []int64, query string, limit, o
 		return nil, 0, err
 	}
 	rows, err := m.db.Query(`
-		SELECT id, user_id, name, slug, COALESCE(description,''), status, project_type,
-			COALESCE(repo_url,''), COALESCE(working_dir,''),
-			COALESCE(spa_fallback, true),
-			COALESCE(exposed_port,0), COALESCE(assigned_port,0), created_at, updated_at
+		SELECT `+projectColumns+`
 		FROM projects WHERE `+where+` ORDER BY created_at DESC LIMIT $4 OFFSET $5
 	`, pq.Array(ownerIDs), query, search, limit, offset)
 	if err != nil {

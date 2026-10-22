@@ -7,6 +7,8 @@ import {
   deleteProject,
   startProject,
   stopProject,
+  rebuildProject,
+  getProject,
   uploadStaticProjectBuild,
   type Project,
 } from '@/api/agent'
@@ -18,6 +20,7 @@ import { useListQuery } from '@/hooks/useListQuery'
 import { listQueryKey } from '@/lib/listQuery'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
+import { EMPTY_RUN, runFromProject, runPayload, type RunForm } from './projectRun'
 import {
   LIST_LIMIT,
   type StaticUploadState,
@@ -29,7 +32,12 @@ export interface ProjectsWindowProps {
   win?: WindowState
 }
 
-const EMPTY_FORM = { name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true }
+const EMPTY_FORM = { name: '', description: '', projectType: 'nodejs', repoUrl: '', workingDir: '', spaFallback: true, run: EMPTY_RUN as RunForm }
+
+type ProjectForm = typeof EMPTY_FORM
+
+// What the form holds, as the agent takes it: the way of running is sent in its own shape
+export const formPayload = (form: ProjectForm) => ({ name: form.name, description: form.description, projectType: form.projectType, repoUrl: form.repoUrl, workingDir: form.workingDir, spaFallback: form.spaFallback, run: runPayload(form.projectType, form.run) })
 
 const apiError = (e: unknown, fallback: string) => (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? fallback
 
@@ -43,7 +51,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   // the search, the order and the column filters; the agent applies them to the whole list
   const list = useListQuery()
   const { setFilter, setText } = list
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
   const uploadClearTimerRef = useRef<number | null>(null)
   const [staticUpload, setStaticUpload] = useState<StaticUploadState | null>(null)
   const [uploadDraft, setUploadDraft] = useState<UploadDraft | null>(null)
@@ -86,7 +94,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const refresh = () => qc.invalidateQueries({ queryKey: ['projects'] })
 
   const createMut = useMutation({
-    mutationFn: createProject,
+    mutationFn: (payload: ProjectForm) => createProject(formPayload(payload)),
     onSuccess: (p) => {
       toast.success(t('projects.createdTitle'), { description: t('projects.createdMessage', { name: p.name, port: p.assignedPort }) })
       void refresh()
@@ -110,6 +118,16 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     onError: (e) => alertLib.fire(t('projects.startFailedTitle'), apiError(e, t('projects.startFailedMessage')), 'error', 'projects'),
   })
 
+  const rebuildMut = useMutation({
+    mutationFn: rebuildProject,
+    onSuccess: (result) => {
+      if (result.status === 'building') toast.info(t('projects.rebuildingTitle'), { description: t('projects.rebuildingMessage') })
+      else toast.success(t('projects.rebuiltTitle'), { description: t('projects.rebuiltMessage') })
+      void refresh()
+    },
+    onError: (e) => alertLib.fire(t('projects.rebuildFailedTitle'), apiError(e, t('projects.rebuildFailedMessage')), 'error', 'projects'),
+  })
+
   const stopMut = useMutation({
     mutationFn: stopProject,
     onSuccess: () => {
@@ -129,7 +147,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   })
 
   const updateMut = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: typeof form }) => updateProject(id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: ProjectForm }) => updateProject(id, formPayload(payload)),
     onSuccess: (p) => {
       toast.success(t('projects.updatedTitle'), { description: t('projects.updatedMessage', { name: p.name }) })
       void refresh()
@@ -254,7 +272,12 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
       repoUrl: project.repoUrl,
       workingDir: project.workingDir,
       spaFallback: project.spaFallback ?? true,
+      run: runFromProject(project.run),
     })
+    // the list hides the values of the variables; the project read on its own has them
+    void getProject(project.id)
+      .then((full) => setForm((current) => (current.name === project.name ? { ...current, run: runFromProject(full.run) } : current)))
+      .catch(() => undefined)
   }
 
   const submitStaticUpload = () => {
@@ -303,6 +326,7 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     createMut,
     startMut,
     stopMut,
+    rebuildMut,
     deleteMut,
     updateMut,
     uploadStaticMut,

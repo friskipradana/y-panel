@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Textarea } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { ProjectRunFields } from './ProjectRunFields'
+import { ProjectServicesEditor } from './ProjectServicesEditor'
+import { EMPTY_SERVICE } from './projectRun'
 
 // One dialog for a new project and for editing one: pick what it runs as, then only the fields that type uses
 export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
@@ -33,7 +36,7 @@ export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
       onClose={close}
       title={editingProject ? t('projects.editProject') : t('projects.newProject')}
       icon={<FolderCode />}
-      width={520}
+      width={640}
       footer={
         <>
           <Button type="button" onClick={close} variant="ghost">{t('common.cancel')}</Button>
@@ -56,14 +59,21 @@ export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
         </Field>
 
         <Field label={t('projects.runtimeType')} hint={PROJECT_TYPES.includes(form.projectType) ? t(`projects.typeHint.${form.projectType}`) : undefined}>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5" role="radiogroup" aria-label={t('projects.runtimeType')}>
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6" role="radiogroup" aria-label={t('projects.runtimeType')}>
             {types.map((type) => (
               <button
                 key={type}
                 type="button"
                 role="radio"
                 aria-checked={form.projectType === type}
-                onClick={() => setForm((f) => ({ ...f, projectType: type }))}
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    projectType: type,
+                    // a project of several processes starts with the two that most are: a frontend and a backend
+                    run: type === 'stack' && f.run.services.length === 0 ? { ...f.run, services: [{ ...EMPTY_SERVICE, name: 'web', path: '/' }, { ...EMPTY_SERVICE, name: 'api', path: '/api' }] } : f.run,
+                  }))
+                }
                 className={['panel-btn justify-center gap-1.5 px-2 text-[12px] font-medium shadow-none', form.projectType === type ? 'panel-btn--primary-soft' : 'panel-btn--ghost'].join(' ')}
               >
                 {TYPE_ICON[type]}
@@ -93,6 +103,12 @@ export function ProjectFormModal({ pw }: { pw: ProjectsWindowState }) {
             />
           </Field>
         ) : null}
+
+        {form.projectType === 'stack' ? (
+          <ProjectServicesEditor services={form.run.services} onChange={(services) => setForm((f) => ({ ...f, run: { ...f.run, services } }))} />
+        ) : null}
+
+        <ProjectRunFields projectType={form.projectType} run={form.run} onChange={(run) => setForm((f) => ({ ...f, run }))} />
 
         <Field label={t('projects.workingDir')} htmlFor="project-dir" hint={t('projects.workingDirHelp')}>
           <TextInput
