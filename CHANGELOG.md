@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.61.0] - 2026-10-22
+
+A promo price on a plan until a date, for new orders, renewals or both, optionally exclusive of vouchers and other discounts.
+
+### Fitur baru
+- **hosting:** A promo price on a plan until a date, for new orders, renewals or both, optionally exclusive of vouchers and other discounts ([`fdfad8e`](https://github.com/friskipradana/y-panel/commit/fdfad8e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.60.0...v1.61.0
+
 ## [1.60.0] - 2026-10-22
 
 Reneo seed-plans, and the CLI and the agent maintenance commands are for root and superadmin only.
