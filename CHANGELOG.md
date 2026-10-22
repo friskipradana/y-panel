@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.65.0] - 2026-10-22
+
+Own install, build and start commands (Node, Bun, pnpm, Yarn), encrypted variables, rebuild, and a Fullstack type of several processes on one address.
+
+### Fitur baru
+- **projects:** Own install, build and start commands (Node, Bun, pnpm, Yarn), encrypted variables, rebuild, and a Fullstack type of several processes on one address ([`7b4e41a`](https://github.com/friskipradana/y-panel/commit/7b4e41a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.64.1...v1.65.0
+
 ## [1.64.1] - 2026-10-22
 
 Download from the File Manager no longer goes to /undefined/api, and the project upload has a real file picker.
