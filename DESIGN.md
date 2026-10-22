@@ -109,8 +109,7 @@ Pakai mono untuk: terminal, log, IP, port, path, hash, nama container, cron, per
 | Taskbar | tinggi 44px, `z-index: 60000`, `blur(20px)`, border bawah |
 | Window header | min-height 40px, padding `6px 14px`, tombol kontrol 28x28, radius 6 |
 | Window body | padding `12px 14px`, stack gap 12 |
-| Tombol `.panel-btn` | radius 7, min 28px, font `0.75rem/600` |
-| Field `.panel-input` | radius 14, min-height 44, padding `10px 14px` |
+| Kontrol (tombol, field, select, pencarian) | satu ukuran dari token `--control-h` 32px (`-sm` 28, `-lg` 40), radius `--control-radius` 8px, teks `--control-font` 0.75rem; sama dengan bar window Docker. Tombol `.panel-btn` font 600; field `.panel-input` tidak berubah ukuran saat fokus (hanya border dan latar). Di ponsel (`.layout-mobile`) field dan select 40px, tombol 36px |
 | Card / table container | radius 14, border 1px `--win-border`, surface `--panel-surface` |
 | KPI card | radius 18, padding 14 |
 | Modal card | radius 24, padding 24, lebar maks 460, `--panel-card-shadow` |

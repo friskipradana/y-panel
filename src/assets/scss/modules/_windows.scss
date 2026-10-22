@@ -148,17 +148,24 @@
 .panel-input,
 .panel-select,
 .panel-textarea {
+  box-sizing: border-box;
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--control-radius);
   border: 1px solid var(--win-border);
-  background: var(--panel-field-bg);
+  background: var(--panel-surface-strong);
   color: var(--win-text);
-  padding: 8px 12px;
-  min-height: 40px;
-  font-size: 0.875rem;
+  padding: 0 12px;
+  min-height: var(--control-h);
+  font-size: var(--control-font);
   line-height: 1.5;
   outline: none;
-  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.panel-textarea {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  min-height: 4.5rem;
 }
 
 .panel-input:hover:not(:disabled),
@@ -180,17 +187,12 @@
   opacity: 0.92;
 }
 
+// A field keeps its size on focus: only the border and the background change, as in the search of the Docker bar
 .panel-input:focus,
 .panel-select:focus,
 .panel-textarea:focus {
   background: var(--panel-field-focus);
-  border-color: var(--panel-primary-text);
-}
-
-.panel-input:focus-visible,
-.panel-select:focus-visible,
-.panel-textarea:focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 20%, transparent);
+  border-color: var(--focus-ring);
 }
 
 select,
@@ -221,15 +223,16 @@ select optgroup,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border-radius: 8px;
+  gap: 6px;
+  box-sizing: border-box;
+  border-radius: var(--control-radius);
   border: 1px solid var(--win-border);
-  background: var(--panel-surface);
+  background: var(--panel-surface-strong);
   color: var(--win-text);
-  padding: 5px 12px;
-  min-width: 30px;
-  min-height: 32px;
-  font-size: 0.8125rem;
+  padding: 0 12px;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  font-size: var(--control-font);
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
@@ -248,7 +251,7 @@ button:focus-visible,
 }
 
 .panel-btn:hover:not(:disabled) {
-  background: var(--panel-surface-hover);
+  background: var(--tb-hover);
 }
 
 .panel-btn:disabled {
@@ -328,7 +331,7 @@ button:focus-visible,
   min-height: 28px;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: var(--control-radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
@@ -501,16 +504,15 @@ button:focus-visible,
 
 // Ukuran tombol
 .panel-btn--sm {
-  min-height: 28px;
-  padding: 3px 9px;
-  font-size: 0.75rem;
+  min-height: var(--control-h-sm);
+  min-width: var(--control-h-sm);
+  padding: 0 9px;
 }
 
 .panel-btn--lg {
-  min-height: 40px;
-  padding: 8px 16px;
-  font-size: 0.875rem;
-  border-radius: 10px;
+  min-height: var(--control-h-lg);
+  padding: 0 16px;
+  font-size: 0.8125rem;
 }
 
 .panel-btn--block {
@@ -881,18 +883,23 @@ button:focus-visible,
 .panel-search {
   display: flex;
   flex: 1;
+  box-sizing: border-box;
   min-width: min(100%, 340px);
+  height: var(--control-h);
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 0 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
   color: color-mix(in srgb, var(--win-text) 76%, var(--text-secondary));
-  border-bottom: 1px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
-  transition: border-color 140ms ease, color 140ms ease;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
 .panel-search:focus-within {
   color: var(--win-text);
-  border-bottom-color: color-mix(in srgb, var(--panel-primary-text) 58%, transparent);
+  border-color: var(--focus-ring);
+  background: var(--win-bar);
 }
 
 .panel-search__input {
@@ -901,7 +908,7 @@ button:focus-visible,
   border: none;
   background: transparent;
   color: var(--win-text);
-  font-size: 0.8125rem;
+  font-size: var(--control-font);
   font-weight: 520;
   line-height: 1.5;
   outline: none;
@@ -1450,8 +1457,18 @@ button:focus-visible,
   }
 }
 
-// Phones: buttons of the kit are a finger wide
+// Phones: buttons and fields of the kit are a finger tall
 .layout-mobile {
+  .panel-input,
+  .panel-select,
+  .docker-image-combobox__button {
+    min-height: var(--control-h-lg);
+  }
+
+  .panel-search {
+    height: var(--control-h-lg);
+  }
+
   .panel-btn {
     min-height: 36px;
   }

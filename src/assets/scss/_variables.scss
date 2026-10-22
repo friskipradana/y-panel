@@ -1,6 +1,12 @@
 // Design Tokens & Variables
 
 :root {
+  // Controls: every button, field and select of the kit has this height, radius and text size, as in the bars of the Docker window
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --control-h-lg: 40px;
+  --control-radius: 8px;
+  --control-font: 0.75rem;
   --sand: #cfc4a6;
   --sand-dark: #b5a882;
   --sand-400: #8a7f68;

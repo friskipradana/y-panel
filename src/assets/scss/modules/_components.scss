@@ -394,20 +394,21 @@
 }
 
 .docker-image-combobox__input {
-  padding-right: 44px !important;
+  padding-right: 34px !important;
   width: 100%;
 }
 
 // room for the clear button as well as the arrow
 .docker-image-combobox__input--clearable {
-  padding-right: 82px !important;
+  padding-right: 62px !important;
 }
 
 .docker-image-combobox__button {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  min-height: 40px;
+  min-height: var(--control-h);
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }
@@ -433,38 +434,15 @@
   color: var(--text-secondary);
 }
 
-.docker-image-combobox--sm .docker-image-combobox__button {
-  min-height: 32px;
-  height: 32px;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 12px;
-  border-radius: 8px;
-  background: var(--panel-surface-strong);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.docker-image-combobox--sm .docker-image-combobox__input {
-  padding-right: 34px !important;
-}
-
-.docker-image-combobox--sm .docker-image-combobox__toggle {
-  right: 3px;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-}
-
 .docker-image-combobox__clear {
   position: absolute;
-  right: 46px;
+  right: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -479,13 +457,13 @@
 
 .docker-image-combobox__toggle {
   position: absolute;
-  right: 8px;
+  right: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
