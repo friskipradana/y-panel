@@ -864,7 +864,7 @@ func (s *Server) matchHostingOrderPayment(amountDetected string, notifID int64, 
 	// the superadmin may want to see every payment before an account is switched on
 	if auto, _ := s.database.GetPaymentSettingValue("auto_confirm"); auto != "true" {
 		if _, err := s.database.SetOrderStatus(order.ID, database.OrderReview, "pembayaran cocok, menunggu konfirmasi"); err == nil {
-			s.notifyAllAdmins("Pembayaran cocok, perlu konfirmasi", fmt.Sprintf("Pesanan #%d (%s, Rp %d) cocok dengan notifikasi. Konfirmasi di tab Hosting.", order.ID, order.Username, total), "info")
+			s.notifyAllAdmins("Pembayaran cocok, perlu konfirmasi", fmt.Sprintf("Pesanan #%d (%s, Rp %d) cocok dengan notifikasi. Konfirmasi di jendela Hosting.", order.ID, order.Username, total), "info")
 			s.emitOrderReview(order.ID, order.Username, notify.Localized{"id": fmt.Sprintf("transfer %s cocok dengan notifikasi bank dan menunggu konfirmasi Anda.", rupiah(total)), "en": fmt.Sprintf("a transfer of %s matches a bank notification and waits for your confirmation.", rupiah(total))})
 		}
 		return

@@ -91,7 +91,7 @@ func Variables(event string) []string {
 	return out
 }
 
-// A lone ">" is plain text (the menus are written "Settings > Hosting"); a "<" has to start one of the allowed tags
+// A lone ">" is plain text (the menus are written "Settings > Security"); a "<" has to start one of the allowed tags
 var tagRe = regexp.MustCompile(`</?[A-Za-z][^>]*>|<`)
 
 // ValidateTemplate says what is wrong with a text the seller wrote, or nil when it can be saved

@@ -27,6 +27,7 @@ const DEFAULTS: Record<
   profile: { title: "Profile & Integrasi", width: 500, height: 560, singleton: true },
   widgets: { title: "Widgets", width: 760, height: 620, singleton: true },
   speedtest: { title: "Speed Test", width: 780, height: 640, singleton: true },
+  hosting: { title: "Hosting", width: 920, height: 640, singleton: true },
 };
 
 // Z-index tiers

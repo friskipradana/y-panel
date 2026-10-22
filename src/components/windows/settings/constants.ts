@@ -61,7 +61,6 @@ export const PRESET_DNS = [
 
 export type SettingsTabKey =
   | "general"
-  | "hosting"
   | "appearance"
   | "wallpaper"
   | "desktop"
@@ -71,7 +70,6 @@ export type SettingsTabKey =
   | "network"
   | "public_ip"
   | "security"
-  | "payment"
   | "notifications"
   | "audit"
   | "api_tokens"
@@ -79,13 +77,11 @@ export type SettingsTabKey =
   | "reneo_runtime";
 
 // The tabs an account may open: the superadmin all of them, everyone else only their own area
-// (host settings, audit, the panel's database and the hosting tab stay with the superadmin)
+// (host settings, audit and the panel's database stay with the superadmin)
 const OWN_TABS: SettingsTabKey[] = ["appearance", "wallpaper", "desktop", "screensaver", "sound", "cloudflare", "security", "api_tokens"];
 
 export function settingsTabAllowed(key: SettingsTabKey, role?: string | null): boolean {
   if (role === "superadmin") return true;
-  // the bank notification reader (inside Payments) is also for admins; the gateways stay with the superadmin
-  if (key === "payment") return role === "admin";
   // every account may link its own Telegram and WhatsApp; the demo account only looks
   if (key === "notifications") return role !== "demo";
   return OWN_TABS.includes(key);
@@ -94,7 +90,6 @@ export function settingsTabAllowed(key: SettingsTabKey, role?: string | null): b
 // i18n key of the title of a tab
 export const SETTINGS_TAB_TITLE: Record<SettingsTabKey, string> = {
   general: "settings.tabs.general",
-  hosting: "settings.tabs.hosting",
   appearance: "settings.tabs.appearance",
   wallpaper: "settings.tabs.wallpaper",
   desktop: "settings.tabs.desktop",
@@ -104,7 +99,6 @@ export const SETTINGS_TAB_TITLE: Record<SettingsTabKey, string> = {
   network: "settings.tabs.network",
   public_ip: "settings.tabs.publicIp",
   security: "settings.tabs.security",
-  payment: "settings.tabs.payment",
   notifications: "settings.tabs.notifications",
   audit: "settings.tabs.audit",
   api_tokens: "settings.tabs.apiTokens",

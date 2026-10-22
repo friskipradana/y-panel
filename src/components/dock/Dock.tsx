@@ -24,6 +24,7 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'docs', label: 'Docs' },
   { kind: 'widgets', label: 'Widgets' },
   { kind: 'speedtest', label: 'Speed Test' },
+  { kind: 'hosting', label: 'Hosting' },
   { kind: 'changelog', label: 'Changelog' },
 ]
 
@@ -77,6 +78,7 @@ export function Dock() {
       profile: [],
       widgets: [],
       speedtest: [],
+      hosting: [],
     })
   }, [windows])
 

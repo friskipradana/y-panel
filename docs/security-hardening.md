@@ -182,7 +182,7 @@ Perilaku:
 
 ## Situs Publik dan Mode Hosting
 
-Tiga saklar superadmin (Settings > General dan Settings > Hosting) disimpan di `site-settings.json` pada state directory:
+Tiga saklar superadmin (Settings > General dan jendela Hosting) disimpan di `site-settings.json` pada state directory:
 
 - **Landing page mati:** tidak ada halaman publik. `/` mengarah ke `/login` (atau `/home` bila sudah masuk), `/articles`, `/install`, `/docs/mcp`, sitemap dan llms.txt menjawab 404, dan data publik (`/api/v1/public/docs`, `doc-images`, `contributors`) ikut 404. Yang tetap terbuka: `/login`, `/robots.txt` (menutup semua crawler), endpoint MCP, dan `GET /api/v1/public/site`.
 - **Indeksing mati:** `robots.txt` berisi `Disallow: /`, sitemap dan llms.txt 404, setiap halaman berheader `X-Robots-Tag: noindex, nofollow`.

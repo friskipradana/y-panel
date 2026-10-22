@@ -13,6 +13,7 @@ const ChangelogWindow = lazyNamed(() => import('@/components/windows/ChangelogWi
 const SystemLogsWindow = lazyNamed(() => import('@/components/windows/SystemLogsWindow'), 'SystemLogsWindow')
 const HostTerminalWindow = lazyNamed(() => import('@/components/windows/HostTerminalWindow'), 'HostTerminalWindow')
 const DocsWindow = lazyDefault(() => import('@/components/windows/DocsWindow'))
+const HostingWindow = lazyNamed(() => import('@/components/windows/HostingWindow'), 'HostingWindow')
 const FileManagerWindow = lazyNamed(() => import('@/components/windows/FileManagerWindow'), 'FileManagerWindow')
 const FileEditorWindow = lazyNamed(() => import('@/components/windows/FileEditorWindow'), 'FileEditorWindow')
 const UsersWindow = lazyDefault(() => import('@/components/windows/UsersWindow'))
@@ -35,6 +36,8 @@ const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'database', '
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)
+  // selling hosting is the superadmin's; the bank notification reader in the payments part is also for admins (the window shows an admin only that part)
+  if (kind === 'hosting') return role === 'superadmin' || role === 'admin'
   if (SUPERADMIN_ONLY_WINDOW_KINDS.has(kind)) return role === 'superadmin'
   if (role === 'admin' || role === 'superadmin') return true
   return !ADMIN_ONLY_WINDOW_KINDS.has(kind)
@@ -95,6 +98,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   profile: () => <ProfileWindow />,
   widgets: () => <WidgetsWindow />,
   speedtest: () => <SpeedtestWindow />,
+  hosting: (win, auth) => <HostingWindow win={win} authenticated={auth} />,
 }
 
 
@@ -109,6 +113,7 @@ export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKin
   { id: 'system', label: 'System', windowId: 'system' },
   { id: 'speedtest', label: 'Speed Test', windowId: 'speedtest' },
   { id: 'users', label: 'Users', windowId: 'users' },
+  { id: 'hosting', label: 'Hosting', windowId: 'hosting' },
   { id: 'settings', label: 'Settings', windowId: 'settings' },
   { id: 'docs', label: 'Docs', windowId: 'docs' },
 ]

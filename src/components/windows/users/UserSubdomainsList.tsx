@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n'
 
 const TONE: Record<SubdomainStatus, 'success' | 'warning' | 'danger' | 'neutral'> = { active: 'success', pending: 'warning', error: 'danger', suspended: 'neutral' }
 
-// The subdomains an account holds, read-only; the Subdomains card in Settings > Hosting manages them
+// The subdomains an account holds, read-only; the Subdomains card in the Hosting window manages them
 export function UserSubdomainsList({ userId }: { userId: number }) {
   const { t } = useI18n()
   const all = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, staleTime: 15_000, retry: 0 })

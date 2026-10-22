@@ -68,7 +68,6 @@ const WIDGET_ICON: Record<WidgetType, typeof Clock> = {
 // Words that find a settings tab besides its title
 const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   general: ['host', 'hostname', 'timezone', 'zona waktu', 'dns', 'update', 'pembaruan', 'bahasa', 'landing', 'indeksing', 'seo', 'robots'],
-  hosting: ['hosting', 'paket', 'plan', 'harga', 'demo', 'domain', 'subdomain', 'pesan', 'masa tenggang'],
   appearance: ['tema', 'theme', 'gelap', 'terang', 'dark', 'light', 'font', 'huruf', 'ukuran'],
   wallpaper: ['wallpaper', 'latar', 'background', 'gambar'],
   desktop: ['desktop', 'ikon', 'icon', 'taskbar'],
@@ -78,7 +77,6 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   network: ['jaringan', 'port', 'origin', 'host'],
   public_ip: ['ip publik', 'public ip', 'domain', 'sertifikat', 'certificate', 'https', 'letsencrypt', 'proxy', 'port forward', 'tanpa tunnel'],
   security: ['kata sandi', 'password', 'keamanan', 'database'],
-  payment: ['pembayaran', 'gateway', 'midtrans', 'xendit', 'notifikasi', 'listener', 'pembaca', 'perangkat', 'device', 'transfer', 'bank', 'wimboro'],
   notifications: ['notifikasi', 'telegram', 'kabar', 'peringatan', 'serangan', 'antrian', 'whatsapp'],
   audit: ['audit', 'riwayat', 'log'],
   api_tokens: ['token', 'api', 'mcp', 'integrasi'],

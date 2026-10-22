@@ -14,7 +14,7 @@ Perkiraan waktu: 45 menit, ditambah menunggu DNS dan sertifikat (biasanya bebera
 | Domain kedua | Untuk uji domain sendiri (bagian 7). Boleh di penyedia DNS mana pun. |
 | Reneo versi terbaru | Migrasi database harus sampai versi 20. Cek dengan `bun run db:migrate:status` (atau `panel-agent migrate status`); bila belum, jalankan `migrate up`. |
 | Rekening untuk transfer uji | Dengan jumlah kecil. Pesanan termurah cukup, mis. paket Rp 10.000. |
-| Pembaca notifikasi bank (opsional) | Aplikasi listener Android yang terdaftar di Pengaturan > Pembayaran. Tanpanya, pakai cara simulasi di bagian 5. |
+| Pembaca notifikasi bank (opsional) | Aplikasi listener Android yang terdaftar di jendela Hosting > Pembayaran. Tanpanya, pakai cara simulasi di bagian 5. |
 | Dua peramban atau satu jendela samaran | Satu untuk superadmin, satu untuk pembeli. |
 
 ## 1. Token Cloudflare dan izinnya
@@ -56,7 +56,7 @@ Hanya untuk domain sendiri (bagian 7). Boleh dilewati kalau fitur itu belum dico
 
 ## 3. Menyiapkan penjualan di panel superadmin
 
-Semua di Pengaturan > Hosting. Kartu "Siap dijual" di atas halaman menunjukkan apa yang masih kurang; selesaikan sampai tidak ada yang wajib tersisa.
+Semua di jendela Hosting. Kartu "Siap dijual" di atas halaman menunjukkan apa yang masih kurang; selesaikan sampai tidak ada yang wajib tersisa.
 
 1. Nyalakan **Mode hosting**. Tiga paket contoh dibuat sekali.
 2. Tab **Domain**: pilih domain cadangan dan tawarkan. Harapan: domain muncul di daftar "ditawarkan".
@@ -86,13 +86,13 @@ Dengan peramban kedua (belum masuk).
    - Total tepat (harga ditambah kode unik), bank, nomor rekening, atas nama, masing-masing bisa disalin.
    - Hitung mundur berjalan.
 5. Coba masuk di `/login` dengan akun baru. Harapan: ditolak dengan pesan akun menunggu pembayaran (bukan "kata sandi salah").
-6. Sebagai superadmin: Pengaturan > Hosting > **Pesanan**.
+6. Sebagai superadmin: jendela Hosting > **Pesanan**.
    - Pesanan tampil dengan status "Menunggu bayar".
    - Notifikasi "Pesanan hosting baru" masuk ke lonceng.
 7. Transfer **jumlah persis** dari halaman pesanan, lalu tekan konfirmasi (centang) di tab Pesanan.
 8. Harapan:
    - Halaman pesanan milik pembeli berganti ke "Akun aktif" sendiri dalam beberapa detik, menampilkan alamat panel.
-   - Subdomain muncul di Pengaturan > Hosting > Alamat panel dengan status "Menunggu", lalu "Aktif" dalam beberapa menit.
+   - Subdomain muncul di jendela Hosting > Alamat panel dengan status "Menunggu", lalu "Aktif" dalam beberapa menit.
    - Cloudflare: record CNAME `nama.domain` proxied menuju `<id>.cfargotunnel.com`, dan tunnel `reneo-hosting` dibuat.
    - Pembeli punya notifikasi "Akun aktif" di panel yang menyebut alamat masuknya.
 9. Buka `https://nama.domain/login` dan masuk sebagai pembeli. Harapan: panel pembeli terbuka dan kuotanya sesuai paket.
@@ -102,10 +102,10 @@ Bila alamat tidak terbuka, lihat bagian 8.
 
 ## 5. Pembayaran otomatis
 
-1. Pengaturan > Hosting > Pembayaran: nyalakan "Aktifkan otomatis saat transfer cocok".
+1. jendela Hosting > Rekening: nyalakan "Aktifkan otomatis saat transfer cocok".
 2. Buat pesanan baru seperti bagian 4 (nama subdomain berbeda).
 3. Transfer jumlah persis. Dua cara agar notifikasinya sampai ke Reneo:
-   - **Listener Android:** daftarkan perangkat di Pengaturan > Pembayaran. Aplikasi harus mengirim kolom jumlah (`amountDetected`); tanpa itu notifikasi tersimpan tetapi tidak dicocokkan.
+   - **Listener Android:** daftarkan perangkat di jendela Hosting > Pembayaran. Aplikasi harus mengirim kolom jumlah (`amountDetected`); tanpa itu notifikasi tersimpan tetapi tidak dicocokkan.
    - **Simulasi** (tanpa transfer asli), dengan kunci API perangkat yang sama:
 
      ```bash
@@ -129,7 +129,7 @@ Bila alamat tidak terbuka, lihat bagian 8.
 2. **Trial gratis:** di halaman utama, pilih "Coba gratis N hari" dengan nama pengguna baru.
    - Harapan: aktif seketika, subdomain dibuat, masa berlaku N hari.
    - Pesanan trial kedua dari alamat IP yang sama dalam sehari ditolak.
-   - Bila "Percobaan menunggu persetujuan" menyala di tab Pembayaran, trial masuk antrean Pesanan.
+   - Bila "Percobaan menunggu persetujuan" menyala di bagian Rekening, trial masuk antrean Pesanan.
 3. **Trial upgrade oleh admin:** Pengguna > buka akun > "Trial upgrade paket", pilih paket lebih besar dan jumlah hari.
    - Selama trial: kuota dan batas subdomain mengikuti paket trial; baris akun menampilkan "Trial ... sampai ...".
    - "Akhiri trial": akun kembali ke paketnya dan masa berlakunya bertambah sebanyak waktu trial yang terpakai.
@@ -140,7 +140,7 @@ Bila alamat tidak terbuka, lihat bagian 8.
 
 Syarat: bagian 1 dan 2 selesai, paket pembeli punya "Domain sendiri" minimal 1.
 
-1. Superadmin: Pengaturan > Hosting > **Domain**, kartu "Domain sendiri milik pembeli".
+1. Superadmin: jendela Hosting > **Domain**, kartu "Domain sendiri milik pembeli".
    - Pilih domain cadangan, tekan **Siapkan**.
    - Harapan: lencana "Siap" dan teks "Alamat tujuan CNAME pembeli: cname.<domain>".
    - Cloudflare: record `cname.<domain>` proxied menuju tunnel, dan fallback origin di SSL/TLS > Custom Hostnames menunjuk ke sana.
@@ -200,7 +200,7 @@ Perlu akun Meta Business dengan nomor terdaftar. Bagian ini diuji dengan Meta ti
 
 ### 8d. Alamat panel dan domain utama
 
-1. **Domain utama:** Pengaturan > Hosting > Domain. Domain pertama yang ditawarkan otomatis menjadi utama (lencana Utama). Dengan dua domain atau lebih, tombol "Jadikan utama" memindahkannya. Menghentikan penawaran domain utama menyerahkan tempatnya ke domain lain yang masih ditawarkan.
+1. **Domain utama:** jendela Hosting > Domain. Domain pertama yang ditawarkan otomatis menjadi utama (lencana Utama). Dengan dua domain atau lebih, tombol "Jadikan utama" memindahkannya. Menghentikan penawaran domain utama menyerahkan tempatnya ke domain lain yang masih ditawarkan.
 2. **Halaman depan:** setiap kartu paket menulis "alamat panel di <domain utama>" untuk semua paket, termasuk yang jatah subdomainnya 0. "N subdomain aplikasi" hanya muncul bila N lebih dari 0. Domain selain yang utama tidak tampil.
 3. **Pesan paket:** tekan Pesan di salah satu paket. Harapan: form terbuka lebih dulu. Dengan pemesanan mandiri mati, form meminta paket, alamat panel (dicek), nama, nomor WhatsApp, dan email; tombol Kirim membuka WhatsApp atau email dengan pesan yang sudah terisi, atau menyalin pesan bila tautan pemesanan kosong. Dengan pemesanan mandiri menyala, form yang sama meminta kata sandi dan membuat akun.
 4. **Jatah:** setelah lunas, alamat panel pembeli terlihat di jendela Cloudflare dengan lencana "Alamat panel", tanpa tombol hapus, dan tidak mengurangi "terpakai dari N". Paket Starter (1 subdomain) masih bisa membuat 1 subdomain untuk aplikasi.

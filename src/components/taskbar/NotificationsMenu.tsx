@@ -25,7 +25,6 @@ import { formatDateTimeID, parseDateTime } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
 import { soundManager } from '@/lib/sound'
 import { useWindowStore } from '@/store/windowStore'
-import { useSettingsNavStore } from '@/store/settingsNavStore'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconBadge, type UiTone } from '@/components/ui/IconBadge'
@@ -229,8 +228,7 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
 
   const handleOpenSettings = () => {
     setIsOpen(false)
-    useSettingsNavStore.getState().request('payment')
-    openWindow('settings')
+    openWindow('hosting', { view: 'payments', viewRequest: Date.now() })
   }
 
   return (

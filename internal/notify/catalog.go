@@ -17,28 +17,28 @@ var catalog = map[string]texts{
 		en: "<b>Test message delivered</b>\nThis channel is connected to Reneo. Panel notices arrive here according to the groups you chose in Settings > Notifications.",
 	},
 	EventOrderCreated: {
-		id: "<b>Pesanan baru #{order}</b>\nPembeli: {username}\nPaket: {plan}, {period}\nJenis: {kind}\nTotal: {amount}\nVoucher: {voucher}\nAlamat panel: {address}\n\nLihat di Pengaturan > Hosting > Pesanan.",
-		en: "<b>New order #{order}</b>\nBuyer: {username}\nPlan: {plan}, {period}\nKind: {kind}\nTotal: {amount}\nVoucher: {voucher}\nPanel address: {address}\n\nSee it in Settings > Hosting > Orders.",
+		id: "<b>Pesanan baru #{order}</b>\nPembeli: {username}\nPaket: {plan}, {period}\nJenis: {kind}\nTotal: {amount}\nVoucher: {voucher}\nAlamat panel: {address}\n\nLihat di Hosting > Pesanan.",
+		en: "<b>New order #{order}</b>\nBuyer: {username}\nPlan: {plan}, {period}\nKind: {kind}\nTotal: {amount}\nVoucher: {voucher}\nPanel address: {address}\n\nSee it in Hosting > Orders.",
 	},
 	EventOrderReview: {
-		id: "<b>Pesanan #{order} perlu diperiksa</b>\nPembeli: {username}\nAlasan: {reason}\n\nPutuskan di Pengaturan > Hosting > Pesanan.",
-		en: "<b>Order #{order} needs review</b>\nBuyer: {username}\nReason: {reason}\n\nDecide in Settings > Hosting > Orders.",
+		id: "<b>Pesanan #{order} perlu diperiksa</b>\nPembeli: {username}\nAlasan: {reason}\n\nPutuskan di Hosting > Pesanan.",
+		en: "<b>Order #{order} needs review</b>\nBuyer: {username}\nReason: {reason}\n\nDecide in Hosting > Orders.",
 	},
 	EventOrderPaid: {
 		id: "<b>Pesanan #{order} lunas</b>\nPembeli: {username}\nPaket: {plan}\nTotal: {amount}\nCara: {note}\n\nAkun dan paketnya sudah aktif.",
 		en: "<b>Order #{order} paid</b>\nBuyer: {username}\nPlan: {plan}\nTotal: {amount}\nHow: {note}\n\nThe account and its plan are active.",
 	},
 	EventOrderAttention: {
-		id: "<b>Pesanan perlu ditangani</b>\n{detail}\n\nBuka Pengaturan > Hosting > Pesanan.",
-		en: "<b>An order needs your attention</b>\n{detail}\n\nOpen Settings > Hosting > Orders.",
+		id: "<b>Pesanan perlu ditangani</b>\n{detail}\n\nBuka Hosting > Pesanan.",
+		en: "<b>An order needs your attention</b>\n{detail}\n\nOpen Hosting > Orders.",
 	},
 	EventPlanEnded: {
 		id: "<b>Paket pembeli berakhir</b>\nAkun: {username}\nPaket: {plan}\nStatus: akun ditangguhkan\n\nPembeli bisa memperpanjang dari Profil; Anda juga bisa memperpanjangkan di Pengaturan > Pengguna.",
 		en: "<b>A buyer plan ended</b>\nAccount: {username}\nPlan: {plan}\nStatus: the account is suspended\n\nThe buyer can renew from Profile; you can also renew it in Settings > Users.",
 	},
 	EventDomainError: {
-		id: "<b>Domain pembeli bermasalah</b>\nDomain: {hostname}\nPemilik: {username}\nMasalah: {note}\n\nPeriksa di Pengaturan > Hosting > Domain.",
-		en: "<b>A buyer domain has a problem</b>\nDomain: {hostname}\nOwner: {username}\nProblem: {note}\n\nCheck it in Settings > Hosting > Domains.",
+		id: "<b>Domain pembeli bermasalah</b>\nDomain: {hostname}\nPemilik: {username}\nMasalah: {note}\n\nPeriksa di Hosting > Domain.",
+		en: "<b>A buyer domain has a problem</b>\nDomain: {hostname}\nOwner: {username}\nProblem: {note}\n\nCheck it in Hosting > Domains.",
 	},
 	EventBuyerOrderCreated: {
 		id: "<b>Pesanan {plan} diterima</b>\nTerima kasih sudah memesan. Selesaikan pembayaran sebelum {deadline}.\n\nPaket: {plan}, {period}\nTotal transfer: {amount}\nTujuan: {bank} {account}\nAtas nama: {holder}\n\nTransfer harus persis {amount}, sampai angka terakhir, supaya pembayaran Anda terbaca otomatis. Bank atau e-wallet lain dan status pesanan ada di sini:\n{url}",

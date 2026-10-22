@@ -22,7 +22,7 @@ Langkah 3 adalah Cloudflare for SaaS, dan itulah yang perlu diaktifkan di akun A
 1. Buka dashboard Cloudflare, pilih zona yang akan menjadi tujuan CNAME.
 2. Buka **SSL/TLS > Custom Hostnames**.
 3. Aktifkan **Cloudflare for SaaS** di halaman itu. Cloudflare biasanya meminta metode pembayaran terdaftar. Menurut Cloudflare, paket Free, Pro, dan Business mendapat 100 custom hostname tanpa biaya, lalu ada tarif per hostname di atasnya. Tarif bisa berubah, jadi baca halaman harga Cloudflare sebelum memakainya untuk banyak pembeli.
-4. Kembali ke Reneo, buka **Pengaturan > Hosting > Domain**, pilih domain itu di "Domain milik pembeli", lalu tekan **Setup**. Reneo membuat `cname.<domain>` dan menetapkannya sebagai *fallback origin* di Cloudflare.
+4. Kembali ke Reneo, buka **jendela Hosting > Domain**, pilih domain itu di "Domain milik pembeli", lalu tekan **Setup**. Reneo membuat `cname.<domain>` dan menetapkannya sebagai *fallback origin* di Cloudflare.
 5. Tekan **Verify** di kartu token. Baris SSL and Certificates harus bercentang.
 
 ## Bila muncul error 1404 ("No quota has been allocated")

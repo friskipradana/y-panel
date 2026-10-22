@@ -4,13 +4,10 @@ import { ApiTokensTab } from "@/components/windows/settings/ApiTokensTab";
 import { useI18n } from "@/lib/i18n";
 import { useHostSettings } from "./settings/hooks/useHostSettings";
 import { useCloudflareSettings } from "./settings/hooks/useCloudflareSettings";
-import { usePaymentSettings } from "./settings/hooks/usePaymentSettings";
-import { useNotificationSettings } from "./settings/hooks/useNotificationSettings";
 import { settingsTabAllowed, type SettingsTabKey } from "./settings/constants";
 import { SETTINGS_GROUPS } from "./settings/tabsConfig";
 import { SettingsNav } from "./settings/SettingsNav";
 import { GeneralTab } from "./settings/tabs/GeneralTab";
-import { HostingTab } from "./settings/tabs/HostingTab";
 import { AppearanceTab } from "./settings/tabs/AppearanceTab";
 import { WallpaperTab } from "./settings/tabs/WallpaperTab";
 import { DesktopTab } from "./settings/tabs/DesktopTab";
@@ -20,7 +17,6 @@ import { CloudflareTab } from "./settings/tabs/CloudflareTab";
 import { NetworkTab } from "./settings/tabs/NetworkTab";
 import { PublicIpTab } from "./settings/tabs/PublicIpTab";
 import { SecurityTab } from "./settings/tabs/SecurityTab";
-import { PaymentTab } from "./settings/tabs/PaymentTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
 import { ReneoDatabaseTab } from "./settings/tabs/ReneoDatabaseTab";
@@ -39,7 +35,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n();
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const role = useAuthStore((s) => s.user?.role);
-  // host settings (hostname, DNS, ports, updates, payment, audit) belong to the superadmin
+  // host settings (hostname, DNS, ports, updates, audit) belong to the superadmin
   // the last tab stays across a refresh; a stored tab the account cannot see falls back below
   const [activeTab, setActiveTabState] = useState<SettingsTabKey>(() => {
     try {
@@ -61,8 +57,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
   const host = useHostSettings({ authenticated });
   const cloudflare = useCloudflareSettings();
-  const payment = usePaymentSettings({ authenticated });
-  const listener = useNotificationSettings({ authenticated });
 
   // the menu as this account sees it: groups of tabs, without what it may not open
   const groups = SETTINGS_GROUPS.map((group) => ({ ...group, tabs: group.tabs.filter((tab) => settingsTabAllowed(tab.key, role)) })).filter((group) => group.tabs.length > 0);
@@ -131,8 +125,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
             <>
               {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
 
-              {shownTab === "hosting" && isSuperadmin && <HostingTab />}
-
               {shownTab === "appearance" && <AppearanceTab />}
 
               {shownTab === "wallpaper" && <WallpaperTab />}
@@ -150,8 +142,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {shownTab === "public_ip" && isSuperadmin && <PublicIpTab />}
 
               {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
-
-              {shownTab === "payment" && <PaymentTab payment={payment} listener={listener} setActiveTab={setActiveTab} canManageGateways={isSuperadmin} />}
 
               {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab /> : <MyNotices />)}
 
