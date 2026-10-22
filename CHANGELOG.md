@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.59.0] - 2026-10-22
+
+Reneo status, start, logs, doctor, info, config and help.
+
+### Fitur baru
+- **cli:** Reneo status, start, logs, doctor, info, config and help ([`e13ba07`](https://github.com/friskipradana/y-panel/commit/e13ba07))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.58.0...v1.59.0
+
 ## [1.58.0] - 2026-10-22
 
 20 perubahan, utamanya add Modules component to landing page with responsive grid and swipe views.
