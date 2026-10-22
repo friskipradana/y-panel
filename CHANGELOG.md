@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.63.1] - 2026-10-22
+
+Hosting & Pembayaran has one side menu like Settings instead of two rows of tabs, and no sideways scroll.
+
+### Perbaikan
+- **ui:** Hosting & Pembayaran has one side menu like Settings instead of two rows of tabs, and no sideways scroll ([`f124a2f`](https://github.com/friskipradana/y-panel/commit/f124a2f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.63.0...v1.63.1
+
 ## [1.63.0] - 2026-10-22
 
 Hosting and Payments leave Settings and become one window, Hosting & Pembayaran.
