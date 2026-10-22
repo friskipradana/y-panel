@@ -2,6 +2,34 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.58.0] - 2026-10-22
+
+20 perubahan, utamanya add Modules component to landing page with responsive grid and swipe views.
+
+### Fitur baru
+- Add Modules component to landing page with responsive grid and swipe views ([`532b2f5`](https://github.com/friskipradana/y-panel/commit/532b2f5))
+- Add English and Indonesian localization files and Modules landing page component ([`8d23aab`](https://github.com/friskipradana/y-panel/commit/8d23aab))
+- Add Modules component to landing page with categorized feature lists ([`181102c`](https://github.com/friskipradana/y-panel/commit/181102c))
+- Add Modules component to landing page with categorized module lists and responsive tabs ([`1f9ff99`](https://github.com/friskipradana/y-panel/commit/1f9ff99))
+- Add Philosophy landing page component with interactive etymology cards ([`4cec6af`](https://github.com/friskipradana/y-panel/commit/4cec6af))
+- Add IsometricJourney component for interactive landing page roadmap timeline ([`28d6212`](https://github.com/friskipradana/y-panel/commit/28d6212))
+- Add IsometricJourney component for interactive landing page timeline visualization ([`61772ac`](https://github.com/friskipradana/y-panel/commit/61772ac))
+- Add IsometricJourney landing page component with interactive road map timeline ([`e24d549`](https://github.com/friskipradana/y-panel/commit/e24d549))
+- Add IsometricJourney component with responsive serpentine road timeline and milestone pins ([`a9c3a0f`](https://github.com/friskipradana/y-panel/commit/a9c3a0f))
+- Add IsometricJourney landing page timeline component ([`fea2ce3`](https://github.com/friskipradana/y-panel/commit/fea2ce3))
+- Add IsometricJourney and Background components for landing page roadmap UI ([`5ee2182`](https://github.com/friskipradana/y-panel/commit/5ee2182))
+- Add DesktopShowcase landing page component with interactive multi-window UI ([`f76e89c`](https://github.com/friskipradana/y-panel/commit/f76e89c))
+- Add DesktopShowcase landing component with interactive windows and responsive layouts ([`1dbb35b`](https://github.com/friskipradana/y-panel/commit/1dbb35b))
+- Add DesktopShowcase landing component with interactive window management UI ([`e4c9284`](https://github.com/friskipradana/y-panel/commit/e4c9284))
+- Add DesktopShowcase landing component with interactive window management UI ([`c850dba`](https://github.com/friskipradana/y-panel/commit/c850dba))
+- Add DesktopShowcase landing component with interactive windows ([`8f963f1`](https://github.com/friskipradana/y-panel/commit/8f963f1))
+- Add LandingPage component for public application entry and overview ([`80141fb`](https://github.com/friskipradana/y-panel/commit/80141fb))
+- Add landing page, copy block component, and tailwind configuration ([`7520cb3`](https://github.com/friskipradana/y-panel/commit/7520cb3))
+- Add CopyBlock component and LandingPage view ([`347f182`](https://github.com/friskipradana/y-panel/commit/347f182))
+- **locales,landing:** Add English and Indonesian locale files and Modules landing page component ([`488eb17`](https://github.com/friskipradana/y-panel/commit/488eb17))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.57.0...v1.58.0
+
 ## [1.57.0] - 2026-10-21
 
 A Terminal button in the File Manager opens a terminal in the open folder.
