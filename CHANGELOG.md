@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.63.0] - 2026-10-22
+
+Hosting and Payments leave Settings and become one window, Hosting & Pembayaran.
+
+### Fitur baru
+- **ui:** Hosting and Payments leave Settings and become one window, Hosting & Pembayaran ([`e2a1ac1`](https://github.com/friskipradana/y-panel/commit/e2a1ac1))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.62.1...v1.63.0
+
 ## [1.62.1] - 2026-10-22
 
 The outline button has the same background and hover as the buttons of the Docker bar.
