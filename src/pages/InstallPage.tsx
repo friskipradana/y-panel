@@ -12,7 +12,7 @@ const INSTALL_COMMAND = 'curl -fsSL https://install.reneo.my.id | sudo bash'
 export function InstallPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  usePageMeta(`${t('landing.guide.title')} | Reneo`, t('landing.guide.subtitle'))
+  usePageMeta(`${t('landing.guide.title')} | Reneo Panel`, t('landing.guide.subtitle'))
 
   return (
     <PublicShell>

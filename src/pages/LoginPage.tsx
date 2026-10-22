@@ -8,6 +8,7 @@ import { runtimeLogger } from '@/lib/runtimeLogger'
 import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 import { useThemeStore } from '@/store/themeStore'
+import { usePageMeta } from '@/hooks/usePageMeta'
 
 export interface LoginPageProps {
   onLoginSuccess: (user?: { username: string; role?: string }) => void
@@ -25,11 +26,12 @@ const pillStyle = {
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
 
 export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
+  const { t } = useI18n()
+  usePageMeta(`${t('login.signIn')} | Reneo Panel`, t('login.loginStatus'))
   const [mode, setMode] = useState<ScreenMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const { t } = useI18n()
   const {
     mode: themeMode,
     toggleMode,

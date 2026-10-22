@@ -16,7 +16,7 @@ export function ArticlesPage() {
   const navigate = useNavigate()
   const query = useQuery({ queryKey: ['public-docs'], queryFn: listPublicDocs, staleTime: 60_000 })
   const items = query.data ?? []
-  usePageMeta(`${t('articles.title')} | Reneo`, t('articles.subtitle'))
+  usePageMeta(`${t('articles.title')} | Reneo Panel`, t('articles.subtitle'))
 
   return (
     <PublicShell>
@@ -81,7 +81,7 @@ export function ArticlePage() {
   const { slug = '' } = useParams()
   const query = useQuery({ queryKey: ['public-doc', slug], queryFn: () => getPublicDoc(slug), retry: false, staleTime: 60_000 })
   const doc = query.data
-  usePageMeta(doc ? `${doc.title} | Reneo` : 'Reneo', doc?.excerpt)
+  usePageMeta(doc ? `${doc.title} | Reneo Panel` : 'Reneo Panel', doc?.excerpt)
 
   return (
     <PublicShell>

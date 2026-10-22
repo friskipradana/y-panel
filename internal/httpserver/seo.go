@@ -19,9 +19,9 @@ import (
 // the SPA shell (many AI crawlers do not run JavaScript).
 
 const (
-	siteName        = "Reneo"
+	siteName        = "Reneo Panel"
 	siteTagline     = "Pembaruan kendali untuk server"
-	siteDescription = "Reneo adalah panel kontrol server Linux bergaya desktop: Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI lewat MCP, dalam satu ruang kerja."
+	siteDescription = "Reneo Panel adalah panel kontrol server Linux bergaya desktop: Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI lewat MCP, dalam satu ruang kerja."
 )
 
 type seoPage struct {
@@ -187,7 +187,11 @@ func injectSEO(index string, page seoPage, base string) string {
 
 	out := index
 	out = replaceFirst(out, `<html lang="en">`, `<html lang="id">`)
-	out = replaceFirst(out, "<title>Reneo</title>", "<title>"+title+"</title>")
+	if strings.Contains(out, "<title>Reneo Panel</title>") {
+		out = replaceFirst(out, "<title>Reneo Panel</title>", "<title>"+title+"</title>")
+	} else {
+		out = replaceFirst(out, "<title>Reneo</title>", "<title>"+title+"</title>")
+	}
 	out = replaceMetaDescription(out, desc)
 	out = strings.Replace(out, "</head>", head.String()+"</head>", 1)
 

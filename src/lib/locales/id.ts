@@ -4138,7 +4138,7 @@ export const id: Record<string, string> = {
   'order.detected.countdown': "Pindah ke halaman akun aktif dalam {seconds} detik",
   'order.detected.continue': "Lanjut sekarang",
   'order.detected.amount': "Jumlah terbaca",
-  'landing.metaTitle': "Reneo | Pembaruan kendali untuk server",
+  'landing.metaTitle': "Reneo Panel | Pembaruan kendali untuk server",
   'profile.plan.state.expiring': "Segera berakhir",
   'profile.plan.daysLeft': "tinggal {days} hari",
   'plan.notice.expiring.title': "Paket Anda segera berakhir",

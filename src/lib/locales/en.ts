@@ -4138,7 +4138,7 @@ export const en: Record<string, string> = {
   'order.detected.countdown': "Moving to the active account page in {seconds} seconds",
   'order.detected.continue': "Continue now",
   'order.detected.amount': "Amount read",
-  'landing.metaTitle': "Reneo | A new way to control",
+  'landing.metaTitle': "Reneo Panel | A new way to control",
   'profile.plan.state.expiring': "Ending soon",
   'profile.plan.daysLeft': "{days} days left",
   'plan.notice.expiring.title': "Your plan ends soon",

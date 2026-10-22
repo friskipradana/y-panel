@@ -38,7 +38,7 @@ function LegalBody({ text }: { text: string }) {
 export function LegalPage({ kind }: { kind: LegalKind }) {
   const { t, language } = useI18n()
   const navigate = useNavigate()
-  usePageMeta(`${t(`legal.${kind}.title`)} | Reneo`, t(`legal.${kind}.subtitle`))
+  usePageMeta(`${t(`legal.${kind}.title`)} | Reneo Panel`, t(`legal.${kind}.subtitle`))
 
   const sections = Array.from({ length: SECTION_COUNT[kind] }, (_, i) => i + 1)
   const updated = new Date(LEGAL_UPDATED).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { dateStyle: 'long', timeZone: 'UTC' })

@@ -107,7 +107,7 @@ function Sheet({ invoice }: { invoice: InvoiceView }) {
 export function OrderInvoice({ publicId }: { publicId: string }) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  usePageMeta(`${t('invoice.title')} | Reneo`, t('invoice.subtitle'))
+  usePageMeta(`${t('invoice.title')} | Reneo Panel`, t('invoice.subtitle'))
   const query = useQuery({ queryKey: ['public-invoice', publicId], queryFn: () => getOrderInvoice(publicId), retry: 0 })
 
   return (

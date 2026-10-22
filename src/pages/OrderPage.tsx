@@ -12,7 +12,7 @@ export function OrderPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { publicId } = useParams()
-  usePageMeta(`${t('order.title')} | Reneo`, t('order.subtitle'))
+  usePageMeta(`${t('order.title')} | Reneo Panel`, t('order.subtitle'))
 
   return (
     <PublicShell>

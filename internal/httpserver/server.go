@@ -557,7 +557,7 @@ func writeStatusPage(w http.ResponseWriter, r *http.Request, status int, title, 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
-  <title>%d %s | Reneo</title>
+  <title>%d %s | Reneo Panel</title>
   <style>
     :root {
       color-scheme: light dark;
