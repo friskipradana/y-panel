@@ -1,21 +1,36 @@
-import type { SettingsGroupDef } from './tabsConfig'
-import type { SettingsTabKey } from './constants'
+import type { ComponentType } from 'react'
 import { useI18n } from '@/lib/i18n'
+
+export interface NavTab<K extends string> {
+  key: K
+  /** i18n key of the name */
+  label: string
+  icon: ComponentType<{ size?: number; className?: string }>
+  /** A number shown at the end of the line (orders, vouchers) */
+  count?: number
+}
+
+export interface NavGroup<K extends string> {
+  key: string
+  /** i18n key of the name of the group */
+  label: string
+  tabs: NavTab<K>[]
+}
 
 // Phone tab strip scrolls sideways: keep the active tab in view
 function keepVisibleOnPhone(el: HTMLButtonElement | null) {
   if (el?.closest('.layout-mobile')) el.scrollIntoView({ inline: 'center', block: 'nearest' })
 }
 
-interface SettingsNavProps {
+interface SettingsNavProps<K extends string> {
   title: string
-  groups: SettingsGroupDef[]
-  active: SettingsTabKey | undefined
-  onSelect: (key: SettingsTabKey) => void
+  groups: NavGroup<K>[]
+  active: K | undefined
+  onSelect: (key: K) => void
 }
 
-// The menu of the Settings window: tabs under the name of what they are about
-export function SettingsNav({ title, groups, active, onSelect }: SettingsNavProps) {
+// The menu of the Settings window, and of the Hosting window: tabs under the name of what they are about
+export function SettingsNav<K extends string>({ title, groups, active, onSelect }: SettingsNavProps<K>) {
   const { t } = useI18n()
   return (
     <nav className="settings-nav" aria-label={title}>
@@ -37,6 +52,7 @@ export function SettingsNav({ title, groups, active, onSelect }: SettingsNavProp
               >
                 <Icon size={14} className="settings-nav__icon" />
                 <span className="truncate">{t(tab.label)}</span>
+                {tab.count !== undefined ? <span className="settings-nav__count">{tab.count}</span> : null}
               </button>
             )
           })}

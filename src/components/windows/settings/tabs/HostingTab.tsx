@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Boxes, Eye, Globe2, Landmark, Link2, ReceiptText, ShoppingCart, Store, Ticket } from 'lucide-react'
+import { Store } from 'lucide-react'
 import { toast } from 'sonner'
-import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans, listHostingVouchers } from '@/api/hosting'
 import { getDemoSettings, getSiteSettings, setSiteSettings } from '@/api/system'
 import { SettingRow } from '@/components/ui/SettingRow'
-import { Tabs } from '@/components/ui/Tabs'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -21,22 +18,17 @@ import { HostingInvoiceCard } from '../hosting/HostingInvoiceCard'
 import { HostingTermsCard } from '../hosting/HostingTermsCard'
 import { HostingVouchersCard } from '../hosting/HostingVouchersCard'
 
-// Hosting mode: the switch, what is still missing before selling, and the settings in sections
-export function HostingTab() {
+// The switch of hosting mode and what is still missing before selling. Hosting mode is also read by the window for its menu.
+export function useHostingEnabled() {
+  const site = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
+  return { site, enabled: site.data?.hostingEnabled ?? false }
+}
+
+export function HostingOverview({ onGo }: { onGo: (section: HostingSection) => void }) {
   const { t } = useI18n()
   const qc = useQueryClient()
-  const [section, setSection] = useState<HostingSection>('plans')
-  const site = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
+  const { site, enabled } = useHostingEnabled()
   const demo = useQuery({ queryKey: ['settings', 'demo'], queryFn: getDemoSettings, retry: 0 })
-  const enabled = site.data?.hostingEnabled ?? false
-
-  // counts on the section tabs; the same queries the cards use, so nothing is fetched twice
-  const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0, enabled })
-  const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled })
-  const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled })
-  const vouchers = useQuery({ queryKey: ['hosting', 'vouchers'], queryFn: listHostingVouchers, retry: 0, enabled })
-  // the same query as the list under "All", so the number on the tab is the number of orders in it
-  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, enabled, refetchInterval: 15_000 })
 
   const mutation = useMutation({
     mutationFn: (hostingEnabled: boolean) => setSiteSettings({ hostingEnabled }),
@@ -70,80 +62,61 @@ export function HostingTab() {
   }
 
   return (
-    <div className="space-y-3">
-      {/* ── Single Unified Hosting Mode & Readiness Card ── */}
-      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1">
-            <div className="flex items-center gap-2">
-              <Store className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.hosting.title')}</h2>
-            </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.hosting.subtitle')}</span>
+    <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1">
+          <div className="flex items-center gap-2">
+            <Store className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.hosting.title')}</h2>
           </div>
-          <SettingRow
-            title={t('settings.hosting.toggleTitle')}
-            description={enabled ? t('settings.hosting.onHint') : t('settings.hosting.offHint')}
-            control={
-              <ToggleSwitch
-                checked={enabled}
-                disabled={!site.data || mutation.isPending}
-                label={t('settings.hosting.toggleTitle')}
-                onChange={() => void toggle()}
-              />
-            }
-          />
+          <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.hosting.subtitle')}</span>
         </div>
-
-        {enabled ? (
-          <>
-            <div className="border-t border-[var(--win-border)]" />
-            <HostingChecklist onGo={setSection} bare />
-          </>
-        ) : null}
+        <SettingRow
+          title={t('settings.hosting.toggleTitle')}
+          description={enabled ? t('settings.hosting.onHint') : t('settings.hosting.offHint')}
+          control={
+            <ToggleSwitch
+              checked={enabled}
+              disabled={!site.data || mutation.isPending}
+              label={t('settings.hosting.toggleTitle')}
+              onChange={() => void toggle()}
+            />
+          }
+        />
       </div>
 
       {enabled ? (
         <>
-
-          <div className="overflow-x-auto">
-            <Tabs
-              label={t('hosting.tabs')}
-              value={section}
-              onChange={setSection}
-              items={[
-                { key: 'plans', label: t('hosting.tab.plans'), icon: <Boxes />, count: plans.data?.length },
-                { key: 'domains', label: t('hosting.tab.domains'), icon: <Globe2 />, count: domains.data?.filter((domain) => domain.enabled).length },
-                { key: 'subdomains', label: t('hosting.tab.subdomains'), icon: <Link2 />, count: subdomains.data?.length },
-                { key: 'orders', label: t('hosting.tab.orders'), icon: <ShoppingCart />, count: orders.data?.total },
-                { key: 'vouchers', label: t('hosting.tab.vouchers'), icon: <Ticket />, count: vouchers.data?.filter((voucher) => voucher.enabled).length },
-                { key: 'payment', label: t('hosting.tab.payment'), icon: <Landmark /> },
-                { key: 'terms', label: t('hosting.tab.terms'), icon: <ReceiptText /> },
-                { key: 'demo', label: t('hosting.tab.demo'), icon: <Eye /> },
-              ]}
-            />
-          </div>
-
-          {section === 'plans' ? <HostingPlansCard /> : null}
-          {section === 'domains' ? (
-            <>
-              <HostingDomainsCard />
-              <HostingCustomDomainsCard />
-            </>
-          ) : null}
-          {section === 'subdomains' ? <HostingSubdomainsCard /> : null}
-          {section === 'orders' ? <HostingOrdersCard /> : null}
-          {section === 'vouchers' ? <HostingVouchersCard /> : null}
-          {section === 'payment' ? <HostingPaymentCard /> : null}
-          {section === 'terms' ? (
-            <>
-              <HostingTermsCard />
-              <HostingInvoiceCard />
-            </>
-          ) : null}
-          {section === 'demo' ? <DemoAccountCard /> : null}
+          <div className="border-t border-[var(--win-border)]" />
+          <HostingChecklist onGo={onGo} bare />
         </>
       ) : null}
+    </div>
+  )
+}
+
+// One section of hosting; the window picks which
+export function HostingContent({ section }: { section: HostingSection }) {
+  return (
+    <div className="space-y-3">
+      {section === 'plans' ? <HostingPlansCard /> : null}
+      {section === 'domains' ? (
+        <>
+          <HostingDomainsCard />
+          <HostingCustomDomainsCard />
+        </>
+      ) : null}
+      {section === 'subdomains' ? <HostingSubdomainsCard /> : null}
+      {section === 'orders' ? <HostingOrdersCard /> : null}
+      {section === 'vouchers' ? <HostingVouchersCard /> : null}
+      {section === 'payment' ? <HostingPaymentCard /> : null}
+      {section === 'terms' ? (
+        <>
+          <HostingTermsCard />
+          <HostingInvoiceCard />
+        </>
+      ) : null}
+      {section === 'demo' ? <DemoAccountCard /> : null}
     </div>
   )
 }

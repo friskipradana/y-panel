@@ -127,7 +127,7 @@ export function HostingPlansCard() {
                   </div>
                 </div>
                 <div className="docker-cell docker-cell--mono">{price}</div>
-                <div className="docker-cell" title={resources}>{resources}</div>
+                <div className="docker-cell" title={resources}><span className="max-w-full truncate">{resources}</span></div>
                 <div className="docker-cell">{plan.accounts}</div>
                 <div className="docker-cell--keep">
                   <StatusPill tone={plan.visible ? 'success' : 'neutral'}>{t(plan.visible ? 'hosting.plan.shown' : 'hosting.plan.hidden')}</StatusPill>
