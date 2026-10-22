@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.62.0] - 2026-10-22
+
+Buttons, fields, selects and search of the kit take the control size of the Docker window everywhere.
+
+### Peningkatan
+- **ui:** Buttons, fields, selects and search of the kit take the control size of the Docker window everywhere ([`35e8c4a`](https://github.com/friskipradana/y-panel/commit/35e8c4a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.61.0...v1.62.0
+
 ## [1.61.0] - 2026-10-22
 
 A promo price on a plan until a date, for new orders, renewals or both, optionally exclusive of vouchers and other discounts.
