@@ -23,6 +23,11 @@ Lalu buka `http://IP-SERVER:8787` dan selesaikan penyiapan pertama untuk membuat
 | `systemctl status reneo` | Status service |
 | `journalctl -u reneo -f` | Log langsung |
 | `sudo reneo` | Menu pengelolaan (password, port, origin) |
+| `sudo reneo status` / `start` / `stop` / `restart` | Ringkasan dan kendali service (`status` keluar 3 bila tidak sehat) |
+| `sudo reneo logs -f` | Log langsung (`-n N` jumlah baris) |
+| `sudo reneo doctor` | Periksa service, port, kesehatan, database, Docker, dan disk |
+| `sudo reneo info` / `config [KEY]` / `version` | Alamat dan lokasi berkas, isi konfigurasi (rahasia disamarkan), versi |
+| `sudo reneo help` | Semua perintah |
 | `sudo reneo check-update` / `sudo reneo update` | Cek dan terapkan pembaruan |
 | `sudo bash /opt/reneo/installer/uninstall.sh` | Mencopot |
 

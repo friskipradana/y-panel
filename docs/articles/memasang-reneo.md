@@ -33,6 +33,10 @@ Pengaturan port, origin, DNS, dan pembaruan ada di window Settings.
 - `systemctl status reneo`: status service
 - `journalctl -u reneo -f`: log langsung
 - `sudo reneo`: menu pengelolaan (password, port, origin)
+- `sudo reneo status`, `start`, `stop`, `restart`: ringkasan dan kendali service
+- `sudo reneo logs -f`: log langsung, sama seperti `journalctl`
+- `sudo reneo doctor`: periksa service, port, database, Docker, dan disk, lalu tunjukkan yang bermasalah
+- `sudo reneo help`: daftar semua perintah
 - `sudo reneo check-update`: cek versi baru
 - `sudo reneo update`: perbarui panel, konfigurasi tetap
 

@@ -1243,6 +1243,204 @@ change_panel_access() {
   change_panel_port
 }
 
+cli_help() {
+  cat <<'HELP'
+Reneo runtime CLI
+
+Penggunaan: sudo reneo [perintah]
+Tanpa perintah, menu interaktif dibuka.
+
+Layanan
+  status                 versi, service, kesehatan, alamat (keluar 0 bila sehat, 3 bila tidak)
+  start | stop | restart
+  logs [-f] [-n N]       log service; -f mengikuti, default 120 baris
+  doctor                 periksa service, port, kesehatan, database, Docker, disk
+
+Informasi
+  info                   alamat panel dan lokasi berkas
+  config [KEY]           isi agent.env dengan rahasia disamarkan, atau satu nilai
+  version                versi terpasang
+
+Pembaruan
+  check-update           cek versi baru
+  update [--yes] [--version X.Y.Z]
+
+Akun dan database
+  reset-password         ganti password akun utama
+  reset-db-password      ganti password PostgreSQL panel
+  migrate-up | migrate-rollback | migrate-status
+  password-history       riwayat ganti password
+
+Jaringan
+  change-port            ubah port panel
+  edit-origins           ubah allowed origins
+
+Lainnya
+  uninstall              copot Reneo
+  help                   bantuan ini
+HELP
+}
+
+is_secret_key() {
+  [[ "$1" =~ (PASSWORD|SECRET|TOKEN|KEY|DSN) ]]
+}
+
+# the value of a setting for display: secrets are hidden, a database address keeps its host and name
+display_value() {
+  local key="$1" value="$2"
+  if [[ "$key" == *DSN* ]]; then
+    printf '%s' "$value" | sed -E 's#(://[^:/@]*):[^@]*@#\1:******@#'
+  elif is_secret_key "$key"; then
+    printf '******'
+  else
+    printf '%s' "$value"
+  fi
+}
+
+show_config() {
+  local key="${1:-}" line k v
+  if ! env_file_exists; then
+    printf '\nFile konfigurasi tidak ditemukan: %s\n' "$ENV_FILE" >&2
+    return 1
+  fi
+  if [[ -n "$key" ]]; then
+    v="$(get_env_value "$key" || true)"
+    if [[ -z "$v" ]]; then
+      printf '%s tidak diatur di %s\n' "$key" "$ENV_FILE" >&2
+      return 1
+    fi
+    display_value "$key" "$v"
+    printf '\n'
+    return 0
+  fi
+  printf '# %s (rahasia disamarkan)\n' "$ENV_FILE"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$line" || "$line" == \#* || "$line" != *=* ]]; then
+      printf '%s\n' "$line"
+      continue
+    fi
+    k="${line%%=*}"
+    v="${line#*=}"
+    printf '%s=%s\n' "$k" "$(display_value "$k" "$v")"
+  done < "$ENV_FILE"
+}
+
+panel_healthy() {
+  curl -fsS --max-time 3 "http://127.0.0.1:$(get_bind_port)/healthz" >/dev/null 2>&1
+}
+
+show_status() {
+  local active enabled since port host_ip healthy=0
+  active="$(systemctl is-active "$SERVICE_NAME" 2>/dev/null || true)"
+  enabled="$(systemctl is-enabled "$SERVICE_NAME" 2>/dev/null || true)"
+  since="$(systemctl show "$SERVICE_NAME" -p ActiveEnterTimestamp --value 2>/dev/null || true)"
+  port="$(get_bind_port)"
+  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  host_ip="${host_ip:-127.0.0.1}"
+  panel_healthy && healthy=1
+
+  printf 'Reneo v%s\n' "$(installed_version)"
+  printf '  %-10s : %s (%s)%s\n' "Service" "${active:-unknown}" "${enabled:-unknown}" "${since:+, sejak $since}"
+  if [[ "$healthy" -eq 1 ]]; then
+    printf '  %-10s : sehat (/healthz di 127.0.0.1:%s)\n' "Kesehatan" "$port"
+  else
+    printf '  %-10s : tidak merespons di 127.0.0.1:%s (coba: sudo reneo logs, sudo reneo doctor)\n' "Kesehatan" "$port"
+  fi
+  printf '  %-10s : http://%s:%s\n' "Alamat" "$host_ip" "$port"
+  printf '  %-10s : %s\n' "Data" "$(get_env_value PANEL_STATE_DIR || printf '/var/lib/reneo')"
+  [[ "$active" == "active" && "$healthy" -eq 1 ]] || return 3
+}
+
+show_logs() {
+  local follow=0 lines=120
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -f|--follow) follow=1 ;;
+      -n|--lines) lines="${2:-120}"; shift ;;
+      -n*) lines="${1#-n}" ;;
+      *) printf 'Opsi logs tidak dikenal: %s (pakai -f atau -n N)\n' "$1" >&2; return 1 ;;
+    esac
+    shift
+  done
+  if [[ ! "$lines" =~ ^[0-9]+$ ]]; then
+    printf 'Jumlah baris tidak valid: %s\n' "$lines" >&2
+    return 1
+  fi
+  if [[ "$follow" -eq 1 ]]; then
+    journalctl -u "$SERVICE_NAME" -n "$lines" -f
+  else
+    journalctl -u "$SERVICE_NAME" -n "$lines" --no-pager
+  fi
+}
+
+show_info() {
+  show_panel_info
+  printf '  %-12s : %s\n' "Konfigurasi" "$ENV_FILE"
+  printf '  %-12s : %s\n' "Data" "$(get_env_value PANEL_STATE_DIR || printf '/var/lib/reneo')"
+  printf '  %-12s : %s\n' "Agent" "$AGENT_BIN"
+  printf '  %-12s : %s\n' "Frontend" "/opt/reneo/frontend"
+  printf '  %-12s : %s\n' "Service" "$SERVICE_NAME"
+  printf '\n'
+}
+
+# reneo doctor: each check prints [ok], [!!] (broken) or [--] (not installed, not an error)
+run_doctor() {
+  local failed=0 port state_dir free_kb
+  doctor_line() {
+    case "$1" in
+      ok) printf '  [ok] %s\n' "$2" ;;
+      fail) printf '  [!!] %s\n' "$2"; failed=1 ;;
+      *) printf '  [--] %s\n' "$2" ;;
+    esac
+  }
+  printf 'Reneo v%s: pemeriksaan\n' "$(installed_version)"
+
+  if env_file_exists; then doctor_line ok "konfigurasi $ENV_FILE"; else doctor_line fail "konfigurasi $ENV_FILE tidak ada"; fi
+
+  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    doctor_line ok "service $SERVICE_NAME berjalan"
+  else
+    doctor_line fail "service $SERVICE_NAME tidak berjalan (sudo reneo start; sudo reneo logs)"
+  fi
+
+  port="$(get_bind_port)"
+  if ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}\$"; then
+    doctor_line ok "port ${port} mendengarkan"
+  else
+    doctor_line fail "tidak ada yang mendengarkan di port ${port}"
+  fi
+
+  if panel_healthy; then doctor_line ok "/healthz menjawab"; else doctor_line fail "/healthz tidak menjawab di 127.0.0.1:${port}"; fi
+
+  if [[ -x "$AGENT_BIN" ]] && timeout 20 "$AGENT_BIN" migrate status >/dev/null 2>&1; then
+    doctor_line ok "database dapat dihubungi, status migrasi terbaca"
+  else
+    doctor_line fail "database atau migrasi tidak terbaca (sudo reneo migrate-status)"
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    if timeout 8 docker info >/dev/null 2>&1; then doctor_line ok "Docker berjalan"; else doctor_line fail "Docker terpasang tetapi tidak menjawab (systemctl status docker)"; fi
+  else
+    doctor_line skip "Docker tidak terpasang (jendela Docker tidak akan berfungsi)"
+  fi
+
+  if command -v cloudflared >/dev/null 2>&1; then doctor_line ok "cloudflared terpasang"; else doctor_line skip "cloudflared tidak terpasang (tunnel Cloudflare tidak tersedia)"; fi
+
+  state_dir="$(get_env_value PANEL_STATE_DIR || true)"
+  state_dir="${state_dir:-/var/lib/reneo}"
+  free_kb="$(df -Pk "$state_dir" 2>/dev/null | awk 'NR==2 {print $4}')"
+  if [[ -z "$free_kb" ]]; then
+    doctor_line skip "ruang disk $state_dir tidak terbaca"
+  elif (( free_kb < 1048576 )); then
+    doctor_line fail "ruang bebas di $state_dir kurang dari 1 GB ($((free_kb / 1024)) MB)"
+  else
+    doctor_line ok "ruang bebas di $state_dir: $((free_kb / 1024)) MB"
+  fi
+
+  if [[ "$failed" -eq 0 ]]; then printf '\nSemua pemeriksaan lolos.\n'; else printf '\nAda yang bermasalah; lihat tanda [!!].\n'; fi
+  return "$failed"
+}
+
 run_action() {
   local action="$1"
   shift || true
@@ -1250,6 +1448,31 @@ run_action() {
     restart)
       systemctl restart reneo.service
       printf '\nService berhasil direstart.\n'
+      ;;
+    start)
+      systemctl start reneo.service
+      printf '\nService berhasil dijalankan.\n'
+      ;;
+    status)
+      show_status || exit $?
+      ;;
+    info)
+      show_info
+      ;;
+    logs)
+      show_logs "$@"
+      ;;
+    doctor)
+      run_doctor || exit $?
+      ;;
+    config)
+      show_config "$@"
+      ;;
+    password-history)
+      view_password_history
+      ;;
+    help|-h|--help)
+      cli_help
       ;;
     stop)
       systemctl stop reneo.service
@@ -1343,6 +1566,11 @@ show_menu() {
   esac
 }
 
+case "${1:-}" in
+  help|-h|--help) cli_help; exit 0 ;;
+  version) printf 'Reneo v%s\n' "$(installed_version)"; exit 0 ;;
+esac
+
 require_root_cli
 
 if [[ $# -gt 0 ]]; then
@@ -1407,6 +1635,8 @@ print_summary() {
 
   printf '\n%sPerintah berguna:%s\n' "$C_BOLD" "$C_RESET"
   printf '  reneo                          menu kelola panel (password, port, origins, migrasi)\n'
+  printf '  reneo status | logs -f        ringkasan dan log langsung (reneo help: semua perintah)\n'
+  printf '  reneo doctor                   periksa service, database, Docker, disk\n'
   printf '  systemctl status reneo         status service\n'
   printf '  journalctl -u reneo -f         log langsung\n'
   printf '  bash %s --help        opsi installer\n\n' "reneo-installer.run"
