@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.64.0] - 2026-10-22
+
+Tables fold by their own width in any window, a narrow bar wraps, and the hosting summary shows orders and what is for sale.
+
+### Fitur baru
+- **ui:** Tables fold by their own width in any window, a narrow bar wraps, and the hosting summary shows orders and what is for sale ([`4b69f59`](https://github.com/friskipradana/y-panel/commit/4b69f59))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.63.1...v1.64.0
+
 ## [1.63.1] - 2026-10-22
 
 Hosting & Pembayaran has one side menu like Settings instead of two rows of tabs, and no sideways scroll.
