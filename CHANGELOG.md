@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.62.1] - 2026-10-22
+
+The outline button has the same background and hover as the buttons of the Docker bar.
+
+### Peningkatan
+- **ui:** The outline button has the same background and hover as the buttons of the Docker bar ([`a6005a0`](https://github.com/friskipradana/y-panel/commit/a6005a0))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.62.0...v1.62.1
+
 ## [1.62.0] - 2026-10-22
 
 Buttons, fields, selects and search of the kit take the control size of the Docker window everywhere.
