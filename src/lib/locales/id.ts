@@ -4372,4 +4372,7 @@ export const id: Record<string, string> = {
   'hosting.summary.subdomains': "Alamat panel terjual",
   'hosting.summary.vouchers': "Voucher aktif",
   'hosting.summary.open': "Buka",
+  'ui.chooseFile': "Pilih berkas",
+  'ui.noFileChosen': "Belum ada berkas dipilih",
+  'ui.removeFile': "Hapus pilihan berkas",
 }

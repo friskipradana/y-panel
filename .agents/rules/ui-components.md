@@ -32,6 +32,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `Field`, `TextInput`, `Textarea` | `Field.tsx` | Label + kontrol + hint/error | `label`, `hint?`, `error?`; `mono`, `invalid` |
 | `PasswordInput` | `PasswordInput.tsx` | Kolom kata sandi akun dengan tombol lihat/sembunyikan (`aria-label` dari `ui.showPassword`/`ui.hidePassword`); pakai ini, bukan `TextInput type="password"`, untuk kata sandi yang diketik orang | semua prop `TextInput` kecuali `type` |
 | `Select` | `Select.tsx` | Dropdown (pencarian opsional); daftarnya digambar lewat portal di atas halaman, jadi tidak terpotong dialog atau window, dan berpindah ke atas tombol bila ruang di bawah sempit; tampilannya sama dengan menu dropdown tab Docker | `value`, `onChange`, `options`, `searchable`, `clearable`, `size` (`sm` = tinggi tombol toolbar 32px, sama dengan menu tab) |
+| `FilePicker` | `FilePicker.tsx` | Memilih berkas: tombol kit, nama dan ukuran berkas, tombol hapus pilihan; pakai ini, bukan `<input type="file">` yang terlihat (kontrol bawaan browser berbahasa Inggris dan tidak bisa digayakan) | `file`, `onChange(file \| null)`, `accept?`, `disabled?` |
 | `SearchInput` | `SearchInput.tsx` | Kolom pencarian | `value`, `onChange`, `onSubmit?`, `placeholder`, `action?` |
 | `Tabs` | `Tabs.tsx` | Tab horizontal | `items`, `value`, `onChange`, `label` |
 | `DataTable` | `DataTable.tsx` | Data berkolom | `columns`, `rows`, `getRowKey`, `label`, `loading`, `emptyText` |

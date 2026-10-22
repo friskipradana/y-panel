@@ -270,8 +270,14 @@ export function useFileManager({ win, authenticated }: { win: WindowState, authe
 
   const handleDownload = (item: FileNode) => {
     setMenu(null)
-    const url = import.meta.env.VITE_AGENT_BASE + '/api/v1/files/read?path=' + encodeURIComponent(item.path)
-    window.open(url, '_blank')
+    // without an agent base (the panel serves its own page) the address starts at the root; a bare "undefined" in front would be a page that is not there
+    const base = (import.meta.env.VITE_AGENT_BASE as string | undefined) ?? ''
+    const link = document.createElement('a')
+    link.href = base + '/api/v1/files/read?path=' + encodeURIComponent(item.path)
+    link.download = item.name
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   }
 
   // Modal Openers

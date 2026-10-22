@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { FilePicker } from '@/components/ui/FilePicker'
 import { ARCHIVE_ACCEPT } from './projectsConfig'
 import { UploadLog } from './StaticUploadOverlay'
 
@@ -39,12 +40,13 @@ export function UploadDraftModal({ pw }: { pw: ProjectsWindowState }) {
       </p>
       <div className="space-y-4">
         <div>
-          <label className="panel-section-label">{t('projects.zipFile')}</label>
-          <input
-            type="file"
+          <label className="panel-section-label" htmlFor="project-archive">{t('projects.zipFile')}</label>
+          <FilePicker
+            id="project-archive"
             accept={ARCHIVE_ACCEPT}
-            className="panel-input"
-            onChange={(event) => setUploadDraft((current) => current ? { ...current, file: event.target.files?.[0] ?? null } : current)}
+            file={uploadDraft.file}
+            disabled={uploadStaticMut.isPending}
+            onChange={(file) => setUploadDraft((current) => current ? { ...current, file } : current)}
           />
         </div>
         <div>

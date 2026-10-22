@@ -4372,4 +4372,7 @@ export const en: Record<string, string> = {
   'hosting.summary.subdomains': "Panel addresses sold",
   'hosting.summary.vouchers': "Active vouchers",
   'hosting.summary.open': "Open",
+  'ui.chooseFile': "Choose file",
+  'ui.noFileChosen': "No file chosen",
+  'ui.removeFile': "Remove the chosen file",
 }
