@@ -8,6 +8,7 @@ import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { DemoAccountCard } from '../DemoAccountCard'
 import { HostingChecklist, type HostingSection } from '../hosting/HostingChecklist'
+import { HostingSummary } from '../hosting/HostingSummary'
 import { HostingCustomDomainsCard } from '../hosting/HostingCustomDomainsCard'
 import { HostingDomainsCard } from '../hosting/HostingDomainsCard'
 import { HostingOrdersCard } from '../hosting/HostingOrdersCard'
@@ -62,6 +63,7 @@ export function HostingOverview({ onGo }: { onGo: (section: HostingSection) => v
   }
 
   return (
+    <div className="space-y-3">
     <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
       <div>
         <div className="mb-2 flex items-center justify-between gap-2 mobile:flex-col mobile:items-start mobile:gap-1">
@@ -91,6 +93,12 @@ export function HostingOverview({ onGo }: { onGo: (section: HostingSection) => v
           <HostingChecklist onGo={onGo} bare />
         </>
       ) : null}
+    </div>
+    {enabled ? (
+      <div className="panel-shell-card settings-card !p-3.5">
+        <HostingSummary onGo={onGo} />
+      </div>
+    ) : null}
     </div>
   )
 }

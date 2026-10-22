@@ -299,6 +299,8 @@
   background: var(--win-bar);
   min-height: 48px;
   flex-shrink: 0;
+  // a narrow window wraps the bar onto a second line instead of running off its edge
+  flex-wrap: wrap;
 }
 
 .docker-topbar__left,
@@ -306,6 +308,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.docker-topbar__right {
+  margin-left: auto;
 }
 
 .docker-dropdown-wrap {
@@ -859,8 +867,9 @@
   cursor: not-allowed;
 }
 
-// Phones: no header, the secondary columns fold into the meta line under the name
-.layout-mobile {
+// A table folds when it is narrow: no header, the secondary columns go into the meta line under the name. It happens on a phone
+// (the whole screen is one app) and in a window or a column that is narrow, by the width of the table itself.
+@mixin docker-table-folded {
   .docker-col-header {
     display: none;
   }
@@ -903,6 +912,43 @@
 
   .docker-row .docker-cell--keep {
     padding-right: 0;
+  }
+
+  // a row with one to three actions gives the name the whole first line; its state and its actions share the second
+  .docker-row:has(> .docker-action-btns):not(:has(> .docker-cell--wide)):not(:has(> .docker-action-btns > :nth-child(4))) {
+    grid-template-columns: auto minmax(0, 1fr);
+
+    > .docker-row__app {
+      grid-column: 1 / -1;
+    }
+
+    > .docker-cell--keep {
+      grid-column: 1;
+    }
+
+    > .docker-action-btns {
+      grid-column: 2;
+    }
+  }
+
+  .docker-row--files {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+}
+
+.layout-mobile {
+  @include docker-table-folded;
+}
+
+// The table is its own container: it folds by its own width, wherever it sits
+.docker-table {
+  container: docker-table / inline-size;
+}
+
+// inside .docker-table, so these rules outrank the base rules of the rows that come later in this file
+@container docker-table (max-width: 640px) {
+  .docker-table {
+    @include docker-table-folded;
   }
 }
 
@@ -1115,10 +1161,6 @@
 
   .docker-secondary-btn__text {
     display: none;
-  }
-
-  .docker-row--files {
-    grid-template-columns: 32px minmax(0, 1fr) auto;
   }
 }
 
@@ -1488,23 +1530,6 @@
 .layout-mobile .system-logs__search {
   flex: 1 1 100%;
   max-width: none;
-}
-
-// Phones: a row with one to three actions gives the name the whole first line; its state and its actions share the second
-.layout-mobile .docker-row:has(> .docker-action-btns):not(:has(> .docker-cell--wide)):not(:has(> .docker-action-btns > :nth-child(4))) {
-  grid-template-columns: auto minmax(0, 1fr);
-
-  > .docker-row__app {
-    grid-column: 1 / -1;
-  }
-
-  > .docker-cell--keep {
-    grid-column: 1;
-  }
-
-  > .docker-action-btns {
-    grid-column: 2;
-  }
 }
 
 // Update of an image or a container
