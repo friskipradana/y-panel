@@ -9,25 +9,52 @@ const DEFAULTS: Record<
   WindowKind,
   { title: string; width: number; height: number; singleton?: boolean }
 > = {
-  apps: { title: "Docker", width: 960, height: 600, singleton: true },
-  terminal: { title: "Terminal", width: 580, height: 360, singleton: true },
-  "host-terminal": { title: "Host Terminal", width: 840, height: 520, singleton: true },
-  system: { title: "System Info", width: 900, height: 560, singleton: true },
-  "system-logs": { title: "System Logs", width: 860, height: 540, singleton: true },
-  docs: { title: "Docs", width: 840, height: 530, singleton: true },
-  changelog: { title: "Changelog", width: 780, height: 490, singleton: true },
-  settings: { title: "Settings", width: 900, height: 570, singleton: true },
-  database: { title: "Database", width: 960, height: 600, singleton: true },
-  "file-manager": { title: "File Manager", width: 900, height: 560, singleton: true },
-  "file-editor": { title: "Code Editor", width: 960, height: 600, singleton: true },
-  trash: { title: "Trash", width: 520, height: 340, singleton: true },
-  users: { title: "User Management", width: 860, height: 560, singleton: true },
-  projects: { title: "Projects", width: 880, height: 560, singleton: true },
-  tunnels: { title: "Cloudflare", width: 960, height: 600, singleton: true },
-  profile: { title: "Profile & Integrasi", width: 500, height: 560, singleton: true },
-  widgets: { title: "Widgets", width: 760, height: 620, singleton: true },
-  speedtest: { title: "Speed Test", width: 780, height: 640, singleton: true },
-  hosting: { title: "Hosting", width: 920, height: 640, singleton: true },
+  // XL — Data & Grid Workstation (1040 x 528)
+  apps: { title: "Docker", width: 1040, height: 528, singleton: true },
+  database: { title: "Database", width: 1040, height: 528, singleton: true },
+  tunnels: { title: "Cloudflare", width: 1040, height: 528, singleton: true },
+  projects: { title: "Projects", width: 1040, height: 528, singleton: true },
+  hosting: { title: "Hosting", width: 1040, height: 528, singleton: true },
+  "file-editor": { title: "Code Editor", width: 1040, height: 528, singleton: true },
+
+  // L — Management & Monitoring (880 x 530)
+  system: { title: "System Info", width: 880, height: 530, singleton: true },
+  "system-logs": {
+    title: "System Logs",
+    width: 880,
+    height: 530,
+    singleton: true,
+  },
+  "file-manager": {
+    title: "File Manager",
+    width: 880,
+    height: 530,
+    singleton: true,
+  },
+  users: { title: "User Management", width: 880, height: 530, singleton: true },
+  settings: { title: "Settings", width: 880, height: 530, singleton: true },
+  docs: { title: "Docs", width: 880, height: 530, singleton: true },
+
+  // M — Terminal & 2-Column Gauge/Stats (840 x 540)
+  speedtest: { title: "Speed Test", width: 840, height: 540, singleton: true },
+  "host-terminal": {
+    title: "Host Terminal",
+    width: 840,
+    height: 540,
+    singleton: true,
+  },
+  terminal: { title: "Terminal", width: 640, height: 400, singleton: true },
+
+  // S — Compact Utility & Dialogs (540 x 580)
+  profile: {
+    title: "Profile & Integrasi",
+    width: 540,
+    height: 580,
+    singleton: true,
+  },
+  widgets: { title: "Widgets", width: 580, height: 580, singleton: true },
+  changelog: { title: "Changelog", width: 580, height: 580, singleton: true },
+  trash: { title: "Trash", width: 520, height: 360, singleton: true },
 };
 
 // Z-index tiers
@@ -126,7 +153,6 @@ interface WindowStore {
   closeWindowsByKind: (kind: WindowKind) => void;
   clampWindowsToViewport: () => void;
   resetWindows: () => void;
-
 }
 
 export const selectFocusedId = (s: WindowStore) => s.focusedId;
@@ -134,7 +160,8 @@ export const selectWindows = (s: WindowStore) => s.windows;
 export const selectAutoHideDock = (s: WindowStore) => s.autoHideDock;
 export const selectGlobalContentZoom = (s: WindowStore) => s.globalContentZoom;
 export const selectGlobalFontIndex = (s: WindowStore) => s.globalFontIndex;
-export const selectGlobalTerminalFontSize = (s: WindowStore) => s.globalTerminalFontSize;
+export const selectGlobalTerminalFontSize = (s: WindowStore) =>
+  s.globalTerminalFontSize;
 export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
 
@@ -154,7 +181,7 @@ export const useWindowStore = create<WindowStore>()(
       globalTerminalFontSize: TERMINAL_FONT_DEFAULT,
 
       openWindow: (kind, params) => {
-        let openedId = '';
+        let openedId = "";
         soundManager.playWindowOpen();
         set((state) => {
           const def = DEFAULTS[kind];
@@ -164,7 +191,7 @@ export const useWindowStore = create<WindowStore>()(
 
           if (existing) {
             existing.isMinimized = false;
-            existing.lastAction = 'restore';
+            existing.lastAction = "restore";
             if (params) {
               existing.params = { ...(existing.params || {}), ...params };
             }
@@ -175,8 +202,11 @@ export const useWindowStore = create<WindowStore>()(
           }
 
           // Calculate maximum usable desktop area with breathing room
-          const maxW = Math.max(340, Math.floor(window.innerWidth * 0.82));
-          const maxH = Math.max(240, Math.floor((window.innerHeight - 64) * 0.82));
+          const maxW = Math.max(340, Math.floor(window.innerWidth * 0.94));
+          const maxH = Math.max(
+            240,
+            Math.floor((window.innerHeight - 64) * 0.92),
+          );
 
           let width = def.width;
           let height = def.height;
@@ -190,12 +220,20 @@ export const useWindowStore = create<WindowStore>()(
 
           // Cascade over every open window (not only the same kind) so new windows never
           // land exactly on top of another one.
-          const openCount = state.windows.filter((w) => !w.isMinimized && !w.isMaximized && !w.isFullscreen).length;
+          const openCount = state.windows.filter(
+            (w) => !w.isMinimized && !w.isMaximized && !w.isFullscreen,
+          ).length;
           const step = (openCount % 8) * 28;
           const baseX = Math.round((window.innerWidth - width) / 2);
           const baseY = Math.round((window.innerHeight - 56 - height) / 2);
-          const x = Math.min(Math.max(16, baseX + step), Math.max(16, window.innerWidth - width - 16));
-          const y = Math.min(Math.max(48, baseY + step), Math.max(48, window.innerHeight - height - 72));
+          const x = Math.min(
+            Math.max(16, baseX + step),
+            Math.max(16, window.innerWidth - width - 16),
+          );
+          const y = Math.min(
+            Math.max(48, baseY + step),
+            Math.max(48, window.innerHeight - height - 72),
+          );
           const id = createWindowId(kind);
           openedId = id;
 
@@ -211,7 +249,7 @@ export const useWindowStore = create<WindowStore>()(
             isMinimized: false,
             isMaximized: false,
             isFullscreen: false,
-            lastAction: 'open',
+            lastAction: "open",
             params: params || {},
           });
 
@@ -238,7 +276,9 @@ export const useWindowStore = create<WindowStore>()(
           if (index !== -1) {
             state.windows.splice(index, 1);
             reorder(state.windows);
-            const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+            const lastVisible = [...state.windows]
+              .reverse()
+              .find((w) => !w.isMinimized);
             state.focusedId = lastVisible?.id ?? null;
           }
         });
@@ -250,7 +290,7 @@ export const useWindowStore = create<WindowStore>()(
           if (!win) return;
           if (win.isMinimized) {
             win.isMinimized = false;
-            win.lastAction = 'restore';
+            win.lastAction = "restore";
           }
           bringToFront(state.windows, id);
           state.focusedId = id;
@@ -261,7 +301,7 @@ export const useWindowStore = create<WindowStore>()(
           const win = state.windows.find((w) => w.id === id);
           if (!win) return;
           win.isMinimized = !win.isMinimized;
-          win.lastAction = win.isMinimized ? 'minimize' : 'restore';
+          win.lastAction = win.isMinimized ? "minimize" : "restore";
 
           if (win.isMinimized) {
             soundManager.playWindowMinimize();
@@ -299,7 +339,7 @@ export const useWindowStore = create<WindowStore>()(
           win.isFullscreen = !win.isFullscreen;
           if (win.isFullscreen) {
             win.isMinimized = false;
-            win.lastAction = 'restore';
+            win.lastAction = "restore";
           }
           bringToFront(state.windows, id);
           state.focusedId = id;
@@ -325,7 +365,10 @@ export const useWindowStore = create<WindowStore>()(
 
       setGlobalContentZoom: (value) =>
         set((state) => {
-          state.globalContentZoom = Math.min(2, Math.max(0.75, Number(value.toFixed(2))));
+          state.globalContentZoom = Math.min(
+            2,
+            Math.max(0.75, Number(value.toFixed(2))),
+          );
         }),
 
       setGlobalFontIndex: (value) =>
@@ -335,7 +378,10 @@ export const useWindowStore = create<WindowStore>()(
 
       setGlobalTerminalFontSize: (value) =>
         set((state) => {
-          state.globalTerminalFontSize = Math.min(TERMINAL_FONT_MAX, Math.max(TERMINAL_FONT_MIN, Math.round(value)));
+          state.globalTerminalFontSize = Math.min(
+            TERMINAL_FONT_MAX,
+            Math.max(TERMINAL_FONT_MIN, Math.round(value)),
+          );
         }),
 
       toggleDockAutoHide: () =>
@@ -361,9 +407,13 @@ export const useWindowStore = create<WindowStore>()(
 
       closeWindowsByKind: (kind) =>
         set((state) => {
-          state.windows = state.windows.filter((windowItem) => windowItem.kind !== kind);
+          state.windows = state.windows.filter(
+            (windowItem) => windowItem.kind !== kind,
+          );
           reorder(state.windows);
-          const lastVisible = [...state.windows].reverse().find((w) => !w.isMinimized);
+          const lastVisible = [...state.windows]
+            .reverse()
+            .find((w) => !w.isMinimized);
           state.focusedId = lastVisible?.id ?? null;
         }),
 
@@ -372,7 +422,6 @@ export const useWindowStore = create<WindowStore>()(
           state.windows = [];
           state.focusedId = null;
         }),
-
     })),
     {
       name: "reneo-windows",
@@ -381,12 +430,19 @@ export const useWindowStore = create<WindowStore>()(
       // the old defaults (9px, then 13px) were too small to read; anyone still on one gets the new default
       migrate: (persisted, version) => {
         const state = persisted as Partial<WindowStore>;
-        if (version < 2 && (state.globalTerminalFontSize === 9 || state.globalTerminalFontSize === 13)) state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
+        if (
+          version < 2 &&
+          (state.globalTerminalFontSize === 9 ||
+            state.globalTerminalFontSize === 13)
+        )
+          state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
         // the Portainer window is gone: a saved layout must not try to open it
-        if (version < 3 && Array.isArray(state.windows)) state.windows = state.windows.filter((w) => (w.kind as string) !== 'portainer');
+        if (version < 3 && Array.isArray(state.windows))
+          state.windows = state.windows.filter(
+            (w) => (w.kind as string) !== "portainer",
+          );
         return state as WindowStore;
       },
-    }
-  )
+    },
+  ),
 );
-
