@@ -2,6 +2,27 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.0] - 2026-10-24
+
+13 perubahan, utamanya add system window components and SCSS styles for y-panel UI.
+
+### Fitur baru
+- Add system window components and SCSS styles for y-panel UI ([`5efaea2`](https://github.com/friskipradana/y-panel/commit/5efaea2))
+- Add UI components, Select component, TunnelsScope view, and Cloudflare styles ([`41115f0`](https://github.com/friskipradana/y-panel/commit/41115f0))
+- Add docker and cloudflare tunnel UI components and styles ([`139b93c`](https://github.com/friskipradana/y-panel/commit/139b93c))
+- Add widgets window, list table component, and state UI helpers ([`719ee5e`](https://github.com/friskipradana/y-panel/commit/719ee5e))
+- Add WidgetsWindow component, localization files, and window management store ([`abb3fe3`](https://github.com/friskipradana/y-panel/commit/abb3fe3))
+- Add Docker workstation SCSS styles, UserRow component, and window store ([`9a33f38`](https://github.com/friskipradana/y-panel/commit/9a33f38))
+- Implement Zustand window store for state management and window operations ([`d499dc1`](https://github.com/friskipradana/y-panel/commit/d499dc1))
+- Add DesktopContextMenu component for desktop icon and layout controls ([`fc4c8aa`](https://github.com/friskipradana/y-panel/commit/fc4c8aa))
+- Add DesktopContextMenu component and centralized z-index layers configuration ([`68997d5`](https://github.com/friskipradana/y-panel/commit/68997d5))
+- Implement desktop shell with taskbar, context menu, and main workspace components ([`4268df9`](https://github.com/friskipradana/y-panel/commit/4268df9))
+- Add taskbar, desktop, and desktop context menu components ([`ad0be9f`](https://github.com/friskipradana/y-panel/commit/ad0be9f))
+- Add design token variables and Dock component implementation ([`c04418f`](https://github.com/friskipradana/y-panel/commit/c04418f))
+- "reorganize pages into feature folders" -m "- Move LandingPage, McpGuidePage, OrderPage, DesktopPage, LoginPage, ArticlesPage, DatabaseAdminPage, and InstallPage into dedicated subfolders" -m "- Update lazy route import paths in router/index.tsx ([`8963403`](https://github.com/friskipradana/y-panel/commit/8963403))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.70.0...v1.71.0
+
 ## [1.70.0] - 2026-10-24
 
 2 perubahan, utamanya add AppIcon component for rendering window and application icons with Fluent UI.
