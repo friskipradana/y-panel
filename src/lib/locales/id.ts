@@ -914,6 +914,8 @@ export const id: Record<string, string> = {
   'docker.databaseBadge': "Database",
   'widgets.sectionInstalled': "Terpasang",
   'widgets.sectionGallery': "Galeri",
+  'widgets.viewGrid': "Tampilan Grid",
+  'widgets.viewList': "Tampilan List",
   'widgets.installedCount': "{count} terpasang",
   'widgets.noneInstalled': "Belum ada widget terpasang. Pilih dari galeri di bawah.",
   'widgets.locked': "terkunci",

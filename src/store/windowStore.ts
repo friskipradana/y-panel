@@ -52,7 +52,7 @@ const DEFAULTS: Record<
     height: 580,
     singleton: true,
   },
-  widgets: { title: "Widgets", width: 580, height: 580, singleton: true },
+  widgets: { title: "Widgets", width: 640, height: 530, singleton: true },
   changelog: { title: "Changelog", width: 580, height: 580, singleton: true },
   trash: { title: "Trash", width: 520, height: 360, singleton: true },
 };

@@ -914,6 +914,8 @@ export const en: Record<string, string> = {
   'docker.databaseBadge': "Database",
   'widgets.sectionInstalled': "Installed",
   'widgets.sectionGallery': "Gallery",
+  'widgets.viewGrid': "Grid view",
+  'widgets.viewList': "List view",
   'widgets.installedCount': "{count} installed",
   'widgets.noneInstalled': "No widgets installed yet. Pick one from the gallery below.",
   'widgets.locked': "locked",
