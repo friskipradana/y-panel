@@ -14,7 +14,7 @@ const DEFAULTS: Record<
   database: { title: "Database", width: 1040, height: 528, singleton: true },
   tunnels: { title: "Cloudflare", width: 1040, height: 528, singleton: true },
   projects: { title: "Projects", width: 1040, height: 528, singleton: true },
-  hosting: { title: "Hosting", width: 1040, height: 528, singleton: true },
+  users: { title: "User Management", width: 1040, height: 528, singleton: true },
   "file-editor": { title: "Code Editor", width: 1040, height: 528, singleton: true },
 
   // L — Management & Monitoring (880 x 530)
@@ -31,8 +31,8 @@ const DEFAULTS: Record<
     height: 530,
     singleton: true,
   },
-  users: { title: "User Management", width: 880, height: 530, singleton: true },
   settings: { title: "Settings", width: 880, height: 530, singleton: true },
+  hosting: { title: "Hosting", width: 880, height: 530, singleton: true },
   docs: { title: "Docs", width: 880, height: 530, singleton: true },
 
   // M — Terminal & 2-Column Gauge/Stats (840 x 540)

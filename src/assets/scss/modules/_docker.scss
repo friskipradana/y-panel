@@ -707,11 +707,11 @@
   }
 
   &--users {
-    --docker-cols: 48px minmax(0, 2fr) minmax(132px, 0.8fr) minmax(96px, 0.8fr) minmax(0, 1.2fr) minmax(112px, 0.9fr) 204px;
+    --docker-cols: 44px minmax(140px, 1.8fr) minmax(120px, 1fr) minmax(88px, 0.7fr) minmax(140px, 1.2fr) minmax(104px, 0.9fr) 196px;
   }
 
   &--users-plain {
-    --docker-cols: 48px minmax(0, 2.4fr) minmax(132px, 0.8fr) minmax(96px, 0.8fr) minmax(112px, 0.9fr) 204px;
+    --docker-cols: 44px minmax(160px, 2.2fr) minmax(120px, 1fr) minmax(88px, 0.8fr) minmax(120px, 1fr) 196px;
   }
 
   &--docs {

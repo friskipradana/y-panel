@@ -188,7 +188,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
                     <span className="docker-status-dot" />
                     <span className="truncate">{planLabel}</span>
                   </span>
-                  {planLine ? <span className="truncate text-[0.6875rem]" title={planLine}>{planLine}</span> : null}
+                  {planLine ? <span className="truncate max-w-full block text-[0.6875rem]" title={planLine}>{planLine}</span> : null}
                 </>
               ) : (
                 '-'
