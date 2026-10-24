@@ -18,6 +18,7 @@ import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { useDesktopIconStore, type IconSort } from '@/store/desktopIconStore'
 import { useThemeStore, type DesktopIconSize } from '@/store/themeStore'
 import { useWidgetStore } from '@/store/widgetStore'
+import { Z } from '@/lib/zLayers'
 
 const SIZES: Array<{ key: DesktopIconSize; label: string; shortcut: string }> = [
   { key: 'large', label: 'desktop.view.sizeLarge', shortcut: 'Ctrl+Shift+2' },
@@ -139,44 +140,50 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
     onClose()
   }
 
-  // Initial estimate to avoid flicker, flipping upwards if near bottom
-  const [coords, setCoords] = useState<{ left: number; top: number }>(() => {
-    const MENU_HEIGHT = 440
-    const MENU_WIDTH = 230
-    const padding = 12
-    const flipY = y + MENU_HEIGHT + padding > window.innerHeight
-    const flipX = x + MENU_WIDTH + padding > window.innerWidth
-    return {
-      left: flipX ? Math.max(padding, x - MENU_WIDTH) : x,
-      top: flipY ? Math.max(padding, y - MENU_HEIGHT) : y,
+  // Safe boundaries relative to viewport, taskbar, and margins
+  const TASKBAR_HEIGHT = 44
+  const TOP_SAFE = TASKBAR_HEIGHT + 6 // Keep comfortable 6px clearance below the top taskbar
+  const BOTTOM_SAFE = 12
+  const PADDING_X = 12
+  const ESTIMATED_WIDTH = 230
+  const ESTIMATED_HEIGHT = 430
+
+  const calculatePosition = (posX: number, posY: number, width: number, height: number) => {
+    let left = posX
+    if (posX + width + PADDING_X > window.innerWidth) {
+      left = Math.max(PADDING_X, posX - width)
     }
-  })
+
+    let top = posY
+    // If it exceeds bottom boundary, flip upwards from click point
+    if (posY + height + BOTTOM_SAFE > window.innerHeight) {
+      top = posY - height
+    }
+
+    // Safety clamp: NEVER let top overlap or go behind the taskbar
+    const maxTop = Math.max(TOP_SAFE, window.innerHeight - height - BOTTOM_SAFE)
+    top = Math.max(TOP_SAFE, Math.min(top, maxTop))
+
+    return { left, top }
+  }
+
+  // Initial estimate to avoid flicker
+  const [coords, setCoords] = useState<{ left: number; top: number }>(() =>
+    calculatePosition(x, y, ESTIMATED_WIDTH, ESTIMATED_HEIGHT)
+  )
 
   // Measure exact rendered dimensions and adjust position
   useLayoutEffect(() => {
     if (!menuRef.current) return
     const rect = menuRef.current.getBoundingClientRect()
-    const padding = 12
-
-    let left = x
-    if (x + rect.width + padding > window.innerWidth) {
-      left = Math.max(padding, x - rect.width)
-    }
-
-    let top = y
-    // If not enough room below, flip upwards so the bottom of the menu aligns with the cursor
-    if (y + rect.height + padding > window.innerHeight) {
-      top = Math.max(padding, y - rect.height)
-    }
-
-    setCoords({ left, top })
+    setCoords(calculatePosition(x, y, rect.width, rect.height))
   }, [x, y])
 
   return (
     <div
       ref={menuRef}
-      className="fixed z-[63000] w-[230px] max-h-[calc(100vh-24px)] overflow-y-auto rounded-xl border border-[var(--menu-border)] bg-[var(--menu-bg)] p-1.5 shadow-[var(--menu-shadow)] backdrop-blur-2xl"
-      style={{ left: coords.left, top: coords.top }}
+      className="fixed w-[230px] max-h-[calc(100vh-64px)] overflow-y-auto rounded-xl border border-[var(--menu-border)] bg-[var(--menu-bg)] p-1.5 shadow-[var(--menu-shadow)] backdrop-blur-2xl"
+      style={{ left: coords.left, top: coords.top, zIndex: Z.desktopContextMenu }}
       role="menu"
       aria-label="Desktop context menu"
       onClick={(e) => e.stopPropagation()}

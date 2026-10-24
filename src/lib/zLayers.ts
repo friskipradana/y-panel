@@ -8,6 +8,7 @@ export const Z = {
   /** Edge-snap preview: above windows, below the taskbar */
   snapPreview: 59_000,
   taskbar: 60_000,
+  desktopContextMenu: 61_000,
   dock: 62_000,
   dockMenu: 62_250,
   windowFullscreen: 120_000,
