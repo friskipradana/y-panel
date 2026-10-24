@@ -32,6 +32,14 @@ export interface PublicProxyStatus {
   https?: string
   addresses: LocalAddress[]
   panelOnLoopback: boolean
+  /** ufw filters the web servers of this machine: with it active the web ports must be open */
+  firewall: WebFirewall
+}
+
+export interface WebFirewall {
+  installed: boolean
+  active: boolean
+  ports: { port: number; open: boolean }[]
 }
 
 export type PublicEngineName = 'builtin' | 'nginx' | 'apache'
@@ -92,6 +100,8 @@ export const getPublicProxy = () => agentApi.get<PublicProxyStatus>('/api/v1/pub
 
 export const setPublicProxy = (body: { enabled?: boolean; email?: string; confirmPublicIp?: boolean; buyerDomains?: boolean; target?: string; engine?: PublicEngineName }) =>
   agentApi.put<PublicProxyStatus>('/api/v1/public-proxy', body).then((r) => r.data)
+
+export const openWebPorts = () => agentApi.post<WebFirewall>('/api/v1/public-proxy/firewall').then((r) => r.data)
 
 export const detectPublicIp = () => agentApi.post<DetectedIp>('/api/v1/public-proxy/detect').then((r) => r.data)
 

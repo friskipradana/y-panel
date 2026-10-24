@@ -80,3 +80,12 @@ Semuanya bisa menyala bersamaan atau sendiri-sendiri. Saat jalur server dan Clou
 - Sertifikat wildcard (HTTP-01 tidak mendukungnya).
 - Domain pembeli yang dilayani nginx atau Apache sudah memakai jalur yang sama, tetapi pemeriksaan DNS dan TXT dilakukan agent, bukan web server.
 - Pemakaian nginx atau Apache sungguhan belum dicoba di mesin ini: konfigurasi dan alurnya diuji dengan perintah tiruan, jadi perilaku dengan nginx, Apache, dan certbot asli perlu dicoba di server Linux.
+
+## Firewall (ufw)
+
+Yang melayani domain (agent sendiri, nginx, atau Apache) bukan container Docker, jadi ufw yang aktif ikut menyaring port 80 dan 443. Bila ufw aktif dan kedua port belum dibuka, domain tidak bisa dicapai dan Let's Encrypt gagal memeriksa domain.
+
+- Menyalakan proxy publik membuka port webnya di ufw bila ufw sudah aktif (`ufw allow <port>/tcp comment 'Reneo public proxy'`); gagal bukan alasan proxy tidak menyala, dan statusnya terlihat di kartu IP publik.
+- Kartu itu menampilkan keadaan ufw (tidak terpasang, tidak aktif, port terbuka, atau port yang belum terbuka) dengan tombol untuk membuka port yang kurang (`POST /api/v1/public-proxy/firewall`, superadmin).
+- Panel tidak pernah menyalakan atau mematikan ufw dan tidak pernah menghapus aturannya (`internal/ufw`). Port database yang dibuka untuk IP tertentu tidak butuh ufw: aturannya ada di rantai `DOCKER-USER`, tempat Docker menyerahkan penyaringan port container, jadi tidak terpengaruh ufw aktif maupun mati.
+

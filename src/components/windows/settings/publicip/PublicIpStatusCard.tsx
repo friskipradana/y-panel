@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Globe2, LocateFixed } from 'lucide-react'
+import { Globe2, LocateFixed, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
-import { detectPublicIp, getPublicProxy, setPublicProxy, type DetectedIp } from '@/api/publicProxy'
+import { detectPublicIp, getPublicProxy, openWebPorts, setPublicProxy, type DetectedIp } from '@/api/publicProxy'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -45,7 +45,17 @@ export function PublicIpStatusCard() {
     onError: (e) => toast.error(apiError(e, t('publicip.detectFailed'))),
   })
 
+  const firewall = useMutation({
+    mutationFn: openWebPorts,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['public-proxy'] })
+      toast.success(t('publicip.firewall.opened'))
+    },
+    onError: (e) => toast.error(apiError(e, t('publicip.firewall.failed'))),
+  })
+
   const data = status.data
+  const closedPorts = data?.firewall.active ? data.firewall.ports.filter((p) => !p.open).map((p) => p.port) : []
   const badge = !data ? null : data.running ? (
     <Badge tone="success" dot>{t('publicip.state.running')}</Badge>
   ) : data.error ? (
@@ -81,6 +91,26 @@ export function PublicIpStatusCard() {
             <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('publicip.managedBy', { engine: t(`publicip.engine.${data.engineStatus.name}`), dir: data.engineStatus.confDir ?? '-' })}</p>
           ) : null}
           {data.running && data.engineStatus?.lastError ? <p role="alert" className="whitespace-pre-line text-[0.75rem] text-[var(--panel-danger-text)]">{data.engineStatus.lastError}</p> : null}
+
+          {data.firewall.installed ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)]" strokeWidth={1.75} />
+                <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+                  {!data.firewall.active
+                    ? t('publicip.firewall.inactive')
+                    : closedPorts.length === 0
+                      ? t('publicip.firewall.open', { ports: data.firewall.ports.map((p) => p.port).join(', ') })
+                      : t('publicip.firewall.closed', { ports: closedPorts.join(', ') })}
+                </p>
+              </div>
+              {closedPorts.length > 0 ? (
+                <Button variant="outline" size="sm" loading={firewall.isPending} onClick={() => firewall.mutate()}>
+                  {t('publicip.firewall.open.action', { ports: closedPorts.join(', ') })}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
 
           <Field label={t('publicip.email')} hint={t('publicip.emailHint')}>
             <div className="flex items-center gap-2">

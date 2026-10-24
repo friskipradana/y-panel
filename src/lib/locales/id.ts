@@ -4438,4 +4438,10 @@ export const id: Record<string, string> = {
   'databases.access.confirmIps': "Database dibuka ke internet untuk {count} alamat. Container dibuat ulang dan koneksi yang berjalan terputus sebentar.",
   'databases.access.confirmLocal': "Database ditutup lagi dan hanya bisa dipakai dari server ini. Container dibuat ulang dan koneksi dari luar terputus.",
   'databases.access.remoteNote': "Dari luar server: pakai alamat IP server ini dengan port {port}. Hanya alamat ini yang diizinkan: {ips}. Dari server ini tetap bisa lewat 127.0.0.1.",
+  'publicip.firewall.inactive': "Firewall ufw terpasang tetapi tidak aktif, jadi tidak ada port web yang perlu dibuka. Bila nanti diaktifkan, buka port web di sini.",
+  'publicip.firewall.open': "Firewall ufw aktif dan port web {ports} sudah dibuka.",
+  'publicip.firewall.closed': "Firewall ufw aktif dan port {ports} belum dibuka, jadi domain tidak bisa dicapai dari internet dan sertifikat tidak bisa dibuat.",
+  'publicip.firewall.open.action': "Buka port {ports}",
+  'publicip.firewall.opened': "Port web dibuka di ufw",
+  'publicip.firewall.failed': "Port web gagal dibuka di ufw",
 }

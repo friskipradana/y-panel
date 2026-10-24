@@ -4438,4 +4438,10 @@ export const en: Record<string, string> = {
   'databases.access.confirmIps': "The database is opened to the internet for {count} addresses. The container is made again and connections in progress drop for a moment.",
   'databases.access.confirmLocal': "The database is closed again and can be used from this server only. The container is made again and connections from outside drop.",
   'databases.access.remoteNote': "From outside the server: use the IP address of this server with port {port}. Only these addresses are allowed: {ips}. From this server it stays reachable on 127.0.0.1.",
+  'publicip.firewall.inactive': "The ufw firewall is installed but not active, so no web port needs opening. If it is turned on later, open the web ports here.",
+  'publicip.firewall.open': "The ufw firewall is active and the web ports {ports} are open.",
+  'publicip.firewall.closed': "The ufw firewall is active and port {ports} is not open, so the domains cannot be reached from the internet and no certificate can be issued.",
+  'publicip.firewall.open.action': "Open port {ports}",
+  'publicip.firewall.opened': "Web ports opened in ufw",
+  'publicip.firewall.failed': "The web ports could not be opened in ufw",
 }

@@ -186,6 +186,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/public-proxy", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicProxyStatus)))
 	s.mux.Handle("PUT /api/v1/public-proxy", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetPublicProxy)))
 	s.mux.Handle("GET /api/v1/public-proxy/engines", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicEngines)))
+	s.mux.Handle("POST /api/v1/public-proxy/firewall", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleOpenWebPorts)))
 	s.mux.Handle("POST /api/v1/public-proxy/detect", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDetectPublicIP)))
 	s.mux.Handle("GET /api/v1/public-proxy/routes", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePublicRoutesTable)))
 	s.mux.Handle("POST /api/v1/public-proxy/routes", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreatePublicRoute)))

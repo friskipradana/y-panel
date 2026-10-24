@@ -19,6 +19,7 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/listquery"
 	"github.com/friskipradana/panel-desktop-ui/internal/publicproxy"
 	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
+	"github.com/friskipradana/panel-desktop-ui/internal/ufw"
 )
 
 // An install that has a public address can serve its domains itself, without a tunnel: the public proxy listens on the web
@@ -215,6 +216,47 @@ func localAddresses() []localAddress {
 	return out
 }
 
+// webPorts are the TCP ports the domains are served on: the ones the proxy is set to, and 80 and 443 for nginx and Apache
+func (s *Server) webPorts() []int {
+	httpAddr, httpsAddr := s.publicProxyAddrs()
+	if e := s.loadSiteSettings().PublicEngine; e != "" && e != engineBuiltin {
+		httpAddr, httpsAddr = ":80", ":443"
+	}
+	ports := []int{}
+	for _, addr := range []string{httpAddr, httpsAddr} {
+		if _, p, err := net.SplitHostPort(addr); err == nil {
+			if n, err := strconv.Atoi(p); err == nil && n > 0 {
+				ports = append(ports, n)
+			}
+		}
+	}
+	return ports
+}
+
+// firewallStatus: ufw filters what reaches the web servers on this machine (they are not Docker containers), so with ufw active the
+// web ports must be open for a domain to get its certificate and be reached
+func (s *Server) firewallStatus() jsonResponse {
+	ports := s.webPorts()
+	st := ufw.Check(ports)
+	list := make([]jsonResponse, 0, len(ports))
+	for _, p := range ports {
+		list = append(list, jsonResponse{"port": p, "open": st.Open[p]})
+	}
+	return jsonResponse{"installed": st.Installed, "active": st.Active, "ports": list}
+}
+
+// handleOpenWebPorts adds the missing web ports to ufw (only when ufw is active)
+func (s *Server) handleOpenWebPorts(w http.ResponseWriter, r *http.Request) {
+	if err := ufw.Allow(s.webPorts(), "Reneo public proxy"); err != nil {
+		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
+		return
+	}
+	if u := userFromCtx(r); u != nil {
+		s.auditSensitiveAction(r, u, "publicproxy.firewall", "ok", map[string]any{"ports": s.webPorts()})
+	}
+	s.writeJSON(w, http.StatusOK, s.firewallStatus())
+}
+
 func (s *Server) handlePublicProxyStatus(w http.ResponseWriter, _ *http.Request) {
 	settings := s.loadSiteSettings()
 	httpWant, httpsWant := s.publicProxyAddrs()
@@ -223,8 +265,9 @@ func (s *Server) handlePublicProxyStatus(w http.ResponseWriter, _ *http.Request)
 		"enabled": settings.PublicProxyEnabled && settings.PublicProxyConfirmedAt != nil, "email": settings.PublicProxyEmail,
 		"confirmedBy": settings.PublicProxyConfirmedBy, "confirmedAt": settings.PublicProxyConfirmedAt,
 		"buyerDomains": settings.PublicBuyerDomains, "target": settings.PublicProxyTarget, "cloudflare": s.publicCloudflareReady(),
-		"engine": map[bool]string{true: engineBuiltin, false: settings.PublicEngine}[settings.PublicEngine == ""],
+		"engine":   map[bool]string{true: engineBuiltin, false: settings.PublicEngine}[settings.PublicEngine == ""],
 		"wantHttp": httpWant, "wantHttps": httpsWant, "addresses": localAddresses(), "panelOnLoopback": s.panelLoopbackPort() > 0,
+		"firewall": s.firewallStatus(),
 	}
 	rt := &s.publicProxy
 	rt.mu.Lock()
@@ -328,6 +371,10 @@ func (s *Server) handleSetPublicProxy(w http.ResponseWriter, r *http.Request) {
 			_ = s.saveSiteSettings(next)
 			s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 			return
+		}
+		// turning it on is asking for the web ports to be reachable: with ufw active they are opened too (the status says when this failed)
+		if err := ufw.Allow(s.webPorts(), "Reneo public proxy"); err != nil {
+			log.Printf("[publicproxy] ufw: %v", err)
 		}
 	}
 	if err := s.saveSiteSettings(next); err != nil {
