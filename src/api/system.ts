@@ -78,7 +78,7 @@ export const getSystemHistory = (since = 0) =>
     .then((r) => r.data.series)
 
 export interface WidgetLayoutResponse {
-  data: { placedWidgets?: unknown; mobile?: unknown } | null
+  data: { placedWidgets?: unknown; mobile?: unknown; notes?: unknown } | null
   updatedAt: string | null
 }
 
@@ -164,7 +164,7 @@ export const getDemoInfo = () => agentApi.get<DemoInfo>('/api/v1/public/demo').t
 
 export const getMyWidgets = () => agentApi.get<WidgetLayoutResponse>('/api/v1/me/widgets').then((r) => r.data)
 
-export const putMyWidgets = (data: { placedWidgets: unknown; mobile?: unknown }) =>
+export const putMyWidgets = (data: { placedWidgets: unknown; mobile?: unknown; notes?: unknown }) =>
   agentApi.put<{ ok: boolean }>('/api/v1/me/widgets', { data }).then((r) => r.data)
 
 export interface UpdateInfo {

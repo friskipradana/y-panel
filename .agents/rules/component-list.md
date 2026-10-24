@@ -82,7 +82,7 @@ Setiap window besar berupa shell tipis + folder pendamping. Hook memegang state,
 | `system-vital` | `SystemVitalWidget` | `mode` bars/graph, `range` |
 | `network-traffic` | `NetworkTrafficWidget` | `range` |
 | `cpu-graph` | `CpuGraphWidget` | `range` |
-| `quick-note` | `QuickNoteWidget` (sticky note, boleh banyak) | `text`, `color` (yellow/green/blue/pink/violet/plain, lihat `noteColors.ts`) |
+| `quick-note` | `QuickNoteWidget` (sticky note: satu catatan = satu widget, boleh banyak) | `noteId`; isi dan warna ada di `notes` pada `widgetStore` (`StickyNote`: `text`, `color` yellow/green/blue/pink/violet/plain, lihat `noteColors.ts`), disinkronkan bersama tata letak lewat `useWidgetSync`. Tombol daftar dan Catatan baru ada di header widget (`NoteHeaderActions`; di ponsel di bar widget `MobileHome`). Daftar menampilkan semua catatan: memilih satu membukanya sebagai widget sendiri (tidak ganda), ikon tempat sampah menghapus catatan. Menutup widget hanya mencabutnya dari desktop; catatan yang masih kosong ikut hilang. Widget lama berisi daftar memo dimigrasi oleh `migrateNotes` (memo terbuka tetap di widgetnya, sisanya masuk daftar) |
 | `ping` | `PingWidget` (boleh banyak) | `host`, `port` (0 = ICMP), `intervalSec`, `label`, `range` |
 
 Ponsel: urutan dan kunci widget disimpan terpisah di `mobile` (`order`, `locked`) pada blob yang sama dan tidak menyentuh koordinat desktop; `resetLayout` di ponsel hanya mengosongkan `mobile`.
@@ -93,7 +93,7 @@ Pendukung: `LineChart` + `RangeSwitch` (grafik garis dengan tooltip dan celah da
 
 Chrome widget (judul, grip, kunci, tutup) hanya muncul saat hover/fokus dan melayang di tepi atas, tidak menggeser isi. Isi widget memakai container query (`@[260px]:`) karena lebar widget mengikuti viewport (maks 280px).
 
-Ukuran: widget desktop dapat diubah lebar dan tingginya lewat delapan pegangan tepi/sudut seperti window (`w`, `h` pada `PlacedWidget`; batas 200x96 sampai 720x760, tidak untuk widget terkunci; ukuran yang menimpa widget lain ditolak). Penempatan setelah geser memakai `placeDroppedWidget`: perataan ringan 8px, geser minimum keluar dari tumpang tindih, atau kembali ke posisi semula; tidak pernah melompat ke kolom lain. `widget.config.notes` pada `quick-note` berisi daftar memo (JSON).
+Ukuran: widget desktop dapat diubah lebar dan tingginya lewat delapan pegangan tepi/sudut seperti window (`w`, `h` pada `PlacedWidget`; batas 200x96 sampai 720x760, tidak untuk widget terkunci; ukuran yang menimpa widget lain ditolak). Penempatan setelah geser memakai `placeDroppedWidget`: perataan ringan 8px, geser minimum keluar dari tumpang tindih, atau kembali ke posisi semula; tidak pernah melompat ke kolom lain. Catatan `quick-note` disimpan di `notes` (bukan di `widget.config`).
 
 Utilitas scrollbar: `.custom-widget-scrollbar` (`tailwind.css`).
 

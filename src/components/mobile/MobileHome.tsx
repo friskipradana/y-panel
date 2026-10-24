@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
 import { MobileAppsGrid } from '@/components/mobile/MobileAppsGrid'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
+import { NoteHeaderActions } from '@/components/widgets/QuickNoteWidget'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { IconButton } from '@/components/ui/IconButton'
@@ -112,6 +113,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
             return (
               <div key={widget.id} className="@container flex flex-col overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
                 <div className="flex items-center justify-end gap-0.5 border-b border-[var(--win-border)] px-1.5 py-0.5">
+                  {widget.type === 'quick-note' ? <NoteHeaderActions widgetId={widget.id} large /> : null}
                   <IconButton label={t('mobile.widgetUp')} disabled={locked || index === 0} onClick={() => moveMobileWidget(widget.id, -1)}>
                     <ArrowUp className="h-4 w-4" />
                   </IconButton>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getMyWidgets, putMyWidgets } from '@/api/system'
 import { useAuthStore } from '@/store/authStore'
 import { useMetricsStore } from '@/store/metricsStore'
-import { sanitizeLayout, useWidgetStore, type MobileWidgetLayout } from '@/store/widgetStore'
+import { sanitizeLayout, sanitizeNotes, useWidgetStore, type MobileWidgetLayout } from '@/store/widgetStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 
 const OWNER_KEY = 'reneo-widgets-owner'
@@ -30,8 +30,8 @@ function sanitizeMobile(input: unknown): MobileWidgetLayout | null {
 }
 
 function snapshot() {
-  const { placedWidgets, mobile } = useWidgetStore.getState()
-  return { placedWidgets, mobile }
+  const { placedWidgets, mobile, notes } = useWidgetStore.getState()
+  return { placedWidgets, mobile, notes }
 }
 
 function readOwner() {
@@ -103,10 +103,12 @@ export function useWidgetSync(): boolean {
       let reachable = true
       let remote: PlacedWidget[] | null = null
       let remoteMobile: MobileWidgetLayout | null = null
+      let remoteNotes: unknown = []
       try {
         const res = await getMyWidgets()
         if (res.data && Array.isArray(res.data.placedWidgets)) remote = sanitize(res.data.placedWidgets)
         remoteMobile = sanitizeMobile(res.data?.mobile)
+        remoteNotes = res.data?.notes
       } catch {
         reachable = false
       }
@@ -121,12 +123,15 @@ export function useWidgetSync(): boolean {
           .then(() => writeDirty(null))
           .catch(() => undefined)
       } else if (remote) {
+        store.setNotes(sanitizeNotes(remoteNotes))
         store.setLayout(sanitizeLayout(remote))
+        store.normalizeNotes()
         if (remoteMobile) store.setMobileLayout(remoteMobile)
       } else if (owner && owner !== username) {
         // Another account used this browser: start clean instead of inheriting its widgets,
         // and drop the metric history so host figures never carry over to a limited account
         store.resetToDefault()
+        store.setNotes([])
         useMetricsStore.setState({ series: {} })
       }
       writeOwner(username)
@@ -138,10 +143,12 @@ export function useWidgetSync(): boolean {
         }
         let prev = useWidgetStore.getState().placedWidgets
         let prevMobile = useWidgetStore.getState().mobile
+        let prevNotes = useWidgetStore.getState().notes
         unsubscribe = useWidgetStore.subscribe((state) => {
-          if (state.placedWidgets === prev && state.mobile === prevMobile) return
+          if (state.placedWidgets === prev && state.mobile === prevMobile && state.notes === prevNotes) return
           prev = state.placedWidgets
           prevMobile = state.mobile
+          prevNotes = state.notes
           dirty = true
           writeDirty(username)
           window.clearTimeout(timer)

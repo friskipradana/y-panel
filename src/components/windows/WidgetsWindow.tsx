@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Activity, Clock, Gauge, GripVertical, Lock, Network, Plus, Puzzle, Radar, RotateCcw, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
+import { MULTI_INSTANCE_WIDGETS, WIDGET_CATALOG, orderWidgetsForMobile, useWidgetStore, widgetAllowedFor, type StickyNote as NoteData } from '@/store/widgetStore'
 import { useAuthStore } from '@/store/authStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
@@ -20,7 +20,7 @@ const WIDGET_ICONS: Record<WidgetType, LucideIcon> = {
 }
 
 // One short line that tells two widgets of the same type apart
-function detail(widget: PlacedWidget): string {
+function detail(widget: PlacedWidget, notes: NoteData[]): string {
   const cfg = widget.config ?? {}
   if (widget.type === 'ping') {
     const host = String(cfg.host ?? '')
@@ -28,7 +28,7 @@ function detail(widget: PlacedWidget): string {
     return host ? (port > 0 ? `${host}:${port}` : host) : ''
   }
   if (widget.type === 'quick-note') {
-    const text = String(cfg.text ?? '').replace(/\s+/g, ' ').trim()
+    const text = (notes.find((n) => n.id === cfg.noteId)?.text ?? '').replace(/\s+/g, ' ').trim()
     return text.length > 48 ? `${text.slice(0, 48)}...` : text
   }
   return ''
@@ -39,6 +39,7 @@ export function WidgetsWindow() {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
   const placedWidgets = useWidgetStore((s) => s.placedWidgets)
+  const notes = useWidgetStore((s) => s.notes)
   const mobileOrder = useWidgetStore((s) => s.mobile.order)
   const addWidget = useWidgetStore((s) => s.addWidget)
   const removeWidget = useWidgetStore((s) => s.removeWidget)
@@ -119,7 +120,7 @@ export function WidgetsWindow() {
               >
                 {visibleInstalled.map((widget) => {
                   const Icon = WIDGET_ICONS[widget.type]
-                  const extra = detail(widget)
+                  const extra = detail(widget, notes)
                   const locked = widget.isLocked && !isMobile
                   return (
                     <div key={widget.id} className="docker-row">

@@ -19,11 +19,10 @@ import {
   WIDGET_TOP,
   WIDGET_WIDTH,
 } from '@/store/widgetStore'
-import { alertLib } from '@/lib/alert'
 import { ClockUptimeWidget } from './ClockUptimeWidget'
 import { SystemVitalWidget } from './SystemVitalWidget'
 import { NetworkTrafficWidget } from './NetworkTrafficWidget'
-import { QuickNoteWidget } from './QuickNoteWidget'
+import { NoteHeaderActions, QuickNoteWidget } from './QuickNoteWidget'
 import { CpuGraphWidget } from './CpuGraphWidget'
 import { PingWidget } from './PingWidget'
 import { asNoteColor, noteBackground } from './noteColors'
@@ -115,15 +114,12 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   const top = Math.max(TOP_MIN, Math.min(widget.y, viewport.h - height - 24))
 
   const isNote = widget.type === 'quick-note'
-  const background = isNote ? noteBackground(asNoteColor(widget.config?.color)) : 'var(--widget-bg)'
+  const noteColor = useWidgetStore((s) => (isNote ? s.notes.find((n) => n.id === widget.config?.noteId)?.color : undefined))
+  const background = isNote ? noteBackground(asNoteColor(noteColor)) : 'var(--widget-bg)'
 
-  const handleRemove = async () => {
+  // closing a sticky note only takes it off the desktop: its text stays in the list
+  const handleRemove = () => {
     if (widget.isLocked) return
-    const text = typeof widget.config?.text === 'string' ? widget.config.text.trim() : ''
-    if (isNote && text) {
-      const ok = await alertLib.confirm(t('widget.note.deleteTitle'), t('widget.note.deleteConfirm'), t('common.delete'), t('common.cancel'))
-      if (!ok) return
-    }
     onRemove(widget.id)
   }
 
@@ -299,6 +295,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
               <span className="truncate">{title}</span>
             </span>
             <div className="flex shrink-0 items-center text-[var(--text-secondary)]">
+              {isNote ? <NoteHeaderActions widgetId={widget.id} /> : null}
               <button
                 type="button"
                 onClick={(e) => {
@@ -318,7 +315,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    void handleRemove()
+                    handleRemove()
                   }}
                   title={t('widget.remove')}
                   aria-label={t('widget.remove')}

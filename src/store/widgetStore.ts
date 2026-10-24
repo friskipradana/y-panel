@@ -71,7 +71,6 @@ export const MULTI_INSTANCE_WIDGETS: WidgetType[] = ['ping', 'quick-note']
 
 export const DEFAULT_WIDGET_CONFIG: Partial<Record<WidgetType, WidgetConfig>> = {
   ping: { host: '1.1.1.1', port: 0, intervalSec: 10, range: '15m', label: '' },
-  'quick-note': { text: '', color: 'yellow' },
   'cpu-graph': { range: '15m' },
   'system-vital': { mode: 'bars', range: '15m' },
   'network-traffic': { range: '15m' },
@@ -502,14 +501,89 @@ export function orderWidgetsForMobile(widgets: PlacedWidget[], order: string[]):
   return [...known, ...rest]
 }
 
+// A sticky note: its own text and color; every note shown on the desktop is a widget that points at it by `config.noteId`
+export interface StickyNote {
+  id: string
+  text: string
+  color: string
+}
+
+export const MAX_NOTES = 50
+export const MAX_NOTE_CHARS = 4000
+
+export function newNoteId() {
+  return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
+export function sanitizeNotes(input: unknown): StickyNote[] {
+  if (!Array.isArray(input)) return []
+  const seen = new Set<string>()
+  const out: StickyNote[] = []
+  for (const n of input) {
+    if (!n || typeof n.id !== 'string' || typeof n.text !== 'string' || seen.has(n.id)) continue
+    seen.add(n.id)
+    out.push({ id: n.id, text: n.text.slice(0, MAX_NOTE_CHARS), color: typeof n.color === 'string' ? n.color : 'yellow' })
+    if (out.length >= MAX_NOTES) break
+  }
+  return out
+}
+
+// Widgets saved before every note had its own widget kept a list of memos in the widget config; the memo that was open stays on its
+// widget and the rest become notes that are not on the desktop yet (they are in the list). A widget whose note is missing gets an empty one.
+export function migrateNotes(widgets: PlacedWidget[], notes: StickyNote[]): { widgets: PlacedWidget[]; notes: StickyNote[] } {
+  const known = new Set(notes.map((n) => n.id))
+  const nextNotes = [...notes]
+  let changed = false
+  const add = (note: StickyNote) => {
+    if (nextNotes.length >= MAX_NOTES) return
+    nextNotes.push(note)
+    known.add(note.id)
+  }
+  const next = widgets.map((w) => {
+    if (w.type !== 'quick-note') return w
+    const noteId = typeof w.config?.noteId === 'string' ? w.config.noteId : ''
+    if (noteId && known.has(noteId)) return w
+    changed = true
+    const color = typeof w.config?.color === 'string' ? w.config.color : 'yellow'
+    let memos: { id: string; text: string }[] = []
+    try {
+      const parsed: unknown = JSON.parse(String(w.config?.notes ?? '[]'))
+      if (Array.isArray(parsed)) memos = parsed.filter((m) => m && typeof m.id === 'string' && typeof m.text === 'string')
+    } catch {
+      // damaged value: the single text below is used
+    }
+    if (memos.length === 0) memos = [{ id: newNoteId(), text: typeof w.config?.text === 'string' ? w.config.text : '' }]
+    const activeId = typeof w.config?.active === 'string' ? w.config.active : memos[0].id
+    const open = memos.find((m) => m.id === activeId) ?? memos[0]
+    const id = known.has(open.id) ? newNoteId() : open.id
+    add({ id, text: open.text.slice(0, MAX_NOTE_CHARS), color })
+    memos.filter((m) => m !== open).forEach((m) => add({ id: known.has(m.id) ? newNoteId() : m.id, text: m.text.slice(0, MAX_NOTE_CHARS), color }))
+    return { ...w, config: { noteId: id } }
+  })
+  return changed ? { widgets: next, notes: nextNotes } : { widgets, notes }
+}
+
+// Which sticky note widget shows its list of notes in place of its text (not saved)
+export const useNoteListStore = create<{ openFor: string | null; setOpenFor: (id: string | null) => void }>((set) => ({
+  openFor: null,
+  setOpenFor: (openFor) => set({ openFor }),
+}))
+
 interface WidgetState {
   placedWidgets: PlacedWidget[]
+  notes: StickyNote[]
+  setNotes: (notes: StickyNote[]) => void
+  normalizeNotes: () => void
+  updateNote: (id: string, patch: Partial<Pick<StickyNote, 'text' | 'color'>>) => void
+  deleteNote: (id: string) => void
+  openNote: (id: string) => string
+  newStickyNote: () => string
   mobile: MobileWidgetLayout
   moveMobileWidget: (id: string, delta: -1 | 1) => void
   toggleMobileLock: (id: string) => void
   setMobileLayout: (layout: MobileWidgetLayout) => void
   resetMobileLayout: () => void
-  addWidget: (type: WidgetType, pos?: { x: number; y: number }) => string
+  addWidget: (type: WidgetType, pos?: { x: number; y: number }, config?: WidgetConfig) => string
   removeWidget: (id: string) => void
   updateWidgetPosition: (id: string, x: number, y: number) => void
   resizeWidget: (id: string, rect: { x: number; y: number; w: number; h: number }) => void
@@ -527,7 +601,40 @@ export const useWidgetStore = create<WidgetState>()(
   persist(
     (set, get) => ({
       placedWidgets: getDefaultPositions(),
+      notes: [],
       mobile: EMPTY_MOBILE,
+
+      setNotes: (notes) => set({ notes }),
+
+      normalizeNotes: () => {
+        const { placedWidgets, notes } = get()
+        const next = migrateNotes(placedWidgets, notes)
+        if (next.widgets !== placedWidgets || next.notes !== notes) set({ placedWidgets: next.widgets, notes: next.notes })
+      },
+
+      // A color is the note's: every widget that shows it follows
+      updateNote: (id, patch) =>
+        set((state) => ({
+          notes: state.notes.map((n) => (n.id === id ? { ...n, ...patch, text: (patch.text ?? n.text).slice(0, MAX_NOTE_CHARS) } : n)),
+        })),
+
+      // Deleting a note also closes the widgets that show it
+      deleteNote: (id) =>
+        set((state) => ({
+          notes: state.notes.filter((n) => n.id !== id),
+          placedWidgets: state.placedWidgets.filter((w) => !(w.type === 'quick-note' && w.config?.noteId === id)),
+        })),
+
+      // Shows a note as its own widget; one that is on the desktop already is not shown twice
+      openNote: (id) => {
+        const shown = get().placedWidgets.find((w) => w.type === 'quick-note' && w.config?.noteId === id)
+        return shown ? shown.id : get().addWidget('quick-note', undefined, { noteId: id })
+      },
+
+      newStickyNote: () => {
+        if (get().notes.length >= MAX_NOTES) return ''
+        return get().addWidget('quick-note')
+      },
 
       moveMobileWidget: (id, delta) => {
         const { placedWidgets, mobile } = get()
@@ -550,7 +657,7 @@ export const useWidgetStore = create<WidgetState>()(
 
       resetMobileLayout: () => set({ mobile: EMPTY_MOBILE }),
 
-      addWidget: (type, pos) => {
+      addWidget: (type, pos, extra) => {
         // Single-instance widgets: return the one already on the desktop
         if (!MULTI_INSTANCE_WIDGETS.includes(type)) {
           const existing = get().placedWidgets.find((w) => w.type === type)
@@ -569,17 +676,25 @@ export const useWidgetStore = create<WidgetState>()(
           : findSmartSpawnPosition(current, type)
         const finalPos = pos && widgetsAreFree() ? wanted : resolveWidgetOverlap(id, type, wanted.x, wanted.y, current)
 
+        let noteId = typeof extra?.noteId === 'string' ? extra.noteId : ''
+        const created: StickyNote[] = []
+        if (type === 'quick-note' && !noteId) {
+          noteId = newNoteId()
+          created.push({ id: noteId, text: '', color: 'yellow' })
+        }
+        const base = DEFAULT_WIDGET_CONFIG[type] ? { ...DEFAULT_WIDGET_CONFIG[type] } : undefined
         const newWidget: PlacedWidget = {
           id,
           type,
           x: Math.round(finalPos.x),
           y: Math.round(finalPos.y),
           isLocked: false,
-          config: DEFAULT_WIDGET_CONFIG[type] ? { ...DEFAULT_WIDGET_CONFIG[type] } : undefined,
+          config: type === 'quick-note' ? { noteId } : base || extra ? { ...base, ...extra } : undefined,
         }
 
         set((state) => ({
           placedWidgets: [...state.placedWidgets, newWidget],
+          notes: created.length ? [...state.notes, ...created] : state.notes,
         }))
 
         return id
@@ -587,9 +702,16 @@ export const useWidgetStore = create<WidgetState>()(
 
       removeWidget: (id) => {
         useMetricsStore.getState().clear(`ping:${id}`)
-        set((state) => ({
-          placedWidgets: state.placedWidgets.filter((w) => w.id !== id),
-        }))
+        set((state) => {
+          // closing a sticky note keeps its text in the list; a note that was never written in goes with its widget
+          const closed = state.placedWidgets.find((w) => w.id === id)
+          const noteId = closed?.type === 'quick-note' ? String(closed.config?.noteId ?? '') : ''
+          const empty = noteId && state.notes.some((n) => n.id === noteId && !n.text.trim())
+          return {
+            placedWidgets: state.placedWidgets.filter((w) => w.id !== id),
+            notes: empty ? state.notes.filter((n) => n.id !== noteId) : state.notes,
+          }
+        })
       },
 
       setLayout: (widgets) => set({ placedWidgets: widgets }),
@@ -703,7 +825,9 @@ export const useWidgetStore = create<WidgetState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state && Array.isArray(state.placedWidgets)) {
-          state.placedWidgets = sanitizeLayout(state.placedWidgets)
+          const next = migrateNotes(sanitizeLayout(state.placedWidgets), sanitizeNotes(state.notes))
+          state.placedWidgets = next.widgets
+          state.notes = next.notes
         }
       },
     }
