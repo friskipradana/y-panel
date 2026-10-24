@@ -19,6 +19,7 @@ import { WIDGET_TOP, useWidgetStore, widgetsAreFree } from '@/store/widgetStore'
 import { LockScreen } from '@/components/desktop/LockScreen'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { DesktopIconLayer } from '@/components/desktop/DesktopIconLayer'
+import { DesktopContextMenu } from '@/components/desktop/DesktopContextMenu'
 
 export { canAccessWindow }
 
@@ -137,6 +138,23 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     setDropGhost(null)
   }
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+
+  const handleDesktopContextMenu = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (
+      target.closest('.window-frame') ||
+      target.closest('#desktop-dock') ||
+      target.closest('.taskbar') ||
+      target.closest('[role="dialog"]') ||
+      target.closest('#command-palette')
+    ) {
+      return
+    }
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
   return (
     <div
       ref={rootRef}
@@ -145,6 +163,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       onDragOver={handleDesktopDragOver}
       onDragLeave={handleDesktopDragLeave}
       onDrop={handleDesktopDrop}
+      onContextMenu={handleDesktopContextMenu}
     >
       {dropGhost ? (
         <div
@@ -218,6 +237,16 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       <AnimatePresence>
         {isLocked && <LockScreen onLogout={onLogout} />}
       </AnimatePresence>
+
+      {/* Desktop Context Menu (Right Click) */}
+      {contextMenu && (
+        <DesktopContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          role={userRole}
+        />
+      )}
 
       {/* Global Command Palette (Ctrl+K) */}
       <CommandPalette />

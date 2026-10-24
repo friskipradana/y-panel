@@ -10,7 +10,6 @@ import { useCommandStore } from '@/store/commandStore'
 import { ProfileMenu } from './ProfileMenu'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { ApplicationsMenu } from './ApplicationsMenu'
-import { ViewMenu } from './ViewMenu'
 import { NotificationsMenu } from './NotificationsMenu'
 import { formatDateTimeID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
@@ -77,7 +76,6 @@ export function Taskbar({ onLogout, authenticated }: TaskbarProps) {
     <div className={`taskbar ${!isDark ? 'taskbar--light' : ''}`}>
       <div className="taskbar-left flex items-center">
         <ApplicationsMenu role={currentUser?.role} />
-        <ViewMenu role={currentUser?.role} />
       </div>
 
       <div className="taskbar-actions">
