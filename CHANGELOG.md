@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.68.0] - 2026-10-24
+
+Open the web ports in ufw when it is active, and show the state of ufw next to the proxy switch.
+
+### Fitur baru
+- **public-ip:** Open the web ports in ufw when it is active, and show the state of ufw next to the proxy switch ([`16d8c8e`](https://github.com/friskipradana/y-panel/commit/16d8c8e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.67.1...v1.68.0
+
 ## [1.67.1] - 2026-10-24
 
 A database open to listed addresses is never published before its firewall rules, and the installer sets iptables up.
