@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.70.0] - 2026-10-24
+
+2 perubahan, utamanya add AppIcon component for rendering window and application icons with Fluent UI.
+
+### Fitur baru
+- Add AppIcon component for rendering window and application icons with Fluent UI ([`fa18d5a`](https://github.com/friskipradana/y-panel/commit/fa18d5a))
+- Add AppIcon component for rendering mapped FluentUI icons with custom colors and sizes ([`8055198`](https://github.com/friskipradana/y-panel/commit/8055198))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.69.0...v1.70.0
+
 ## [1.69.0] - 2026-10-24
 
 The agent puts the firewall rules of a database back when something removes them, and the connection dialog shows the address to use from outside.
