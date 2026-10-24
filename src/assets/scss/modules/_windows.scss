@@ -666,7 +666,20 @@ button:focus-visible,
   background: transparent;
 }
 
-.panel-loading,
+.panel-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 24px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .panel-error-state {
   display: flex;
   min-height: 4.5rem;
@@ -679,13 +692,6 @@ button:focus-visible,
   padding: 12px 14px;
   text-align: center;
   font-size: 0.75rem;
-}
-
-.panel-loading {
-  color: var(--text-secondary);
-}
-
-.panel-error-state {
   flex-direction: column;
   color: var(--panel-danger-text);
   background: var(--panel-danger-bg);

@@ -14,11 +14,11 @@ export function EmptyState({ icon, children, className = '' }: StateBase & { ico
   )
 }
 
-export function LoadingState({ children, className = '' }: StateBase & { children: ReactNode }) {
+export function LoadingState({ children, className = '' }: StateBase & { children?: ReactNode }) {
   return (
     <div role="status" aria-live="polite" className={`panel-loading ${className}`.trim()}>
-      <LoaderCircle className="h-4 w-4 animate-spin" />
-      <span className="text-[12px]">{children}</span>
+      <LoaderCircle className="h-5 w-5 animate-spin text-[var(--panel-primary-solid)]" strokeWidth={2} aria-hidden="true" />
+      {children ? <span className="text-[12.5px] font-medium text-[var(--text-secondary)]">{children}</span> : null}
     </div>
   )
 }

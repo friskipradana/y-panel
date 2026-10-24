@@ -76,7 +76,7 @@ interface ListStateProps {
 export function ListState({ loading, error, errorTitle, errorHint, loadingText, empty, emptyIcon, emptyTitle, emptyHint, children }: ListStateProps) {
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] w-full py-12 px-4">
         <LoadingState>{loadingText}</LoadingState>
       </div>
     )

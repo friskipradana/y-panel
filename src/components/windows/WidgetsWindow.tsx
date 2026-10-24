@@ -66,7 +66,7 @@ export function WidgetsWindow() {
   const removeWidget = useWidgetStore((s) => s.removeWidget)
   const resetLayout = useWidgetStore((s) => s.resetLayout)
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
 
   // the host card on the phone home already shows CPU, RAM and disk
   const role = useAuthStore((s) => s.user?.role)
