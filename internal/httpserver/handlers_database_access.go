@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -13,6 +14,9 @@ import (
 
 // Who may reach a user database from outside the server: only the machine itself (the container is published on 127.0.0.1), or a list
 // of addresses (published on every interface behind a firewall chain that lets only them in).
+
+// one change at a time: the firewall chain and the container of a database must not be rewritten by two requests together
+var databaseAccessMu sync.Mutex
 
 func (s *Server) handleDatabaseAccess(w http.ResponseWriter, r *http.Request) {
 	item, _, ok := s.ownedDatabase(w, r)
@@ -64,6 +68,9 @@ func (s *Server) handleDatabaseSetAccess(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	databaseAccessMu.Lock()
+	defer databaseAccessMu.Unlock()
+
 	password, err := crypto.Decrypt(s.cfg.EncryptionKey, item.PasswordEncrypted)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, errors.New("stored credentials could not be decrypted"))
@@ -90,6 +97,14 @@ func (s *Server) handleDatabaseSetAccess(w http.ResponseWriter, r *http.Request)
 	}
 	// the container is made again (the data volume stays) because the published address can only be set when it starts
 	if err := userdb.Recreate(spec); err != nil {
+		// the old container is gone: bring it back the way it was so the database is not left missing
+		spec.AllowRemote = item.AccessMode == userdb.AccessIPs
+		if item.AccessMode != userdb.AccessIPs {
+			userdb.ClearAccess(item.ID, item.HostPort)
+		}
+		if backErr := userdb.Recreate(spec); backErr != nil {
+			log.Printf("[databases] access id=%d: could not bring the database back: %v", item.ID, backErr)
+		}
 		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
 		return
 	}
