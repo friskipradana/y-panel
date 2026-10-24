@@ -4444,4 +4444,5 @@ export const id: Record<string, string> = {
   'publicip.firewall.open.action': "Buka port {ports}",
   'publicip.firewall.opened': "Port web dibuka di ufw",
   'publicip.firewall.failed': "Port web gagal dibuka di ufw",
+  'databases.access.fromOutside': "Dari alamat yang diizinkan",
 }

@@ -126,6 +126,16 @@ func ApplyAccess(id int64, port int, allowed []string) error {
 	return nil
 }
 
+// AccessInPlace says whether the jump to the chain of the database is in DOCKER-USER (it is gone after a reboot, a firewall reload or a
+// restart of a service that rewrites the rules).
+func AccessInPlace(id int64, port int) bool {
+	if _, err := iptables(append([]string{"-C"}, jumpRule(id, port)...)...); err != nil {
+		return false
+	}
+	_, err := iptables("-S", accessChain(id))
+	return err == nil
+}
+
 // ClearAccess takes the chain of a database away (nothing to do when it was never there).
 func ClearAccess(id int64, port int) {
 	for i := 0; i < 5; i++ {

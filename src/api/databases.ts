@@ -43,6 +43,9 @@ export interface DatabaseCredentials {
   url: string
   accessMode: 'local' | 'ips'
   allowedIps: string[]
+  /** The public address of this machine and the URL that uses it, when the database is open to addresses and the machine has one of its own */
+  publicHost: string
+  publicUrl: string
 }
 
 export const listDatabaseEngines = () =>

@@ -42,6 +42,13 @@ export function ConnectionModal({ dbw }: { dbw: DatabasesWindowState }) {
           {data.username ? <CopyBlock label={t('databases.username')} text={data.username} /> : null}
           <CopyBlock label={t('databases.password')} text={data.password} />
           <CopyBlock label={t('databases.url')} text={data.url} wrap />
+          {data.accessMode === 'ips' && data.publicHost ? (
+            <div className="space-y-3 rounded-lg border border-[var(--win-border)] p-3">
+              <p className="text-[0.75rem] font-semibold text-[var(--text-secondary)]">{t('databases.access.fromOutside')}</p>
+              <CopyBlock label={t('databases.host')} text={data.publicHost} />
+              <CopyBlock label={t('databases.url')} text={data.publicUrl} wrap />
+            </div>
+          ) : null}
           <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
             {data.accessMode === 'ips' ? t('databases.access.remoteNote', { port: data.port, ips: data.allowedIps.join(', ') }) : t('databases.localOnlyNote')}
           </p>

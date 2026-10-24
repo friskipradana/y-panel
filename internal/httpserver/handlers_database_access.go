@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -118,6 +119,30 @@ func (s *Server) handleDatabaseSetAccess(w http.ResponseWriter, r *http.Request)
 	}
 	s.auditSensitiveAction(r, u, "database.access", "ok", map[string]any{"database": item.Name, "mode": req.Mode, "ips": ips})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"mode": req.Mode, "ips": ips, "port": item.HostPort})
+}
+
+// WatchDatabaseAccess puts the firewall rules of the databases back when something took them away (a firewall reload, a restart of
+// Docker or of a service that rewrites the rules). It runs until the agent stops.
+func (s *Server) WatchDatabaseAccess(interval time.Duration) {
+	go func() {
+		for range time.Tick(interval) {
+			if s.database == nil || !s.database.IsConnected() {
+				continue
+			}
+			list, err := s.database.ListManagedDatabases(0, true)
+			if err != nil {
+				continue
+			}
+			databaseAccessMu.Lock()
+			for _, item := range list {
+				if item.AccessMode == userdb.AccessIPs && len(item.AccessIPs) > 0 && !userdb.AccessInPlace(item.ID, item.HostPort) {
+					log.Printf("[databases] the firewall rules of database %d were gone; putting them back", item.ID)
+					s.restoreDatabaseAccess(item)
+				}
+			}
+			databaseAccessMu.Unlock()
+		}
+	}()
 }
 
 // RestoreDatabaseAccess puts the firewall chains back after the agent or the machine restarted (they live in the kernel only). A

@@ -95,3 +95,26 @@ func TestRestartPolicy(t *testing.T) {
 		t.Fatalf("a database open to listed addresses is started by the agent: %s", remote)
 	}
 }
+
+func TestAccessInPlace(t *testing.T) {
+	defer func(old func(...string) (string, error)) { iptables = old }(iptables)
+	have := map[string]bool{"-C DOCKER-USER -p tcp -m conntrack --ctorigdstport 20005 --ctdir ORIGINAL -j RENEO-DB-7": true, "-S RENEO-DB-7": true}
+	iptables = func(args ...string) (string, error) {
+		if have[strings.Join(args, " ")] {
+			return "", nil
+		}
+		return "", errors.New("no")
+	}
+	if !AccessInPlace(7, 20005) {
+		t.Fatal("jump and chain present")
+	}
+	delete(have, "-S RENEO-DB-7")
+	if AccessInPlace(7, 20005) {
+		t.Fatal("a chain that is gone is not in place")
+	}
+	have["-S RENEO-DB-7"] = true
+	delete(have, "-C DOCKER-USER -p tcp -m conntrack --ctorigdstport 20005 --ctdir ORIGINAL -j RENEO-DB-7")
+	if AccessInPlace(7, 20005) {
+		t.Fatal("a jump that is gone is not in place")
+	}
+}

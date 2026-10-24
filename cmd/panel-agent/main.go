@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
 	"syscall"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
@@ -74,6 +75,7 @@ func main() {
 	srv.RestoreProjects()
 	srv.RecoverDatabases()
 	srv.RestoreDatabaseAccess()
+	srv.WatchDatabaseAccess(2 * time.Minute)
 	srv.RestoreTunnels()
 	srv.RestorePublicProxy()
 
