@@ -420,7 +420,9 @@
 
 .docker-image-combobox__button-label,
 .docker-image-combobox__button-placeholder {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

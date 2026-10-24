@@ -258,6 +258,138 @@
   }
 }
 
+// Floating info popover for domain details
+.cloudflare-info-popover {
+  position: fixed;
+  z-index: 60500;
+  width: 330px;
+  max-width: calc(100vw - 24px);
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  font-size: 0.8125rem;
+  color: var(--win-text);
+  animation: cloudflare-popover-in 0.14s ease-out;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 9px;
+    margin-bottom: 9px;
+    border-bottom: 1px solid var(--win-border);
+  }
+
+  &__name {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--win-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    flex-shrink: 0;
+
+    &--success {
+      background: var(--panel-success-bg);
+      color: var(--panel-success-text);
+      border: 1px solid var(--panel-success-border);
+    }
+
+    &--warning {
+      background: var(--panel-warning-bg);
+      color: var(--panel-warning-text);
+      border: 1px solid var(--panel-warning-border);
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__val-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--win-border);
+    background: var(--panel-surface);
+  }
+
+  &__val-mono {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--win-text);
+  }
+
+  &__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+
+    &:hover {
+      background: var(--panel-surface-hover);
+      color: var(--win-text);
+    }
+  }
+
+  &__ns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+@keyframes cloudflare-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 // Phones: the picker takes a line, its state and actions share the next, and nameservers wrap cleanly
 .layout-mobile {
   .cloudflare-scope {
