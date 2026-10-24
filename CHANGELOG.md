@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.67.1] - 2026-10-24
+
+A database open to listed addresses is never published before its firewall rules, and the installer sets iptables up.
+
+### Perbaikan
+- **databases:** A database open to listed addresses is never published before its firewall rules, and the installer sets iptables up ([`05f2539`](https://github.com/friskipradana/y-panel/commit/05f2539))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.67.0...v1.67.1
+
 ## [1.67.0] - 2026-10-24
 
 Access settings per database, localhost only or a list of allowed IPs.
