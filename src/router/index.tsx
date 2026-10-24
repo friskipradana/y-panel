@@ -1,22 +1,22 @@
 import { Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import { LandingPage } from '@/pages/LandingPage'
+import { LandingPage } from '@/pages/landing/LandingPage'
 import { lazyNamed } from '@/lib/lazy'
 import { FrontendNotFoundPage } from '@/components/system/FrontendNotFoundPage'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
 
-const LoginPage = lazyNamed(() => import('@/pages/LoginPage'), 'LoginPage')
-const DesktopPage = lazyNamed(() => import('@/pages/DesktopPage'), 'DesktopPage')
-const McpGuidePage = lazyNamed(() => import('@/pages/McpGuidePage'), 'McpGuidePage')
-const ArticlesPage = lazyNamed(() => import('@/pages/ArticlesPage'), 'ArticlesPage')
-const ArticlePage = lazyNamed(() => import('@/pages/ArticlesPage'), 'ArticlePage')
-const InstallPage = lazyNamed(() => import('@/pages/InstallPage'), 'InstallPage')
+const LoginPage = lazyNamed(() => import('@/pages/login/LoginPage'), 'LoginPage')
+const DesktopPage = lazyNamed(() => import('@/pages/desktop/DesktopPage'), 'DesktopPage')
+const McpGuidePage = lazyNamed(() => import('@/pages/mcp-guide/McpGuidePage'), 'McpGuidePage')
+const ArticlesPage = lazyNamed(() => import('@/pages/articles/ArticlesPage'), 'ArticlesPage')
+const ArticlePage = lazyNamed(() => import('@/pages/articles/ArticlesPage'), 'ArticlePage')
+const InstallPage = lazyNamed(() => import('@/pages/install/InstallPage'), 'InstallPage')
 const LegalPage = lazyNamed(() => import('@/pages/legal/LegalPage'), 'LegalPage')
-const OrderInvoicePage = lazyNamed(() => import('@/pages/OrderInvoicePage'), 'OrderInvoicePage')
-const OrderPage = lazyNamed(() => import('@/pages/OrderPage'), 'OrderPage')
-const DatabaseAdminPage = lazyNamed(() => import('@/pages/DatabaseAdminPage'), 'DatabaseAdminPage')
+const OrderInvoicePage = lazyNamed(() => import('@/pages/order/OrderInvoicePage'), 'OrderInvoicePage')
+const OrderPage = lazyNamed(() => import('@/pages/order/OrderPage'), 'OrderPage')
+const DatabaseAdminPage = lazyNamed(() => import('@/pages/database-admin/DatabaseAdminPage'), 'DatabaseAdminPage')
 
 // The page of an address, fetched before the first frame of the app, so a reload does not flash an empty page while its code loads
 export function preloadRoute(pathname: string): Promise<unknown> {
