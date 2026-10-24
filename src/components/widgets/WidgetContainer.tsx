@@ -84,10 +84,14 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   const [isDragging, setIsDragging] = useState(false)
   const viewport = useViewport()
   const Component = WIDGET_COMPONENTS[widget.type]
+  // a sticky note is named by its first line, and by the widget name while it is empty
+  const noteTitle = useWidgetStore((s) =>
+    widget.type === 'quick-note' ? (s.notes.find((n) => n.id === widget.config?.noteId)?.text.split('\n').find((l) => l.trim())?.trim() ?? '') : '',
+  )
   const title =
     widget.type === 'ping'
       ? `Ping · ${String(widget.config?.label || widget.config?.host || '')}`.trim()
-      : t(`widget.catalog.${widget.type}.title`)
+      : noteTitle || t(`widget.catalog.${widget.type}.title`)
 
   // Report the resting height (card minus the hover header) so layout uses real sizes
   useEffect(() => {
