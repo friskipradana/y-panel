@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.66.1] - 2026-10-24
+
+Install command now uses panel.reneo.my.id/install.
+
+### Dokumentasi
+- Install command now uses panel.reneo.my.id/install ([`c7b1f87`](https://github.com/friskipradana/y-panel/commit/c7b1f87))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.66.0...v1.66.1
+
 ## [1.66.0] - 2026-10-24
 
 Sticky notes as one widget per note, with list and new-note buttons in the header.
