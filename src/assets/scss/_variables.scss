@@ -123,12 +123,13 @@
   --file-manager-floating-divider: #475569;
   --dock-surface-text: var(--text-secondary);
   --dock-surface-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-  --dock-item-idle-bg: rgba(255, 255, 255, 0.72);
+  --dock-item-idle-bg: rgba(255, 255, 255, 0.45);
   --dock-item-idle-text: var(--text-secondary);
-  --dock-item-idle-shadow: 0 7px 14px rgba(15, 23, 42, 0.06);
-  --dock-item-open-border: rgba(125, 211, 252, 0.40);
-  --dock-item-open-bg: linear-gradient(180deg, rgba(224, 224, 224, 0.92), rgba(215, 216, 216, 0.82));
-  --dock-item-open-shadow: 0 12px 22px rgba(59, 130, 246, 0.10);
+  --dock-item-border: rgba(0, 0, 0, 0.08);
+  --dock-item-idle-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --dock-item-open-border: var(--dock-item-border);
+  --dock-item-open-bg: rgba(255, 255, 255, 0.65);
+  --dock-item-open-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.10);
   --dock-tooltip-bg: #0f172a;
   --dock-tooltip-text: #ffffff;
   --dock-tooltip-shadow: 0 10px 20px rgba(15, 23, 42, 0.28);
@@ -157,8 +158,7 @@
   --dock-preview-close-hover-border: #fca5a5;
   --dock-indicator-visible-bg: rgba(30, 41, 59, 0.80);
   --dock-indicator-muted-bg: rgba(255, 255, 255, 0.70);
-  // the app icons are light colours, so on a light dock they are darkened and outlined
-  --dock-icon-filter: brightness(0.78) saturate(1.3) drop-shadow(0 1px 1px rgba(15, 23, 42, 0.25));
+  --dock-icon-filter: none;
   --projects-highlight-bg: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(245, 158, 11, 0.06));
   --projects-highlight-shadow: 0 18px 36px rgba(245, 158, 11, 0.12);
   --projects-card-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
@@ -393,10 +393,11 @@
   --dock-surface-shadow: 0 18px 40px rgba(2, 6, 23, 0.26);
   --dock-item-idle-bg: rgba(255, 255, 255, 0.08);
   --dock-item-idle-text: var(--win-text);
-  --dock-item-idle-shadow: 0 7px 14px rgba(2, 6, 23, 0.18);
-  --dock-item-open-border: rgba(56, 189, 248, 0.28);
+  --dock-item-border: rgba(255, 255, 255, 0.07);
+  --dock-item-idle-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --dock-item-open-border: var(--dock-item-border);
   --dock-item-open-bg: linear-gradient(180deg, rgba(30, 41, 59, 0.86), rgba(15, 23, 42, 0.86));
-  --dock-item-open-shadow: 0 12px 22px rgba(14, 165, 233, 0.16);
+  --dock-item-open-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.35);
   --dock-tooltip-bg: #020617;
   --dock-tooltip-text: #ffffff;
   --dock-tooltip-shadow: 0 10px 20px rgba(2, 6, 23, 0.40);

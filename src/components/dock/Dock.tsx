@@ -159,8 +159,8 @@ export function Dock() {
   const dockLayerClass = 'z-[62000]'
   const revealHandleLayerClass = 'z-[61990]'
   const dockSurfaceClass = 'border-[var(--win-border)] text-[var(--dock-surface-text)] shadow-[var(--dock-surface-shadow)]'
-  const itemIdleClass = 'border-[var(--win-border)] bg-[var(--dock-item-idle-bg)] text-[var(--dock-item-idle-text)] shadow-[var(--dock-item-idle-shadow)]'
-  const itemOpenClass = 'border-[var(--dock-item-open-border)] bg-[var(--dock-item-open-bg)] text-[var(--win-text)] shadow-[var(--dock-item-open-shadow)]'
+  const itemIdleClass = 'border border-[var(--dock-item-border)] bg-[var(--dock-item-idle-bg)] text-[var(--dock-item-idle-text)] shadow-[var(--dock-item-idle-shadow)]'
+  const itemOpenClass = 'border border-[var(--dock-item-border)] bg-[var(--dock-item-open-bg)] text-[var(--win-text)] shadow-[var(--dock-item-open-shadow)]'
   const tooltipClass = 'bg-[var(--dock-tooltip-bg)] text-[var(--dock-tooltip-text)] shadow-[var(--dock-tooltip-shadow)]'
   const menuPanelClass = 'border-[var(--dock-menu-border)] bg-[var(--dock-menu-bg)] text-[var(--dock-surface-text)] shadow-[var(--dock-menu-shadow)]'
   const menuButtonToneClass = 'text-[var(--dock-surface-text)] hover:bg-[var(--panel-primary-bg)] hover:text-[var(--win-text)]'
@@ -272,11 +272,9 @@ export function Dock() {
                         'flex h-[38px] w-[38px] items-center justify-center rounded-xl cursor-pointer',
                         desktopIconStyle === 'plain'
                           ? 'hover:bg-white/10'
-                          : isFocused
-                            ? 'border border-[var(--panel-primary-solid)] bg-black/30 backdrop-blur-md shadow-md shadow-black/25'
-                            : isOpen
-                              ? itemOpenClass
-                              : itemIdleClass,
+                          : isOpen
+                            ? itemOpenClass
+                            : itemIdleClass,
                       ].join(' ')}
                     >
                       <AppIcon kind={item.kind} size={22} style={{ filter: 'var(--dock-icon-filter)' }} />
@@ -284,7 +282,7 @@ export function Dock() {
 
                     {/* What the window is doing, on a fixed line under the tile: the bar is the focused one, a dot is open,
                         amber is minimized. It sits in the padding of the dock, so no tile has room reserved for it. */}
-                    <div className="pointer-events-none absolute -bottom-[8px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
+                    <div className="pointer-events-none absolute -bottom-[11px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
                       {isFocused ? (
                         <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] transition-all duration-150" />
                       ) : hasVisible ? (
