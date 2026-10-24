@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.69.0] - 2026-10-24
+
+The agent puts the firewall rules of a database back when something removes them, and the connection dialog shows the address to use from outside.
+
+### Fitur baru
+- **databases:** The agent puts the firewall rules of a database back when something removes them, and the connection dialog shows the address to use from outside ([`ded8d3b`](https://github.com/friskipradana/y-panel/commit/ded8d3b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.68.1...v1.69.0
+
 ## [1.68.1] - 2026-10-24
 
 One access change at a time, and a failed change brings the database back as it was; test the access columns against PostgreSQL.
