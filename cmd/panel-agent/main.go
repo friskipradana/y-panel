@@ -73,6 +73,7 @@ func main() {
 	srv.EnsureDemoAccount()
 	srv.RestoreProjects()
 	srv.RecoverDatabases()
+	srv.RestoreDatabaseAccess()
 	srv.RestoreTunnels()
 	srv.RestorePublicProxy()
 

@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -22,17 +23,27 @@ type ManagedDatabase struct {
 	Status            string    `json:"status"`
 	LastError         string    `json:"lastError,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
+	// AccessMode is local (127.0.0.1 only) or ips (the addresses in AccessIPs may connect from outside)
+	AccessMode string   `json:"accessMode"`
+	AccessIPs  []string `json:"accessIps"`
 }
 
 const managedDatabaseColumns = `d.id, d.user_id, COALESCE(u.username,''), d.name, d.engine, d.version, d.container_name,
-	d.host_port, d.db_name, d.db_user, d.password_encrypted, d.status, COALESCE(d.last_error,''), d.created_at`
+	d.host_port, d.db_name, d.db_user, d.password_encrypted, d.status, COALESCE(d.last_error,''), d.created_at, d.access_mode, d.access_ips`
 
 func scanManagedDatabase(row interface{ Scan(...any) error }) (*ManagedDatabase, error) {
 	var d ManagedDatabase
+	var ips string
 	err := row.Scan(&d.ID, &d.UserID, &d.OwnerName, &d.Name, &d.Engine, &d.Version, &d.ContainerName,
-		&d.HostPort, &d.DatabaseName, &d.Username, &d.PasswordEncrypted, &d.Status, &d.LastError, &d.CreatedAt)
+		&d.HostPort, &d.DatabaseName, &d.Username, &d.PasswordEncrypted, &d.Status, &d.LastError, &d.CreatedAt, &d.AccessMode, &ips)
 	if err != nil {
 		return nil, err
+	}
+	d.AccessIPs = []string{}
+	for _, ip := range strings.Split(ips, ",") {
+		if ip = strings.TrimSpace(ip); ip != "" {
+			d.AccessIPs = append(d.AccessIPs, ip)
+		}
 	}
 	return &d, nil
 }
@@ -150,4 +161,13 @@ func (m *Manager) CountManagedDatabases(userID int64) (int, error) {
 	var n int
 	err := m.db.QueryRow(`SELECT COUNT(*) FROM managed_databases WHERE user_id = $1`, userID).Scan(&n)
 	return n, err
+}
+
+// SetManagedDatabaseAccess stores who may reach the database from outside the server.
+func (m *Manager) SetManagedDatabaseAccess(id, userID int64, mode string, ips []string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE managed_databases SET access_mode = $1, access_ips = $2 WHERE id = $3 AND user_id = $4`, mode, strings.Join(ips, ","), id, userID)
+	return err
 }

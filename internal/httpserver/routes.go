@@ -272,6 +272,8 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/databases/{id}/users", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseUsers)))
 	s.mux.Handle("POST /api/v1/databases/{id}/users", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseCreateUser)))
 	s.mux.Handle("DELETE /api/v1/databases/{id}/users/{name}", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseDeleteUser)))
+	s.mux.Handle("GET /api/v1/databases/{id}/access", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseAccess)))
+	s.mux.Handle("PUT /api/v1/databases/{id}/access", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseSetAccess)))
 	s.mux.Handle("POST /api/v1/databases/{id}/password", s.requireAuthV2(http.HandlerFunc(s.handleDatabaseSetPassword)))
 	s.mux.Handle("GET /api/v1/settings/system", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetSystemSettings)))
 	s.mux.Handle("POST /api/v1/settings/system", s.requireRole(auth.SuperadminRole, s.requireCapability(auth.CapabilitySystemSettingsWrite, http.HandlerFunc(s.handleUpdateSystemSettings))))

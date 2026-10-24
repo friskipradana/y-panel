@@ -2,12 +2,13 @@ import { useState } from 'react'
 import type { UserDatabase } from '@/api/agent'
 import { Tabs } from '@/components/ui/Tabs'
 import { useI18n } from '@/lib/i18n'
+import { AccessPanel } from './AccessPanel'
 import { PasswordPanel } from './PasswordPanel'
 import { SqlPanel } from './SqlPanel'
 import { TablesPanel } from './TablesPanel'
 import { UsersPanel } from './UsersPanel'
 
-type Tab = 'tables' | 'sql' | 'users' | 'password'
+type Tab = 'tables' | 'sql' | 'users' | 'access' | 'password'
 
 // Tables, console, accounts and password of one database (dialog and full page both use it).
 export function ManageDatabaseContent({ target }: { target: UserDatabase }) {
@@ -25,12 +26,14 @@ export function ManageDatabaseContent({ target }: { target: UserDatabase }) {
           { key: 'tables', label: sqlFamily ? t('databases.admin.tabTables') : t('databases.admin.tabKeys') },
           { key: 'sql', label: target.engine === 'redis' ? t('databases.admin.tabCommands') : t('databases.admin.tabSql') },
           { key: 'users', label: t('databases.admin.tabUsers') },
+          { key: 'access', label: t('databases.admin.tabAccess') },
           { key: 'password', label: t('databases.admin.tabPassword') },
         ]}
       />
       {tab === 'tables' ? <TablesPanel databaseId={target.id} /> : null}
       {tab === 'sql' ? <SqlPanel databaseId={target.id} engine={target.engine} /> : null}
       {tab === 'users' ? <UsersPanel databaseId={target.id} supported={sqlFamily} /> : null}
+      {tab === 'access' ? <AccessPanel databaseId={target.id} /> : null}
       {tab === 'password' ? <PasswordPanel databaseId={target.id} engine={target.engine} /> : null}
     </div>
   )

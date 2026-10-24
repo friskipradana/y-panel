@@ -112,20 +112,22 @@ func RandomPassword(length int) (string, error) {
 
 // Spec is everything needed to create one container.
 type Spec struct {
-	ID         int64
-	OwnerID    int64
-	OwnerName  string
-	Engine     Engine
-	Version    string
-	HostPort   int
-	Database   string
-	User       string
-	Password   string
-	MemoryMB   int
-	CPULimit   float64
-	envNames   []string
-	envValues  []string
-	runCommand []string
+	ID        int64
+	OwnerID   int64
+	OwnerName string
+	Engine    Engine
+	Version   string
+	HostPort  int
+	// AllowRemote publishes the port on every interface (the firewall chain of ApplyAccess must be in place) instead of 127.0.0.1
+	AllowRemote bool
+	Database    string
+	User        string
+	Password    string
+	MemoryMB    int
+	CPULimit    float64
+	envNames    []string
+	envValues   []string
+	runCommand  []string
 }
 
 // ImageRef is repository:tag.
@@ -169,6 +171,13 @@ func (s *Spec) build() {
 	}
 }
 
+func (s Spec) bindAddress() string {
+	if s.AllowRemote {
+		return "0.0.0.0"
+	}
+	return "127.0.0.1"
+}
+
 // RunArgs returns the docker arguments (secrets are passed by name; their values
 // go in the process environment, see Create).
 func (s Spec) RunArgs() []string {
@@ -178,7 +187,7 @@ func (s Spec) RunArgs() []string {
 		"run", "-d",
 		"--name", ContainerName(s.ID),
 		"--restart", "unless-stopped",
-		"-p", fmt.Sprintf("127.0.0.1:%d:%d", s.HostPort, s.Engine.InternalPort),
+		"-p", fmt.Sprintf("%s:%d:%d", s.bindAddress(), s.HostPort, s.Engine.InternalPort),
 		"-v", volumeName(s.ID) + ":" + s.Engine.DataDir,
 		"--label", labelKind + "=database",
 		"--label", fmt.Sprintf("%s=%d", labelOwner, s.OwnerID),

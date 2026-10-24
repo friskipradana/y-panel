@@ -41,6 +41,8 @@ export interface DatabaseCredentials {
   username: string
   password: string
   url: string
+  accessMode: 'local' | 'ips'
+  allowedIps: string[]
 }
 
 export const listDatabaseEngines = () =>
@@ -122,3 +124,16 @@ export const deleteDatabaseAccount = (id: number, name: string) =>
 
 export const setDatabasePassword = (id: number, newPassword?: string) =>
   agentApi.post<{ ok: boolean; password: string }>(`/api/v1/databases/${id}/password`, { newPassword: newPassword ?? '' }).then((r) => r.data)
+
+// Who may reach the database from outside the server: only this machine (local), or the listed IPv4 addresses and CIDR ranges (ips)
+export interface DatabaseAccessSettings {
+  mode: 'local' | 'ips'
+  ips: string[]
+  port: number
+}
+
+export const getDatabaseAccess = (id: number) =>
+  agentApi.get<DatabaseAccessSettings>(`/api/v1/databases/${id}/access`).then((r) => r.data)
+
+export const setDatabaseAccess = (id: number, payload: { mode: 'local' | 'ips'; ips: string[] }) =>
+  agentApi.put<DatabaseAccessSettings>(`/api/v1/databases/${id}/access`, payload).then((r) => r.data)

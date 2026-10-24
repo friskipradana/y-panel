@@ -228,6 +228,9 @@ func (s *Server) handleUserDatabaseCredentials(w http.ResponseWriter, r *http.Re
 		"username": item.Username,
 		"password": password,
 		"url":      userdb.ConnectionURL(engine, userDatabaseHost, item.HostPort, item.DatabaseName, item.Username, password),
+		// the address of this machine is the one the owner already uses to reach it; the port is the same
+		"accessMode": item.AccessMode,
+		"allowedIps": item.AccessIPs,
 	})
 }
 
@@ -268,6 +271,7 @@ func (s *Server) handleDeleteUserDatabase(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	userdb.ClearAccess(item.ID, item.HostPort)
 	if err := s.database.DeleteManagedDatabase(item.ID, u.ID); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -287,6 +291,7 @@ func (s *Server) stopUserDatabases(userID int64, remove bool) {
 			if err := userdb.Remove(item.ID); err != nil {
 				log.Printf("[databases] remove id=%d: %v", item.ID, err)
 			}
+			userdb.ClearAccess(item.ID, item.HostPort)
 			continue
 		}
 		_ = userdb.Stop(item.ID)

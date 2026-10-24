@@ -281,7 +281,7 @@ func (s *Server) handleDatabaseSetPassword(w http.ResponseWriter, r *http.Reques
 	case "mongodb":
 		err = userdb.SetMongoPassword(r.Context(), conn, password)
 	case "redis":
-		spec := userdb.Spec{ID: item.ID, OwnerID: u.ID, OwnerName: u.Username, Engine: conn.Engine, Version: item.Version, HostPort: item.HostPort, Password: password}
+		spec := userdb.Spec{ID: item.ID, OwnerID: u.ID, OwnerName: u.Username, Engine: conn.Engine, Version: item.Version, HostPort: item.HostPort, Password: password, AllowRemote: item.AccessMode == userdb.AccessIPs}
 		if quota, _ := s.database.GetUserQuota(u.ID); quota != nil {
 			spec.MemoryMB = quota.MemoryLimitMB
 			if quota.CPULimitPct > 0 {
