@@ -201,7 +201,10 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
             icon={item.key === 'small' ? <Grid2x2 size={13} /> : <LayoutGrid size={item.key === 'large' ? 14 : 13} />}
             label={t(item.label)}
             hint={item.shortcut}
-            onClick={() => setSize(item.key)}
+            onClick={() => {
+              setSize(item.key)
+              onClose()
+            }}
           />
         ))}
       </div>
@@ -218,10 +221,42 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
 
       {/* Placement toggles */}
       <div className="border-b border-[var(--win-border)] pb-1 mb-1">
-        <MenuItem icon={<Rows3 size={13} />} label={t('desktop.view.autoArrange')} checked={autoArrange} onClick={() => setAutoArrange(!autoArrange)} />
-        <MenuItem icon={<Magnet size={13} />} label={t('desktop.view.alignGrid')} checked={alignToGrid} onClick={() => setAlignToGrid(!alignToGrid)} />
-        <MenuItem icon={<Move size={13} />} label={t('desktop.view.freeWidgets')} checked={freeWidgets} onClick={() => setFreeWidgets(!freeWidgets)} />
-        <MenuItem icon={<Eye size={13} />} label={t('desktop.view.showIcons')} checked={show} onClick={() => setShow(!show)} />
+        <MenuItem
+          icon={<Rows3 size={13} />}
+          label={t('desktop.view.autoArrange')}
+          checked={autoArrange}
+          onClick={() => {
+            setAutoArrange(!autoArrange)
+            onClose()
+          }}
+        />
+        <MenuItem
+          icon={<Magnet size={13} />}
+          label={t('desktop.view.alignGrid')}
+          checked={alignToGrid}
+          onClick={() => {
+            setAlignToGrid(!alignToGrid)
+            onClose()
+          }}
+        />
+        <MenuItem
+          icon={<Move size={13} />}
+          label={t('desktop.view.freeWidgets')}
+          checked={freeWidgets}
+          onClick={() => {
+            setFreeWidgets(!freeWidgets)
+            onClose()
+          }}
+        />
+        <MenuItem
+          icon={<Eye size={13} />}
+          label={t('desktop.view.showIcons')}
+          checked={show}
+          onClick={() => {
+            setShow(!show)
+            onClose()
+          }}
+        />
       </div>
 
       {/* Action group */}
