@@ -1,9 +1,7 @@
-import { Copy, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { alertLib } from '@/lib/alert'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
 import { Select } from '@/components/ui/Select'
 import { STATUS_CONFIG } from './tunnelForms'
 import type { TunnelsWindowState } from './useTunnelsWindow'
@@ -15,7 +13,6 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
   const {
     t,
     tab,
-    cfNotConfigured,
     safeDomains,
     safeProfiles,
     selectedDomain,
@@ -27,8 +24,6 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
     checkCreatedDomainMut,
     deleteDomainMut,
     deleteProfileMut,
-    openDnsModal,
-    openTunnelModal,
   } = tw
 
   if (tab === 'domains') {
@@ -47,6 +42,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
         <div className="cloudflare-scope__row">
           <Select
             className="cloudflare-scope__select"
+            size="sm"
             value={selectedDomainId}
             onChange={setSelectedDomainId}
             options={safeDomains.map((domain) => ({ value: domain.id, label: domain.name, badge: domain.status }))}
@@ -54,40 +50,54 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
             placeholder={t('tunnels.pickDomain')}
           />
           <div className="cloudflare-scope__state">
-          {status ? <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge> : null}
-          {selectedDomain ? (
-            <>
-              <Button variant="outline" icon={<RefreshCw className="h-3.5 w-3.5" />} loading={checking} onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}>
-                {checking ? t('tunnels.checking') : t('tunnels.checkStatus')}
-              </Button>
-              <IconButton tone="danger" label={t('tunnels.deleteDomainTitle')} disabled={deleting} onClick={() => void askDeleteDomain()}>
-                {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              </IconButton>
-            </>
+            {status ? <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge> : null}
+            {selectedDomain ? (
+              <>
+                <button
+                  type="button"
+                  className="docker-icon-btn"
+                  title={checking ? t('tunnels.checking') : t('tunnels.checkStatus')}
+                  aria-label={t('tunnels.checkStatus')}
+                  disabled={checking}
+                  onClick={() => checkCreatedDomainMut.mutate(selectedDomain.id)}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${checking ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+                </button>
+                <button
+                  type="button"
+                  className="docker-icon-btn hover:text-[var(--panel-danger-text)] hover:border-[var(--panel-danger-border)]"
+                  title={t('tunnels.deleteDomainTitle')}
+                  aria-label={t('tunnels.deleteDomainTitle')}
+                  disabled={deleting}
+                  onClick={() => void askDeleteDomain()}
+                >
+                  {deleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          {selectedDomain && nameServers.length > 0 ? (
+            <div className="cloudflare-scope__meta ml-auto">
+              <span className="text-[11.5px] font-medium text-[var(--text-secondary)]">NS:</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {nameServers.map((ns, index) => (
+                  <button
+                    key={ns}
+                    type="button"
+                    className="cloudflare-ns-chip"
+                    title={t('tunnels.copy')}
+                    onClick={() => navigator.clipboard.writeText(ns).then(() => toast.success(t('tunnels.nameserverCopied', { name: ns })))}
+                  >
+                    <span>NS{index + 1}</span>
+                    <strong>{ns}</strong>
+                    <Copy className="h-2.5 w-2.5 opacity-60" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : null}
-          </div>
-          <Button className="ml-auto" variant="primary-soft" icon={<Plus className="h-3.5 w-3.5" />} disabled={cfNotConfigured || !selectedDomainId} onClick={() => openDnsModal()}>
-            {t('tunnels.createDns')}
-          </Button>
         </div>
-        {selectedDomain && nameServers.length > 0 ? (
-          <div className="cloudflare-scope__meta">
-            <span>{selectedDomain.status === 'active' ? t('tunnels.nameservers') : t('tunnels.domainPendingCopy')}</span>
-            {nameServers.map((ns, index) => (
-              <button
-                key={ns}
-                type="button"
-                className="cloudflare-ns-chip"
-                title={t('tunnels.copy')}
-                onClick={() => navigator.clipboard.writeText(ns).then(() => toast.success(t('tunnels.nameserverCopied', { name: ns })))}
-              >
-                <span>NS{index + 1}</span>
-                <strong>{ns}</strong>
-                <Copy className="h-3 w-3" aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
     )
   }
@@ -104,33 +114,39 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
       <div className="cloudflare-scope__row">
         <Select
           className="cloudflare-scope__select"
+          size="sm"
           value={selectedProfileId}
           onChange={setSelectedProfileId}
           options={safeProfiles.map((profile) => ({ value: profile.id, label: profile.name || profile.id }))}
           searchable={safeProfiles.length > SEARCH_FROM}
           placeholder={t('tunnels.pickProfile')}
         />
-        <Button className="ml-auto" variant="primary-soft" icon={<Plus className="h-3.5 w-3.5" />} disabled={cfNotConfigured || !selectedProfileId} onClick={() => openTunnelModal()}>
-          {t('tunnels.createRoute')}
-        </Button>
-      </div>
-      {selectedProfile && status ? (
-        <div className="cloudflare-scope__meta">
-          <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge>
-          <span>{selectedProfile.routeCount === 1 ? t('tunnels.routeCount', { count: selectedProfile.routeCount }) : t('tunnels.routesCount', { count: selectedProfile.routeCount })}</span>
-          <span>{selectedProfile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}</span>
-          <span className="panel-mono" title={selectedProfile.id}>ID {selectedProfile.id.slice(0, 8)}...</span>
-          <IconButton
-            className="ml-auto"
-            tone="danger"
-            label={t('tunnels.deleteProfileTitle')}
-            disabled={deleteProfileMut.isPending || selectedProfile.id === 'pending'}
-            onClick={() => void askDeleteProfile()}
-          >
-            {deleteProfileMut.isPending && deleteProfileMut.variables === selectedProfile.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-          </IconButton>
+        <div className="cloudflare-scope__state">
+          {selectedProfile && status ? <Badge tone={status.tone} dot>{t(status.labelKey)}</Badge> : null}
+          {selectedProfile ? (
+            <button
+              type="button"
+              className="docker-icon-btn hover:text-[var(--panel-danger-text)] hover:border-[var(--panel-danger-border)]"
+              title={t('tunnels.deleteProfileTitle')}
+              aria-label={t('tunnels.deleteProfileTitle')}
+              disabled={deleteProfileMut.isPending || selectedProfile.id === 'pending'}
+              onClick={() => void askDeleteProfile()}
+            >
+              {deleteProfileMut.isPending && deleteProfileMut.variables === selectedProfile.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+            </button>
+          ) : null}
         </div>
-      ) : null}
+
+        {selectedProfile ? (
+          <div className="cloudflare-scope__meta ml-auto">
+            <span>{selectedProfile.routeCount === 1 ? t('tunnels.routeCount', { count: selectedProfile.routeCount }) : t('tunnels.routesCount', { count: selectedProfile.routeCount })}</span>
+            <span className="opacity-30">&middot;</span>
+            <span>{selectedProfile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}</span>
+            <span className="opacity-30">&middot;</span>
+            <span className="panel-mono text-[11px]" title={selectedProfile.id}>ID {selectedProfile.id.slice(0, 8)}...</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

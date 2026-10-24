@@ -180,30 +180,38 @@
 // What the list of the Cloudflare window belongs to: the domain or the profile picked above it
 .cloudflare-scope {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 16px;
+  align-items: center;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--win-border);
+  background: var(--win-bar);
   flex-shrink: 0;
+  min-height: 44px;
 }
 
 .cloudflare-scope__row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  width: 100%;
   flex-wrap: wrap;
+  min-height: 32px;
 }
 
 .cloudflare-scope__select {
-  flex: 1;
-  min-width: 180px;
-  max-width: 360px;
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.cloudflare-scope__state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .cloudflare-scope__meta {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -215,18 +223,19 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 26px;
+  height: 24px;
   padding: 0 8px;
   border: 1px solid var(--win-border);
-  border-radius: 8px;
-  background: transparent;
+  border-radius: 6px;
+  background: var(--panel-surface);
   color: var(--win-text);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 
   &:hover {
     background: var(--tb-hover);
+    border-color: var(--panel-primary-text);
   }
 
   &:focus-visible {
@@ -235,8 +244,9 @@
   }
 
   span {
-    color: var(--panel-info-text);
+    color: var(--panel-primary-text);
     font-weight: 600;
+    font-size: 0.68rem;
   }
 
   strong {
@@ -248,34 +258,34 @@
   }
 }
 
-// Phones: the picker takes a line, its state and actions share the next, and the main action closes the bar
+// Phones: the picker takes a line, its state and actions share the next, and nameservers wrap cleanly
 .layout-mobile {
+  .cloudflare-scope {
+    min-height: auto;
+    padding: 8px 12px;
+  }
+
   .cloudflare-scope__select {
     flex-basis: 100%;
+    width: 100%;
     max-width: none;
   }
 
-  .cloudflare-scope__row > .panel-btn--primary-soft {
+  .cloudflare-scope__meta {
     flex-basis: 100%;
     margin-left: 0;
-    justify-content: center;
   }
-}
 
-// Status, check and delete of the chosen domain: one group, so a phone can lay it out as one line
-.cloudflare-scope__state {
-  display: contents;
-}
+  .cloudflare-scope__state {
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 8px;
 
-.layout-mobile .cloudflare-scope__state {
-  display: flex;
-  flex-basis: 100%;
-  align-items: center;
-  gap: 8px;
-
-  // the check button takes the room between the state and the delete button
-  > .panel-btn {
-    flex: 1;
-    justify-content: center;
+    // the check button takes the room between the state and the delete button
+    > .panel-btn {
+      flex: 1;
+      justify-content: center;
+    }
   }
 }

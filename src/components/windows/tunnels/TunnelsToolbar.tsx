@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { KeyRound, Plus, RefreshCw, Search } from 'lucide-react'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import type { TunnelsWindowState } from './useTunnelsWindow'
 
@@ -13,6 +13,10 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
     cfNotConfigured,
     setShowDomainModal,
     setShowProfileModal,
+    openDnsModal,
+    openTunnelModal,
+    selectedDomainId,
+    selectedProfileId,
     lists,
     refetchDomains,
     domainsFetching,
@@ -38,12 +42,22 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
         />
         <button
           type="button"
-          className="docker-primary-btn"
+          className="docker-dropdown-btn"
           disabled={cfNotConfigured}
           onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
           <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
+        </button>
+
+        <button
+          type="button"
+          className="docker-primary-btn"
+          disabled={cfNotConfigured || (onDomains ? !selectedDomainId : !selectedProfileId)}
+          onClick={() => (onDomains ? openDnsModal() : openTunnelModal())}
+        >
+          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+          <span>{onDomains ? t('tunnels.createDns') : t('tunnels.createRoute')}</span>
         </button>
       </div>
 
@@ -72,12 +86,13 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
           <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>
 
-        {!cfNotConfigured ? (
-          <div className="docker-badge-running" title={t('tunnels.tokenActive')}>
-            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('tunnels.tokenActiveShort')}</span>
-          </div>
-        ) : null}
+        <div
+          className={`docker-icon-btn ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} cursor-help shrink-0`}
+          title={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
+          aria-label={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
+        >
+          <KeyRound className="h-4 w-4" strokeWidth={1.75} />
+        </div>
       </div>
     </div>
   )

@@ -460,6 +460,15 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 
+  &--success {
+    color: var(--panel-success-text);
+  }
+
+  &--muted {
+    color: var(--text-secondary);
+    opacity: 0.6;
+  }
+
   &:hover {
     background: var(--tb-hover);
   }
