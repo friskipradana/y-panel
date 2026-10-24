@@ -3,7 +3,7 @@
 Reneo dipasang dengan satu perintah. Jalankan di terminal server (Ubuntu, Debian, RHEL dan turunannya; amd64 atau arm64) sebagai root atau dengan sudo:
 
 ```bash
-curl -fsSL https://install.reneo.my.id | sudo bash
+curl -fsSL https://panel.reneo.my.id/install | sudo bash
 ```
 
 Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared, klien Speedtest Ookla untuk jendela Speedtest), memasang agent, membuat service `reneo`, lalu menunggu panel sehat.
@@ -22,7 +22,7 @@ Installer memasang bagian yang belum ada (Docker, PostgreSQL, cloudflared, klien
 - `--yes` menjalankan tanpa pertanyaan.
 - `--skip-start` memasang tanpa menjalankan service.
 
-Contoh port lain: `curl -fsSL https://install.reneo.my.id | sudo bash -s -- --bind 0.0.0.0:9000`.
+Contoh port lain: `curl -fsSL https://panel.reneo.my.id/install | sudo bash -s -- --bind 0.0.0.0:9000`.
 
 Pengaturan port, origin, DNS, dan pembaruan ada di window Settings.
 

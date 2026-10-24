@@ -3,13 +3,13 @@
 ## Instalasi satu baris
 
 ```bash
-curl -fsSL https://install.reneo.my.id | sudo bash
+curl -fsSL https://panel.reneo.my.id/install | sudo bash
 ```
 
 Dengan opsi (setelah `--`):
 
 ```bash
-curl -fsSL https://install.reneo.my.id | sudo bash -s -- --bind 0.0.0.0:8787 --yes
+curl -fsSL https://panel.reneo.my.id/install | sudo bash -s -- --bind 0.0.0.0:8787 --yes
 ```
 
 Mengunduh dulu untuk diperiksa (sha256 tersedia di halaman rilis sebagai `reneo-installer.run.sha256`):

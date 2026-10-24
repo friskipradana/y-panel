@@ -20,7 +20,7 @@ export type LandingPageProps = {
 }
 
 // Short redirect to the latest release asset (Cloudflare redirect rule); INSTALLER_URL is the direct fallback
-const INSTALL_COMMAND = 'curl -fsSL https://install.reneo.my.id | sudo bash'
+const INSTALL_COMMAND = 'curl -fsSL https://panel.reneo.my.id/install | sudo bash'
 
 const HERO_FACTS = ['linux', 'agent', 'reach', 'mcp'] as const
 

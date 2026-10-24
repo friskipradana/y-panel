@@ -13,7 +13,7 @@ Cocok untuk homeserver, VPS pribadi, dan server kecil-menengah yang membutuhkan 
 Di server Linux (Ubuntu, Debian, RHEL dan turunannya; amd64 atau arm64):
 
 ```bash
-curl -fsSL https://install.reneo.my.id | sudo bash
+curl -fsSL https://panel.reneo.my.id/install | sudo bash
 ```
 
 Lalu buka `http://IP-SERVER:8787` dan selesaikan penyiapan pertama untuk membuat akun superadmin.

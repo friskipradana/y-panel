@@ -4119,7 +4119,7 @@ export const en: Record<string, string> = {
   'landing.faq.q8': "Where does my data go?",
   'landing.faq.a8': "There is no analytics, and usage data is not sent to the Reneo project. The panel only contacts GitHub for versions and articles, and the services you turn on yourself. The details are in the Privacy Policy.",
   'landing.faq.q9': "How do I install it?",
-  'landing.faq.a9': "Paste one command in the terminal of your Linux server: curl -fsSL https://install.reneo.my.id | sudo bash. The full steps and other options are on the install page.",
+  'landing.faq.a9': "Paste one command in the terminal of your Linux server: curl -fsSL https://panel.reneo.my.id/install | sudo bash. The full steps and other options are on the install page.",
   'landing.faq.q10': "Where do I report a problem?",
   'landing.faq.a10': "For bugs and feature requests, open an issue in the project's GitHub repository. For an account or an order on a panel, contact the operator of that panel.",
   'ui.showPassword': "Show password",

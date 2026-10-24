@@ -4119,7 +4119,7 @@ export const id: Record<string, string> = {
   'landing.faq.q8': "Data saya dikirim ke mana?",
   'landing.faq.a8': "Tidak ada analitik dan data pemakaian tidak dikirim ke proyek Reneo. Panel hanya menghubungi GitHub untuk versi dan artikel, dan layanan yang Anda aktifkan sendiri. Rinciannya ada di Kebijakan Privasi.",
   'landing.faq.q9': "Bagaimana cara memasangnya?",
-  'landing.faq.a9': "Tempel satu perintah di terminal server Linux Anda: curl -fsSL https://install.reneo.my.id | sudo bash. Langkah lengkap dan opsi lain ada di halaman pemasangan.",
+  'landing.faq.a9': "Tempel satu perintah di terminal server Linux Anda: curl -fsSL https://panel.reneo.my.id/install | sudo bash. Langkah lengkap dan opsi lain ada di halaman pemasangan.",
   'landing.faq.q10': "Ke mana saya melapor bila ada masalah?",
   'landing.faq.a10': "Untuk bug dan usulan fitur, buka isu di repositori GitHub proyek. Untuk akun atau pesanan di sebuah panel, hubungi penyelenggara panel itu.",
   'ui.showPassword': "Tampilkan kata sandi",

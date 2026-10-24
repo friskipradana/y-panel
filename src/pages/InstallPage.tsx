@@ -6,7 +6,7 @@ import { InstallGuide } from '@/pages/landing/InstallGuide'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useI18n } from '@/lib/i18n'
 
-const INSTALL_COMMAND = 'curl -fsSL https://install.reneo.my.id | sudo bash'
+const INSTALL_COMMAND = 'curl -fsSL https://panel.reneo.my.id/install | sudo bash'
 
 // Step by step installation, kept off the landing page and reached from "Options and full steps"
 export function InstallPage() {

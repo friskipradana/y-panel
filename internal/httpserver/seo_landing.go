@@ -15,7 +15,7 @@ const (
 	landingTitle       = "Reneo: panel homelab dan server Linux bergaya desktop (self-hosted, Docker, MCP)"
 	landingDescription = "Reneo adalah panel self-hosted untuk homelab, home server, dan VPS Linux: kelola Docker, project, database, file, terminal, dan domain Cloudflare dari satu desktop di browser, dengan akses AI agent lewat MCP. Pasang dengan satu perintah."
 	landingKeywords    = "homelab, home server, panel homelab, panel server Linux, server control panel, self-hosted, Docker, Cloudflare Tunnel, MCP, AI agent, VPS, mini PC, hosting"
-	installCommand     = "curl -fsSL https://install.reneo.my.id | sudo bash"
+	installCommand     = "curl -fsSL https://panel.reneo.my.id/install | sudo bash"
 	sourceURL          = "https://github.com/friskipradana/y-panel"
 )
 
