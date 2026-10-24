@@ -7,6 +7,8 @@ export interface KpiCardProps {
   subtitle?: ReactNode
   /** 0-100; menampilkan persentase dan bar progres */
   percent?: number
+  /** Sembunyikan angka persentase di header jika sudah ditampilkan di value */
+  hideHeaderPercent?: boolean
 }
 
 // How full the meter is: from 75% it warns, from 90% it is critical
@@ -14,7 +16,7 @@ function usageLevel(percent: number): 'ok' | 'warn' | 'crit' {
   return percent >= 90 ? 'crit' : percent >= 75 ? 'warn' : 'ok'
 }
 
-export function KpiCard({ icon, title, value, subtitle, percent }: KpiCardProps) {
+export function KpiCard({ icon, title, value, subtitle, percent, hideHeaderPercent }: KpiCardProps) {
   const level = percent !== undefined ? usageLevel(percent) : 'ok'
   return (
     <article className="panel-kpi-card" data-level={level}>
@@ -23,7 +25,7 @@ export function KpiCard({ icon, title, value, subtitle, percent }: KpiCardProps)
           {icon}
           <span className="truncate text-[12px] font-semibold">{title}</span>
         </div>
-        {percent !== undefined ? (
+        {percent !== undefined && !hideHeaderPercent ? (
           <span className="panel-kpi-card__percent text-[12px] font-bold">{percent.toFixed(1)}%</span>
         ) : null}
       </div>

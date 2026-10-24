@@ -1,6 +1,25 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Boxes, CheckCircle2, Cpu, Database, Globe2, HardDrive, HardDriveDownload, Layers, MemoryStick, Network, RefreshCw, ShieldAlert, Users, Waypoints } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  Cpu,
+  Database,
+  Globe2,
+  HardDrive,
+  HardDriveDownload,
+  Layers,
+  LayoutGrid,
+  List as ListIcon,
+  MemoryStick,
+  Network,
+  RefreshCw,
+  ShieldAlert,
+  Users,
+  Waypoints,
+} from 'lucide-react'
 import { getSystemSummary } from '@/api/agent'
 import type { SystemCounts } from '@/types'
 import { useI18n } from '@/lib/i18n'
@@ -9,6 +28,7 @@ import { Button } from '@/components/ui/Button'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { IpAddressList } from './system/IpAddressList'
+import { SystemListView } from './system/SystemListView'
 import { useLivePolling } from '@/hooks/useLivePolling'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
@@ -41,17 +61,61 @@ function formatUptime(seconds: number) {
   return `${minutes}m`
 }
 
-function SystemBar({ summary, onRefresh, fetching, refreshLabel }: { summary: ReactNode; onRefresh?: () => void; fetching?: boolean; refreshLabel: string }) {
+function SystemBar({
+  summary,
+  viewMode,
+  onViewModeChange,
+  onRefresh,
+  fetching,
+  refreshLabel,
+}: {
+  summary: ReactNode
+  viewMode?: 'grid' | 'list'
+  onViewModeChange?: (mode: 'grid' | 'list') => void
+  onRefresh?: () => void
+  fetching?: boolean
+  refreshLabel: string
+}) {
   return (
     <div className="docker-topbar">
       <div className="docker-topbar__left min-w-0 text-xs text-[var(--text-secondary)]">{summary}</div>
-      {onRefresh ? (
-        <div className="docker-topbar__right">
+      <div className="docker-topbar__right">
+        {onViewModeChange && viewMode ? (
+          <div className="flex items-center rounded-[6px] border border-[var(--win-border)] bg-[var(--panel-surface)] p-0.5">
+            <button
+              type="button"
+              onClick={() => onViewModeChange('grid')}
+              className={`flex h-6 w-6 items-center justify-center rounded-[4px] transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+              title="Grid view"
+              aria-label="Grid view"
+            >
+              <LayoutGrid size={13} strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange('list')}
+              className={`flex h-6 w-6 items-center justify-center rounded-[4px] transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+              title="List view"
+              aria-label="List view"
+            >
+              <ListIcon size={13} strokeWidth={1.75} />
+            </button>
+          </div>
+        ) : null}
+        {onRefresh ? (
           <button type="button" className="docker-icon-btn" title={refreshLabel} aria-label={refreshLabel} onClick={onRefresh}>
             <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -123,6 +187,7 @@ function InfoCard({ icon, title, children, className = '' }: { icon: React.React
 
 export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n()
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const livePolling = useLivePolling(5_000)
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
@@ -176,6 +241,8 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
       <div className="panel-window docker-window-root">
         <SystemBar
           summary={<><span className="font-semibold text-[var(--win-text)]">{data.hostname}</span> &middot; {t('system.account.scope')}</>}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
           onRefresh={() => void refetch()}
           fetching={isFetching}
           refreshLabel={t('system.refreshSummary')}
@@ -183,7 +250,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
         <div className="panel-window__body">
           <div className="panel-window__stack">
             <div className="panel-kpi-grid panel-kpi-grid--auto">
-              <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={a.cpuLimitPct ? `${a.cpuPercent.toFixed(1)}%` : `${a.cpuCores.toFixed(2)} core`} subtitle={a.cpuLimitPct ? t('system.account.cpuOf', { cores: (a.cpuLimitPct / 100).toFixed(2) }) : unlimited} percent={a.cpuLimitPct ? a.cpuPercent : undefined} />
+              <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={a.cpuLimitPct ? `${a.cpuPercent.toFixed(1)}%` : `${a.cpuCores.toFixed(2)} core`} subtitle={a.cpuLimitPct ? t('system.account.cpuOf', { cores: (a.cpuLimitPct / 100).toFixed(2) }) : unlimited} percent={a.cpuLimitPct ? a.cpuPercent : undefined} hideHeaderPercent={!!a.cpuLimitPct} />
               <KpiCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={a.memLimit ? `${formatBytes(a.memUsed)} / ${formatBytes(a.memLimit)}` : formatBytes(a.memUsed)} subtitle={a.memLimit ? t('system.account.ofQuota') : unlimited} percent={a.memLimit ? memPct : undefined} />
               <KpiCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={a.diskLimit ? `${formatBytes(a.diskUsed)} / ${formatBytes(a.diskLimit)}` : formatBytes(a.diskUsed)} subtitle={a.diskLimit ? t('system.account.ofQuota') : unlimited} percent={a.diskLimit ? diskPct : undefined} />
               <KpiCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsActiveCount', { count: data.projects?.active ?? 0 })} />
@@ -205,86 +272,124 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
         summary={
           <>
             <span className="font-semibold text-[var(--win-text)]">{data.osName}</span>
-            <span className="mx-2">&middot;</span>
-            <span>{data.hostname}</span>
-            <span className="mx-2">&middot;</span>
+            <span className="mx-2 opacity-40">&middot;</span>
+            <span className="panel-mono text-xs">{data.hostname}</span>
+            <span className="mx-2 opacity-40">&middot;</span>
             <span className="font-medium text-[var(--panel-primary-text)]">{t('system.uptime')} {formatUptime(data.uptimeSeconds)}</span>
           </>
         }
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         onRefresh={() => void refetch()}
         fetching={isFetching}
         refreshLabel={t('system.refreshSummary')}
       />
 
       <div className="panel-window__body">
-        <div className="panel-window__stack">
-          <section className="panel-shell-card">
-            <p className="panel-section-label">{t('system.hostRuntime')}</p>
-            <div className="mt-1 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-              <div className="min-w-0">
-                <p className="text-[1.25rem] font-bold tracking-tight text-[var(--win-text)]">{data.osName}</p>
-                <p className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{data.hostname} &middot; kernel {data.kernel}</p>
+        {viewMode === 'list' ? (
+          <SystemListView
+            data={data}
+            counts={data.counts}
+            memoryPercent={memoryPercent}
+            storagePercent={storagePercent}
+            formatBytes={formatBytes}
+            formatUptime={formatUptime}
+            t={t}
+          />
+        ) : (
+          <div className="panel-window__stack">
+            {/* Host Runtime */}
+            <section className="panel-shell-card">
+              <p className="panel-section-label">{t('system.hostRuntime')}</p>
+              <div className="mt-1 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                <div className="min-w-0">
+                  <p className="text-[1.25rem] font-bold tracking-tight text-[var(--win-text)]">{data.osName}</p>
+                  <p className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{data.hostname} &middot; kernel {data.kernel}</p>
+                </div>
+                <div className="text-right">
+                  <p className="panel-section-label">{t('system.uptime')}</p>
+                  <p className="text-[1rem] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="panel-section-label">{t('system.uptime')}</p>
-                <p className="text-[1rem] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
+                <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
               </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <HealthPill ok={data.dockerInstalled} label={data.dockerInstalled ? t('system.dockerInstalled') : t('system.dockerMissing')} />
-              <HealthPill ok={data.dockerReachable} label={data.dockerReachable ? t('system.dockerReachable') : t('system.dockerUnreachable')} />
-            </div>
-          </section>
+            </section>
 
-          <section className="space-y-2">
-            <p className="panel-section-label">{t('system.sectionResources')}</p>
-            <div className="panel-kpi-grid panel-kpi-grid--auto">
-              <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={`${data.cpuUsagePercent.toFixed(1)}%`} subtitle={t('system.cpuUsageSubtitle')} percent={data.cpuUsagePercent} />
-              <KpiCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`} subtitle={t('system.memoryRamSubtitle')} percent={memoryPercent} />
-              <KpiCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitleShort')} percent={storagePercent} />
-            </div>
-          </section>
+            {/* Resources (CPU, RAM, Disk) */}
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionResources')}</p>
+              <div className="panel-kpi-grid panel-kpi-grid--auto">
+                <KpiCard
+                  icon={<Cpu size={15} />}
+                  title={t('system.cpuUsage')}
+                  value={`${data.cpuUsagePercent.toFixed(1)}%`}
+                  subtitle={t('system.cpuUsageSubtitle')}
+                  percent={data.cpuUsagePercent}
+                  hideHeaderPercent
+                />
+                <KpiCard
+                  icon={<MemoryStick size={15} />}
+                  title={t('system.memoryRam')}
+                  value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`}
+                  subtitle={t('system.memoryRamSubtitle')}
+                  percent={memoryPercent}
+                />
+                <KpiCard
+                  icon={<HardDriveDownload size={15} />}
+                  title={t('system.storage')}
+                  value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`}
+                  subtitle={t('system.storageSubtitleShort')}
+                  percent={storagePercent}
+                />
+              </div>
+            </section>
 
-          <section className="space-y-2">
-            <p className="panel-section-label">{t('system.sectionWorkloads')}</p>
-            <div className="panel-kpi-grid panel-kpi-grid--auto">
-              <KpiCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsTotalSubtitle')} />
-              <KpiCard icon={<CheckCircle2 size={15} />} title={t('system.projectsActive')} value={`${data.projects?.active ?? 0}`} subtitle={t('system.projectsActiveSubtitle')} />
-              <KpiCard icon={<ShieldAlert size={15} />} title={t('system.needAttention')} value={`${data.projects?.attention ?? 0}`} subtitle={t('system.needAttentionSubtitle')} percent={data.projects?.total ? (data.projects.attention / data.projects.total) * 100 : 0} />
-              <KpiCard icon={<AlertTriangle size={15} />} title={t('system.runtimeDrift')} value={`${data.projects?.drift ?? 0}`} subtitle={data.projects?.reconcileFresh ? t('system.reconcileFresh') : t('system.reconcileStale')} />
-            </div>
-          </section>
+            {/* Workloads */}
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionWorkloads')}</p>
+              <div className="panel-kpi-grid panel-kpi-grid--auto">
+                <KpiCard icon={<Activity size={15} />} title={t('system.projectsTotal')} value={`${data.projects?.total ?? 0}`} subtitle={t('system.projectsTotalSubtitle')} />
+                <KpiCard icon={<CheckCircle2 size={15} />} title={t('system.projectsActive')} value={`${data.projects?.active ?? 0}`} subtitle={t('system.projectsActiveSubtitle')} />
+                <KpiCard icon={<ShieldAlert size={15} />} title={t('system.needAttention')} value={`${data.projects?.attention ?? 0}`} subtitle={t('system.needAttentionSubtitle')} percent={data.projects?.total ? (data.projects.attention / data.projects.total) * 100 : 0} />
+                <KpiCard icon={<AlertTriangle size={15} />} title={t('system.runtimeDrift')} value={`${data.projects?.drift ?? 0}`} subtitle={data.projects?.reconcileFresh ? t('system.reconcileFresh') : t('system.reconcileStale')} />
+              </div>
+            </section>
 
-          <CountSections counts={data.counts} t={t} />
+            <CountSections counts={data.counts} t={t} />
 
-          <section className="space-y-2">
-            <p className="panel-section-label">{t('system.sectionServices')}</p>
-            <div className="panel-kpi-grid panel-kpi-grid--auto">
-              <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
-                <p className="panel-shell-card__title">{data.dockerStatus}</p>
-                <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
-              </InfoCard>
+            {/* Services */}
+            <section className="space-y-2">
+              <p className="panel-section-label">{t('system.sectionServices')}</p>
+              <div className="panel-kpi-grid panel-kpi-grid--auto">
+                <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
+                  <p className="panel-shell-card__title">{data.dockerStatus}</p>
+                  <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
+                </InfoCard>
 
-              <InfoCard icon={<ShieldAlert size={15} />} title={t('system.orchestratorHealth')}>
-                <p className="panel-shell-card__title">
-                  {data.projects?.attention > 0 ? t('system.workloadsNeedAttention', { count: data.projects.attention }) : t('system.workloadsStable')}
-                </p>
-                <p className="panel-shell-card__meta">
-                  {t('system.orchestratorCounts', { degraded: data.projects?.degraded ?? 0, drift: data.projects?.drift ?? 0, freshness: data.projects?.reconcileFresh ? t('system.fresh') : t('system.pending') })}
-                </p>
-              </InfoCard>
+                <InfoCard icon={<ShieldAlert size={15} />} title={t('system.orchestratorHealth')}>
+                  <p className="panel-shell-card__title">
+                    {data.projects?.attention > 0 ? t('system.workloadsNeedAttention', { count: data.projects.attention }) : t('system.workloadsStable')}
+                  </p>
+                  <p className="panel-shell-card__meta">
+                    {t('system.orchestratorCounts', { degraded: data.projects?.degraded ?? 0, drift: data.projects?.drift ?? 0, freshness: data.projects?.reconcileFresh ? t('system.fresh') : t('system.pending') })}
+                  </p>
+                </InfoCard>
 
-              <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="mobile:col-span-full">
-                {data.ipAddresses && data.ipAddresses.length > 0 ? (
-                  <IpAddressList addresses={data.ipAddresses} />
-                ) : (
-                  <p className="panel-shell-card__meta">{t('system.noActiveInterfaces')}</p>
-                )}
-              </InfoCard>
-            </div>
-          </section>
-        </div>
+                <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="mobile:col-span-full">
+                  {data.ipAddresses && data.ipAddresses.length > 0 ? (
+                    <IpAddressList addresses={data.ipAddresses} />
+                  ) : (
+                    <p className="panel-shell-card__meta">{t('system.noActiveInterfaces')}</p>
+                  )}
+                </InfoCard>
+              </div>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+

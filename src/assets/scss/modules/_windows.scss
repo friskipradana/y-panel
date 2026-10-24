@@ -732,10 +732,10 @@ button:focus-visible,
 }
 
 .panel-kpi-card {
-  border-radius: 18px;
+  border-radius: var(--control-radius, 8px);
   border: 1px solid var(--win-border);
   background: var(--panel-surface);
-  padding: 14px;
+  padding: 12px 14px;
 }
 
 .panel-kpi-card__header {
@@ -743,31 +743,31 @@ button:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--text-secondary);
 }
 
 .panel-kpi-card__value {
   color: var(--win-text);
-  font-size: 1.3125rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .panel-kpi-card__description {
   margin-top: 4px;
   font-size: 0.75rem;
-  line-height: 1.6;
+  line-height: 1.5;
   color: var(--text-secondary);
   overflow-wrap: break-word;
 }
 
 .panel-progress {
-  margin-top: 12px;
-  height: 6px;
+  margin-top: 10px;
+  height: 4px;
   overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
 }
 
 .panel-progress__bar {
@@ -777,7 +777,7 @@ button:focus-visible,
 }
 
 .panel-shell-card {
-  border-radius: 14px;
+  border-radius: var(--control-radius, 8px);
   border: 1px solid var(--win-border);
   background: var(--panel-surface);
   padding: 12px 14px;
