@@ -96,6 +96,7 @@ func (s *Server) handleDatabaseSetAccess(w http.ResponseWriter, r *http.Request)
 	if req.Mode == userdb.AccessLocal {
 		userdb.ClearAccess(item.ID, item.HostPort)
 	}
+	_ = s.database.SetManagedDatabaseAutostart(item.ID, true)
 	if err := s.database.SetManagedDatabaseAccess(item.ID, u.ID, req.Mode, ips); err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
@@ -124,9 +125,19 @@ func (s *Server) restoreDatabaseAccess(item database.ManagedDatabase) {
 	if item.AccessMode != userdb.AccessIPs || len(item.AccessIPs) == 0 {
 		return
 	}
+	// Docker must not start it by itself: after a reboot it would be published before these rules exist
+	if err := userdb.SetRestartPolicy(item.ID, "no"); err != nil {
+		log.Printf("[databases] restart policy id=%d: %v", item.ID, err)
+	}
 	if err := userdb.ApplyAccess(item.ID, item.HostPort, item.AccessIPs); err != nil {
 		log.Printf("[databases] access id=%d: %v; stopping it", item.ID, err)
 		_ = userdb.Stop(item.ID)
 		_ = s.database.SetManagedDatabaseStatus(item.ID, "error", "the firewall rules for its allowed addresses could not be restored: "+err.Error())
+		return
+	}
+	if item.Autostart && item.Status == "ready" && userdb.State(item.ID) != "running" {
+		if err := userdb.Start(item.ID); err != nil {
+			log.Printf("[databases] start id=%d after restoring its rules: %v", item.ID, err)
+		}
 	}
 }

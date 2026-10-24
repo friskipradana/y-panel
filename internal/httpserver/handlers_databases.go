@@ -247,6 +247,7 @@ func (s *Server) handleStartUserDatabase(w http.ResponseWriter, r *http.Request)
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	_ = s.database.SetManagedDatabaseAutostart(item.ID, true)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -259,6 +260,7 @@ func (s *Server) handleStopUserDatabase(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	_ = s.database.SetManagedDatabaseAutostart(item.ID, false)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

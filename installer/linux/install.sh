@@ -283,6 +283,18 @@ ensure_go() {
   ok "go terpasang: $(/usr/local/go/bin/go version | awk '{print $3}')"
 }
 
+# The agent limits who can reach a database opened to listed addresses with an iptables chain in DOCKER-USER, so the iptables command
+# must be there. Without it the databases simply stay on localhost.
+ensure_iptables() {
+  if command -v iptables >/dev/null 2>&1; then
+    ok "iptables sudah tersedia ($(iptables --version 2>/dev/null | head -n 1))"
+    return
+  fi
+
+  log "menginstall iptables (membatasi IP yang boleh mengakses database)"
+  eval "$PKG_INSTALL iptables" >>"$INSTALL_LOG_FILE" 2>&1     || warn "iptables gagal dipasang; database hanya bisa dibuka untuk localhost. Cek log: $INSTALL_LOG_FILE"
+}
+
 ensure_cloudflared() {
   if command -v cloudflared >/dev/null 2>&1; then
     ok "cloudflared sudah tersedia ($(cloudflared -V 2>&1 | head -n 1))"
@@ -1446,6 +1458,16 @@ run_doctor() {
     doctor_line skip "Docker tidak terpasang (jendela Docker tidak akan berfungsi)"
   fi
 
+  if ! command -v iptables >/dev/null 2>&1; then
+    doctor_line skip "iptables tidak terpasang (database tidak bisa dibuka untuk IP tertentu, hanya localhost)"
+  elif ! command -v docker >/dev/null 2>&1 || ! timeout 8 docker info >/dev/null 2>&1; then
+    doctor_line skip "aturan firewall database tidak diperiksa karena Docker tidak berjalan"
+  elif iptables -w 5 -S DOCKER-USER >/dev/null 2>&1; then
+    doctor_line ok "firewall database siap (rantai DOCKER-USER ada)"
+  else
+    doctor_line fail "rantai DOCKER-USER tidak ditemukan; database tidak bisa dibuka untuk IP tertentu (systemctl restart docker)"
+  fi
+
   if command -v cloudflared >/dev/null 2>&1; then doctor_line ok "cloudflared terpasang"; else doctor_line skip "cloudflared tidak terpasang (tunnel Cloudflare tidak tersedia)"; fi
 
   state_dir="$(get_env_value PANEL_STATE_DIR || true)"
@@ -1709,6 +1731,7 @@ main() {
   detect_pm
   install_base_packages
   ensure_docker
+  ensure_iptables
   ensure_cloudflared
 
   step "Konfigurasi"

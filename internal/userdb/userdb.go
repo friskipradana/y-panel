@@ -171,6 +171,23 @@ func (s *Spec) build() {
 	}
 }
 
+// restartPolicy: Docker brings a local database back after a reboot; one open to listed addresses is started by the agent once its
+// firewall rules are in place, so Docker must not publish it before that
+func (s Spec) restartPolicy() string {
+	if s.AllowRemote {
+		return "no"
+	}
+	return "unless-stopped"
+}
+
+// SetRestartPolicy changes the policy of an existing container (databases opened by an earlier version were made with unless-stopped).
+func SetRestartPolicy(id int64, policy string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	_, err := docker(ctx, nil, "update", "--restart", policy, ContainerName(id))
+	return err
+}
+
 func (s Spec) bindAddress() string {
 	if s.AllowRemote {
 		return "0.0.0.0"
@@ -186,7 +203,7 @@ func (s Spec) RunArgs() []string {
 	args := []string{
 		"run", "-d",
 		"--name", ContainerName(s.ID),
-		"--restart", "unless-stopped",
+		"--restart", s.restartPolicy(),
 		"-p", fmt.Sprintf("%s:%d:%d", s.bindAddress(), s.HostPort, s.Engine.InternalPort),
 		"-v", volumeName(s.ID) + ":" + s.Engine.DataDir,
 		"--label", labelKind + "=database",

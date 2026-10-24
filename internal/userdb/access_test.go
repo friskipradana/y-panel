@@ -82,3 +82,16 @@ func TestApplyAccessOrderAndFailClosed(t *testing.T) {
 		t.Fatal("an empty list must fail")
 	}
 }
+
+func TestRestartPolicy(t *testing.T) {
+	engine, _ := Lookup("mysql")
+	local := strings.Join(Spec{ID: 2, Engine: engine, HostPort: 20001}.RunArgs(), " ")
+	if !strings.Contains(local, "--restart unless-stopped") {
+		t.Fatalf("a local database comes back after a reboot: %s", local)
+	}
+	// Docker must not publish it on every interface before the agent has put its firewall rules back
+	remote := strings.Join(Spec{ID: 2, Engine: engine, HostPort: 20001, AllowRemote: true}.RunArgs(), " ")
+	if !strings.Contains(remote, "--restart no") {
+		t.Fatalf("a database open to listed addresses is started by the agent: %s", remote)
+	}
+}

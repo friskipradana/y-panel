@@ -26,16 +26,18 @@ type ManagedDatabase struct {
 	// AccessMode is local (127.0.0.1 only) or ips (the addresses in AccessIPs may connect from outside)
 	AccessMode string   `json:"accessMode"`
 	AccessIPs  []string `json:"accessIps"`
+	// Autostart is whether the database should be running; the agent starts a database open to listed addresses after a reboot only when it is set
+	Autostart bool `json:"-"`
 }
 
 const managedDatabaseColumns = `d.id, d.user_id, COALESCE(u.username,''), d.name, d.engine, d.version, d.container_name,
-	d.host_port, d.db_name, d.db_user, d.password_encrypted, d.status, COALESCE(d.last_error,''), d.created_at, d.access_mode, d.access_ips`
+	d.host_port, d.db_name, d.db_user, d.password_encrypted, d.status, COALESCE(d.last_error,''), d.created_at, d.access_mode, d.access_ips, d.autostart`
 
 func scanManagedDatabase(row interface{ Scan(...any) error }) (*ManagedDatabase, error) {
 	var d ManagedDatabase
 	var ips string
 	err := row.Scan(&d.ID, &d.UserID, &d.OwnerName, &d.Name, &d.Engine, &d.Version, &d.ContainerName,
-		&d.HostPort, &d.DatabaseName, &d.Username, &d.PasswordEncrypted, &d.Status, &d.LastError, &d.CreatedAt, &d.AccessMode, &ips)
+		&d.HostPort, &d.DatabaseName, &d.Username, &d.PasswordEncrypted, &d.Status, &d.LastError, &d.CreatedAt, &d.AccessMode, &ips, &d.Autostart)
 	if err != nil {
 		return nil, err
 	}
@@ -171,3 +173,13 @@ func (m *Manager) SetManagedDatabaseAccess(id, userID int64, mode string, ips []
 	_, err := m.db.Exec(`UPDATE managed_databases SET access_mode = $1, access_ips = $2 WHERE id = $3 AND user_id = $4`, mode, strings.Join(ips, ","), id, userID)
 	return err
 }
+
+// SetManagedDatabaseAutostart records whether the database should be running.
+func (m *Manager) SetManagedDatabaseAutostart(id int64, autostart bool) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE managed_databases SET autostart = $1 WHERE id = $2`, autostart, id)
+	return err
+}
+
