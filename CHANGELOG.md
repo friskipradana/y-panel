@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.68.1] - 2026-10-24
+
+One access change at a time, and a failed change brings the database back as it was; test the access columns against PostgreSQL.
+
+### Perbaikan
+- **databases:** One access change at a time, and a failed change brings the database back as it was; test the access columns against PostgreSQL ([`23c459c`](https://github.com/friskipradana/y-panel/commit/23c459c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.68.0...v1.68.1
+
 ## [1.68.0] - 2026-10-24
 
 Open the web ports in ufw when it is active, and show the state of ufw next to the proxy switch.
