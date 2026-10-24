@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.67.0] - 2026-10-24
+
+Access settings per database, localhost only or a list of allowed IPs.
+
+### Fitur baru
+- **databases:** Access settings per database, localhost only or a list of allowed IPs ([`6727abd`](https://github.com/friskipradana/y-panel/commit/6727abd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.66.2...v1.67.0
+
 ## [1.66.2] - 2026-10-24
 
 A sticky note is titled by its first line.
