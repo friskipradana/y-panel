@@ -12,6 +12,7 @@ import { ResetPasswordModal } from '@/components/windows/users/ResetPasswordModa
 import { MoveAccountModal } from '@/components/windows/users/MoveAccountModal'
 import { CreateUserModal } from '@/components/windows/users/CreateUserModal'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useListQuery } from '@/hooks/useListQuery'
 import { usePublicSite } from '@/hooks/usePublicSite'
 import { toast } from 'sonner'
@@ -23,6 +24,7 @@ import { canManageUser, grantableRoles } from '@/components/windows/users/permis
 const PAGE_SIZE = 50
 
 export default function UsersWindow({ win }: { win?: WindowState }) {
+  const isMobile = useIsMobileLayout()
   const { t } = useI18n()
   const pollingActive = useWindowPollingActive(win)
   const qc = useQueryClient()
@@ -108,39 +110,83 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
-      <div className="docker-topbar">
-        <div className="docker-topbar__left">
-          <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
-            <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('users.createUser')}</span>
-          </button>
-          <div className="docker-topbar__meta">
-            <span>{t('users.countLabel', { count: counts?.total ?? data?.all ?? 0 })}</span>
-            <span className="text-[var(--panel-success-text)]">{t('users.activeCount', { count: counts?.active ?? 0 })}</span>
-            {counts && counts.suspended > 0 ? <span className="text-[var(--panel-danger-text)]">{t('users.suspendedCount', { count: counts.suspended })}</span> : null}
+      {isMobile ? (
+        <div className="docker-topbar docker-topbar--mobile">
+          <div className="docker-topbar__mobile-row">
+            <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
+              <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{t('users.createUser')}</span>
+            </button>
+
+            <div className="docker-badge-running docker-badge-running--mobile">
+              {(counts?.active ?? 0) > 0 ? <span className="docker-badge-running__dot" aria-hidden="true" /> : null}
+              <span>{t('users.activeCount', { count: counts?.active ?? 0 })}</span>
+            </div>
+          </div>
+
+          <div className="docker-topbar__mobile-search">
+            <div className="docker-search-wrap docker-search-wrap--mobile">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="users-search-input"
+                type="search"
+                className="docker-search-input docker-search-input--mobile"
+                aria-label={t('users.searchShort')}
+                placeholder={t('users.searchShort')}
+                value={list.text}
+                onChange={(e) => {
+                  setPage(1)
+                  list.setText(e.target.value)
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="docker-icon-btn docker-icon-btn--mobile"
+              title={t('users.refresh')}
+              aria-label={t('users.refresh')}
+              onClick={() => { void refetch(); void summary.refetch() }}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
           </div>
         </div>
-        <div className="docker-topbar__right">
-          <div className="docker-search-wrap">
-            <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
-            <input
-              id="users-search-input"
-              type="search"
-              className="docker-search-input"
-              aria-label={t('users.searchShort')}
-              placeholder={t('users.searchShort')}
-              value={list.text}
-              onChange={(e) => {
-                setPage(1)
-                list.setText(e.target.value)
-              }}
-            />
+      ) : (
+        <div className="docker-topbar">
+          <div className="docker-topbar__left">
+            <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
+              <UserPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{t('users.createUser')}</span>
+            </button>
+            <div className="docker-topbar__meta">
+              <span>{t('users.countLabel', { count: counts?.total ?? data?.all ?? 0 })}</span>
+              <span className="text-[var(--panel-success-text)]">{t('users.activeCount', { count: counts?.active ?? 0 })}</span>
+              {counts && counts.suspended > 0 ? <span className="text-[var(--panel-danger-text)]">{t('users.suspendedCount', { count: counts.suspended })}</span> : null}
+            </div>
           </div>
-          <button type="button" className="docker-icon-btn" title={t('users.refresh')} aria-label={t('users.refresh')} onClick={() => { void refetch(); void summary.refetch() }}>
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-          </button>
+          <div className="docker-topbar__right">
+            <div className="docker-search-wrap">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="users-search-input"
+                type="search"
+                className="docker-search-input"
+                aria-label={t('users.searchShort')}
+                placeholder={t('users.searchShort')}
+                value={list.text}
+                onChange={(e) => {
+                  setPage(1)
+                  list.setText(e.target.value)
+                }}
+              />
+            </div>
+            <button type="button" className="docker-icon-btn" title={t('users.refresh')} aria-label={t('users.refresh')} onClick={() => { void refetch(); void summary.refetch() }}>
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <CreateUserModal open={showCreate} onClose={() => setShowCreate(false)} assignable={assignable} canGivePlan={hosting} />
 

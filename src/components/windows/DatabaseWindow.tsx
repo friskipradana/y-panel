@@ -1,6 +1,7 @@
 import { Database, ExternalLink, KeyRound, LoaderCircle, Play, Plus, RefreshCw, Search, Settings2, Square, Trash2 } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { WindowState } from '@/types'
 import { ConnectionModal } from './database/ConnectionModal'
 import { CreateDatabaseModal } from './database/CreateDatabaseModal'
@@ -19,37 +20,80 @@ function statePill(item: UserDatabase) {
 // Databases the signed-in user created (PostgreSQL, MySQL, MariaDB, MongoDB, Redis).
 // The panel's own database lives in Settings and is for the superadmin only.
 export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boolean }) {
+  const isMobile = useIsMobileLayout()
   const dbw = useDatabasesWindow(win)
   const { t, query, list, items, all, facets, narrowed, startMut, stopMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget, setOpenClientTarget } = dbw
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
-      <div className="docker-topbar">
-        <div className="docker-topbar__left">
-          <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('databases.create')}</span>
-          </button>
-        </div>
-        <div className="docker-topbar__right">
-          <div className="docker-search-wrap">
-            <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
-            <input
-              id="databases-search-input"
-              type="search"
-              className="docker-search-input"
-              aria-label={t('databases.search')}
-              placeholder={t('databases.search')}
-              value={list.text}
-              onChange={(e) => list.setText(e.target.value)}
-            />
+      {isMobile ? (
+        <div className="docker-topbar docker-topbar--mobile">
+          <div className="docker-topbar__mobile-row">
+            <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{t('databases.create')}</span>
+            </button>
+
+            <div className="docker-badge-running docker-badge-running--mobile">
+              {items.some((it) => it.state === 'running') ? <span className="docker-badge-running__dot" aria-hidden="true" /> : null}
+              <span>{t('databases.count', { count: all })}</span>
+            </div>
           </div>
-          <button type="button" className="docker-icon-btn" title={t('common.refresh')} aria-label={t('common.refresh')} disabled={query.isFetching} onClick={() => void query.refetch()}>
-            <RefreshCw className={`h-3.5 w-3.5 ${(query.isFetching && !query.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-          </button>
-          <div className="docker-badge-running">{t('databases.count', { count: all })}</div>
+
+          <div className="docker-topbar__mobile-search">
+            <div className="docker-search-wrap docker-search-wrap--mobile">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="databases-search-input"
+                type="search"
+                className="docker-search-input docker-search-input--mobile"
+                aria-label={t('databases.search')}
+                placeholder={t('databases.search')}
+                value={list.text}
+                onChange={(e) => list.setText(e.target.value)}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="docker-icon-btn docker-icon-btn--mobile"
+              title={t('common.refresh')}
+              aria-label={t('common.refresh')}
+              disabled={query.isFetching}
+              onClick={() => void query.refetch()}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${query.isFetching && !query.isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="docker-topbar">
+          <div className="docker-topbar__left">
+            <button type="button" className="docker-primary-btn" onClick={() => setShowCreate(true)}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{t('databases.create')}</span>
+            </button>
+          </div>
+          <div className="docker-topbar__right">
+            <div className="docker-search-wrap">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="databases-search-input"
+                type="search"
+                className="docker-search-input"
+                aria-label={t('databases.search')}
+                placeholder={t('databases.search')}
+                value={list.text}
+                onChange={(e) => list.setText(e.target.value)}
+              />
+            </div>
+            <button type="button" className="docker-icon-btn" title={t('common.refresh')} aria-label={t('common.refresh')} disabled={query.isFetching} onClick={() => void query.refetch()}>
+              <RefreshCw className={`h-3.5 w-3.5 ${(query.isFetching && !query.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+            <div className="docker-badge-running">{t('databases.count', { count: all })}</div>
+          </div>
+        </div>
+      )}
 
       <ListTable
         variant="databases"

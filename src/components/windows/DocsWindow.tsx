@@ -9,6 +9,7 @@ import { formatDateID } from '@/lib/datetime'
 import { Markdown } from '@/lib/markdown'
 import { DocEditorModal } from './docs/DocEditorModal'
 import { DOCS_PAGE_SIZE, useDocsWindow, type DocsWindowState } from './docs/useDocsWindow'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
 // what a reader sees: the pill of each, in the classes the list windows share
 function visibility(doc: DocRecord): string {
@@ -125,42 +126,88 @@ function DocViewer({ dw, doc }: { dw: DocsWindowState; doc: DocRecord }) {
 }
 
 export default function DocsWindow() {
+  const isMobile = useIsMobileLayout()
   const dw = useDocsWindow()
   const { t, isAdmin, docsQuery, all, list, selected, openCreate, setPage } = dw
 
   return (
     <div className="panel-window docker-window-root @container relative overflow-hidden">
-      <div className="docker-topbar">
-        <div className="docker-topbar__left">
-          {isAdmin ? (
-            <button type="button" className="docker-primary-btn" onClick={openCreate}>
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-              <span>{t('docs.newArticle')}</span>
-            </button>
-          ) : null}
-        </div>
-        <div className="docker-topbar__right">
-          <div className="docker-search-wrap">
-            <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
-            <input
-              id="docs-search-input"
-              type="search"
-              className="docker-search-input"
-              aria-label={t('docs.searchShort')}
-              placeholder={t('docs.searchShort')}
-              value={list.text}
-              onChange={(e) => {
-                setPage(1)
-                list.setText(e.target.value)
-              }}
-            />
+      {isMobile ? (
+        <div className="docker-topbar docker-topbar--mobile">
+          <div className="docker-topbar__mobile-row">
+            {isAdmin ? (
+              <button type="button" className="docker-primary-btn" onClick={openCreate}>
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{t('docs.newArticle')}</span>
+              </button>
+            ) : null}
+
+            <div className="docker-badge-running docker-badge-running--mobile">
+              <span>{t('docs.count', { count: all })}</span>
+            </div>
           </div>
-          <button type="button" className="docker-icon-btn" title={t('docs.refresh')} aria-label={t('docs.refresh')} onClick={() => void docsQuery.refetch()}>
-            <RefreshCw className={`h-3.5 w-3.5 ${(docsQuery.isFetching && !docsQuery.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-          </button>
-          <div className="docker-badge-running">{t('docs.count', { count: all })}</div>
+
+          <div className="docker-topbar__mobile-search">
+            <div className="docker-search-wrap docker-search-wrap--mobile">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="docs-search-input"
+                type="search"
+                className="docker-search-input docker-search-input--mobile"
+                aria-label={t('docs.searchShort')}
+                placeholder={t('docs.searchShort')}
+                value={list.text}
+                onChange={(e) => {
+                  setPage(1)
+                  list.setText(e.target.value)
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="docker-icon-btn docker-icon-btn--mobile"
+              title={t('docs.refresh')}
+              aria-label={t('docs.refresh')}
+              onClick={() => void docsQuery.refetch()}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${docsQuery.isFetching && !docsQuery.isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="docker-topbar">
+          <div className="docker-topbar__left">
+            {isAdmin ? (
+              <button type="button" className="docker-primary-btn" onClick={openCreate}>
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{t('docs.newArticle')}</span>
+              </button>
+            ) : null}
+          </div>
+          <div className="docker-topbar__right">
+            <div className="docker-search-wrap">
+              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+              <input
+                id="docs-search-input"
+                type="search"
+                className="docker-search-input"
+                aria-label={t('docs.searchShort')}
+                placeholder={t('docs.searchShort')}
+                value={list.text}
+                onChange={(e) => {
+                  setPage(1)
+                  list.setText(e.target.value)
+                }}
+              />
+            </div>
+            <button type="button" className="docker-icon-btn" title={t('docs.refresh')} aria-label={t('docs.refresh')} onClick={() => void docsQuery.refetch()}>
+              <RefreshCw className={`h-3.5 w-3.5 ${(docsQuery.isFetching && !docsQuery.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+            <div className="docker-badge-running">{t('docs.count', { count: all })}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid min-h-0 flex-1 gap-3 p-3 @3xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)]">
         <div className={`flex min-h-0 flex-col ${selected ? '@max-3xl:hidden' : ''}`}>
