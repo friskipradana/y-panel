@@ -2,6 +2,17 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.5] - 2026-10-25
+
+3 perubahan, utamanya add TunnelsToolbar, Docker styles, FilterMenu, and Select UI components.
+
+### Fitur baru
+- Add TunnelsToolbar, Docker styles, FilterMenu, and Select UI components ([`1259a6b`](https://github.com/friskipradana/y-panel/commit/1259a6b))
+- Add docker module scss styles for workstation layout and deployment UI ([`107c702`](https://github.com/friskipradana/y-panel/commit/107c702))
+- Add docker window SCSS module and DockerToolbar component ([`709fde5`](https://github.com/friskipradana/y-panel/commit/709fde5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.4...v1.71.5
+
 ## [1.71.4] - 2026-10-25
 
 The connection dialog follows the domain the panel is opened at, with the explanation in an info button instead of boxes.
