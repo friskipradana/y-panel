@@ -1567,6 +1567,29 @@
     }
   }
 
+  .docker-topbar--single-line {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px 12px;
+    min-height: 42px;
+
+    .docker-topbar__left {
+      flex: 1;
+      min-width: 0;
+      flex-wrap: nowrap;
+    }
+
+    .docker-topbar__right {
+      flex-shrink: 0;
+      flex-wrap: nowrap;
+      margin-left: auto;
+    }
+  }
+
   .docker-table:not(.docker-table--files):not(.docker-table--docs) {
     padding: 8px 10px 14px;
     min-height: 0;

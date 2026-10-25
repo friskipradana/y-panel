@@ -719,6 +719,11 @@ button:focus-visible,
 
 .layout-mobile .panel-kpi-grid--auto {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  > .panel-kpi-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 768px) {

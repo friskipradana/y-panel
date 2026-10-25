@@ -402,6 +402,7 @@ export function DomainInfoModal({
                 type="button"
                 className="docker-act-btn w-6 h-6 min-h-0 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
                 title={t('tunnels.copy')}
+                aria-label={t('tunnels.copy')}
                 onClick={() => {
                   navigator.clipboard.writeText(domain.id).then(() => {
                     toast.success(`Zone ID tersalin: ${domain.id}`)
@@ -450,6 +451,7 @@ export function DomainInfoModal({
                     type="button"
                     className="docker-act-btn w-6 h-6 min-h-0 shrink-0 ml-2 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
                     title={t('tunnels.copy')}
+                    aria-label={t('tunnels.copy')}
                     onClick={() =>
                       navigator.clipboard.writeText(ns).then(() =>
                         toast.success(t('tunnels.nameserverCopied', { name: ns }))
@@ -518,6 +520,7 @@ export function ProfileInfoModal({
               type="button"
               className="docker-act-btn w-6 h-6 min-h-0 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
               title={t('tunnels.copy')}
+              aria-label={t('tunnels.copy')}
               onClick={() => {
                 navigator.clipboard.writeText(profile.id).then(() => {
                   toast.success(`Tunnel ID tersalin: ${profile.id}`)

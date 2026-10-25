@@ -30,6 +30,7 @@ import { ErrorState, LoadingState } from '@/components/ui/states'
 import { IpAddressList } from './system/IpAddressList'
 import { SystemListView } from './system/SystemListView'
 import { useLivePolling } from '@/hooks/useLivePolling'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -68,6 +69,7 @@ function SystemBar({
   onRefresh,
   fetching,
   refreshLabel,
+  isMobile,
 }: {
   summary: ReactNode
   viewMode?: 'grid' | 'list'
@@ -75,9 +77,10 @@ function SystemBar({
   onRefresh?: () => void
   fetching?: boolean
   refreshLabel: string
+  isMobile?: boolean
 }) {
   return (
-    <div className="docker-topbar">
+    <div className={`docker-topbar ${isMobile ? 'docker-topbar--single-line' : ''}`}>
       <div className="docker-topbar__left min-w-0 text-xs text-[var(--text-secondary)]">{summary}</div>
       <div className="docker-topbar__right">
         {onViewModeChange && viewMode ? (
@@ -187,6 +190,7 @@ function InfoCard({ icon, title, children, className = '' }: { icon: React.React
 
 export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const livePolling = useLivePolling(5_000)
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -204,7 +208,11 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   if (isLoading) {
     return (
       <div className="panel-window docker-window-root flex flex-col h-full">
-        <SystemBar summary={<span className="font-semibold text-[var(--win-text)]">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} />
+        <SystemBar
+          summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>}
+          refreshLabel={t('system.refreshSummary')}
+          isMobile={isMobile}
+        />
         <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
           <LoadingState className="my-auto">{t('system.loadingRuntime')}</LoadingState>
         </div>
@@ -215,7 +223,11 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   if (isError || !data) {
     return (
       <div className="panel-window docker-window-root flex flex-col h-full">
-        <SystemBar summary={<span className="font-semibold text-[var(--win-text)]">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} />
+        <SystemBar
+          summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>}
+          refreshLabel={t('system.refreshSummary')}
+          isMobile={isMobile}
+        />
         <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
           <ErrorState
             className="my-auto max-w-sm w-full"
@@ -240,12 +252,25 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     return (
       <div className="panel-window docker-window-root">
         <SystemBar
-          summary={<><span className="font-semibold text-[var(--win-text)]">{data.hostname}</span> &middot; {t('system.account.scope')}</>}
+          summary={
+            isMobile ? (
+              <div className="flex items-center gap-1.5 min-w-0 text-xs">
+                <span className="font-semibold text-[var(--win-text)] truncate">{data.hostname}</span>
+                <span className="opacity-40">&middot;</span>
+                <span className="text-[var(--text-secondary)] shrink-0">{t('system.account.scope')}</span>
+              </div>
+            ) : (
+              <>
+                <span className="font-semibold text-[var(--win-text)]">{data.hostname}</span> &middot; {t('system.account.scope')}
+              </>
+            )
+          }
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onRefresh={() => void refetch()}
           fetching={isFetching}
           refreshLabel={t('system.refreshSummary')}
+          isMobile={isMobile}
         />
         <div className="panel-window__body">
           <div className="panel-window__stack">
@@ -270,19 +295,30 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     <div className="panel-window docker-window-root">
       <SystemBar
         summary={
-          <>
-            <span className="font-semibold text-[var(--win-text)]">{data.osName}</span>
-            <span className="mx-2 opacity-40">&middot;</span>
-            <span className="panel-mono text-xs">{data.hostname}</span>
-            <span className="mx-2 opacity-40">&middot;</span>
-            <span className="font-medium text-[var(--panel-primary-text)]">{t('system.uptime')} {formatUptime(data.uptimeSeconds)}</span>
-          </>
+          isMobile ? (
+            <div className="flex items-center gap-1.5 min-w-0 text-xs">
+              <span className="font-semibold text-[var(--win-text)] truncate">{data.hostname}</span>
+              <span className="opacity-40">&middot;</span>
+              <span className="font-medium text-[var(--panel-primary-text)] shrink-0">
+                {formatUptime(data.uptimeSeconds)}
+              </span>
+            </div>
+          ) : (
+            <>
+              <span className="font-semibold text-[var(--win-text)]">{data.osName}</span>
+              <span className="mx-2 opacity-40">&middot;</span>
+              <span className="panel-mono text-xs">{data.hostname}</span>
+              <span className="mx-2 opacity-40">&middot;</span>
+              <span className="font-medium text-[var(--panel-primary-text)]">{t('system.uptime')} {formatUptime(data.uptimeSeconds)}</span>
+            </>
+          )
         }
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         onRefresh={() => void refetch()}
         fetching={isFetching}
         refreshLabel={t('system.refreshSummary')}
+        isMobile={isMobile}
       />
 
       <div className="panel-window__body">
