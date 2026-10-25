@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.72.1] - 2026-10-25
+
+Comment out token creation section in ApiTokensTab.
+
+### Peningkatan
+- **ui:** Comment out token creation section in ApiTokensTab ([`33768ec`](https://github.com/friskipradana/y-panel/commit/33768ec))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.72.0...v1.72.1
+
 ## [1.72.0] - 2026-10-25
 
 18 perubahan, utamanya add shared UI components stylesheet and system logs window component.
