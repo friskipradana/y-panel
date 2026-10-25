@@ -142,14 +142,14 @@ export function Select({
       return
     }
 
-    const handler = (event: MouseEvent) => {
+    const handler = (event: Event) => {
       const target = event.target as Node
       if (rootRef.current && !rootRef.current.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false)
       }
     }
 
-    document.addEventListener('mousedown', handler)
+    document.addEventListener('pointerdown', handler)
     const nextIndex = Math.max(
       filteredOptions.findIndex((option) => option.value === value),
       filteredOptions.length > 0 ? 0 : -1,
@@ -159,7 +159,7 @@ export function Select({
       window.setTimeout(() => searchRef.current?.focus(), 30)
     }
 
-    return () => document.removeEventListener('mousedown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
   }, [open, searchable, value, filteredOptions])
 
   useEffect(() => {
@@ -282,7 +282,13 @@ export function Select({
 
       {open
         ? createPortal(
-        <div ref={panelRef} style={panelStyle} className={`docker-image-combobox__dropdown docker-image-combobox__dropdown--floating ${dropdownClassName}`.trim()} role="listbox">
+        <div
+          ref={panelRef}
+          style={panelStyle}
+          className={`docker-image-combobox__dropdown docker-image-combobox__dropdown--floating ${dropdownClassName}`.trim()}
+          role="listbox"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {searchable ? (
             <div className="docker-image-combobox__search-wrap">
               <input

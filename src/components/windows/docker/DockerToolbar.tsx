@@ -1,9 +1,11 @@
 import { RefreshCw, Plus, Search } from 'lucide-react'
 import { FilterMenu } from '@/components/ui/FilterMenu'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { DOCKER_TABS, type DockerTab } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
 
 export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
+  const isMobile = useIsMobileLayout()
   const {
     t,
     activeTab,
@@ -38,6 +40,58 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
     networks: networksData?.all ?? 0,
     volumes: volumesData?.all ?? 0,
     templates: templatesData?.all ?? 0,
+  }
+
+  if (isMobile) {
+    return (
+      <div className="docker-topbar docker-topbar--mobile">
+        <div className="docker-topbar__mobile-row">
+          <FilterMenu
+            label={t('docker.tabs')}
+            value={activeTab}
+            onChange={(key) => setActiveTab(key as DockerTab)}
+            items={DOCKER_TABS.map((tab) => ({ key: tab, label: t(`docker.tab.${tab}`), count: counts[tab] }))}
+          />
+
+          {action ? (
+            <button type="button" onClick={action.run} className="docker-primary-btn">
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{action.label}</span>
+            </button>
+          ) : null}
+
+          <div className="docker-badge-running docker-badge-running--mobile">
+            {activeTab === 'containers' ? (
+              <>
+                {stats.running > 0 ? <span className="docker-badge-running__dot" aria-hidden="true" /> : null}
+                <span>{t('docker.runningSummaryBadge', { running: stats.running, total: stats.all })}</span>
+              </>
+            ) : (
+              <span>{t('docker.itemsBadge', { count: counts[activeTab] })}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="docker-topbar__mobile-search">
+          <div className="docker-search-wrap docker-search-wrap--mobile">
+            <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
+            <input
+              id="docker-toolbar-search"
+              type="text"
+              className="docker-search-input docker-search-input--mobile"
+              aria-label={t(`docker.search.${activeTab}`)}
+              placeholder={t(`docker.search.${activeTab}`)}
+              value={current.text}
+              onChange={(e) => current.setText(e.target.value)}
+            />
+          </div>
+
+          <button type="button" className="docker-icon-btn docker-icon-btn--mobile" title={t('docker.refresh')} aria-label={t('docker.refresh')} onClick={refreshAll}>
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -77,7 +131,14 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
         </button>
 
         <div className="docker-badge-running">
-          {activeTab === 'containers' ? t('docker.runningSummaryBadge', { running: stats.running, total: stats.all }) : t('docker.itemsBadge', { count: counts[activeTab] })}
+          {activeTab === 'containers' ? (
+            <>
+              {stats.running > 0 ? <span className="docker-badge-running__dot" aria-hidden="true" /> : null}
+              <span>{t('docker.runningSummaryBadge', { running: stats.running, total: stats.all })}</span>
+            </>
+          ) : (
+            <span>{t('docker.itemsBadge', { count: counts[activeTab] })}</span>
+          )}
         </div>
       </div>
     </div>
