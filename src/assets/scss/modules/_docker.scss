@@ -496,6 +496,15 @@
   white-space: nowrap;
 }
 
+.docker-badge-running__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--panel-success-text, #22c55e);
+  flex-shrink: 0;
+}
+
 .docker-col-header {
   display: grid;
   grid-template-columns: var(--docker-cols, 48px minmax(0, 1fr) 110px 120px 140px);
@@ -1470,39 +1479,89 @@
 
 // Phones: the bar of every list window wraps instead of running off the screen, and touch targets are easy to hit
 .layout-mobile {
-  .docker-topbar {
-    --docker-control-h: 36px;
+  .docker-topbar--mobile {
+    --docker-control-h: 34px;
 
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
-    padding: 8px 12px;
-  }
+    padding: 10px 12px;
+    min-height: auto;
 
-  .docker-topbar__left,
-  .docker-topbar__right {
-    flex-wrap: wrap;
-    min-width: 0;
-  }
+    .docker-topbar__mobile-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
 
-  .docker-topbar__right {
-    margin-left: auto;
-  }
+    .docker-dropdown-btn {
+      height: 34px;
+      padding: 0 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
 
-  .docker-topbar__left:has(.docker-search-wrap),
-  .docker-topbar__right:has(.docker-search-wrap) {
-    flex: 1 1 100%;
-  }
+    .docker-primary-btn {
+      height: 34px;
+      padding: 0 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 8px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
 
-  .docker-search-wrap {
-    flex: 1 1 10rem;
-    min-width: 0;
-  }
+    .docker-badge-running--mobile {
+      margin-left: auto;
+      flex-shrink: 0;
+      height: 34px;
+      padding: 0 8px;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 500;
+      gap: 5px;
+      font-variant-numeric: tabular-nums;
+    }
 
-  .docker-search-input {
-    width: 100%;
-    // 16px keeps iOS from zooming into the field
-    font-size: 1rem;
+    .docker-topbar__mobile-search {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .docker-search-wrap--mobile {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .docker-search-input--mobile {
+      width: 100%;
+      flex: 1 1 auto;
+      min-width: 0;
+      // 16px keeps iOS from zooming into the field
+      font-size: 1rem;
+      height: 36px;
+      border-radius: 8px;
+      padding-left: 32px;
+      padding-right: 12px;
+      box-sizing: border-box;
+    }
+
+    .docker-icon-btn--mobile {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
   }
 
   .docker-act-btn {
