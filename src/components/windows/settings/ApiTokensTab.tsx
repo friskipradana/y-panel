@@ -171,7 +171,7 @@ export function ApiTokensTab() {
 
         {/* ── Section 1: Buat Token Baru ── */}
         <div className="space-y-3">
-          <div className="flex items-start gap-2.5 min-w-0">
+          {/* <div className="flex items-start gap-2.5 min-w-0">
             <Plus className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
             <div>
               <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">
@@ -181,7 +181,7 @@ export function ApiTokensTab() {
                 {t("settings.tokens.createHint")}
               </p>
             </div>
-          </div>
+          </div> */}
 
           <form className="grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_13rem_auto] sm:items-end" onSubmit={create}>
             <Field label={t("settings.tokens.name")} htmlFor="api-token-name">
