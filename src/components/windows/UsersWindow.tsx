@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
 import { UserRow } from '@/components/windows/users/UserRow'
+import { ChangeRoleModal } from '@/components/windows/users/ChangeRoleModal'
 import { canManageUser, grantableRoles } from '@/components/windows/users/permissions'
 
 const PAGE_SIZE = 50
@@ -31,6 +32,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
   const [showCreate, setShowCreate] = useState(false)
   const [showQuota, setShowQuota] = useState<number | null>(null)
   const [resetTarget, setResetTarget] = useState<PanelUser | null>(null)
+  const [roleTarget, setRoleTarget] = useState<PanelUser | null>(null)
   const [moveTarget, setMoveTarget] = useState<PanelUser | null>(null)
   const actor = useAuthStore((s) => s.user)
   const assignable = grantableRoles(actor?.role)
@@ -234,6 +236,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
               canManage={canManageUser(actor, u)}
               assignableRoles={assignable}
               onResetPassword={() => setResetTarget(u)}
+              onEditRole={() => setRoleTarget(u)}
               onMove={actor?.role === 'superadmin' && u.role !== 'superadmin' ? () => setMoveTarget(u) : undefined}
             />
           ))}
@@ -248,6 +251,7 @@ export default function UsersWindow({ win }: { win?: WindowState }) {
       ) : null}
 
       <ResetPasswordModal user={resetTarget} onClose={() => setResetTarget(null)} />
+      <ChangeRoleModal user={roleTarget} assignableRoles={assignable} onClose={() => setRoleTarget(null)} />
       <MoveAccountModal user={moveTarget} onClose={() => setMoveTarget(null)} />
     </div>
   )

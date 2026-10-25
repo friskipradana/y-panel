@@ -2,7 +2,7 @@ import { apiError } from '@/components/windows/users/apiError'
 import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarPlus, Check, CircleUser, Crown, KeyRound, LoaderCircle, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, X } from 'lucide-react'
+import { CalendarPlus, Check, CircleUser, Crown, KeyRound, LoaderCircle, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, UserCog, X } from 'lucide-react'
 import { updateUser, getUserQuota, updateUserQuota, type PanelUser, type UserHosting, type UserPlanState, type UserQuota } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
@@ -16,6 +16,7 @@ import { formatDateID } from '@/lib/datetime'
 import { useAuthStore } from '@/store/authStore'
 import { usePublicSite } from '@/hooks/usePublicSite'
 import { useI18n } from '@/lib/i18n'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { ROLE_SELECT_OPTIONS, ROLE_TONES } from '@/components/windows/users/constants'
 
 const ROLE_ICON: Record<string, ReactElement> = {
@@ -53,14 +54,16 @@ interface UserRowProps {
   canManage: boolean
   assignableRoles: string[]
   onResetPassword: () => void
+  onEditRole?: () => void
   /** superadmin only: place the account under another admin */
   onMove?: () => void
   busy: boolean
 }
 
 // One account, in the same row as a container: who, role, status, plan and expiry, and what can be done to it
-export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, onDelete, onQuota, showQuota, canManage, assignableRoles, onResetPassword, onMove, busy }: UserRowProps) {
+export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, onDelete, onQuota, showQuota, canManage, assignableRoles, onResetPassword, onEditRole, onMove, busy }: UserRowProps) {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const qc = useQueryClient()
   // plans are the superadmin's, and only exist while hosting mode is on
   const viewerIsSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
@@ -209,6 +212,17 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
           <button type="button" className="docker-act-btn" title={plan ? t('hosting.users.planAndQuota') : t('users.manageQuota')} aria-label={plan ? t('hosting.users.planAndQuota') : t('users.manageQuota')} aria-expanded={showQuota} onClick={onQuota}>
             <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
+          {isMobile && roleEditable && onEditRole ? (
+            <button
+              type="button"
+              className="docker-act-btn"
+              title={t('users.clickChangeRole')}
+              aria-label={t('users.clickChangeRole')}
+              onClick={onEditRole}
+            >
+              <UserCog className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          ) : null}
           {canManage ? (
             <button type="button" className="docker-act-btn" title={t('users.resetPassword')} aria-label={t('users.resetPassword')} onClick={onResetPassword}>
               <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />

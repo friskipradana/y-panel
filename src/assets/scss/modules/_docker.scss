@@ -922,14 +922,9 @@
     }
   }
 
-  // a cell that matters on a phone too (the role of a user) takes the line under the name, with the state beside it
-  .docker-row > .docker-cell--wide {
-    grid-column: 1;
-  }
-
   .docker-row__num,
   .docker-port-text,
-  .docker-cell:not(.docker-cell--keep):not(.docker-cell--wide),
+  .docker-cell:not(.docker-cell--keep),
   .docker-row__sub {
     display: none;
   }
