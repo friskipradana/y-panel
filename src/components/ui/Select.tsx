@@ -235,19 +235,21 @@ export function Select({
           aria-haspopup="listbox"
           aria-expanded={open}
         >
-          <span className={`inline-flex items-center gap-2 truncate ${selectedOption ? 'docker-image-combobox__button-label' : 'docker-image-combobox__button-placeholder'}`}>
+          <span className={`inline-flex items-center min-w-0 ${selectedOption ? 'docker-image-combobox__button-label' : 'docker-image-combobox__button-placeholder'}`}>
             {selectedOption?.dotTone ? (
-              <span
-                className={`inline-block h-2 w-2 rounded-full shrink-0 mr-2 ${
-                  selectedOption.dotTone === 'success'
-                    ? 'bg-[var(--panel-success-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-success-text)_20%,transparent)]'
-                    : selectedOption.dotTone === 'warning'
-                    ? 'bg-[var(--panel-warning-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-warning-text)_20%,transparent)]'
-                    : selectedOption.dotTone === 'danger'
-                    ? 'bg-[var(--panel-danger-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-danger-text)_20%,transparent)]'
-                    : 'bg-[var(--text-secondary)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--text-secondary)_20%,transparent)]'
-                }`}
-              />
+              <span className="shrink-0 flex items-center justify-center p-[2px] mr-1.5">
+                <span
+                  className={`inline-block h-2 w-2 rounded-full ${
+                    selectedOption.dotTone === 'success'
+                      ? 'bg-[var(--panel-success-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-success-text)_20%,transparent)]'
+                      : selectedOption.dotTone === 'warning'
+                      ? 'bg-[var(--panel-warning-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-warning-text)_20%,transparent)]'
+                      : selectedOption.dotTone === 'danger'
+                      ? 'bg-[var(--panel-danger-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-danger-text)_20%,transparent)]'
+                      : 'bg-[var(--text-secondary)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--text-secondary)_20%,transparent)]'
+                  }`}
+                />
+              </span>
             ) : null}
             <span className="truncate">{selectedOption?.label ?? effectivePlaceholder}</span>
           </span>
@@ -333,17 +335,19 @@ export function Select({
                   ) : (
                     <>
                       {option.dotTone ? (
-                        <span
-                          className={`inline-block h-2 w-2 rounded-full shrink-0 mr-2 ${
-                            option.dotTone === 'success'
-                              ? 'bg-[var(--panel-success-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-success-text)_20%,transparent)]'
-                              : option.dotTone === 'warning'
-                              ? 'bg-[var(--panel-warning-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-warning-text)_20%,transparent)]'
-                              : option.dotTone === 'danger'
-                              ? 'bg-[var(--panel-danger-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-danger-text)_20%,transparent)]'
-                              : 'bg-[var(--text-secondary)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--text-secondary)_20%,transparent)]'
-                          }`}
-                        />
+                        <span className="shrink-0 flex items-center justify-center p-[2px] mr-1.5">
+                          <span
+                            className={`inline-block h-2 w-2 rounded-full ${
+                              option.dotTone === 'success'
+                                ? 'bg-[var(--panel-success-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-success-text)_20%,transparent)]'
+                                : option.dotTone === 'warning'
+                                ? 'bg-[var(--panel-warning-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-warning-text)_20%,transparent)]'
+                                : option.dotTone === 'danger'
+                                ? 'bg-[var(--panel-danger-text)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--panel-danger-text)_20%,transparent)]'
+                                : 'bg-[var(--text-secondary)] shadow-[0_0_0_2px_color-mix(in_srgb,var(--text-secondary)_20%,transparent)]'
+                            }`}
+                          />
+                        </span>
                       ) : null}
                       <span className="docker-image-combobox__item-name">{option.label}</span>
                       {option.badge ? <span className="docker-image-combobox__item-badge panel-badge panel-badge--neutral">{option.badge}</span> : null}
