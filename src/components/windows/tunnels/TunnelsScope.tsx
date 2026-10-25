@@ -1,14 +1,20 @@
+import { useState } from "react";
 import { Copy, Info, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { alertLib } from "@/lib/alert";
 import { Select } from "@/components/ui/Select";
 import { STATUS_CONFIG } from "./tunnelForms";
+import { DomainInfoModal, ProfileInfoModal } from "./TunnelModals";
+import { useIsMobileLayout } from "@/hooks/useIsMobileLayout";
 import type { TunnelsWindowState } from "./useTunnelsWindow";
 
 const SEARCH_FROM = 8;
 
 // What the list below belongs to: the domain whose DNS records it shows, or the tunnel profile whose routes
 export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
+  const isMobile = useIsMobileLayout();
+  const [showDomainInfo, setShowDomainInfo] = useState(false);
+  const [showProfileInfo, setShowProfileInfo] = useState(false);
   const {
     t,
     tab,
@@ -77,11 +83,15 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
                   title={domainInfo}
                   aria-label={domainInfo}
                   onClick={() => {
-                    navigator.clipboard
-                      .writeText(selectedDomain.id)
-                      .then(() => {
-                        toast.success(`Zone ID tersalin: ${selectedDomain.id}`);
-                      });
+                    if (isMobile) {
+                      setShowDomainInfo(true);
+                    } else {
+                      navigator.clipboard
+                        .writeText(selectedDomain.id)
+                        .then(() => {
+                          toast.success(`Zone ID tersalin: ${selectedDomain.id}`);
+                        });
+                    }
                   }}
                 >
                   <Info className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -134,7 +144,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
                   <button
                     key={ns}
                     type="button"
-                    className="cloudflare-ns-chip"
+                    className="cloudflare-ns-chip cursor-pointer"
                     title={t("tunnels.copy")}
                     onClick={() =>
                       navigator.clipboard
@@ -158,6 +168,15 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
             </div>
           ) : null}
         </div>
+
+        {isMobile && showDomainInfo && selectedDomain ? (
+          <DomainInfoModal
+            domain={selectedDomain}
+            onClose={() => setShowDomainInfo(false)}
+            onCheckStatus={() => checkCreatedDomainMut.mutate(selectedDomain.id)}
+            checkingStatus={checking}
+          />
+        ) : null}
       </div>
     );
   }
@@ -206,11 +225,15 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
                 title={profileInfo}
                 aria-label={profileInfo}
                 onClick={() => {
-                  navigator.clipboard
-                    .writeText(selectedProfile.id)
-                    .then(() => {
-                      toast.success(`Tunnel ID tersalin: ${selectedProfile.id}`);
-                    });
+                  if (isMobile) {
+                    setShowProfileInfo(true);
+                  } else {
+                    navigator.clipboard
+                      .writeText(selectedProfile.id)
+                      .then(() => {
+                        toast.success(`Tunnel ID tersalin: ${selectedProfile.id}`);
+                      });
+                  }
                 }}
               >
                 <Info className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -261,6 +284,13 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
           </div>
         ) : null}
       </div>
+
+      {isMobile && showProfileInfo && selectedProfile ? (
+        <ProfileInfoModal
+          profile={selectedProfile}
+          onClose={() => setShowProfileInfo(false)}
+        />
+      ) : null}
     </div>
   );
 }

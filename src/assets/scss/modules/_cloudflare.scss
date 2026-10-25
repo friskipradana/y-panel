@@ -390,34 +390,37 @@
   }
 }
 
-// Phones: the picker takes a line, its state and actions share the next, and nameservers wrap cleanly
+// Phones: scope toolbar is 1 clean line with select and icon actions; NS details are in info modal
 .layout-mobile {
   .cloudflare-scope {
     min-height: auto;
-    padding: 8px 12px;
+    padding: 8px 10px;
+  }
+
+  .cloudflare-scope__row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: 100%;
+    min-height: auto;
   }
 
   .cloudflare-scope__select {
-    flex-basis: 100%;
-    width: 100%;
+    flex: 1 1 0%;
+    min-width: 0;
+    width: auto;
     max-width: none;
-  }
-
-  .cloudflare-scope__meta {
-    flex-basis: 100%;
-    margin-left: 0;
   }
 
   .cloudflare-scope__state {
     display: flex;
-    flex-basis: 100%;
+    flex-shrink: 0;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+  }
 
-    // the check button takes the room between the state and the delete button
-    > .panel-btn {
-      flex: 1;
-      justify-content: center;
-    }
+  .cloudflare-scope__meta {
+    display: none;
   }
 }

@@ -1,9 +1,10 @@
-import { type CloudflareDomain, type Project } from '@/api/agent'
+import { type CloudflareDomain, type CloudflareTunnelProfile, type Project } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { toast } from 'sonner'
 import { Copy, Globe2, Network, RefreshCw } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import {
+  STATUS_CONFIG,
   DNS_TYPES,
   type DnsForm,
   type TunnelForm,
@@ -332,6 +333,210 @@ export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, prot
             {path} &rarr; {form.protocol}://{form.ip}:{form.port}
           </p>
         ) : null}
+      </div>
+    </Modal>
+  )
+}
+
+export function DomainInfoModal({
+  domain,
+  onClose,
+  onCheckStatus,
+  checkingStatus,
+}: {
+  domain: CloudflareDomain
+  onClose: () => void
+  onCheckStatus?: () => void
+  checkingStatus?: boolean
+}) {
+  const { t } = useI18n()
+  const status = STATUS_CONFIG[domain.status ?? 'pending'] ?? STATUS_CONFIG.pending
+  const nameServers = domain.name_servers ?? []
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={domain.name}
+      subtitle={domain.status === 'active' ? t('tunnels.domainActiveCopy') : t('tunnels.domainPendingCopy')}
+      icon={<Globe2 />}
+      size="md"
+      footer={
+        <Button onClick={onClose} variant="ghost">
+          {t('common.close')}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+          <div className="min-w-0">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              {t('common.status')}
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`docker-status-pill docker-status-pill--${domain.status === 'active' ? 'running' : 'paused'}`}>
+                <span className="docker-status-dot" />
+                <span>{t(status.labelKey)}</span>
+              </span>
+            </div>
+          </div>
+          <div className="text-right min-w-0">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              Zone ID
+            </span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 mt-1 text-[12px] font-mono text-[var(--win-text)] hover:text-[var(--panel-primary-text)] cursor-pointer"
+              title={t('tunnels.copy')}
+              onClick={() => {
+                navigator.clipboard.writeText(domain.id).then(() => {
+                  toast.success(`Zone ID tersalin: ${domain.id}`)
+                })
+              }}
+            >
+              <span>{domain.id.length > 16 ? `${domain.id.slice(0, 16)}...` : domain.id}</span>
+              <Copy className="h-3 w-3 opacity-60" />
+            </button>
+          </div>
+        </div>
+
+        {nameServers.length > 0 ? (
+          <div className="cloudflare-ns-card">
+            <div className="cloudflare-ns-card__label">{t('tunnels.requiredNameservers')}</div>
+            <div className="cloudflare-ns-card__list">
+              {nameServers.map((ns, idx) => (
+                <button
+                  key={ns}
+                  type="button"
+                  onClick={() =>
+                    navigator.clipboard.writeText(ns).then(() =>
+                      toast.success(t('tunnels.nameserverCopied', { name: ns }))
+                    )
+                  }
+                  className="cloudflare-ns-copy-row cursor-pointer"
+                  title={t('tunnels.copy')}
+                >
+                  <span className="cloudflare-ns-copy-row__index">NS {idx + 1}</span>
+                  <span className="cloudflare-ns-copy-row__value">{ns}</span>
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="cloudflare-copy-all cursor-pointer"
+              onClick={() =>
+                navigator.clipboard
+                  .writeText(nameServers.join('\n'))
+                  .then(() => toast.success(t('tunnels.allNameserversCopied')))
+              }
+            >
+              <Copy className="h-3.5 w-3.5" /> {t('tunnels.copyAllNameservers')}
+            </button>
+          </div>
+        ) : null}
+
+        {onCheckStatus ? (
+          <div className="pt-1">
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full justify-center"
+              onClick={onCheckStatus}
+              disabled={checkingStatus}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
+              {checkingStatus ? t('tunnels.checkingDomainStatus') : t('tunnels.checkDomainConnection')}
+            </Button>
+          </div>
+        ) : null}
+
+        {domain.status !== 'active' ? (
+          <p className="cloudflare-domain-success__note">
+            {t('tunnels.domainPropagationNote')}
+          </p>
+        ) : null}
+      </div>
+    </Modal>
+  )
+}
+
+export function ProfileInfoModal({
+  profile,
+  onClose,
+}: {
+  profile: CloudflareTunnelProfile
+  onClose: () => void
+}) {
+  const { t } = useI18n()
+  const status = STATUS_CONFIG[profile.status] ?? STATUS_CONFIG.pending
+  const title = profile.name || String(profile.id)
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={title}
+      subtitle={t('tunnels.profileName')}
+      icon={<Network />}
+      size="md"
+      footer={
+        <Button onClick={onClose} variant="ghost">
+          {t('common.close')}
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+          <div className="min-w-0">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              {t('common.status')}
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={`docker-status-pill docker-status-pill--${status.tone === 'success' ? 'running' : 'paused'}`}>
+                <span className="docker-status-dot" />
+                <span>{t(status.labelKey)}</span>
+              </span>
+            </div>
+          </div>
+          <div className="text-right min-w-0">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              Tunnel ID
+            </span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 mt-1 text-[12px] font-mono text-[var(--win-text)] hover:text-[var(--panel-primary-text)] cursor-pointer"
+              title={t('tunnels.copy')}
+              onClick={() => {
+                navigator.clipboard.writeText(profile.id).then(() => {
+                  toast.success(`Tunnel ID tersalin: ${profile.id}`)
+                })
+              }}
+            >
+              <span>{profile.id.length > 16 ? `${profile.id.slice(0, 16)}...` : profile.id}</span>
+              <Copy className="h-3 w-3 opacity-60" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              Routes
+            </span>
+            <span className="text-[14px] font-semibold text-[var(--win-text)] mt-1 block">
+              {profile.routeCount ?? 0}
+            </span>
+          </div>
+          <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
+              Daemon
+            </span>
+            <span className="text-[14px] font-semibold text-[var(--win-text)] mt-1 block">
+              {profile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}
+            </span>
+          </div>
+        </div>
       </div>
     </Modal>
   )

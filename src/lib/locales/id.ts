@@ -6,6 +6,7 @@ export const id: Record<string, string> = {
   'language.english': "English",
   'common.save': 'Simpan',
   'common.add': 'Tambah',
+  'common.status': 'Status',
   'settings.iconStyle.title': 'Gaya Ikon Desktop',
   'settings.iconStyle.subtitle': 'Pilih tampilan ikon shortcut pada layar desktop',
   'settings.iconStyle.framed': 'Kotak Berbingkai (Framed)',

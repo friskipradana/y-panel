@@ -6,6 +6,7 @@ export const en: Record<string, string> = {
   'language.english': 'English',
   'common.save': 'Save',
   'common.add': 'Add',
+  'common.status': 'Status',
   'settings.iconStyle.title': 'Desktop Icon Style',
   'settings.iconStyle.subtitle': 'Choose the appearance of shortcut icons on the desktop screen',
   'settings.iconStyle.framed': 'Framed Box (Rounded Tile)',
