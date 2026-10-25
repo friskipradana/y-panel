@@ -50,6 +50,9 @@ export interface WindowState {
   y: number
   width: number
   height: number
+  /** The size the window had before a narrow screen (a phone) squeezed it; it comes back when the screen is wide again */
+  prefWidth?: number
+  prefHeight?: number
   zIndex: number
   isMinimized: boolean
   isMaximized: boolean

@@ -211,11 +211,13 @@ export const useWindowStore = create<WindowStore>()(
           let width = def.width;
           let height = def.height;
 
-          // Scale down proportionally if larger than maximum viewport bounds
+          // Scale down proportionally if larger than maximum viewport bounds; the default size is kept to bring it back on a wide screen
+          let squeezed = false;
           if (width > maxW || height > maxH) {
             const scale = Math.min(maxW / width, maxH / height);
             width = Math.max(320, Math.round(width * scale));
             height = Math.max(220, Math.round(height * scale));
+            squeezed = true;
           }
 
           // Cascade over every open window (not only the same kind) so new windows never
@@ -245,6 +247,7 @@ export const useWindowStore = create<WindowStore>()(
             y,
             width,
             height,
+            ...(squeezed ? { prefWidth: def.width, prefHeight: def.height } : {}),
             zIndex: Z_FOCUS_BOOST,
             isMinimized: false,
             isMaximized: false,
@@ -360,6 +363,9 @@ export const useWindowStore = create<WindowStore>()(
           if (win) {
             win.width = width;
             win.height = height;
+            // a size the user chose is the size to keep
+            delete win.prefWidth;
+            delete win.prefHeight;
           }
         }),
 
@@ -396,8 +402,18 @@ export const useWindowStore = create<WindowStore>()(
           const vh = window.innerHeight;
           for (const win of state.windows) {
             if (win.isMaximized || win.isFullscreen) continue;
-            win.width = Math.min(win.width, Math.max(320, vw - 16));
-            win.height = Math.min(win.height, Math.max(220, vh - 44 - 24));
+            // a narrow screen squeezes the window, but remembers its size: on a wide screen again it gets that size back
+            const wantW = win.prefWidth ?? win.width;
+            const wantH = win.prefHeight ?? win.height;
+            win.width = Math.min(wantW, Math.max(320, vw - 16));
+            win.height = Math.min(wantH, Math.max(220, vh - 44 - 24));
+            if (win.width < wantW || win.height < wantH) {
+              win.prefWidth = wantW;
+              win.prefHeight = wantH;
+            } else {
+              delete win.prefWidth;
+              delete win.prefHeight;
+            }
             const minX = 8 - (win.width - 180);
             const maxX = vw - 180 - 8;
             win.x = Math.min(Math.max(win.x, minX), Math.max(minX, maxX));
@@ -426,7 +442,7 @@ export const useWindowStore = create<WindowStore>()(
     {
       name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
       // the old defaults (9px, then 13px) were too small to read; anyone still on one gets the new default
       migrate: (persisted, version) => {
         const state = persisted as Partial<WindowStore>;
@@ -441,6 +457,15 @@ export const useWindowStore = create<WindowStore>()(
           state.windows = state.windows.filter(
             (w) => (w.kind as string) !== "portainer",
           );
+        // a phone squeezed some windows to its width and they were saved that way; they go back to their default size once
+        if (version < 4 && Array.isArray(state.windows))
+          for (const w of state.windows) {
+            const def = DEFAULTS[w.kind];
+            if (def && !w.isMaximized && !w.isFullscreen && (w.width <= 360 || w.height <= 240)) {
+              w.width = Math.min(def.width, Math.max(320, window.innerWidth - 16));
+              w.height = Math.min(def.height, Math.max(220, window.innerHeight - 68));
+            }
+          }
         return state as WindowStore;
       },
     },
