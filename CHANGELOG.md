@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.73.0] - 2026-10-25
+
+2 perubahan, utamanya add SpeedtestWindow component and SpeedServerPicker UI.
+
+### Fitur baru
+- Add SpeedtestWindow component and SpeedServerPicker UI ([`e4bfb85`](https://github.com/friskipradana/y-panel/commit/e4bfb85))
+- Add General tab and associated primitives, cards, and constants for settings window ([`0d08fa2`](https://github.com/friskipradana/y-panel/commit/0d08fa2))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.72.2...v1.73.0
+
 ## [1.72.2] - 2026-10-25
 
 4 perubahan, utamanya add SettingsNav component for mobile-friendly tab and group navigation.
