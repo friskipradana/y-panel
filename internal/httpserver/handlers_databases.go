@@ -220,16 +220,6 @@ func (s *Server) handleUserDatabaseCredentials(w http.ResponseWriter, r *http.Re
 		return
 	}
 	engine, _ := userdb.Lookup(item.Engine)
-	publicHost, publicURL := "", ""
-	if item.AccessMode == userdb.AccessIPs {
-		for _, a := range localAddresses() {
-			if a.Public {
-				publicHost = a.IP
-				publicURL = userdb.ConnectionURL(engine, a.IP, item.HostPort, item.DatabaseName, item.Username, password)
-				break
-			}
-		}
-	}
 	s.auditSensitiveAction(r, u, "database.credentials", "ok", map[string]any{"id": item.ID})
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"host":     userDatabaseHost,
@@ -241,9 +231,6 @@ func (s *Server) handleUserDatabaseCredentials(w http.ResponseWriter, r *http.Re
 		// the address of this machine is the one the owner already uses to reach it; the port is the same
 		"accessMode": item.AccessMode,
 		"allowedIps": item.AccessIPs,
-		// how the owner reaches it from an allowed address: this machine's public address, when it has one of its own
-		"publicHost": publicHost,
-		"publicUrl":  publicURL,
 	})
 }
 

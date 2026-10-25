@@ -4439,7 +4439,6 @@ export const id: Record<string, string> = {
   'databases.access.confirmTitle': "Ubah akses database?",
   'databases.access.confirmIps': "Database dibuka ke internet untuk {count} alamat. Container dibuat ulang dan koneksi yang berjalan terputus sebentar.",
   'databases.access.confirmLocal': "Database ditutup lagi dan hanya bisa dipakai dari server ini. Container dibuat ulang dan koneksi dari luar terputus.",
-  'databases.access.remoteNote': "Dari luar server: pakai alamat IP server ini dengan port {port}. Hanya alamat ini yang diizinkan: {ips}. Dari server ini tetap bisa lewat 127.0.0.1.",
   'publicip.firewall.inactive': "Firewall ufw terpasang tetapi tidak aktif, jadi tidak ada port web yang perlu dibuka. Bila nanti diaktifkan, buka port web di sini.",
   'publicip.firewall.open': "Firewall ufw aktif dan port web {ports} sudah dibuka.",
   'publicip.firewall.closed': "Firewall ufw aktif dan port {ports} belum dibuka, jadi domain tidak bisa dicapai dari internet dan sertifikat tidak bisa dibuat.",
@@ -4447,6 +4446,7 @@ export const id: Record<string, string> = {
   'publicip.firewall.opened': "Port web dibuka di ufw",
   'publicip.firewall.failed': "Port web gagal dibuka di ufw",
   'databases.access.fromOutside': "Dari alamat yang diizinkan",
-  'databases.access.hostPlaceholder': "IP-SERVER-ANDA",
-  'databases.access.noPublicAddress': "Server ini tidak punya alamat IP publik sendiri (mungkin di belakang router atau tunnel). Ganti host dengan IP publik atau domain yang mengarah ke server, dan pastikan port database diteruskan ke sana.",
+  'databases.access.fromServer': "Dari server ini",
+  'databases.access.hostHint': "Host mengikuti domain yang Anda pakai untuk membuka panel. Domain itu harus mengarah langsung ke server (bukan lewat Cloudflare Tunnel) dan port {port} harus sampai ke server; ganti dengan IP publik bila perlu.",
+  'databases.access.allowedNote': "Dari luar server hanya alamat ini yang diizinkan: {ips}. Dari server ini tetap bisa lewat 127.0.0.1.",
 }
