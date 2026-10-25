@@ -1566,7 +1566,7 @@
     }
   }
 
-  .docker-table:not(.docker-table--files) {
+  .docker-table:not(.docker-table--files):not(.docker-table--docs) {
     padding: 8px 10px 14px;
     min-height: 0;
 
@@ -1579,7 +1579,8 @@
     }
   }
 
-  .docker-table--files {
+  .docker-table--files,
+  .docker-table--docs {
     padding: 0;
     min-height: 0;
 
