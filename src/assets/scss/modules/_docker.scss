@@ -1758,6 +1758,7 @@
   .docker-action-btns {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 5px;
     width: 100%;
