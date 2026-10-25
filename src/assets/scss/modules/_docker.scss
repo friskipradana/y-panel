@@ -1564,9 +1564,181 @@
     }
   }
 
+  .docker-table {
+    padding: 8px 10px 14px;
+    min-height: 0;
+  }
+
+  .docker-table-scroll {
+    background: var(--panel-surface);
+    border: 1px solid var(--win-border);
+    border-radius: 12px;
+    overflow-y: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  .docker-row {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--win-border);
+    border-radius: 0;
+    margin: 0;
+    padding: 9px 12px;
+    row-gap: 5px;
+    box-shadow: none;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--panel-surface-hover);
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &,
+    &:has(> .docker-action-btns) {
+      grid-template-columns: minmax(0, 1fr) auto;
+
+      > .docker-row__app {
+        grid-column: 1;
+      }
+
+      > .docker-cell--keep {
+        grid-column: 2;
+        align-self: flex-start;
+        padding-top: 1px;
+
+        .docker-status-pill {
+          height: 20px;
+          padding: 1px 7px;
+          font-size: 0.6875rem;
+          border-radius: 5px;
+          gap: 4px;
+
+          .docker-status-dot {
+            width: 5px;
+            height: 5px;
+          }
+        }
+      }
+
+      > .docker-action-btns {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+
+  .docker-row__app {
+    padding-right: 8px;
+    gap: 8px;
+  }
+
+  .docker-app-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+  }
+
+  .docker-app-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .docker-row__meta {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    margin-top: 1px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .docker-action-btns {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    width: 100%;
+    padding-top: 6px;
+    margin-top: 1px;
+    border-top: 1px solid color-mix(in srgb, var(--win-border) 40%, transparent);
+  }
+
   .docker-act-btn {
-    width: 36px;
-    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--panel-surface-strong);
+    border: 1px solid var(--win-border);
+    color: var(--win-text);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    &:hover {
+      background: var(--tb-hover);
+      border-color: var(--win-border-focus);
+    }
+
+    &--start {
+      color: var(--panel-success-text);
+      background: color-mix(in srgb, var(--panel-success, #22c55e) 12%, transparent);
+      border-color: color-mix(in srgb, var(--panel-success, #22c55e) 25%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--panel-success, #22c55e) 22%, transparent);
+      }
+    }
+
+    &--stop {
+      color: var(--panel-danger-text);
+      background: color-mix(in srgb, var(--panel-danger, #ef4444) 12%, transparent);
+      border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 25%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--panel-danger, #ef4444) 22%, transparent);
+      }
+    }
+
+    &--restart {
+      color: var(--panel-warning-text);
+      background: color-mix(in srgb, var(--panel-warning, #f59e0b) 12%, transparent);
+      border-color: color-mix(in srgb, var(--panel-warning, #f59e0b) 25%, transparent);
+
+      &:hover {
+        background: color-mix(in srgb, var(--panel-warning, #f59e0b) 22%, transparent);
+      }
+    }
+
+    &--danger {
+      color: var(--panel-danger-text);
+      background: color-mix(in srgb, var(--panel-danger, #ef4444) 10%, transparent);
+      border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
+      margin-left: auto;
+
+      &:hover {
+        background: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
+        border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 35%, transparent);
+      }
+    }
   }
 
   .docker-statusbar {
