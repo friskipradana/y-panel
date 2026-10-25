@@ -2540,6 +2540,7 @@ export const en: Record<string, string> = {
   'systemLogs.heroTitle': 'Monitor host service logs in real time',
   'systemLogs.heroDescription': 'Use service filters and line limits to read journalctl output while preserving visual consistency across light and dark mode.',
   'systemLogs.searchPlaceholder': 'Filter log text, e.g. project-123 or drift',
+  'systemLogs.searchShort': 'Filter logs...',
   'systemLogs.autoScrollOn': 'Auto-scroll on',
   'systemLogs.autoScrollOff': 'Auto-scroll off',
   'systemLogs.updating': 'updating...',

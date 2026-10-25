@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDownToLine, Copy, Download, Pause, Play, RefreshCcw, ScrollText, Search } from 'lucide-react'
 import { copyTextToClipboard, getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { WindowState } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -72,6 +73,7 @@ function Highlight({ text, term }: { text: string; term: string }) {
 // Superadmin only: reads the service journals of this host.
 export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const [service, setService] = useState('reneo')
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
@@ -139,52 +141,106 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
 
   return (
     <div className="panel-window flex h-full flex-col">
-      <div className="flex min-h-[40px] shrink-0 flex-wrap items-center gap-2 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1.5">
-        <Select
-          id="system-logs-service"
-          value={service}
-          onChange={setService}
-          options={SERVICE_OPTIONS}
-          className="min-w-[150px] max-w-[190px]"
-          buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
-        />
-        <Select
-          id="system-logs-limit"
-          value={String(limit)}
-          onChange={(value) => setLimit(Number(value))}
-          options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
-          className="min-w-[110px] max-w-[140px]"
-          buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
-        />
-        <label className="panel-search h-[30px] min-w-[10rem] max-w-[320px] flex-1 system-logs__search">
-          <Search className="h-3.5 w-3.5" />
-          <input id="system-logs-search" value={search} onChange={(e) => setSearch(e.target.value)} className="panel-search__input text-xs" placeholder={t('systemLogs.searchPlaceholder')} />
-        </label>
-        <div className="ml-auto flex items-center gap-1">
-          <IconButton label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
-            {live ? <Pause size={14} /> : <Play size={14} />}
-          </IconButton>
-          <IconButton label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
-            <ArrowDownToLine size={14} />
-          </IconButton>
-          <IconButton label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
-            <Copy size={14} />
-          </IconButton>
-          <IconButton label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
-            <Download size={14} />
-          </IconButton>
-          <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
-            <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
-          </IconButton>
-        </div>
-      </div>
+      {isMobile ? (
+        <div className="flex shrink-0 flex-col gap-1.5 border-b border-[var(--win-border)] bg-[var(--win-bar)] p-2">
+          {/* Row 1: Source & Stream control */}
+          <div className="flex items-center gap-1.5">
+            <Select
+              id="system-logs-service"
+              value={service}
+              onChange={setService}
+              options={SERVICE_OPTIONS}
+              className="min-w-0 flex-1"
+              buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            />
+            <Select
+              id="system-logs-limit"
+              value={String(limit)}
+              onChange={(value) => setLimit(Number(value))}
+              options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
+              className="w-[84px] shrink-0"
+              buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            />
+            <IconButton label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+              {live ? <Pause size={14} /> : <Play size={14} />}
+            </IconButton>
+            <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+              <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+            </IconButton>
+          </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Row 2: Search & Utility actions */}
+          <div className="flex items-center gap-1.5">
+            <label className="panel-search h-[30px] min-w-0 flex-1 px-2.5">
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              <input
+                id="system-logs-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="panel-search__input !text-[11px] !font-normal"
+                placeholder={t('systemLogs.searchShort')}
+              />
+            </label>
+            <IconButton label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+              <ArrowDownToLine size={14} />
+            </IconButton>
+            <IconButton label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+              <Copy size={14} />
+            </IconButton>
+            <IconButton label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+              <Download size={14} />
+            </IconButton>
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-[40px] shrink-0 flex-wrap items-center gap-2 border-b border-[var(--win-border)] bg-[var(--win-bar)] px-3 py-1.5">
+          <Select
+            id="system-logs-service"
+            value={service}
+            onChange={setService}
+            options={SERVICE_OPTIONS}
+            className="min-w-[150px] max-w-[190px]"
+            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+          />
+          <Select
+            id="system-logs-limit"
+            value={String(limit)}
+            onChange={(value) => setLimit(Number(value))}
+            options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
+            className="min-w-[110px] max-w-[140px]"
+            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+          />
+          <label className="panel-search h-[30px] min-w-[10rem] max-w-[320px] flex-1 system-logs__search">
+            <Search className="h-3.5 w-3.5" />
+            <input id="system-logs-search" value={search} onChange={(e) => setSearch(e.target.value)} className="panel-search__input text-xs" placeholder={t('systemLogs.searchPlaceholder')} />
+          </label>
+          <div className="ml-auto flex items-center gap-1">
+            <IconButton label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+              {live ? <Pause size={14} /> : <Play size={14} />}
+            </IconButton>
+            <IconButton label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+              <ArrowDownToLine size={14} />
+            </IconButton>
+            <IconButton label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+              <Copy size={14} />
+            </IconButton>
+            <IconButton label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+              <Download size={14} />
+            </IconButton>
+            <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+              <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
+            </IconButton>
+          </div>
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex items-center justify-between gap-2 overflow-hidden">
           <Tabs
             label={t('systemLogs.levelFilter')}
             value={level}
             onChange={setLevel}
+            className="overflow-x-auto no-scrollbar min-w-0 flex-1"
             items={[
               { key: 'all', label: t('systemLogs.levelAll'), count: counts.all },
               { key: 'error', label: t('systemLogs.levelError'), count: counts.error },
@@ -192,7 +248,7 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
               { key: 'info', label: t('systemLogs.levelInfo'), count: counts.info },
             ]}
           />
-          <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">
+          <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)] shrink-0">
             {visible.length}/{all.length}
           </span>
         </div>
@@ -222,8 +278,8 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
               <div className="py-1">
                 {visible.map((line, index) => (
                   <div key={index} className={`flex border-l-2 py-px hover:bg-[var(--panel-surface-hover)] ${LEVEL_BAR[line.level]}`}>
-                    <span className="w-10 shrink-0 select-none self-start pr-2 text-right font-mono text-[12px] leading-[1.65] text-[var(--text-secondary)]">{index + 1}</span>
-                    <span className={`flex-1 whitespace-pre-wrap break-all pr-3 font-mono text-[12px] leading-[1.65] ${LEVEL_CLASS[line.level]}`}>
+                    <span className="w-8 sm:w-10 shrink-0 select-none self-start pr-1.5 sm:pr-2 text-right font-mono text-[11px] sm:text-[12px] leading-[1.5] sm:leading-[1.65] text-[var(--text-secondary)]">{index + 1}</span>
+                    <span className={`flex-1 whitespace-pre-wrap break-all pr-2 sm:pr-3 font-mono text-[11px] sm:text-[12px] leading-[1.5] sm:leading-[1.65] ${LEVEL_CLASS[line.level]}`}>
                       <Highlight text={line.text} term={term} />
                     </span>
                   </div>

@@ -2540,6 +2540,7 @@ export const id: Record<string, string> = {
   'systemLogs.heroTitle': 'Pantau log service host secara realtime',
   'systemLogs.heroDescription': 'Gunakan filter service dan jumlah baris untuk membaca keluaran journalctl tanpa kehilangan konsistensi visual light/dark mode.',
   'systemLogs.searchPlaceholder': 'Filter teks log, contoh: project-123 atau drift',
+  'systemLogs.searchShort': 'Filter log...',
   'systemLogs.autoScrollOn': 'Auto-scroll aktif',
   'systemLogs.autoScrollOff': 'Auto-scroll nonaktif',
   'systemLogs.updating': 'memperbarui...',
