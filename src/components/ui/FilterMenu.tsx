@@ -25,11 +25,11 @@ export function FilterMenu({ label, items, value, onChange, id }: FilterMenuProp
 
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: Event) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
   }, [open])
 
   return (
@@ -39,7 +39,7 @@ export function FilterMenu({ label, items, value, onChange, id }: FilterMenuProp
         <ChevronDown className="h-3.5 w-3.5 opacity-75" strokeWidth={1.75} />
       </button>
       {open ? (
-        <div className="docker-dropdown-menu" role="menu">
+        <div className="docker-dropdown-menu" role="menu" onPointerDown={(e) => e.stopPropagation()}>
           {items.map((item) => (
             <button
               key={item.key}

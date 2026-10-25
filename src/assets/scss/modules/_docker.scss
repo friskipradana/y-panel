@@ -892,29 +892,39 @@
     display: none;
   }
 
-  // name, state and (up to three) actions share one line; more actions than that take a line of their own so they never squeeze the name
   .docker-row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 8px;
-    row-gap: 6px;
-    padding: 10px 14px;
+    row-gap: 5px;
+    padding: 9px 12px;
+
+    > .docker-row__app {
+      grid-column: 1;
+    }
+
+    > .docker-cell--keep {
+      grid-column: 2;
+      align-self: flex-start;
+      padding-top: 1px;
+      padding-right: 0;
+    }
+
+    > .docker-action-btns {
+      grid-column: 1 / -1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding-top: 6px;
+      margin-top: 1px;
+      border-top: 1px solid color-mix(in srgb, var(--win-border) 40%, transparent);
+    }
   }
 
   // a cell that matters on a phone too (the role of a user) takes the line under the name, with the state beside it
   .docker-row > .docker-cell--wide {
     grid-column: 1;
-  }
-
-  .docker-row > .docker-action-btns {
-    justify-content: flex-end;
-    gap: 4px;
-  }
-
-  .docker-row > .docker-action-btns:has(> :nth-child(4)) {
-    grid-column: 1 / -1;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
   }
 
   .docker-row__num,
@@ -926,27 +936,6 @@
 
   .docker-row__meta {
     display: block;
-  }
-
-  .docker-row .docker-cell--keep {
-    padding-right: 0;
-  }
-
-  // a row with one to three actions gives the name the whole first line; its state and its actions share the second
-  .docker-row:has(> .docker-action-btns):not(:has(> .docker-cell--wide)):not(:has(> .docker-action-btns > :nth-child(4))) {
-    grid-template-columns: auto minmax(0, 1fr);
-
-    > .docker-row__app {
-      grid-column: 1 / -1;
-    }
-
-    > .docker-cell--keep {
-      grid-column: 1;
-    }
-
-    > .docker-action-btns {
-      grid-column: 2;
-    }
   }
 
   .docker-row--files {
@@ -1493,6 +1482,7 @@
       align-items: center;
       gap: 6px;
       width: 100%;
+      overflow: visible;
     }
 
     .docker-dropdown-btn {
@@ -1502,6 +1492,7 @@
       font-weight: 600;
       border-radius: 8px;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .docker-primary-btn {
@@ -1755,6 +1746,7 @@
 
 .layout-mobile .docker-dropdown-menu {
   max-width: calc(100vw - 24px);
+  z-index: 60000;
 }
 
 .layout-mobile .docker-dropdown-item {
