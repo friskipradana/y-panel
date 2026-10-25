@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.1] - 2026-10-25
+
+Also remove the oldest Portainer sidecar, ui-panel-portainer, and say in the README that Reneo no longer uses Portainer.
+
+### Perbaikan
+- **installer:** Also remove the oldest Portainer sidecar, ui-panel-portainer, and say in the README that Reneo no longer uses Portainer ([`c630bb4`](https://github.com/friskipradana/y-panel/commit/c630bb4))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.0...v1.71.1
+
 ## [1.71.0] - 2026-10-24
 
 13 perubahan, utamanya add system window components and SCSS styles for y-panel UI.
