@@ -33,8 +33,8 @@ export function SpeedtestWindow() {
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
-      <div className="docker-topbar">
-        <div className="docker-topbar__left flex items-center gap-2">
+      <div className="docker-topbar flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:px-4 sm:py-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {isSuperadmin ? (
             <FilterMenu
               label={t('speedtest.tabs')}
@@ -57,7 +57,7 @@ export function SpeedtestWindow() {
               variant="danger"
               size="sm"
               onClick={run.stop}
-              className="!h-8 !px-3 font-medium"
+              className="!h-8 !px-3 font-medium shrink-0"
             >
               <Square className="h-3 w-3 fill-current mr-1.5" strokeWidth={1.75} />
               <span>{t('speedtest.stop')}</span>
@@ -69,7 +69,7 @@ export function SpeedtestWindow() {
               size="sm"
               disabled={startDisabled}
               onClick={run.start}
-              className="!h-8 !px-3 font-medium"
+              className="!h-8 !px-3 font-medium shrink-0"
             >
               <Play className="h-3 w-3 fill-current mr-1.5" strokeWidth={1.75} />
               <span>{run.result ? t('speedtest.again') : t('speedtest.start')}</span>
@@ -77,19 +77,19 @@ export function SpeedtestWindow() {
           )}
         </div>
 
-        <div className="docker-topbar__right min-w-0">
-          {active === 'server' && servers.data ? (
+        {active === 'server' && servers.data ? (
+          <div className="w-full sm:w-auto sm:ml-auto min-w-0">
             <SpeedServerPicker
               servers={servers.data}
               value={selected?.id ?? ''}
               onChange={setServerId}
               disabled={server.running}
             />
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
-      <div className="panel-window__body min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5">
+      <div className="panel-window__body min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5 pb-8 sm:pb-3.5">
         <SpeedPanel
           key={active}
           description={t(`speedtest.${active}.subtitle`)}

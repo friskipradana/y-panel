@@ -15,10 +15,10 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
   const { t } = useI18n()
   const selected = servers.find((server) => server.id === value)
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2 w-full sm:w-auto">
       <Select
         id="speedtest-server"
-        className="w-48 sm:w-60 max-w-[18rem]"
+        className="w-full sm:w-60 max-w-full sm:max-w-[18rem]"
         size="sm"
         value={selected?.id ?? ''}
         onChange={onChange}
