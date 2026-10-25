@@ -52,9 +52,7 @@ export const TIMEZONES = [
 
 export const PRESET_DNS = [
   { label: "Cloudflare", value: "1.1.1.1", tone: "panel-badge--warning" },
-  { label: "1.0.0.1", value: "1.0.0.1", tone: "panel-badge--warning" },
   { label: "Google", value: "8.8.8.8", tone: "panel-badge--success" },
-  { label: "8.8.4.4", value: "8.8.4.4", tone: "panel-badge--success" },
   { label: "Quad9", value: "9.9.9.9", tone: "panel-badge--info" },
   { label: "OpenDNS", value: "208.67.222.222", tone: "panel-badge--neutral" },
 ];

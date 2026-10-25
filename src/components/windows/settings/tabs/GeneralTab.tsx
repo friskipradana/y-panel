@@ -27,88 +27,75 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
 
   return (
     <div className="space-y-3">
-      {/* ── Single Unified Host & System Settings Card ── */}
-      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
-        {/* Host System & Reneo Updates Section */}
-        <UpdateCard systemSettings={systemSettings} bare />
+      {/* ── 1. Host System & Reneo Updates Card ── */}
+      <UpdateCard systemSettings={systemSettings} />
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* Host Identity Section */}
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.identity")}</h2>
-            </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.identitySubtitle")}</span>
+      {/* ── 2. Host Identity Card ── */}
+      <div className="panel-shell-card settings-card !p-3.5 !gap-3 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 mb-1">
+          <div className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.identity")}</h2>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <FieldLabel
-                label={t("settings.hostname")}
-                hint="hostnamectl"
-              />
-              <TextInput
-                id="settings-hostname"
-                mono
-                value={hostname}
-                invalid={hostnameError}
-                aria-describedby={hostnameError ? "settings-hostname-error" : undefined}
-                onChange={(event) => setHostname(event.target.value)}
-                className="!h-8 px-2.5 text-[12px] font-medium"
-                placeholder={t("settings.hostnamePlaceholder")}
-              />
-              {hostnameError ? (
-                <p id="settings-hostname-error" role="alert" className="mt-1 text-[11px] text-[var(--panel-danger-text)]">
-                  {t("settings.hostnameInvalid")}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <FieldLabel
-                label={t("settings.timezone")}
-                hint="timedatectl"
-              />
-              <TimezoneSelect
-                value={timezone}
-                onChange={setTimezone}
-              />
-            </div>
-          </div>
+          <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.identitySubtitle")}</span>
         </div>
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* DNS Nameservers Section */}
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.dnsNameservers")}</h2>
-            </div>
-            <span className="text-[11px] font-mono text-[var(--text-secondary)] truncate">
-              {systemSettings.dnsMode} ({systemSettings.managedConfigPath})
-            </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <FieldLabel
+              label={t("settings.hostname")}
+              hint="hostnamectl"
+            />
+            <TextInput
+              id="settings-hostname"
+              mono
+              value={hostname}
+              invalid={hostnameError}
+              aria-describedby={hostnameError ? "settings-hostname-error" : undefined}
+              onChange={(event) => setHostname(event.target.value)}
+              className="!h-8 px-2.5 text-[12px] font-medium"
+              placeholder={t("settings.hostnamePlaceholder")}
+            />
+            {hostnameError ? (
+              <p id="settings-hostname-error" role="alert" className="mt-1 text-[11px] text-[var(--panel-danger-text)]">
+                {t("settings.hostnameInvalid")}
+              </p>
+            ) : null}
           </div>
-
-          <DnsEditor
-            nameservers={nameservers}
-            onChange={setNameservers}
-          />
+          <div>
+            <FieldLabel
+              label={t("settings.timezone")}
+              hint="timedatectl"
+            />
+            <TimezoneSelect
+              value={timezone}
+              onChange={setTimezone}
+            />
+          </div>
         </div>
-
-        {/* Public Site Section */}
-        {isSuperadmin ? (
-          <>
-            <div className="border-t border-[var(--win-border)]" />
-            <SitePublicCard bare />
-          </>
-        ) : null}
       </div>
+
+      {/* ── 3. DNS Nameservers Card ── */}
+      <div className="panel-shell-card settings-card !p-3.5 !gap-3 flex flex-col">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.dnsNameservers")}</h2>
+          </div>
+          <span className="text-[11px] font-mono text-[var(--text-secondary)] truncate max-w-[170px] sm:max-w-none shrink-0" title={systemSettings.managedConfigPath}>
+            <span className="hidden sm:inline">{systemSettings.dnsMode} ({systemSettings.managedConfigPath})</span>
+            <span className="sm:hidden">{systemSettings.dnsMode}</span>
+          </span>
+        </div>
+
+        <DnsEditor
+          nameservers={nameservers}
+          onChange={setNameservers}
+        />
+      </div>
+
+      {/* ── 4. Public Site Card ── */}
+      {isSuperadmin ? <SitePublicCard /> : null}
 
       <SettingsSaveBar
         id="settings-save"

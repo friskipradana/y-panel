@@ -110,7 +110,7 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
   return (
     <div className={bare ? "flex flex-col gap-2.5" : "panel-shell-card settings-card !p-3.5 !gap-2.5"}>
       {/* Top: Host System details + Check update action */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <Server className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
           {systemSettings ? (
@@ -138,7 +138,7 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
           onClick={handleCheckUpdate}
           icon={<RefreshCw size={12} />}
           loading={isRefreshing}
-          className="!h-7 px-2.5 text-[11.5px]"
+          className="!h-7 px-2.5 text-[11.5px] shrink-0 self-start sm:self-auto"
         >
           {isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}
         </Button>
@@ -146,7 +146,7 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
 
       {/* Version Status Row */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--win-border)]">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
+        <div className="flex items-center gap-2 flex-wrap min-w-0 text-[12px]">
           <ArrowUpCircle className="h-3.5 w-3.5 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
           <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
             Reneo <strong className="font-mono text-[var(--panel-primary-text)]">v{updateInfo?.current || "..."}</strong>
@@ -154,10 +154,16 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
           <Badge size="sm" tone={updateInfo?.available ? "warning" : "success"} dot>
             {updateInfo?.available ? t("settings.update.updateAvailable") : t("settings.update.upToDate")}
           </Badge>
-          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-            {updateInfo?.latest ? `v${updateInfo.latest}` : ""}
-            {updateInfo?.checkedAt && ` · ${new Date(updateInfo.checkedAt).toLocaleTimeString()}`}
-          </span>
+          {updateInfo?.available && updateInfo?.latest ? (
+            <span className="font-mono text-[11px] text-[var(--panel-warning-text)] font-semibold">
+              → v{updateInfo.latest}
+            </span>
+          ) : null}
+          {updateInfo?.checkedAt ? (
+            <span className="font-mono text-[10.5px] text-[var(--text-secondary)]">
+              · {new Date(updateInfo.checkedAt).toLocaleTimeString()}
+            </span>
+          ) : null}
         </div>
 
         {updateInfo?.releaseUrl && (

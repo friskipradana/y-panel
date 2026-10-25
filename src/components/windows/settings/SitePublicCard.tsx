@@ -27,15 +27,15 @@ export function SitePublicCard({ bare = false }: { bare?: boolean } = {}) {
 
   return (
     <div className={bare ? "flex flex-col gap-2.5" : "panel-shell-card settings-card !p-3.5 !gap-2.5"}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
         <div className="flex items-center gap-2">
-          <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
+          <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
           <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.site.title')}</h2>
         </div>
         <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.site.subtitle')}</span>
       </div>
 
-      <div className="border-t border-[var(--win-border)] pt-1">
+      <div className="flex flex-col gap-2 pt-1">
         <SettingRow
           title={t('settings.site.landingTitle')}
           description={data?.landingEnabled === false ? t('settings.site.landingOff') : t('settings.site.landingOn')}

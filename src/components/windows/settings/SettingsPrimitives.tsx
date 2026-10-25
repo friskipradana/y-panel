@@ -145,7 +145,7 @@ export function DnsEditor({
               }
             }}
             placeholder={t("settings.addDnsPlaceholder")}
-            className="panel-mono !h-8 w-full px-2.5 text-[12px]"
+            className="panel-mono !h-8 w-full px-2.5 text-[12px] placeholder:text-[11px]"
           />
         </div>
         <Button
@@ -166,7 +166,7 @@ export function DnsEditor({
         <div className="text-[10.5px] font-semibold text-[var(--text-secondary)] mb-1">
           {t("settings.dnsPresets")}
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {PRESET_DNS.map((preset) => {
             const active = nameservers.includes(preset.value);
             return (
