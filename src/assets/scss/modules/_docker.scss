@@ -892,39 +892,29 @@
     display: none;
   }
 
+  // name, state and (up to three) actions share one line; more actions than that take a line of their own so they never squeeze the name
   .docker-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     column-gap: 8px;
-    row-gap: 5px;
-    padding: 9px 12px;
-
-    > .docker-row__app {
-      grid-column: 1;
-    }
-
-    > .docker-cell--keep {
-      grid-column: 2;
-      align-self: flex-start;
-      padding-top: 1px;
-      padding-right: 0;
-    }
-
-    > .docker-action-btns {
-      grid-column: 1 / -1;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding-top: 6px;
-      margin-top: 1px;
-      border-top: 1px solid color-mix(in srgb, var(--win-border) 40%, transparent);
-    }
+    row-gap: 6px;
+    padding: 10px 14px;
   }
 
   // a cell that matters on a phone too (the role of a user) takes the line under the name, with the state beside it
   .docker-row > .docker-cell--wide {
     grid-column: 1;
+  }
+
+  .docker-row > .docker-action-btns {
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .docker-row > .docker-action-btns:has(> :nth-child(4)) {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
   }
 
   .docker-row__num,
@@ -936,6 +926,27 @@
 
   .docker-row__meta {
     display: block;
+  }
+
+  .docker-row .docker-cell--keep {
+    padding-right: 0;
+  }
+
+  // a row with one to three actions gives the name the whole first line; its state and its actions share the second
+  .docker-row:has(> .docker-action-btns):not(:has(> .docker-cell--wide)):not(:has(> .docker-action-btns > :nth-child(4))) {
+    grid-template-columns: auto minmax(0, 1fr);
+
+    > .docker-row__app {
+      grid-column: 1 / -1;
+    }
+
+    > .docker-cell--keep {
+      grid-column: 1;
+    }
+
+    > .docker-action-btns {
+      grid-column: 2;
+    }
   }
 
   .docker-row--files {
@@ -1555,20 +1566,33 @@
     }
   }
 
-  .docker-table {
+  .docker-table:not(.docker-table--files) {
     padding: 8px 10px 14px;
     min-height: 0;
+
+    .docker-table-scroll {
+      background: var(--panel-surface);
+      border: 1px solid var(--win-border);
+      border-radius: 12px;
+      overflow-y: auto;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
   }
 
-  .docker-table-scroll {
-    background: var(--panel-surface);
-    border: 1px solid var(--win-border);
-    border-radius: 12px;
-    overflow-y: auto;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  .docker-table--files {
+    padding: 0;
+    min-height: 0;
+
+    .docker-table-scroll {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      overflow-y: auto;
+    }
   }
 
-  .docker-row {
+  .docker-row:not(.docker-row--files) {
     background: transparent;
     border: none;
     border-bottom: 1px solid var(--win-border);
@@ -1620,6 +1644,56 @@
     }
   }
 
+  .docker-row--files {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    column-gap: 8px;
+    padding: 7px 14px;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--win-border) 20%, transparent);
+
+    > .docker-row__select {
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    > .docker-row__app {
+      grid-column: 2;
+      padding-right: 8px;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .docker-row__meta {
+      font-family: var(--font-sans);
+      font-size: 0.6875rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+
+    > .docker-act-btn {
+      grid-column: 3;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      color: var(--text-secondary);
+
+      &:hover {
+        background: var(--tb-hover);
+        color: var(--win-text);
+      }
+    }
+  }
+
   .docker-row__app {
     padding-right: 8px;
     gap: 8px;
@@ -1651,6 +1725,11 @@
     word-break: break-word;
   }
 
+  .docker-act-btn {
+    width: 32px;
+    height: 32px;
+  }
+
   .docker-action-btns {
     display: flex;
     align-items: center;
@@ -1660,74 +1739,74 @@
     padding-top: 6px;
     margin-top: 1px;
     border-top: 1px solid color-mix(in srgb, var(--win-border) 40%, transparent);
-  }
 
-  .docker-act-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background: var(--panel-surface-strong);
-    border: 1px solid var(--win-border);
-    color: var(--win-text);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+    .docker-act-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--panel-surface-strong);
+      border: 1px solid var(--win-border);
+      color: var(--win-text);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 
-    svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    &:active {
-      transform: scale(0.95);
-    }
-
-    &:hover {
-      background: var(--tb-hover);
-      border-color: var(--win-border-focus);
-    }
-
-    &--start {
-      color: var(--panel-success-text);
-      background: color-mix(in srgb, var(--panel-success, #22c55e) 12%, transparent);
-      border-color: color-mix(in srgb, var(--panel-success, #22c55e) 25%, transparent);
-
-      &:hover {
-        background: color-mix(in srgb, var(--panel-success, #22c55e) 22%, transparent);
+      svg {
+        width: 14px;
+        height: 14px;
       }
-    }
 
-    &--stop {
-      color: var(--panel-danger-text);
-      background: color-mix(in srgb, var(--panel-danger, #ef4444) 12%, transparent);
-      border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 25%, transparent);
-
-      &:hover {
-        background: color-mix(in srgb, var(--panel-danger, #ef4444) 22%, transparent);
+      &:active {
+        transform: scale(0.95);
       }
-    }
-
-    &--restart {
-      color: var(--panel-warning-text);
-      background: color-mix(in srgb, var(--panel-warning, #f59e0b) 12%, transparent);
-      border-color: color-mix(in srgb, var(--panel-warning, #f59e0b) 25%, transparent);
 
       &:hover {
-        background: color-mix(in srgb, var(--panel-warning, #f59e0b) 22%, transparent);
+        background: var(--tb-hover);
+        border-color: var(--win-border-focus);
       }
-    }
 
-    &--danger {
-      color: var(--panel-danger-text);
-      background: color-mix(in srgb, var(--panel-danger, #ef4444) 10%, transparent);
-      border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
-      margin-left: auto;
+      &--start {
+        color: var(--panel-success-text);
+        background: color-mix(in srgb, var(--panel-success, #22c55e) 12%, transparent);
+        border-color: color-mix(in srgb, var(--panel-success, #22c55e) 25%, transparent);
 
-      &:hover {
-        background: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
-        border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 35%, transparent);
+        &:hover {
+          background: color-mix(in srgb, var(--panel-success, #22c55e) 22%, transparent);
+        }
+      }
+
+      &--stop {
+        color: var(--panel-danger-text);
+        background: color-mix(in srgb, var(--panel-danger, #ef4444) 12%, transparent);
+        border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 25%, transparent);
+
+        &:hover {
+          background: color-mix(in srgb, var(--panel-danger, #ef4444) 22%, transparent);
+        }
+      }
+
+      &--restart {
+        color: var(--panel-warning-text);
+        background: color-mix(in srgb, var(--panel-warning, #f59e0b) 12%, transparent);
+        border-color: color-mix(in srgb, var(--panel-warning, #f59e0b) 25%, transparent);
+
+        &:hover {
+          background: color-mix(in srgb, var(--panel-warning, #f59e0b) 22%, transparent);
+        }
+      }
+
+      &--danger {
+        color: var(--panel-danger-text);
+        background: color-mix(in srgb, var(--panel-danger, #ef4444) 10%, transparent);
+        border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
+        margin-left: auto;
+
+        &:hover {
+          background: color-mix(in srgb, var(--panel-danger, #ef4444) 20%, transparent);
+          border-color: color-mix(in srgb, var(--panel-danger, #ef4444) 35%, transparent);
+        }
       }
     }
   }
