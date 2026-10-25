@@ -55,15 +55,23 @@ function ListRow({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-3 py-2 text-xs transition-colors hover:bg-[var(--panel-surface-hover)]">
-      <div className="flex items-center gap-2.5 min-w-[160px]">
-        {icon ? <span className="text-[var(--text-secondary)] shrink-0">{icon}</span> : null}
-        <span className="font-medium text-[var(--win-text)]">{label}</span>
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 px-3 py-2 text-xs transition-colors hover:bg-[var(--panel-surface-hover)]">
+      {/* Top tier (Mobile) / Left side (Desktop) */}
+      <div className="flex items-center justify-between sm:justify-start gap-2.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {icon ? <span className="text-[var(--text-secondary)] shrink-0">{icon}</span> : null}
+          <span className="font-medium text-[var(--win-text)] truncate">{label}</span>
+        </div>
+        <div className="sm:hidden flex items-center gap-2 shrink-0">
+          {value ? <span className="font-semibold text-[var(--win-text)]">{value}</span> : null}
+          {action}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 ml-auto flex-wrap justify-end">
+      {/* Bottom tier (Mobile) / Right side (Desktop) */}
+      <div className="flex items-center gap-3 sm:ml-auto flex-wrap sm:flex-nowrap justify-between sm:justify-end min-w-0 w-full sm:w-auto">
         {progress ? (
-          <div className="flex items-center gap-2 w-32 sm:w-40 shrink-0">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:w-40 min-w-0">
             <div className="h-1.5 w-full rounded-[2px] bg-[color-mix(in_srgb,var(--text-secondary)_15%,transparent)] overflow-hidden">
               <div
                 className={`h-full rounded-[2px] transition-all ${
@@ -82,11 +90,17 @@ function ListRow({
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-[var(--win-text)]">{value}</span>
+        <div className="hidden sm:flex items-center gap-2">
+          {value ? <span className="font-semibold text-[var(--win-text)]">{value}</span> : null}
           {meta ? <span className="text-[11px] text-[var(--text-secondary)]">{meta}</span> : null}
           {action}
         </div>
+
+        {meta ? (
+          <div className="sm:hidden text-[11px] text-[var(--text-secondary)] break-words w-full">
+            {meta}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -238,20 +252,21 @@ export function SystemListView({
               key={`${entry.address}-${entry.iface}`}
               className="flex items-center justify-between gap-3 px-3 py-2 text-xs transition-colors hover:bg-[var(--panel-surface-hover)]"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <Network size={14} className="text-[var(--text-secondary)] shrink-0" />
                 <Badge tone="neutral" size="sm">{entry.iface || 'eth'}</Badge>
-                <code className="panel-mono text-[12px] text-[var(--win-text)] font-semibold select-all" title={entry.address}>
+                <code className="panel-mono text-[12px] text-[var(--win-text)] font-semibold select-all truncate" title={entry.address}>
                   {entry.address}
                 </code>
               </div>
               <button
                 type="button"
-                className="docker-icon-btn h-6 w-6"
-                title={t('tunnels.copy')}
+                className="docker-icon-btn h-6 w-6 shrink-0"
+                title={t('common.copy')}
+                aria-label={t('common.copy')}
                 onClick={() => {
                   navigator.clipboard.writeText(entry.address).then(() => {
-                    toast.success(`IP tersalin: ${entry.address}`)
+                    toast.success(t('common.copied'))
                   })
                 }}
               >

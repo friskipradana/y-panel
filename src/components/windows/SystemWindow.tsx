@@ -337,14 +337,14 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             {/* Host Runtime */}
             <section className="panel-shell-card">
               <p className="panel-section-label">{t('system.hostRuntime')}</p>
-              <div className="mt-1 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+              <div className="mt-1 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-x-6 gap-y-2">
                 <div className="min-w-0">
-                  <p className="text-[1.25rem] font-bold tracking-tight text-[var(--win-text)]">{data.osName}</p>
+                  <p className="text-[1.125rem] sm:text-[1.25rem] font-bold tracking-tight text-[var(--win-text)]">{data.osName}</p>
                   <p className="panel-mono text-[0.75rem] text-[var(--text-secondary)]">{data.hostname} &middot; kernel {data.kernel}</p>
                 </div>
-                <div className="text-right">
+                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--win-border)]">
                   <p className="panel-section-label">{t('system.uptime')}</p>
-                  <p className="text-[1rem] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
+                  <p className="text-[0.9375rem] sm:text-[1rem] font-bold text-[var(--win-text)]">{formatUptime(data.uptimeSeconds)}</p>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
