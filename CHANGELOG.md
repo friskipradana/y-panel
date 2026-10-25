@@ -2,6 +2,32 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.72.0] - 2026-10-25
+
+18 perubahan, utamanya add shared UI components stylesheet and system logs window component.
+
+### Fitur baru
+- Add shared UI components stylesheet and system logs window component ([`43221b6`](https://github.com/friskipradana/y-panel/commit/43221b6))
+- Add SystemLogsWindow component for viewing and filtering service logs ([`28d7255`](https://github.com/friskipradana/y-panel/commit/28d7255))
+- Add Indonesian localization and SystemLogsWindow component ([`1b879ce`](https://github.com/friskipradana/y-panel/commit/1b879ce))
+- Add user management window components and docker styling module ([`4538da0`](https://github.com/friskipradana/y-panel/commit/4538da0))
+- Add docker module stylesheet with deployment steps and workstation layout styles ([`56cb77e`](https://github.com/friskipradana/y-panel/commit/56cb77e))
+- Add SystemWindow component for system monitoring and overview ([`c7420fd`](https://github.com/friskipradana/y-panel/commit/c7420fd))
+- Add Docker module SCSS styles for deployment steps and workstation layout ([`803fce2`](https://github.com/friskipradana/y-panel/commit/803fce2))
+- Add system list view and IP address components for SystemWindow ([`8b404d9`](https://github.com/friskipradana/y-panel/commit/8b404d9))
+- Add TunnelModals component, SCSS modules, and SystemWindow component ([`9dd5f6e`](https://github.com/friskipradana/y-panel/commit/9dd5f6e))
+- Add TunnelModals component for managing DNS records, domains, and profiles ([`5f4d588`](https://github.com/friskipradana/y-panel/commit/5f4d588))
+- Add reusable Select component with search and portal dropdown support ([`62cef84`](https://github.com/friskipradana/y-panel/commit/62cef84))
+- Add windows and cloudflare SCSS module stylesheets ([`bf7e725`](https://github.com/friskipradana/y-panel/commit/bf7e725))
+- Add Cloudflare tunnels scope component, modals, styles, and locales ([`2e4b645`](https://github.com/friskipradana/y-panel/commit/2e4b645))
+- Add SCSS styles for Docker workstation module and deployment UI components ([`c05c1ab`](https://github.com/friskipradana/y-panel/commit/c05c1ab))
+- Add SCSS styles for Docker management and deployment modules ([`14e92af`](https://github.com/friskipradana/y-panel/commit/14e92af))
+- Add DatabaseWindow, DocsWindow, and UsersWindow components ([`af109a1`](https://github.com/friskipradana/y-panel/commit/af109a1))
+- Add docker module SCSS styles and projects toolbar component ([`c923ae1`](https://github.com/friskipradana/y-panel/commit/c923ae1))
+- Add SCSS module for Docker UI components and workstation layouts ([`8ff7612`](https://github.com/friskipradana/y-panel/commit/8ff7612))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.5...v1.72.0
+
 ## [1.71.5] - 2026-10-25
 
 3 perubahan, utamanya add TunnelsToolbar, Docker styles, FilterMenu, and Select UI components.
