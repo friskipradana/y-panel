@@ -4447,4 +4447,6 @@ export const id: Record<string, string> = {
   'publicip.firewall.opened': "Port web dibuka di ufw",
   'publicip.firewall.failed': "Port web gagal dibuka di ufw",
   'databases.access.fromOutside': "Dari alamat yang diizinkan",
+  'databases.access.hostPlaceholder': "IP-SERVER-ANDA",
+  'databases.access.noPublicAddress': "Server ini tidak punya alamat IP publik sendiri (mungkin di belakang router atau tunnel). Ganti host dengan IP publik atau domain yang mengarah ke server, dan pastikan port database diteruskan ke sana.",
 }

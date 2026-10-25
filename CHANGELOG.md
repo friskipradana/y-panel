@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.3] - 2026-10-25
+
+The connection dialog of a database open to addresses always shows the address to use from outside, with a placeholder when the server has no public IP of its own.
+
+### Perbaikan
+- **databases:** The connection dialog of a database open to addresses always shows the address to use from outside, with a placeholder when the server has no public IP of its own ([`706ebaf`](https://github.com/friskipradana/y-panel/commit/706ebaf))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.2...v1.71.3
+
 ## [1.71.2] - 2026-10-25
 
 A window squeezed by a narrow screen gets its size back when the screen is wide again.

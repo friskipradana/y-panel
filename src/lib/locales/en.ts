@@ -4447,4 +4447,6 @@ export const en: Record<string, string> = {
   'publicip.firewall.opened': "Web ports opened in ufw",
   'publicip.firewall.failed': "The web ports could not be opened in ufw",
   'databases.access.fromOutside': "From an allowed address",
+  'databases.access.hostPlaceholder': "YOUR-SERVER-IP",
+  'databases.access.noPublicAddress': "This server has no public IP address of its own (it may be behind a router or a tunnel). Replace the host with the public IP or a domain that points at the server, and make sure the database port is forwarded to it.",
 }
