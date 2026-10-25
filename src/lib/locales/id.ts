@@ -337,6 +337,7 @@ export const id: Record<string, string> = {
   'common.generate': "Buat",
   'common.update': "Perbarui",
   'common.close': 'Tutup',
+  'common.info': 'Informasi',
   'widget.graph.range': "Rentang waktu grafik",
   'widget.graph.samples': "{count} sampel tersimpan",
   'widget.graph.cpuAria': "Grafik garis penggunaan CPU",

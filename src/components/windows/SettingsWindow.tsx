@@ -59,7 +59,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const cloudflare = useCloudflareSettings();
 
   // the menu as this account sees it: groups of tabs, without what it may not open
-  const groups = SETTINGS_GROUPS.map((group) => ({ ...group, tabs: group.tabs.filter((tab) => settingsTabAllowed(tab.key, role)) })).filter((group) => group.tabs.length > 0);
+  const groups = SETTINGS_GROUPS.map((group) => ({
+    ...group,
+    tabs: group.tabs
+      .filter((tab) => settingsTabAllowed(tab.key, role))
+      .map((tab) => ({
+        ...tab,
+        desc: tab.key === "notifications" && !isSuperadmin ? "settings.desc.notificationsOwn" : tab.desc,
+      })),
+  })).filter((group) => group.tabs.length > 0);
   const SETTINGS_TABS = groups.flatMap((group) => group.tabs);
   // the quick search can ask for a tab; take it when the account may see it
   const requestedTab = useSettingsNavStore((s) => s.tab);

@@ -1425,12 +1425,24 @@ button:focus-visible,
     flex-shrink: 0;
     white-space: nowrap;
   }
+
+  // Settings page header on mobile: hidden because mobile nav dropdown + info icon handles title & description
+  .settings-page__head {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .settings-page__head {
+    display: none;
+  }
 }
 
 // Mobile dropdown navigation for Settings and Hosting
 .settings-mobile-nav {
   display: flex;
   align-items: center;
+  gap: 6px;
   width: 100%;
   padding: 6px 10px;
   border-bottom: 1px solid var(--win-border);
@@ -1438,7 +1450,8 @@ button:focus-visible,
   flex-shrink: 0;
 
   &__btn {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     justify-content: space-between;
     height: 32px;
     padding: 0 10px;
@@ -1459,6 +1472,48 @@ button:focus-visible,
       outline: 2px solid var(--panel-primary-text);
       outline-offset: -2px;
     }
+  }
+
+  &__info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid var(--win-border);
+    background: var(--panel-surface-strong);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+    &:hover,
+    &--active {
+      background: var(--tb-hover);
+      color: var(--panel-primary-text);
+      border-color: var(--panel-primary-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--panel-primary-text);
+      outline-offset: -2px;
+    }
+  }
+
+  &__popover {
+    position: fixed;
+    z-index: 60000;
+    max-width: min(300px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--win-border);
+    background: var(--menu-bg);
+    box-shadow: var(--win-shadow);
+    backdrop-filter: blur(12px);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--win-text);
   }
 
   &__dropdown {

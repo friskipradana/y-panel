@@ -64,6 +64,7 @@ export function HostingWindow({ win, authenticated }: { win?: WindowState; authe
     .map((key) => ({
       key,
       label: VIEWS[key].label,
+      desc: VIEWS[key].desc,
       icon: VIEWS[key].icon,
       count: key === 'plans' ? count(plans.data?.length) : key === 'domains' ? count(domains.data?.filter((d) => d.enabled).length) : key === 'subdomains' ? count(subdomains.data?.length) : key === 'orders' ? count(orders.data?.total) : key === 'vouchers' ? count(vouchers.data?.filter((v) => v.enabled).length) : undefined,
     }))
@@ -72,7 +73,7 @@ export function HostingWindow({ win, authenticated }: { win?: WindowState; authe
     {
       key: 'payments',
       label: 'hosting.nav.group.payments',
-      tabs: (isSuperadmin ? (['bank', 'gateway'] as const) : (['bank'] as const)).map((key) => ({ key, label: VIEWS[key].label, icon: VIEWS[key].icon })),
+      tabs: (isSuperadmin ? (['bank', 'gateway'] as const) : (['bank'] as const)).map((key) => ({ key, label: VIEWS[key].label, desc: VIEWS[key].desc, icon: VIEWS[key].icon })),
     },
   ]
   const allowed = groups.flatMap((group) => group.tabs.map((tab) => tab.key))

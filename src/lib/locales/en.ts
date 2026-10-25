@@ -337,6 +337,7 @@ export const en: Record<string, string> = {
   'common.generate': 'Generate',
   'common.update': 'Update',
   'common.close': 'Close',
+  'common.info': 'Information',
   'widget.graph.range': "Chart time range",
   'widget.graph.samples': "{count} samples stored",
   'widget.graph.cpuAria': "CPU usage line chart",
