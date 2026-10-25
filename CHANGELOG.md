@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.72.2] - 2026-10-25
+
+4 perubahan, utamanya add SettingsNav component for mobile-friendly tab and group navigation.
+
+### Fitur baru
+- Add SettingsNav component for mobile-friendly tab and group navigation ([`6194281`](https://github.com/friskipradana/y-panel/commit/6194281))
+- Add hosting and settings windows with styling and localization support ([`054ae4e`](https://github.com/friskipradana/y-panel/commit/054ae4e))
+- Add window chrome SCSS module and settings navigation component ([`6cccde2`](https://github.com/friskipradana/y-panel/commit/6cccde2))
+- Add FileToolbar component for file manager navigation and actions ([`0e6e186`](https://github.com/friskipradana/y-panel/commit/0e6e186))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.72.1...v1.72.2
+
 ## [1.72.1] - 2026-10-25
 
 Comment out token creation section in ApiTokensTab.
