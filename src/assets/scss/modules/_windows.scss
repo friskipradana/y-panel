@@ -1427,6 +1427,75 @@ button:focus-visible,
   }
 }
 
+// Mobile dropdown navigation for Settings and Hosting
+.settings-mobile-nav {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  flex-shrink: 0;
+
+  &__btn {
+    width: 100%;
+    justify-content: space-between;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--panel-surface-strong);
+    border: 1px solid var(--win-border);
+    color: var(--win-text);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+      background: var(--tb-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--panel-primary-text);
+      outline-offset: -2px;
+    }
+  }
+
+  &__dropdown {
+    min-width: 220px;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--win-border);
+    background: var(--menu-bg);
+    box-shadow: var(--win-shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  &__group {
+    & + & {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid var(--win-border);
+    }
+  }
+
+  &__group-label {
+    padding: 4px 8px 2px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+
+  &__item {
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+  }
+}
+
 // Every card of a Settings page: one padding and one gap, so the pages read the same
 .settings-card {
   display: flex;
