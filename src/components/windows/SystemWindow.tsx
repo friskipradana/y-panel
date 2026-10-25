@@ -398,7 +398,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             {/* Services */}
             <section className="space-y-2">
               <p className="panel-section-label">{t('system.sectionServices')}</p>
-              <div className="panel-kpi-grid panel-kpi-grid--auto">
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
                 <InfoCard icon={<Activity size={15} />} title={t('system.dockerStatus')}>
                   <p className="panel-shell-card__title">{data.dockerStatus}</p>
                   <p className="panel-shell-card__meta">{t('system.dockerStatusMeta')}</p>
@@ -413,7 +413,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
                   </p>
                 </InfoCard>
 
-                <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="mobile:col-span-full">
+                <InfoCard icon={<Network size={15} />} title={t('system.ipAddress')} className="sm:col-span-2">
                   {data.ipAddresses && data.ipAddresses.length > 0 ? (
                     <IpAddressList addresses={data.ipAddresses} />
                   ) : (
