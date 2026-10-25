@@ -411,6 +411,22 @@
     min-width: 0;
     width: auto;
     max-width: none;
+
+    .docker-image-combobox__button {
+      height: 32px;
+      min-height: 32px;
+      border-radius: 8px;
+      padding-top: 0;
+      padding-bottom: 0;
+      padding-left: 10px;
+      padding-right: 28px;
+      font-size: 0.75rem;
+    }
+
+    .docker-image-combobox__toggle {
+      width: 26px;
+      height: 26px;
+    }
   }
 
   .cloudflare-scope__state {
@@ -418,6 +434,12 @@
     flex-shrink: 0;
     align-items: center;
     gap: 6px;
+
+    .docker-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
   }
 
   .cloudflare-scope__meta {

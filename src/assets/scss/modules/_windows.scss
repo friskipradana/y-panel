@@ -1473,9 +1473,9 @@ button:focus-visible,
 
 // Phones: buttons and fields of the kit are a finger tall
 .layout-mobile {
-  .panel-input,
+  .panel-input:not(.panel-input--sm),
   .panel-select,
-  .docker-image-combobox__button {
+  .docker-image-combobox__button:not(.panel-input--sm) {
     min-height: var(--control-h-lg);
   }
 
