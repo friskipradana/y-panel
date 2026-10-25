@@ -70,20 +70,11 @@ curl http://127.0.0.1:8787/api/v1/bootstrap/status
 
 ## Portainer
 
-Container Portainer dijalankan sebagai service pendukung internal:
+Reneo tidak lagi memakai Portainer dan installer tidak memasangnya. Versi lama memasang container Portainer sebagai service pendukung
+(`reneo-portainer`, `ypanel-portainer`, atau yang tertua `ui-panel-portainer`, di `127.0.0.1:9000` dan `127.0.0.1:9443`, dengan akses
+ke `docker.sock`). Setiap kali installer berjalan (pemasangan atau pembaruan) ketiga nama itu dihapus beserta volume `portainer_data`.
 
-- nama container: `reneo-portainer` (instalasi lama: `ypanel-portainer`)
-- bind: `127.0.0.1:9000`, `127.0.0.1:9443`
-- frontend **tidak** mengakses Portainer langsung
-- semua akses runtime seharusnya melewati Go agent
-
-Cek status:
-
-```bash
-docker ps
-docker logs -f reneo-portainer
-curl http://127.0.0.1:9000/api/status
-```
+Kalau Anda memakai Portainer sendiri, pasang dengan nama lain supaya tidak ikut dihapus.
 
 ---
 
