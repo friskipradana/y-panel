@@ -41,6 +41,7 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
   const isMobile = useIsMobileLayout()
 
   const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({})
@@ -57,13 +58,19 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
     const el = buttonRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const below = window.innerHeight - rect.bottom - 12
-    const above = rect.top - 12
+    const container = containerRef.current
+    const cRect = container ? container.getBoundingClientRect() : rect
+
+    const below = window.innerHeight - (container ? cRect.bottom : rect.bottom) - 12
+    const above = (container ? cRect.top : rect.top) - 12
     const wanted = 360
     const up = below < Math.min(wanted, 180) && above > below
 
-    const targetWidth = Math.min(rect.width, window.innerWidth - 24)
-    const leftPos = Math.max(12, Math.min(rect.left, window.innerWidth - targetWidth - 12))
+    // Full width matching the mobile toolbar controls (from left edge of select to right edge of info button)
+    const leftPos = container ? cRect.left + 10 : Math.max(10, rect.left)
+    const targetWidth = container
+      ? Math.max(200, cRect.width - 20)
+      : Math.min(window.innerWidth - 20, rect.width)
 
     setPanelStyle({
       position: 'fixed',
@@ -73,7 +80,9 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
       overflowY: 'auto',
       overflowX: 'hidden',
       zIndex: 60000,
-      ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+      ...(up
+        ? { bottom: window.innerHeight - (container ? cRect.top : rect.top) + 4 }
+        : { top: (container ? cRect.bottom : rect.bottom) + 4 }),
     })
   }, [])
 
@@ -81,6 +90,8 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
     const el = infoBtnRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
+    const container = containerRef.current
+    const cRect = container ? container.getBoundingClientRect() : rect
     const targetWidth = Math.min(280, window.innerWidth - 24)
     const leftPos = Math.max(12, rect.right - targetWidth)
 
@@ -88,7 +99,7 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
       position: 'fixed',
       left: leftPos,
       width: targetWidth,
-      top: rect.bottom + 6,
+      top: (container ? cRect.bottom : rect.bottom) + 4,
       zIndex: 60000,
     })
   }, [])
@@ -164,7 +175,7 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
     const ActiveIcon = activeTab?.icon
 
     return (
-      <div className="settings-mobile-nav">
+      <div className="settings-mobile-nav" ref={containerRef}>
         <button
           ref={buttonRef}
           type="button"
