@@ -358,101 +358,114 @@ export function DomainInfoModal({
       open
       onClose={onClose}
       title={domain.name}
-      subtitle={domain.status === 'active' ? t('tunnels.domainActiveCopy') : t('tunnels.domainPendingCopy')}
+      subtitle="Cloudflare Zone"
       icon={<Globe2 />}
       size="md"
       footer={
-        <Button onClick={onClose} variant="ghost">
-          {t('common.close')}
-        </Button>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              {t('common.status')}
-            </span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`docker-status-pill docker-status-pill--${domain.status === 'active' ? 'running' : 'paused'}`}>
-                <span className="docker-status-dot" />
-                <span>{t(status.labelKey)}</span>
-              </span>
-            </div>
-          </div>
-          <div className="text-right min-w-0">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              Zone ID
-            </span>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 mt-1 text-[12px] font-mono text-[var(--win-text)] hover:text-[var(--panel-primary-text)] cursor-pointer"
-              title={t('tunnels.copy')}
-              onClick={() => {
-                navigator.clipboard.writeText(domain.id).then(() => {
-                  toast.success(`Zone ID tersalin: ${domain.id}`)
-                })
-              }}
-            >
-              <span>{domain.id.length > 16 ? `${domain.id.slice(0, 16)}...` : domain.id}</span>
-              <Copy className="h-3 w-3 opacity-60" />
-            </button>
-          </div>
-        </div>
-
-        {nameServers.length > 0 ? (
-          <div className="cloudflare-ns-card">
-            <div className="cloudflare-ns-card__label">{t('tunnels.requiredNameservers')}</div>
-            <div className="cloudflare-ns-card__list">
-              {nameServers.map((ns, idx) => (
-                <button
-                  key={ns}
-                  type="button"
-                  onClick={() =>
-                    navigator.clipboard.writeText(ns).then(() =>
-                      toast.success(t('tunnels.nameserverCopied', { name: ns }))
-                    )
-                  }
-                  className="cloudflare-ns-copy-row cursor-pointer"
-                  title={t('tunnels.copy')}
-                >
-                  <span className="cloudflare-ns-copy-row__index">NS {idx + 1}</span>
-                  <span className="cloudflare-ns-copy-row__value">{ns}</span>
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="cloudflare-copy-all cursor-pointer"
-              onClick={() =>
-                navigator.clipboard
-                  .writeText(nameServers.join('\n'))
-                  .then(() => toast.success(t('tunnels.allNameserversCopied')))
-              }
-            >
-              <Copy className="h-3.5 w-3.5" /> {t('tunnels.copyAllNameservers')}
-            </button>
-          </div>
-        ) : null}
-
-        {onCheckStatus ? (
-          <div className="pt-1">
+        <div className="flex items-center justify-between w-full">
+          {onCheckStatus && domain.status !== 'active' ? (
             <Button
               type="button"
               variant="primary"
-              className="w-full justify-center"
+              size="sm"
               onClick={onCheckStatus}
               disabled={checkingStatus}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${checkingStatus ? 'animate-spin' : ''}`} />
-              {checkingStatus ? t('tunnels.checkingDomainStatus') : t('tunnels.checkDomainConnection')}
+              {checkingStatus ? t('tunnels.checking') : t('tunnels.checkStatus')}
             </Button>
+          ) : <div />}
+          <Button onClick={onClose} variant="ghost" size="sm">
+            {t('common.close')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        {/* Properties table */}
+        <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] divide-y divide-[var(--win-border)] overflow-hidden text-[12px]">
+          {/* Status Row */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-[var(--text-secondary)] font-medium">{t('common.status')}</span>
+            <span className={`docker-status-pill docker-status-pill--${domain.status === 'active' ? 'running' : 'paused'}`}>
+              <span className="docker-status-dot" />
+              <span>{t(status.labelKey)}</span>
+            </span>
+          </div>
+
+          {/* Zone ID Row */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-[var(--text-secondary)] font-medium">Zone ID</span>
+            <div className="flex items-center gap-1.5">
+              <span className="panel-mono text-[11px] text-[var(--win-text)] select-all">{domain.id}</span>
+              <button
+                type="button"
+                className="docker-act-btn w-6 h-6 min-h-0 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
+                title={t('tunnels.copy')}
+                onClick={() => {
+                  navigator.clipboard.writeText(domain.id).then(() => {
+                    toast.success(`Zone ID tersalin: ${domain.id}`)
+                  })
+                }}
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Nameservers section */}
+        {nameServers.length > 0 ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                {t('tunnels.requiredNameservers')}
+              </span>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-[11px] text-[var(--panel-primary-text)] hover:underline cursor-pointer"
+                onClick={() =>
+                  navigator.clipboard
+                    .writeText(nameServers.join('\n'))
+                    .then(() => toast.success(t('tunnels.allNameserversCopied')))
+                }
+              >
+                <Copy className="h-3 w-3" />
+                <span>{t('tunnels.copyAllNameservers')}</span>
+              </button>
+            </div>
+
+            <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] divide-y divide-[var(--win-border)] overflow-hidden">
+              {nameServers.map((ns, idx) => (
+                <div key={ns} className="flex items-center justify-between px-3 py-2 text-[12px]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="panel-mono text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--win-bar)] px-1.5 py-0.5 rounded border border-[var(--win-border)]">
+                      NS{idx + 1}
+                    </span>
+                    <span className="panel-mono text-[12px] text-[var(--win-text)] truncate select-all">
+                      {ns}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="docker-act-btn w-6 h-6 min-h-0 shrink-0 ml-2 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
+                    title={t('tunnels.copy')}
+                    onClick={() =>
+                      navigator.clipboard.writeText(ns).then(() =>
+                        toast.success(t('tunnels.nameserverCopied', { name: ns }))
+                      )
+                    }
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
 
         {domain.status !== 'active' ? (
-          <p className="cloudflare-domain-success__note">
+          <p className="text-[11.5px] text-[var(--text-secondary)] leading-relaxed px-1">
             {t('tunnels.domainPropagationNote')}
           </p>
         ) : null}
@@ -477,35 +490,33 @@ export function ProfileInfoModal({
       open
       onClose={onClose}
       title={title}
-      subtitle={t('tunnels.profileName')}
+      subtitle="Tunnel Profile"
       icon={<Network />}
       size="md"
       footer={
-        <Button onClick={onClose} variant="ghost">
+        <Button onClick={onClose} variant="ghost" size="sm">
           {t('common.close')}
         </Button>
       }
     >
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              {t('common.status')}
-            </span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`docker-status-pill docker-status-pill--${status.tone === 'success' ? 'running' : 'paused'}`}>
-                <span className="docker-status-dot" />
-                <span>{t(status.labelKey)}</span>
-              </span>
-            </div>
-          </div>
-          <div className="text-right min-w-0">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              Tunnel ID
-            </span>
+      <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] divide-y divide-[var(--win-border)] overflow-hidden text-[12px]">
+        {/* Status */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[var(--text-secondary)] font-medium">{t('common.status')}</span>
+          <span className={`docker-status-pill docker-status-pill--${status.tone === 'success' ? 'running' : 'paused'}`}>
+            <span className="docker-status-dot" />
+            <span>{t(status.labelKey)}</span>
+          </span>
+        </div>
+
+        {/* Tunnel ID */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[var(--text-secondary)] font-medium">Tunnel ID</span>
+          <div className="flex items-center gap-1.5">
+            <span className="panel-mono text-[11px] text-[var(--win-text)] select-all">{profile.id}</span>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 mt-1 text-[12px] font-mono text-[var(--win-text)] hover:text-[var(--panel-primary-text)] cursor-pointer"
+              className="docker-act-btn w-6 h-6 min-h-0 text-[var(--text-secondary)] hover:text-[var(--win-text)] cursor-pointer"
               title={t('tunnels.copy')}
               onClick={() => {
                 navigator.clipboard.writeText(profile.id).then(() => {
@@ -513,29 +524,23 @@ export function ProfileInfoModal({
                 })
               }}
             >
-              <span>{profile.id.length > 16 ? `${profile.id.slice(0, 16)}...` : profile.id}</span>
-              <Copy className="h-3 w-3 opacity-60" />
+              <Copy className="h-3 w-3" />
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              Routes
-            </span>
-            <span className="text-[14px] font-semibold text-[var(--win-text)] mt-1 block">
-              {profile.routeCount ?? 0}
-            </span>
-          </div>
-          <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)]">
-            <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider block">
-              Daemon
-            </span>
-            <span className="text-[14px] font-semibold text-[var(--win-text)] mt-1 block">
-              {profile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}
-            </span>
-          </div>
+        {/* Routes */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[var(--text-secondary)] font-medium">Routes</span>
+          <span className="panel-mono font-medium text-[var(--win-text)]">{profile.routeCount ?? 0}</span>
+        </div>
+
+        {/* Daemon */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-[var(--text-secondary)] font-medium">Daemon</span>
+          <span className="font-medium text-[var(--win-text)]">
+            {profile.daemonRunning ? t('tunnels.daemonRunning') : t('tunnels.daemonIdle')}
+          </span>
         </div>
       </div>
     </Modal>
