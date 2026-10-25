@@ -247,8 +247,8 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
                 { value: 'warn', label: t('systemLogs.levelWarn'), badge: String(counts.warn), dotTone: counts.warn > 0 ? 'warning' : undefined },
                 { value: 'info', label: t('systemLogs.levelInfo'), badge: String(counts.info) },
               ]}
-              className="w-[145px]"
-              buttonClassName="h-7 text-xs"
+              className="w-[96px]"
+              buttonClassName="!min-h-[26px] !h-[26px] !py-0 !pl-2 !pr-5 !text-[11px] !font-medium !rounded-md"
               size="sm"
             />
           ) : (

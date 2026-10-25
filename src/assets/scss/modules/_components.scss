@@ -403,6 +403,24 @@
   padding-right: 62px !important;
 }
 
+.docker-image-combobox--sm {
+  .docker-image-combobox__button {
+    min-height: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding-left: 8px;
+    padding-right: 26px;
+    border-radius: 6px;
+  }
+
+  .docker-image-combobox__toggle {
+    width: 22px;
+    height: 22px;
+    right: 2px;
+  }
+}
+
 .docker-image-combobox__button {
   display: flex;
   align-items: center;
