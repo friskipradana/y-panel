@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.2] - 2026-10-25
+
+A window squeezed by a narrow screen gets its size back when the screen is wide again.
+
+### Perbaikan
+- **windows:** A window squeezed by a narrow screen gets its size back when the screen is wide again ([`86c2858`](https://github.com/friskipradana/y-panel/commit/86c2858))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.1...v1.71.2
+
 ## [1.71.1] - 2026-10-25
 
 Also remove the oldest Portainer sidecar, ui-panel-portainer, and say in the README that Reneo no longer uses Portainer.
