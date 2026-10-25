@@ -235,19 +235,36 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3">
-        <div className="flex items-center justify-between gap-2 overflow-hidden">
-          <Tabs
-            label={t('systemLogs.levelFilter')}
-            value={level}
-            onChange={setLevel}
-            className="overflow-x-auto no-scrollbar min-w-0 flex-1"
-            items={[
-              { key: 'all', label: t('systemLogs.levelAll'), count: counts.all },
-              { key: 'error', label: t('systemLogs.levelError'), count: counts.error },
-              { key: 'warn', label: t('systemLogs.levelWarn'), count: counts.warn },
-              { key: 'info', label: t('systemLogs.levelInfo'), count: counts.info },
-            ]}
-          />
+        <div className="flex items-center justify-between gap-2">
+          {isMobile ? (
+            <Select
+              id="system-logs-level"
+              value={level}
+              onChange={(val) => setLevel(val as LevelFilter)}
+              options={[
+                { value: 'all', label: t('systemLogs.levelAll'), badge: String(counts.all) },
+                { value: 'error', label: t('systemLogs.levelError'), badge: String(counts.error), dotTone: counts.error > 0 ? 'danger' : undefined },
+                { value: 'warn', label: t('systemLogs.levelWarn'), badge: String(counts.warn), dotTone: counts.warn > 0 ? 'warning' : undefined },
+                { value: 'info', label: t('systemLogs.levelInfo'), badge: String(counts.info) },
+              ]}
+              className="w-[145px]"
+              buttonClassName="h-7 text-xs"
+              size="sm"
+            />
+          ) : (
+            <Tabs
+              label={t('systemLogs.levelFilter')}
+              value={level}
+              onChange={setLevel}
+              className="overflow-x-auto no-scrollbar min-w-0 flex-1"
+              items={[
+                { key: 'all', label: t('systemLogs.levelAll'), count: counts.all },
+                { key: 'error', label: t('systemLogs.levelError'), count: counts.error },
+                { key: 'warn', label: t('systemLogs.levelWarn'), count: counts.warn },
+                { key: 'info', label: t('systemLogs.levelInfo'), count: counts.info },
+              ]}
+            />
+          )}
           <span className="panel-mono text-[0.75rem] text-[var(--text-secondary)] shrink-0">
             {visible.length}/{all.length}
           </span>
