@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.71.4] - 2026-10-25
+
+The connection dialog follows the domain the panel is opened at, with the explanation in an info button instead of boxes.
+
+### Perbaikan
+- **databases:** The connection dialog follows the domain the panel is opened at, with the explanation in an info button instead of boxes ([`793c107`](https://github.com/friskipradana/y-panel/commit/793c107))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.71.3...v1.71.4
+
 ## [1.71.3] - 2026-10-25
 
 The connection dialog of a database open to addresses always shows the address to use from outside, with a placeholder when the server has no public IP of its own.
