@@ -455,6 +455,41 @@ func (s *Service) DisableWaha(ctx context.Context) error {
 	return nil
 }
 
+// RecreateWaha makes the container again from the image the host has now, with the same key, login and port: the sessions are in a
+// volume, so nobody scans a code again. It is what the update of WAHA does after the new image was downloaded.
+func (s *Service) RecreateWaha(ctx context.Context) error {
+	if !s.ready() {
+		return errors.New("the database is not connected")
+	}
+	if !s.waha.begin() {
+		return errors.New("WAHA is busy starting; try again in a moment")
+	}
+	defer s.waha.end()
+	row, cfg, err := s.wahaRow()
+	if err != nil {
+		return err
+	}
+	if row == nil || !row.Enabled {
+		return errors.New("switch WhatsApp on first")
+	}
+	key, err := s.wahaKey(row)
+	if err != nil {
+		return err
+	}
+	password := ""
+	if raw, _ := s.db.GetNotifySetting(wahaDashboardKey); raw != "" {
+		password, _ = crypto.Decrypt(s.key, raw)
+	}
+	if err := s.runWahaContainer(ctx, cfg, key, password); err != nil {
+		_ = s.db.SaveNotifyChannel(wahaKind, false, row.Config, nil, "error", err.Error())
+		s.invalidate()
+		return err
+	}
+	_ = s.db.SaveNotifyChannel(wahaKind, true, row.Config, nil, "active", "")
+	s.invalidate()
+	return nil
+}
+
 // RestartWaha restarts the container of a WAHA that is on
 func (s *Service) RestartWaha(ctx context.Context) error {
 	row, _, err := s.wahaRow()

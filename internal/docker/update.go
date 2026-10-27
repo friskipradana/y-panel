@@ -239,4 +239,61 @@ func UpdateContainer(ctx context.Context, id string, emit func(UpdateEvent)) err
 	return nil
 }
 
+// UpdateManaged does for a container the panel runs by itself (its WhatsApp runtime) what UpdateContainer does for a compose one: it
+// downloads the newest image and, when the container runs an older one, calls recreate, which knows how the panel makes that container.
+func UpdateManaged(ctx context.Context, name string, emit func(UpdateEvent), recreate func(context.Context) error) error {
+	all, err := ListContainers()
+	if err != nil {
+		return err
+	}
+	var target *Container
+	for i := range all {
+		if strings.TrimPrefix(firstName(all[i]), "/") == name {
+			target = &all[i]
+			break
+		}
+	}
+	if target == nil {
+		return errors.New("container not found")
+	}
+	emit(UpdateEvent{Type: "status", Container: ptr(StatusOfContainer(*target))})
+
+	pulled, err := PullStreaming(ctx, target.Image, nil, emit)
+	if err != nil {
+		return err
+	}
+	running := containerImageID(ctx, target.ID)
+	latest := imageID(ctx, target.Image)
+	changed := pulled || (running != "" && latest != "" && running != latest)
+	switch {
+	case pulled:
+		emit(UpdateEvent{Type: "log", Line: "A newer image was downloaded."})
+	case changed:
+		emit(UpdateEvent{Type: "log", Line: "The container runs an older image than the one on the host."})
+	default:
+		emit(UpdateEvent{Type: "log", Line: "The image is already the newest one."})
+	}
+	recreated := false
+	if changed {
+		emit(UpdateEvent{Type: "step", Step: "recreate"})
+		if err := recreate(ctx); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("make the container again: %w", err)
+		}
+		recreated = true
+	}
+	if now, err := ListContainers(); err == nil {
+		for _, c := range now {
+			if strings.TrimPrefix(firstName(c), "/") == name {
+				emit(UpdateEvent{Type: "status", Container: ptr(StatusOfContainer(c))})
+				break
+			}
+		}
+	}
+	emit(UpdateEvent{Type: "done", Changed: &changed, Recreated: &recreated})
+	return nil
+}
+
 func ptr[T any](v T) *T { return &v }

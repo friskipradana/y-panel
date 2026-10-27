@@ -210,6 +210,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/notify/waha/dashboard", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetWahaDashboardHost)))
 	s.mux.Handle("PUT /api/v1/notify/waha/dashboard", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSetWahaDashboardHost)))
 	s.mux.Handle("POST /api/v1/notify/waha/dashboard/link", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleWahaDashboardLink)))
+	s.mux.Handle("POST /api/v1/notify/waha/update", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleWahaUpdate)))
 	s.mux.Handle("POST /api/v1/notify/waha/restart", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleRestartWaha)))
 	s.mux.Handle("GET /api/v1/me/whatsapp", s.requireAuthV2(http.HandlerFunc(s.handleMyWhatsApp)))
 	s.mux.Handle("PUT /api/v1/me/whatsapp/destination", s.requireAuthV2(http.HandlerFunc(s.handleSetWhatsAppDestination)))

@@ -49,8 +49,12 @@ func (s *Server) handleContainerUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if containers, listErr := docker.ListContainers(); listErr == nil {
 		for _, c := range containers {
-			if (c.ID == id || strings.HasPrefix(c.ID, id)) && docker.ManagedKind(c) != "" {
-				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to the Database window: manage it there"})
+			if kind := docker.ManagedKind(c); (c.ID == id || strings.HasPrefix(c.ID, id)) && kind != "" {
+				where := "the Database window"
+				if kind == docker.KindWAHA {
+					where = "Settings > Notifications"
+				}
+				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to " + where + ": manage it there"})
 				return
 			}
 		}

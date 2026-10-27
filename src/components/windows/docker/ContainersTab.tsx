@@ -20,6 +20,7 @@ import {
   DEFAULT_COMPOSE_YAML,
   createEmptyRegistryAuth,
   isDatabaseControl,
+  isWaha,
   toRawEnv,
 } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
@@ -204,8 +205,9 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
             const busy = [startMutation, stopMutation, restartMutation].some((m) => m.isPending && m.variables === container.Id)
             const isDatabase = container.Labels?.['reneo.kind'] === 'database'
             const isControl = isDatabaseControl(container)
-            // made and kept by the Database window: no domain, no delete here
-            const isManaged = isDatabase || isControl
+            const isWhatsApp = isWaha(container)
+            // made and kept by the Database window or by the notifications: no domain, no delete here
+            const isManaged = isDatabase || isControl || isWhatsApp
             const portsText = formatContainerPorts(container.Ports)
                 const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
             const indexStr = String(idx + 1).padStart(2, '0')
@@ -230,6 +232,10 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       ) : isControl ? (
                         <Badge tone="info" title={t('docker.databaseControlHint')}>
                           {t('docker.databaseControlBadge')}
+                        </Badge>
+                      ) : isWhatsApp ? (
+                        <Badge tone="info" title={t('docker.wahaHint')}>
+                          {t('docker.wahaBadge')}
                         </Badge>
                       ) : null}
                     </span>
@@ -300,13 +306,13 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                   )}
 
                   {/* Download the newest image and make the container again from it */}
-                  {isManaged || container.Image.startsWith('sha256:') ? null : (
+                  {(isManaged && !isWhatsApp) || container.Image.startsWith('sha256:') ? null : (
                     <button
                       type="button"
                       className="docker-act-btn"
                       title={t('docker.update.action')}
                       aria-label={t('docker.update.action')}
-                      onClick={() => setUpdateTarget({ kind: 'container', id: container.Id, name, image: container.Image })}
+                      onClick={() => setUpdateTarget(isWhatsApp ? { kind: 'waha', name, image: container.Image } : { kind: 'container', id: container.Id, name, image: container.Image })}
                     >
                       <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
                     </button>

@@ -4556,4 +4556,7 @@ export const id: Record<string, string> = {
   'firewall.databases.subtitle': "Dikelola di jendela Database lewat rantai iptables sendiri, bukan lewat ufw",
   'firewall.databases.none': "Tidak ada database yang dibuka untuk IP tertentu.",
   'firewall.docker.note': "Port yang diterbitkan container Docker melewati aturan ufw. Menutupnya perlu aturan di rantai DOCKER-USER, seperti yang dipakai akses database per IP.",
+  'docker.wahaBadge': "WhatsApp",
+  'docker.wahaHint': "Runtime WhatsApp (WAHA) untuk notifikasi. Dikelola dari Pengaturan > Notifikasi; dari sini hanya bisa dijalankan, dihentikan, dilihat lognya, dan diperbarui.",
+  'docker.update.introWaha': "Panel mengunduh versi terbaru dari {image} (lebih dari 3 GB, bisa beberapa menit). Bila ada yang baru, container dibuat ulang dengan kunci dan login yang sama dan berhenti sebentar. Sesi WhatsApp tersimpan, jadi tidak perlu memindai kode lagi.",
 }

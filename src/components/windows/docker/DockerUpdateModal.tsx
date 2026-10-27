@@ -9,6 +9,7 @@ import { StatusPill } from './DockerComponents'
 
 export type DockerUpdateTarget =
   | { kind: 'container'; id: string; name: string; image: string; autoStart?: boolean }
+  | { kind: 'waha'; name: string; image: string; autoStart?: boolean }
   | { kind: 'image'; image: string; registryAuth?: Extract<DockerUpdateRequest, { kind: 'image' }>['registryAuth']; autoStart?: boolean }
 
 type Phase = 'ready' | 'running' | 'done' | 'failed' | 'cancelled'
@@ -58,7 +59,11 @@ export function DockerUpdateModal({
     setResult(null)
     setError('')
     const request: DockerUpdateRequest =
-      current.kind === 'container' ? { kind: 'container', id: current.id } : { kind: 'image', image: current.image, registryAuth: current.registryAuth }
+      current.kind === 'container'
+        ? { kind: 'container', id: current.id }
+        : current.kind === 'waha'
+          ? { kind: 'waha' }
+          : { kind: 'image', image: current.image, registryAuth: current.registryAuth }
     try {
       await streamDockerUpdate(
         request,
@@ -126,7 +131,8 @@ export function DockerUpdateModal({
   }, [lines])
 
   if (!target) return null
-  const isContainer = target.kind === 'container'
+  // the WhatsApp runtime is a container too: its image is downloaded and the container made again by the agent
+  const isContainer = target.kind === 'container' || target.kind === 'waha'
   const busy = phase === 'running'
   const label = isContainer ? target.name : target.image
 
@@ -192,7 +198,7 @@ export function DockerUpdateModal({
     >
       <div className="docker-update">
         {phase === 'ready' ? (
-          <p className="docker-update__intro">{t(isContainer ? 'docker.update.introContainer' : 'docker.update.introImage', { image: target.image })}</p>
+          <p className="docker-update__intro">{t(target.kind === 'waha' ? 'docker.update.introWaha' : isContainer ? 'docker.update.introContainer' : 'docker.update.introImage', { image: target.image })}</p>
         ) : (
           <>
             <ol className="docker-update__steps" aria-label={t('docker.update.steps')}>

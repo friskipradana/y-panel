@@ -29,6 +29,12 @@ export function isDatabaseControl(container: { Names?: string[]; Labels?: Record
   return container.Labels?.['reneo.kind'] === 'database-control' || (container.Names ?? []).some((n) => n.replace(/^\//, '') === 'reneo-adminer')
 }
 
+// The WhatsApp runtime of the notifications (WAHA): managed from Settings > Notifications, but it can be updated from here.
+// It carries panel.source=waha; the name is the fallback.
+export function isWaha(container: { Names?: string[]; Labels?: Record<string, string> }): boolean {
+  return container.Labels?.['panel.source'] === 'waha' || (container.Names ?? []).some((n) => n.replace(/^\//, '') === 'reneo-waha')
+}
+
 // "2026-10-13 03:12:57 +0700 WIB" (how docker writes a date) as "13 Okt 2026, 03.12"; anything else as it came
 export function formatDockerDate(raw: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(raw)
