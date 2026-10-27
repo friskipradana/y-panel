@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.75.0] - 2026-10-27
+
+The WhatsApp runtime (WAHA) is shown like a database control in the container list, with an update button that makes its container again from the newest image.
+
+### Fitur baru
+- **docker:** The WhatsApp runtime (WAHA) is shown like a database control in the container list, with an update button that makes its container again from the newest image ([`b778e69`](https://github.com/friskipradana/y-panel/commit/b778e69))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.74.0...v1.75.0
+
 ## [1.74.0] - 2026-10-27
 
 3 perubahan, utamanya a Firewall window for ufw (rules, listening ports, default policy and log), with a check before a change that could lock the owner out; rewrite the README and add a detailed architecture document.
