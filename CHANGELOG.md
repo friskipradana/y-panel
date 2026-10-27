@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.74.0] - 2026-10-27
+
+3 perubahan, utamanya a Firewall window for ufw (rules, listening ports, default policy and log), with a check before a change that could lock the owner out; rewrite the README and add a detailed architecture document.
+
+### Fitur baru
+- **firewall:** A Firewall window for ufw (rules, listening ports, default policy and log), with a check before a change that could lock the owner out; rewrite the README and add a detailed architecture document ([`3bb5959`](https://github.com/friskipradana/y-panel/commit/3bb5959))
+
+### Dokumentasi
+- Update README with new branding and feature overview ([`5c5d300`](https://github.com/friskipradana/y-panel/commit/5c5d300))
+- **arch:** Add system architecture documentation and refine README ([`65b95b5`](https://github.com/friskipradana/y-panel/commit/65b95b5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.73.0...v1.74.0
+
 ## [1.73.0] - 2026-10-25
 
 2 perubahan, utamanya add SpeedtestWindow component and SpeedServerPicker UI.
