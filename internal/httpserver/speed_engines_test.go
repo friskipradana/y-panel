@@ -222,6 +222,12 @@ func fakeNDT7(t *testing.T, flood time.Duration) *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
+// localPortsExhausted: the error of the operating system when no local port is free for a new connection
+func localPortsExhausted(err error) bool {
+	text := err.Error()
+	return strings.Contains(text, "Only one usage of each socket address") || strings.Contains(text, "address already in use") || strings.Contains(text, "WSAEADDRINUSE")
+}
+
 func TestNDT7AgainstAFakeServer(t *testing.T) {
 	old := ndt7Duration
 	ndt7Duration = 1200 * time.Millisecond
@@ -250,7 +256,20 @@ func TestNDT7AgainstAFakeServer(t *testing.T) {
 	out := &speedStream{w: rec}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	result, err := runNDT7(ctx, out)
+	// a Windows runner that has opened many loopback connections can run out of local ports for a moment ("Only one usage of each socket
+	// address"): that says nothing about NDT7, so the run is tried again, and skipped if the machine stays out of ports
+	var result *speedInternetResult
+	var err error
+	for attempt := 0; attempt < 4; attempt++ {
+		result, err = runNDT7(ctx, out)
+		if err == nil || !localPortsExhausted(err) {
+			break
+		}
+		time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+	}
+	if err != nil && localPortsExhausted(err) {
+		t.Skipf("this machine ran out of local ports and could not even reach the fake server: %v", err)
+	}
 	if err != nil {
 		t.Fatalf("the test must run against a server that speaks NDT7: %v", err)
 	}
