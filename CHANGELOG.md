@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.75.1] - 2026-10-27
+
+Retry the NDT7 fake-server test when a Windows runner has no local port free, so the installer build is not blocked by it.
+
+### Pemeliharaan
+- **speed:** Retry the NDT7 fake-server test when a Windows runner has no local port free, so the installer build is not blocked by it ([`c865c27`](https://github.com/friskipradana/y-panel/commit/c865c27))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.75.0...v1.75.1
+
 ## [1.75.0] - 2026-10-27
 
 The WhatsApp runtime (WAHA) is shown like a database control in the container list, with an update button that makes its container again from the newest image.
