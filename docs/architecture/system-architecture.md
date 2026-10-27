@@ -44,7 +44,7 @@ flowchart TB
 
     subgraph Net["Server Linux: jaringan"]
         direction LR
-        FW["iptables DOCKER-USER, ufw"]
+        FW["iptables DOCKER-USER, ufw: jendela Firewall"]
         Cfd["cloudflared per tunnel"]
         Web["nginx atau Apache"]
     end

@@ -744,6 +744,14 @@
     --docker-cols: minmax(0, 1fr) 112px 56px;
   }
 
+  &--firewall-rules {
+    --docker-cols: 48px minmax(0, 2fr) minmax(128px, 0.9fr) minmax(0, 1.2fr) 56px;
+  }
+
+  &--firewall-ports {
+    --docker-cols: 48px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(124px, 1fr) 56px;
+  }
+
   &--hosting-orders {
     --docker-cols: 48px minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(76px, 0.6fr) minmax(112px, 0.8fr) minmax(96px, 0.7fr) minmax(128px, 0.9fr) 116px;
   }

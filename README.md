@@ -36,6 +36,7 @@
 | 🐳 **Docker**                     | Container, image, network, volume, dan template compose. Deploy dari image atau compose, log realtime lewat WebSocket, start, stop, restart, perbarui, hapus, dan audit runtime.                                                                                                                                                  |
 | 📦 **Project**                    | Tipe `static` (SPA fallback), `nodejs`, `python`, `php`, `custom`, dan `stack` (beberapa proses di satu alamat). Perintah install, build, dan start sendiri (npm, Bun, pnpm, Yarn), variabel lingkungan terenkripsi, dan bangun ulang. Direktori kerja dikunci ke home pemilik.                                                   |
 | 🗄️ **Database**                   | PostgreSQL, MySQL, MariaDB, MongoDB, dan Redis sebagai container milik user, dengan kuota per akun. Kelola tabel, konsol SQL, user dan izin, serta password dari panel. Akses per database: hanya localhost (bawaan) atau IP tertentu lewat firewall agent.                                                                       |
+| 🛡️ **Firewall** | Jendela khusus superadmin untuk ufw: aturan bernomor (tambah dan hapus), port yang mendengarkan beserta jangkauannya, kebijakan bawaan, dan tingkat log. SSH, port panel, dan port web dijaga: perubahan yang bisa mengunci Anda meminta konfirmasi. |
 | ☁️ **Cloudflare**                 | Token per user, tunnel, DNS, aturan redirect, dan publikasi project lewat tunnel.                                                                                                                                                                                                                                                 |
 | 🌐 **IP publik tanpa tunnel**     | Proxy bawaan di port 80 dan 443 dengan sertifikat Let's Encrypt otomatis, atau lewat nginx atau Apache yang sudah ada. Membuka port web di ufw bila ufw aktif.                                                                                                                                                                    |
 | 🛒 **Hosting dan pembayaran**     | Paket, promo, voucher, pemesanan mandiri, faktur, subdomain dan domain pembeli, serta pembaca notifikasi bank lewat ponsel Android.                                                                                                                                                                                               |
@@ -246,6 +247,7 @@ internal/
   projects/     proses project, direktori kerja, environment
   publicproxy/  proxy publik di port 80 dan 443
   runtimepath/  nama dan path runtime (reneo/ypanel)
+  listening/    port yang mendengarkan (ss)
   system/       statistik, log, pengaturan
   terminal/     sesi terminal
   toolchain/    alat pengembangan per akun

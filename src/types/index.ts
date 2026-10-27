@@ -19,6 +19,7 @@ export type WindowKind =
   | 'widgets'
   | 'speedtest'
   | 'hosting'
+  | 'firewall'
 
 export type WindowId = WindowKind
 

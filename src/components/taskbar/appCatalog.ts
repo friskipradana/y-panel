@@ -92,6 +92,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     category: 'network',
   },
   {
+    kind: 'firewall',
+    descId: 'Atur firewall server (ufw): aturan, port yang mendengarkan, dan kebijakan bawaan',
+    descEn: 'Manage the server firewall (ufw): rules, listening ports and default policies',
+    category: 'network',
+  },
+  {
     kind: 'settings',
     descId: 'Preferensi sistem, port daemon, dan keamanan',
     descEn: 'System preferences, agent ports, and security',
@@ -133,6 +139,7 @@ export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   tunnels: ['cloudflare', 'tunnel', 'dns', 'domain', 'subdomain', 'redirect', 'hostname'],
   users: ['user', 'users', 'pengguna', 'akun', 'account', 'role', 'quota', 'kuota', 'paket', 'plan'],
   hosting: ['hosting', 'paket', 'plan', 'harga', 'promo', 'voucher', 'pesanan', 'order', 'demo', 'domain', 'subdomain', 'masa tenggang', 'jual', 'sell', 'payment', 'pembayaran', 'bayar', 'bank', 'gateway', 'midtrans', 'xendit', 'webhook', 'rekening', 'transfer', 'notifikasi bank'],
+  firewall: ['firewall', 'ufw', 'iptables', 'port', 'blokir', 'block', 'izinkan', 'allow', 'deny', 'aturan', 'rule', 'keamanan', 'security', 'ip', 'whitelist'],
   speedtest: ['speed', 'speedtest', 'kecepatan', 'internet', 'bandwidth', 'ping', 'latency', 'latensi', 'download', 'upload'],
   settings: ['settings', 'setting', 'pengaturan', 'preferensi', 'tema', 'theme', 'wallpaper', 'keamanan', 'security', 'token', 'password'],
   docs: ['docs', 'dokumentasi', 'panduan', 'guide', 'bantuan', 'help', 'artikel'],

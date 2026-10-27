@@ -33,6 +33,7 @@ const DEFAULTS: Record<
   },
   settings: { title: "Settings", width: 880, height: 530, singleton: true },
   hosting: { title: "Hosting", width: 880, height: 530, singleton: true },
+  firewall: { title: "Firewall", width: 880, height: 530, singleton: true },
   docs: { title: "Docs", width: 880, height: 530, singleton: true },
 
   // M — Terminal & 2-Column Gauge/Stats (840 x 540)

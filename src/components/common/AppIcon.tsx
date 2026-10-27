@@ -19,6 +19,7 @@ import {
   WindowApps24Filled,
   Gauge24Filled,
   BuildingRetail24Filled,
+  Shield24Filled,
 } from '@fluentui/react-icons'
 import type { WindowKind } from '@/types'
 
@@ -48,6 +49,7 @@ const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSPr
   widgets: { icon: WindowApps24Filled, color: '#3b82f6' }, // Widgets (Blue)
   speedtest: { icon: Gauge24Filled, color: '#14b8a6' }, // Speed test (Teal)
   hosting: { icon: BuildingRetail24Filled, color: '#f43f5e' }, // Hosting & Retail Store (Rose)
+  firewall: { icon: Shield24Filled, color: '#f87171' }, // Firewall (Soft red shield)
   trash: { icon: Delete24Filled, color: '#ef4444' }, // Trash (Red)
 }
 

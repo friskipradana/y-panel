@@ -33,6 +33,11 @@ var run = func(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
+// letsIn: an allow rule, or a limit rule (an allow with a rate limit), for incoming traffic
+func letsIn(action string) bool {
+	return (strings.HasPrefix(action, "ALLOW") || strings.HasPrefix(action, "LIMIT")) && !strings.Contains(action, "FWD") && !strings.Contains(action, "OUT")
+}
+
 var columns = regexp.MustCompile(`\s{2,}`)
 
 // Check reads `ufw status` and tells which of the ports are open to everyone.
@@ -61,7 +66,7 @@ func parse(out string, ports []int) (bool, map[int]bool) {
 			continue
 		}
 		action, from := fields[1], fields[2]
-		if !strings.HasPrefix(action, "ALLOW") || strings.Contains(action, "FWD") || from != "Anywhere" {
+		if !letsIn(action) || from != "Anywhere" {
 			continue
 		}
 		for _, port := range ports {
@@ -75,7 +80,7 @@ func parse(out string, ports []int) (bool, map[int]bool) {
 
 // covers: "80", "80/tcp", "80,443/tcp" and "8000:8100/tcp" cover port 80 (443, 8050); udp rules do not
 func covers(to string, port int) bool {
-	spec, proto, _ := strings.Cut(to, "/")
+	spec, proto, _ := strings.Cut(strings.TrimSuffix(strings.TrimSpace(to), " (v6)"), "/")
 	if proto != "" && proto != "tcp" {
 		return false
 	}
