@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.75.4] - 2026-10-30
+
+A new install failed at migration 41, because the migrations ran before the agent bootstrap made managed_databases, docs.is_public and user_quotas.max_databases.
+
+### Perbaikan
+- **database:** A new install failed at migration 41, because the migrations ran before the agent bootstrap made managed_databases, docs.is_public and user_quotas.max_databases ([`cfb037e`](https://github.com/friskipradana/y-panel/commit/cfb037e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.75.3...v1.75.4
+
 ## [1.75.3] - 2026-10-30
 
 The demo account has no Settings window, so it is told that instead of getting a button that does nothing.
