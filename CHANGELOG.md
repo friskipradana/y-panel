@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.75.2] - 2026-10-30
+
+An account without a token is sent to Settings > Cloudflare with a button, instead of to a Profile menu that no longer has it.
+
+### Perbaikan
+- **cloudflare:** An account without a token is sent to Settings > Cloudflare with a button, instead of to a Profile menu that no longer has it ([`5683b58`](https://github.com/friskipradana/y-panel/commit/5683b58))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.75.1...v1.75.2
+
 ## [1.75.1] - 2026-10-27
 
 Retry the NDT7 fake-server test when a Windows runner has no local port free, so the installer build is not blocked by it.
