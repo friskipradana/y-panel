@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.75.3] - 2026-10-30
+
+The demo account has no Settings window, so it is told that instead of getting a button that does nothing.
+
+### Perbaikan
+- **cloudflare:** The demo account has no Settings window, so it is told that instead of getting a button that does nothing ([`b0fb042`](https://github.com/friskipradana/y-panel/commit/b0fb042))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.75.2...v1.75.3
+
 ## [1.75.2] - 2026-10-30
 
 An account without a token is sent to Settings > Cloudflare with a button, instead of to a Profile menu that no longer has it.
