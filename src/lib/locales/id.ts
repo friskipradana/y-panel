@@ -4560,4 +4560,5 @@ export const id: Record<string, string> = {
   'docker.wahaHint': "Runtime WhatsApp (WAHA) untuk notifikasi. Dikelola dari Pengaturan > Notifikasi; dari sini hanya bisa dijalankan, dihentikan, dilihat lognya, dan diperbarui.",
   'docker.update.introWaha': "Panel mengunduh versi terbaru dari {image} (lebih dari 3 GB, bisa beberapa menit). Bila ada yang baru, container dibuat ulang dengan kunci dan login yang sama dan berhenti sebentar. Sesi WhatsApp tersimpan, jadi tidak perlu memindai kode lagi.",
   'tunnels.openCloudflareSettings': "Buka Pengaturan Cloudflare",
+  'tunnels.notConfiguredDemo': "Akun demo hanya bisa melihat, jadi token Cloudflare tidak bisa dipasang di sini. Pakai akun biasa untuk menghubungkan Cloudflare.",
 }

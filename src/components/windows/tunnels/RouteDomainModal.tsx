@@ -13,7 +13,7 @@ import { Select } from '@/components/ui/Select'
 import { SUBDOMAIN_RE, slugifyRoutePart } from './tunnelForms'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
-import { openCloudflareSettings } from './openCloudflareSettings'
+import { openCloudflareSettings, useCanOpenCloudflareSettings } from './openCloudflareSettings'
 
 // Something a tunnel can be pointed at: where it listens on this machine
 export interface RouteTarget {
@@ -51,6 +51,7 @@ export function RouteDomainModal({ subject, onClose, onConnected }: RouteDomainM
 
 function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
   const { t } = useI18n()
+  const canOpenSettings = useCanOpenCloudflareSettings()
   const qc = useQueryClient()
   const open = !!subject
   const name = subject?.name ?? ''
@@ -183,10 +184,12 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
         <p className="text-[12.5px] text-[var(--text-secondary)]">{t('docker.loadingList')}</p>
       ) : !ready ? (
         <div className="panel-alert flex-wrap">
-          <span className="min-w-0 flex-1 basis-56">{t('docker.domain.notConfigured')}</span>
-          <Button size="sm" variant="outline" onClick={() => { onClose(); openCloudflareSettings() }}>
-            {t('tunnels.openCloudflareSettings')}
-          </Button>
+          <span className="min-w-0 flex-1 basis-56">{canOpenSettings ? t('docker.domain.notConfigured') : t('tunnels.notConfiguredDemo')}</span>
+          {canOpenSettings ? (
+            <Button size="sm" variant="outline" onClick={() => { onClose(); openCloudflareSettings() }}>
+              {t('tunnels.openCloudflareSettings')}
+            </Button>
+          ) : null}
         </div>
       ) : targets.length === 0 ? (
         <p className="panel-alert">{t(kind === 'project' ? 'projects.domain.noPort' : 'docker.domain.noPort')}</p>

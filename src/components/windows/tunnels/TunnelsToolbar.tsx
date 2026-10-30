@@ -1,6 +1,6 @@
 import { KeyRound, Plus, RefreshCw, Search } from 'lucide-react'
 import { FilterMenu } from '@/components/ui/FilterMenu'
-import { openCloudflareSettings } from './openCloudflareSettings'
+import { openCloudflareSettings, useCanOpenCloudflareSettings } from './openCloudflareSettings'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { TunnelsWindowState } from './useTunnelsWindow'
 
@@ -27,6 +27,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
     profilesFetching,
   } = tw
 
+  const canOpenSettings = useCanOpenCloudflareSettings()
   const onDomains = tab === 'domains'
   const current = onDomains ? lists.dns : lists.routes
   const fetching = onDomains ? domainsFetching : profilesFetching
@@ -95,6 +96,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
             className={`docker-icon-btn docker-icon-btn--mobile ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} shrink-0`}
             title={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
             aria-label={t('tunnels.openCloudflareSettings')}
+            disabled={!canOpenSettings}
             onClick={openCloudflareSettings}
           >
             <KeyRound className="h-4 w-4" strokeWidth={1.75} />
@@ -167,6 +169,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
           className={`docker-icon-btn ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} shrink-0`}
           title={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
           aria-label={t('tunnels.openCloudflareSettings')}
+          disabled={!canOpenSettings}
           onClick={openCloudflareSettings}
         >
           <KeyRound className="h-4 w-4" strokeWidth={1.75} />

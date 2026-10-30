@@ -4560,4 +4560,5 @@ export const en: Record<string, string> = {
   'docker.wahaHint': "The WhatsApp runtime (WAHA) of the notifications. Managed from Settings > Notifications; from here it can only be started, stopped, read in its log and updated.",
   'docker.update.introWaha': "The panel downloads the newest version of {image} (over 3 GB, it can take several minutes). When there is one, the container is made again with the same key and login and stops for a moment. The WhatsApp sessions are kept, so no code has to be scanned again.",
   'tunnels.openCloudflareSettings': "Open Cloudflare settings",
+  'tunnels.notConfiguredDemo': "The demo account can only look, so a Cloudflare token cannot be set here. Use a regular account to connect Cloudflare.",
 }
