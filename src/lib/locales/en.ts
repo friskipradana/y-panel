@@ -2121,7 +2121,7 @@ export const en: Record<string, string> = {
   'docker.domain.linked': "Already connected",
   'docker.domain.connect': "Connect domain",
   'docker.domain.openCloudflare': "Open the Cloudflare window",
-  'docker.domain.notConfigured': "Your Cloudflare account is not connected. Connect and verify it in the Cloudflare window first, then set the domain from here.",
+  'docker.domain.notConfigured': "Your Cloudflare account is not connected. Connect and verify its token in Settings > Cloudflare first, then set the domain from here.",
   'docker.domain.noPort': "This container exposes no port a tunnel can reach. Redeploy it with a port, then set the domain.",
   'docker.domain.created': "Domain {host} is being connected",
   'docker.domain.failed': "The domain could not be connected",
@@ -3377,7 +3377,7 @@ export const en: Record<string, string> = {
   'tunnels.createDns': 'Create DNS',
   'tunnels.createProfile': 'Create Profile',
   'tunnels.createRoute': 'Create Route',
-  'tunnels.notConfigured': 'Cloudflare is not configured yet. Open Profile → Cloudflare to add an API token.',
+  'tunnels.notConfigured': 'Cloudflare is not configured yet. Add an API token in Settings > Cloudflare.',
   'tunnels.domainTab': 'Domain',
   'tunnels.tunnelsTab': 'Tunnels',
   'tunnels.tokenActive': 'Token active for this account',
@@ -4559,4 +4559,5 @@ export const en: Record<string, string> = {
   'docker.wahaBadge': "WhatsApp",
   'docker.wahaHint': "The WhatsApp runtime (WAHA) of the notifications. Managed from Settings > Notifications; from here it can only be started, stopped, read in its log and updated.",
   'docker.update.introWaha': "The panel downloads the newest version of {image} (over 3 GB, it can take several minutes). When there is one, the container is made again with the same key and login and stops for a moment. The WhatsApp sessions are kept, so no code has to be scanned again.",
+  'tunnels.openCloudflareSettings': "Open Cloudflare settings",
 }

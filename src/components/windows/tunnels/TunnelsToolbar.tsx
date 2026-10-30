@@ -1,5 +1,6 @@
 import { KeyRound, Plus, RefreshCw, Search } from 'lucide-react'
 import { FilterMenu } from '@/components/ui/FilterMenu'
+import { openCloudflareSettings } from './openCloudflareSettings'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { TunnelsWindowState } from './useTunnelsWindow'
 
@@ -89,13 +90,15 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
             <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
 
-          <div
-            className={`docker-icon-btn docker-icon-btn--mobile ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} cursor-help shrink-0`}
+          <button
+            type="button"
+            className={`docker-icon-btn docker-icon-btn--mobile ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} shrink-0`}
             title={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
-            aria-label={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
+            aria-label={t('tunnels.openCloudflareSettings')}
+            onClick={openCloudflareSettings}
           >
             <KeyRound className="h-4 w-4" strokeWidth={1.75} />
-          </div>
+          </button>
         </div>
       </div>
     )
@@ -159,13 +162,15 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
           <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>
 
-        <div
-          className={`docker-icon-btn ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} cursor-help shrink-0`}
+        <button
+          type="button"
+          className={`docker-icon-btn ${cfNotConfigured ? 'docker-icon-btn--muted' : 'docker-icon-btn--success'} shrink-0`}
           title={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
-          aria-label={cfNotConfigured ? t('tunnels.notConfigured') : t('tunnels.tokenActive')}
+          aria-label={t('tunnels.openCloudflareSettings')}
+          onClick={openCloudflareSettings}
         >
           <KeyRound className="h-4 w-4" strokeWidth={1.75} />
-        </div>
+        </button>
       </div>
     </div>
   )

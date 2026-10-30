@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select'
 import { SUBDOMAIN_RE, slugifyRoutePart } from './tunnelForms'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
+import { openCloudflareSettings } from './openCloudflareSettings'
 
 // Something a tunnel can be pointed at: where it listens on this machine
 export interface RouteTarget {
@@ -181,7 +182,12 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
       {config.isLoading || (ready && waiting) ? (
         <p className="text-[12.5px] text-[var(--text-secondary)]">{t('docker.loadingList')}</p>
       ) : !ready ? (
-        <p className="panel-alert">{t('docker.domain.notConfigured')}</p>
+        <div className="panel-alert flex-wrap">
+          <span className="min-w-0 flex-1 basis-56">{t('docker.domain.notConfigured')}</span>
+          <Button size="sm" variant="outline" onClick={() => { onClose(); openCloudflareSettings() }}>
+            {t('tunnels.openCloudflareSettings')}
+          </Button>
+        </div>
       ) : targets.length === 0 ? (
         <p className="panel-alert">{t(kind === 'project' ? 'projects.domain.noPort' : 'docker.domain.noPort')}</p>
       ) : (

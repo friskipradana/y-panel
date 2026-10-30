@@ -2121,7 +2121,7 @@ export const id: Record<string, string> = {
   'docker.domain.linked': "Sudah terhubung",
   'docker.domain.connect': "Hubungkan domain",
   'docker.domain.openCloudflare': "Buka jendela Cloudflare",
-  'docker.domain.notConfigured': "Akun Cloudflare belum terhubung. Hubungkan dan verifikasi dulu di jendela Cloudflare, lalu atur domain dari sini.",
+  'docker.domain.notConfigured': "Akun Cloudflare belum terhubung. Hubungkan dan verifikasi tokennya dulu di Pengaturan > Cloudflare, lalu atur domain dari sini.",
   'docker.domain.noPort': "Container ini tidak membuka port yang bisa dituju. Deploy ulang dengan port, lalu atur domainnya.",
   'docker.domain.created': "Domain {host} sedang dihubungkan",
   'docker.domain.failed': "Domain gagal dihubungkan",
@@ -3377,7 +3377,7 @@ export const id: Record<string, string> = {
   'tunnels.createDns': 'Buat DNS',
   'tunnels.createProfile': 'Buat Profile',
   'tunnels.createRoute': 'Buat Route',
-  'tunnels.notConfigured': 'Cloudflare belum dikonfigurasi. Buka Profile → Cloudflare untuk menambahkan API token.',
+  'tunnels.notConfigured': 'Cloudflare belum dikonfigurasi. Tambahkan API token di Pengaturan > Cloudflare.',
   'tunnels.domainTab': 'Domain',
   'tunnels.tunnelsTab': 'Tunnels',
   'tunnels.tokenActive': 'Token aktif untuk akun ini',
@@ -4559,4 +4559,5 @@ export const id: Record<string, string> = {
   'docker.wahaBadge': "WhatsApp",
   'docker.wahaHint': "Runtime WhatsApp (WAHA) untuk notifikasi. Dikelola dari Pengaturan > Notifikasi; dari sini hanya bisa dijalankan, dihentikan, dilihat lognya, dan diperbarui.",
   'docker.update.introWaha': "Panel mengunduh versi terbaru dari {image} (lebih dari 3 GB, bisa beberapa menit). Bila ada yang baru, container dibuat ulang dengan kunci dan login yang sama dan berhenti sebentar. Sesi WhatsApp tersimpan, jadi tidak perlu memindai kode lagi.",
+  'tunnels.openCloudflareSettings': "Buka Pengaturan Cloudflare",
 }
