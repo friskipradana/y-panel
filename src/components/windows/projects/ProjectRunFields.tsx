@@ -28,14 +28,14 @@ export function CommandFields<T extends CommandSet>({ value, onChange, idPrefix,
         />
       </Field>
       <Field label={t('projects.run.install')} htmlFor={`${idPrefix}-install`} hint={t('projects.run.installHint')}>
-        <TextInput id={`${idPrefix}-install`} mono value={value.installCommand} onChange={(e) => onChange({ ...value, installCommand: e.target.value })} placeholder="bun install" spellCheck={false} />
+        <TextInput id={`${idPrefix}-install`} mono value={value.installCommand} onChange={(e) => onChange({ ...value, installCommand: e.target.value })} placeholder={'bun install'} spellCheck={false} />
       </Field>
       <Field label={t('projects.run.build')} htmlFor={`${idPrefix}-build`} hint={t('projects.run.buildHint')}>
-        <TextInput id={`${idPrefix}-build`} mono value={value.buildCommand} onChange={(e) => onChange({ ...value, buildCommand: e.target.value })} placeholder="bun run build" spellCheck={false} />
+        <TextInput id={`${idPrefix}-build`} mono value={value.buildCommand} onChange={(e) => onChange({ ...value, buildCommand: e.target.value })} placeholder={'bun run build'} spellCheck={false} />
       </Field>
       {showStart ? (
         <Field label={t('projects.run.start')} htmlFor={`${idPrefix}-start`} hint={t('projects.run.startHint')}>
-          <TextInput id={`${idPrefix}-start`} mono value={value.startCommand} onChange={(e) => onChange({ ...value, startCommand: e.target.value })} placeholder="bun run start" spellCheck={false} />
+          <TextInput id={`${idPrefix}-start`} mono value={value.startCommand} onChange={(e) => onChange({ ...value, startCommand: e.target.value })} placeholder={'bun run start'} spellCheck={false} />
         </Field>
       ) : null}
     </div>

@@ -424,8 +424,8 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       persist({ wallpaper: 'custom' }) 
       try {
         await updateWallpaper(dataUrl)
-      } catch (err) {
-         console.error('Failed to sync wallpaper', err)
+      } catch {
+          // ignore wallpaper sync error
       } finally {
         set({ wallpaperLoading: false })
       }
@@ -450,7 +450,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
              // ignore
            }
         }
-      } catch (err) {
+      } catch {
         // ignore
       } finally {
         set({ wallpaperLoading: false })

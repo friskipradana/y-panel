@@ -159,6 +159,11 @@
   font-size: var(--control-font);
   line-height: 1.5;
   outline: none;
+  &:focus,
+  &:focus-visible {
+    background: var(--panel-field-focus);
+    border-color: var(--focus-ring);
+  }
   transition: background 140ms ease, border-color 140ms ease;
 }
 
@@ -294,7 +299,7 @@ button:focus-visible,
 .panel-btn--primary {
   border-color: transparent;
   background: var(--panel-primary-solid);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .panel-btn--primary:hover:not(:disabled) {
@@ -314,7 +319,7 @@ button:focus-visible,
 
 .panel-btn--danger {
   background: var(--panel-danger-solid);
-  color: #ffffff;
+  color: var(--color-white);
   border: none;
 }
 
@@ -440,7 +445,7 @@ button:focus-visible,
   content: '';
   width: 9px;
   height: 9px;
-  background: #fff;
+  background: var(--color-white);
   clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 20%, 86% 6%, 40% 70%);
   transform: scale(0);
   transition: transform 120ms ease;
@@ -468,6 +473,11 @@ button:focus-visible,
 
 .panel-check__box:focus-visible {
   outline: none;
+  &:focus,
+  &:focus-visible {
+    background: var(--panel-field-focus);
+    border-color: var(--focus-ring);
+  }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel-primary-text) 25%, transparent);
 }
 
@@ -923,6 +933,11 @@ button:focus-visible,
   font-weight: 520;
   line-height: 1.5;
   outline: none;
+  &:focus,
+  &:focus-visible {
+    background: var(--panel-field-focus);
+    border-color: var(--focus-ring);
+  }
   caret-color: var(--panel-primary-text);
 }
 

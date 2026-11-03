@@ -367,10 +367,7 @@ export function useTerminalSession() {
   }, [sendInput])
 
   const updateTerminalSize = useCallback((cols: number, rows: number) => {
-    const next = {
-      cols: Math.max(20, Math.floor(cols)),
-      rows: Math.max(8, Math.floor(rows)),
-    }
+    const next = { cols: Math.max(20, Math.floor(cols)), rows: Math.max(8, Math.floor(rows)) }
 
     if (next.cols === terminalSizeRef.current.cols && next.rows === terminalSizeRef.current.rows) return
     terminalSizeRef.current = next
@@ -395,18 +392,7 @@ export function useTerminalSession() {
   }, [])
 
   return {
-    sessionId,
-    starting,
-    connected,
-    reconnecting,
-    closed,
-    closedByUser,
-    error,
-    start,
-    sendInput,
-    handleTerminalKey,
-    updateTerminalSize,
-    setOutputListener,
-    close,
+    sessionId, starting, connected, reconnecting, closed, closedByUser, error,
+    start, sendInput, handleTerminalKey, updateTerminalSize, setOutputListener, close,
   }
 }

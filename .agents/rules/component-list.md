@@ -131,7 +131,7 @@ Didefinisikan di `_windows.scss` dan `_components.scss`. Ini kosakata UI utama.
 
 | Jenis | Daftar |
 | :--- | :--- |
-| Store | `windowStore`, `themeStore`, `authStore`, `widgetStore`, `commandStore`, `alertStore`, `editorStore` (`middleware/mutative`) |
+| Store | `windowStore`, `themeStore`, `authStore`, `widgetStore` (`widgetLayout`), `commandStore`, `alertStore`, `editorStore` (`middleware/mutative`) |
 | Hook | `useGlobalShortcuts`, `useRevisionSync`, `useWindowPollingActive`, `useContainers`, `useTerminalSession`, `useTerminalExec`, `useCapturedNotificationsSocket` |
 | Lib | `i18n` (`t`, `useI18n`; kamus di `lib/locales/id.ts` dan `en.ts`), `alert`, `datetime`, `sound`, `lazy`, `runtimeLogger` |
 | API | `src/api/*` (agent, auth, docker, files, system, tunnels, cloudflare, projects, users, apiTokens, notifications, payment, terminal, docs) |

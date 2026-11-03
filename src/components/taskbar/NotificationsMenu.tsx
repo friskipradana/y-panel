@@ -1,25 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import {
-  AlertCircle,
-  AlertTriangle,
-  Bell,
-  Check,
-  CheckCheck,
-  CheckCircle2,
-  ExternalLink,
-  Info,
-  Settings,
-} from 'lucide-react'
+import { AlertCircle, AlertTriangle, Bell, Check, CheckCheck, CheckCircle2, ExternalLink, Info, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation } from '@tanstack/react-query'
-import {
-  listNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-  resolveNotificationsSocketUrl,
-  type NotificationSocketPayload,
-  type PanelNotification,
-} from '@/api/agent'
+import { listNotifications, markAllNotificationsRead, markNotificationRead, resolveNotificationsSocketUrl, type NotificationSocketPayload, type PanelNotification } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
 import { formatDateTimeID, parseDateTime } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
@@ -237,17 +220,14 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
         id="taskbar-notifications-button"
         type="button"
         title={t('taskbar.notifications')}
+        aria-label={t('taskbar.notifications')}
         className={`taskbar-icon-btn taskbar-icon-btn--notification ${isOpen ? 'taskbar-icon-btn--active' : ''}`}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
         <Bell size={14} />
-        {unreadCount > 0 && (
-          <span className="taskbar-notifications-badge">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        {unreadCount > 0 && <span className="taskbar-notifications-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
       </button>
 
       <AnimatePresence>
@@ -260,20 +240,11 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="taskbar-notifications"
           >
-            {/* Header */}
             <div className="taskbar-notifications__header">
               <div className="taskbar-notifications__title-wrap">
-                <IconBadge size="sm" tone="primary">
-                  <Bell size={13} />
-                </IconBadge>
-                <span className="taskbar-notifications__title">
-                  {t('taskbar.notifications')}
-                </span>
-                {unreadCount > 0 ? (
-                  <Badge tone="primary" size="sm">
-                    {unreadCount}
-                  </Badge>
-                ) : null}
+                <IconBadge size="sm" tone="primary"><Bell size={13} /></IconBadge>
+                <span className="taskbar-notifications__title">{t('taskbar.notifications')}</span>
+                {unreadCount > 0 ? <Badge tone="primary" size="sm">{unreadCount}</Badge> : null}
               </div>
 
               {unreadCount > 0 ? (
@@ -292,46 +263,34 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
               ) : null}
             </div>
 
-            {/* Filter Bar */}
             <div className="taskbar-notifications__filter-bar">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setFilter('all')}
-                  className={`taskbar-notifications__filter-btn ${
-                    filter === 'all' ? 'taskbar-notifications__filter-btn--active' : ''
-                  }`}
+                  className={`taskbar-notifications__filter-btn ${filter === 'all' ? 'taskbar-notifications__filter-btn--active' : ''}`}
                 >
                   {t('taskbar.all') || 'Semua'} ({notifications.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilter('unread')}
-                  className={`taskbar-notifications__filter-btn ${
-                    filter === 'unread' ? 'taskbar-notifications__filter-btn--active' : ''
-                  }`}
+                  className={`taskbar-notifications__filter-btn ${filter === 'unread' ? 'taskbar-notifications__filter-btn--active' : ''}`}
                 >
                   {t('taskbar.unread') || 'Belum dibaca'} ({unreadCount})
                 </button>
               </div>
 
               <span className="text-[10.5px] text-[var(--text-secondary)]">
-                {filter === 'unread'
-                  ? t('taskbar.unreadCount', { count: unreadCount })
-                  : t('taskbar.totalNotifications', { count: notifications.length })}
+                {filter === 'unread' ? t('taskbar.unreadCount', { count: unreadCount }) : t('taskbar.totalNotifications', { count: notifications.length })}
               </span>
             </div>
 
-            {/* Notification List */}
             <div className="taskbar-notifications__list">
               {displayedNotifications.length === 0 ? (
                 <div className="taskbar-notifications__empty">
                   <Bell size={22} className="opacity-40" />
-                  <span>
-                    {filter === 'unread'
-                      ? t('taskbar.noUnread') || 'Semua notifikasi telah dibaca.'
-                      : t('taskbar.noNotifications')}
-                  </span>
+                  <span>{filter === 'unread' ? t('taskbar.noUnread') || 'Semua notifikasi telah dibaca.' : t('taskbar.noNotifications')}</span>
                 </div>
               ) : (
                 displayedNotifications.map((item) => (
@@ -340,30 +299,19 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
                     onClick={() => {
                       if (!item.isRead) markReadMutation.mutate(item.id)
                     }}
-                    className={`taskbar-notification-item ${
-                      item.isRead ? 'taskbar-notification-item--read' : 'taskbar-notification-item--unread'
-                    }`}
+                    className={`taskbar-notification-item ${item.isRead ? 'taskbar-notification-item--read' : 'taskbar-notification-item--unread'}`}
                   >
-                    <IconBadge tone={getNotificationTone(item.type)} size="sm">
-                      {getNotificationIcon(item.type)}
-                    </IconBadge>
+                    <IconBadge tone={getNotificationTone(item.type)} size="sm">{getNotificationIcon(item.type)}</IconBadge>
 
                     <div className="taskbar-notification-item__content">
                       <div className="taskbar-notification-item__header">
-                        <span className="taskbar-notification-item__title">
-                          {item.title}
-                        </span>
-                        <span
-                          className="taskbar-notification-item__time"
-                          title={formatDateTimeID(item.createdAt)}
-                        >
+                        <span className="taskbar-notification-item__title">{item.title}</span>
+                        <span className="taskbar-notification-item__time" title={formatDateTimeID(item.createdAt)}>
                           {formatNotificationTime(item.createdAt, language)}
                         </span>
                       </div>
 
-                      <div className="taskbar-notification-item__body">
-                        {item.body}
-                      </div>
+                      <div className="taskbar-notification-item__body">{item.body}</div>
 
                       {item.actionUrl ? (
                         <div className="mt-1 flex items-center gap-1 text-[11px] font-medium text-[var(--panel-primary-text)] hover:underline">
@@ -392,11 +340,8 @@ export function NotificationsMenu({ authenticated }: { authenticated: boolean })
               )}
             </div>
 
-            {/* Footer */}
             <div className="taskbar-notifications__footer">
-              <span>
-                {t('taskbar.totalNotifications', { count: notifications.length })}
-              </span>
+              <span>{t('taskbar.totalNotifications', { count: notifications.length })}</span>
 
               <button
                 type="button"

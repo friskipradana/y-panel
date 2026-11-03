@@ -69,7 +69,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
             options={safeDomains.map((domain) => ({
               value: domain.id,
               label: domain.name,
-              dotTone: (STATUS_CONFIG[domain.status ?? 'pending']?.tone as any) ?? (domain.status === "active" ? "success" : "warning"),
+              dotTone: (STATUS_CONFIG[domain.status ?? 'pending']?.tone as 'success' | 'warning' | 'danger' | 'neutral' | undefined) ?? (domain.status === "active" ? "success" : "warning"),
             }))}
             searchable={safeDomains.length > SEARCH_FROM}
             placeholder={t("tunnels.pickDomain")}
@@ -211,7 +211,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
           options={safeProfiles.map((profile) => ({
             value: profile.id,
             label: profile.name || profile.id,
-            dotTone: (STATUS_CONFIG[profile.status ?? 'pending']?.tone as any) ?? (profile.status === "healthy" || profile.status === "active" ? "success" : "warning"),
+            dotTone: (STATUS_CONFIG[profile.status ?? 'pending']?.tone as 'success' | 'warning' | 'danger' | 'neutral' | undefined) ?? (profile.status === "healthy" || profile.status === "active" ? "success" : "warning"),
           }))}
           searchable={safeProfiles.length > SEARCH_FROM}
           placeholder={t("tunnels.pickProfile")}

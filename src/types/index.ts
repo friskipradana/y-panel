@@ -1,31 +1,14 @@
-// ── Window Manager ──────────────────────────────────────────────
+// Window Manager
 export type WindowKind =
-  | 'apps'
-  | 'terminal'
-  | 'host-terminal'
-  | 'system'
-  | 'system-logs'
-  | 'docs'
-  | 'changelog'
-  | 'settings'
-  | 'database'
-  | 'trash'
-  | 'file-manager'
-  | 'file-editor'
-  | 'users'
-  | 'projects'
-  | 'tunnels'
-  | 'profile'
-  | 'widgets'
-  | 'speedtest'
-  | 'hosting'
-  | 'firewall'
+  | 'apps' | 'terminal' | 'host-terminal' | 'system' | 'system-logs'
+  | 'docs' | 'changelog' | 'settings' | 'database' | 'trash'
+  | 'file-manager' | 'file-editor' | 'users' | 'projects' | 'tunnels'
+  | 'profile' | 'widgets' | 'speedtest' | 'hosting' | 'firewall'
 
 export type WindowId = WindowKind
 
-// ── Desktop Widgets ──────────────────────────────────────────────
+// Desktop Widgets
 export type WidgetType = 'clock-uptime' | 'system-vital' | 'network-traffic' | 'quick-note' | 'cpu-graph' | 'ping'
-
 export type WidgetConfigValue = string | number | boolean
 export type WidgetConfig = Record<string, WidgetConfigValue>
 
@@ -41,7 +24,6 @@ export interface PlacedWidget {
   /** Pengaturan per-widget (host ping, rentang grafik, mode tampilan) */
   config?: WidgetConfig
 }
-
 
 export interface WindowState {
   id: string
@@ -60,18 +42,12 @@ export interface WindowState {
   isFullscreen: boolean
   lastAction?: 'open' | 'minimize' | 'restore'
   /** Snapshot data for restoring window state after refresh */
-  params?: Record<string, any>
+  params?: Record<string, unknown>
 }
 
-// ── Docker ───────────────────────────────────────────
+// Docker & System
 export interface AccountResources {
-  cpuPercent: number
-  cpuCores: number
-  memUsed: number
-  memLimit: number
-  diskUsed: number
-  diskLimit: number
-  cpuLimitPct: number
+  cpuPercent: number; cpuCores: number; memUsed: number; memLimit: number; diskUsed: number; diskLimit: number; cpuLimitPct: number
 }
 
 // What the System window counts besides the machine: what each key holds is chosen by the agent for the viewer
@@ -80,15 +56,8 @@ export interface SystemCounts {
   databases?: { total: number; running: number }
   routes?: { total: number; active: number }
   users?: {
-    total: number
-    active: number
-    suspended: number
-    roles?: Record<string, number>
-    planActive?: number
-    expiring?: number
-    grace?: number
-    expired?: number
-    noPlan?: number
+    total: number; active: number; suspended: number; roles?: Record<string, number>
+    planActive?: number; expiring?: number; grace?: number; expired?: number; noPlan?: number
   }
   cloudflare?: { configured: boolean; reachable: boolean; zones: number; zonesActive: number; profiles: number; profilesLive: number }
   hostingDomains?: number
@@ -104,40 +73,19 @@ export interface SystemSummary {
   uptimeSeconds: number
   cpuUsagePercent: number
   cpuTemp: number
-  memory: {
-    total: number
-    used: number
-  }
-  storage: {
-    total: number
-    used: number
-  }
-  networkIO?: {
-    bytesRecv: number
-    bytesSent: number
-  }
+  memory: { total: number; used: number }
+  storage: { total: number; used: number }
+  networkIO?: { bytesRecv: number; bytesSent: number }
   stateDir: string
   dockerInstalled: boolean
   dockerReachable: boolean
   dockerStatus: string
   database: {
-    connected: boolean
-    enabled: boolean
-    host: string
-    port: number
-    user: string
-    lastError: string
-    changelogCount: number
-    runtimeLogCount: number
-    settingsAuditCount: number
+    connected: boolean; enabled: boolean; host: string; port: number; user: string
+    lastError: string; changelogCount: number; runtimeLogCount: number; settingsAuditCount: number
   }
   projects: {
-    total: number
-    active: number
-    degraded: number
-    drift: number
-    attention: number
-    reconcileFresh: boolean
+    total: number; active: number; degraded: number; drift: number; attention: number; reconcileFresh: boolean
   }
   ipAddresses: string[]
   counts?: SystemCounts
@@ -159,11 +107,7 @@ export interface Container {
   OwnerName?: string
   Source?: string
   ComposePath?: string
-  Resources?: {
-    cpuLimitPct?: string | number
-    memoryLimitMb?: string | number
-    diskQuotaMb?: string | number
-  }
+  Resources?: { cpuLimitPct?: string | number; memoryLimitMb?: string | number; diskQuotaMb?: string | number }
   RestartCount?: number
   ExitCode?: number
   Health?: string
@@ -173,11 +117,7 @@ export interface Container {
   Metadata?: Record<string, unknown>
 }
 
-export interface DockerVersionInfo {
-  docker: string
-  buildx: string
-  compose: string
-}
+export interface DockerVersionInfo { docker: string; buildx: string; compose: string }
 
 export interface DockerOwnerPreview {
   id: number
@@ -186,49 +126,16 @@ export interface DockerOwnerPreview {
   role: string
   homeDir: string
   dockerRootDir: string
-  quota?: {
-    userId: number
-    diskQuotaMb: number
-    cpuLimitPct: number
-    memoryLimitMb: number
-    maxProjects?: number
-    maxTunnels?: number
-  }
+  quota?: { userId: number; diskQuotaMb: number; cpuLimitPct: number; memoryLimitMb: number; maxProjects?: number; maxTunnels?: number }
 }
 
-export interface PaginationParams {
-  q?: string
-  limit?: number
-  offset?: number
-}
-
-export interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  limit?: number
-  offset?: number
-}
-
-export interface PortBindingInput {
-  hostIp?: string
-  hostPort: string
-  containerPort: string
-  protocol?: string
-}
-
-export interface EnvVarInput {
-  key: string
-  value: string
-}
-
+export interface PaginationParams { q?: string; limit?: number; offset?: number }
+export interface PaginatedResponse<T> { items: T[]; total: number; limit?: number; offset?: number }
+export interface PortBindingInput { hostIp?: string; hostPort: string; containerPort: string; protocol?: string }
+export interface EnvVarInput { key: string; value: string }
 export type DockerEnvMode = 'form' | 'raw'
-
-export interface DockerRegistryAuthPayload {
-  enabled?: boolean
-  registry?: string
-  usernameOrEmail?: string
-  password?: string
-}
+export interface DockerRegistryAuthPayload { enabled?: boolean; registry?: string; usernameOrEmail?: string; password?: string }
+export interface VolumeBindingInput { hostPath: string; containerPath: string; readOnly?: boolean }
 
 export interface DockerContainerConfig {
   name: string
@@ -239,12 +146,6 @@ export interface DockerContainerConfig {
   envMode?: DockerEnvMode
   envRaw?: string
   volumes: VolumeBindingInput[]
-}
-
-export interface VolumeBindingInput {
-  hostPath: string
-  containerPath: string
-  readOnly?: boolean
 }
 
 export interface DockerDeployImagePayload {
@@ -262,10 +163,7 @@ export interface DockerDeployImagePayload {
   volumes: VolumeBindingInput[]
 }
 
-export interface DockerPullImagePayload {
-  image: string
-  registryAuth?: DockerRegistryAuthPayload
-}
+export interface DockerPullImagePayload { image: string; registryAuth?: DockerRegistryAuthPayload }
 
 export interface DockerDeployComposePayload {
   ownerUserId?: number
@@ -275,10 +173,7 @@ export interface DockerDeployComposePayload {
   replaceContainerId?: string
 }
 
-export interface DeployComposePayload {
-  name: string
-  composeYaml: string
-}
+export interface DeployComposePayload { name: string; composeYaml: string }
 
 export interface DockerNetwork {
   /** Containers on this network (from the agent) */
@@ -323,13 +218,7 @@ export interface DockerMount {
   driver?: string
 }
 
-export interface DockerTemplate {
-  id: number
-  name: string
-  description: string
-  yamlContent: string
-  createdAt: string
-}
+export interface DockerTemplate { id: number; name: string; description: string; yamlContent: string; createdAt: string }
 
 export interface DockerDeployResponse {
   ok: boolean
@@ -337,49 +226,23 @@ export interface DockerDeployResponse {
   composePath: string
   projectDir: string
   owner: {
-    userId: number
-    username: string
-    displayName: string
-    homeDir: string
-    dockerRootDir: string
-    diskQuotaMb: number
-    cpuLimitPct: number
-    memoryLimitMb: number
+    userId: number; username: string; displayName: string; homeDir: string
+    dockerRootDir: string; diskQuotaMb: number; cpuLimitPct: number; memoryLimitMb: number
   }
 }
 
 export interface ContainerStats {
-  id: string
-  name: string
-  cpu_percent: number
-  memory_usage: number
-  memory_limit: number
-  memory_percent: number
+  id: string; name: string; cpu_percent: number; memory_usage: number; memory_limit: number; memory_percent: number
 }
 
-// ── App shortcut ─────────────────────────────────────────────────
+// App shortcut
 export interface AppShortcut {
-  id: string
-  label: string
-  icon?: string
-  color?: string
-  url?: string
-  windowId?: WindowKind
+  id: string; label: string; icon?: string; color?: string; url?: string; windowId?: WindowKind
 }
 
-export interface TerminalSessionStartResponse {
-  sessionId: string
-}
-
-export interface SystemLogEntry {
-  line: string
-}
-
-export interface SystemLogsResponse {
-  service: string
-  limit: number
-  lines: SystemLogEntry[]
-}
+export interface TerminalSessionStartResponse { sessionId: string }
+export interface SystemLogEntry { line: string }
+export interface SystemLogsResponse { service: string; limit: number; lines: SystemLogEntry[] }
 
 export interface EditableSystemSettings {
   hostname: string
@@ -395,19 +258,9 @@ export interface EditableSystemSettings {
   originsRaw: string
 }
 
-export interface UpdateSystemSettingsPayload {
-  hostname: string
-  timezone: string
-  nameservers: string[]
-}
-
-export interface UpdatePanelPortPayload {
-  port: number
-}
-
-export interface UpdatePanelOriginsPayload {
-  originsRaw: string
-}
+export interface UpdateSystemSettingsPayload { hostname: string; timezone: string; nameservers: string[] }
+export interface UpdatePanelPortPayload { port: number }
+export interface UpdatePanelOriginsPayload { originsRaw: string }
 
 export interface DatabaseStatus {
   enabled: boolean
@@ -423,21 +276,11 @@ export interface DatabaseStatus {
 }
 
 export interface RuntimeDatabaseLog {
-  id: number
-  service: string
-  level: string
-  message: string
-  metadata: string
-  createdAt: string
+  id: number; service: string; level: string; message: string; metadata: string; createdAt: string
 }
 
 export interface SettingsAuditEntry {
-  id: number
-  username: string
-  hostname: string
-  timezone: string
-  nameservers: string[]
-  createdAt: string
+  id: number; username: string; hostname: string; timezone: string; nameservers: string[]; createdAt: string
 }
 
 export interface DatabaseStatusResponse {
@@ -446,22 +289,9 @@ export interface DatabaseStatusResponse {
   settingsAudit: SettingsAuditEntry[]
 }
 
-export interface ResetDatabasePasswordResponse {
-  ok: boolean
-  password: string
-  message: string
-}
-
-export interface ResetPrimaryPanelPasswordPayload {
-  newPassword: string
-  confirmPassword: string
-}
-
-export interface ResetPrimaryPanelPasswordResponse {
-  ok: boolean
-  message: string
-  username: string
-}
+export interface ResetDatabasePasswordResponse { ok: boolean; password: string; message: string }
+export interface ResetPrimaryPanelPasswordPayload { newPassword: string; confirmPassword: string }
+export interface ResetPrimaryPanelPasswordResponse { ok: boolean; message: string; username: string }
 
 export interface ChangelogEntry {
   id: number
@@ -484,34 +314,13 @@ export interface ChangelogResponse {
   warning?: string
 }
 
-// -- Payment Gateway Settings -------------------------------------------
+// Payment Gateway Settings
+export interface PaymentSetting { key: string; value: string; isSecret: boolean; label: string; description: string }
+export interface PaymentSettingsResponse { ok: boolean; settings: PaymentSetting[] }
+export interface UpdatePaymentSettingsPayload { settings: Record<string, string> }
+export interface PaymentGatewayTestResponse { ok: boolean; gateway: string; environment?: string; message: string }
 
-export interface PaymentSetting {
-  key: string
-  value: string
-  isSecret: boolean
-  label: string
-  description: string
-}
-
-export interface PaymentSettingsResponse {
-  ok: boolean
-  settings: PaymentSetting[]
-}
-
-export interface UpdatePaymentSettingsPayload {
-  settings: Record<string, string>
-}
-
-export interface PaymentGatewayTestResponse {
-  ok: boolean
-  gateway: string
-  environment?: string
-  message: string
-}
-
-// -- Notification Listener (Android) ------------------------------------
-
+// Notification Listener (Android)
 export interface NotificationDevice {
   id: number
   deviceId: string
@@ -524,21 +333,9 @@ export interface NotificationDevice {
   received: number
 }
 
-export interface NotificationDeviceListResponse {
-  ok: boolean
-  devices: NotificationDevice[]
-}
-
-export interface RegisterNotificationDevicePayload {
-  deviceId: string
-  packageFilter?: string[]
-}
-
-export interface UpdateNotificationDevicePayload {
-  status?: string
-  packageFilter?: string[]
-}
-
+export interface NotificationDeviceListResponse { ok: boolean; devices: NotificationDevice[] }
+export interface RegisterNotificationDevicePayload { deviceId: string; packageFilter?: string[] }
+export interface UpdateNotificationDevicePayload { status?: string; packageFilter?: string[] }
 export interface NotificationDeviceMutationResponse {
   ok: boolean
   device: NotificationDevice
@@ -558,7 +355,4 @@ export interface CapturedNotification {
   createdAt: string
 }
 
-export interface CapturedNotificationsResponse {
-  ok: boolean
-  notifications: CapturedNotification[]
-}
+export interface CapturedNotificationsResponse { ok: boolean; notifications: CapturedNotification[] }

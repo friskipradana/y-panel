@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
@@ -140,44 +140,39 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
     onClose()
   }
 
-  // Safe boundaries relative to viewport, taskbar, and margins
   const TASKBAR_HEIGHT = 44
-  const TOP_SAFE = TASKBAR_HEIGHT + 6 // Keep comfortable 6px clearance below the top taskbar
+  const TOP_SAFE = TASKBAR_HEIGHT + 6
   const BOTTOM_SAFE = 12
   const PADDING_X = 12
   const ESTIMATED_WIDTH = 230
   const ESTIMATED_HEIGHT = 430
 
-  const calculatePosition = (posX: number, posY: number, width: number, height: number) => {
+  const calculatePosition = useCallback((posX: number, posY: number, width: number, height: number) => {
     let left = posX
     if (posX + width + PADDING_X > window.innerWidth) {
       left = Math.max(PADDING_X, posX - width)
     }
 
     let top = posY
-    // If it exceeds bottom boundary, flip upwards from click point
     if (posY + height + BOTTOM_SAFE > window.innerHeight) {
       top = posY - height
     }
 
-    // Safety clamp: NEVER let top overlap or go behind the taskbar
     const maxTop = Math.max(TOP_SAFE, window.innerHeight - height - BOTTOM_SAFE)
     top = Math.max(TOP_SAFE, Math.min(top, maxTop))
 
     return { left, top }
-  }
+  }, [BOTTOM_SAFE, PADDING_X, TOP_SAFE])
 
-  // Initial estimate to avoid flicker
   const [coords, setCoords] = useState<{ left: number; top: number }>(() =>
     calculatePosition(x, y, ESTIMATED_WIDTH, ESTIMATED_HEIGHT)
   )
 
-  // Measure exact rendered dimensions and adjust position
   useLayoutEffect(() => {
     if (!menuRef.current) return
     const rect = menuRef.current.getBoundingClientRect()
     setCoords(calculatePosition(x, y, rect.width, rect.height))
-  }, [x, y])
+  }, [x, y, calculatePosition])
 
   return (
     <div
@@ -185,10 +180,9 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
       className="fixed w-[230px] max-h-[calc(100vh-64px)] overflow-y-auto rounded-xl border border-[var(--menu-border)] bg-[var(--menu-bg)] p-1.5 shadow-[var(--menu-shadow)] backdrop-blur-2xl"
       style={{ left: coords.left, top: coords.top, zIndex: Z.desktopContextMenu }}
       role="menu"
-      aria-label="Desktop context menu"
+      aria-label={t('desktop.contextMenu')}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Icon size group */}
       <div className="border-b border-[var(--win-border)] pb-1 mb-1">
         <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-70">
           {t('desktop.view.title')}
@@ -209,7 +203,6 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
         ))}
       </div>
 
-      {/* Sort group */}
       <div className="border-b border-[var(--win-border)] pb-1 mb-1">
         <p className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] opacity-70">
           {t('desktop.view.sortBy')}
@@ -219,7 +212,6 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
         <MenuItem icon={<RotateCcw size={13} />} label={t('desktop.view.sortDefault')} onClick={() => sortBy('default')} />
       </div>
 
-      {/* Placement toggles */}
       <div className="border-b border-[var(--win-border)] pb-1 mb-1">
         <MenuItem
           icon={<Rows3 size={13} />}
@@ -259,7 +251,6 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
         />
       </div>
 
-      {/* Action group */}
       <div>
         <MenuItem
           icon={<Move size={13} />}

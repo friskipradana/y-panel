@@ -4561,4 +4561,8 @@ export const en: Record<string, string> = {
   'docker.update.introWaha': "The panel downloads the newest version of {image} (over 3 GB, it can take several minutes). When there is one, the container is made again with the same key and login and stops for a moment. The WhatsApp sessions are kept, so no code has to be scanned again.",
   'tunnels.openCloudflareSettings': "Open Cloudflare settings",
   'tunnels.notConfiguredDemo': "The demo account can only look, so a Cloudflare token cannot be set here. Use a regular account to connect Cloudflare.",
+  'tunnels.zoneTitle': "Cloudflare Zone",
+  'system.viewGrid': "Grid view",
+  'system.viewList': "List view",
+  'desktop.contextMenu': "Desktop context menu",
 }

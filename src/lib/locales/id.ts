@@ -4561,4 +4561,8 @@ export const id: Record<string, string> = {
   'docker.update.introWaha': "Panel mengunduh versi terbaru dari {image} (lebih dari 3 GB, bisa beberapa menit). Bila ada yang baru, container dibuat ulang dengan kunci dan login yang sama dan berhenti sebentar. Sesi WhatsApp tersimpan, jadi tidak perlu memindai kode lagi.",
   'tunnels.openCloudflareSettings': "Buka Pengaturan Cloudflare",
   'tunnels.notConfiguredDemo': "Akun demo hanya bisa melihat, jadi token Cloudflare tidak bisa dipasang di sini. Pakai akun biasa untuk menghubungkan Cloudflare.",
+  'tunnels.zoneTitle': "Zone Cloudflare",
+  'system.viewGrid': "Tampilan grid",
+  'system.viewList': "Tampilan daftar",
+  'desktop.contextMenu': "Menu konteks desktop",
 }

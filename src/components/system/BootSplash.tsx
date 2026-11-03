@@ -8,7 +8,7 @@ export function BootSplash({ message }: { message?: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="grid min-h-dvh w-full place-items-center bg-[#0b2a57] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white"
+      className="grid min-h-dvh w-full place-items-center bg-[var(--boot-splash-bg)] px-6 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-white"
     >
       <div className="flex flex-col items-center gap-5 text-center">
         <img src="/favicon.svg" alt="" className="h-16 w-16 rounded-2xl shadow-lg" />

@@ -57,7 +57,7 @@ export function ProjectServicesEditor({ services, onChange }: { services: Projec
             </Field>
             {service.kind === 'static' ? (
               <Field label={t('projects.services.serve')} htmlFor={`svc-${index}-serve`} hint={t('projects.services.serveHint')}>
-                <TextInput id={`svc-${index}-serve`} mono value={service.serve} onChange={(e) => patch(index, { serve: e.target.value })} placeholder="dist" />
+                <TextInput id={`svc-${index}-serve`} mono value={service.serve} onChange={(e) => patch(index, { serve: e.target.value })} placeholder={'dist'} />
               </Field>
             ) : (
               <Field label={t('projects.services.port')} htmlFor={`svc-${index}-port`} hint={t('projects.services.portHint')}>

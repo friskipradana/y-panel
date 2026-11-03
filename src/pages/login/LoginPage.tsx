@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  LoaderCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Sun, Moon
+  LoaderCircle, ArrowRight, ArrowLeft, Eye, EyeOff, Sun, Moon,
 } from 'lucide-react'
 import { getDemoInfo, getSetupStatus, initializeSetup, loginAgent } from '@/api/agent'
 import { runtimeLogger } from '@/lib/runtimeLogger'
@@ -36,9 +36,6 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     mode: themeMode,
     toggleMode,
     getBackgroundStyle,
-    wallpaper,
-    wallpaperFit,
-    customImageUrl,
     syncCustomImage,
   } = useThemeStore()
 
@@ -46,10 +43,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     void syncCustomImage()
   }, [syncCustomImage])
 
-  const backgroundStyle = useMemo(
-    () => getBackgroundStyle(),
-    [getBackgroundStyle, themeMode, wallpaper, wallpaperFit, customImageUrl],
-  )
+  const backgroundStyle = getBackgroundStyle()
 
   const [setupUsername, setSetupUsername] = useState('')
   const [setupEmail, setSetupEmail] = useState('')
@@ -65,7 +59,6 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     retry: 1,
   })
 
-  // Arriving from the landing page's demo button: the demo account fills the form
   const wantsDemo = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1'
   const demoQuery = useQuery({ queryKey: ['public-demo'], queryFn: getDemoInfo, enabled: wantsDemo, staleTime: 5 * 60_000, retry: false })
   const demoFilled = wantsDemo && !!demoQuery.data?.enabled && !!demoQuery.data.username
@@ -92,11 +85,11 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
       setPassword('')
       onLoginSuccess(result)
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       runtimeLogger.error('auth', 'login failed', error)
       setPassword('')
       toast.error(t('login.failedTitle'), {
-        description: error?.response?.data?.error ?? t('login.failedDescription'),
+        description: (error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('login.failedDescription'),
       })
     },
   })
@@ -135,9 +128,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
 
   return (
     <main className="login-page relative w-full h-full min-h-dvh overflow-hidden" id="panel-login-screen">
-      {/* Dynamic wallpaper background layer */}
       <div className="absolute inset-0 z-0" style={backgroundStyle} />
-      {/* Soft scrim in the colour of the theme, so the texts read on any wallpaper */}
       <div className="absolute inset-0 login-scrim backdrop-blur-[2px] z-[1] pointer-events-none" />
       {onBack ? (
         <button
@@ -153,7 +144,6 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
         </button>
       ) : null}
 
-      {/* Floating Theme Toggle (Top Right) */}
       <div className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-6 z-30 flex items-center gap-2">
         <button
           id="login-theme-toggle"
@@ -348,7 +338,6 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
         )}
       </div>
 
-      {/* The public pages, only where there is a public site */}
       {onBack ? (
         <nav aria-label={t('public.footer.legal')} className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-10 flex justify-center gap-4 text-[0.75rem] login-subtitle">
           <a href="/terms" className="inline-flex h-8 items-center hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]">{t('legal.link.terms')}</a>

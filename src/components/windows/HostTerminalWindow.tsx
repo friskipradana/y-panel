@@ -341,7 +341,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
       sendInputFn: null 
     }])
     setActiveTabId(id)
-  }, [])
+  }, [t])
 
   // Asked again while the window is open (the File Manager's Terminal button): a new terminal in that folder
   const lastCwdRequest = useRef(cwdRequest)

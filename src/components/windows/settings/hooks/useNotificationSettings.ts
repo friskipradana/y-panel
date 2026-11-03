@@ -105,7 +105,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
         "settings",
       );
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.listener.deviceDeleteFailedTitle"),
         serverMessage(error) || t("settings.listener.deviceDeleteFailedMessage"),
@@ -131,7 +131,7 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   const capturedWS = useCapturedNotificationsSocket({
     enabled: !!authenticated && canManage,
     onCaptured: (notification: CapturedNotification) => {
-      queryClient.setQueryData(["captured-notifications"], (old: any) => {
+      queryClient.setQueryData(["captured-notifications"], (old: { notifications?: CapturedNotification[] } | undefined) => {
         const existingNotifications = old?.notifications ?? [];
         const exists = existingNotifications.some(
           (n: CapturedNotification) => n.id === notification.id,

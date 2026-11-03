@@ -288,10 +288,11 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
                       "success",
                       "settings"
                     );
-                  } catch (error: any) {
+                  } catch (error: unknown) {
+                    const msg = (error as { message?: string })?.message;
                     alertLib.fire(
                       t("settings.database.copyFailedTitle"),
-                      error?.message || t("settings.database.copyFailedMessage"),
+                      msg || t("settings.database.copyFailedMessage"),
                       "error",
                       "settings"
                     );

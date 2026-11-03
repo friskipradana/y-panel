@@ -24,30 +24,14 @@ interface EditorTab {
 
 let nextTabId = 1
 
+const EXT_LANGUAGE_MAP: Record<string, string> = {
+  js: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript',
+  json: 'json', html: 'html', css: 'css', md: 'markdown', go: 'go',
+  sh: 'shell', bash: 'shell', py: 'python', yaml: 'yaml', yml: 'yaml', xml: 'xml',
+}
 function guessLanguage(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() || ''
-  switch (ext) {
-    case 'js':
-    case 'jsx':
-      return 'javascript'
-    case 'ts':
-    case 'tsx':
-      return 'typescript'
-    case 'json': return 'json'
-    case 'html': return 'html'
-    case 'css': return 'css'
-    case 'md': return 'markdown'
-    case 'go': return 'go'
-    case 'sh':
-    case 'bash':
-      return 'shell'
-    case 'py': return 'python'
-    case 'yaml':
-    case 'yml':
-      return 'yaml'
-    case 'xml': return 'xml'
-    default: return 'plaintext'
-  }
+  return EXT_LANGUAGE_MAP[ext] ?? 'plaintext'
 }
 
 export function FileEditorWindow({ authenticated }: { authenticated?: boolean }) {
@@ -177,11 +161,12 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
         responseType: 'text',
       })
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, content: String(data), originalContent: String(data), isLoading: false } : t))
-    } catch (err: any) {
-      alertLib.fire(t('fileEditor.loadErrorTitle'), err?.response?.data?.error || t('fileEditor.loadErrorMessage'), 'error', 'file-editor')
+    } catch (err: unknown) {
+      const apiErr = axios.isAxiosError(err) ? (err.response?.data as { error?: string } | undefined)?.error : undefined
+      alertLib.fire(t('fileEditor.loadErrorTitle'), apiErr || t('fileEditor.loadErrorMessage'), 'error', 'file-editor')
       setTabs((prev) => prev.map((tab) => tab.id === id ? { ...tab, isLoading: false, content: t('fileEditor.unreadableContent') } : tab))
     }
-  }, [tabs])
+  }, [tabs, t])
 
   useEffect(() => {
     if (authenticated) {
@@ -253,8 +238,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
       })
       setTabs((prev) => prev.map((t) => t.id === tab.id ? { ...t, originalContent: tab.content } : t))
       alertLib.fire(t('fileEditor.savedTitle'), t('fileEditor.savedMessage', { file: tab.name }), 'success', 'file-editor')
-    } catch (err: any) {
-      alertLib.fire(t('fileEditor.saveFailedTitle'), err?.response?.data?.error || t('fileEditor.saveFailedMessage'), 'error', 'file-editor')
+    } catch (err: unknown) {
+      const apiErr = axios.isAxiosError(err) ? (err.response?.data as { error?: string } | undefined)?.error : undefined
+      alertLib.fire(t('fileEditor.saveFailedTitle'), apiErr || t('fileEditor.saveFailedMessage'), 'error', 'file-editor')
     }
   }
 
@@ -408,7 +394,3 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     </div>
   )
 }
-
-
-
-

@@ -45,7 +45,9 @@ export function FileList({ fm }: { fm: FileManagerState }) {
           const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
           const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
           await moveItems(itemsToMove, activeTab.currentPath)
-        } catch (err) { }
+        } catch {
+          // ignore malformed drag payload
+        }
       }}
     >
       <ListTable
@@ -139,7 +141,9 @@ export function FileList({ fm }: { fm: FileManagerState }) {
               const dragged = JSON.parse(raw) as { path: string; name: string; isDir: boolean; paths?: string[] }
               const itemsToMove = dragged.paths && dragged.paths.length > 0 ? dragged.paths : [dragged.path]
               await moveItems(itemsToMove, it.path)
-            } catch (err) { }
+            } catch {
+          // ignore malformed drag payload
+        }
           }}
           onContextMenu={(e, it) => {
             e.preventDefault()

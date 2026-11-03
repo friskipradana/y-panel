@@ -161,7 +161,7 @@
     height: 16px;
     border-radius: 999px;
     border: 1.5px solid var(--win-border);
-    color: #fff;
+    color: var(--color-white);
     background: transparent;
     transition: background 160ms ease, border-color 160ms ease;
   }

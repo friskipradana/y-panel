@@ -72,3 +72,88 @@ export const MODAL_ICONS: Record<string, React.ReactNode> = {
   touch: <FilePlus />,
   chmod: <Key />,
 }
+
+export const joinPath = (parent: string, child: string) => (parent === '/' ? `/${child}` : `${parent}/${child}`)
+
+export function extractFileError(err: unknown, fallback: string): { status?: number; message: string } {
+  const ax = err as { response?: { status?: number; data?: { error?: string } }; message?: string }
+  return {
+    status: ax?.response?.status,
+    message: ax?.response?.data?.error || ax?.message || fallback,
+  }
+}
+
+export function downloadFileNode(item: FileNode) {
+  // without an agent base (the panel serves its own page) the address starts at the root
+  const base = (import.meta.env.VITE_AGENT_BASE as string | undefined) ?? ''
+  const link = document.createElement('a')
+  link.href = base + '/api/v1/files/read?path=' + encodeURIComponent(item.path)
+  link.download = item.name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
+export function computeSafeMenuStyles(
+  menu: { x: number; y: number; item?: FileNode; targetPath: string } | null,
+  container: HTMLDivElement | null,
+  hasClipboard: boolean,
+): { top?: number; left?: number } {
+  if (!menu || !container) return {}
+  const getMenuHeight = () => {
+    if (!menu.item) return 100
+    let count = 0
+    if (!menu.item.isDir) count += 1
+    count += 2
+    if (hasClipboard) count += 1
+    count += 3
+    if (/\.(zip|tar\.gz|tgz|tar)$/i.test(menu.item.name) && !menu.item.isDir) count += 1
+    if (!menu.item.isDir) count += 1
+    count += 1
+    return 30 + 10 + 12 + count * 32
+  }
+  const rect = container.getBoundingClientRect()
+  const menuWidth = 180
+  const menuHeight = getMenuHeight()
+  let top = menu.y - rect.top
+  let left = menu.x - rect.left
+  if (top + menuHeight > rect.height) top -= menuHeight
+  if (left + menuWidth > rect.width) left -= menuWidth
+  return { top: Math.max(0, top), left: Math.max(0, left) }
+}
+
+export function buildModalRequest(
+  modal: ModalType,
+  currentPath: string,
+  modalInput: string,
+  modalPathInput: string,
+  chmodMode: string,
+  chmodRecursive: boolean,
+  t: (key: string) => string,
+): { reqUrl: string; payload: Record<string, unknown> } {
+  if (modal.type === 'delete') return { reqUrl: '/api/v1/files/delete', payload: { path: modal.item.path } }
+  if (modal.type === 'rename') {
+    if (!modalInput) throw new Error(t('fileManager.errorTargetNameRequired'))
+    return { reqUrl: '/api/v1/files/rename', payload: { oldPath: modal.item.path, newPath: joinPath(currentPath, modalInput) } }
+  }
+  if (modal.type === 'mkdir') {
+    if (!modalInput) throw new Error(t('fileManager.errorFolderNameRequired'))
+    return { reqUrl: '/api/v1/files/mkdir', payload: { path: joinPath(currentPath, modalInput) } }
+  }
+  if (modal.type === 'touch') {
+    if (!modalInput) throw new Error(t('fileManager.errorFileNameRequired'))
+    return { reqUrl: '/api/v1/files/touch', payload: { path: joinPath(currentPath, modalInput) } }
+  }
+  if (modal.type === 'compress') {
+    if (!modalInput) throw new Error(t('fileManager.errorArchiveNameRequired'))
+    return { reqUrl: '/api/v1/files/compress', payload: { target: modal.item.path, destName: joinPath(currentPath, modalInput) } }
+  }
+  if (modal.type === 'extract') {
+    if (!modalPathInput) throw new Error(t('fileManager.errorExtractDirectoryRequired'))
+    if (!modalInput) throw new Error(t('fileManager.errorExtractFolderRequired'))
+    return { reqUrl: '/api/v1/files/extract', payload: { source: modal.item.path, dest: joinPath(modalPathInput, modalInput) } }
+  }
+  const numericMode = parseInt(chmodMode, 8)
+  if (isNaN(numericMode)) throw new Error(t('fileManager.errorInvalidOctal'))
+  return { reqUrl: '/api/v1/files/chmod', payload: { path: modal.item.path, mode: numericMode, recursive: chmodRecursive } }
+}

@@ -105,7 +105,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                         resetDeployModal()
                         void refetch()
                       },
-                      onError: (e: any) => alertLib.fire(t('docker.deployFailed'), e.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
+                      onError: (e: unknown) => alertLib.fire(t('docker.deployFailed'), (e as { response?: { data?: { error?: string } } })?.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
                     },
                   )
                 } else {
@@ -127,7 +127,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                         resetDeployModal()
                         void refetch()
                       },
-                      onError: (e: any) => alertLib.fire(t('docker.composeDeployFailed'), e.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
+                      onError: (e: unknown) => alertLib.fire(t('docker.composeDeployFailed'), (e as { response?: { data?: { error?: string } } })?.response?.data?.error || t('docker.unknownError'), 'error', 'apps'),
                     },
                   )
                 }

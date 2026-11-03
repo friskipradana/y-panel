@@ -119,7 +119,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
         network: cfg.network || '',
         ports:
           cfg.ports.length > 0
-            ? cfg.ports.map((p: any) => ({
+            ? cfg.ports.map((p) => ({
                 hostIp: p.hostIp || '',
                 hostPort: p.hostPort || '',
                 containerPort: p.containerPort || '',
@@ -132,7 +132,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
         registryAuth: createEmptyRegistryAuth(),
         volumes:
           cfg.volumes.length > 0
-            ? cfg.volumes.map((v: any) => ({
+            ? cfg.volumes.map((v) => ({
                 hostPath: v.hostPath,
                 containerPath: v.containerPath,
               }))

@@ -79,7 +79,7 @@ export function ColumnMenu({ label, sort, filter }: ColumnMenuProps) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
-  const options = filter?.options ?? []
+  const options = useMemo(() => filter?.options ?? [], [filter?.options])
   const needle = search.trim().toLowerCase()
   const visible = useMemo(() => (needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options), [options, needle])
 

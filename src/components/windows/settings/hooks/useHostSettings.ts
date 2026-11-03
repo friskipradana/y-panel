@@ -110,7 +110,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
       );
       syncSettingsSnapshot(data);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.host.saveFailedTitle"),
         apiMessage(error) || t("settings.host.saveFailedMessage"),
@@ -131,7 +131,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
       );
       syncSettingsSnapshot(data);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.port.updateFailedTitle"),
         apiMessage(error) || t("settings.port.updateFailedMessage"),
@@ -152,7 +152,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
       );
       syncSettingsSnapshot(data);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.origins.saveFailedTitle"),
         apiMessage(error) || t("settings.origins.saveFailedMessage"),
@@ -175,7 +175,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
       queryClient.invalidateQueries({ queryKey: ["database-status"] });
       queryClient.invalidateQueries({ queryKey: ["agent-system-summary"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.database.rotateFailedTitle"),
         apiMessage(error) || t("settings.database.rotateFailedMessage"),
@@ -197,7 +197,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
         "settings",
       );
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       alertLib.fire(
         t("settings.password.updateFailedTitle"),
         apiMessage(error) || t("settings.password.updateFailedMessage"),

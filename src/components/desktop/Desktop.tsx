@@ -33,11 +33,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const { windows } = useWindowStore()
   const {
     getBackgroundStyle,
-    mode,
-    wallpaper,
-    wallpaperFit,
     syncCustomImage,
-    customImageUrl,
     wallpaperLoading,
     isLocked,
     setIsLocked,
@@ -48,8 +44,6 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const isMobile = useIsMobileLayout()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
-  // Sorted by id, not by stacking: the zIndex raises a window, so the DOM does not move when one comes to the front and a
-  // click on the controls of a window behind another is not lost when the first press brings it forward
   const visibleWindows = useMemo(
     () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [userRole, windows],
@@ -64,23 +58,24 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     void syncCustomImage()
   }, [authenticated, syncCustomImage])
 
-  // Keep windows reachable when the viewport changes
   useEffect(() => {
     const clamp = () => useWindowStore.getState().clampWindowsToViewport()
     clamp()
-    let timer: number | undefined
+    let frame = 0
     const onResize = () => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(clamp, 150)
+      if (frame) cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        clamp()
+      })
     }
     window.addEventListener('resize', onResize)
     return () => {
-      window.clearTimeout(timer)
+      if (frame) cancelAnimationFrame(frame)
       window.removeEventListener('resize', onResize)
     }
   }, [])
 
-  // Auto-lock idle timer
   useEffect(() => {
     if (!authenticated || !lockScreenEnabled || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
 
@@ -100,11 +95,10 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       window.clearTimeout(timer)
       events.forEach((ev) => window.removeEventListener(ev, resetTimer))
     }
-  }, [authenticated, autoLockTimeout, isLocked, setIsLocked])
+  }, [authenticated, lockScreenEnabled, autoLockTimeout, isLocked, setIsLocked])
 
-  const backgroundStyle = useMemo(() => getBackgroundStyle(), [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl])
+  const backgroundStyle = getBackgroundStyle()
 
-  // Ghost showing where a widget dragged from the gallery will land
   const [dropGhost, setDropGhost] = useState<{ x: number; y: number } | null>(null)
 
   const dropPosition = (clientX: number, clientY: number) => {
@@ -124,7 +118,6 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   }
 
   const handleDesktopDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    // Only when the pointer leaves the desktop itself, not when it crosses child elements
     if (e.currentTarget === e.target) setDropGhost(null)
   }
 
@@ -185,35 +178,32 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         <MobileShell authenticated={authenticated} onLogout={onLogout} />
       ) : (
         <>
-        {/* Desktop app shortcuts: on the grid or where they were put (View menu of the taskbar) */}
-        <DesktopIconLayer apps={desktopShortcuts} />
+          <DesktopIconLayer apps={desktopShortcuts} />
+          <DesktopWidgetLayer />
 
-        {/* Desktop Widgets (Above wallpaper, behind active windows) */}
-        <DesktopWidgetLayer />
-
-        <div className="absolute inset-0 pointer-events-none">
-          <AnimatePresence>
-            {visibleWindows.map((win) => {
-              const renderContent = WINDOW_CONTENT[win.kind]
-              return (
-                <Window key={win.id} win={win}>
-                  <WindowErrorBoundary>
-                    <Suspense fallback={<WindowFallback />}>
-                      {renderContent ? (
-                        renderContent(win, authenticated)
-                      ) : (
-                        <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
-                          {t('common.noContent')}
-                        </p>
-                      )}
-                    </Suspense>
-                  </WindowErrorBoundary>
-                </Window>
-              )
-            })}
-          </AnimatePresence>
-        </div>
-        <Dock />
+          <div className="absolute inset-0 pointer-events-none">
+            <AnimatePresence>
+              {visibleWindows.map((win) => {
+                const renderContent = WINDOW_CONTENT[win.kind]
+                return (
+                  <Window key={win.id} win={win}>
+                    <WindowErrorBoundary>
+                      <Suspense fallback={<WindowFallback />}>
+                        {renderContent ? (
+                          renderContent(win, authenticated)
+                        ) : (
+                          <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
+                            {t('common.noContent')}
+                          </p>
+                        )}
+                      </Suspense>
+                    </WindowErrorBoundary>
+                  </Window>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+          <Dock />
         </>
       )}
       <AnimatePresence>
@@ -233,12 +223,10 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         ) : null}
       </AnimatePresence>
 
-      {/* Lock Screen Overlay */}
       <AnimatePresence>
         {isLocked && <LockScreen onLogout={onLogout} />}
       </AnimatePresence>
 
-      {/* Desktop Context Menu (Right Click) */}
       {contextMenu && (
         <DesktopContextMenu
           x={contextMenu.x}
@@ -248,7 +236,6 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         />
       )}
 
-      {/* Global Command Palette (Ctrl+K) */}
       <CommandPalette />
     </div>
   )

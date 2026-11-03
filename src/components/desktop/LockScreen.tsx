@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, LogOut } from 'lucide-react'
 import { loginAgent } from '@/api/agent'
@@ -18,11 +18,8 @@ export function LockScreen({ onLogout }: LockScreenProps) {
   const lockScreenStyle = useThemeStore((s) => s.lockScreenStyle)
   const requirePasswordOnWake = useThemeStore((s) => s.requirePasswordOnWake)
   const wakeOnMouseMove = useThemeStore((s) => s.wakeOnMouseMove)
-  const { getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl } = useThemeStore()
-  const backgroundStyle = useMemo(
-    () => getBackgroundStyle(),
-    [getBackgroundStyle, mode, wallpaper, wallpaperFit, customImageUrl],
-  )
+  const { getBackgroundStyle } = useThemeStore()
+  const backgroundStyle = getBackgroundStyle()
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -228,8 +225,9 @@ export function LockScreen({ onLogout }: LockScreenProps) {
       await loginAgent(username, password)
       soundManager.playUnlock()
       setIsLocked(false)
-    } catch (err: any) {
-      setError(err?.response?.data?.message || t('lockscreen.invalidPassword'))
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } }
+      setError(ax?.response?.data?.message || t('lockscreen.invalidPassword'))
     } finally {
       setLoading(false)
     }

@@ -71,10 +71,11 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
         alertLib.fire(t('database.truncateSuccessTitle'), t('database.truncateSuccessMessage', { affected: res.affected }), 'success', 'settings')
       }, 300)
       void query.refetch()
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string }
       alertLib.close()
       setTimeout(() => {
-        alertLib.fire(t('database.truncateFailedTitle'), t('database.truncateFailedMessage', { error: e.response?.data?.error || e.message }), 'error', 'settings')
+        alertLib.fire(t('database.truncateFailedTitle'), t('database.truncateFailedMessage', { error: err.response?.data?.error || err.message || '' }), 'error', 'settings')
       }, 300)
     } finally {
       setTruncating(false)
@@ -82,7 +83,7 @@ export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean })
   }
 
   const status = query.data?.status
-  const runtimeLogs = query.data?.runtimeLogs ?? []
+  const runtimeLogs = useMemo(() => query.data?.runtimeLogs ?? [], [query.data?.runtimeLogs])
   const settingsAudit = query.data?.settingsAudit ?? []
 
   const filteredRuntimeLogs = useMemo(() => {

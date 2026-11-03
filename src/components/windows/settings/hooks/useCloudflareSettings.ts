@@ -38,7 +38,7 @@ export function useCloudflareSettings() {
       setCfForm({ apiToken: "", accountId: "", zoneId: "", baseDomain: "" });
       verifyCFMut.mutate();
     },
-    onError: (e: any) => {
+    onError: (e: { response?: { data?: { error?: string } } }) => {
       const message =
         e.response?.data?.error ??
         (t("profile.saveConfigFailed") || "Failed to save Cloudflare config");
@@ -101,7 +101,7 @@ export function useCloudflareSettings() {
       queryClient.invalidateQueries({ queryKey: ["cf-config"] });
       queryClient.invalidateQueries({ queryKey: ["me-v2"] });
     },
-    onError: (e: any) => {
+    onError: (e: { response?: { data?: { error?: string } } }) => {
       alertLib.fire(
         t("profile.cloudflareDeleteFailedTitle") || "Delete Failed",
         e.response?.data?.error ??

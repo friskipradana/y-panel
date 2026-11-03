@@ -56,7 +56,7 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
         "settings",
       );
     },
-    onError: (error: any) => {
+    onError: (error: { message?: string }) => {
       alertLib.fire(
         t("settings.payment.saveFailedTitle"),
         error?.message || t("settings.payment.saveFailedMessage"),
@@ -80,7 +80,7 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
         "settings",
       );
     },
-    onError: (error: any) => {
+    onError: (error: { message?: string }) => {
       alertLib.fire(
         t("settings.payment.testFailedTitle"),
         error?.message || t("settings.payment.testFailedMessage"),

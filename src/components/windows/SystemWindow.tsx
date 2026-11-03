@@ -1,25 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Activity,
-  AlertTriangle,
-  Boxes,
-  CheckCircle2,
-  Cpu,
-  Database,
-  Globe2,
-  HardDrive,
-  HardDriveDownload,
-  Layers,
-  LayoutGrid,
-  List as ListIcon,
-  MemoryStick,
-  Network,
-  RefreshCw,
-  ShieldAlert,
-  Users,
-  Waypoints,
-} from 'lucide-react'
+import { Activity, AlertTriangle, Boxes, CheckCircle2, Cpu, Database, Globe2, HardDrive, HardDriveDownload, Layers, LayoutGrid, List as ListIcon, MemoryStick, Network, RefreshCw, ShieldAlert, Users, Waypoints } from 'lucide-react'
 import { getSystemSummary } from '@/api/agent'
 import type { SystemCounts } from '@/types'
 import { useI18n } from '@/lib/i18n'
@@ -79,6 +60,7 @@ function SystemBar({
   refreshLabel: string
   isMobile?: boolean
 }) {
+  const { t } = useI18n()
   return (
     <div className={`docker-topbar ${isMobile ? 'docker-topbar--single-line' : ''}`}>
       <div className="docker-topbar__left min-w-0 text-xs text-[var(--text-secondary)]">{summary}</div>
@@ -93,8 +75,8 @@ function SystemBar({
                   ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
               }`}
-              title="Grid view"
-              aria-label="Grid view"
+              title={t('system.viewGrid')}
+              aria-label={t('system.viewGrid')}
             >
               <LayoutGrid size={13} strokeWidth={1.75} />
             </button>
@@ -106,8 +88,8 @@ function SystemBar({
                   ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
               }`}
-              title="List view"
-              aria-label="List view"
+              title={t('system.viewList')}
+              aria-label={t('system.viewList')}
             >
               <ListIcon size={13} strokeWidth={1.75} />
             </button>
@@ -208,11 +190,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   if (isLoading) {
     return (
       <div className="panel-window docker-window-root flex flex-col h-full">
-        <SystemBar
-          summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>}
-          refreshLabel={t('system.refreshSummary')}
-          isMobile={isMobile}
-        />
+        <SystemBar summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} isMobile={isMobile} />
         <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
           <LoadingState className="my-auto">{t('system.loadingRuntime')}</LoadingState>
         </div>
@@ -223,21 +201,13 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
   if (isError || !data) {
     return (
       <div className="panel-window docker-window-root flex flex-col h-full">
-        <SystemBar
-          summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>}
-          refreshLabel={t('system.refreshSummary')}
-          isMobile={isMobile}
-        />
+        <SystemBar summary={<span className="font-semibold text-[var(--win-text)] truncate">{t('system.overviewTitle')}</span>} refreshLabel={t('system.refreshSummary')} isMobile={isMobile} />
         <div className="panel-window__body flex-1 flex flex-col items-center justify-center p-6">
           <ErrorState
             className="my-auto max-w-sm w-full"
             title={t('system.summaryLoadFailed')}
             hint={t('system.summaryLoadFailedHint')}
-            action={
-              <Button variant="primary" size="sm" loading={isFetching} onClick={() => void refetch()}>
-                {t('common.retry')}
-              </Button>
-            }
+            action={<Button variant="primary" size="sm" loading={isFetching} onClick={() => void refetch()}>{t('common.retry')}</Button>}
           />
         </div>
       </div>
@@ -299,9 +269,7 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
             <div className="flex items-center gap-1.5 min-w-0 text-xs">
               <span className="font-semibold text-[var(--win-text)] truncate">{data.hostname}</span>
               <span className="opacity-40">&middot;</span>
-              <span className="font-medium text-[var(--panel-primary-text)] shrink-0">
-                {formatUptime(data.uptimeSeconds)}
-              </span>
+              <span className="font-medium text-[var(--panel-primary-text)] shrink-0">{formatUptime(data.uptimeSeconds)}</span>
             </div>
           ) : (
             <>
@@ -323,18 +291,9 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
       <div className="panel-window__body">
         {viewMode === 'list' ? (
-          <SystemListView
-            data={data}
-            counts={data.counts}
-            memoryPercent={memoryPercent}
-            storagePercent={storagePercent}
-            formatBytes={formatBytes}
-            formatUptime={formatUptime}
-            t={t}
-          />
+          <SystemListView data={data} counts={data.counts} memoryPercent={memoryPercent} storagePercent={storagePercent} formatBytes={formatBytes} formatUptime={formatUptime} t={t} />
         ) : (
           <div className="panel-window__stack">
-            {/* Host Runtime */}
             <section className="panel-shell-card">
               <p className="panel-section-label">{t('system.hostRuntime')}</p>
               <div className="mt-1 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-x-6 gap-y-2">
@@ -353,36 +312,15 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
               </div>
             </section>
 
-            {/* Resources (CPU, RAM, Disk) */}
             <section className="space-y-2">
               <p className="panel-section-label">{t('system.sectionResources')}</p>
               <div className="panel-kpi-grid panel-kpi-grid--auto">
-                <KpiCard
-                  icon={<Cpu size={15} />}
-                  title={t('system.cpuUsage')}
-                  value={`${data.cpuUsagePercent.toFixed(1)}%`}
-                  subtitle={t('system.cpuUsageSubtitle')}
-                  percent={data.cpuUsagePercent}
-                  hideHeaderPercent
-                />
-                <KpiCard
-                  icon={<MemoryStick size={15} />}
-                  title={t('system.memoryRam')}
-                  value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`}
-                  subtitle={t('system.memoryRamSubtitle')}
-                  percent={memoryPercent}
-                />
-                <KpiCard
-                  icon={<HardDriveDownload size={15} />}
-                  title={t('system.storage')}
-                  value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`}
-                  subtitle={t('system.storageSubtitleShort')}
-                  percent={storagePercent}
-                />
+                <KpiCard icon={<Cpu size={15} />} title={t('system.cpuUsage')} value={`${data.cpuUsagePercent.toFixed(1)}%`} subtitle={t('system.cpuUsageSubtitle')} percent={data.cpuUsagePercent} hideHeaderPercent />
+                <KpiCard icon={<MemoryStick size={15} />} title={t('system.memoryRam')} value={`${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}`} subtitle={t('system.memoryRamSubtitle')} percent={memoryPercent} />
+                <KpiCard icon={<HardDriveDownload size={15} />} title={t('system.storage')} value={`${formatBytes(data.storage.used)} / ${formatBytes(data.storage.total)}`} subtitle={t('system.storageSubtitleShort')} percent={storagePercent} />
               </div>
             </section>
 
-            {/* Workloads */}
             <section className="space-y-2">
               <p className="panel-section-label">{t('system.sectionWorkloads')}</p>
               <div className="panel-kpi-grid panel-kpi-grid--auto">
@@ -395,7 +333,6 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
 
             <CountSections counts={data.counts} t={t} />
 
-            {/* Services */}
             <section className="space-y-2">
               <p className="panel-section-label">{t('system.sectionServices')}</p>
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
@@ -428,4 +365,3 @@ export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
     </div>
   )
 }
-

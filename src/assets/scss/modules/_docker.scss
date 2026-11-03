@@ -180,8 +180,8 @@
   height: 72px;
   border-radius: 50%;
   border: 4px solid rgba(59, 130, 246, 0.1);
-  border-top-color: #3b82f6;
-  border-right-color: #60a5fa;
+  border-top-color: var(--docker-progress-primary);
+  border-right-color: var(--docker-progress-accent);
   animation: spinProgress 1s linear infinite;
   filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
 }
@@ -192,7 +192,7 @@
 
 .docker-progress-icon {
   position: absolute;
-  color: #3b82f6;
+  color: var(--docker-progress-primary);
   animation: pulseIcon 1.5s ease-in-out infinite;
 }
 
@@ -204,13 +204,13 @@
 .docker-progress-title {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-white);
   margin-bottom: 6px;
 }
 
 .docker-progress-subtitle {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: var(--docker-progress-muted);
   margin-bottom: 24px;
   font-family: var(--font-mono, monospace);
   background: rgba(255, 255, 255, 0.06);
@@ -222,7 +222,7 @@
 
 .docker-progress-terminal {
   width: 100%;
-  background: #090d16;
+  background: var(--docker-progress-term-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
@@ -230,7 +230,7 @@
   font-family: var(--font-mono, monospace);
   font-size: 12px;
   line-height: 1.6;
-  color: #e5e7eb;
+  color: var(--docker-progress-term-fg);
   height: 180px;
   overflow-y: auto;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -245,23 +245,23 @@
 }
 
 .docker-progress-line--system {
-  color: #60a5fa;
+  color: var(--docker-progress-accent);
   font-weight: 600;
 }
 
 .docker-progress-line--success {
-  color: #34d399;
+  color: var(--docker-progress-success);
 }
 
 .docker-progress-line--info {
-  color: #9ca3af;
+  color: var(--docker-progress-muted);
 }
 
 .docker-progress-line--blink::after {
   content: '█';
   animation: blinkCursor 0.8s step-end infinite;
   margin-left: 4px;
-  color: #34d399;
+  color: var(--docker-progress-success);
 }
 
 @keyframes blinkCursor {
@@ -1882,7 +1882,7 @@
 
 // Update of an image or a container
 .docker-progress-line--error {
-  color: #fca5a5;
+  color: var(--docker-progress-error);
 }
 
 .docker-update {

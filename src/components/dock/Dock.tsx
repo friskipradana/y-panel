@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
@@ -47,7 +47,7 @@ export function Dock() {
   const windows = useWindowStore(selectWindows)
   const desktopIconStyle = useThemeStore((state) => state.desktopIconStyle)
   const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
-  const me = meRaw ? JSON.parse(meRaw) as { role?: string } : null
+  const me = meRaw ? (JSON.parse(meRaw) as { role?: string }) : null
   const role = me?.role
 
   const [hovered, setHovered] = useState<string | null>(null)
@@ -132,7 +132,7 @@ export function Dock() {
     setRevealed(true)
   }
 
-  const scheduleDockHide = () => {
+  const scheduleDockHide = useCallback(() => {
     clearDockHideTimer()
     if (!forceAutoHideDock) return
     dockHideTimerRef.current = window.setTimeout(() => {
@@ -142,7 +142,7 @@ export function Dock() {
       setRevealed(false)
       setHovered(null)
     }, 900)
-  }
+  }, [forceAutoHideDock])
 
   useEffect(() => {
     if (!visibleDockItems.length) {
@@ -156,7 +156,7 @@ export function Dock() {
     }
 
     scheduleDockHide()
-  }, [forceAutoHideDock, visibleDockItems.length])
+  }, [forceAutoHideDock, visibleDockItems.length, scheduleDockHide])
 
   const dockLayerClass = 'z-[62000]'
   const revealHandleLayerClass = 'z-[61990]'
@@ -235,7 +235,6 @@ export function Dock() {
                       const isCurrentlyActive = visible && visible.id === focusedId
 
                       if (isCurrentlyActive) {
-                        // Click on already-focused window minimizes it
                         minimizeWindow(visible.id)
                         return
                       }
@@ -250,7 +249,6 @@ export function Dock() {
                       openWindow(item.kind)
                     }}
                   >
-                    {/* Clean desktop floating tooltip */}
                     <AnimatePresence>
                       {isHovered && (
                         <motion.div
@@ -265,7 +263,6 @@ export function Dock() {
                       )}
                     </AnimatePresence>
 
-                    {/* Icon Tile with tactile Desktop spring feedback */}
                     <motion.div
                       whileHover={{ scale: 1.1, y: -2 }}
                       whileTap={{ scale: 0.92 }}
@@ -282,8 +279,6 @@ export function Dock() {
                       <AppIcon kind={item.kind} size={22} style={{ filter: 'var(--dock-icon-filter)' }} />
                     </motion.div>
 
-                    {/* What the window is doing, on a fixed line under the tile: the bar is the focused one, a dot is open,
-                        amber is minimized. It sits in the padding of the dock, so no tile has room reserved for it. */}
                     <div className="pointer-events-none absolute -bottom-[11px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
                       {isFocused ? (
                         <div className="h-[3px] w-3.5 rounded-full bg-[var(--panel-primary-solid)] transition-all duration-150" />
