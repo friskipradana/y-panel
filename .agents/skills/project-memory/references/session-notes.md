@@ -30,3 +30,4 @@ File ini menyimpan riwayat pembacaan, keputusan arsitektur penting, gotcha tekni
 - **[2026-11-03]** Inisialisasi skill `project-memory` dan pemetaan menyeluruh pertama terhadap seluruh codebase Reneo v1.75.4 (20 `WindowKind`, 6 `WidgetType`, 27 komponen UI Kit, 12 Zustand store, 25 modul API client, 23 package Go di `internal/`, dan 43 migrasi SQL).
 
 - **[2026-11-03]** Menyelesaikan audit & perbaikan menyeluruh: check:ui --warnings (0 error, 0 warning), ekstraksi widgetLayout.ts & TunnelInfoModals.tsx, refaktor 13 file >400 baris menjadi <=400 baris, penambahan token CSS di _variables.scss, dan perbaikan hook/unused ESLint warnings.
+- **[2026-11-03]** Menangani error Vite WS proxy ECONNABORTED dengan configureProxy di vite.config.ts serta penutupan aman WebSocket saat masih CONNECTING di liveSocket.ts dan hooks WebSocket.

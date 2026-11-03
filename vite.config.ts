@@ -1,7 +1,11 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { readFileSync } from 'fs'
+import type { ClientRequest, IncomingMessage, ServerResponse } from 'http'
+import type { Socket } from 'net'
+
+type ProxyServer = Parameters<NonNullable<ProxyOptions['configure']>>[0]
 
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')) as { version: string }
 
@@ -12,6 +16,46 @@ const PUBLIC_LOCALE_PREFIXES = [
   'language', 'common', 'app', 'public', 'landing', 'order', 'legal', 'invoice', 'login', 'articles', 'mcpGuide', 'status',
   'errorBoundary', 'server', 'gate', 'install', 'hosting', 'ui', 'table', 'plan', 'update', 'alert',
 ]
+
+const BENIGN_WS_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'EPIPE'])
+
+function isBenignSocketError(err: unknown): boolean {
+  const code = (err as { code?: string } | undefined)?.code
+  return Boolean(code && BENIGN_WS_CODES.has(code))
+}
+
+function configureProxy(proxy: ProxyServer, label: string) {
+  const origEmit = proxy.emit.bind(proxy) as (event: string, ...args: unknown[]) => boolean
+  proxy.emit = ((event: string, ...args: unknown[]) => {
+    if (event === 'error') {
+      const err = args[0] as { code?: string } | undefined
+      const res = args[2] as ServerResponse | Socket | undefined
+      if (res && 'writeHead' in res) {
+        if (!res.headersSent && !res.writableEnded) {
+          res.writeHead(502, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: `${label} unavailable`, code: err?.code || 'ECONNREFUSED' }))
+        }
+        return true
+      }
+      if (isBenignSocketError(err)) {
+        if (res && 'destroy' in res) res.destroy()
+        return true
+      }
+    }
+    return origEmit(event, ...args)
+  }) as typeof proxy.emit
+
+  proxy.on('proxyReqWs', (_proxyReq: ClientRequest, _req: IncomingMessage, socket: Socket) => {
+    const origSocketEmit = socket.emit.bind(socket) as (event: string, ...args: unknown[]) => boolean
+    socket.emit = ((event: string, ...args: unknown[]) => {
+      if (event === 'error' && isBenignSocketError(args[0])) {
+        socket.destroy()
+        return true
+      }
+      return origSocketEmit(event, ...args)
+    }) as typeof socket.emit
+  })
+}
 
 function localeSplit() {
   const virtualPrefix = 'virtual:locale/'
@@ -60,8 +104,6 @@ export default defineConfig(({ mode }) => {
       react(),
       localeSplit(),
       {
-        // The stylesheet of the app is fetched beside the page, not in front of it, so the splash of index.html paints at once;
-        // main.tsx waits for it before the first frame of the app
         name: 'reneo-async-css',
         apply: 'build',
         transformIndexHtml(html) {
@@ -70,7 +112,6 @@ export default defineConfig(({ mode }) => {
       },
     ],
     define: {
-      // Version of the bundle itself; the live agent version comes from /api/v1/frontend/revision
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
     resolve: {
@@ -82,8 +123,6 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       chunkSizeWarningLimit: 800,
       rollupOptions: {
-        // Reneo intentionally ships a large desktop-style CSS skin.
-        // Keep production build output clean by disabling Rolldown's informational timing diagnostic.
         checks: {
           pluginTimings: false,
         },
@@ -109,40 +148,19 @@ export default defineConfig(({ mode }) => {
           target: agentTarget,
           changeOrigin: true,
           ws: true,
-          configure: (proxy) => {
-            proxy.on('error', (err, _req, res) => {
-              if (res && 'writeHead' in res && !res.headersSent) {
-                res.writeHead(502, { 'Content-Type': 'application/json' })
-                res.end(JSON.stringify({ error: 'Agent unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
-              }
-            })
-          },
+          configure: (proxy) => configureProxy(proxy, 'Agent'),
         },
         [agentBase]: {
           target: agentTarget,
           changeOrigin: true,
           rewrite: (requestPath) => requestPath.replace(new RegExp(`^${agentBase}`), ''),
-          configure: (proxy) => {
-            proxy.on('error', (err, _req, res) => {
-              if (res && 'writeHead' in res && !res.headersSent) {
-                res.writeHead(502, { 'Content-Type': 'application/json' })
-                res.end(JSON.stringify({ error: 'Agent unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
-              }
-            })
-          },
+          configure: (proxy) => configureProxy(proxy, 'Agent'),
         },
         [portainerBase]: {
           target: portainerTarget,
           changeOrigin: true,
           rewrite: (requestPath) => requestPath.replace(new RegExp(`^${portainerBase}`), ''),
-          configure: (proxy) => {
-            proxy.on('error', (err, _req, res) => {
-              if (res && 'writeHead' in res && !res.headersSent) {
-                res.writeHead(502, { 'Content-Type': 'application/json' })
-                res.end(JSON.stringify({ error: 'Portainer unavailable', code: (err as any)?.code || 'ECONNREFUSED' }))
-              }
-            })
-          },
+          configure: (proxy) => configureProxy(proxy, 'Portainer'),
         },
       },
     },

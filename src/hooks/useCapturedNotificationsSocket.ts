@@ -2,17 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CapturedNotification } from '@/types'
 import type { CapturedNotificationSocketPayload } from '@/api/payment'
 import { resolveCapturedNotificationsSocketUrl } from '@/api/payment'
+import { closeWebSocketSafely } from '@/lib/liveSocket'
 
 export interface UseCapturedNotificationsSocketOptions {
   enabled?: boolean
   onCaptured?: (notification: CapturedNotification) => void
 }
 
-/**
- * Real-time WebSocket hook for captured payment notifications.
- * Automatically reconnects on disconnect with exponential backoff.
- * Polls every 30s as a fallback mechanism.
- */
 export function useCapturedNotificationsSocket({
   enabled = true,
   onCaptured,
@@ -25,7 +21,6 @@ export function useCapturedNotificationsSocket({
   const mountedRef = useRef(true)
   const onCapturedRef = useRef(onCaptured)
 
-  // Keep callback ref fresh without triggering reconnections
   onCapturedRef.current = onCaptured
 
   const cleanup = useCallback(() => {
@@ -34,16 +29,7 @@ export function useCapturedNotificationsSocket({
       reconnectTimerRef.current = null
     }
     if (wsRef.current) {
-      wsRef.current.onopen = null
-      wsRef.current.onclose = null
-      wsRef.current.onerror = null
-      wsRef.current.onmessage = null
-      if (
-        wsRef.current.readyState === WebSocket.OPEN ||
-        wsRef.current.readyState === WebSocket.CONNECTING
-      ) {
-        wsRef.current.close()
-      }
+      closeWebSocketSafely(wsRef.current)
       wsRef.current = null
     }
   }, [])
@@ -57,7 +43,6 @@ export function useCapturedNotificationsSocket({
     try {
       url = resolveCapturedNotificationsSocketUrl()
     } catch {
-      console.warn('[captured-ws] Failed to resolve WebSocket URL')
       return
     }
 
@@ -65,7 +50,10 @@ export function useCapturedNotificationsSocket({
     wsRef.current = ws
 
     ws.onopen = () => {
-      if (!mountedRef.current) return
+      if (!mountedRef.current) {
+        ws.close()
+        return
+      }
       setConnected(true)
       backoffRef.current = 1000
     }
@@ -92,7 +80,6 @@ export function useCapturedNotificationsSocket({
       setConnected(false)
       wsRef.current = null
 
-      // Exponential backoff reconnect
       const delay = Math.min(backoffRef.current, 30000)
       backoffRef.current = Math.min(backoffRef.current * 2, 30000)
       reconnectTimerRef.current = setTimeout(() => {
@@ -104,9 +91,12 @@ export function useCapturedNotificationsSocket({
 
   useEffect(() => {
     mountedRef.current = true
-    connect()
+    const initTimer = window.setTimeout(() => {
+      if (mountedRef.current) connect()
+    }, 30)
     return () => {
       mountedRef.current = false
+      window.clearTimeout(initTimer)
       cleanup()
     }
   }, [connect, cleanup])

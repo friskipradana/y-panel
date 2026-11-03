@@ -106,7 +106,11 @@ export function useContainerLogs(containerId: string | null, tail: number) {
       socket.onmessage = null
       socket.onclose = null
       socket.onerror = null
-      socket.close()
+      if (socket.readyState === WebSocket.CONNECTING) {
+        socket.onopen = () => socket.close()
+      } else if (socket.readyState === WebSocket.OPEN) {
+        socket.close()
+      }
     }
   }, [containerId, tail, attempt, append])
 

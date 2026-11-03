@@ -103,11 +103,12 @@ export function useTerminalSession() {
 
     if (!closeActiveSocket || !socket) return
     // Detach handlers so a late close event cannot trigger a reconnect loop
-    socket.onopen = null
     socket.onmessage = null
     socket.onerror = null
     socket.onclose = null
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket.onopen = () => socket.close()
+    } else if (socket.readyState === WebSocket.OPEN) {
       runtimeLogger.info('terminal', 'closing websocket connection', { sessionId: sessionIdRef.current })
       socket.close()
     }

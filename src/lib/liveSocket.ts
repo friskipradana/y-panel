@@ -28,6 +28,22 @@ let socket: WebSocket | null = null
 let users = 0
 let attempts = 0
 let reconnectTimer: number | null = null
+let closeTimer: number | null = null
+
+export function closeWebSocketSafely(ws: WebSocket | null) {
+  if (!ws) return
+  ws.onmessage = null
+  ws.onerror = null
+  ws.onclose = null
+  if (ws.readyState === WebSocket.CONNECTING) {
+    ws.onopen = () => ws.close()
+    return
+  }
+  ws.onopen = null
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.close()
+  }
+}
 
 function socketUrl() {
   const base = import.meta.env.VITE_AGENT_API_BASE || '/api/v1'
@@ -44,7 +60,6 @@ function sendSub(id: string, sub: PingSub) {
 // The slower state the agent pushes: the summary, the recorded history and the installed revision
 function handleState(message: Record<string, unknown>) {
   if (message.type === 'summary') {
-    // the same payload GET /system/summary returns, for every screen that shows it
     queryClient.setQueryData(['system', 'summary', 'widgets'], message.data)
     queryClient.setQueryData(['agent-system-summary'], message.data)
   } else if (message.type === 'history') {
@@ -91,6 +106,10 @@ function connect() {
   const ws = new WebSocket(socketUrl())
   socket = ws
   ws.onopen = () => {
+    if (socket !== ws || users === 0) {
+      ws.close()
+      return
+    }
     attempts = 0
     useLiveStore.getState().setConnected(true)
     pingSubs.forEach((sub, id) => sendSub(id, sub))
@@ -106,12 +125,18 @@ function connect() {
     const delay = Math.min(RECONNECT_MAX_MS, 500 * 2 ** Math.min(attempts, 5))
     reconnectTimer = window.setTimeout(connect, delay)
   }
-  ws.onerror = () => ws.close()
+  ws.onerror = () => {
+    if (ws.readyState === WebSocket.OPEN) ws.close()
+  }
 }
 
 // Call from an effect; the returned function releases the socket
 export function acquireLiveSocket(): () => void {
   users += 1
+  if (closeTimer !== null) {
+    window.clearTimeout(closeTimer)
+    closeTimer = null
+  }
   connect()
   return () => {
     users = Math.max(0, users - 1)
@@ -120,10 +145,15 @@ export function acquireLiveSocket(): () => void {
       window.clearTimeout(reconnectTimer)
       reconnectTimer = null
     }
-    const ws = socket
-    socket = null
-    ws?.close()
-    useLiveStore.getState().setConnected(false)
+    // Debounce close so React StrictMode double-mount does not abort an in-flight WS upgrade
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null
+      if (users > 0) return
+      const ws = socket
+      socket = null
+      closeWebSocketSafely(ws)
+      useLiveStore.getState().setConnected(false)
+    }, 60)
   }
 }
 
