@@ -274,7 +274,7 @@ export function Window({ win, children }: Props) {
       animate={{ scale: win.isMinimized ? 0.88 : 1, opacity: win.isMinimized ? 0 : 1, y: win.isMinimized ? 40 : 0, pointerEvents: win.isMinimized ? 'none' : 'auto' }}
       exit={animation.exit}
       transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute flex flex-col overflow-hidden select-none pointer-events-auto"
+      className="window-frame absolute flex flex-col overflow-hidden select-none pointer-events-auto"
       style={{
         ...style,
         background: 'var(--win-bg)',

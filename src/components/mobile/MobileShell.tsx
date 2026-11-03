@@ -28,7 +28,7 @@ interface MobileShellProps {
 }
 
 const QUICK_APPS: WindowKind[] = ['apps', 'host-terminal', 'file-manager']
-const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings']
+const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings', 'profile', 'hosting']
 
 // Phone layout: one app at a time, bottom navigation, no floating windows
 export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
@@ -64,9 +64,11 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   // survives going home and coming back. Closing a window releases it.
   const [visited, setVisited] = useState<string[]>([])
   useEffect(() => {
-    if (!current) return
-    setVisited((prev) => (prev.includes(current.id) ? prev : [...prev, current.id]))
-  }, [current])
+    setVisited((prev) => {
+      const alive = prev.filter((id) => open.some((w) => w.id === id))
+      return current && !alive.includes(current.id) ? [...alive, current.id] : alive
+    })
+  }, [current, open])
   const kept = open.filter((w) => visited.includes(w.id) || w.id === current?.id)
 
   const launch = (kind: WindowKind) => {
@@ -233,7 +235,20 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
                   <AppIcon kind={win.kind} size={22} />
                   <span className="truncate text-[0.875rem] font-medium">{t(windowTitleKey(win.kind))}</span>
                 </button>
-                <IconButton label={t('common.close')} tone="danger" onClick={() => closeWindow(win.id)}>
+                <IconButton
+                  label={t('common.close')}
+                  tone="danger"
+                  onClick={() => {
+                    const remaining = open.filter((w) => w.id !== win.id)
+                    closeWindow(win.id)
+                    if (remaining.length === 0) {
+                      setSwitcher(false)
+                      setView('home')
+                    } else if (current?.id === win.id) {
+                      focusWindow(remaining[remaining.length - 1].id)
+                    }
+                  }}
+                >
                   <X className="h-4 w-4" />
                 </IconButton>
               </li>

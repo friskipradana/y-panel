@@ -8,12 +8,14 @@ import {
   LogOut,
   RotateCcw,
   Settings,
+  Smartphone,
   User,
   Users,
   HelpCircle,
 } from 'lucide-react'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import { getMeV2 } from '@/api/agent'
+import { setUiMode } from '@/hooks/useIsMobileLayout'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
 
@@ -166,6 +168,20 @@ export function ProfileMenu({ username, onLogout, loading }: ProfileMenuProps) {
 
           {/* ── Section 3: Lock Screen & Logout ── */}
           <div className="profile-menu-section space-y-1">
+            <button
+              type="button"
+              className="profile-menu-btn"
+              onClick={() => {
+                setOpen(false)
+                setUiMode('mobile')
+              }}
+            >
+              <span className="w-4 h-4 flex items-center justify-center shrink-0 opacity-80">
+                <Smartphone size={14} />
+              </span>
+              <span className="flex-1 font-medium">{t('taskbar.mobileView')}</span>
+            </button>
+
             <button
               type="button"
               className="profile-menu-btn"

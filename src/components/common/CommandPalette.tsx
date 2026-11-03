@@ -57,7 +57,7 @@ function PaletteDialog({ close }: { close: () => void }) {
   const recents = useMemo(() => recent.map((id) => entries.find((entry) => entry.id === id)).filter((entry): entry is PaletteEntry => !!entry && !entry.disabled), [entries, recent])
 
   return (
-    <div className="fixed inset-0 flex select-none items-start justify-center p-4 pt-[12dvh]" style={{ zIndex: Z.commandPalette }}>
+    <div id="command-palette" className="fixed inset-0 flex select-none items-start justify-center p-4 pt-[12dvh]" style={{ zIndex: Z.commandPalette }}>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

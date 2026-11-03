@@ -74,7 +74,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       if (frame) cancelAnimationFrame(frame)
       window.removeEventListener('resize', onResize)
     }
-  }, [])
+  }, [isMobile])
 
   useEffect(() => {
     if (!authenticated || !lockScreenEnabled || !autoLockTimeout || autoLockTimeout <= 0 || isLocked) return
@@ -134,13 +134,12 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
 
   const handleDesktopContextMenu = (e: React.MouseEvent) => {
+    if (isMobile) return
     const target = e.target as HTMLElement
     if (
-      target.closest('.window-frame') ||
-      target.closest('#desktop-dock') ||
-      target.closest('.taskbar') ||
-      target.closest('[role="dialog"]') ||
-      target.closest('#command-palette')
+      target.closest(
+        '.window-frame, .panel-window, [data-widget-card], .layout-mobile, #desktop-dock, .taskbar, [role="dialog"], #command-palette',
+      )
     ) {
       return
     }
@@ -227,7 +226,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         {isLocked && <LockScreen onLogout={onLogout} />}
       </AnimatePresence>
 
-      {contextMenu && (
+      {!isMobile && contextMenu && (
         <DesktopContextMenu
           x={contextMenu.x}
           y={contextMenu.y}

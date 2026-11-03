@@ -4565,4 +4565,5 @@ export const en: Record<string, string> = {
   'system.viewGrid': "Grid view",
   'system.viewList': "List view",
   'desktop.contextMenu': "Desktop context menu",
+  'taskbar.mobileView': "Mobile view",
 }

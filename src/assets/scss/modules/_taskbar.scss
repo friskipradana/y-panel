@@ -625,3 +625,36 @@
     color: var(--text-secondary);
   }
 }
+
+
+@media (max-width: 600px) {
+  .taskbar {
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  .taskbar-actions {
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .taskbar-clock {
+    display: none;
+  }
+
+  .taskbar-notifications {
+    position: fixed;
+    top: 52px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: none;
+  }
+
+  .profile-btn span {
+    max-width: 84px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

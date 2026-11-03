@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { EyeOff, PanelBottom, X } from 'lucide-react'
 import { useWindowStore, selectAutoHideDock, selectFocusedId, selectWindows } from '@/store/windowStore'
+import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/themeStore'
 import { AppIcon } from '@/components/common/AppIcon'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
@@ -46,9 +47,7 @@ export function Dock() {
   const focusedId = useWindowStore(selectFocusedId)
   const windows = useWindowStore(selectWindows)
   const desktopIconStyle = useThemeStore((state) => state.desktopIconStyle)
-  const meRaw = typeof window !== 'undefined' ? window.localStorage.getItem('me-v2-cache') : null
-  const me = meRaw ? (JSON.parse(meRaw) as { role?: string }) : null
-  const role = me?.role
+  const role = useAuthStore((state) => state.user?.role)
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
@@ -199,7 +198,7 @@ export function Dock() {
           <motion.div
             layout
             id="desktop-dock"
-            className={`relative flex items-end gap-2.5 rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
+            className={`relative flex max-w-[calc(100vw-16px)] items-end gap-2.5 overflow-x-auto rounded-2xl border px-3.5 pb-4 pt-2.5 backdrop-blur-[24px] ${dockSurfaceClass}`}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <AnimatePresence mode="popLayout">

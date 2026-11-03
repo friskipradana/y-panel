@@ -4565,4 +4565,5 @@ export const id: Record<string, string> = {
   'system.viewGrid': "Tampilan grid",
   'system.viewList': "Tampilan daftar",
   'desktop.contextMenu': "Menu konteks desktop",
+  'taskbar.mobileView': "Tampilan ponsel",
 }

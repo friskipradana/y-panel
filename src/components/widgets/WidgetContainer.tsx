@@ -265,6 +265,7 @@ export function WidgetContainer({ widget, onUpdatePosition, onRemove, onToggleLo
   return (
     <motion.div
       ref={containerRef}
+      data-widget-card
       onPointerDown={handlePointerDown}
       style={{
         position: 'absolute',

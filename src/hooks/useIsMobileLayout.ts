@@ -36,7 +36,11 @@ export function useIsMobileLayout(): boolean {
 
   useEffect(() => {
     const media = window.matchMedia(QUERY)
-    const onMedia = () => setNarrow(media.matches)
+    const onMedia = () => {
+      override = null
+      setMode(null)
+      setNarrow(media.matches)
+    }
     const onMode = () => setMode(override)
     media.addEventListener('change', onMedia)
     window.addEventListener('reneo:ui-mode', onMode)

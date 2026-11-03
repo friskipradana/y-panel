@@ -12,6 +12,7 @@ import { AccountPassword, AccountUsage } from '@/components/windows/profile/Acco
 import { MyNotices } from '@/components/windows/profile/MyNotices'
 import { MyPlanCard } from '@/components/windows/profile/MyPlanCard'
 import { ToolchainTools } from '@/components/windows/profile/ToolchainTools'
+import { SettingsNav } from '@/components/windows/settings/SettingsNav'
 import { formatDateID } from '@/lib/datetime'
 import { daysUntil, planNotice } from '@/lib/planNotice'
 import { useI18n } from '@/lib/i18n'
@@ -61,26 +62,21 @@ export default function ProfileWindow() {
   return (
     <div className="panel-window flex flex-col h-full overflow-hidden">
       <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0 mobile:flex-col">
-        <nav className="settings-nav" aria-label={t('profile.accountProfile')}>
-          <p className="settings-nav__title">{t('profile.accountProfile')}</p>
-          <div className="settings-nav__group" role="group">
-            {sections.map(({ key, icon: Icon }) => {
-              const active = key === shown
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSection(key)}
-                  aria-current={active ? 'page' : undefined}
-                  className={`settings-nav__item${active ? ' settings-nav__item--active' : ''}`}
-                >
-                  <Icon size={14} className="settings-nav__icon" />
-                  <span className="truncate">{t(`profile.section.${key}`)}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
+        <SettingsNav
+          title={t('profile.accountProfile')}
+          groups={[{
+            key: 'profile',
+            label: 'profile.accountProfile',
+            tabs: sections.map((s) => ({
+              key: s.key,
+              label: `profile.section.${s.key}`,
+              desc: `profile.section.${s.key}.desc`,
+              icon: s.icon,
+            })),
+          }]}
+          active={shown}
+          onSelect={setSection}
+        />
 
         <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4 flex flex-col">
           <header className="settings-page__head shrink-0">

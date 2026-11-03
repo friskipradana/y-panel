@@ -322,30 +322,31 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
 
       {/* ── Editor Toolbar ──────────────────────────────────────────────── */}
       {activeTab && (
-        <div className="flex items-center justify-between px-4 py-2 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
-          <div className="text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate max-w-[60%] select-all">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 border-b border-[var(--win-border)] bg-[var(--win-bg)]">
+          <div className="min-w-0 flex-1 text-[12px] opacity-70 font-mono text-[var(--win-text)] truncate select-all">
             {activeTab.path}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <IconButton label={t('fileEditor.zoomOut')} onClick={() => zoomEditor(-1)}><ZoomOut className="h-4 w-4" /></IconButton>
             <IconButton label={t('fileEditor.zoomIn')} onClick={() => zoomEditor(1)}><ZoomIn className="h-4 w-4" /></IconButton>
             <IconButton label={t('fileEditor.copy')} onClick={() => void copyFromEditor()}><Copy className="h-4 w-4" /></IconButton>
             <button
               onClick={() => handleOpenFile(activeTab.path, activeTab.name, true)}
-              className="px-3 py-2 flex items-center gap-1 whitespace-nowrap text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
-              title={t('fileEditor.reloadTitle')}
+              className="px-2.5 sm:px-3 py-2 flex items-center gap-1 whitespace-nowrap text-[12px] font-medium rounded bg-[var(--tb-hover)] hover:bg-[var(--tb-hover)] text-[var(--tb-clock)] transition"
+              title={t('fileEditor.reloadTitle')} aria-label={t('fileEditor.reload')}
             >
-              <RefreshCcw size={12} /> {t('fileEditor.reload')}
+              <RefreshCcw size={12} /> <span className="hidden sm:inline">{t('fileEditor.reload')}</span>
             </button>
             <button
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
-              className={`px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
-                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--win-text)] shadow-[var(--file-editor-save-shadow)]'
+              title={t('fileEditor.saveChanges')} aria-label={t('fileEditor.saveChanges')}
+              className={`px-2.5 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
+                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--color-white)] shadow-[var(--file-editor-save-shadow)]'
                 : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
                 }`}
             >
-              <Save size={13} /> {t('fileEditor.saveChanges')}
+              <Save size={13} /> <span className="hidden sm:inline">{t('fileEditor.saveChanges')}</span>
             </button>
           </div>
         </div>
