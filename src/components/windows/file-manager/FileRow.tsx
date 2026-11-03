@@ -34,7 +34,7 @@ export const FileRow = memo(({ item, isSelected, onToggleSelect, dragOverPath, o
 
   return (
     <div
-      draggable
+      draggable={!touch}
       className={`docker-row docker-row--files${state}`}
       onDragStart={(e) => onDragStart(e, item)}
       onDragOver={(e) => onDragOver(e, item)}

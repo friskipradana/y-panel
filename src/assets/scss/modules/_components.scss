@@ -240,6 +240,8 @@
   line-height: 1.55;
   scrollbar-width: thin;
   scrollbar-color: var(--terminal-scroll) transparent;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .docker-log-line {

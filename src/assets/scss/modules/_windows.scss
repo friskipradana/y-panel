@@ -831,6 +831,8 @@ button:focus-visible,
   // a plain surface of the theme: the old black mix turned grey, with dark text on it, in the light theme
   background: var(--panel-surface-strong);
   color: var(--win-text);
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .panel-timeline {
@@ -890,6 +892,8 @@ button:focus-visible,
 
 .panel-mono {
   font-family: 'JetBrains Mono', monospace;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .panel-grid-compact {

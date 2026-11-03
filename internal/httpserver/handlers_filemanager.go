@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -384,7 +385,11 @@ func (s *Server) handleFileManagerRead(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+info.Name()+"\"")
+	if disp := mime.FormatMediaType("attachment", map[string]string{"filename": info.Name()}); disp != "" {
+		w.Header().Set("Content-Disposition", disp)
+	} else {
+		w.Header().Set("Content-Disposition", "attachment")
+	}
 	io.Copy(w, file)
 }
 
@@ -505,6 +510,7 @@ func (s *Server) handleFileManagerMkdir(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusInternalServerError, errors.New("Gagal membuat direktori: "+err.Error()))
 		return
 	}
+	s.auditFileAction(r, "file.mkdir", "success", map[string]any{"path": cleanPath})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -686,6 +692,7 @@ func (s *Server) handleFileManagerCopy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.auditFileAction(r, "file.copy", "success", map[string]any{"oldPath": sourcePath, "newPath": destPath})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -709,6 +716,7 @@ func (s *Server) handleFileManagerTouch(w http.ResponseWriter, r *http.Request) 
 	}
 	file.Close()
 	chownLikeParent(cleanPath)
+	s.auditFileAction(r, "file.touch", "success", map[string]any{"path": cleanPath})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -1025,6 +1033,7 @@ func (s *Server) handleFileManagerCompress(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	s.auditFileAction(r, "file.compress", "success", map[string]any{"target": cleanTarget, "dest": cleanDest})
 	s.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

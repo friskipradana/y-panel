@@ -9,7 +9,7 @@ import axios from 'axios'
 import { alertLib } from '@/lib/alert'
 import { useThemeStore } from '@/store/themeStore'
 import { useI18n } from '@/lib/i18n'
-
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useEditorStore } from '@/store/editorStore'
 
 interface EditorTab {
@@ -38,6 +38,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
   const [tabs, setTabs] = useState<EditorTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const isDark = useThemeStore((state) => state.mode) === 'dark'
+  const isMobile = useIsMobileLayout()
   const { pendingFile, setPendingFile } = useEditorStore()
   const { t } = useI18n()
 
@@ -159,6 +160,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
         baseURL: import.meta.env.VITE_AGENT_BASE,
         withCredentials: true,
         responseType: 'text',
+        transformResponse: [(d: unknown) => d],
       })
       setTabs((prev) => prev.map((t) => t.id === id ? { ...t, content: String(data), originalContent: String(data), isLoading: false } : t))
     } catch (err: unknown) {
@@ -192,7 +194,6 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
     void handleOpenFile(pendingFile.path, pendingFile.name)
     setPendingFile(null)
   }, [pendingFile, handleOpenFile, setPendingFile])
-
 
   const closeTab = (id: string, force = false) => {
     const tabToClose = tabs.find((t) => t.id === id)
@@ -292,7 +293,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             return (
               <div
                 key={tab.id}
-                className={`ht-tab--active flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-bar-border)] shrink-0 text-[13px] transition select-none group relative`}
+                className={`${isActive ? 'ht-tab--active ' : ''}flex items-center gap-2 px-3 h-[35px] border-r border-[var(--win-bar-border)] shrink-0 text-[13px] transition select-none group relative`}
                 style={{
                   background: isActive ? 'var(--win-bg)' : 'var(--tb-hover)',
                   color: isActive ? 'var(--win-text)' : 'var(--tb-clock)',
@@ -380,7 +381,7 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
             onChange={handleUpdateContent}
             onMount={(editor) => { editorRef.current = editor }}
             options={{
-              minimap: { enabled: true, renderCharacters: false },
+              minimap: { enabled: !isMobile, renderCharacters: false },
               fontSize,
               formatOnPaste: true,
               wordWrap: 'on',

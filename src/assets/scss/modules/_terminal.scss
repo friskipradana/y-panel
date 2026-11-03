@@ -852,3 +852,55 @@
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
+
+// Floating selection bar when text is blocked on the terminal screen
+.ht-selection-bar {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--terminal-bright-white) 14%, var(--win-border));
+  background: color-mix(in srgb, var(--terminal-bg) 92%, var(--win-bar));
+  box-shadow: var(--win-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.ht-selection-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--terminal-chrome-fg-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--terminal-bright-white) 10%, transparent);
+  }
+
+  &--primary {
+    background: var(--panel-primary-solid);
+    color: var(--color-white);
+
+    &:hover {
+      background: var(--panel-primary-solid);
+      filter: brightness(1.08);
+    }
+  }
+}
+
+.ht-pane .xterm .xterm-selection div {
+  background-color: var(--terminal-selection-bg);
+  border-radius: 2px;
+}

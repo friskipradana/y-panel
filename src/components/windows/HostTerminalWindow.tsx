@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
 import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
-import { readTerminalText } from '@/components/windows/terminal/terminalText'
-import { usePinchZoom } from '@/hooks/usePinchZoom'
+import { TerminalTabPane } from '@/components/windows/terminal/TerminalTabPane'
 import { ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
-import { Terminal } from 'xterm'
-import { FitAddon } from '@xterm/addon-fit'
 import 'xterm/css/xterm.css'
-import { useThemeStore } from '@/store/themeStore'
 import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize, TERMINAL_FONT_DEFAULT } from '@/store/windowStore'
-import { useTerminalSession } from '@/hooks/useTerminalSession'
 import {
+  copyTextToClipboard,
   listTerminalPresets,
   createTerminalPreset,
   deleteTerminalPreset,
@@ -26,230 +23,11 @@ import { IconButton } from '@/components/ui/IconButton'
 import { ListRow } from '@/components/ui/ListRow'
 import { EmptyState } from '@/components/ui/states'
 
-const cssVar = (name: string) => {
-  if (typeof window === 'undefined') return `var(${name})`
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || `var(${name})`
-}
-
-const createXtermTheme = () => ({
-  background: cssVar('--terminal-bg'),
-  foreground: cssVar('--terminal-fg'),
-  cursor: cssVar('--terminal-cursor'),
-  cursorAccent: cssVar('--terminal-cursor-accent'),
-  selectionBackground: cssVar('--terminal-selection-bg'),
-  selectionForeground: cssVar('--terminal-selection-fg'),
-  black: cssVar('--terminal-black'),
-  red: cssVar('--terminal-red'),
-  green: cssVar('--terminal-green'),
-  yellow: cssVar('--terminal-yellow'),
-  blue: cssVar('--terminal-blue'),
-  magenta: cssVar('--terminal-magenta'),
-  cyan: cssVar('--terminal-cyan'),
-  white: cssVar('--terminal-white'),
-  brightBlack: cssVar('--terminal-bright-black'),
-  brightRed: cssVar('--terminal-bright-red'),
-  brightGreen: cssVar('--terminal-bright-green'),
-  brightYellow: cssVar('--terminal-bright-yellow'),
-  brightBlue: cssVar('--terminal-bright-blue'),
-  brightMagenta: cssVar('--terminal-bright-magenta'),
-  brightCyan: cssVar('--terminal-bright-cyan'),
-  brightWhite: cssVar('--terminal-bright-white'),
-})
-
 const TERMINAL_FONT_OPTIONS = [
   'Outfit, system-ui, sans-serif',
   'Inter, Outfit, system-ui, sans-serif',
   'JetBrains Mono, monospace',
 ]
-
-// ─── Single terminal pane ─────────────────────────────────────────────────────
-interface TerminalTabPaneProps {
-  authenticated?: boolean
-  active: boolean
-  target?: string
-  /** the folder a local shell starts in; without it the account's home */
-  cwd?: string
-  fontFamily: string
-  fontSize: number
-  /** Ctrl + wheel and Ctrl + / - / 0: 1 or -1 steps the text size, 0 resets it */
-  onZoom: (step: number) => void
-  onStatusChange?: (connected: boolean, error: boolean, reconnecting: boolean) => void
-  onStart?: (start: (target?: string) => Promise<void>) => void
-  onSendInput?: (fn: (cmd: string) => Promise<void>) => void
-  /** hands over a function that reads the text of this terminal */
-  onReadText?: (read: () => string) => void
-}
-
-function TerminalTabPane({ authenticated, active, target = 'local', cwd, fontFamily, fontSize, onZoom, onStatusChange, onStart, onSendInput, onReadText }: TerminalTabPaneProps) {
-  const {
-    sessionId, starting, connected, reconnecting, error,
-    start, sendInput, updateTerminalSize, setOutputListener, close,
-  } = useTerminalSession()
-
-  const viewportRef = useRef<HTMLDivElement | null>(null)
-  const themeMode    = useThemeStore((s) => s.mode)
-  const xtermRef    = useRef<Terminal | null>(null)
-  const fitRef      = useRef<FitAddon | null>(null)
-  // the key and wheel handlers live as long as the terminal, so they read the current callback here
-  const zoomRef     = useRef(onZoom)
-  zoomRef.current = onZoom
-  // two fingers on the terminal make the text larger or smaller
-  usePinchZoom(viewportRef, (step) => zoomRef.current(step))
-
-  // a restart of this terminal starts in the same folder
-  const startHere = useCallback((next?: string) => start(next ?? 'local', cwd), [start, cwd])
-  useEffect(() => { onStart?.(startHere) }, [onStart, startHere])
-  useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
-  useEffect(() => { onReadText?.(() => (xtermRef.current ? readTerminalText(xtermRef.current) : '')) }, [onReadText])
-  useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
-
-  // Auto-start once authenticated; an existing session is re-attached by the hook itself
-  useEffect(() => {
-    if (authenticated && !sessionId && !starting) {
-      void start(target, cwd)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]) 
-
-  // Mount xterm once
-  useEffect(() => {
-    const host = viewportRef.current
-    if (!host || xtermRef.current) return
-    const xterm = new Terminal({
-      cursorBlink: true, fontFamily, fontSize,
-      lineHeight: 1.22, convertEol: true, scrollback: 5000,
-      allowTransparency: true, theme: createXtermTheme(),
-    })
-    const fit = new FitAddon()
-    fitRef.current = fit
-    xterm.loadAddon(fit)
-    xterm.open(host)
-    xtermRef.current = xterm
-    // Copy and paste the way terminals do: Ctrl+C copies only while text is selected (otherwise it
-    // stays an interrupt), Ctrl+Shift+C/V always copy and paste, Ctrl+V pastes through xterm.
-    xterm.attachCustomKeyEventHandler((event) => {
-      if (event.type !== 'keydown') return true
-      const mod = event.ctrlKey || event.metaKey
-      const key = event.key.toLowerCase()
-      // Ctrl + / - / 0 change the text size of the terminal, not the page
-      if (mod && !event.altKey && ['+', '=', '-', '_', '0'].includes(key)) {
-        event.preventDefault()
-        zoomRef.current(key === '0' ? 0 : key === '+' || key === '=' ? 1 : -1)
-        return false
-      }
-      if (mod && key === 'c' && (event.shiftKey || xterm.hasSelection())) {
-        const text = xterm.getSelection()
-        if (text) {
-          void navigator.clipboard?.writeText(text).catch(() => undefined)
-          xterm.clearSelection()
-        }
-        return false
-      }
-      if (mod && event.shiftKey && key === 'v') {
-        event.preventDefault()
-        void navigator.clipboard?.readText().then((text) => text && xterm.paste(text)).catch(() => undefined)
-        return false
-      }
-      return true
-    })
-    const syncSize = () => {
-      if (!xtermRef.current || !fitRef.current || !viewportRef.current?.isConnected) return
-      fitRef.current.fit()
-      updateTerminalSize(xtermRef.current.cols, xtermRef.current.rows)
-    }
-    // Ctrl + wheel (also a trackpad pinch) steps the size; small deltas add up so one flick is one step
-    let wheelAcc = 0
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return
-      event.preventDefault()
-      wheelAcc += event.deltaY
-      if (Math.abs(wheelAcc) < 30) return
-      zoomRef.current(wheelAcc < 0 ? 1 : -1)
-      wheelAcc = 0
-    }
-    host.addEventListener('wheel', onWheel, { passive: false })
-    const ro = new ResizeObserver(() => requestAnimationFrame(syncSize))
-    ro.observe(host)
-    window.addEventListener('resize', syncSize)
-    const d = xterm.onData((v) => void sendInput(v))
-    requestAnimationFrame(() => { syncSize(); xterm.focus() })
-    return () => {
-      ro.disconnect()
-      host.removeEventListener('wheel', onWheel)
-      window.removeEventListener('resize', syncSize)
-      d.dispose()
-      setOutputListener(null)
-      fitRef.current = null
-      xterm.dispose()
-      xtermRef.current = null
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    setOutputListener((chunk) => xtermRef.current?.write(chunk))
-    return () => setOutputListener(null)
-  }, [setOutputListener])
-
-  // Force resize sync on connection or active status
-  useEffect(() => {
-    if (!connected || !active) return
-    let count = 0
-    const interval = setInterval(() => {
-      count++
-      fitRef.current?.fit()
-      const x = xtermRef.current
-      if (x) {
-        updateTerminalSize(x.cols, x.rows)
-        if (count === 1) x.focus() // Focus on first try
-      }
-      if (count > 12) clearInterval(interval) // Stop after 3 seconds
-    }, 250)
-
-    // Also strictly refit when document fonts finish loading
-    void document.fonts.ready.then(() => {
-      fitRef.current?.fit()
-      const x = xtermRef.current
-      if (x) updateTerminalSize(x.cols, x.rows)
-    })
-
-    return () => clearInterval(interval)
-  }, [connected, active, updateTerminalSize])
-
-  useEffect(() => {
-    const x = xtermRef.current; if (!x) return
-    // Toggling the font family forces xterm to invalidate its character cell cache
-    x.options.fontFamily = 'serif'
-    requestAnimationFrame(() => {
-      x.options.fontFamily = fontFamily
-      x.options.fontSize = fontSize
-      requestAnimationFrame(() => { fitRef.current?.fit(); updateTerminalSize(x.cols, x.rows) })
-    })
-  }, [fontFamily, fontSize, updateTerminalSize])
-
-  // light and dark have their own palette; xterm keeps the colors it was given, so give them again
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (xtermRef.current) xtermRef.current.options.theme = createXtermTheme()
-    }, 60)
-    return () => window.clearTimeout(timer)
-  }, [themeMode])
-
-  useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
-  useEffect(() => () => { void close() }, [close])
-
-  return (
-    <div
-      ref={viewportRef}
-      className="ht-pane"
-      style={{
-        visibility: active ? 'visible' : 'hidden',
-        zIndex: active ? 1 : 0,
-        pointerEvents: active ? 'auto' : 'none',
-      }}
-      onClick={() => xtermRef.current?.focus()}
-    />
-  )
-}
 
 // ─── Tab state ────────────────────────────────────────────────────────────────
 let nextTabId = 1
@@ -393,7 +171,21 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
 
   // the text of a terminal, for a phone that cannot select from the screen: the copy sheet shows it as plain text
   const readersRef = useRef(new Map<number, () => string>())
+  const selectionReadersRef = useRef(new Map<number, () => string>())
   const [copyText, setCopyText] = useState<string | null>(null)
+  const handleCopyAction = async () => {
+    const picked = selectionReadersRef.current.get(activeTab.id)?.() ?? ''
+    if (picked) {
+      try {
+        await copyTextToClipboard(picked)
+        toast.success(t('terminal.copy.copied'))
+      } catch {
+        toast.error(t('terminal.copy.failed'))
+      }
+      return
+    }
+    setCopyText(readersRef.current.get(activeTab.id)?.() ?? '')
+  }
   const pasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText()
@@ -855,6 +647,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
               onStart={(fn) => handleStart(tab.id, fn)}
               onSendInput={(fn) => handleSendInput(tab.id, fn)}
               onReadText={(read) => { readersRef.current.set(tab.id, read) }}
+              onConsumeSelection={(consume) => { selectionReadersRef.current.set(tab.id, consume) }}
             />
           ))}
         </div>
@@ -931,7 +724,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
           onKey={(sequence) => {
             void activeTab.sendInputFn?.(sequence)
           }}
-          onCopy={() => setCopyText(readersRef.current.get(activeTab.id)?.() ?? '')}
+          onCopy={() => void handleCopyAction()}
           onPaste={() => void pasteFromClipboard()}
           onZoom={zoom}
         />

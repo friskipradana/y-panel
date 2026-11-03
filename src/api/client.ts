@@ -74,8 +74,12 @@ export const withPagination = (params?: PaginationParams) => ({
 
 export async function copyTextToClipboard(value: string) {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value)
-    return true
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch {
+      // fall through to textarea execCommand fallback (e.g. HTTP LAN IP or unfocused frame)
+    }
   }
 
   if (typeof document !== 'undefined') {
@@ -83,12 +87,20 @@ export async function copyTextToClipboard(value: string) {
     textarea.value = value
     textarea.setAttribute('readonly', '')
     textarea.style.position = 'fixed'
+    textarea.style.top = '0'
+    textarea.style.left = '0'
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)
+    textarea.focus()
     textarea.select()
+    textarea.setSelectionRange(0, value.length)
 
-    const copied = document.execCommand('copy')
-    document.body.removeChild(textarea)
+    let copied = false
+    try {
+      copied = document.execCommand('copy')
+    } finally {
+      document.body.removeChild(textarea)
+    }
 
     if (copied) return true
   }
