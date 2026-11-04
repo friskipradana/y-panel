@@ -342,6 +342,8 @@ func sendViaMailChannels(cfg database.EmailServerConfig, fromAddr, toAddr, subje
 		fromName = "Reneo Mail"
 	}
 
+	plainText, htmlContent := buildReneoEmailTemplate(cfg, fromAddr, subject, body, strings.Contains(strings.ToLower(subject), "uji") || strings.Contains(strings.ToLower(subject), "test"))
+
 	payload := map[string]any{
 		"personalizations": []map[string]any{
 			{"to": []map[string]string{{"email": toAddr}}},
@@ -352,7 +354,8 @@ func sendViaMailChannels(cfg database.EmailServerConfig, fromAddr, toAddr, subje
 		},
 		"subject": subject,
 		"content": []map[string]string{
-			{"type": "text/plain", "value": body},
+			{"type": "text/plain", "value": plainText},
+			{"type": "text/html", "value": htmlContent},
 		},
 	}
 	payloadBytes, err := json.Marshal(payload)
@@ -473,17 +476,10 @@ func testOrSendSMTP(cfg database.EmailServerConfig, smtpPassword, fromAddr, toAd
 	if strings.TrimSpace(cfg.FromName) != "" {
 		fromHeader = fmt.Sprintf("%s <%s>", strings.TrimSpace(cfg.FromName), fromAddr)
 	}
-	msg := strings.Join([]string{
-		"From: " + fromHeader,
-		"To: " + toAddr,
-		"Subject: " + subject,
-		"Date: " + time.Now().Format(time.RFC1123Z),
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
-		"",
-		body,
-	}, "\r\n")
-	if _, err := wc.Write([]byte(msg)); err != nil {
+	isTestEmail := strings.Contains(strings.ToLower(subject), "uji") || strings.Contains(strings.ToLower(subject), "test")
+	plainText, htmlContent := buildReneoEmailTemplate(cfg, fromAddr, subject, body, isTestEmail)
+	msgBytes := buildMIMEEnvelope(fromHeader, toAddr, subject, plainText, htmlContent)
+	if _, err := wc.Write(msgBytes); err != nil {
 		_ = wc.Close()
 		return err
 	}
