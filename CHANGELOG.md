@@ -2,6 +2,24 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.0] - 2026-11-04
+
+6 perubahan, utamanya implement email server management and email window.
+
+### Fitur baru
+- **agents:** Add project-memory skill for codebase architectural knowledge ([`13e82ca`](https://github.com/friskipradana/y-panel/commit/13e82ca))
+- **email:** Implement email server management and email window ([`2a769ee`](https://github.com/friskipradana/y-panel/commit/2a769ee))
+- **ui:** Enhance mobile responsiveness and desktop-mobile parity ([`aaaa566`](https://github.com/friskipradana/y-panel/commit/aaaa566))
+
+### Perbaikan
+- **network:** Stabilize WebSocket connections and proxy error handling ([`ef6858e`](https://github.com/friskipradana/y-panel/commit/ef6858e))
+
+### Peningkatan
+- **terminal:** Modularize terminal component and add touch selection ([`5dc1804`](https://github.com/friskipradana/y-panel/commit/5dc1804))
+- **ui:** Optimize component architecture and styling system ([`9372a72`](https://github.com/friskipradana/y-panel/commit/9372a72))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.75.4...v1.76.0
+
 ## [1.75.4] - 2026-10-30
 
 A new install failed at migration 41, because the migrations ran before the agent bootstrap made managed_databases, docs.is_public and user_quotas.max_databases.
