@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.1] - 2026-11-04
+
+Improve settings UI layout and integrate save bar.
+
+### Peningkatan
+- **email:** Improve settings UI layout and integrate save bar ([`1fd0d00`](https://github.com/friskipradana/y-panel/commit/1fd0d00))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.0...v1.76.1
+
 ## [1.76.0] - 2026-11-04
 
 6 perubahan, utamanya implement email server management and email window.
