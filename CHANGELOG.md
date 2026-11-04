@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.3] - 2026-11-04
+
+Add warning for Cloudflare Worker outbound limitations.
+
+### Fitur baru
+- **email:** Add warning for Cloudflare Worker outbound limitations ([`25a4d39`](https://github.com/friskipradana/y-panel/commit/25a4d39))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.2...v1.76.3
+
 ## [1.76.2] - 2026-11-04
 
 Implement email service logs and enhanced DNS lookup.
