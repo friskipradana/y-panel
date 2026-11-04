@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.4] - 2026-11-04
+
+Implement draft state to preserve form data.
+
+### Peningkatan
+- **email:** Implement draft state to preserve form data ([`f8fe316`](https://github.com/friskipradana/y-panel/commit/f8fe316))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.3...v1.76.4
+
 ## [1.76.3] - 2026-11-04
 
 Add warning for Cloudflare Worker outbound limitations.
