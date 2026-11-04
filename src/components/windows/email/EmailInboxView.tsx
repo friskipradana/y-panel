@@ -5,6 +5,7 @@ import {
   MailCheck,
   RefreshCw,
   Reply,
+  Send,
   Trash2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -49,6 +50,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
   })
 
   const messages = inboxQuery.data?.items ?? []
+  const unreadCount = inboxQuery.data?.unread ?? 0
 
   const syncMut = useMutation({
     mutationFn: syncInboxMessages,
@@ -125,14 +127,15 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
   }
 
   if (isMobile && selectedId && selectedMessage) {
+    const initial = (selectedMessage.fromName || selectedMessage.fromAddr || '?')[0].toUpperCase()
     return (
       <div className="flex flex-col h-full overflow-hidden bg-[var(--win-bg)] p-3">
-        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--win-border)]">
+        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--win-border)] shrink-0">
           <Button type="button" variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />} onClick={() => setSelectedId(null)}>
             {t('common.back')}
           </Button>
           <div className="flex items-center gap-1.5">
-            <Button type="button" variant="outline" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
+            <Button type="button" variant="primary" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
               {t('email.inbox.reply')}
             </Button>
             <Button type="button" variant="outline" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} onClick={() => deleteMut.mutate(selectedMessage.id)}>
@@ -140,14 +143,19 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto pt-3 space-y-3">
-          <h2 className="text-base font-bold text-[var(--win-text)]">{selectedMessage.subject || t('common.noContent')}</h2>
-          <div className="panel-muted-block p-2.5 space-y-1 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-[var(--win-text)]">{selectedMessage.fromName || selectedMessage.fromAddr}</span>
-              <span className="text-[var(--text-secondary)] text-[11px]"><DateTimeText value={selectedMessage.receivedAt} /></span>
+        <div className="flex-1 overflow-y-auto pt-3 space-y-4">
+          <h2 className="text-base font-bold text-[var(--win-text)] leading-snug">{selectedMessage.subject || t('common.noContent')}</h2>
+          <div className="flex items-center gap-2.5 pb-3 border-b border-[var(--win-border)]">
+            <div className="w-8 h-8 rounded-full bg-[var(--panel-surface-hover)] border border-[var(--win-border)] flex items-center justify-center font-bold text-xs text-[var(--win-text)] shrink-0 select-none">
+              {initial}
             </div>
-            <div className="text-[var(--text-secondary)] font-mono text-[11px]">{selectedMessage.fromAddr}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-xs text-[var(--win-text)] truncate">{selectedMessage.fromName || selectedMessage.fromAddr}</span>
+                <span className="text-[11px] text-[var(--text-secondary)] font-mono shrink-0"><DateTimeText value={selectedMessage.receivedAt} /></span>
+              </div>
+              <div className="text-[11px] text-[var(--text-secondary)] font-mono truncate">&lt;{selectedMessage.fromAddr}&gt;</div>
+            </div>
           </div>
           <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--win-text)] font-sans">{selectedMessage.bodyText || selectedMessage.snippet}</div>
         </div>
@@ -156,44 +164,72 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[var(--win-bg)]">
-      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 border-b border-[var(--win-border)] bg-[var(--panel-surface)] shrink-0">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          <Button type="button" variant={filterMode === 'all' ? 'primary' : 'ghost'} size="sm" onClick={() => setFilterMode('all')}>
-            {t('email.inbox.filterAll')}
-          </Button>
-          <Button type="button" variant={filterMode === 'unread' ? 'primary' : 'ghost'} size="sm" onClick={() => setFilterMode('unread')}>
-            {t('email.inbox.filterUnread')}
-            {(inboxQuery.data?.unread ?? 0) > 0 && (
-              <Badge tone="primary" className="ml-1 px-1.5 py-0 text-[10px]">{inboxQuery.data?.unread}</Badge>
-            )}
-          </Button>
-          <Button type="button" variant={filterMode === 'sent' ? 'primary' : 'ghost'} size="sm" onClick={() => setFilterMode('sent')}>
-            {t('email.inbox.filterSent')}
-          </Button>
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-[var(--win-bg)]">
+      <div className="w-full sm:w-[320px] md:w-[350px] lg:w-[370px] flex flex-col border-r border-[var(--win-border)] bg-[var(--panel-surface-subtle)] shrink-0 overflow-hidden">
+        <div className="p-2.5 border-b border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col gap-2 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 min-w-0">
+              <SearchInput value={search} onChange={setSearch} placeholder={t('email.inbox.search')} />
+            </div>
+            <button
+              type="button"
+              className="docker-icon-btn shrink-0"
+              title={t('email.inbox.sync')}
+              aria-label={t('email.inbox.sync')}
+              disabled={syncMut.isPending || inboxQuery.isFetching}
+              onClick={() => syncMut.mutate()}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncMut.isPending || inboxQuery.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
+            </button>
+          </div>
+
+          <div className="flex items-center p-0.5 rounded-md bg-[var(--win-bg)] border border-[var(--win-border)] text-xs">
+            <button
+              type="button"
+              onClick={() => setFilterMode('all')}
+              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors ${
+                filterMode === 'all'
+                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+            >
+              {t('email.inbox.filterAll')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('unread')}
+              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                filterMode === 'unread'
+                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+            >
+              <span>{t('email.inbox.filterUnread')}</span>
+              {unreadCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[var(--panel-primary-bg)] text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode('sent')}
+              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors ${
+                filterMode === 'sent'
+                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+              }`}
+            >
+              {t('email.inbox.filterSent')}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 min-w-0">
-          <SearchInput className="w-48 sm:w-60" value={search} onChange={setSearch} placeholder={t('email.inbox.search')} />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            icon={<RefreshCw className="h-3.5 w-3.5" />}
-            loading={syncMut.isPending || inboxQuery.isFetching}
-            onClick={() => syncMut.mutate()}
-          >
-            {isMobile ? undefined : t('email.inbox.sync')}
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="w-full sm:w-[320px] md:w-[360px] flex flex-col border-r border-[var(--win-border)] overflow-y-auto shrink-0 divide-y divide-[var(--win-border)]">
+        <div className="flex-1 overflow-y-auto divide-y divide-[var(--win-border)]">
           {filtered.length === 0 ? (
             <div className="p-6">
               <EmptyState icon={<Mail className="h-5 w-5" />}>
-                {t('email.inbox.empty')}
+                {search.trim() ? t('email.inbox.noMatch') : t('email.inbox.empty')}
               </EmptyState>
             </div>
           ) : (
@@ -204,18 +240,28 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                   key={msg.id}
                   type="button"
                   onClick={() => handleSelect(msg)}
-                  className={`w-full p-3 text-left transition-colors flex flex-col gap-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--panel-primary-bg)] ${
+                  className={`w-full p-3 text-left transition-colors flex flex-col gap-1 relative focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--panel-primary-border)] ${
                     isSelected ? 'bg-[var(--panel-surface-hover)]' : 'hover:bg-[var(--panel-surface)]'
                   }`}
                 >
+                  {isSelected && (
+                    <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--panel-primary-border)]" />
+                  )}
                   <div className="flex items-center justify-between gap-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {!msg.isRead && <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-text)] shrink-0" aria-label={t('email.inbox.filterUnread')} />}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {!msg.isRead && (
+                        <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-bg)] shrink-0" aria-label={t('email.inbox.filterUnread')} />
+                      )}
                       <span className={`truncate text-[12.5px] ${!msg.isRead ? 'font-bold text-[var(--win-text)]' : 'font-medium text-[var(--text-secondary)]'}`}>
                         {msg.fromName || msg.fromAddr}
                       </span>
+                      {msg.direction === 'outbound' && (
+                        <Send className="h-3 w-3 text-[var(--text-secondary)] shrink-0" aria-label={t('email.inbox.filterSent')} />
+                      )}
                     </div>
-                    <span className="shrink-0 text-[11px] text-[var(--text-secondary)]"><DateTimeText value={msg.receivedAt} /></span>
+                    <span className="shrink-0 text-[11px] text-[var(--text-secondary)] font-mono">
+                      <DateTimeText value={msg.receivedAt} />
+                    </span>
                   </div>
                   <div className={`truncate text-[12px] ${!msg.isRead ? 'font-semibold text-[var(--win-text)]' : 'text-[var(--win-text)]'}`}>
                     {msg.subject || t('common.noContent')}
@@ -226,22 +272,18 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
             })
           )}
         </div>
+      </div>
 
-        <div className="hidden sm:flex flex-1 min-w-0 flex-col overflow-y-auto p-4 sm:p-5">
-          {selectedMessage ? (
-            <div className="space-y-4 max-w-3xl">
-              <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--win-border)]">
-                <div className="min-w-0">
-                  <h1 className="text-base sm:text-lg font-bold text-[var(--win-text)] leading-snug">{selectedMessage.subject || t('common.noContent')}</h1>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                    <span className="font-semibold text-[var(--win-text)]">{selectedMessage.fromName || selectedMessage.fromAddr}</span>
-                    <span className="font-mono text-[11.5px] text-[var(--text-secondary)]">&lt;{selectedMessage.fromAddr}&gt;</span>
-                    <span>&bull;</span>
-                    <span><DateTimeText value={selectedMessage.receivedAt} /></span>
-                  </div>
-                </div>
+      <div className="hidden sm:flex flex-1 min-w-0 flex-col overflow-hidden bg-[var(--win-bg)]">
+        {selectedMessage ? (
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-[var(--win-border)] bg-[var(--panel-surface-subtle)] flex flex-col gap-3 shrink-0">
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-base sm:text-lg font-bold text-[var(--win-text)] leading-snug break-words flex-1 min-w-0">
+                  {selectedMessage.subject || t('common.noContent')}
+                </h1>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button type="button" variant="outline" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
+                  <Button type="button" variant="primary" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
                     {t('email.inbox.reply')}
                   </Button>
                   <Button
@@ -253,37 +295,52 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                   >
                     {selectedMessage.isRead ? t('email.inbox.markUnread') : t('email.inbox.markRead')}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} onClick={() => deleteMut.mutate(selectedMessage.id)}>
+                  <Button type="button" variant="outline" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} className="hover:text-[var(--panel-danger-text)]" onClick={() => deleteMut.mutate(selectedMessage.id)}>
                     {t('email.inbox.delete')}
                   </Button>
                 </div>
               </div>
-              <div className="panel-muted-block p-3 text-xs space-y-1.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-[var(--text-secondary)]">{t('email.inbox.from')}: </span>
-                    <span className="font-mono text-[var(--win-text)] font-medium">{selectedMessage.fromAddr}</span>
+
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[var(--panel-surface-hover)] border border-[var(--win-border)] flex items-center justify-center font-bold text-xs text-[var(--win-text)] shrink-0 select-none">
+                    {(selectedMessage.fromName || selectedMessage.fromAddr || '?')[0].toUpperCase()}
                   </div>
-                  <div>
-                    <span className="text-[var(--text-secondary)]">{t('email.inbox.to')}: </span>
-                    <span className="font-mono text-[var(--win-text)] font-medium">{selectedMessage.toAddr}</span>
+                  <div className="min-w-0 flex flex-col">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-semibold text-xs text-[var(--win-text)] truncate">{selectedMessage.fromName || selectedMessage.fromAddr}</span>
+                      <span className="font-mono text-[11px] text-[var(--text-secondary)] truncate">&lt;{selectedMessage.fromAddr}&gt;</span>
+                      {selectedMessage.direction === 'outbound' && (
+                        <Badge tone="info" className="ml-1 text-[10px] px-1.5 py-0">{t('email.inbox.filterSent')}</Badge>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-secondary)] flex items-center gap-1">
+                      <span>{t('email.inbox.to')}:</span>
+                      <span className="font-mono text-[var(--win-text)] truncate">{selectedMessage.toAddr}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="panel-shell-card !p-4 border border-[var(--win-border)] bg-[var(--win-bg)]">
-                <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--win-text)] font-sans">{selectedMessage.bodyText || selectedMessage.snippet}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-8 text-center text-xs text-[var(--text-secondary)]">
-              <div className="max-w-xs space-y-2">
-                <Mail className="h-8 w-8 mx-auto text-[var(--text-secondary)] opacity-50" />
-                <p className="font-medium text-[var(--win-text)]">{t('email.inbox.selectPrompt')}</p>
-                <p className="text-[11px] leading-normal opacity-80">{t('email.inbox.emptyHint')}</p>
+                <div className="text-right shrink-0">
+                  <DateTimeText value={selectedMessage.receivedAt} className="text-xs text-[var(--text-secondary)] font-mono" />
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex-1 overflow-y-auto p-6 select-text">
+              <div className="max-w-3xl whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--win-text)] font-sans">
+                {selectedMessage.bodyText || selectedMessage.snippet}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-8 text-center text-xs text-[var(--text-secondary)]">
+            <div className="max-w-xs space-y-2">
+              <Mail className="h-8 w-8 mx-auto text-[var(--text-secondary)] opacity-40" />
+              <p className="font-medium text-[var(--win-text)]">{t('email.inbox.selectPrompt')}</p>
+              <p className="text-[11px] leading-normal opacity-80">{t('email.inbox.emptyHint')}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

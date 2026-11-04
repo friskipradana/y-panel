@@ -155,7 +155,19 @@ export function EmailWindow({ win }: { win?: WindowState }) {
               />
             )}
 
-            {tab === 'accounts' && !isDemo ? (
+            {tab === 'inbox' && !isDemo ? (
+              <button
+                type="button"
+                className="docker-primary-btn ml-auto"
+                onClick={() => {
+                  setComposePrefill(null)
+                  setTab('compose')
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{t('email.tabs.compose')}</span>
+              </button>
+            ) : tab === 'accounts' && !isDemo ? (
               <button type="button" className="docker-primary-btn ml-auto" onClick={openCreateModal}>
                 <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                 <span>{t('email.toolbar.addAccount')}</span>
@@ -221,6 +233,20 @@ export function EmailWindow({ win }: { win?: WindowState }) {
               onChange={(key) => setTab(key as EmailTabKey)}
               items={tabItems}
             />
+
+            {tab === 'inbox' && !isDemo && (
+              <button
+                type="button"
+                className="docker-primary-btn"
+                onClick={() => {
+                  setComposePrefill(null)
+                  setTab('compose')
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span>{t('email.tabs.compose')}</span>
+              </button>
+            )}
 
             {tab === 'accounts' && (
               <FilterMenu
