@@ -15,8 +15,9 @@ import { EmailAccountModal } from './email/EmailAccountModal'
 import { EmailAccountsView } from './email/EmailAccountsView'
 import { EmailComposeView } from './email/EmailComposeView'
 import { EmailConnectionView } from './email/EmailConnectionView'
+import { EmailLogsView } from './email/EmailLogsView'
 
-type EmailTabKey = 'accounts' | 'compose' | 'connection'
+type EmailTabKey = 'accounts' | 'compose' | 'connection' | 'logs'
 type ModeFilter = 'all' | 'mailbox' | 'forward'
 
 export function EmailWindow({ win }: { win?: WindowState }) {
@@ -90,6 +91,7 @@ export function EmailWindow({ win }: { win?: WindowState }) {
       label: t('email.tabs.connection'),
       count: overview?.dnsRecords.length ?? 0,
     },
+    { key: 'logs', label: t('email.tabs.logs') },
   ]
 
   const modeItems = [
@@ -318,6 +320,8 @@ export function EmailWindow({ win }: { win?: WindowState }) {
       )}
 
       {tab === 'connection' && <EmailConnectionView overview={overview} />}
+
+      {tab === 'logs' && <EmailLogsView />}
 
       <EmailAccountModal
         open={modalOpen}

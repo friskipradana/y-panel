@@ -2,10 +2,13 @@ package httpserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
@@ -160,21 +163,37 @@ func (s *Server) handleTestEmailSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if cfg.Method == "cloudflare" && toAddr == "" {
-		records := verifyEmailDNSRecords(r.Context(), buildEmailDNSRecords(cfg))
-		verifiedCount := 0
-		for _, rec := range records {
-			if rec.Status == "verified" {
-				verifiedCount++
+	fromAddr := cfg.FromAddress
+	if fromAddr == "" {
+		fromAddr = "noreply@" + cfg.Domain
+	}
+
+	if cfg.Method == "cloudflare" && cfg.CFOutboundRelay == "worker" {
+		if toAddr == "" {
+			records := verifyEmailDNSRecords(r.Context(), buildEmailDNSRecords(cfg))
+			verifiedCount := 0
+			for _, rec := range records {
+				if rec.Status == "verified" {
+					verifiedCount++
+				}
 			}
+			s.writeJSON(w, http.StatusOK, jsonResponse{
+				"ok":       true,
+				"method":   "cloudflare",
+				"message":  "Pemeriksaan DNS Cloudflare selesai",
+				"verified": verifiedCount,
+				"total":    len(records),
+			})
+			return
 		}
-		s.writeJSON(w, http.StatusOK, jsonResponse{
-			"ok":      true,
-			"method":  "cloudflare",
-			"message": "Pemeriksaan DNS Cloudflare selesai",
-			"verified": verifiedCount,
-			"total":   len(records),
-		})
+
+		if err := sendViaMailChannels(cfg, fromAddr, toAddr, "Reneo Email Server — Pesan Uji", "Email uji dari Reneo berhasil dikirim melalui Cloudflare Email Worker pada domain "+cfg.Domain+"."); err != nil {
+			s.writeJSON(w, http.StatusBadGateway, jsonResponse{
+				"error": "Pengiriman via Cloudflare Worker/MailChannels gagal: " + err.Error() + ". Untuk mengirim email keluar secara stabil, silakan pilih 'Relay SMTP / MTA Lokal' dan masukkan host SMTP relay.",
+			})
+			return
+		}
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "sentTo": toAddr})
 		return
 	}
 
@@ -187,11 +206,6 @@ func (s *Server) handleTestEmailSettings(w http.ResponseWriter, r *http.Request)
 		} else {
 			smtpPass = cfg.SMTPPasswordEnc
 		}
-	}
-
-	fromAddr := cfg.FromAddress
-	if fromAddr == "" {
-		fromAddr = "noreply@" + cfg.Domain
 	}
 
 	if toAddr != "" {
@@ -365,3 +379,54 @@ func (s *Server) handleEmailOverview(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleGetEmailLogs(w http.ResponseWriter, r *http.Request) {
+	service := strings.TrimSpace(r.URL.Query().Get("service"))
+	if service == "" {
+		service = "auto"
+	}
+	limit := 160
+	if rawLimit := strings.TrimSpace(r.URL.Query().Get("limit")); rawLimit != "" {
+		if parsed, err := strconv.Atoi(rawLimit); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	if limit > 400 {
+		limit = 400
+	}
+
+	servicesList := []jsonResponse{
+		{"value": "auto", "label": "Deteksi Otomatis"},
+		{"value": "postfix", "label": "Postfix (MTA)"},
+		{"value": "dovecot", "label": "Dovecot (IMAP)"},
+		{"value": "exim4", "label": "Exim4 (MTA)"},
+		{"value": "mail.log", "label": "Log Sistem (/var/log/mail.log)"},
+		{"value": "activity", "label": "Aktivitas Email Panel"},
+	}
+
+	entries, detectedService, err := s.readEmailLogs(service, limit)
+	if err != nil {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"service":  service,
+			"detected": detectedService,
+			"services": servicesList,
+			"limit":    limit,
+			"lines": []jsonResponse{
+				{"line": fmt.Sprintf("[%s] %v", time.Now().Format("2006-01-02 15:04:05"), err)},
+			},
+		})
+		return
+	}
+
+	linesResp := make([]jsonResponse, 0, len(entries))
+	for _, e := range entries {
+		linesResp = append(linesResp, jsonResponse{"line": e.Line})
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"service":  service,
+		"detected": detectedService,
+		"services": servicesList,
+		"limit":    limit,
+		"lines":    linesResp,
+	})
+}

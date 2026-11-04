@@ -2,6 +2,7 @@ import { agentApi } from './client'
 import {
   buildExpectedDnsRecords,
   createFallbackEmailAccount,
+  getFallbackEmailLogs,
   getFallbackOverviewResponse,
   getFallbackSettingsResponse,
   isNotFoundError,
@@ -110,6 +111,23 @@ export interface EmailAccount {
   note: string
   createdAt: string
   updatedAt: string
+}
+
+export interface EmailLogEntry {
+  line: string
+}
+
+export interface EmailLogServiceOption {
+  value: string
+  label: string
+}
+
+export interface EmailLogsResponse {
+  service: string
+  detected: string
+  services: EmailLogServiceOption[]
+  limit: number
+  lines: EmailLogEntry[]
 }
 
 export async function getEmailSettings() {
@@ -309,4 +327,18 @@ export async function sendEmailMessage(payload: {
 }) {
   const { data } = await agentApi.post<{ ok: boolean; sentTo: string }>('/api/v1/email/send', payload)
   return data
+}
+
+export async function getEmailLogs(service = 'auto', limit = 160): Promise<EmailLogsResponse> {
+  try {
+    const { data } = await agentApi.get<EmailLogsResponse>('/api/v1/email/logs', {
+      params: { service, limit },
+    })
+    return data
+  } catch (err) {
+    if (isNotFoundError(err)) {
+      return getFallbackEmailLogs(service, limit)
+    }
+    throw err
+  }
 }

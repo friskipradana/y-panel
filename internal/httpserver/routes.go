@@ -395,6 +395,7 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/settings/email/dns-sync", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSyncEmailDNS)))
 	s.mux.Handle("POST /api/v1/settings/email/firewall", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleOpenEmailFirewallPorts)))
 	s.mux.Handle("GET /api/v1/email/overview", s.requireAuthV2(http.HandlerFunc(s.handleEmailOverview)))
+	s.mux.Handle("GET /api/v1/email/logs", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetEmailLogs)))
 	s.mux.Handle("GET /api/v1/email/accounts", s.requireAuthV2(http.HandlerFunc(s.handleListEmailAccounts)))
 	s.mux.Handle("POST /api/v1/email/accounts", s.requireAuthV2(http.HandlerFunc(s.handleCreateEmailAccount)))
 	s.mux.Handle("PATCH /api/v1/email/accounts/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateEmailAccount)))

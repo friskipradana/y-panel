@@ -281,6 +281,15 @@ func (s *Server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if cfg.Method == "cloudflare" && cfg.CFOutboundRelay == "worker" {
+		if err := sendViaMailChannels(cfg, fromAddr, toAddr, subject, body); err != nil {
+			s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Pengiriman via Cloudflare Worker/MailChannels: " + err.Error() + ". Untuk mengirim keluar secara stabil, silakan atur relay SMTP di Pengaturan."})
+			return
+		}
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "sentTo": toAddr})
+		return
+	}
+
 	smtpPass := ""
 	if cfg.SMTPPasswordEnc != "" {
 		if s.cfg.EncryptionKey != "" {
