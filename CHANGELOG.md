@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.2] - 2026-11-04
+
+Implement email service logs and enhanced DNS lookup.
+
+### Fitur baru
+- **email:** Implement email service logs and enhanced DNS lookup ([`4cb67e3`](https://github.com/friskipradana/y-panel/commit/4cb67e3))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.1...v1.76.2
+
 ## [1.76.1] - 2026-11-04
 
 Improve settings UI layout and integrate save bar.
