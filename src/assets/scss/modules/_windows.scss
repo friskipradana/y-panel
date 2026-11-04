@@ -287,24 +287,25 @@ button:focus-visible,
 }
 
 .panel-btn--primary-soft {
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--panel-primary-text) 24%, transparent);
   background: var(--panel-primary-bg);
   color: var(--panel-primary-text);
 }
 
 .panel-btn--primary-soft:hover:not(:disabled) {
   background: var(--panel-primary-hover);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 38%, transparent);
 }
 
 .panel-btn--primary {
-  border-color: transparent;
-  background: var(--panel-primary-solid);
-  color: var(--color-white);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 28%, transparent);
+  background: var(--panel-primary-bg);
+  color: var(--panel-primary-text);
 }
 
 .panel-btn--primary:hover:not(:disabled) {
-  background: var(--panel-primary-solid);
-  filter: brightness(1.08);
+  background: var(--panel-primary-hover);
+  border-color: color-mix(in srgb, var(--panel-primary-text) 44%, transparent);
 }
 
 .panel-btn--danger-soft {

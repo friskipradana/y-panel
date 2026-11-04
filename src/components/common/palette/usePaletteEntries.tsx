@@ -76,6 +76,7 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
   cloudflare: ['cloudflare', 'token', 'api'],
   network: ['jaringan', 'port', 'origin', 'host'],
   public_ip: ['ip publik', 'public ip', 'domain', 'sertifikat', 'certificate', 'https', 'letsencrypt', 'proxy', 'port forward', 'tanpa tunnel'],
+  email_server: ['email', 'mail', 'smtp', 'imap', 'mx', 'spf', 'dkim', 'dmarc', 'cloudflare'],
   security: ['kata sandi', 'password', 'keamanan', 'database'],
   notifications: ['notifikasi', 'telegram', 'kabar', 'peringatan', 'serangan', 'antrian', 'whatsapp'],
   audit: ['audit', 'riwayat', 'log'],

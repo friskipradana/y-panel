@@ -23,6 +23,7 @@ const ProfileWindow = lazyDefault(() => import('@/components/windows/ProfileWind
 const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow'), 'WidgetsWindow')
 const SpeedtestWindow = lazyNamed(() => import('@/components/windows/SpeedtestWindow'), 'SpeedtestWindow')
 const FirewallWindow = lazyNamed(() => import('@/components/windows/FirewallWindow'), 'FirewallWindow')
+const EmailWindow = lazyNamed(() => import('@/components/windows/EmailWindow'), 'EmailWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
@@ -33,7 +34,7 @@ const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewa
 
 // The public demo account only looks: the windows below work read-only on its own (empty) data.
 // No terminal, files, users, settings or logs: they would need a shell or reach shared data.
-const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'database', 'tunnels', 'system', 'widgets', 'profile'])
+const DEMO_WINDOW_KINDS = new Set<WindowKind>(['apps', 'projects', 'database', 'tunnels', 'system', 'widgets', 'profile', 'email'])
 
 export function canAccessWindow(kind: WindowKind, role?: string | null) {
   if (role === 'demo') return DEMO_WINDOW_KINDS.has(kind)
@@ -101,6 +102,7 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   speedtest: () => <SpeedtestWindow />,
   hosting: (win, auth) => <HostingWindow win={win} authenticated={auth} />,
   firewall: (win, auth) => <FirewallWindow win={win} authenticated={auth} />,
+  email: (win) => <EmailWindow win={win} />,
 }
 
 
@@ -110,6 +112,7 @@ export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKin
   { id: 'widgets', label: 'Widgets', windowId: 'widgets' },
   { id: 'tunnels', label: 'Cloudflare', windowId: 'tunnels' },
   { id: 'firewall', label: 'Firewall', windowId: 'firewall' },
+  { id: 'email', label: 'Email', windowId: 'email' },
   { id: 'projects', label: 'Projects', windowId: 'projects' },
   { id: 'database', label: 'Database', windowId: 'database' },
   { id: 'file-manager', label: 'Files', windowId: 'file-manager' },

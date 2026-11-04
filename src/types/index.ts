@@ -3,7 +3,7 @@ export type WindowKind =
   | 'apps' | 'terminal' | 'host-terminal' | 'system' | 'system-logs'
   | 'docs' | 'changelog' | 'settings' | 'database' | 'trash'
   | 'file-manager' | 'file-editor' | 'users' | 'projects' | 'tunnels'
-  | 'profile' | 'widgets' | 'speedtest' | 'hosting' | 'firewall'
+  | 'profile' | 'widgets' | 'speedtest' | 'hosting' | 'firewall' | 'email'
 
 export type WindowId = WindowKind
 

@@ -805,17 +805,18 @@
   height: var(--docker-control-h, 32px);
   padding: 0 12px;
   border-radius: 8px;
-  // the border is there (transparent) so this button is exactly as tall as the bordered ones
-  border: 1px solid transparent;
+  // the border is there so this button is exactly as tall and crisp as the bordered ones
+  border: 1px solid color-mix(in srgb, var(--panel-primary-text) 28%, transparent);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   color: var(--panel-primary-text);
   background: var(--panel-primary-bg);
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 
   &:hover {
     background: var(--panel-primary-hover);
+    border-color: color-mix(in srgb, var(--panel-primary-text) 44%, transparent);
   }
 
   &:focus-visible {

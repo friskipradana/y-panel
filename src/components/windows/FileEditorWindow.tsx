@@ -342,9 +342,9 @@ export function FileEditorWindow({ authenticated }: { authenticated?: boolean })
               onClick={() => handleSave(activeTab)}
               disabled={activeTab.content === activeTab.originalContent}
               title={t('fileEditor.saveChanges')} aria-label={t('fileEditor.saveChanges')}
-              className={`px-2.5 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-medium rounded transition ${activeTab.content !== activeTab.originalContent
-                ? 'bg-[var(--panel-primary-solid)] hover:bg-[var(--panel-primary-hover)] text-[var(--color-white)] shadow-[var(--file-editor-save-shadow)]'
-                : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] opacity-50 cursor-not-allowed'
+              className={`px-2.5 sm:px-3 py-2 flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold rounded border transition ${activeTab.content !== activeTab.originalContent
+                ? 'bg-[var(--panel-primary-bg)] hover:bg-[var(--panel-primary-hover)] text-[var(--panel-primary-text)] border-[color-mix(in_srgb,var(--panel-primary-text)_26%,transparent)]'
+                : 'bg-[var(--tb-hover)] text-[var(--tb-clock)] border-transparent opacity-50 cursor-not-allowed'
                 }`}
             >
               <Save size={13} /> <span className="hidden sm:inline">{t('fileEditor.saveChanges')}</span>

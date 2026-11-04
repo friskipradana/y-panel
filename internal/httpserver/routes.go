@@ -389,5 +389,17 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/speedtest/server", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSpeedtestServer)))
 	s.mux.Handle("POST /api/v1/speedtest/cli/install", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSpeedtestInstallCLI)))
 
+	s.mux.Handle("GET /api/v1/settings/email", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleGetEmailSettings)))
+	s.mux.Handle("PUT /api/v1/settings/email", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSaveEmailSettings)))
+	s.mux.Handle("POST /api/v1/settings/email/test", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleTestEmailSettings)))
+	s.mux.Handle("POST /api/v1/settings/email/dns-sync", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleSyncEmailDNS)))
+	s.mux.Handle("POST /api/v1/settings/email/firewall", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleOpenEmailFirewallPorts)))
+	s.mux.Handle("GET /api/v1/email/overview", s.requireAuthV2(http.HandlerFunc(s.handleEmailOverview)))
+	s.mux.Handle("GET /api/v1/email/accounts", s.requireAuthV2(http.HandlerFunc(s.handleListEmailAccounts)))
+	s.mux.Handle("POST /api/v1/email/accounts", s.requireAuthV2(http.HandlerFunc(s.handleCreateEmailAccount)))
+	s.mux.Handle("PATCH /api/v1/email/accounts/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateEmailAccount)))
+	s.mux.Handle("DELETE /api/v1/email/accounts/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteEmailAccount)))
+	s.mux.Handle("POST /api/v1/email/send", s.requireAuthV2(http.HandlerFunc(s.handleSendEmail)))
+
 	s.mux.Handle("/", s.authedFrontend)
 }

@@ -16,6 +16,7 @@ import { SoundTab } from "./settings/tabs/SoundTab";
 import { CloudflareTab } from "./settings/tabs/CloudflareTab";
 import { NetworkTab } from "./settings/tabs/NetworkTab";
 import { PublicIpTab } from "./settings/tabs/PublicIpTab";
+import { EmailServerTab } from "./settings/tabs/EmailServerTab";
 import { SecurityTab } from "./settings/tabs/SecurityTab";
 import { NotificationsTab } from "./settings/tabs/NotificationsTab";
 import { AuditTab } from "./settings/tabs/AuditTab";
@@ -148,6 +149,8 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
               {shownTab === "network" && isSuperadmin && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
 
               {shownTab === "public_ip" && isSuperadmin && <PublicIpTab />}
+
+              {shownTab === "email_server" && isSuperadmin && <EmailServerTab />}
 
               {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 

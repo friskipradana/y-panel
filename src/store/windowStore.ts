@@ -4,131 +4,15 @@ import { withMutative } from "./middleware/mutative";
 import type { WindowKind, WindowState } from "@/types";
 import { soundManager } from "@/lib/sound";
 import { Z } from "@/lib/zLayers";
+import {
+  DEFAULTS,
+  bringToFront,
+  createWindowId,
+  nextWindowTitle,
+  reorder,
+} from "./windowDefaults";
 
-const DEFAULTS: Record<
-  WindowKind,
-  { title: string; width: number; height: number; singleton?: boolean }
-> = {
-  // XL — Data & Grid Workstation (1040 x 528)
-  apps: { title: "Docker", width: 1040, height: 528, singleton: true },
-  database: { title: "Database", width: 1040, height: 528, singleton: true },
-  tunnels: { title: "Cloudflare", width: 1040, height: 528, singleton: true },
-  projects: { title: "Projects", width: 1040, height: 528, singleton: true },
-  users: { title: "User Management", width: 1040, height: 528, singleton: true },
-  "file-editor": { title: "Code Editor", width: 1040, height: 528, singleton: true },
-
-  // L — Management & Monitoring (880 x 530)
-  system: { title: "System Info", width: 880, height: 530, singleton: true },
-  "system-logs": {
-    title: "System Logs",
-    width: 880,
-    height: 530,
-    singleton: true,
-  },
-  "file-manager": {
-    title: "File Manager",
-    width: 880,
-    height: 530,
-    singleton: true,
-  },
-  settings: { title: "Settings", width: 880, height: 530, singleton: true },
-  hosting: { title: "Hosting", width: 880, height: 530, singleton: true },
-  firewall: { title: "Firewall", width: 880, height: 530, singleton: true },
-  docs: { title: "Docs", width: 880, height: 530, singleton: true },
-
-  // M — Terminal & 2-Column Gauge/Stats (840 x 540)
-  speedtest: { title: "Speed Test", width: 840, height: 540, singleton: true },
-  "host-terminal": {
-    title: "Host Terminal",
-    width: 840,
-    height: 540,
-    singleton: true,
-  },
-  terminal: { title: "Terminal", width: 640, height: 400, singleton: true },
-
-  // S — Compact Utility & Dialogs (540 x 580)
-  profile: {
-    title: "Profile & Integrasi",
-    width: 540,
-    height: 580,
-    singleton: true,
-  },
-  widgets: { title: "Widgets", width: 640, height: 530, singleton: true },
-  changelog: { title: "Changelog", width: 580, height: 580, singleton: true },
-  trash: { title: "Trash", width: 520, height: 360, singleton: true },
-};
-
-// Z-index tiers
-const Z_NORMAL = Z.windowNormal;
-const Z_MAXIMIZED = Z.windowMaximized;
-const Z_FOCUS_BOOST = Z.windowFocused; // window terfokus non-fullscreen di atas window biasa
-const Z_FULLSCREEN = Z.windowFullscreen; // fullscreen di atas window lain (palette dan alert tetap di atasnya)
-
-function reorder(windows: WindowState[]) {
-  const non = windows.filter((w) => !w.isFullscreen);
-  const full = windows.filter((w) => w.isFullscreen);
-
-  // non-fullscreen sorted: maximized gets slightly higher base
-  non.forEach((w, i) => {
-    w.zIndex = (w.isMaximized ? Z_MAXIMIZED : Z_NORMAL) + i;
-  });
-
-  // fullscreen: selalu di lapisan paling atas
-  full.forEach((w, i) => {
-    w.zIndex = Z_FULLSCREEN + i;
-  });
-}
-
-function bringToFront(windows: WindowState[], id: string) {
-  const index = windows.findIndex((w) => w.id === id);
-  if (index === -1) return;
-
-  const win = windows[index];
-  const isFullscreen = win.isFullscreen;
-
-  // Pisahkan bucket fullscreen dan non-fullscreen
-  const nonFull = windows.filter((w) => !w.isFullscreen);
-  const full = windows.filter((w) => w.isFullscreen);
-
-  if (isFullscreen) {
-    // Pindah ke akhir bucket fullscreen
-    const fi = full.findIndex((w) => w.id === id);
-    if (fi !== -1 && fi !== full.length - 1) {
-      const [w] = full.splice(fi, 1);
-      full.push(w);
-    }
-  } else {
-    // Pindah ke akhir bucket non-fullscreen
-    const ni = nonFull.findIndex((w) => w.id === id);
-    if (ni !== -1 && ni !== nonFull.length - 1) {
-      const [w] = nonFull.splice(ni, 1);
-      nonFull.push(w);
-    }
-  }
-
-  // Rebuild array: non-fullscreen dulu, fullscreen di belakang
-  windows.length = 0;
-  windows.push(...nonFull, ...full);
-  reorder(windows);
-
-  // Jika window yang di-focus BUKAN fullscreen, beri z-index boost
-  // agar dia terlihat di atas semua window biasa/maksimasi,
-  // tetapi tetap di bawah overlay taskbar dan mode fullscreen.
-  if (!isFullscreen) {
-    win.zIndex = Z_FOCUS_BOOST;
-  }
-}
-
-function nextWindowTitle(kind: WindowKind, windows: WindowState[]) {
-  const def = DEFAULTS[kind];
-  if (def.singleton) return def.title;
-  const count = windows.filter((w) => w.kind === kind).length + 1;
-  return count === 1 ? def.title : `${def.title} ${count}`;
-}
-
-function createWindowId(kind: WindowKind) {
-  return `${kind}:${Math.random().toString(36).slice(2, 8)}`;
-}
+const Z_FOCUS_BOOST = Z.windowFocused;
 
 interface WindowStore {
   windows: WindowState[];
@@ -166,7 +50,6 @@ export const selectGlobalTerminalFontSize = (s: WindowStore) =>
 export const selectWindowCountByKind = (kind: WindowKind) => (s: WindowStore) =>
   s.windows.filter((w) => w.kind === kind).length;
 
-// Terminal text size in px; Ctrl + wheel and Ctrl + / - / 0 move it inside this range
 export const TERMINAL_FONT_DEFAULT = 15;
 export const TERMINAL_FONT_MIN = 8;
 export const TERMINAL_FONT_MAX = 32;
@@ -202,7 +85,6 @@ export const useWindowStore = create<WindowStore>()(
             return;
           }
 
-          // Calculate maximum usable desktop area with breathing room
           const maxW = Math.max(340, Math.floor(window.innerWidth * 0.94));
           const maxH = Math.max(
             240,
@@ -212,7 +94,6 @@ export const useWindowStore = create<WindowStore>()(
           let width = def.width;
           let height = def.height;
 
-          // Scale down proportionally if larger than maximum viewport bounds; the default size is kept to bring it back on a wide screen
           let squeezed = false;
           if (width > maxW || height > maxH) {
             const scale = Math.min(maxW / width, maxH / height);
@@ -221,8 +102,6 @@ export const useWindowStore = create<WindowStore>()(
             squeezed = true;
           }
 
-          // Cascade over every open window (not only the same kind) so new windows never
-          // land exactly on top of another one.
           const openCount = state.windows.filter(
             (w) => !w.isMinimized && !w.isMaximized && !w.isFullscreen,
           ).length;
@@ -257,8 +136,6 @@ export const useWindowStore = create<WindowStore>()(
             params: params || {},
           });
 
-          // the window that was in front gives up its place at the front: two at the focused level would be told apart by
-          // their order in the page, and the new one would not be the one on top
           bringToFront(state.windows, id);
           state.focusedId = id;
         });
@@ -364,7 +241,6 @@ export const useWindowStore = create<WindowStore>()(
           if (win) {
             win.width = width;
             win.height = height;
-            // a size the user chose is the size to keep
             delete win.prefWidth;
             delete win.prefHeight;
           }
@@ -396,14 +272,12 @@ export const useWindowStore = create<WindowStore>()(
           state.autoHideDock = !state.autoHideDock;
         }),
 
-      // Pull windows back on screen after the viewport shrank (resize, rotation, smaller display)
       clampWindowsToViewport: () =>
         set((state) => {
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           for (const win of state.windows) {
             if (win.isMaximized || win.isFullscreen) continue;
-            // a narrow screen squeezes the window, but remembers its size: on a wide screen again it gets that size back
             const wantW = win.prefWidth ?? win.width;
             const wantH = win.prefHeight ?? win.height;
             win.width = Math.min(wantW, Math.max(320, vw - 16));
@@ -444,7 +318,6 @@ export const useWindowStore = create<WindowStore>()(
       name: "reneo-windows",
       storage: createJSONStorage(() => localStorage),
       version: 4,
-      // the old defaults (9px, then 13px) were too small to read; anyone still on one gets the new default
       migrate: (persisted, version) => {
         const state = persisted as Partial<WindowStore>;
         if (
@@ -453,12 +326,10 @@ export const useWindowStore = create<WindowStore>()(
             state.globalTerminalFontSize === 13)
         )
           state.globalTerminalFontSize = TERMINAL_FONT_DEFAULT;
-        // the Portainer window is gone: a saved layout must not try to open it
         if (version < 3 && Array.isArray(state.windows))
           state.windows = state.windows.filter(
             (w) => (w.kind as string) !== "portainer",
           );
-        // a phone squeezed some windows to its width and they were saved that way; they go back to their default size once
         if (version < 4 && Array.isArray(state.windows))
           for (const w of state.windows) {
             const def = DEFAULTS[w.kind];

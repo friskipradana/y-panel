@@ -30,7 +30,7 @@
   - Inisialisasi sesi (`useAuthStore.initSession`), listener `panel:session-expired`, aktivasi `useGlobalShortcuts(authenticated)` & `useRevisionSync(authenticated)`, pemeriksaan `getUpdateStatus`, tampilan `BootSplash`, `PasswordGate` (`user.mustChangePassword`), `AppRouter`, `DevOverlay`, dan `UpdateProgressModal`.
 - **`src/components/desktop/`**:
   - `Desktop.tsx`: Root desktop (`.desktop-root`), wallpaper, auto-lock idle timer, drag-drop widget, `DesktopContextMenu.tsx`, `Taskbar`, `DesktopIconLayer.tsx` (`DesktopIcon.tsx`), `DesktopWidgetLayer`, daftar `Window.tsx` (diurutkan berdasarkan `id` untuk menjaga stabilitas DOM), `Dock`, `LockScreen.tsx`, dan `CommandPalette`. Merender `MobileShell` bila `useIsMobileLayout()` aktif.
-  - `windowRegistry.tsx`: Lazy imports 20 window, fungsi RBAC `canAccessWindow(kind, role)`, `WINDOW_CONTENT`, dan `DESKTOP_SHORTCUTS`.
+  - `windowRegistry.tsx`: Lazy imports 21 window, fungsi RBAC `canAccessWindow(kind, role)`, `WINDOW_CONTENT`, dan `DESKTOP_SHORTCUTS`.
 - **`src/components/taskbar/`**:
   - `Taskbar.tsx` (bar 44px), `ApplicationsMenu.tsx`, `appCatalog.ts` (`MENU_ITEMS`, `CATEGORIES`, `APP_KEYWORDS`), `LanguageSwitcher.tsx`, `NotificationsMenu.tsx`, `ProfileMenu.tsx`.
 - **`src/components/dock/Dock.tsx`**: Dock bawah dengan auto-hide dan menu konteks.
@@ -42,9 +42,9 @@
 
 ---
 
-## 3. Daftar 20 `WindowKind` (`src/components/windows/`)
+## 3. Daftar 21 `WindowKind` (`src/components/windows/`)
 
-Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/index.ts`), `DEFAULTS` (`src/store/windowStore.ts`), `WINDOW_CONTENT` (`src/components/desktop/windowRegistry.tsx`), `ICON_MAP` (`src/components/common/AppIcon.tsx`), dan key i18n (`src/lib/locales/id.ts` & `en.ts`).
+Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/index.ts`), `DEFAULTS` (`src/store/windowDefaults.ts` / `src/store/windowStore.ts`), `WINDOW_CONTENT` (`src/components/desktop/windowRegistry.tsx`), `ICON_MAP` (`src/components/common/AppIcon.tsx`), dan key i18n (`src/lib/locales/id.ts` & `en.ts`).
 
 | `WindowKind` | Komponen Utama | Direktori / File Pendamping | Role Akses |
 | :--- | :--- | :--- | :--- |
@@ -61,7 +61,8 @@ Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/ind
 | `firewall` | `FirewallWindow.tsx` | `windows/firewall/` (`useFirewallWindow.ts`, `FirewallToolbar.tsx`, `RulesSection.tsx`, `PortsSection.tsx`, `PolicySection.tsx`, `RuleModal.tsx`) | `superadmin` |
 | `users` | `UsersWindow.tsx` | `windows/users/` (`UserRow.tsx`, `CreateUserModal.tsx`, `ChangeRoleModal.tsx`, `ResetPasswordModal.tsx`, `MoveAccountModal.tsx`, `AccessShareModal.tsx`, `UserQuotaPanel.tsx`, `UserPlanPanel.tsx`, `UserPlanTrial.tsx`, `RenewPlanModal.tsx`, `UserSubdomainsList.tsx`, `permissions.ts`, `constants.ts`, `apiError.ts`) | `admin`, `superadmin` |
 | `hosting` | `HostingWindow.tsx` | Memakai `windows/settings/hosting/` (`PlansSection.tsx`, `DomainsSection.tsx`, `SubdomainsSection.tsx`, `OrdersSection.tsx`, `VouchersSection.tsx`, `PlanModal.tsx`, `PlanFeaturesField.tsx`, `PlanPricingPreview.tsx`, `PromoModal.tsx`, `SubdomainModal.tsx`, `VoucherModal.tsx`, `ConfirmOrderModal.tsx`, `RejectOrderModal.tsx`, `OrderRequestCard.tsx`, `SaleToggleCard.tsx`, `SeedDefaultPlansButton.tsx`) & `windows/settings/tabs/PaymentTab.tsx` | `admin`, `superadmin` |
-| `settings` | `SettingsWindow.tsx` | `windows/settings/` (`tabsConfig.tsx`, `SettingsNav.tsx`, `SettingsPrimitives.tsx`, `SettingsSaveBar.tsx`, `OptionCards.tsx`, `UpdateCard.tsx`, `SitePublicCard.tsx`, `DemoAccountCard.tsx`, `ApiTokensTab.tsx`, `hooks/*`, `tabs/*`, `publicip/*`, `tabs/notify/*`) | Semua (tab sesuai role) |
+| `settings` | `SettingsWindow.tsx` | `windows/settings/` (`tabsConfig.tsx`, `SettingsNav.tsx`, `SettingsPrimitives.tsx`, `SettingsSaveBar.tsx`, `OptionCards.tsx`, `UpdateCard.tsx`, `SitePublicCard.tsx`, `DemoAccountCard.tsx`, `ApiTokensTab.tsx`, `hooks/*`, `tabs/*` termasuk `EmailServerTab.tsx`, `email/*`, `publicip/*`, `tabs/notify/*`) | Semua (tab sesuai role) |
+| `email` | `EmailWindow.tsx` | `windows/email/` (`EmailAccountsView.tsx`, `EmailAccountModal.tsx`, `EmailComposeView.tsx`, `EmailConnectionView.tsx`) | Semua |
 | `profile` | `ProfileWindow.tsx` | `windows/profile/` (`AccountSecurityCard.tsx`, `MyPlanCard.tsx`, `MyNotices.tsx`, `OwnBotCard.tsx`, `MyTelegramCard.tsx`, `MyWhatsAppCard.tsx`, `WhatsAppVerifyCard.tsx`, `ToolchainTools.tsx`, `ToolchainPrefsCard.tsx`, `ToolchainRunModal.tsx`) | Semua |
 | `widgets` | `WidgetsWindow.tsx` | — | Semua |
 | `speedtest` | `SpeedtestWindow.tsx` | `windows/speedtest/` (`useSpeedtestWindow.ts`, `useAnimatedNumber.ts`, `SpeedPanel.tsx`, `SpeedGauge.tsx`, `SpeedStats.tsx`, `SpeedSteps.tsx`, `SpeedServerPicker.tsx`, `SpeedServerNotice.tsx`, `SpeedHistory.tsx`) | Semua |
@@ -97,7 +98,7 @@ Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/ind
 - `useWindowPollingActive.ts`, `useGlobalShortcuts.ts`, `useRevisionSync.ts`, `useSystemSampler.ts`, `useLivePolling.ts`, `useWidgetSync.ts`, `useListQuery.ts`, `useContainers.ts`, `useContainerLogs.ts`, `useTerminalSession.ts`, `useTerminalExec.ts`, `useCapturedNotificationsSocket.ts`, `useIsMobileLayout.ts`, `usePinchZoom.ts`, `usePageMeta.ts`, `usePublicSite.ts`.
 
 ### Modul API (`src/api/`)
-- `client.ts` (`agentApi`), `agent.ts`, `auth.ts`, `apiTokens.ts`, `cloudflare.ts`, `databases.ts`, `docker.ts`, `dockerUpdate.ts`, `docs.ts`, `files.ts`, `firewall.ts`, `hosting.ts`, `invoice.ts`, `ndjson.ts`, `notifications.ts`, `notify.ts`, `payment.ts`, `projects.ts`, `publicProxy.ts`, `speedtest.ts`, `system.ts`, `terminal.ts`, `toolchain.ts`, `tunnels.ts`, `users.ts`.
+- `client.ts` (`agentApi`), `agent.ts`, `auth.ts`, `apiTokens.ts`, `cloudflare.ts`, `databases.ts`, `docker.ts`, `dockerUpdate.ts`, `docs.ts`, `email.ts`, `files.ts`, `firewall.ts`, `hosting.ts`, `invoice.ts`, `ndjson.ts`, `notifications.ts`, `notify.ts`, `payment.ts`, `projects.ts`, `publicProxy.ts`, `speedtest.ts`, `system.ts`, `terminal.ts`, `toolchain.ts`, `tunnels.ts`, `users.ts`.
 
 ---
 

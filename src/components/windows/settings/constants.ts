@@ -67,6 +67,7 @@ export type SettingsTabKey =
   | "cloudflare"
   | "network"
   | "public_ip"
+  | "email_server"
   | "security"
   | "notifications"
   | "audit"
@@ -96,6 +97,7 @@ export const SETTINGS_TAB_TITLE: Record<SettingsTabKey, string> = {
   cloudflare: "settings.tabs.cloudflare",
   network: "settings.tabs.network",
   public_ip: "settings.tabs.publicIp",
+  email_server: "settings.tabs.emailServer",
   security: "settings.tabs.security",
   notifications: "settings.tabs.notifications",
   audit: "settings.tabs.audit",
