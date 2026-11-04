@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.5] - 2026-11-04
+
+Implement HTML email templates with embedded branding.
+
+### Fitur baru
+- **email:** Implement HTML email templates with embedded branding ([`0294976`](https://github.com/friskipradana/y-panel/commit/0294976))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.4...v1.76.5
+
 ## [1.76.4] - 2026-11-04
 
 Implement draft state to preserve form data.
