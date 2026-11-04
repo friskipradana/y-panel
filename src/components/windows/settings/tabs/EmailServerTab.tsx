@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RotateCcw, Save } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -20,6 +20,7 @@ import { EmailCloudflareCard } from '../email/EmailCloudflareCard'
 import { EmailDnsAndTestCard } from '../email/EmailDnsAndTestCard'
 import { EmailIpServerCard } from '../email/EmailIpServerCard'
 import { EmailMethodCard } from '../email/EmailMethodCard'
+import { SettingsSaveBar } from '../SettingsSaveBar'
 
 const DEFAULT_FORM: EmailServerConfig = {
   enabled: false,
@@ -230,30 +231,29 @@ export function EmailServerTab() {
         onTest={(to) => testMut.mutate(to)}
       />
 
-      <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-        {isDirty && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="md"
-            icon={<RotateCcw className="h-3.5 w-3.5" />}
-            onClick={handleReset}
-          >
-            {t('common.reset')}
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="primary"
-          size="md"
-          disabled={!isDirty}
-          loading={saveMut.isPending}
-          icon={<Save className="h-3.5 w-3.5" />}
-          onClick={() => saveMut.mutate()}
-        >
-          {t('common.save')}
-        </Button>
-      </div>
+      <SettingsSaveBar
+        id="email-save-settings"
+        title={t('email.settings.saveTitle')}
+        hint={isDirty ? t('email.settings.unsavedChanges') : t('email.settings.noChanges')}
+        dirty={isDirty}
+        pending={saveMut.isPending}
+        onSave={() => saveMut.mutate()}
+        saveLabel={t('common.save')}
+        pendingLabel={t('settings.saving')}
+        extra={
+          isDirty ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              icon={<RotateCcw className="h-3.5 w-3.5" />}
+              onClick={handleReset}
+            >
+              {t('common.reset')}
+            </Button>
+          ) : undefined
+        }
+      />
     </div>
   )
 }

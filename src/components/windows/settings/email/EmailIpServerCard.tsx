@@ -60,6 +60,7 @@ export function EmailIpServerCard({
           <div className="flex items-center gap-2">
             <TextInput
               mono
+              className="flex-1 min-w-0"
               value={form.publicIp}
               onChange={(e) => onChange('publicIp', e.target.value)}
               placeholder="203.0.113.10"
@@ -68,6 +69,7 @@ export function EmailIpServerCard({
               type="button"
               variant="outline"
               size="md"
+              className="shrink-0"
               loading={detectingIp}
               icon={<Compass className="h-3.5 w-3.5" />}
               onClick={onDetectPublicIp}

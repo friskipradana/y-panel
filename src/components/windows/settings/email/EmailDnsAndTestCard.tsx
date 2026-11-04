@@ -139,29 +139,29 @@ export function EmailDnsAndTestCard({
       )}
 
       <div className="border-t border-[var(--win-border)] pt-3">
-        <div className="grid grid-cols-1 items-end gap-2.5 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Field label={t('email.settings.testToLabel')} hint={t('email.settings.testToHint')}>
-              <TextInput
-                mono
-                value={testTo}
-                onChange={(e) => setTestTo(e.target.value)}
-                placeholder={t('email.ph.testTo')}
-              />
-            </Field>
+        <Field label={t('email.settings.testToLabel')} hint={t('email.settings.testToHint')}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <TextInput
+              mono
+              className="flex-1 min-w-0"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder={t('email.ph.testTo')}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="shrink-0"
+              disabled={isDirty}
+              loading={testing}
+              icon={<Send className="h-3.5 w-3.5" />}
+              onClick={() => onTest(testTo.trim() || undefined)}
+            >
+              {testTo.trim() ? t('email.settings.sendTestBtn') : t('email.settings.testConnBtn')}
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            disabled={isDirty}
-            loading={testing}
-            icon={<Send className="h-3.5 w-3.5" />}
-            onClick={() => onTest(testTo.trim() || undefined)}
-          >
-            {testTo.trim() ? t('email.settings.sendTestBtn') : t('email.settings.testConnBtn')}
-          </Button>
-        </div>
+        </Field>
         {isDirty && (
           <p className="mt-1.5 text-[0.75rem] text-[var(--panel-warning-text)]">
             {t('settings.payment.saveBeforeTest')}
