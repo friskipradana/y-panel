@@ -158,7 +158,14 @@ export function EmailServerTab() {
         toast.success(t('email.settings.testSuccess'))
       }
     },
-    onError: (err) => toast.error(getApiError(err, t('email.settings.testFailed'))),
+    onError: (err: unknown) => {
+      const serverErr = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      const isWorkerOutbound = form.method === 'cloudflare' && form.cfOutboundRelay === 'worker'
+      const detail = serverErr || (isWorkerOutbound ? t('email.settings.workerOutboundNote') : undefined)
+      toast.error(t('email.settings.testFailed'), {
+        description: detail,
+      })
+    },
   })
 
   if (query.isLoading) {
@@ -226,6 +233,8 @@ export function EmailServerTab() {
         syncingDns={dnsSyncMut.isPending}
         testing={testMut.isPending}
         refreshing={query.isFetching}
+        method={form.method}
+        cfOutboundRelay={form.cfOutboundRelay}
         onSyncDns={() => dnsSyncMut.mutate()}
         onRefresh={() => void query.refetch()}
         onTest={(to) => testMut.mutate(to)}

@@ -15,6 +15,8 @@ interface EmailDnsAndTestCardProps {
   syncingDns: boolean
   testing: boolean
   refreshing: boolean
+  method?: string
+  cfOutboundRelay?: string
   onSyncDns: () => void
   onRefresh: () => void
   onTest: (to?: string) => void
@@ -27,6 +29,8 @@ export function EmailDnsAndTestCard({
   syncingDns,
   testing,
   refreshing,
+  method,
+  cfOutboundRelay,
   onSyncDns,
   onRefresh,
   onTest,
@@ -162,6 +166,11 @@ export function EmailDnsAndTestCard({
             </Button>
           </div>
         </Field>
+        {method === 'cloudflare' && cfOutboundRelay === 'worker' && testTo.trim() && (
+          <p className="mt-1 text-[11px] text-[var(--panel-warning-text)]">
+            {t('email.settings.workerOutboundNote')}
+          </p>
+        )}
         {isDirty && (
           <p className="mt-1.5 text-[0.75rem] text-[var(--panel-warning-text)]">
             {t('settings.payment.saveBeforeTest')}
