@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.77.1] - 2026-11-04
+
+2 perubahan, utamanya expand search criteria and improve message metadata visibility.
+
+### Fitur baru
+- **email:** Expand search criteria and improve message metadata visibility ([`0d07dfd`](https://github.com/friskipradana/y-panel/commit/0d07dfd))
+
+### Lainnya
+- **email:** Enhance inbox interface and user experience ([`2dfcd7a`](https://github.com/friskipradana/y-panel/commit/2dfcd7a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.77.0...v1.77.1
+
 ## [1.77.0] - 2026-11-04
 
 Implement email inbox management and IMAP synchronization.
