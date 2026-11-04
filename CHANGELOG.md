@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.77.0] - 2026-11-04
+
+Implement email inbox management and IMAP synchronization.
+
+### Fitur baru
+- **email:** Implement email inbox management and IMAP synchronization ([`4c3741f`](https://github.com/friskipradana/y-panel/commit/4c3741f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.6...v1.77.0
+
 ## [1.76.6] - 2026-11-04
 
 Support SMTP sender and reply-to headers.
