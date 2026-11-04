@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { RotateCcw } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   getEmailSettings,
@@ -51,6 +51,9 @@ const getApiError = (err: unknown, fallback: string) => {
   return msg ? (localizeServerMessage(msg) ?? msg) : fallback
 }
 
+let workingDraftForm: EmailServerConfig | null = null
+let workingDraftPassword = ''
+
 export function EmailServerTab() {
   const { t } = useI18n()
   const qc = useQueryClient()
@@ -60,20 +63,35 @@ export function EmailServerTab() {
     queryKey: ['settings-email'],
     queryFn: getEmailSettings,
     retry: 1,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   })
 
-  const [form, setForm] = useState<EmailServerConfig>(DEFAULT_FORM)
-  const [smtpPassword, setSmtpPassword] = useState('')
+  const [form, setForm] = useState<EmailServerConfig>(() => workingDraftForm ?? DEFAULT_FORM)
+  const [smtpPassword, setSmtpPassword] = useState(() => workingDraftPassword)
+  const isInitializedRef = useRef(false)
 
   useEffect(() => {
-    if (query.data?.config) {
-      setForm(query.data.config)
-      setSmtpPassword('')
+    if (query.data?.config && !isInitializedRef.current) {
+      isInitializedRef.current = true
+      if (!workingDraftForm) {
+        setForm(query.data.config)
+        setSmtpPassword('')
+      }
     }
-  }, [query.data])
+  }, [query.data?.config])
 
   const updateField = <K extends keyof EmailServerConfig>(key: K, value: EmailServerConfig[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      workingDraftForm = next
+      return next
+    })
+  }
+
+  const handleSmtpPasswordChange = (value: string) => {
+    setSmtpPassword(value)
+    workingDraftPassword = value
   }
 
   const isDirty = useMemo(() => {
@@ -113,6 +131,11 @@ export function EmailServerTab() {
     onSuccess: (next) => {
       qc.setQueryData(['settings-email'], next)
       void qc.invalidateQueries({ queryKey: ['email-overview'] })
+      workingDraftForm = null
+      workingDraftPassword = ''
+      if (next.config) {
+        setForm(next.config)
+      }
       setSmtpPassword('')
       toast.success(t('email.settings.saved'))
     },
@@ -189,6 +212,8 @@ export function EmailServerTab() {
   }
 
   const handleReset = () => {
+    workingDraftForm = null
+    workingDraftPassword = ''
     if (query.data?.config) {
       setForm(query.data.config)
       setSmtpPassword('')
@@ -207,7 +232,7 @@ export function EmailServerTab() {
         <EmailCloudflareCard
           form={form}
           smtpPassword={smtpPassword}
-          onSmtpPasswordChange={setSmtpPassword}
+          onSmtpPasswordChange={handleSmtpPasswordChange}
           cloudflareReady={query.data.cloudflareReady}
           zones={query.data.cloudflareZones}
           onChange={updateField}
@@ -216,7 +241,7 @@ export function EmailServerTab() {
         <EmailIpServerCard
           form={form}
           smtpPassword={smtpPassword}
-          onSmtpPasswordChange={setSmtpPassword}
+          onSmtpPasswordChange={handleSmtpPasswordChange}
           firewall={query.data.firewall}
           detectingIp={detectIpMut.isPending}
           openingPorts={firewallMut.isPending}
