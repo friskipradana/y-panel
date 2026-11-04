@@ -462,8 +462,14 @@ func testOrSendSMTP(cfg database.EmailServerConfig, smtpPassword, fromAddr, toAd
 		return client.Noop()
 	}
 
-	if err := client.Mail(fromAddr); err != nil {
-		return fmt.Errorf("pengirim ditolak (%s): %w", fromAddr, err)
+	envelopeSender := fromAddr
+	if strings.TrimSpace(cfg.SMTPUser) != "" && strings.Contains(strings.ToLower(host), "gmail.com") {
+		envelopeSender = strings.TrimSpace(cfg.SMTPUser)
+	}
+	if err := client.Mail(envelopeSender); err != nil {
+		if err2 := client.Mail(fromAddr); err2 != nil {
+			return fmt.Errorf("pengirim ditolak (%s): %w", fromAddr, err)
+		}
 	}
 	if err := client.Rcpt(toAddr); err != nil {
 		return fmt.Errorf("penerima ditolak (%s): %w", toAddr, err)
@@ -476,9 +482,15 @@ func testOrSendSMTP(cfg database.EmailServerConfig, smtpPassword, fromAddr, toAd
 	if strings.TrimSpace(cfg.FromName) != "" {
 		fromHeader = fmt.Sprintf("%s <%s>", strings.TrimSpace(cfg.FromName), fromAddr)
 	}
+	replyToHeader := fromHeader
+	senderHeader := ""
+	if strings.TrimSpace(cfg.SMTPUser) != "" && !strings.EqualFold(strings.TrimSpace(cfg.SMTPUser), fromAddr) {
+		senderHeader = strings.TrimSpace(cfg.SMTPUser)
+	}
+
 	isTestEmail := strings.Contains(strings.ToLower(subject), "uji") || strings.Contains(strings.ToLower(subject), "test")
 	plainText, htmlContent := buildReneoEmailTemplate(cfg, fromAddr, subject, body, isTestEmail)
-	msgBytes := buildMIMEEnvelope(fromHeader, toAddr, subject, plainText, htmlContent)
+	msgBytes := buildMIMEEnvelope(fromHeader, replyToHeader, senderHeader, toAddr, subject, plainText, htmlContent)
 	if _, err := wc.Write(msgBytes); err != nil {
 		_ = wc.Close()
 		return err

@@ -68,6 +68,7 @@ func buildReneoEmailTemplate(cfg database.EmailServerConfig, fromAddr, subject, 
 	plainBuf.WriteString(fmt.Sprintf("Domain Server    : %s\r\n", domain))
 	plainBuf.WriteString(fmt.Sprintf("Metode Layanan   : %s\r\n", methodStr))
 	plainBuf.WriteString(fmt.Sprintf("Alamat Pengirim  : %s\r\n", fromAddr))
+	plainBuf.WriteString(fmt.Sprintf("Balasan (Reply)  : %s\r\n", fromAddr))
 	plainBuf.WriteString(fmt.Sprintf("Waktu Pengiriman : %s\r\n", nowStr))
 	if panelURL != "" {
 		plainBuf.WriteString(fmt.Sprintf("Tautan Panel     : %s\r\n", panelURL))
@@ -157,6 +158,10 @@ func buildReneoEmailTemplate(cfg database.EmailServerConfig, fromAddr, subject, 
                   <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;">%s</td>
                 </tr>
                 <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 500;">Balasan (Reply-To)</td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;">%s</td>
+                </tr>
+                <tr>
                   <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Waktu Pengiriman</td>
                   <td style="padding: 10px 14px; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;">%s</td>
                 </tr>
@@ -191,6 +196,7 @@ func buildReneoEmailTemplate(cfg database.EmailServerConfig, fromAddr, subject, 
 		html.EscapeString(domain),
 		html.EscapeString(methodStr),
 		html.EscapeString(fromAddr),
+		html.EscapeString(fromAddr),
 		html.EscapeString(nowStr),
 		buttonHTML,
 		html.EscapeString(domain),
@@ -201,12 +207,18 @@ func buildReneoEmailTemplate(cfg database.EmailServerConfig, fromAddr, subject, 
 
 // buildMIMEEnvelope builds a complete RFC 5322 MIME message with multipart/related,
 // embedding the Reneo PNG logo via cid:reneo-logo and providing both plain and HTML alternatives.
-func buildMIMEEnvelope(fromHeader, toAddr, subject, plainText, htmlContent string) []byte {
+func buildMIMEEnvelope(fromHeader, replyToHeader, senderHeader, toAddr, subject, plainText, htmlContent string) []byte {
 	relatedBoundary := fmt.Sprintf("=_reneo_rel_%d", time.Now().UnixNano())
 	altBoundary := fmt.Sprintf("=_reneo_alt_%d", time.Now().UnixNano())
 
 	var buf bytes.Buffer
 	buf.WriteString("From: " + fromHeader + "\r\n")
+	if strings.TrimSpace(replyToHeader) != "" {
+		buf.WriteString("Reply-To: " + replyToHeader + "\r\n")
+	}
+	if strings.TrimSpace(senderHeader) != "" {
+		buf.WriteString("Sender: " + senderHeader + "\r\n")
+	}
 	buf.WriteString("To: " + toAddr + "\r\n")
 	buf.WriteString("Subject: " + subject + "\r\n")
 	buf.WriteString("Date: " + time.Now().Format(time.RFC1123Z) + "\r\n")

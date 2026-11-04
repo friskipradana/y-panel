@@ -38,13 +38,19 @@ func TestBuildMIMEEnvelope(t *testing.T) {
 		Domain: "reneo.my.id",
 	}
 	plain, html := buildReneoEmailTemplate(cfg, "noreply@reneo.my.id", "Subjek Uji", "Konten uji", false)
-	env := string(buildMIMEEnvelope("Reneo <noreply@reneo.my.id>", "target@gmail.com", "Subjek Uji", plain, html))
+	env := string(buildMIMEEnvelope("Reneo <noreply@reneo.my.id>", "Reneo <noreply@reneo.my.id>", "reneo.ofc@gmail.com", "target@gmail.com", "Subjek Uji", plain, html))
 
 	if !strings.Contains(env, "multipart/related") {
 		t.Errorf("MIME missing multipart/related")
 	}
 	if !strings.Contains(env, "multipart/alternative") {
 		t.Errorf("MIME missing multipart/alternative")
+	}
+	if !strings.Contains(env, "Reply-To: Reneo <noreply@reneo.my.id>") {
+		t.Errorf("MIME missing Reply-To")
+	}
+	if !strings.Contains(env, "Sender: reneo.ofc@gmail.com") {
+		t.Errorf("MIME missing Sender")
 	}
 	if !strings.Contains(env, "Content-ID: <reneo-logo>") {
 		t.Errorf("MIME missing Content-ID: <reneo-logo>")
