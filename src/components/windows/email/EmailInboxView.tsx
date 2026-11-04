@@ -97,6 +97,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
         m.subject.toLowerCase().includes(q) ||
         m.fromAddr.toLowerCase().includes(q) ||
         m.fromName.toLowerCase().includes(q) ||
+        m.toAddr.toLowerCase().includes(q) ||
         m.snippet.toLowerCase().includes(q)
       )
     })
@@ -155,6 +156,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                 <span className="text-[11px] text-[var(--text-secondary)] font-mono shrink-0"><DateTimeText value={selectedMessage.receivedAt} /></span>
               </div>
               <div className="text-[11px] text-[var(--text-secondary)] font-mono truncate">&lt;{selectedMessage.fromAddr}&gt;</div>
+              <div className="text-[11px] text-[var(--text-secondary)] font-mono truncate">{t('email.inbox.to')}: {selectedMessage.toAddr}</div>
             </div>
           </div>
           <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--win-text)] font-sans">{selectedMessage.bodyText || selectedMessage.snippet}</div>
@@ -252,7 +254,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                       {!msg.isRead && (
                         <span className="h-2 w-2 rounded-full bg-[var(--panel-primary-bg)] shrink-0" aria-label={t('email.inbox.filterUnread')} />
                       )}
-                      <span className={`truncate text-[12.5px] ${!msg.isRead ? 'font-bold text-[var(--win-text)]' : 'font-medium text-[var(--text-secondary)]'}`}>
+                      <span className={`truncate text-[12.5px] ${!msg.isRead ? 'font-bold text-[var(--win-text)]' : 'font-medium text-[var(--win-text)]'}`}>
                         {msg.fromName || msg.fromAddr}
                       </span>
                       {msg.direction === 'outbound' && (
@@ -263,6 +265,19 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                       <DateTimeText value={msg.receivedAt} />
                     </span>
                   </div>
+
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-secondary)] min-w-0">
+                    <span className="truncate min-w-0" title={`${t('email.inbox.from')}: ${msg.fromAddr}`}>
+                      <span className="text-[10px] text-[var(--text-secondary)] opacity-70 mr-0.5 select-none">{t('email.inbox.from')}:</span>
+                      <span className="text-[var(--text-secondary)] font-medium">{msg.fromAddr}</span>
+                    </span>
+                    <span className="shrink-0 opacity-40 select-none">→</span>
+                    <span className="truncate min-w-0" title={`${t('email.inbox.to')}: ${msg.toAddr}`}>
+                      <span className="text-[10px] text-[var(--text-secondary)] opacity-70 mr-0.5 select-none">{t('email.inbox.to')}:</span>
+                      <span className="text-[var(--win-text)] font-medium opacity-90">{msg.toAddr}</span>
+                    </span>
+                  </div>
+
                   <div className={`truncate text-[12px] ${!msg.isRead ? 'font-semibold text-[var(--win-text)]' : 'text-[var(--win-text)]'}`}>
                     {msg.subject || t('common.noContent')}
                   </div>
@@ -301,7 +316,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="flex items-start justify-between gap-3 pt-1">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-[var(--panel-surface-hover)] border border-[var(--win-border)] flex items-center justify-center font-bold text-xs text-[var(--win-text)] shrink-0 select-none">
                     {(selectedMessage.fromName || selectedMessage.fromAddr || '?')[0].toUpperCase()}
@@ -320,7 +335,7 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                     </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 pt-0.5">
                   <DateTimeText value={selectedMessage.receivedAt} className="text-xs text-[var(--text-secondary)] font-mono" />
                 </div>
               </div>
