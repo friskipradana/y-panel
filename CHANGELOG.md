@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.76.6] - 2026-11-04
+
+Support SMTP sender and reply-to headers.
+
+### Perbaikan
+- **email:** Support SMTP sender and reply-to headers ([`91fa618`](https://github.com/friskipradana/y-panel/commit/91fa618))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.76.5...v1.76.6
+
 ## [1.76.5] - 2026-11-04
 
 Implement HTML email templates with embedded branding.
