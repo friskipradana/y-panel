@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Cloud, Mail, Plus, RefreshCw, Search, Server, Settings } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { getEmailOverview, listEmailAccounts, type EmailAccount } from '@/api/email'
+import { getEmailOverview, listEmailAccounts, listInboxMessages, type EmailAccount } from '@/api/email'
 import { Button } from '@/components/ui/Button'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -15,9 +15,10 @@ import { EmailAccountModal } from './email/EmailAccountModal'
 import { EmailAccountsView } from './email/EmailAccountsView'
 import { EmailComposeView } from './email/EmailComposeView'
 import { EmailConnectionView } from './email/EmailConnectionView'
+import { EmailInboxView } from './email/EmailInboxView'
 import { EmailLogsView } from './email/EmailLogsView'
 
-type EmailTabKey = 'accounts' | 'compose' | 'connection' | 'logs'
+type EmailTabKey = 'inbox' | 'accounts' | 'compose' | 'connection' | 'logs'
 type ModeFilter = 'all' | 'mailbox' | 'forward'
 
 export function EmailWindow({ win }: { win?: WindowState }) {
@@ -29,11 +30,18 @@ export function EmailWindow({ win }: { win?: WindowState }) {
   const pollingActive = useWindowPollingActive(win)
   const openWindow = useWindowStore((s) => s.openWindow)
 
-  const [tab, setTab] = useState<EmailTabKey>('accounts')
+  const [tab, setTab] = useState<EmailTabKey>('inbox')
   const [search, setSearch] = useState('')
   const [modeFilter, setModeFilter] = useState<ModeFilter>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<EmailAccount | null>(null)
+  const [composePrefill, setComposePrefill] = useState<{ to?: string; subject?: string } | null>(null)
+
+  const inboxQuery = useQuery({
+    queryKey: ['email-inbox'],
+    queryFn: () => listInboxMessages({ limit: 1 }),
+    refetchInterval: pollingActive ? 15_000 : false,
+  })
 
   const overviewQuery = useQuery({
     queryKey: ['email-overview'],
@@ -70,6 +78,7 @@ export function EmailWindow({ win }: { win?: WindowState }) {
   }
 
   const handleRefresh = () => {
+    void inboxQuery.refetch()
     void overviewQuery.refetch()
     void accountsQuery.refetch()
   }
@@ -81,9 +90,13 @@ export function EmailWindow({ win }: { win?: WindowState }) {
 
   const isFetching =
     (overviewQuery.isFetching && !overviewQuery.isLoading) ||
-    (accountsQuery.isFetching && !accountsQuery.isLoading)
+    (accountsQuery.isFetching && !accountsQuery.isLoading) ||
+    (inboxQuery.isFetching && !inboxQuery.isLoading)
+
+  const unreadCount = inboxQuery.data?.unread ?? 0
 
   const tabItems = [
+    { key: 'inbox', label: t('email.tabs.inbox'), count: unreadCount > 0 ? unreadCount : undefined },
     { key: 'accounts', label: t('email.tabs.accounts'), count: accounts.length },
     { key: 'compose', label: t('email.tabs.compose') },
     {
@@ -301,6 +314,15 @@ export function EmailWindow({ win }: { win?: WindowState }) {
         </div>
       )}
 
+      {tab === 'inbox' && (
+        <EmailInboxView
+          onReply={({ to, subject }) => {
+            setComposePrefill({ to, subject })
+            setTab('compose')
+          }}
+        />
+      )}
+
       {tab === 'accounts' && (
         <EmailAccountsView
           items={filteredAccounts}
@@ -316,7 +338,12 @@ export function EmailWindow({ win }: { win?: WindowState }) {
       )}
 
       {tab === 'compose' && (
-        <EmailComposeView overview={overview} accounts={accounts} isDemo={isDemo} />
+        <EmailComposeView
+          overview={overview}
+          accounts={accounts}
+          isDemo={isDemo}
+          prefill={composePrefill}
+        />
       )}
 
       {tab === 'connection' && <EmailConnectionView overview={overview} />}

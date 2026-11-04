@@ -342,3 +342,5 @@ export async function getEmailLogs(service = 'auto', limit = 160): Promise<Email
     throw err
   }
 }
+
+export * from './emailInbox'

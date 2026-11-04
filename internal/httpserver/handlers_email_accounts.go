@@ -286,6 +286,17 @@ func (s *Server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 			s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Pengiriman via Cloudflare Worker/MailChannels: " + err.Error() + ". Untuk mengirim keluar secara stabil, silakan atur relay SMTP di Pengaturan."})
 			return
 		}
+		if s.database != nil && s.database.IsConnected() {
+			_, _ = s.database.InsertEmailMessage(database.EmailMessage{
+				Direction: "outbound",
+				FromAddr:  fromAddr,
+				FromName:  cfg.FromName,
+				ToAddr:    toAddr,
+				Subject:   subject,
+				BodyText:  body,
+				IsRead:    true,
+			})
+		}
 		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "sentTo": toAddr})
 		return
 	}
@@ -304,6 +315,17 @@ func (s *Server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	if err := testOrSendSMTP(cfg, smtpPass, fromAddr, toAddr, subject, body, false); err != nil {
 		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": err.Error()})
 		return
+	}
+	if s.database != nil && s.database.IsConnected() {
+		_, _ = s.database.InsertEmailMessage(database.EmailMessage{
+			Direction: "outbound",
+			FromAddr:  fromAddr,
+			FromName:  cfg.FromName,
+			ToAddr:    toAddr,
+			Subject:   subject,
+			BodyText:  body,
+			IsRead:    true,
+		})
 	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "sentTo": toAddr})
 }

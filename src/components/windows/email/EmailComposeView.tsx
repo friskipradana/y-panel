@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Send } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { sendEmailMessage, type EmailAccount, type EmailOverviewResponse } from '@/api/email'
 import { Button } from '@/components/ui/Button'
@@ -14,6 +14,7 @@ interface EmailComposeViewProps {
   overview: EmailOverviewResponse | undefined
   accounts: EmailAccount[]
   isDemo: boolean
+  prefill?: { to?: string; subject?: string } | null
 }
 
 const getApiError = (err: unknown, fallback: string) => {
@@ -21,7 +22,7 @@ const getApiError = (err: unknown, fallback: string) => {
   return msg ? (localizeServerMessage(msg) ?? msg) : fallback
 }
 
-export function EmailComposeView({ overview, accounts, isDemo }: EmailComposeViewProps) {
+export function EmailComposeView({ overview, accounts, isDemo, prefill }: EmailComposeViewProps) {
   const { t } = useI18n()
 
   const activeAddresses = accounts.filter((a) => a.enabled).map((a) => a.address)
@@ -31,9 +32,16 @@ export function EmailComposeView({ overview, accounts, isDemo }: EmailComposeVie
     (overview?.domain ? `noreply@${overview.domain}` : '')
 
   const [fromAddr, setFromAddr] = useState(defaultFrom)
-  const [toAddr, setToAddr] = useState('')
-  const [subject, setSubject] = useState('')
+  const [toAddr, setToAddr] = useState(prefill?.to ?? '')
+  const [subject, setSubject] = useState(prefill?.subject ?? '')
   const [body, setBody] = useState('')
+
+  useEffect(() => {
+    if (prefill) {
+      if (prefill.to) setToAddr(prefill.to)
+      if (prefill.subject) setSubject(prefill.subject)
+    }
+  }, [prefill])
 
   const fromOptions = Array.from(
     new Set([

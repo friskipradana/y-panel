@@ -336,3 +336,26 @@ export function getFallbackEmailLogs(service = 'auto', limit = 160) {
   }
 }
 
+export function getFallbackInboxMessages() {
+  const cfg = readFallbackConfig()
+  const domain = cfg.domain || 'reneo.my.id'
+  const items = [
+    {
+      id: 1,
+      accountId: 0,
+      direction: 'inbound' as const,
+      fromAddr: `system@${domain}`,
+      fromName: 'Reneo Server Control Panel',
+      toAddr: `admin@${domain}`,
+      subject: 'Selamat Datang di Kotak Masuk Reneo Mail',
+      snippet: 'Layanan email server Reneo Anda telah berhasil dikonfigurasi dan aktif...',
+      bodyText: `Halo,\n\nSelamat! Layanan email server Reneo Anda telah berhasil dikonfigurasi dan aktif.\n\nDengan jendela Email Reneo ini, Anda dapat:\n1. Membaca pesan email yang masuk ke domain server Anda.\n2. Membalas pesan secara langsung dengan mengklik tombol 'Balas'.\n3. Melakukan sinkronisasi otomatis menggunakan IMAP dari relay Gmail atau server lokal.\n\nSalam hangat,\nTim Pengembang Reneo`,
+      isRead: false,
+      isStarred: true,
+      receivedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    },
+  ]
+  return { items, total: items.length, unread: 1 }
+}
+

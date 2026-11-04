@@ -401,6 +401,11 @@ func (s *Server) routes() {
 	s.mux.Handle("PATCH /api/v1/email/accounts/{id}", s.requireAuthV2(http.HandlerFunc(s.handleUpdateEmailAccount)))
 	s.mux.Handle("DELETE /api/v1/email/accounts/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteEmailAccount)))
 	s.mux.Handle("POST /api/v1/email/send", s.requireAuthV2(http.HandlerFunc(s.handleSendEmail)))
+	s.mux.Handle("GET /api/v1/email/inbox", s.requireAuthV2(http.HandlerFunc(s.handleListInboxMessages)))
+	s.mux.Handle("GET /api/v1/email/inbox/{id}", s.requireAuthV2(http.HandlerFunc(s.handleGetInboxMessage)))
+	s.mux.Handle("POST /api/v1/email/inbox/{id}/read", s.requireAuthV2(http.HandlerFunc(s.handleMarkInboxMessageRead)))
+	s.mux.Handle("DELETE /api/v1/email/inbox/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteInboxMessage)))
+	s.mux.Handle("POST /api/v1/email/inbox/sync", s.requireAuthV2(http.HandlerFunc(s.handleSyncInbox)))
 
 	s.mux.Handle("/", s.authedFrontend)
 }
