@@ -64,6 +64,9 @@ export const startUserDatabase = (id: number) =>
 export const stopUserDatabase = (id: number) =>
   agentApi.post<{ ok: boolean }>(`/api/v1/databases/${id}/stop`).then((r) => r.data)
 
+export const upgradeUserDatabase = (payload: { id: number; version: string }) =>
+  agentApi.post<UserDatabase>(`/api/v1/databases/${payload.id}/upgrade`, { version: payload.version }).then((r) => r.data)
+
 export const deleteUserDatabase = (id: number) =>
   agentApi.delete<{ ok: boolean }>(`/api/v1/databases/${id}`).then((r) => r.data)
 

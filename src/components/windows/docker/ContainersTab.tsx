@@ -317,7 +317,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                   )}
 
                   {/* Download the newest image and make the container again from it */}
-                  {(isManaged && !isWhatsApp) || container.Image.startsWith('sha256:') ? null : (
+                  {isDatabase || container.Image.startsWith('sha256:') ? null : (
                     <button
                       type="button"
                       className="docker-act-btn"

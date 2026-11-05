@@ -1,4 +1,4 @@
-import { Database, ExternalLink, KeyRound, LoaderCircle, Play, Plus, RefreshCw, Search, Settings2, Square, Trash2 } from 'lucide-react'
+import { CircleArrowUp, Database, ExternalLink, KeyRound, LoaderCircle, Play, Plus, RefreshCw, Search, Settings2, Square, Trash2 } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -7,6 +7,7 @@ import { ConnectionModal } from './database/ConnectionModal'
 import { CreateDatabaseModal } from './database/CreateDatabaseModal'
 import { ManageDatabaseModal } from './database/ManageDatabaseModal'
 import { OpenClientModal } from './database/OpenClientModal'
+import { UpgradeDatabaseModal } from './database/UpgradeDatabaseModal'
 import { useDatabasesWindow } from './database/useDatabasesWindow'
 
 // The pill of each state: the classes the list windows share
@@ -22,7 +23,7 @@ function statePill(item: UserDatabase) {
 export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boolean }) {
   const isMobile = useIsMobileLayout()
   const dbw = useDatabasesWindow(win)
-  const { t, query, list, items, all, facets, narrowed, startMut, stopMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget, setOpenClientTarget } = dbw
+  const { t, query, list, items, all, facets, narrowed, startMut, stopMut, upgradeMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget, setOpenClientTarget, setUpgradeTarget } = dbw
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
@@ -162,6 +163,16 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                   <button type="button" className="docker-act-btn" title={t('databases.showConnection')} aria-label={t('databases.showConnection')} disabled={pending || broken} onClick={() => setConnectionTarget(item)}>
                     <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>
+                  <button
+                    type="button"
+                    className="docker-act-btn"
+                    title={t('databases.upgradeTitle')}
+                    aria-label={t('databases.upgradeTitle')}
+                    disabled={pending || broken || upgradeMut.isPending}
+                    onClick={() => setUpgradeTarget(item)}
+                  >
+                    <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
                   {starting || stopping ? (
                     <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('databases.working')} aria-label={t('databases.working')}>
                       <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
@@ -189,6 +200,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
       <ConnectionModal dbw={dbw} />
       <ManageDatabaseModal dbw={dbw} />
       <OpenClientModal dbw={dbw} />
+      <UpgradeDatabaseModal dbw={dbw} />
     </div>
   )
 }

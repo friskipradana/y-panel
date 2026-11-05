@@ -641,6 +641,20 @@ func Recreate(spec Spec) error {
 	return err
 }
 
+// Upgrade pulls the target image and recreates the container while preserving the persistent data volume.
+func Upgrade(ctx context.Context, spec Spec) error {
+	s := spec
+	s.build()
+	if _, pullErr := docker(ctx, nil, "pull", spec.ImageRef()); pullErr != nil {
+		return pullErr
+	}
+	if _, err := docker(ctx, nil, "rm", "-f", ContainerName(spec.ID)); err != nil && !strings.Contains(err.Error(), "No such container") {
+		return err
+	}
+	_, err := docker(ctx, s.envValues, spec.RunArgs()...)
+	return err
+}
+
 // ListUsers returns the accounts that can sign in to the database.
 func ListUsers(ctx context.Context, c Conn) ([]map[string]string, error) {
 	var stmt string

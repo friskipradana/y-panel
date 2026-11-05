@@ -1,12 +1,14 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
@@ -298,6 +300,95 @@ func (s *Server) stopUserDatabases(userID int64, remove bool) {
 		}
 		_ = userdb.Stop(item.ID)
 	}
+}
+
+func (s *Server) handleUpgradeUserDatabase(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	item, u, ok := s.ownedDatabase(w, r)
+	if !ok {
+		return
+	}
+	if u.Role == "demo" {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "the demo account cannot upgrade databases"})
+		return
+	}
+	if item.Status != "ready" {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "database is not ready yet"})
+		return
+	}
+	var req struct {
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid request"})
+		return
+	}
+	req.Version = strings.TrimSpace(req.Version)
+	if err := userdb.ValidateVersion(req.Version); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+	engine, ok := userdb.Lookup(item.Engine)
+	if !ok {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "unsupported database engine"})
+		return
+	}
+	targetVersion := req.Version
+	if targetVersion == "" {
+		targetVersion = engine.DefaultVersion
+	}
+
+	password, err := crypto.Decrypt(s.cfg.EncryptionKey, item.PasswordEncrypted)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, errors.New("stored credentials could not be decrypted"))
+		return
+	}
+
+	databaseAccessMu.Lock()
+	defer databaseAccessMu.Unlock()
+
+	spec := userdb.Spec{
+		ID: item.ID, OwnerID: u.ID, OwnerName: u.Username, Engine: engine, Version: targetVersion, HostPort: item.HostPort,
+		Database: item.DatabaseName, User: item.Username, Password: password, AllowRemote: item.AccessMode == userdb.AccessIPs,
+	}
+	if quota, _ := s.database.GetUserQuota(u.ID); quota != nil {
+		spec.MemoryMB = quota.MemoryLimitMB
+		if quota.CPULimitPct > 0 {
+			spec.CPULimit = float64(quota.CPULimitPct) / 100
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+
+	if err := userdb.Upgrade(ctx, spec); err != nil {
+		oldSpec := spec
+		oldSpec.Version = item.Version
+		if backErr := userdb.Recreate(oldSpec); backErr != nil {
+			log.Printf("[databases] upgrade rollback id=%d failed: %v", item.ID, backErr)
+		}
+		s.writeError(w, http.StatusBadGateway, fmt.Errorf("failed to upgrade database: %w", err))
+		return
+	}
+
+	if item.AccessMode == userdb.AccessIPs && len(item.AccessIPs) > 0 {
+		_ = userdb.ApplyAccess(item.ID, item.HostPort, item.AccessIPs)
+	}
+	_ = s.database.SetManagedDatabaseAutostart(item.ID, true)
+	if err := s.database.SetManagedDatabaseVersion(item.ID, u.ID, targetVersion); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	updated, err := s.database.GetManagedDatabase(item.ID, u.ID)
+	if err != nil || updated == nil {
+		updated = item
+		updated.Version = targetVersion
+	}
+	s.auditSensitiveAction(r, u, "database.upgrade", "ok", map[string]any{
+		"id": item.ID, "engine": item.Engine, "from": item.Version, "to": targetVersion,
+	})
+	s.writeJSON(w, http.StatusOK, s.viewManagedDatabases([]database.ManagedDatabase{*updated})[0])
 }
 
 // RecoverDatabases marks the databases that were still being created when the agent stopped: the image

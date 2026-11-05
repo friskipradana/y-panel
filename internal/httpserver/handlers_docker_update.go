@@ -1,10 +1,12 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
 )
@@ -49,13 +51,51 @@ func (s *Server) handleContainerUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	if containers, listErr := docker.ListContainers(); listErr == nil {
 		for _, c := range containers {
-			if kind := docker.ManagedKind(c); (c.ID == id || strings.HasPrefix(c.ID, id)) && kind != "" {
-				where := "the Database window"
-				if kind == docker.KindWAHA {
-					where = "Settings > Notifications"
+			if c.ID == id || strings.HasPrefix(c.ID, id) || strings.HasPrefix(id, c.ID) {
+				for _, name := range c.Names {
+					clean := strings.TrimPrefix(name, "/")
+					if clean == adminerContainer {
+						emit := startEventStream(w)
+						ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+						defer cancel()
+						result := "ok"
+						recreate := func(ctx context.Context) error {
+							_, _ = dockerOutput(ctx, "rm", "-f", adminerContainer)
+							return ensureAdminer(ctx)
+						}
+						if err := docker.UpdateManaged(ctx, adminerContainer, emit, recreate); err != nil {
+							result = "failed"
+							emit(docker.UpdateEvent{Type: "error", Error: err.Error()})
+						}
+						s.auditSensitiveAction(r, actor, "docker.container.update", result, map[string]any{"container": id, "name": adminerContainer})
+						return
+					}
+					if clean == dbxContainer {
+						emit := startEventStream(w)
+						ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+						defer cancel()
+						result := "ok"
+						recreate := func(ctx context.Context) error {
+							_, _ = dockerOutput(ctx, "rm", "-f", dbxContainer)
+							s.dbxForgetSession()
+							return s.ensureDbx(ctx)
+						}
+						if err := docker.UpdateManaged(ctx, dbxContainer, emit, recreate); err != nil {
+							result = "failed"
+							emit(docker.UpdateEvent{Type: "error", Error: err.Error()})
+						}
+						s.auditSensitiveAction(r, actor, "docker.container.update", result, map[string]any{"container": id, "name": dbxContainer})
+						return
+					}
 				}
-				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to " + where + ": manage it there"})
-				return
+				if kind := docker.ManagedKind(c); kind != "" {
+					where := "the Database window"
+					if kind == docker.KindWAHA {
+						where = "Settings > Notifications"
+					}
+					s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "this container belongs to " + where + ": manage it there"})
+					return
+				}
 			}
 		}
 	}

@@ -140,6 +140,14 @@ func (m *Manager) SetManagedDatabaseStatus(id int64, status, lastError string) e
 	return err
 }
 
+func (m *Manager) SetManagedDatabaseVersion(id, userID int64, version string) error {
+	if !m.IsConnected() {
+		return fmt.Errorf("database not connected")
+	}
+	_, err := m.db.Exec(`UPDATE managed_databases SET version = $1 WHERE id = $2 AND user_id = $3`, version, id, userID)
+	return err
+}
+
 func (m *Manager) SetManagedDatabasePassword(id, userID int64, passwordEncrypted string) error {
 	if !m.IsConnected() {
 		return fmt.Errorf("database not connected")

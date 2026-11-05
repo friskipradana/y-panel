@@ -57,6 +57,12 @@ func TestManagedDatabaseAccessAndAutostart(t *testing.T) {
 	if got, _ = m.GetManagedDatabase(db.ID, owner.ID); got.AccessMode != "local" || len(got.AccessIPs) != 0 {
 		t.Fatalf("back to local: %+v", got)
 	}
+	if err := m.SetManagedDatabaseVersion(db.ID, owner.ID, "8.0"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ = m.GetManagedDatabase(db.ID, owner.ID); got.Version != "8.0" {
+		t.Fatalf("version must be updated: %+v", got)
+	}
 	if all, err := m.ListManagedDatabases(0, true); err != nil || len(all) != 1 || all[0].AccessMode != "local" {
 		t.Fatalf("list: %v %v", all, err)
 	}

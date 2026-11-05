@@ -7,6 +7,7 @@ import {
   listUserDatabases,
   startUserDatabase,
   stopUserDatabase,
+  upgradeUserDatabase,
   type UserDatabase,
 } from '@/api/agent'
 import { alertLib } from '@/lib/alert'
@@ -31,6 +32,7 @@ export function useDatabasesWindow(win?: WindowState) {
   const [connectionTarget, setConnectionTarget] = useState<UserDatabase | null>(null)
   const [manageTarget, setManageTarget] = useState<UserDatabase | null>(null)
   const [openClientTarget, setOpenClientTarget] = useState<UserDatabase | null>(null)
+  const [upgradeTarget, setUpgradeTarget] = useState<UserDatabase | null>(null)
 
   // the search, the order and the column filters; the agent applies them
   const list = useListQuery()
@@ -60,6 +62,20 @@ export function useDatabasesWindow(win?: WindowState) {
   })
   const startMut = useMutation({ mutationFn: startUserDatabase, onSuccess: refresh, onError: fail(t('databases.startFailedTitle')) })
   const stopMut = useMutation({ mutationFn: stopUserDatabase, onSuccess: refresh, onError: fail(t('databases.stopFailedTitle')) })
+  const upgradeMut = useMutation({
+    mutationFn: upgradeUserDatabase,
+    onSuccess: (updated) => {
+      alertLib.fire(
+        t('databases.upgradeSuccessTitle'),
+        t('databases.upgradeSuccessMessage', { name: updated.name, version: updated.version }),
+        'success',
+        'database',
+      )
+      setUpgradeTarget(null)
+      void refresh()
+    },
+    onError: fail(t('databases.upgradeFailedTitle')),
+  })
   const deleteMut = useMutation({ mutationFn: deleteUserDatabase, onSuccess: refresh, onError: fail(t('databases.deleteFailedTitle')) })
 
   const confirmDelete = async (item: UserDatabase) => {
@@ -91,6 +107,9 @@ export function useDatabasesWindow(win?: WindowState) {
     setManageTarget,
     openClientTarget,
     setOpenClientTarget,
+    upgradeTarget,
+    setUpgradeTarget,
+    upgradeMut,
     createMut,
     startMut,
     stopMut,
