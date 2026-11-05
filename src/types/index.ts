@@ -146,6 +146,7 @@ export interface DockerContainerConfig {
   envMode?: DockerEnvMode
   envRaw?: string
   volumes: VolumeBindingInput[]
+  composeYaml?: string
 }
 
 export interface DockerDeployImagePayload {

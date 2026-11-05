@@ -116,12 +116,13 @@ type DeployResult struct {
 
 // ContainerConfig holds the editable configuration of a deployed container.
 type ContainerConfig struct {
-	Name    string          `json:"name"`
-	Image   string          `json:"image"`
-	Network string          `json:"network"`
-	Ports   []PortBinding   `json:"ports"`
-	Env     []EnvVar        `json:"env"`
-	EnvMode string          `json:"envMode,omitempty"`
-	EnvRaw  string          `json:"envRaw,omitempty"`
-	Volumes []VolumeBinding `json:"volumes"`
+	Name        string          `json:"name"`
+	Image       string          `json:"image"`
+	Network     string          `json:"network"`
+	Ports       []PortBinding   `json:"ports"`
+	Env         []EnvVar        `json:"env"`
+	EnvMode     string          `json:"envMode,omitempty"`
+	EnvRaw      string          `json:"envRaw,omitempty"`
+	Volumes     []VolumeBinding `json:"volumes"`
+	ComposeYaml string          `json:"composeYaml,omitempty"`
 }

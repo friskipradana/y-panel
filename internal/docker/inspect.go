@@ -3,6 +3,7 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -127,14 +128,37 @@ func InspectContainerConfig(id string) (*ContainerConfig, error) {
 		}
 	}
 
+	// Check if this container was created via compose
+	composeFiles := []string{}
+	if f := insp.Config.Labels["com.docker.compose.project.config_files"]; f != "" {
+		for _, part := range strings.Split(f, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				composeFiles = append(composeFiles, part)
+			}
+		}
+	}
+	if len(composeFiles) == 0 {
+		if dir := insp.Config.Labels["panel.compose_dir"]; dir != "" {
+			composeFiles = append(composeFiles, dir)
+		}
+	}
+	composeYaml := ""
+	for _, file := range composeFiles {
+		if data, err := os.ReadFile(file); err == nil && len(data) > 0 {
+			composeYaml = string(data)
+			break
+		}
+	}
+
 	return &ContainerConfig{
-		Name:    name,
-		Image:   insp.Config.Image,
-		Network: network,
-		Ports:   ports,
-		Env:     env,
-		EnvMode: "form",
-		EnvRaw:  envVarsToRaw(env),
-		Volumes: volumes,
+		Name:        name,
+		Image:       insp.Config.Image,
+		Network:     network,
+		Ports:       ports,
+		Env:         env,
+		EnvMode:     "form",
+		EnvRaw:      envVarsToRaw(env),
+		Volumes:     volumes,
+		ComposeYaml: composeYaml,
 	}, nil
 }

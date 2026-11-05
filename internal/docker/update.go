@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -209,7 +210,14 @@ func UpdateContainer(ctx context.Context, id string, emit func(UpdateEvent)) err
 	switch {
 	case !changed:
 	case files == nil:
-		emit(UpdateEvent{Type: "log", Line: "This container was not made by compose, so it cannot be made again here. Deploy it again to use the new image."})
+		emit(UpdateEvent{Type: "step", Step: "recreate"})
+		if err := recreateStandalone(ctx, *target, emit); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("recreate container: %w", err)
+		}
+		recreated = true
 	default:
 		emit(UpdateEvent{Type: "step", Step: "recreate"})
 		args := []string{"compose"}
@@ -293,6 +301,142 @@ func UpdateManaged(ctx context.Context, name string, emit func(UpdateEvent), rec
 		}
 	}
 	emit(UpdateEvent{Type: "done", Changed: &changed, Recreated: &recreated})
+	return nil
+}
+
+// recreateStandalone replaces a container that was not made by compose, using its inspected configuration.
+func recreateStandalone(ctx context.Context, c Container, emit func(UpdateEvent)) error {
+	name := strings.TrimPrefix(firstName(c), "/")
+	emit(UpdateEvent{Type: "log", Line: fmt.Sprintf("Inspecting container %s for recreation...", name)})
+
+	cmd := exec.CommandContext(ctx, "docker", "inspect", c.ID)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("inspect container: %s (%w)", strings.TrimSpace(string(out)), err)
+	}
+
+	var inspects []struct {
+		Name   string `json:"Name"`
+		Config struct {
+			Image  string            `json:"Image"`
+			Env    []string          `json:"Env"`
+			Labels map[string]string `json:"Labels"`
+		} `json:"Config"`
+		HostConfig struct {
+			PortBindings map[string][]struct {
+				HostIP   string `json:"HostIp"`
+				HostPort string `json:"HostPort"`
+			} `json:"PortBindings"`
+			Binds         []string `json:"Binds"`
+			RestartPolicy struct {
+				Name              string `json:"Name"`
+				MaximumRetryCount int    `json:"MaximumRetryCount"`
+			} `json:"RestartPolicy"`
+			NetworkMode string `json:"NetworkMode"`
+			Privileged  bool   `json:"Privileged"`
+		} `json:"HostConfig"`
+		Mounts []struct {
+			Type        string `json:"Type"`
+			Source      string `json:"Source"`
+			Destination string `json:"Destination"`
+			RW          bool   `json:"RW"`
+		} `json:"Mounts"`
+	}
+
+	if err := json.Unmarshal(out, &inspects); err != nil || len(inspects) == 0 {
+		return fmt.Errorf("parse inspect: %w", err)
+	}
+	insp := inspects[0]
+	if inspName := strings.TrimPrefix(insp.Name, "/"); inspName != "" {
+		name = inspName
+	}
+
+	args := []string{"run", "-d", "--name", name}
+
+	if pol := insp.HostConfig.RestartPolicy.Name; pol != "" && pol != "no" {
+		if insp.HostConfig.RestartPolicy.MaximumRetryCount > 0 {
+			args = append(args, "--restart", fmt.Sprintf("%s:%d", pol, insp.HostConfig.RestartPolicy.MaximumRetryCount))
+		} else {
+			args = append(args, "--restart", pol)
+		}
+	} else {
+		args = append(args, "--restart", "unless-stopped")
+	}
+
+	if insp.HostConfig.NetworkMode != "" && insp.HostConfig.NetworkMode != "default" {
+		args = append(args, "--network", insp.HostConfig.NetworkMode)
+	}
+
+	if insp.HostConfig.Privileged {
+		args = append(args, "--privileged")
+	}
+
+	for spec, bindings := range insp.HostConfig.PortBindings {
+		parts := strings.SplitN(spec, "/", 2)
+		containerPort := parts[0]
+		proto := ""
+		if len(parts) == 2 && parts[1] != "tcp" {
+			proto = "/" + parts[1]
+		}
+		for _, b := range bindings {
+			if b.HostIP != "" && b.HostIP != "0.0.0.0" {
+				args = append(args, "-p", fmt.Sprintf("%s:%s:%s%s", b.HostIP, b.HostPort, containerPort, proto))
+			} else if b.HostPort != "" {
+				args = append(args, "-p", fmt.Sprintf("%s:%s%s", b.HostPort, containerPort, proto))
+			}
+		}
+	}
+
+	seenMounts := make(map[string]bool)
+	for _, bind := range insp.HostConfig.Binds {
+		if bind != "" {
+			args = append(args, "-v", bind)
+			parts := strings.SplitN(bind, ":", 3)
+			if len(parts) >= 2 {
+				seenMounts[parts[1]] = true
+			}
+		}
+	}
+	for _, m := range insp.Mounts {
+		if m.Source != "" && m.Destination != "" && !seenMounts[m.Destination] {
+			ro := ""
+			if !m.RW {
+				ro = ":ro"
+			}
+			args = append(args, "-v", fmt.Sprintf("%s:%s%s", m.Source, m.Destination, ro))
+			seenMounts[m.Destination] = true
+		}
+	}
+
+	for _, e := range insp.Config.Env {
+		kv := strings.SplitN(e, "=", 2)
+		if len(kv) != 2 || kv[0] == "HOSTNAME" {
+			continue
+		}
+		args = append(args, "-e", e)
+	}
+
+	for k, v := range insp.Config.Labels {
+		args = append(args, "--label", fmt.Sprintf("%s=%s", k, v))
+	}
+
+	imageRef := c.Image
+	if insp.Config.Image != "" && !strings.HasPrefix(insp.Config.Image, "sha256:") {
+		imageRef = insp.Config.Image
+	}
+	args = append(args, imageRef)
+
+	emit(UpdateEvent{Type: "log", Line: fmt.Sprintf("Removing old container %s...", name)})
+	if rmOut, rmErr := exec.CommandContext(ctx, "docker", "rm", "-f", c.ID).CombinedOutput(); rmErr != nil {
+		return fmt.Errorf("remove old container: %s (%w)", strings.TrimSpace(string(rmOut)), rmErr)
+	}
+
+	emit(UpdateEvent{Type: "log", Line: fmt.Sprintf("Starting container %s with newly downloaded image...", name)})
+	if err := runStreaming(ctx, "", emit, "docker", args...); err != nil {
+		return fmt.Errorf("recreate container: %w", err)
+	}
+
+	emit(UpdateEvent{Type: "log", Line: fmt.Sprintf("Container %s successfully recreated.", name)})
 	return nil
 }
 

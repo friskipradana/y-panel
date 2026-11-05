@@ -114,36 +114,41 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
       const volumes = cfg.volumes ?? []
       const envRows = env.length > 0 ? env : [EMPTY_ENV_ROW]
       const envRaw = cfg.envRaw || toRawEnv(envRows)
-      setDeployType('image')
-      setImgInputValue(cfg.image)
-      setNetInputValue('')
-      setDeployForm({
-        ownerUserId: 0,
-        name: cfg.name,
-        image: cfg.image,
-        network: cfg.network || '',
-        ports:
-          ports.length > 0
-            ? ports.map((p) => ({
-                hostIp: p.hostIp || '',
-                hostPort: p.hostPort || '',
-                containerPort: p.containerPort || '',
-                protocol: p.protocol || 'tcp',
-              }))
-            : [{ hostPort: '', containerPort: '' }],
-        env: envRows,
-        envMode: cfg.envMode || 'form',
-        envRaw,
-        registryAuth: createEmptyRegistryAuth(),
-        volumes:
-          volumes.length > 0
-            ? volumes.map((v) => ({
-                hostPath: v.hostPath,
-                containerPath: v.containerPath,
-              }))
-            : [{ hostPath: '', containerPath: '' }],
-        composeYaml: DEFAULT_COMPOSE_YAML,
-      })
+      if (cfg.composeYaml) {
+        setDeployType('compose')
+        setImgInputValue('')
+        setNetInputValue('')
+        setDeployForm({
+          ownerUserId: 0,
+          name: cfg.name,
+          image: cfg.image,
+          network: '',
+          ports: [{ hostPort: '', containerPort: '' }],
+          env: [EMPTY_ENV_ROW],
+          envMode: 'form',
+          envRaw: '',
+          registryAuth: createEmptyRegistryAuth(),
+          volumes: [{ hostPath: '', containerPath: '' }],
+          composeYaml: cfg.composeYaml,
+        })
+      } else {
+        setDeployType('image')
+        setImgInputValue(cfg.image)
+        setNetInputValue('')
+        setDeployForm({
+          ownerUserId: 0,
+          name: cfg.name,
+          image: cfg.image,
+          network: cfg.network || '',
+          ports: ports.length > 0 ? ports.map((p) => ({ hostIp: p.hostIp || '', hostPort: p.hostPort || '', containerPort: p.containerPort || '', protocol: p.protocol || 'tcp' })) : [{ hostPort: '', containerPort: '' }],
+          env: envRows,
+          envMode: cfg.envMode || 'form',
+          envRaw,
+          registryAuth: createEmptyRegistryAuth(),
+          volumes: volumes.length > 0 ? volumes.map((v) => ({ hostPath: v.hostPath, containerPath: v.containerPath })) : [{ hostPath: '', containerPath: '' }],
+          composeYaml: DEFAULT_COMPOSE_YAML,
+        })
+      }
       setEditContainer({ id: container.Id })
       setShowDeploy(true)
     } catch (e: unknown) {

@@ -144,7 +144,8 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
         </>
       }
     >
-    <div className="docker-deploy-tabs">
+    {!editContainer && (
+      <div className="docker-deploy-tabs">
       <button
         type="button"
         onClick={() => setDeployType('image')}
@@ -160,6 +161,8 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
         <Code className="h-4 w-4" /> {t('docker.deployFromCompose')}
       </button>
     </div>
+
+    )}
 
     <div className="docker-deploy-modal__body">
       {/* Project / Container Name — combobox */}
@@ -181,13 +184,13 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                 <X className="h-3 w-3" />
               </button>
             )}
-            {(deployType === 'compose' ? (templatesData?.items?.length ?? 0) : 0) > 0 && (
+            {(!editContainer && deployType === 'compose' ? (templatesData?.items?.length ?? 0) : 0) > 0 && (
               <button type="button" className="docker-image-combobox__toggle" aria-label={t('common.toggleDropdown')} onClick={() => { setNameDropdownOpen((v) => !v); setImgDropdownOpen(false); setNetDropdownOpen(false) }}>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          {nameDropdownOpen && deployType === 'compose' && (templatesData?.items?.length ?? 0) > 0 && (
+          {nameDropdownOpen && !editContainer && deployType === 'compose' && (templatesData?.items?.length ?? 0) > 0 && (
             <div className="docker-image-combobox__dropdown">
               {(templatesData?.items ?? [])
                 .filter((t) => !deployForm.name || t.name.toLowerCase().includes(deployForm.name.toLowerCase()))
