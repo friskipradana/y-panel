@@ -31,6 +31,10 @@ export function SpeedtestWindow() {
     ? (selected?.name ?? 'Cloudflare')
     : t('speedtest.tab.browser')
 
+  const description = active === 'server'
+    ? t('speedtest.server.subtitle', { target: serverName })
+    : t('speedtest.browser.subtitle')
+
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
       <div className="docker-topbar flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:px-4 sm:py-2">
@@ -89,10 +93,10 @@ export function SpeedtestWindow() {
         ) : null}
       </div>
 
-      <div className="panel-window__body min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5 pb-8 sm:pb-3.5">
+      <div className="panel-window__body min-h-0 flex-1 space-y-4 overflow-y-auto p-3.5 pb-20 sm:pb-3.5">
         <SpeedPanel
           key={active}
-          description={t(`speedtest.${active}.subtitle`)}
+          description={description}
           hostText={hostText}
           serverName={serverName}
           notice={active === 'server' && selected ? <SpeedServerNotice server={selected} /> : null}

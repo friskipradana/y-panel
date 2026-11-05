@@ -49,13 +49,13 @@ export function SpeedPanel({
   const shown: SpeedLive = running || !result
     ? live
     : {
-        ...live,
-        phase: 'done',
-        downloadMbps: result.downloadMbps,
-        uploadMbps: result.uploadMbps,
-        latencyMs: result.latencyMs,
-        jitterMs: result.jitterMs,
-      }
+      ...live,
+      phase: 'done',
+      downloadMbps: result.downloadMbps,
+      uploadMbps: result.uploadMbps,
+      latencyMs: result.latencyMs,
+      jitterMs: result.jitterMs,
+    }
 
   const delta = running || !result
     ? { download: null, upload: null }
@@ -69,7 +69,7 @@ export function SpeedPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[0.8125rem] text-[var(--text-secondary)]">{description}</p>
         {displayHost ? (
-          <span className="panel-mono inline-flex items-center gap-1.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-secondary)]">
+          <span className="panel-mono hidden sm:inline-flex items-center gap-1.5 rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] px-2.5 py-1 text-[0.6875rem] text-[var(--text-secondary)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--panel-primary-text)]" />
             <span>{displayHost}</span>
           </span>
@@ -78,7 +78,7 @@ export function SpeedPanel({
 
       {notice}
 
-      <div className="grid gap-3.5 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]" aria-live="off">
+      <div className="grid gap-3 sm:gap-3.5 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]" aria-live="off">
         <div className="speed-hero">
           <SpeedGauge
             value={gaugeValue}

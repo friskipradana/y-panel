@@ -332,6 +332,80 @@
   }
 }
 
+@media (max-width: 639px) {
+  .speed-hero {
+    padding: 12px 10px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .speed-gauge {
+    max-width: 210px;
+  }
+
+  .speed-gauge__number {
+    font-size: 1.875rem;
+  }
+
+  .speed-gauge__unit {
+    font-size: 0.6875rem;
+  }
+
+  .speed-gauge__label {
+    margin-top: 4px;
+    font-size: 0.6875rem;
+  }
+
+  .speed-steps {
+    gap: 6px 12px;
+    font-size: 0.6875rem;
+  }
+
+  .speed-hero__server {
+    padding-top: 8px;
+    gap: 2px;
+  }
+
+  .speed-stats-card {
+    border-radius: 12px;
+  }
+
+  .speed-stat-row {
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+
+    .speed-stat__value {
+      font-size: 1.25rem;
+    }
+
+    .speed-stat__chart-wrap {
+      height: 36px;
+      margin-left: 10px;
+    }
+
+    .speed-stat__trace,
+    .speed-stat__trace-empty {
+      height: 36px;
+    }
+  }
+
+  .speed-stat-mini {
+    min-height: 48px;
+    padding: 8px 12px;
+    gap: 8px;
+
+    .speed-stat__value--compact {
+      font-size: 1rem;
+    }
+  }
+
+  .docker-table--speed .docker-table-scroll {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .speed-gauge__value,
   .speed-step__dot {

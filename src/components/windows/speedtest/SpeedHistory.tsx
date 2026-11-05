@@ -84,7 +84,7 @@ export function SpeedHistory({ items, onClear }: { items: HistoryItem[]; onClear
                     <span className="docker-row__sub panel-mono" title={where}>
                       {where}
                     </span>
-                    <span className="docker-row__meta">{`${figure(item.downloadMbps)} / ${up} Mbps \u00b7 ${figure(item.latencyMs)} ms \u00b7 ${formatDateTimeID(new Date(item.at))}`}</span>
+                    <span className="docker-row__meta">{`${where ? `${where} · ` : ''}${figure(item.downloadMbps)} / ${up} Mbps · ${figure(item.latencyMs)} ms · ${formatDateTimeID(new Date(item.at))}`}</span>
                   </div>
                 </div>
                 <div className="docker-cell docker-cell--mono font-semibold">{figure(item.downloadMbps)}</div>
