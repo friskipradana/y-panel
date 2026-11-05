@@ -3583,6 +3583,7 @@ export const en: Record<string, string> = {
   'docker.colIndex': '#',
   'docker.colContainerService': 'Container & Service',
   'docker.colStatus': 'Status',
+  'docker.colIpAddress': 'IP Address',
   'docker.colPort': 'Port',
   'docker.colActions': 'Actions',
   'docker.activeBadge': '{active}/{total} active',

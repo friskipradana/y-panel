@@ -82,7 +82,7 @@ export function DeployModal({ docker }: { docker: DockerWindowState }) {
                       image: deployForm.image.trim(),
                       network: deployForm.network.trim() || undefined,
                       ports: deployForm.ports
-                        .filter((p) => p.containerPort.trim())
+                        .filter((p) => p.containerPort.trim() && p.hostPort.trim())
                         .map((p) => ({
                           hostIp: '0.0.0.0',
                           hostPort: p.hostPort.trim(),

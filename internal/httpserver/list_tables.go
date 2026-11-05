@@ -77,6 +77,7 @@ func containerSpec() listquery.Spec[docker.Container] {
 			{Key: "stack", Value: containerStack},
 			{Key: "image", Value: func(c docker.Container) string { return c.Image }},
 			{Key: "state", Value: func(c docker.Container) string { return c.State }},
+			{Key: "ip", Value: func(c docker.Container) string { return strings.Join(c.IPAddresses, ", ") }},
 			{Key: "port", Value: containerPorts, Compare: func(a, b docker.Container) int { return firstPort(a) - firstPort(b) }},
 		},
 		Search: func(c docker.Container) string {

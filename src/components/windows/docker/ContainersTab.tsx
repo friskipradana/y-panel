@@ -1,6 +1,7 @@
 import { fetchContainerConfig } from '@/api/agent'
 import { toast } from 'sonner'
 import { alertLib } from '@/lib/alert'
+import { localizeServerMessage } from '@/lib/serverMessages'
 import {
   Boxes,
   CircleArrowUp,
@@ -55,14 +56,15 @@ function DockerContainerIcon() {
 
 function formatContainerPorts(ports: Container['Ports']): string {
   if (!ports || ports.length === 0) return '-'
-  const published = ports
-    .filter((p) => p.PublicPort)
-    .map((p) => `:${p.PublicPort}`)
-  if (published.length > 0) {
-    return Array.from(new Set(published)).join('\n')
-  }
+  const published = ports.filter((p) => p.PublicPort).map((p) => `:${p.PublicPort}`)
+  if (published.length > 0) return Array.from(new Set(published)).join('\n')
   const priv = ports.map((p) => `:${p.PrivatePort}`)
   return Array.from(new Set(priv)).join('\n')
+}
+
+function formatContainerIps(ips?: string[]): string {
+  if (!ips || ips.length === 0) return '-'
+  return ips.join('\n')
 }
 
 export function ContainersTab({ docker }: { docker: DockerWindowState }) {
@@ -107,7 +109,10 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
     setEditLoading(true)
     try {
       const cfg = await fetchContainerConfig(container.Id)
-      const envRows = cfg.env.length > 0 ? cfg.env : [EMPTY_ENV_ROW]
+      const ports = cfg.ports ?? []
+      const env = cfg.env ?? []
+      const volumes = cfg.volumes ?? []
+      const envRows = env.length > 0 ? env : [EMPTY_ENV_ROW]
       const envRaw = cfg.envRaw || toRawEnv(envRows)
       setDeployType('image')
       setImgInputValue(cfg.image)
@@ -118,8 +123,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
         image: cfg.image,
         network: cfg.network || '',
         ports:
-          cfg.ports.length > 0
-            ? cfg.ports.map((p) => ({
+          ports.length > 0
+            ? ports.map((p) => ({
                 hostIp: p.hostIp || '',
                 hostPort: p.hostPort || '',
                 containerPort: p.containerPort || '',
@@ -131,8 +136,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
         envRaw,
         registryAuth: createEmptyRegistryAuth(),
         volumes:
-          cfg.volumes.length > 0
-            ? cfg.volumes.map((v) => ({
+          volumes.length > 0
+            ? volumes.map((v) => ({
                 hostPath: v.hostPath,
                 containerPath: v.containerPath,
               }))
@@ -141,8 +146,9 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
       })
       setEditContainer({ id: container.Id })
       setShowDeploy(true)
-    } catch {
-      toast.error(t('docker.configLoadFailed'))
+    } catch (e: unknown) {
+      const apiErr = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
+      toast.error(apiErr ? (localizeServerMessage(apiErr) ?? apiErr) : t('docker.configLoadFailed'))
     } finally {
       setEditLoading(false)
     }
@@ -156,6 +162,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
         { label: t('docker.colIndex') },
         lists.containers.column('name', t('docker.colContainerService'), facets?.name),
         lists.containers.column('state', t('docker.colStatus'), facets?.state),
+        { label: t('docker.colIpAddress') },
         lists.containers.column('port', t('docker.colPort'), facets?.port),
         { label: t('docker.colActions'), actions: true },
       ]}
@@ -209,7 +216,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
             // made and kept by the Database window or by the notifications: no domain, no delete here
             const isManaged = isDatabase || isControl || isWhatsApp
             const portsText = formatContainerPorts(container.Ports)
-                const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
+            const ipText = formatContainerIps(container.IpAddresses)
+            const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
             const indexStr = String(idx + 1).padStart(2, '0')
 
             return (
@@ -240,17 +248,20 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       ) : null}
                     </span>
                     <span className="docker-row__sub">{container.Image}{stack ? ` · ${stack}` : ''}</span>
-                        <span className="docker-row__meta">{container.Image}{portsText !== '-' ? ` · ${portsText.replace(/\n/g, ' ')}` : ''}</span>
+                    <span className="docker-row__meta">{container.Image}{ipText !== '-' ? ` · ${ipText.replace(/\n/g, ', ')}` : ''}{portsText !== '-' ? ` · ${portsText.replace(/\n/g, ' ')}` : ''}</span>
                   </div>
                 </div>
 
                 {/* Column 3: Status */}
                 <div className="docker-cell--keep"><StatusPill state={container.State} /></div>
 
-                {/* Column 4: Port */}
+                {/* Column 4: IP Address */}
+                <div className="docker-ip-text" title={ipText !== '-' ? ipText.replace(/\n/g, ', ') : undefined}>{ipText}</div>
+
+                {/* Column 5: Port */}
                 <div className="docker-port-text">{portsText}</div>
 
-                {/* Column 5: Actions */}
+                {/* Column 6: Actions */}
                 <div className="docker-action-btns">
                   {/* Edit and redeploy */}
                   <button

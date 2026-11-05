@@ -89,7 +89,7 @@ func (s *Server) ensureContainerAccess(r *http.Request, id string) (*database.Us
 		return nil, err
 	}
 	for _, container := range containers {
-		if (container.ID == id || strings.HasPrefix(container.ID, id)) && scope.has(container.OwnerUserID) {
+		if (container.ID == id || strings.HasPrefix(container.ID, id) || strings.HasPrefix(id, container.ID)) && scope.has(container.OwnerUserID) {
 			return actor, nil
 		}
 	}

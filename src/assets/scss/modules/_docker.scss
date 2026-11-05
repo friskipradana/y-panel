@@ -632,6 +632,17 @@
   }
 }
 
+.docker-ip-text {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--win-text);
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
 .docker-port-text {
   font-family: var(--font-mono, monospace);
   font-size: 0.75rem;
@@ -695,6 +706,10 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+
+  &--containers {
+    --docker-cols: 48px minmax(0, 1.8fr) 100px 120px 105px 140px;
+  }
 
   &--images {
     --docker-cols: 48px minmax(0, 2fr) minmax(96px, 1fr) minmax(80px, 0.8fr) minmax(130px, 1.2fr) 84px;
@@ -933,6 +948,7 @@
 
   .docker-row__num,
   .docker-port-text,
+  .docker-ip-text,
   .docker-cell:not(.docker-cell--keep),
   .docker-row__sub {
     display: none;
