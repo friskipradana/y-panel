@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.77.2] - 2026-11-05
+
+Enhance container inspection and management.
+
+### Fitur baru
+- **docker:** Enhance container inspection and management ([`2a94598`](https://github.com/friskipradana/y-panel/commit/2a94598))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.77.1...v1.77.2
+
 ## [1.77.1] - 2026-11-04
 
 2 perubahan, utamanya expand search criteria and improve message metadata visibility.
