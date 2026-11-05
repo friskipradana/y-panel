@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.77.4] - 2026-11-05
+
+Support recreation of standalone containers and compose detection.
+
+### Fitur baru
+- **docker:** Support recreation of standalone containers and compose detection ([`95eedcf`](https://github.com/friskipradana/y-panel/commit/95eedcf))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.77.3...v1.77.4
+
 ## [1.77.3] - 2026-11-05
 
 Add database engine upgrade capability.
