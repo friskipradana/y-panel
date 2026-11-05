@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.77.3] - 2026-11-05
+
+Add database engine upgrade capability.
+
+### Fitur baru
+- **database:** Add database engine upgrade capability ([`08605e5`](https://github.com/friskipradana/y-panel/commit/08605e5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.77.2...v1.77.3
+
 ## [1.77.2] - 2026-11-05
 
 Enhance container inspection and management.
