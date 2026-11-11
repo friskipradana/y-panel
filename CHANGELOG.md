@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.79.1] - 2026-11-11
+
+Add automated x11vnc management and terminal improvements.
+
+### Fitur baru
+- **kvm:** Add automated x11vnc management and terminal improvements ([`6c6f9be`](https://github.com/friskipradana/y-panel/commit/6c6f9be))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.79.0...v1.79.1
+
 ## [1.79.0] - 2026-11-11
 
 3 perubahan, utamanya add remote desktop access via noVNC.
