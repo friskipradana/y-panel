@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.4] - 2026-11-11
+
+Implement retry logic for x11vnc startup with multiple auth methods.
+
+### Fitur baru
+- **httpserver:** Implement retry logic for x11vnc startup with multiple auth methods ([`6cffeb4`](https://github.com/friskipradana/y-panel/commit/6cffeb4))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.3...v1.80.4
+
 ## [1.80.3] - 2026-11-11
 
 Trim and assign server error messages to response error.
