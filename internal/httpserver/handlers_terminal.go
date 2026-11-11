@@ -98,7 +98,7 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 }
 
 const (
-	terminalWriteWait  = 10 * time.Second
+	terminalWriteWait  = 3 * time.Second
 	terminalPongWait   = 75 * time.Second
 	terminalPingPeriod = 25 * time.Second
 	terminalReadLimit  = 64 * 1024

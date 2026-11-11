@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, ExternalLink, Monitor, RefreshCw, Terminal } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, Monitor, Play, RefreshCw, Square, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { getSiteSettings, setSiteSettings, type SiteSettings } from '@/api/system'
-import { getKvmStatus } from '@/api/kvm'
+import { getKvmStatus, installKvm, startKvm, stopKvm } from '@/api/kvm'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +17,7 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
   const qc = useQueryClient()
   const openWindow = useWindowStore((s) => s.openWindow)
   const [copied, setCopied] = useState(false)
+  const [showManualCmd, setShowManualCmd] = useState(false)
 
   const siteQuery = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
   const kvmQuery = useQuery({ queryKey: ['kvm-status'], queryFn: getKvmStatus, retry: 1, refetchInterval: 10_000 })
@@ -31,11 +32,41 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
     onError: () => toast.error(t('settings.site.failed')),
   })
 
+  const installMutation = useMutation({
+    mutationFn: installKvm,
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(data?.message || t('kvm.installedSuccess'))
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal memasang x11vnc'),
+  })
+
+  const startMutation = useMutation({
+    mutationFn: startKvm,
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(data?.message || t('kvm.serviceStarted'))
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal memulai layanan VNC'),
+  })
+
+  const stopMutation = useMutation({
+    mutationFn: stopKvm,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(t('kvm.serviceStopped'))
+    },
+    onError: () => toast.error('Gagal menghentikan layanan VNC'),
+  })
+
   const data = siteQuery.data
   const busy = !data || mutation.isPending
   const kvmEnabled = data?.kvmEnabled ?? false
   const kvmPort = data?.kvmPort ?? 5900
   const kvmDisplay = data?.kvmDisplay ?? ':0'
+
+  const isInstalled = kvmQuery.data?.installed ?? true
+  const isAvailable = kvmQuery.data?.available ?? false
 
   const copyCommand = (cmd: string) => {
     void navigator.clipboard.writeText(cmd)
@@ -75,48 +106,95 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
 
         {kvmEnabled ? (
           <div className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--panel-border)] bg-[var(--panel-card-bg)] text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-[var(--panel-border)]">
+            {/* ── Status header & actions ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[var(--panel-border)]">
               <div className="flex items-center gap-2">
                 <span
-                  className={`w-2 h-2 rounded-full ${
-                    kvmQuery.data?.available ? 'bg-[var(--status-online)]' : 'bg-[var(--status-offline)]'
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    !isInstalled
+                      ? 'bg-[var(--panel-warning-text)]'
+                      : isAvailable
+                      ? 'bg-[var(--status-online)]'
+                      : 'bg-[var(--status-offline)]'
                   }`}
                 />
                 <span className="font-medium text-[var(--win-text)]">
-                  {kvmQuery.data?.available
+                  {!isInstalled
+                    ? t('kvm.notInstalledTitle')
+                    : isAvailable
                     ? t('settings.kvm.available', { port: kvmPort })
                     : t('settings.kvm.unavailable', { port: kvmPort })}
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={<RefreshCw className={`h-3 w-3 ${kvmQuery.isFetching ? 'animate-spin' : ''}`} />}
-                  disabled={kvmQuery.isFetching}
-                  onClick={() => void kvmQuery.refetch()}
-                >
-                  {t('kvm.retry')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => openWindow('kvm')}
-                >
-                  {t('settings.kvm.openWindow')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={<ExternalLink className="h-3 w-3" />}
-                  onClick={() => window.open('/kvm', '_blank')}
-                >
-                  {t('settings.kvm.openInNewTab')}
-                </Button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {!isInstalled ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={<Download className="h-3 w-3" />}
+                    loading={installMutation.isPending}
+                    disabled={installMutation.isPending}
+                    onClick={() => installMutation.mutate()}
+                  >
+                    {installMutation.isPending ? t('kvm.installing') : t('kvm.installBtn')}
+                  </Button>
+                ) : isAvailable ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      icon={<Monitor className="h-3 w-3" />}
+                      onClick={() => openWindow('kvm')}
+                    >
+                      {t('settings.kvm.openWindow')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<ExternalLink className="h-3 w-3" />}
+                      onClick={() => window.open('/kvm', '_blank')}
+                    >
+                      {t('settings.kvm.openInNewTab')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<Square className="h-3 w-3 text-[var(--panel-danger-text)]" />}
+                      loading={stopMutation.isPending}
+                      disabled={stopMutation.isPending}
+                      onClick={() => stopMutation.mutate()}
+                    >
+                      {t('kvm.stopService')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      icon={<Play className="h-3 w-3" />}
+                      loading={startMutation.isPending}
+                      disabled={startMutation.isPending}
+                      onClick={() => startMutation.mutate()}
+                    >
+                      {startMutation.isPending ? t('kvm.startingService') : t('kvm.startService')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<RefreshCw className={`h-3 w-3 ${kvmQuery.isFetching ? 'animate-spin' : ''}`} />}
+                      disabled={kvmQuery.isFetching}
+                      onClick={() => void kvmQuery.refetch()}
+                    >
+                      {t('kvm.retry')}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
+            {/* ── Parameters (Port & Display) ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
@@ -154,32 +232,57 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
               </div>
             </div>
 
-            {!kvmQuery.data?.available ? (
-              <div className="kvm-hint-box">
-                <span className="text-[11px] text-[var(--text-secondary)]">
-                  {t('kvm.notRunningDesc', { port: kvmPort })}
-                </span>
-                <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--win-text)] bg-[var(--panel-bg)] p-1.5 rounded border border-[var(--panel-border)]">
-                  <span className="truncate select-all">{exampleCommand}</span>
-                  <IconButton
-                    label={t('kvm.copyCmd')}
-                    onClick={() => copyCommand(exampleCommand)}
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5 text-[var(--panel-success-text)]" /> : <Copy className="h-3.5 w-3.5" />}
-                  </IconButton>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon={<Terminal className="h-3 w-3" />}
-                    onClick={() => openWindow('host-terminal')}
-                  >
-                    {t('kvm.openTerminal')}
-                  </Button>
-                </div>
+            {/* ── Help / Installation notice ── */}
+            {!isInstalled ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded border border-[var(--panel-warning-border)] bg-[var(--panel-warning-bg)] text-[11px] text-[var(--panel-warning-text)]">
+                <span>{t('kvm.notInstalledDesc')}</span>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={<Download className="h-3 w-3" />}
+                  loading={installMutation.isPending}
+                  disabled={installMutation.isPending}
+                  onClick={() => installMutation.mutate()}
+                >
+                  {installMutation.isPending ? t('kvm.installing') : t('kvm.installBtn')}
+                </Button>
               </div>
             ) : null}
+
+            {/* ── Manual Command toggle for terminal users ── */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowManualCmd(!showManualCmd)}
+                className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--win-text)] underline cursor-pointer"
+              >
+                {showManualCmd ? 'Sembunyikan perintah terminal manual' : 'Tampilkan perintah terminal manual'}
+              </button>
+
+              {showManualCmd ? (
+                <div className="flex flex-col gap-1.5 mt-2 p-2 rounded border border-[var(--panel-border)] bg-[var(--panel-bg)]">
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-[var(--win-text)]">
+                    <span className="truncate select-all">{exampleCommand}</span>
+                    <IconButton
+                      label={t('kvm.copyCmd')}
+                      onClick={() => copyCommand(exampleCommand)}
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5 text-[var(--panel-success-text)]" /> : <Copy className="h-3.5 w-3.5" />}
+                    </IconButton>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={<Terminal className="h-3 w-3" />}
+                      onClick={() => openWindow('host-terminal')}
+                    >
+                      {t('kvm.openTerminal')}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

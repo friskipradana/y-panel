@@ -14,7 +14,7 @@ type TerminalSocketMessage = {
 
 const HEARTBEAT_MS = 20_000
 const WATCHDOG_MS = 10_000
-const STALE_AFTER_MS = 55_000
+const STALE_AFTER_MS = 90_000
 const RECONNECT_BASE_MS = 800
 const RECONNECT_MAX_MS = 8_000
 const RECONNECT_MAX_ATTEMPTS = 12
@@ -25,12 +25,6 @@ function resolveTerminalSocketUrl(sessionId: string, replay = false) {
   const base = apiBase.startsWith('/') ? apiBase : `/${apiBase}`
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${proto}//${window.location.host}${base}/terminal/sessions/${sessionId}/ws${replay ? '?replay=1' : ''}`
-}
-
-function filterInternalTerminalNoise(input: string) {
-  return input
-    .replace(/^.*stty cols \d+ rows \d+ 2>\/dev\/null; export COLUMNS=\d+ LINES=\d+\r?\n?/gm, '')
-    .replace(/\u001b(?:\](?:633|133|[^\u0007\u001b]*)|P\$q.*?)(?:\u0007|\u001b\\)/g, '')
 }
 
 function mapKeyToTerminalInput(event: KeyboardEvent) {
@@ -213,8 +207,7 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
         const msg = JSON.parse(event.data) as TerminalSocketMessage
         if (msg.type === 'ready' || msg.type === 'pong') return
         if (msg.type === 'output' && msg.data) {
-          const chunk = filterInternalTerminalNoise(msg.data)
-          if (chunk) outputListenerRef.current?.(chunk)
+          outputListenerRef.current?.(msg.data)
           return
         }
         if (msg.type === 'closed') {
@@ -242,8 +235,8 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
           setError(text)
         }
       } catch {
-        const chunk = filterInternalTerminalNoise(String(event.data ?? ''))
-        if (chunk) outputListenerRef.current?.(chunk)
+        const text = String(event.data ?? '')
+        if (text) outputListenerRef.current?.(text)
       }
     }
 
@@ -402,7 +395,9 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
   }, [sendInput])
 
   const updateTerminalSize = useCallback((cols: number, rows: number) => {
-    const next = { cols: Math.max(20, Math.floor(cols)), rows: Math.max(8, Math.floor(rows)) }
+    const validCols = Number.isFinite(cols) && cols > 0 ? Math.floor(cols) : 120
+    const validRows = Number.isFinite(rows) && rows > 0 ? Math.floor(rows) : 32
+    const next = { cols: Math.max(20, Math.min(validCols, 500)), rows: Math.max(8, Math.min(validRows, 200)) }
     if (next.cols === terminalSizeRef.current.cols && next.rows === terminalSizeRef.current.rows) return
     terminalSizeRef.current = next
     if (socketRef.current?.readyState === WebSocket.OPEN) {

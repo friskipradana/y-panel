@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import RFB from '@novnc/novnc'
 import {
   ArrowLeft,
   Check,
   Copy,
+  Download,
   ExternalLink,
   Maximize2,
   Minimize2,
   Monitor,
   MonitorOff,
+  Play,
   Power,
   RefreshCw,
   Scale,
@@ -17,7 +19,7 @@ import {
   Terminal,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getKvmStatus, resolveKvmWsUrl } from '@/api/kvm'
+import { getKvmStatus, installKvm, resolveKvmWsUrl, startKvm } from '@/api/kvm'
 import { AppIcon } from '@/components/common/AppIcon'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -68,11 +70,30 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
     }
   }
 
+  const qc = useQueryClient()
   const { data: status, isLoading, refetch } = useQuery({
     queryKey: ['kvm-status'],
     queryFn: getKvmStatus,
     enabled: authenticated !== false,
     retry: 1,
+  })
+
+  const installMutation = useMutation({
+    mutationFn: installKvm,
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(data?.message || t('kvm.installedSuccess'))
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal memasang x11vnc'),
+  })
+
+  const startMutation = useMutation({
+    mutationFn: startKvm,
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(data?.message || t('kvm.serviceStarted'))
+    },
+    onError: (err: Error) => toast.error(err.message || 'Gagal memulai layanan VNC'),
   })
 
   const connectRfb = useCallback(() => {
@@ -200,6 +221,31 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
     )
   }
 
+  if (status && status.enabled && !status.installed) {
+    return (
+      <div className="kvm-empty">
+        <MonitorOff className="h-10 w-10 text-[var(--panel-warning-text)] mb-3" strokeWidth={1.5} />
+        <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.notInstalledTitle')}</h3>
+        <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.notInstalledDesc')}</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Download className="h-3.5 w-3.5" />}
+            loading={installMutation.isPending}
+            disabled={installMutation.isPending}
+            onClick={() => installMutation.mutate()}
+          >
+            {installMutation.isPending ? t('kvm.installing') : t('kvm.installBtn')}
+          </Button>
+          <Button variant="outline" size="sm" icon={<Settings className="h-3.5 w-3.5" />} onClick={() => openWindow('settings')}>
+            {t('kvm.openSettings')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (status && !status.available && !connected) {
     return (
       <div className="kvm-empty">
@@ -218,10 +264,20 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
         </div>
 
         <div className="flex items-center gap-2 mt-2">
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Play className="h-3.5 w-3.5" />}
+            loading={startMutation.isPending}
+            disabled={startMutation.isPending}
+            onClick={() => startMutation.mutate()}
+          >
+            {startMutation.isPending ? t('kvm.startingService') : t('kvm.startService')}
+          </Button>
           <Button variant="outline" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void refetch()}>
             {t('kvm.retry')}
           </Button>
-          <Button variant="primary" size="sm" icon={<Terminal className="h-3.5 w-3.5" />} onClick={() => openWindow('host-terminal')}>
+          <Button variant="outline" size="sm" icon={<Terminal className="h-3.5 w-3.5" />} onClick={() => openWindow('host-terminal')}>
             {t('kvm.openTerminal')}
           </Button>
         </div>

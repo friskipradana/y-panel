@@ -87,6 +87,10 @@ export function TerminalTabPane({
     onSessionChange: (sid) => onSessionChangeRef.current?.(sid),
     onSessionInvalid: () => {
       onSessionChangeRef.current?.(null)
+      if (xtermRef.current) {
+        xtermRef.current.clear()
+        xtermRef.current.reset()
+      }
       void start(target, cwd)
     },
   })

@@ -160,17 +160,12 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	// nothing is inherited from the agent: its environment holds the session secret and the database DSN
 	cmd.Env = osuser.BaseEnv("TERM=xterm-256color", "COLORTERM=truecolor")
 	cmd.Dir = cwd
-	// the shell (and ssh with it) runs as the account, never as the agent, so it sees only that account's files and keys
-	cmd, err = osuser.WrapCommand(cmd, osUsername)
-	if err != nil {
-		return nil, err
-	}
 	// the shell lives in a systemd slice that carries the account's CPU and memory quota
 	if slice := osuser.SliceFor(osUsername, osuser.Limits{CPUPercent: req.CPULimitPct, MemoryMB: req.MemoryLimitMB}); slice != "" {
 		cmd = osuser.InSlice(cmd, slice)
 	}
 
-	ptyFile, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(defaultCols), Rows: uint16(defaultRows)})
+	ptyFile, err := startPTY(cmd, osUsername, defaultCols, defaultRows)
 	if err != nil {
 		return nil, fmt.Errorf("start pty shell: %w", err)
 	}
