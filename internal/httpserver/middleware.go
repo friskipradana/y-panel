@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/gorilla/websocket"
 )
 
@@ -464,13 +465,15 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(recorder, r)
+		duration := time.Since(started)
+		performance.DefaultRegistry.RecordAPIRequest(duration, recorder.status)
 		if isSpeedtestPath(r.URL.Path) {
 			// each test is dozens of requests; they would flood the runtime log
 			return
 		}
-		duration := time.Since(started).Round(time.Millisecond)
-		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, duration, remoteAddr(r))
-		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": duration.String(), "remote": remoteAddr(r)})
+		durationRounded := duration.Round(time.Millisecond)
+		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
+		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": durationRounded.String(), "remote": remoteAddr(r)})
 	})
 }
 

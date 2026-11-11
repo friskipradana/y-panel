@@ -260,7 +260,7 @@ func (s *Server) issueSessionCookie(w http.ResponseWriter, r *http.Request, toke
 func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	status := setupStatusResponse{NeedsSetup: false}
 	if s != nil && s.database != nil {
-		dbStatus := s.database.Status()
+		dbStatus := s.database.ConnectionStatus()
 		status.DatabaseReady = dbStatus.Connected
 		status.DatabaseError = dbStatus.LastError
 		status.NeedsSetup = dbStatus.Connected && !s.database.HasUsers()
@@ -1362,7 +1362,10 @@ func (s *Server) projectWithRuntime(project database.Project) projectWithRuntime
 
 // projectView is a project with its runtime; the variables it runs with are shown with their values only when asked (the form that edits it)
 func (s *Server) projectView(project database.Project, reveal bool) projectWithRuntime {
-	snapshot := s.projectManager.SnapshotProject(project)
+	return s.projectViewWithSnapshot(project, s.projectManager.SnapshotProject(project), reveal)
+}
+
+func (s *Server) projectViewWithSnapshot(project database.Project, snapshot projects.RuntimeSnapshot, reveal bool) projectWithRuntime {
 	project.Run = s.runView(project.Run, reveal)
 	if snapshot.Drift && shouldLogDrift(project.ID, snapshot.DriftReason, time.Now()) {
 		s.recordRuntimeLog("warning", "project runtime drift detected", map[string]any{
@@ -1402,9 +1405,10 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	all := make([]projectWithRuntime, len(projectList))
 	for i, p := range projectList {
-		all[i] = s.projectWithRuntime(p)
+		all[i] = s.projectViewWithSnapshot(p, snapshots[p.ID], false)
 	}
 	res := tableResponse(all, projectSpec(), r.URL.Query())
 	if offset > res.Total {
@@ -1435,9 +1439,10 @@ func (s *Server) handleProjectAttentionSummary(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	summary := projectAttentionSummary{Total: total}
 	for _, project := range projectList {
-		snapshot := s.projectManager.SnapshotProject(project)
+		snapshot := snapshots[project.ID]
 		isDegraded := strings.EqualFold(strings.TrimSpace(project.Status), "degraded")
 		if isDegraded {
 			summary.DegradedCount++

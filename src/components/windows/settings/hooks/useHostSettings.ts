@@ -14,7 +14,7 @@ function apiMessage(error: unknown): string | undefined {
   return error instanceof Error ? error.message : undefined;
 }
 
-export function useHostSettings({ authenticated }: { authenticated?: boolean }) {
+export function useHostSettings({ authenticated, pollDatabase = false }: { authenticated?: boolean; pollDatabase?: boolean }) {
   const queryClient = useQueryClient();
   const { t } = useI18n();
 
@@ -30,7 +30,7 @@ export function useHostSettings({ authenticated }: { authenticated?: boolean }) 
     queryKey: ["database-status"],
     queryFn: getDatabaseStatus,
     retry: 1,
-    refetchInterval: 10_000,
+    refetchInterval: pollDatabase ? 10_000 : false,
     enabled: isSuperadmin,
   });
 

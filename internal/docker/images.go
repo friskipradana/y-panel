@@ -1,12 +1,18 @@
 package docker
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
+	"time"
+
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 )
 
 type Image struct {
@@ -19,13 +25,103 @@ type Image struct {
 	OwnerNames   []string `json:"OwnerNames,omitempty"`
 }
 
+func formatImageSize(bytes int64) string {
+	switch {
+	case bytes >= 1000*1000*1000:
+		return fmt.Sprintf("%.2fGB", float64(bytes)/(1000*1000*1000))
+	case bytes >= 1000*1000:
+		return fmt.Sprintf("%.1fMB", float64(bytes)/(1000*1000))
+	case bytes >= 1000:
+		return fmt.Sprintf("%.1fkB", float64(bytes)/1000)
+	default:
+		return fmt.Sprintf("%dB", bytes)
+	}
+}
+
+func splitRepoTag(ref string) (string, string) {
+	if ref == "" || ref == "<none>:<none>" {
+		return "<none>", "<none>"
+	}
+	lastSlash := strings.LastIndex(ref, "/")
+	lastColon := strings.LastIndex(ref, ":")
+	if lastColon > lastSlash {
+		return ref[:lastColon], ref[lastColon+1:]
+	}
+	return ref, "<none>"
+}
+
 func ListImages() ([]Image, error) {
-	cmd := exec.Command("docker", "image", "ls", "--format", "{{json .}}")
+	started := time.Now()
+	res, err := imagesCache.Get(func() ([]Image, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), defaultReadTimeout)
+		defer cancel()
+
+		ownersByImage := imageOwnersFromCachedContainers()
+		if images, engErr := listImagesEngine(ctx, ownersByImage); engErr == nil {
+			return images, nil
+		} else if !errors.Is(engErr, errEngineUnavailable) {
+			return nil, engErr
+		}
+		return listImagesCLI(ctx, ownersByImage)
+	})
+	performance.DefaultRegistry.RecordDockerOp("list_images", time.Since(started), err)
+	return res, err
+}
+
+func listImagesEngine(ctx context.Context, ownersByImage map[string]map[int64]string) ([]Image, error) {
+	var raw []struct {
+		ID          string   `json:"Id"`
+		RepoTags    []string `json:"RepoTags"`
+		RepoDigests []string `json:"RepoDigests"`
+		Created     int64    `json:"Created"`
+		Size        int64    `json:"Size"`
+	}
+	if _, _, err := defaultEngine.doRequest(ctx, http.MethodGet, "/images/json", &raw); err != nil {
+		return nil, err
+	}
+
+	images := make([]Image, 0, len(raw))
+	for _, row := range raw {
+		shortID := strings.TrimPrefix(row.ID, "sha256:")
+		if len(shortID) > 12 {
+			shortID = shortID[:12]
+		}
+		createdStr := ""
+		if row.Created > 0 {
+			createdStr = time.Unix(row.Created, 0).UTC().Format("2006-01-02 15:04:05 -0700 MST")
+		}
+		tags := row.RepoTags
+		if len(tags) == 0 {
+			tags = []string{"<none>:<none>"}
+			if len(row.RepoDigests) > 0 {
+				repo, _, _ := strings.Cut(row.RepoDigests[0], "@")
+				if repo != "" {
+					tags = []string{repo + ":<none>"}
+				}
+			}
+		}
+		for _, rt := range tags {
+			repo, tag := splitRepoTag(rt)
+			image := Image{
+				ID:         shortID,
+				Repository: repo,
+				Tag:        tag,
+				Size:       formatImageSize(row.Size),
+				CreatedAt:  createdStr,
+			}
+			applyImageOwners(&image, ownersByImage)
+			images = append(images, image)
+		}
+	}
+	return images, nil
+}
+
+func listImagesCLI(ctx context.Context, ownersByImage map[string]map[int64]string) ([]Image, error) {
+	cmd := exec.CommandContext(ctx, "docker", "image", "ls", "--format", "{{json .}}")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("list images: %w", err)
 	}
-	ownersByImage, _ := imageOwnersByReference()
 
 	lines := splitNonEmptyLines(string(output))
 	images := make([]Image, 0, len(lines))
@@ -90,29 +186,21 @@ func applyImageOwners(image *Image, ownersByImage map[string]map[int64]string) {
 	}
 }
 
-func imageOwnersByReference() (map[string]map[int64]string, error) {
-	cmd := exec.Command("docker", "ps", "-a", "--format", "{{json .}}")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
+func imageOwnersFromCachedContainers() map[string]map[int64]string {
+	containers, ok := containersCache.Peek()
+	if !ok {
+		var err error
+		containers, err = ListContainers()
+		if err != nil {
+			return nil
+		}
 	}
 	owners := map[string]map[int64]string{}
-	for _, line := range splitNonEmptyLines(string(output)) {
-		var row struct {
-			ID     string `json:"ID"`
-			Image  string `json:"Image"`
-			Labels string `json:"Labels"`
-		}
-		if err := json.Unmarshal([]byte(line), &row); err != nil {
+	for _, c := range containers {
+		if c.OwnerUserID <= 0 {
 			continue
 		}
-		labels := parseLabels(row.Labels)
-		ownerID, _ := strconv.ParseInt(labels[labelOwnerID], 10, 64)
-		if ownerID <= 0 {
-			continue
-		}
-		ownerName := labels[labelOwnerName]
-		for _, ref := range []string{row.Image, row.ID} {
+		for _, ref := range []string{c.Image, c.ID} {
 			ref = strings.TrimSpace(ref)
 			if ref == "" {
 				continue
@@ -120,16 +208,36 @@ func imageOwnersByReference() (map[string]map[int64]string, error) {
 			if owners[ref] == nil {
 				owners[ref] = map[int64]string{}
 			}
-			owners[ref][ownerID] = ownerName
+			owners[ref][c.OwnerUserID] = c.OwnerName
 		}
 	}
-	return owners, nil
+	return owners
 }
 
 func RemoveImage(id string) error {
-	cmd := exec.Command("docker", "rmi", "-f", id)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("remove image: %w", err)
+	started := time.Now()
+	defer func() {
+		imagesCache.Invalidate()
+		notifyInvalidators()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultOpTimeout)
+	defer cancel()
+
+	var err error
+	if _, _, engErr := defaultEngine.doRequest(ctx, http.MethodDelete, "/images/"+url.PathEscape(id)+"?force=true", nil); engErr == nil {
+		performance.DefaultRegistry.RecordDockerOp("remove_image", time.Since(started), nil)
+		return nil
+	} else if !errors.Is(engErr, errEngineUnavailable) {
+		err = fmt.Errorf("remove image: %w", engErr)
+		performance.DefaultRegistry.RecordDockerOp("remove_image", time.Since(started), err)
+		return err
 	}
-	return nil
+
+	cmd := exec.CommandContext(ctx, "docker", "rmi", "-f", id)
+	if cliErr := cmd.Run(); cliErr != nil {
+		err = fmt.Errorf("remove image: %w", cliErr)
+	}
+	performance.DefaultRegistry.RecordDockerOp("remove_image", time.Since(started), err)
+	return err
 }

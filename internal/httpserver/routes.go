@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 )
 
 // routes registers all HTTP route handlers on the server mux.
@@ -414,6 +415,16 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/email/inbox/{id}/read", s.requireAuthV2(http.HandlerFunc(s.handleMarkInboxMessageRead)))
 	s.mux.Handle("DELETE /api/v1/email/inbox/{id}", s.requireAuthV2(http.HandlerFunc(s.handleDeleteInboxMessage)))
 	s.mux.Handle("POST /api/v1/email/inbox/sync", s.requireAuthV2(http.HandlerFunc(s.handleSyncInbox)))
+
+	// ── Performance & Metrics (Superadmin only) ──────────────────────────────
+	s.mux.Handle("GET /api/v1/system/metrics/app", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleAppMetrics)))
+	s.mux.Handle("GET /api/v1/system/metrics/prometheus", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handlePrometheusMetrics)))
+
+	if s.cfg.ProfilingEnabled {
+		performance.RegisterPprofRoutes(s.mux, func(h http.Handler) http.Handler {
+			return s.requireRole(auth.SuperadminRole, h)
+		})
+	}
 
 	s.mux.Handle("/", s.authedFrontend)
 }

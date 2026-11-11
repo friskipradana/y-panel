@@ -84,13 +84,13 @@ export function WindowFallback() {
 
 export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authenticated: boolean) => React.ReactNode>> = {
   apps: (win, auth) => <DockerWindow win={win} authenticated={auth} />,
-  system: (_win, auth) => <SystemWindow authenticated={auth} />,
+  system: (win, auth) => <SystemWindow win={win} authenticated={auth} />,
   'system-logs': (win, auth) => <SystemLogsWindow win={win} authenticated={auth} />,
   'host-terminal': (win, auth) => <HostTerminalWindow win={win} authenticated={auth} />,
   terminal: () => <TerminalPlaceholder />,
   docs: () => <DocsWindow />,
   changelog: () => <ChangelogWindow />,
-  settings: (_win, auth) => <SettingsWindow authenticated={auth} />,
+  settings: (win, auth) => <SettingsWindow win={win} authenticated={auth} />,
   database: (_win, auth) => <DatabaseWindow authenticated={auth} />,
   'file-manager': (win, auth) => <FileManagerWindow win={win} authenticated={auth} />,
   'file-editor': (_win, auth) => <FileEditorWindow authenticated={auth} />,

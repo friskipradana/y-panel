@@ -40,7 +40,7 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   }
   const current = lists[activeTab]
   const narrowed = !!current.query.q || Object.keys(current.filters).length > 0
-  const containersQuery = useContainerTable(lists.containers.query, pollingActive)
+  const containersQuery = useContainerTable(lists.containers.query, pollingActive && activeTab === 'containers')
   const { data, isLoading, isError, error, refetch, isFetching } = containersQuery
   // only the tab on screen is polled
   const networksQuery = useDockerNetworks(pollingActive && activeTab === 'networks', lists.networks.query)
@@ -158,7 +158,8 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   // A tab opened after a while shows fresh data at once instead of waiting for the next poll
   useEffect(() => {
     if (!pollingActive) return
-    if (activeTab === 'images') void refetchImages()
+    if (activeTab === 'containers') void refetch()
+    else if (activeTab === 'images') void refetchImages()
     else if (activeTab === 'networks') void refetchNetworks()
     else if (activeTab === 'volumes') void refetchVolumes()
     // eslint-disable-next-line react-hooks/exhaustive-deps

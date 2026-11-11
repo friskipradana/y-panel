@@ -59,6 +59,9 @@ type Config struct {
 	// Public read-only demo account (disabled when DemoPassword is empty)
 	DemoUsername string
 	DemoPassword string
+
+	// Performance & Observability
+	ProfilingEnabled bool
 }
 
 func Load() (Config, error) {
@@ -83,6 +86,7 @@ func Load() (Config, error) {
 		EncryptionKey:              os.Getenv("PANEL_ENCRYPTION_KEY"),
 		DemoUsername:               getenv("PANEL_DEMO_USERNAME", "demo"),
 		DemoPassword:               os.Getenv("PANEL_DEMO_PASSWORD"),
+		ProfilingEnabled:           parseBoolEnv("PANEL_PROFILING_ENABLED", false),
 	}
 
 	if cfg.DatabaseEnable && cfg.DatabaseDSN == "" {

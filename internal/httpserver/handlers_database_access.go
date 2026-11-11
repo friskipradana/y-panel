@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -122,10 +123,26 @@ func (s *Server) handleDatabaseSetAccess(w http.ResponseWriter, r *http.Request)
 }
 
 // WatchDatabaseAccess puts the firewall rules of the databases back when something took them away (a firewall reload, a restart of
-// Docker or of a service that rewrites the rules). It runs until the agent stops.
+// Docker or of a service that rewrites the rules). It runs until the server context is cancelled.
 func (s *Server) WatchDatabaseAccess(interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+	ctx := s.bgCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.recoveryWG.Add(1)
 	go func() {
-		for range time.Tick(interval) {
+		defer s.recoveryWG.Done()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
 			if s.database == nil || !s.database.IsConnected() {
 				continue
 			}
@@ -135,6 +152,9 @@ func (s *Server) WatchDatabaseAccess(interval time.Duration) {
 			}
 			databaseAccessMu.Lock()
 			for _, item := range list {
+				if ctx.Err() != nil {
+					break
+				}
 				if item.AccessMode == userdb.AccessIPs && len(item.AccessIPs) > 0 && !userdb.AccessInPlace(item.ID, item.HostPort) {
 					log.Printf("[databases] the firewall rules of database %d were gone; putting them back", item.ID)
 					s.restoreDatabaseAccess(item)

@@ -19,10 +19,10 @@ const OWNER_GROUPS = ['security', 'attack', 'order', 'plan', 'domain'] as const
 
 type Section = 'telegram' | 'waha' | 'cloud' | 'templates' | 'queue' | 'thresholds'
 
-export function NotificationsTab() {
+export function NotificationsTab({ active = true }: { active?: boolean } = {}) {
   const { t } = useI18n()
   const [section, setSection] = useState<Section>('telegram')
-  const overview = useQuery({ queryKey: ['notify', 'overview'], queryFn: getNotifyOverview, retry: 0, refetchInterval: 15000 })
+  const overview = useQuery({ queryKey: ['notify', 'overview'], queryFn: getNotifyOverview, retry: 0, refetchInterval: active ? 15000 : false })
   const telegram = overview.data?.channels.find((c) => c.kind === 'telegram')
   const cloud = overview.data?.channels.find((c) => c.kind === 'whatsapp_cloud')
 

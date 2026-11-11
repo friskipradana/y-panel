@@ -70,7 +70,11 @@ func (s *Server) dbxPassword() string {
 // retireOpenDbx removes a DBX container made by an older version of the panel, which listened on every address without a
 // password, as soon as the agent starts, so it is not left open until somebody opens DBX again
 func (s *Server) retireOpenDbx() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	baseCtx := s.bgCtx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(baseCtx, 30*time.Second)
 	defer cancel()
 	setup, err := dockerOutput(ctx, "inspect", "-f", `{{index .Config.Labels "`+dbxSetupLabel+`"}}`, dbxContainer)
 	if err != nil || strings.TrimSpace(setup) == dbxSetup {

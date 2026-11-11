@@ -61,21 +61,19 @@ func shellQuote(word string) string {
 	return "'" + strings.ReplaceAll(word, "'", `'\''`) + "'"
 }
 
-// abortLocked ends a process that was started a moment ago, without waiting; the caller holds the lock
-func (m *Manager) abortLocked(key string) {
-	e, ok := m.procs[key]
-	if !ok {
-		return
-	}
-	delete(m.procs, key)
-	e.stopping = true
-	close(e.stopCh)
-	if e.cmd != nil {
-		terminateGroup(e.cmd, true)
+// abortEntries terminates uncommitted child entries created before a stack start failure.
+func abortEntries(entries []*entry) {
+	for _, e := range entries {
+		if !e.stopping.Swap(true) {
+			close(e.stopCh)
+		}
+		if e.cmd != nil {
+			terminateGroup(e.cmd, true)
+		}
 	}
 }
 
-// startStack starts every process of the project and the gateway in front of them; the caller holds the lock
+// startStack launches every process of a multi-process project and its gateway without holding m.mu across I/O.
 func (m *Manager) startStack(user *database.User, project *database.Project) error {
 	if err := ValidateRun("stack", project.Run, project.AssignedPort); err != nil {
 		return err
@@ -85,13 +83,12 @@ func (m *Manager) startStack(user *database.User, project *database.Project) err
 		return err
 	}
 
+	var entries []*entry
 	var keys []string
 	var ports []int
 	var routes []gatewayRoute
 	rollback := func() {
-		for _, key := range keys {
-			m.abortLocked(key)
-		}
+		abortEntries(entries)
 	}
 
 	for _, svc := range project.Run.Services {
@@ -141,14 +138,13 @@ func (m *Manager) startStack(user *database.User, project *database.Project) err
 			e.user = &owner
 		}
 		e.build = func() (*exec.Cmd, error) { return finishCommand(e.user, exec.Command("sh", "-c", script)) }
-		if err := m.launch(e); err != nil {
+		if err := m.launchEntry(e); err != nil {
 			rollback()
 			return fmt.Errorf("process %s: %w", svc.Name, err)
 		}
-		m.procs[e.key] = e
+		entries = append(entries, e)
 		keys = append(keys, e.key)
 		ports = append(ports, port)
-		go m.watch(e)
 
 		prefix := svc.Path
 		if prefix == "/" {
@@ -162,24 +158,42 @@ func (m *Manager) startStack(user *database.User, project *database.Project) err
 		rollback()
 		return err
 	}
-	m.stacks[project.ID] = &stack{gateway: gw, keys: keys, ports: ports}
+
+	m.mu.Lock()
+	for _, e := range entries {
+		m.procs[e.key] = e
+	}
+	m.stacks[project.ID] = &stack{gateway: gw, gwPort: project.AssignedPort, keys: keys, ports: ports}
+	m.states[project.ID] = ProcessRunning
+	m.mu.Unlock()
+
+	if m.prober != nil && project.AssignedPort > 0 {
+		m.prober.Invalidate(project.AssignedPort)
+	}
+	for _, e := range entries {
+		go m.watch(e)
+	}
 	m.logLine(project.ID, "the gateway listens on port %d for %d processes", project.AssignedPort, len(keys))
 	return nil
 }
 
-// ready says whether a project accepts connections: its port, and for a project of several every process behind it
+// ready says whether a project accepts connections: its port, and for a project of several every process behind it.
 func (m *Manager) ready(project *database.Project) bool {
-	if !isLocalPortOpen(project.AssignedPort) {
+	if !dialLocalPort(project.AssignedPort, defaultProbeTimeout) {
 		return false
 	}
 	m.mu.RLock()
 	st, ok := m.stacks[project.ID]
+	var ports []int
+	if ok {
+		ports = append([]int(nil), st.ports...)
+	}
 	m.mu.RUnlock()
 	if !ok {
 		return true
 	}
-	for _, port := range st.ports {
-		if !isLocalPortOpen(port) {
+	for _, port := range ports {
+		if !dialLocalPort(port, defaultProbeTimeout) {
 			return false
 		}
 	}

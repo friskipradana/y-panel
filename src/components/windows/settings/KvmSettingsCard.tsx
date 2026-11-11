@@ -12,7 +12,7 @@ import { TextInput } from '@/components/ui/Field'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
 
-export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
+export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolean; active?: boolean } = {}) {
   const { t } = useI18n()
   const qc = useQueryClient()
   const openWindow = useWindowStore((s) => s.openWindow)
@@ -20,7 +20,14 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
   const [showManualCmd, setShowManualCmd] = useState(false)
 
   const siteQuery = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
-  const kvmQuery = useQuery({ queryKey: ['kvm-status'], queryFn: getKvmStatus, retry: 1, refetchInterval: 10_000 })
+  const kvmEnabledSetting = siteQuery.data?.kvmEnabled ?? false
+  const kvmQuery = useQuery({
+    queryKey: ['kvm-status'],
+    queryFn: getKvmStatus,
+    retry: 1,
+    enabled: kvmEnabledSetting,
+    refetchInterval: kvmEnabledSetting && active ? 10_000 : false,
+  })
 
   const mutation = useMutation({
     mutationFn: (patch: Partial<SiteSettings>) => setSiteSettings(patch),

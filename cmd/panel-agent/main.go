@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -65,23 +66,58 @@ func main() {
 	}
 
 	srv := httpserver.New(cfg)
-	defer func() {
+
+	ln, err := net.Listen("tcp", cfg.BindAddr)
+	if err != nil {
+		_ = srv.Close()
+		log.Fatalf("listen %s: %v", cfg.BindAddr, err)
+	}
+
+	httpServer := &http.Server{
+		Addr:              cfg.BindAddr,
+		Handler:           srv,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		log.Printf("Reneo agent listening on %s", cfg.BindAddr)
+		if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+			serveErrCh <- err
+			return
+		}
+		serveErrCh <- nil
+	}()
+
+	// Non-blocking startup recovery once listener is ready to serve requests.
+	srv.RestoreAsync()
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-serveErrCh:
+		if closeErr := srv.Close(); closeErr != nil {
+			log.Printf("Reneo agent close warning: %v", closeErr)
+		}
+		if err != nil {
+			log.Fatalf("listen and serve: %v", err)
+		}
+	case <-sigCtx.Done():
+		log.Printf("Reneo agent shutting down...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server shutdown warning: %v", err)
+		}
+		cancel()
+		if err := <-serveErrCh; err != nil {
+			log.Printf("HTTP serve exit warning: %v", err)
+		}
 		if err := srv.Close(); err != nil {
 			log.Printf("Reneo agent close warning: %v", err)
 		}
-	}()
-
-	srv.EnsureDemoAccount()
-	srv.RestoreProjects()
-	srv.RecoverDatabases()
-	srv.RestoreDatabaseAccess()
-	srv.WatchDatabaseAccess(2 * time.Minute)
-	srv.RestoreTunnels()
-	srv.RestorePublicProxy()
-
-	log.Printf("Reneo agent listening on %s", cfg.BindAddr)
-	if err := http.ListenAndServe(cfg.BindAddr, srv); err != nil {
-		log.Fatalf("listen and serve: %v", err)
+		log.Printf("Reneo agent stopped")
 	}
 }
 
@@ -115,7 +151,7 @@ func runResetPrimaryPassword(args []string) error {
 	})
 	defer db.Close()
 
-	dbStatus := db.Status()
+	dbStatus := db.ConnectionStatus()
 	if !dbStatus.Connected {
 		if dbStatus.LastError != "" {
 			return fmt.Errorf("database not connected: %s", dbStatus.LastError)

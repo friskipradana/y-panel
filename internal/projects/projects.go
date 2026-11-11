@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,11 +14,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 )
 
 // Port range allocation per user: each user gets a contiguous block.
@@ -78,11 +79,14 @@ type entry struct {
 	done      chan struct{} // closed when the current process has ended
 	startedAt time.Time
 	restarts  int
-	stopping  bool
+	stopping  atomic.Bool
 	stopCh    chan struct{}
 }
 
 func (e *entry) alive() bool {
+	if e.done == nil {
+		return false
+	}
 	select {
 	case <-e.done:
 		return false
@@ -94,6 +98,7 @@ func (e *entry) alive() bool {
 // stack is a project made of several processes: the gateway on its port, and the keys of the entries that run its processes
 type stack struct {
 	gateway *gateway
+	gwPort  int
 	keys    []string
 	// ports are the ports of the processes behind the gateway
 	ports []int
@@ -104,6 +109,11 @@ type Manager struct {
 	mu       sync.RWMutex
 	procs    map[string]*entry // key = project ID, or project ID/process for a project of several
 	stacks   map[int64]*stack
+	states   map[int64]ProcessStatus
+	opMu     sync.Mutex
+	opLocks  map[int64]*sync.Mutex
+	startSem chan struct{}
+	prober   *portProber
 	stateDir string
 	// envKey opens the variables a project keeps encrypted
 	envKey string
@@ -119,22 +129,40 @@ func (e *entry) tag() string {
 	return "[" + e.service + "] "
 }
 
-type RuntimeSnapshot struct {
-	Known       bool   `json:"known"`
-	Running     bool   `json:"running"`
-	Listening   bool   `json:"listening"`
-	Status      string `json:"status"`
-	Drift       bool   `json:"drift"`
-	DriftReason string `json:"driftReason,omitempty"`
-}
-
 // NewManager creates a project process Manager.
 func NewManager(stateDir string) *Manager {
 	return &Manager{
 		procs:    make(map[string]*entry),
 		stacks:   make(map[int64]*stack),
+		states:   make(map[int64]ProcessStatus),
+		opLocks:  make(map[int64]*sync.Mutex),
+		startSem: make(chan struct{}, 8),
+		prober:   newPortProber(defaultProbeWorkers, defaultProbeTTL, defaultProbeTimeout),
 		stateDir: stateDir,
 	}
+}
+
+func (m *Manager) projectOpLock(projectID int64) *sync.Mutex {
+	m.opMu.Lock()
+	defer m.opMu.Unlock()
+	if m.opLocks == nil {
+		m.opLocks = make(map[int64]*sync.Mutex)
+	}
+	lk, ok := m.opLocks[projectID]
+	if !ok {
+		lk = &sync.Mutex{}
+		m.opLocks[projectID] = lk
+	}
+	return lk
+}
+
+func (m *Manager) setState(projectID int64, status ProcessStatus) {
+	m.mu.Lock()
+	if m.states == nil {
+		m.states = make(map[int64]ProcessStatus)
+	}
+	m.states[projectID] = status
+	m.mu.Unlock()
 }
 
 // SetEnvKey gives the manager the key that opens the variables of projects
@@ -162,30 +190,60 @@ func (m *Manager) projectEnv(p *database.Project) ([]string, error) {
 // Start launches a project process based on its type and working directory, and keeps it
 // running: a project that dies on its own is started again. It returns once the process
 // has been created; StartAndWait also waits for the project to accept connections.
-func (m *Manager) Start(user *database.User, project *database.Project) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Manager) Start(user *database.User, project *database.Project) (err error) {
+	started := time.Now()
+	defer func() {
+		performance.DefaultRegistry.RecordProjectStart(time.Since(started), err)
+	}()
 
+	opMu := m.projectOpLock(project.ID)
+	opMu.Lock()
+	defer opMu.Unlock()
+
+	m.mu.Lock()
 	if _, ok := m.procs[procKey(project.ID)]; ok {
+		m.mu.Unlock()
 		return nil // already running, or waiting to be started again
 	}
 	if _, ok := m.stacks[project.ID]; ok {
+		m.mu.Unlock()
 		return nil
 	}
+	if m.states == nil {
+		m.states = make(map[int64]ProcessStatus)
+	}
+	m.states[project.ID] = ProcessStarting
+	m.mu.Unlock()
+
+	setFailed := func() {
+		m.setState(project.ID, ProcessFailed)
+	}
+
 	// a project the agent did not start itself (it outlived an agent restart) keeps its port
-	if isLocalPortOpen(project.AssignedPort) {
+	if m.prober != nil && m.prober.ProbeFresh(project.AssignedPort) {
+		m.setState(project.ID, ProcessRunning)
 		return nil
 	}
 
 	// rows created before directory checks existed may still point outside the owner's home
 	if user != nil {
-		if _, _, err := ResolveWorkingDir(project.WorkingDir, osuser.ResolveHomeDir(user.Username), user.Role == "superadmin"); err != nil {
-			return fmt.Errorf("project %d: %w", project.ID, err)
+		if _, _, dirErr := ResolveWorkingDir(project.WorkingDir, osuser.ResolveHomeDir(user.Username), user.Role == "superadmin"); dirErr != nil {
+			setFailed()
+			return fmt.Errorf("project %d: %w", project.ID, dirErr)
 		}
 	}
 
+	if m.startSem != nil {
+		m.startSem <- struct{}{}
+		defer func() { <-m.startSem }()
+	}
+
 	if project.ProjectType == "stack" {
-		return m.startStack(user, project)
+		if stackErr := m.startStack(user, project); stackErr != nil {
+			setFailed()
+			return stackErr
+		}
+		return nil
 	}
 
 	e := &entry{project: *project, key: procKey(project.ID), dir: project.WorkingDir, stopCh: make(chan struct{})}
@@ -194,10 +252,19 @@ func (m *Manager) Start(user *database.User, project *database.Project) error {
 		owner := *user
 		e.user = &owner
 	}
-	if err := m.launch(e); err != nil {
-		return err
+	if launchErr := m.launchEntry(e); launchErr != nil {
+		setFailed()
+		return launchErr
 	}
+
+	m.mu.Lock()
 	m.procs[e.key] = e
+	m.states[project.ID] = ProcessRunning
+	m.mu.Unlock()
+
+	if m.prober != nil && project.AssignedPort > 0 {
+		m.prober.Invalidate(project.AssignedPort)
+	}
 	go m.watch(e)
 	return nil
 }
@@ -212,6 +279,9 @@ func (m *Manager) StartAndWait(user *database.User, project *database.Project, w
 	deadline := time.Now().Add(wait)
 	for {
 		if m.ready(project) {
+			if m.prober != nil && project.AssignedPort > 0 {
+				m.prober.Mark(project.AssignedPort, true)
+			}
 			return true, nil
 		}
 		m.mu.RLock()
@@ -242,8 +312,10 @@ func (m *Manager) exitError(projectID int64) error {
 	return fmt.Errorf("the project exited right after it started:\n%s", tail)
 }
 
-// launch runs the project once; the caller holds the lock.
-func (m *Manager) launch(e *entry) error {
+var errEntryStopping = errors.New("project stopping during launch")
+
+// launchEntry prepares, starts, and supervises one process without holding m.mu across I/O or fork.
+func (m *Manager) launchEntry(e *entry) error {
 	cmd, err := e.build()
 	if err != nil {
 		return err
@@ -276,7 +348,6 @@ func (m *Manager) launch(e *entry) error {
 	}
 
 	done := make(chan struct{})
-	e.cmd, e.done, e.startedAt = cmd, done, time.Now()
 	go func() {
 		waitErr := cmd.Wait()
 		if logFile != nil {
@@ -286,6 +357,16 @@ func (m *Manager) launch(e *entry) error {
 		}
 		close(done)
 	}()
+
+	m.mu.Lock()
+	if e.stopping.Load() {
+		m.mu.Unlock()
+		terminateGroup(cmd, true)
+		<-done
+		return errEntryStopping
+	}
+	e.cmd, e.done, e.startedAt = cmd, done, time.Now()
+	m.mu.Unlock()
 	return nil
 }
 
@@ -303,7 +384,7 @@ func (m *Manager) watch(e *entry) {
 		}
 
 		m.mu.Lock()
-		if e.stopping {
+		if e.stopping.Load() {
 			m.mu.Unlock()
 			return
 		}
@@ -316,10 +397,12 @@ func (m *Manager) watch(e *entry) {
 			if m.procs[e.key] == e {
 				delete(m.procs, e.key)
 			}
+			m.states[id] = ProcessFailed
 			m.mu.Unlock()
 			m.logLine(id, "%sstopped after %d failed attempts to keep it running", e.tag(), maxRestarts)
 			return
 		}
+		m.states[id] = ProcessStarting
 		m.mu.Unlock()
 
 		delay := time.Duration(1<<attempt) * time.Second
@@ -330,40 +413,75 @@ func (m *Manager) watch(e *entry) {
 		case <-time.After(delay):
 		}
 
-		m.mu.Lock()
-		if e.stopping {
-			m.mu.Unlock()
+		if e.stopping.Load() {
 			return
 		}
-		if err := m.launch(e); err != nil {
+		if err := m.launchEntry(e); err != nil {
+			if errors.Is(err, errEntryStopping) {
+				return
+			}
 			// counts as one more failed run
 			ended := make(chan struct{})
 			close(ended)
+			m.mu.Lock()
 			e.done, e.startedAt = ended, time.Now()
+			m.states[id] = ProcessFailed
 			m.mu.Unlock()
 			m.logLine(id, "%scould not start: %v", e.tag(), err)
 			continue
 		}
-		m.mu.Unlock()
+		m.setState(id, ProcessRunning)
 	}
 }
 
 // Stop ends a project and everything it started: its process, or the gateway and the processes of a project of several.
 func (m *Manager) Stop(projectID int64) error {
+	started := time.Now()
+	opMu := m.projectOpLock(projectID)
+	opMu.Lock()
+	defer opMu.Unlock()
+
 	m.mu.Lock()
+	if m.states == nil {
+		m.states = make(map[int64]ProcessStatus)
+	}
+	m.states[projectID] = ProcessStopping
 	st, isStack := m.stacks[projectID]
 	if isStack {
 		delete(m.stacks, projectID)
 	}
+	var assignedPort int
+	if single, ok := m.procs[procKey(projectID)]; ok {
+		assignedPort = single.project.AssignedPort
+	}
 	m.mu.Unlock()
+
 	if isStack {
-		st.gateway.Close()
+		assignedPort = st.gwPort
+		if st.gateway != nil {
+			st.gateway.Close()
+		}
 		for _, key := range st.keys {
 			_ = m.stopKey(key)
 		}
+		if m.prober != nil {
+			m.prober.Invalidate(assignedPort)
+			for _, p := range st.ports {
+				m.prober.Invalidate(p)
+			}
+		}
+		m.setState(projectID, ProcessStopped)
+		performance.DefaultRegistry.RecordProjectStop(time.Since(started), nil)
 		return nil
 	}
-	return m.stopKey(procKey(projectID))
+
+	err := m.stopKey(procKey(projectID))
+	if m.prober != nil && assignedPort > 0 {
+		m.prober.Invalidate(assignedPort)
+	}
+	m.setState(projectID, ProcessStopped)
+	performance.DefaultRegistry.RecordProjectStop(time.Since(started), err)
+	return err
 }
 
 // stopKey ends one supervised process and the children it started.
@@ -372,8 +490,9 @@ func (m *Manager) stopKey(key string) error {
 	e, ok := m.procs[key]
 	if ok {
 		delete(m.procs, key)
-		e.stopping = true
-		close(e.stopCh)
+		if !e.stopping.Swap(true) {
+			close(e.stopCh)
+		}
 	}
 	var cmd *exec.Cmd
 	var done chan struct{}
@@ -382,7 +501,11 @@ func (m *Manager) stopKey(key string) error {
 	}
 	m.mu.Unlock()
 
-	if !ok || cmd == nil || done == nil {
+	return stopProcess(cmd, done)
+}
+
+func stopProcess(cmd *exec.Cmd, done chan struct{}) error {
+	if cmd == nil || done == nil {
 		return nil
 	}
 	select {
@@ -408,7 +531,11 @@ func (m *Manager) StopProject(project database.Project) error {
 	if err := m.Stop(project.ID); err != nil {
 		return err
 	}
-	return terminateLocalPort(project.AssignedPort)
+	err := terminateLocalPort(project.AssignedPort)
+	if m.prober != nil && project.AssignedPort > 0 {
+		m.prober.Invalidate(project.AssignedPort)
+	}
+	return err
 }
 
 // IsRunning reports if a project is currently running.
@@ -418,14 +545,14 @@ func (m *Manager) IsRunning(projectID int64) bool {
 }
 
 func (m *Manager) Snapshot(projectID int64, desiredStatus string) RuntimeSnapshot {
-	return m.snapshot(projectID, desiredStatus, 0)
+	return m.snapshot(projectID, desiredStatus, 0, true)
 }
 
 func (m *Manager) SnapshotProject(project database.Project) RuntimeSnapshot {
-	return m.snapshot(project.ID, project.Status, project.AssignedPort)
+	return m.snapshot(project.ID, project.Status, project.AssignedPort, true)
 }
 
-func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort int) RuntimeSnapshot {
+func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort int, allowSyncProbe bool) RuntimeSnapshot {
 	m.mu.RLock()
 	e, single := m.procs[procKey(projectID)]
 	processRunning := single && e.alive()
@@ -437,6 +564,7 @@ func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort i
 			}
 		}
 	}
+	state := m.states[projectID]
 	ok := single || isStack
 	port := assignedPort
 	if port <= 0 && single {
@@ -444,13 +572,49 @@ func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort i
 	}
 	m.mu.RUnlock()
 
-	portRunning := isLocalPortOpen(port)
+	if state == "" {
+		if processRunning {
+			state = ProcessRunning
+		} else {
+			state = ProcessStopped
+		}
+	}
+
+	portStatus := PortClosed
+	portRunning := false
+	var lastProbeAt time.Time
+	if port > 0 && m.prober != nil {
+		var needsRefresh bool
+		portStatus, portRunning, lastProbeAt, needsRefresh = m.prober.LookupCached(port)
+		if needsRefresh {
+			if allowSyncProbe && portStatus == PortUnknown {
+				portRunning = m.prober.ProbeFresh(port)
+				portStatus = boolToPortStatus(portRunning)
+				lastProbeAt = time.Now()
+			} else {
+				m.prober.ScheduleBatch([]int{port})
+			}
+		}
+	} else if port > 0 {
+		portRunning = isLocalPortOpen(port)
+		portStatus = boolToPortStatus(portRunning)
+	}
+
+	return buildRuntimeSnapshot(ok, processRunning, portRunning, state, portStatus, lastProbeAt, desiredStatus)
+}
+
+func buildRuntimeSnapshot(known, processRunning, portRunning bool, state ProcessStatus, portStatus PortStatus, lastProbeAt time.Time, desiredStatus string) RuntimeSnapshot {
 	running := processRunning || portRunning
 	snapshot := RuntimeSnapshot{
-		Known:     ok || portRunning,
-		Running:   running,
-		Listening: portRunning,
-		Status:    "stopped",
+		Known:         known || portRunning,
+		Running:       running,
+		Listening:     portRunning,
+		Status:        "stopped",
+		ProcessStatus: state,
+		PortStatus:    portStatus,
+	}
+	if !lastProbeAt.IsZero() {
+		snapshot.LastProbeAt = lastProbeAt.Unix()
 	}
 	if running {
 		snapshot.Status = "active"
@@ -461,7 +625,7 @@ func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort i
 	case "active":
 		if !running {
 			snapshot.Drift = true
-			if ok {
+			if known {
 				snapshot.DriftReason = "expected_active_but_not_running"
 			} else {
 				snapshot.DriftReason = "expected_active_but_runtime_unknown"
@@ -478,18 +642,129 @@ func (m *Manager) snapshot(projectID int64, desiredStatus string, assignedPort i
 		}
 	}
 
+	switch {
+	case state == ProcessStarting || state == ProcessStopping:
+		snapshot.HealthStatus = HealthTransitioning
+	case snapshot.Drift:
+		snapshot.HealthStatus = HealthDrift
+	case state == ProcessFailed || desired == "error" || desired == "degraded":
+		snapshot.HealthStatus = HealthDegraded
+	case running:
+		snapshot.HealthStatus = HealthHealthy
+	default:
+		snapshot.HealthStatus = HealthStopped
+	}
 	return snapshot
 }
 
+// SnapshotAll returns runtime snapshots for all projects, probing any uncached ports concurrently
+// via the bounded worker pool and asynchronously refreshing stale entries.
 func (m *Manager) SnapshotAll(projects []database.Project) map[int64]RuntimeSnapshot {
+	return m.snapshotBatch(projects, true)
+}
+
+// SnapshotAllCached returns runtime snapshots purely from memory + cached port probe results,
+// scheduling background refresh for stale/unknown ports without blocking on TCP dials.
+func (m *Manager) SnapshotAllCached(projects []database.Project) map[int64]RuntimeSnapshot {
+	return m.snapshotBatch(projects, false)
+}
+
+// WarmPorts schedules asynchronous background probing for the provided project ports.
+func (m *Manager) WarmPorts(projects []database.Project) {
+	if m.prober == nil || len(projects) == 0 {
+		return
+	}
+	ports := make([]int, 0, len(projects))
+	for _, p := range projects {
+		if p.AssignedPort > 0 {
+			ports = append(ports, p.AssignedPort)
+		}
+	}
+	m.prober.ScheduleBatch(ports)
+}
+
+func (m *Manager) snapshotBatch(projects []database.Project, probeColdSync bool) map[int64]RuntimeSnapshot {
+	type probeMeta struct {
+		known          bool
+		processRunning bool
+		state          ProcessStatus
+		port           int
+	}
+	metas := make([]probeMeta, len(projects))
+	var coldPorts []int
+	var stalePorts []int
+
+	m.mu.RLock()
+	for i, project := range projects {
+		e, single := m.procs[procKey(project.ID)]
+		processRunning := single && e.alive()
+		st, isStack := m.stacks[project.ID]
+		if isStack {
+			for _, key := range st.keys {
+				if child, found := m.procs[key]; found && child.alive() {
+					processRunning = true
+				}
+			}
+		}
+		state := m.states[project.ID]
+		port := project.AssignedPort
+		if port <= 0 && single {
+			port = e.project.AssignedPort
+		}
+		if state == "" {
+			if processRunning {
+				state = ProcessRunning
+			} else {
+				state = ProcessStopped
+			}
+		}
+		metas[i] = probeMeta{
+			known:          single || isStack,
+			processRunning: processRunning,
+			state:          state,
+			port:           port,
+		}
+	}
+	m.mu.RUnlock()
+
+	if m.prober != nil {
+		for i := range metas {
+			port := metas[i].port
+			if port <= 0 {
+				continue
+			}
+			portStatus, _, _, needsRefresh := m.prober.LookupCached(port)
+			if needsRefresh {
+				if probeColdSync && portStatus == PortUnknown {
+					coldPorts = append(coldPorts, port)
+				} else {
+					stalePorts = append(stalePorts, port)
+				}
+			}
+		}
+		if len(coldPorts) > 0 {
+			m.prober.ProbeBatch(coldPorts)
+		}
+		if len(stalePorts) > 0 {
+			m.prober.ScheduleBatch(stalePorts)
+		}
+	}
+
 	result := make(map[int64]RuntimeSnapshot, len(projects))
-	for _, project := range projects {
-		result[project.ID] = m.SnapshotProject(project)
+	for i, project := range projects {
+		meta := metas[i]
+		portStatus := PortClosed
+		portRunning := false
+		var lastProbeAt time.Time
+		if meta.port > 0 && m.prober != nil {
+			portStatus, portRunning, lastProbeAt, _ = m.prober.LookupCached(meta.port)
+		}
+		result[project.ID] = buildRuntimeSnapshot(meta.known, meta.processRunning, portRunning, meta.state, portStatus, lastProbeAt, project.Status)
 	}
 	return result
 }
 
-// StopAll terminates all running projects.
+// StopAll terminates all running projects concurrently.
 func (m *Manager) StopAll() {
 	m.mu.Lock()
 	seen := map[int64]bool{}
@@ -500,9 +775,17 @@ func (m *Manager) StopAll() {
 		seen[id] = true
 	}
 	m.mu.Unlock()
+
+	var wg sync.WaitGroup
 	for id := range seen {
-		_ = m.Stop(id)
+		id := id
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = m.Stop(id)
+		}()
 	}
+	wg.Wait()
 }
 
 // Build Commands
@@ -708,15 +991,7 @@ server.serve_forever()
 }
 
 func isLocalPortOpen(port int) bool {
-	if port <= 0 {
-		return false
-	}
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond)
-	if err != nil {
-		return false
-	}
-	_ = conn.Close()
-	return true
+	return dialLocalPort(port, defaultProbeTimeout)
 }
 
 // PortInUse reports whether something already listens on the local port.

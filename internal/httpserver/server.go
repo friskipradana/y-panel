@@ -19,9 +19,11 @@ import (
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docker"
 	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 	"github.com/friskipradana/panel-desktop-ui/internal/docsync"
 	"github.com/friskipradana/panel-desktop-ui/internal/metrics"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/friskipradana/panel-desktop-ui/internal/projects"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/updater"
@@ -73,6 +75,9 @@ type Server struct {
 	capturedNotificationsWSConns map[int64][]*wsConn
 	rateLimitMu                  sync.Mutex
 	rateLimits                   map[string]*rateLimitEntry
+	bgCtx                        context.Context
+	bgCancel                     context.CancelFunc
+	recoveryWG                   sync.WaitGroup
 	reconcileStop                chan struct{}
 	reconcileDone                chan struct{}
 	databaseCreateMu             sync.Mutex
@@ -127,6 +132,7 @@ func New(cfg config.Config) *Server {
 	})
 
 	authMgr := auth.NewManager(db, cfg.SessionTTL)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
 
 	s := &Server{
 		cfg:                          cfg,
@@ -140,6 +146,8 @@ func New(cfg config.Config) *Server {
 		notificationWSConns:          make(map[int64][]*wsConn),
 		capturedNotificationsWSConns: make(map[int64][]*wsConn),
 		rateLimits:                   make(map[string]*rateLimitEntry),
+		bgCtx:                        bgCtx,
+		bgCancel:                     bgCancel,
 		reconcileStop:                make(chan struct{}),
 		reconcileDone:                make(chan struct{}),
 		fileRootAccess:               make(map[string]time.Time),
@@ -164,13 +172,17 @@ func New(cfg config.Config) *Server {
 	if docsync.Enabled() {
 		s.docsSync = docsync.New()
 		// the first list is fetched now, not by the first visitor of llms.txt or the articles page
-		go func() { _, _ = s.docsSync.Articles(context.Background(), false) }()
+		go func() { _, _ = s.docsSync.Articles(s.bgCtx, false) }()
 	}
 
 	// the variables of a project are kept encrypted; the manager opens them when it starts the project
 	s.projectManager.SetEnvKey(cfg.EncryptionKey)
 
-	go s.retireOpenDbx()
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.retireOpenDbx()
+	}()
 
 	// notices outside the panel: the queue, its workers, and the detectors of attacks
 	s.notify = notify.New(db, cfg.EncryptionKey)
@@ -183,8 +195,13 @@ func New(cfg config.Config) *Server {
 	}
 
 	s.routes()
+	docker.StartEventWatcher(s.bgCtx)
 	go s.runProjectReconcileLoop(25 * time.Second)
-	go s.runPlanExpiryLoop(15 * time.Minute)
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		s.runPlanExpiryLoop(15 * time.Minute)
+	}()
 	return s
 }
 
@@ -227,7 +244,12 @@ func (s *Server) RestoreProjects() {
 		log.Printf("[projects] failed to list projects for restore: %v", err)
 		return
 	}
+	s.projectManager.WarmPorts(projectList)
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	for _, project := range projectList {
+		if s.bgCtx != nil && s.bgCtx.Err() != nil {
+			return
+		}
 		status := strings.TrimSpace(strings.ToLower(project.Status))
 		switch status {
 		case "active":
@@ -244,7 +266,7 @@ func (s *Server) RestoreProjects() {
 			}
 			log.Printf("[projects] restored active project id=%d name=%q port=%d", project.ID, project.Name, project.AssignedPort)
 		case "stopped":
-			if s.projectManager.SnapshotProject(project).Running {
+			if snapshots[project.ID].Running {
 				if err := s.projectManager.StopProject(project); err != nil {
 					log.Printf("[projects] failed to stop inactive project=%d during restore: %v", project.ID, err)
 				}
@@ -295,13 +317,16 @@ func (s *Server) reconcileProjectStatuses() {
 	if s == nil || s.database == nil || s.projectManager == nil || !s.database.IsConnected() {
 		return
 	}
+	started := time.Now()
 	projectList, _, err := s.database.ListAllProjects(200, 0)
 	if err != nil {
 		log.Printf("[reconcile] failed to list projects: %v", err)
+		performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), err)
 		return
 	}
+	snapshots := s.projectManager.SnapshotAll(projectList)
 	for _, project := range projectList {
-		snapshot := s.projectManager.SnapshotProject(project)
+		snapshot := snapshots[project.ID]
 		if strings.EqualFold(strings.TrimSpace(project.Status), "stopped") && snapshot.Running {
 			if err := s.projectManager.StopProject(project); err != nil {
 				log.Printf("[reconcile] failed to stop drifted project=%d: %v", project.ID, err)
@@ -329,6 +354,7 @@ func (s *Server) reconcileProjectStatuses() {
 			"driftReason":    snapshot.DriftReason,
 		})
 	}
+	performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), nil)
 }
 
 func (s *Server) runProjectReconcileLoop(interval time.Duration) {
@@ -353,16 +379,89 @@ func (s *Server) runProjectReconcileLoop(interval time.Duration) {
 	}
 }
 
+// RestoreAsync runs startup state recovery asynchronously after the HTTP listener
+// is bound so /healthz and frontend routes answer immediately without waiting on
+// database firewall restoration, project startups, or tunnel daemons.
+func (s *Server) RestoreAsync() {
+	ctx := s.bgCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	s.recoveryWG.Add(1)
+	go func() {
+		defer s.recoveryWG.Done()
+		started := time.Now()
+		var wg sync.WaitGroup
+		wg.Add(4)
+
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.EnsureDemoAccount()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RestoreProjects()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RecoverDatabases()
+			}
+			if ctx.Err() == nil {
+				s.RestoreDatabaseAccess()
+				s.WatchDatabaseAccess(2 * time.Minute)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if ctx.Err() == nil {
+				s.RestoreTunnels()
+			}
+			if ctx.Err() == nil {
+				s.RestorePublicProxy()
+			}
+		}()
+
+		wg.Wait()
+		performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), nil)
+		log.Printf("[startup] background recovery finished in %s", time.Since(started).Round(time.Millisecond))
+	}()
+}
+
 func (s *Server) Close() error {
+	if s.bgCancel != nil {
+		s.bgCancel()
+	}
 	if s.reconcileStop != nil {
 		close(s.reconcileStop)
 		s.reconcileStop = nil
 	}
 	if s.reconcileDone != nil {
 		<-s.reconcileDone
+		s.reconcileDone = nil
 	}
+	s.recoveryWG.Wait()
+	if s.metrics != nil {
+		s.metrics.Stop()
+	}
+	if s.cfDaemon != nil {
+		s.cfDaemon.StopAll()
+	}
+	if s.projectManager != nil {
+		s.projectManager.StopAll()
+	}
+	if s.terminalManager != nil {
+		s.terminalManager.CloseAll()
+	}
+	system.ShutdownCollector()
 	s.stopPublicProxy()
-	s.notify.Stop()
+	if s.notify != nil {
+		s.notify.Stop()
+	}
 	if s.database != nil {
 		return s.database.Close()
 	}

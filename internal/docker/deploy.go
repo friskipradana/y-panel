@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 )
 
 func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult, error) {
+	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
 	if err != nil {
 		return nil, err
@@ -79,6 +81,10 @@ func enforceDeployedPolicy(owner OwnerContext, projectName, projectDir, composeP
 }
 
 func PullImage(image string, auth *RegistryAuth) error {
+	defer func() {
+		imagesCache.Invalidate()
+		notifyInvalidators()
+	}()
 	image = strings.TrimSpace(image)
 	if image == "" {
 		return errors.New("image is required")
@@ -90,7 +96,9 @@ func PullImage(image string, auth *RegistryAuth) error {
 	if logout != nil {
 		defer logout()
 	}
-	cmd := exec.Command("docker", "pull", image)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultLongOpTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "docker", "pull", image)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("pull image: %s", strings.TrimSpace(string(output)))
 	}
@@ -98,6 +106,7 @@ func PullImage(image string, auth *RegistryAuth) error {
 }
 
 func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployResult, error) {
+	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
 	if err != nil {
 		return nil, err

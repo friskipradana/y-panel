@@ -124,6 +124,7 @@ export function useDockerNetworks(active: boolean, query: ListQuery) {
     queryFn: () => listDockerNetworks(query),
     placeholderData: keepPreviousData,
     refetchInterval: active ? 15_000 : false,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -149,6 +150,7 @@ export function useDockerImages(active: boolean, query: ListQuery) {
     queryFn: () => listDockerImages(query),
     placeholderData: keepPreviousData,
     refetchInterval: active ? 15_000 : false,
+    refetchIntervalInBackground: false,
   })
 }
 

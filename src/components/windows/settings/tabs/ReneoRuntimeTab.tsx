@@ -34,12 +34,12 @@ function extractAttentionType(message: string, metadata: string) {
 }
 
 // Reneo's own runtime: paths, integrations and project reconcile incidents. Superadmin only.
-export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) {
+export function ReneoRuntimeTab({ authenticated, active = true }: { authenticated?: boolean; active?: boolean }) {
   const { t } = useI18n()
   const openWindow = useWindowStore((state) => state.openWindow)
   const summaryPolling = useLivePolling(15_000)
-  const summary = useQuery({ queryKey: ['agent-system-summary'], queryFn: getSystemSummary, retry: 1, refetchInterval: summaryPolling, enabled: authenticated !== false })
-  const database = useQuery({ queryKey: ['database-status'], queryFn: getDatabaseStatus, retry: 1, refetchInterval: 15_000, enabled: authenticated !== false })
+  const summary = useQuery({ queryKey: ['agent-system-summary'], queryFn: getSystemSummary, retry: 1, refetchInterval: active ? summaryPolling : false, enabled: authenticated !== false })
+  const database = useQuery({ queryKey: ['database-status'], queryFn: getDatabaseStatus, retry: 1, refetchInterval: active ? 15_000 : false, enabled: authenticated !== false })
 
   const incidents = useMemo(() => {
     const logs = database.data?.runtimeLogs ?? []

@@ -8,7 +8,7 @@ import type { HostSettings } from "../hooks/useHostSettings";
 import { FieldLabel, TimezoneSelect, DnsEditor, SettingsGroup } from "../SettingsPrimitives";
 import { TextInput } from "@/components/ui/Field";
 
-export function GeneralTab({ host, systemSettings }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]> }) {
+export function GeneralTab({ host, systemSettings, active = true }: { host: HostSettings; systemSettings: NonNullable<HostSettings["query"]["data"]>; active?: boolean }) {
   const { t } = useI18n();
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const {
@@ -88,7 +88,7 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
           <div className="flex flex-col gap-3">
             <SitePublicCard bare />
             <div className="border-t border-[var(--win-border)]" />
-            <KvmSettingsCard bare />
+            <KvmSettingsCard bare active={active} />
           </div>
         </SettingsGroup>
       ) : null}

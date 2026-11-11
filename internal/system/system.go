@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,39 +47,40 @@ type LogEntry struct {
 	Line string `json:"line"`
 }
 
-func Inspect(stateDir string) Summary {
-	hostname, _ := os.Hostname()
-	dockerInstalled := hasCommand("docker")
-	dockerReachable := dockerReachable()
+var (
+	defaultCollectorMu sync.Mutex
+	defaultCollector   *Collector
+)
 
-	return Summary{
-		Hostname:           hostname,
-		OSName:             readOSName(),
-		Kernel:             readKernel(),
-		UptimeSeconds:      readUptimeSeconds(),
-		CPUUsagePercent:    readCPUUsagePercent(),
-		CPUTemp:            readCPUTemp(),
-		Memory:             readMemoryUsage(),
-		Storage:            readStorageUsage(stateDir),
-		NetworkIO:          readNetworkIO(),
-		DockerInstalled:    dockerInstalled,
-		DockerReachable:    dockerReachable,
-		DockerStatus:       resolveDockerStatus(dockerInstalled, dockerReachable),
-		IPAddresses:        readIPAddresses(),
+// DefaultCollector returns the shared background telemetry collector for non-blocking Inspect calls.
+func DefaultCollector(stateDir string) *Collector {
+	defaultCollectorMu.Lock()
+	defer defaultCollectorMu.Unlock()
+	if defaultCollector == nil {
+		defaultCollector = NewCollector(stateDir, 2*time.Second, 15*time.Second)
+		defaultCollector.Start()
 	}
+	return defaultCollector
+}
+
+// ShutdownCollector cleanly terminates the shared background telemetry collector.
+func ShutdownCollector() {
+	defaultCollectorMu.Lock()
+	c := defaultCollector
+	defaultCollector = nil
+	defaultCollectorMu.Unlock()
+	if c != nil {
+		c.Close()
+	}
+}
+
+func Inspect(stateDir string) Summary {
+	return DefaultCollector(stateDir).GetSnapshot().Summary
 }
 
 func hasCommand(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
-}
-
-func dockerReachable() bool {
-	if !hasCommand("docker") {
-		return false
-	}
-	cmd := exec.Command("docker", "info")
-	return cmd.Run() == nil
 }
 
 func resolveDockerStatus(installed, reachable bool) string {
@@ -106,6 +108,11 @@ func readOSName() string {
 }
 
 func readKernel() string {
+	if data, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
+		if k := strings.TrimSpace(string(data)); k != "" {
+			return k
+		}
+	}
 	out, err := exec.Command("uname", "-r").Output()
 	if err != nil {
 		return runtime.GOARCH
@@ -160,25 +167,6 @@ func readCPUTemp() float64 {
 	}
 
 	return 0
-}
-
-func readCPUUsagePercent() float64 {
-	first, err := readCPUStat()
-	if err != nil {
-		return 0
-	}
-	time.Sleep(180 * time.Millisecond)
-	second, err := readCPUStat()
-	if err != nil {
-		return 0
-	}
-
-	idle := second.idle - first.idle
-	total := second.total - first.total
-	if total == 0 {
-		return 0
-	}
-	return float64(total-idle) / float64(total) * 100
 }
 
 type cpuTimes struct {

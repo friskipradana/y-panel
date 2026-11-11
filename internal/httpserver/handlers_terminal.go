@@ -127,21 +127,40 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 
 	log.Printf("[terminal] ws attached id=%s user=%q remote=%s", id, username, remoteAddr(r))
 
-	var (
-		writeMu   sync.Mutex
-		closeOnce sync.Once
-	)
+	var closeOnce sync.Once
 	closed := make(chan struct{})
 	markClosed := func() { closeOnce.Do(func() { close(closed) }) }
 
-	// A write deadline keeps one half-open client from stalling the PTY reader
-	// (and with it every later re-attach of the same session).
-	safeWrite := func(payload terminalSocketMessage) error {
-		writeMu.Lock()
-		defer writeMu.Unlock()
+	// A write deadline keeps one half-open client from stalling the writer goroutine
+	// while StreamWriter coalesces PTY bursts and bounds outbound memory.
+	writeJSON := func(payload terminalSocketMessage) error {
 		_ = conn.SetWriteDeadline(time.Now().Add(terminalWriteWait))
 		return conn.WriteJSON(payload)
 	}
+
+	writer := terminal.NewStreamWriter(
+		128,
+		1024*1024,
+		func(chunk string) error {
+			return writeJSON(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
+		},
+		func(kind terminal.ControlKind, payload any) error {
+			switch kind {
+			case terminal.ControlPing:
+				return conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(terminalWriteWait))
+			default:
+				if msg, ok := payload.(terminalSocketMessage); ok {
+					return writeJSON(msg)
+				}
+				return nil
+			}
+		},
+		func(err error) {
+			log.Printf("[terminal] stream backpressure/write failed id=%s user=%q err=%v", id, username, err)
+			markClosed()
+			_ = conn.Close()
+		},
+	)
 
 	conn.SetReadLimit(terminalReadLimit)
 	_ = conn.SetReadDeadline(time.Now().Add(terminalPongWait))
@@ -154,23 +173,29 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		id,
 		replay,
 		func(chunk string) error {
-			return safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
+			return writer.EnqueueChunk(chunk)
 		},
 		func() {
 			log.Printf("[terminal] session closed id=%s user=%q", id, username)
-			_ = safeWrite(terminalSocketMessage{Type: "closed", Closed: true, Session: id})
+			if writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "closed", Closed: true, Session: id}) {
+				writer.CloseWait(terminalWriteWait)
+			} else {
+				writer.Close(false)
+			}
 			markClosed()
 			_ = conn.Close()
 		},
 		func() {
 			log.Printf("[terminal] ws replaced by newer connection id=%s user=%q", id, username)
+			writer.Close(false)
 			markClosed()
 			_ = conn.Close()
 		},
 	)
 	if err != nil {
 		log.Printf("[terminal] attach failed id=%s user=%q remote=%s err=%v", id, username, remoteAddr(r), err)
-		_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
+		writer.Close(true)
+		_ = writeJSON(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 		_ = conn.Close()
 		return
 	}
@@ -186,11 +211,7 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 			case <-closed:
 				return
 			case <-ticker.C:
-				writeMu.Lock()
-				err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(terminalWriteWait))
-				writeMu.Unlock()
-				if err != nil {
-					_ = conn.Close()
+				if !writer.EnqueueControl(terminal.ControlPing, nil) {
 					return
 				}
 			}
@@ -199,12 +220,14 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 
 	defer func() {
 		close(pingDone)
+		markClosed()
+		writer.Close(false)
 		log.Printf("[terminal] ws detached id=%s user=%q remote=%s", id, username, remoteAddr(r))
 		_ = s.terminalManager.Detach(id, gen)
 		_ = conn.Close()
 	}()
 
-	_ = safeWrite(terminalSocketMessage{Type: "ready", Session: id})
+	writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "ready", Session: id})
 
 	for {
 		select {
@@ -221,25 +244,28 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 
 		switch msg.Type {
 		case "ping":
-			_ = safeWrite(terminalSocketMessage{Type: "pong", Session: id})
+			writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "pong", Session: id})
 		case "input":
 			if err := s.terminalManager.Write(id, msg.Data); err != nil {
 				log.Printf("[terminal] input failed id=%s user=%q err=%v", id, username, err)
-				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
+				if writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: err.Error(), Session: id}) {
+					writer.CloseWait(terminalWriteWait)
+				}
 				return
 			}
 		case "resize":
 			if err := s.terminalManager.Resize(id, msg.Cols, msg.Rows); err != nil {
 				// A bad size must not tear down a healthy shell; report and continue.
 				log.Printf("[terminal] resize failed id=%s user=%q cols=%d rows=%d err=%v", id, username, msg.Cols, msg.Rows, err)
-				_ = safeWrite(terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
+				writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: err.Error(), Session: id})
 			}
 		case "close":
 			log.Printf("[terminal] close requested id=%s user=%q", id, username)
+			writer.Close(false)
 			_ = s.terminalManager.Close(id)
 			return
 		default:
-			_ = safeWrite(terminalSocketMessage{Type: "error", Error: "unknown websocket message type", Session: id})
+			writer.EnqueueControl(terminal.ControlJSON, terminalSocketMessage{Type: "error", Error: "unknown websocket message type", Session: id})
 		}
 	}
 }
@@ -302,6 +328,7 @@ func (s *Server) handleSystemStatsWebSocket(w http.ResponseWriter, r *http.Reque
 			return
 		case <-ticker.C:
 			summary := system.Inspect(s.cfg.StateDir)
+			_ = conn.SetWriteDeadline(time.Now().Add(terminalWriteWait))
 			if err := conn.WriteJSON(summary); err != nil {
 				return
 			}

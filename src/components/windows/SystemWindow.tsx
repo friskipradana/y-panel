@@ -11,7 +11,9 @@ import { ErrorState, LoadingState } from '@/components/ui/states'
 import { IpAddressList } from './system/IpAddressList'
 import { SystemListView } from './system/SystemListView'
 import { useLivePolling } from '@/hooks/useLivePolling'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import type { WindowState } from '@/types'
 
 function HealthPill({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -170,20 +172,21 @@ function InfoCard({ icon, title, children, className = '' }: { icon: React.React
   )
 }
 
-export function SystemWindow({ authenticated }: { authenticated?: boolean }) {
+export function SystemWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
+  const pollingActive = useWindowPollingActive(win)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const livePolling = useLivePolling(5_000)
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['agent-system-summary'],
     queryFn: getSystemSummary,
     retry: 1,
-    refetchInterval: livePolling,
+    refetchInterval: pollingActive ? livePolling : false,
   })
 
   useEffect(() => {
-    if (authenticated) void refetch()
+    if (authenticated && !data) void refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 

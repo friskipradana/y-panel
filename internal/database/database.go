@@ -36,6 +36,7 @@ type Manager struct {
 	mu        sync.RWMutex
 	connected bool
 	lastError string
+	stats     statsCache
 }
 
 // New creates and initialises a Manager.
@@ -50,8 +51,9 @@ func New(cfg Config) *Manager {
 	connector := &passwordConnector{dsn: cfg.DSN}
 	db := sql.OpenDB(connector)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(20)
+	db.SetConnMaxIdleTime(2 * time.Minute)
+	db.SetMaxIdleConns(8)
+	db.SetMaxOpenConns(25)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
@@ -153,33 +155,6 @@ func parseDSNFields(dsn string) (host, port, dbname, user string) {
 		port = "5432"
 	}
 	return
-}
-
-func (m *Manager) Status() Status {
-	m.mu.RLock()
-	status := Status{
-		Enabled:   m.cfg.Enabled,
-		Connected: m.connected,
-		LastError: m.lastError,
-	}
-	m.mu.RUnlock()
-
-	// Always populate connection info from DSN (even when not connected)
-	if m.cfg.DSN != "" {
-		status.Host, status.Port, status.Database, status.User = parseDSNFields(m.cfg.DSN)
-	}
-
-	if !status.Connected || m.db == nil {
-		return status
-	}
-
-	status.ChangelogCount = m.scalarCount("SELECT COUNT(*) FROM changelog_entries")
-	status.RuntimeLogCount = m.scalarCount("SELECT COUNT(*) FROM runtime_logs")
-	status.SettingsAuditCount = m.scalarCount("SELECT COUNT(*) FROM settings_audit")
-	status.UserCount = m.scalarCount("SELECT COUNT(*) FROM users")
-	status.ProjectCount = m.scalarCount("SELECT COUNT(*) FROM projects")
-	status.TunnelCount = m.scalarCount("SELECT COUNT(*) FROM tunnels")
-	return status
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────────

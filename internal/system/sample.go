@@ -1,7 +1,7 @@
 package system
 
 // Sample is the lightweight subset of Summary used for history recording.
-// It deliberately skips docker probes, which are slow.
+// It reads from the non-blocking cached collector so it never stalls the HTTP server or recorder.
 type Sample struct {
 	CPUPercent  float64
 	RAMPercent  float64
@@ -23,13 +23,13 @@ func percent(stat UsageStat) float64 {
 }
 
 func TakeSample(stateDir string) Sample {
-	io := readNetworkIO()
+	snap := DefaultCollector(stateDir).GetSnapshot().Summary
 	return Sample{
-		CPUPercent:  readCPUUsagePercent(),
-		RAMPercent:  percent(readMemoryUsage()),
-		DiskPercent: percent(readStorageUsage(stateDir)),
-		CPUTemp:     readCPUTemp(),
-		BytesRecv:   io.BytesRecv,
-		BytesSent:   io.BytesSent,
+		CPUPercent:  snap.CPUUsagePercent,
+		RAMPercent:  percent(snap.Memory),
+		DiskPercent: percent(snap.Storage),
+		CPUTemp:     snap.CPUTemp,
+		BytesRecv:   snap.NetworkIO.BytesRecv,
+		BytesSent:   snap.NetworkIO.BytesSent,
 	}
 }

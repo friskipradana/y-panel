@@ -39,6 +39,19 @@ func (c *countCache[T]) get(ttl time.Duration, build func() T) T {
 	return c.value
 }
 
+func (c *countCache[T]) invalidate() {
+	c.mu.Lock()
+	c.valid = false
+	c.fetched = time.Time{}
+	c.mu.Unlock()
+}
+
+func init() {
+	docker.RegisterInvalidator(func() {
+		dockerCountCache.invalidate()
+	})
+}
+
 type dockerWhole struct {
 	Reachable  bool
 	Containers []docker.Container

@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/friskipradana/panel-desktop-ui/internal/updater"
 	"github.com/friskipradana/panel-desktop-ui/internal/system"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
@@ -72,9 +74,22 @@ func (s *Server) handleSystemSummary(w http.ResponseWriter, r *http.Request) {
 // systemSummaryPayload is the summary of the host (or of the viewer's own share of it). The HTTP
 // handler and the live WebSocket both send it, so the two never drift apart.
 func (s *Server) systemSummaryPayload(viewer *database.User) jsonResponse {
-	dbStatus := s.database.Status()
+	started := time.Now()
+	defer func() {
+		performance.DefaultRegistry.RecordSystemSummary(time.Since(started))
+	}()
+
 	demo := s.isDemoUser(viewer)
 	isSuperadmin := viewer != nil && viewer.Role == auth.SuperadminRole
+
+	var dbStatus database.Status
+	if isSuperadmin {
+		dbStatus = s.database.Status()
+	} else {
+		connStatus := s.database.ConnectionStatus()
+		dbStatus = database.Status{Enabled: connStatus.Enabled, Connected: connStatus.Connected}
+	}
+
 	// the machine is only measured for the superadmin; everyone else gets figures for their own account
 	var summary system.Summary
 	if isSuperadmin {
@@ -111,12 +126,13 @@ func (s *Server) systemSummaryPayload(viewer *database.User) jsonResponse {
 		if err != nil {
 			log.Printf("[system] failed to summarize projects: %v", err)
 		} else {
+			snapshots := s.projectManager.SnapshotAllCached(projectList)
 			activeCount := 0
 			degradedCount := 0
 			driftCount := 0
 			attentionCount := 0
 			for _, project := range projectList {
-				snapshot := s.projectManager.SnapshotProject(project)
+				snapshot := snapshots[project.ID]
 				if strings.EqualFold(strings.TrimSpace(project.Status), "active") || snapshot.Running {
 					activeCount++
 				}
@@ -293,6 +309,7 @@ func (s *Server) handleDatabaseTruncate(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.database.InvalidateStatsCache()
 
 	username, _ := s.currentUser(r)
 	log.Printf("[database] truncate success target=%q days=%d affected=%d remote=%s user=%q", req.Target, req.Days, affected, remoteAddr(r), username)
@@ -576,4 +593,14 @@ func (s *Server) projectsForSummary(scope ownerScope) ([]database.Project, int64
 		}
 	}
 	return all, int64(len(all)), nil
+}
+
+func (s *Server) handleAppMetrics(w http.ResponseWriter, _ *http.Request) {
+	s.writeJSON(w, http.StatusOK, performance.DefaultRegistry.Snapshot())
+}
+
+func (s *Server) handlePrometheusMetrics(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(performance.DefaultRegistry.PrometheusFormat()))
 }

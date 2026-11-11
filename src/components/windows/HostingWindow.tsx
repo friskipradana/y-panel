@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Boxes, CreditCard, Eye, Globe2, Landmark, Link2, ListChecks, ReceiptText, ShoppingCart, Smartphone, Ticket } from 'lucide-react'
 import { listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans, listHostingVouchers } from '@/api/hosting'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { useSettingsNavStore } from '@/store/settingsNavStore'
@@ -37,18 +38,12 @@ const isView = (value: unknown): value is View => typeof value === 'string' && v
 // buyers pay below. Both were tabs of Settings. An admin sees only the bank notification reader.
 export function HostingWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const { t } = useI18n()
+  const pollingActive = useWindowPollingActive(win)
   const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
   const openWindow = useWindowStore((s) => s.openWindow)
   const payment = usePaymentSettings({ authenticated })
   const listener = useNotificationSettings({ authenticated })
   const { enabled } = useHostingEnabled()
-
-  // counts at the end of the lines of the menu: the same queries the sections use, so nothing is fetched twice
-  const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0, enabled: enabled && isSuperadmin })
-  const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled: enabled && isSuperadmin })
-  const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled: enabled && isSuperadmin })
-  const vouchers = useQuery({ queryKey: ['hosting', 'vouchers'], queryFn: listHostingVouchers, retry: 0, enabled: enabled && isSuperadmin })
-  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, enabled: enabled && isSuperadmin, refetchInterval: 15_000 })
 
   // opened from a notice about a payment, the window starts on the bank notifications; asked again, it goes there
   const asked = win?.params?.view === 'payments' ? 'bank' : win?.params?.view
@@ -57,6 +52,13 @@ export function HostingWindow({ win, authenticated }: { win?: WindowState; authe
   useEffect(() => {
     if (isView(asked)) setView(asked)
   }, [asked, askedAt])
+
+  // counts at the end of the lines of the menu: the same queries the sections use, so nothing is fetched twice
+  const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0, enabled: enabled && isSuperadmin })
+  const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0, enabled: enabled && isSuperadmin })
+  const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0, enabled: enabled && isSuperadmin })
+  const vouchers = useQuery({ queryKey: ['hosting', 'vouchers'], queryFn: listHostingVouchers, retry: 0, enabled: enabled && isSuperadmin })
+  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, enabled: enabled && isSuperadmin, refetchInterval: pollingActive && (view === 'overview' || view === 'orders') ? 15_000 : false })
 
   const count = (n: number | undefined) => (n && n > 0 ? n : undefined)
   const sellTabs = (['overview', 'plans', 'domains', 'subdomains', 'orders', 'vouchers', 'payment', 'terms', 'demo'] as const)

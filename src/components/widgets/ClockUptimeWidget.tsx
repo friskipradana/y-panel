@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Server } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { getSystemSummary } from '@/api/system'
+import { useSystemSummary } from '@/hooks/useSystemSampler'
 
 function formatUptime(seconds: number): string {
   if (!seconds || seconds <= 0) return '0m'
@@ -17,15 +16,18 @@ export function ClockUptimeWidget() {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(timer)
+    const syncClock = () => {
+      if (document.visibilityState === 'visible') setNow(new Date())
+    }
+    const timer = setInterval(syncClock, 1000)
+    document.addEventListener('visibilitychange', syncClock)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', syncClock)
+    }
   }, [])
 
-  const { data: summary } = useQuery({
-    queryKey: ['system', 'summary', 'widget'],
-    queryFn: getSystemSummary,
-    refetchInterval: 10000,
-  })
+  const { data: summary } = useSystemSummary()
 
   const timeString = now.toLocaleTimeString('id-ID', {
     hour: '2-digit',

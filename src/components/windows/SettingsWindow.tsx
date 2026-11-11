@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { ApiTokensTab } from "@/components/windows/settings/ApiTokensTab";
+import { useWindowPollingActive } from "@/hooks/useWindowPollingActive";
 import { useI18n } from "@/lib/i18n";
 import { useHostSettings } from "./settings/hooks/useHostSettings";
 import { useCloudflareSettings } from "./settings/hooks/useCloudflareSettings";
@@ -29,11 +30,13 @@ import { MyNotices } from "./profile/MyNotices";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/states";
 import { Database, RefreshCw } from "lucide-react";
+import type { WindowState } from "@/types";
 
 const TAB_STORAGE_KEY = "reneo-settings-tab";
 
-export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
+export function SettingsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const { t } = useI18n();
+  const pollingActive = useWindowPollingActive(win);
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
   const role = useAuthStore((s) => s.user?.role);
   // host settings (hostname, DNS, ports, updates, audit) belong to the superadmin
@@ -56,9 +59,6 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
     }
   };
 
-  const host = useHostSettings({ authenticated });
-  const cloudflare = useCloudflareSettings();
-
   // the menu as this account sees it: groups of tabs, without what it may not open
   const groups = SETTINGS_GROUPS.map((group) => ({
     ...group,
@@ -80,6 +80,12 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   }, [requestedTab, role, clearRequestedTab]);
   // the role can arrive after the first render: never sit on a tab the account cannot see
   const shownTab = SETTINGS_TABS.some((tab) => tab.key === activeTab) ? activeTab : SETTINGS_TABS[0]?.key;
+
+  const host = useHostSettings({
+    authenticated,
+    pollDatabase: pollingActive && (shownTab === "security" || shownTab === "audit"),
+  });
+  const cloudflare = useCloudflareSettings();
 
   const current = SETTINGS_TABS.find((tab) => tab.key === shownTab);
 
@@ -130,7 +136,7 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
             {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
               <>
-                {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
+                {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} active={pollingActive} />}
 
                 {shownTab === "appearance" && <AppearanceTab />}
 
@@ -152,15 +158,15 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
 
                 {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 
-                {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab /> : <MyNotices />)}
+                {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab active={pollingActive} /> : <MyNotices />)}
 
                 {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 
                 {shownTab === "api_tokens" && <ApiTokensTab />}
 
-                {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
+                {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} active={pollingActive} />}
 
-                {shownTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
+                {shownTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} active={pollingActive} />}
               </>
             )}
           </div>

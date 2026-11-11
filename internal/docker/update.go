@@ -127,6 +127,8 @@ func PullStreaming(ctx context.Context, image string, auth *RegistryAuth, emit f
 		}
 		return false, fmt.Errorf("pull image: %w", err)
 	}
+	imagesCache.Invalidate()
+	notifyInvalidators()
 	return before != imageID(ctx, image), nil
 }
 
@@ -234,6 +236,8 @@ func UpdateContainer(ctx context.Context, id string, emit func(UpdateEvent)) err
 		recreated = true
 	}
 
+	InvalidateAll()
+
 	// what it is now: a recreated container has a new id, the name stays
 	if now, err := ListContainers(); err == nil {
 		for _, c := range now {
@@ -292,6 +296,7 @@ func UpdateManaged(ctx context.Context, name string, emit func(UpdateEvent), rec
 		}
 		recreated = true
 	}
+	InvalidateAll()
 	if now, err := ListContainers(); err == nil {
 		for _, c := range now {
 			if strings.TrimPrefix(firstName(c), "/") == name {

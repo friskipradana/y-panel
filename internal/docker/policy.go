@@ -274,6 +274,7 @@ func inspectViolations(project *string, homeOf func(int64) string) ([]ContainerV
 
 // StopViolating halts a container and keeps it from starting again by itself
 func StopViolating(id string) error {
+	defer InvalidateContainers()
 	_ = exec.Command("docker", "update", "--restart=no", id).Run()
 	if out, err := exec.Command("docker", "stop", id).CombinedOutput(); err != nil {
 		return fmt.Errorf("stop %s: %s", id, strings.TrimSpace(string(out)))

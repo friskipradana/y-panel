@@ -4,6 +4,7 @@ import { ArrowDownToLine, Copy, Download, Pause, Play, RefreshCcw, ScrollText, S
 import { copyTextToClipboard, getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -74,6 +75,7 @@ function Highlight({ text, term }: { text: string; term: string }) {
 export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; authenticated?: boolean }) {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
+  const pollingActive = useWindowPollingActive(win)
   const [service, setService] = useState('reneo')
   const [search, setSearch] = useState('')
   const [limit, setLimit] = useState(160)
@@ -85,7 +87,8 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
   const query = useQuery({
     queryKey: ['system-logs', service, limit],
     queryFn: () => getSystemLogs(service, limit),
-    refetchInterval: live ? 5000 : false,
+    refetchInterval: live && pollingActive ? 5000 : false,
+    refetchIntervalInBackground: false,
     retry: 1,
   })
 

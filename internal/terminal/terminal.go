@@ -14,10 +14,12 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/friskipradana/panel-desktop-ui/internal/osuser"
+	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 )
 
 const (
 	maxBufferedOutput = 256 * 1024
+	ptyReadBufferSize = 16 * 1024
 	defaultCols       = 120
 	defaultRows       = 32
 
@@ -88,19 +90,47 @@ type SessionInfo struct {
 type Manager struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
+	stopOnce sync.Once
+	stopCh   chan struct{}
 }
 
 func NewManager() *Manager {
-	m := &Manager{sessions: map[string]*Session{}}
+	m := &Manager{
+		sessions: map[string]*Session{},
+		stopCh:   make(chan struct{}),
+	}
 	go m.reapLoop()
 	return m
+}
+
+// CloseAll terminates all active terminal sessions and stops the reaper loop.
+func (m *Manager) CloseAll() {
+	m.stopOnce.Do(func() {
+		if m.stopCh != nil {
+			close(m.stopCh)
+		}
+	})
+	m.mu.RLock()
+	var list []*Session
+	for _, s := range m.sessions {
+		list = append(list, s)
+	}
+	m.mu.RUnlock()
+	for _, s := range list {
+		m.closeSession(s)
+	}
 }
 
 // reapLoop closes sessions that stayed detached longer than detachedTTL.
 func (m *Manager) reapLoop() {
 	ticker := time.NewTicker(reapInterval)
 	defer ticker.Stop()
-	for range ticker.C {
+	for {
+		select {
+		case <-m.stopCh:
+			return
+		case <-ticker.C:
+		}
 		now := time.Now()
 		var stale []*Session
 		m.mu.RLock()
@@ -187,6 +217,7 @@ func (m *Manager) Start(req StartRequest) (*StartResult, error) {
 	m.mu.Lock()
 	m.sessions[id] = session
 	m.mu.Unlock()
+	performance.DefaultRegistry.TrackTerminalSession(1)
 
 	go m.captureOutput(session, ptyFile)
 	go m.waitForExit(session)
@@ -227,11 +258,11 @@ func (m *Manager) Attach(id string, replay bool, onChunk func(string) error, onC
 	session.streamMu.Lock()
 	session.outputMu.Lock()
 	if replay && len(session.historyBuf) > 0 {
-		buffered = string(append([]byte(nil), session.historyBuf...))
-		session.outputBuf = nil
+		buffered = boundedTailString(session.historyBuf, maxBufferedOutput)
+		session.outputBuf = session.outputBuf[:0]
 	} else if len(session.outputBuf) > 0 {
-		buffered = string(append([]byte(nil), session.outputBuf...))
-		session.outputBuf = nil
+		buffered = boundedTailString(session.outputBuf, maxBufferedOutput)
+		session.outputBuf = session.outputBuf[:0]
 	}
 	session.outputMu.Unlock()
 	session.callbackMu.Lock()
@@ -314,10 +345,11 @@ func (m *Manager) Resize(id string, cols, rows int) error {
 }
 
 func (m *Manager) captureOutput(session *Session, reader io.Reader) {
-	buffer := make([]byte, 4096)
+	buffer := make([]byte, ptyReadBufferSize)
 	for {
 		n, err := reader.Read(buffer)
 		if n > 0 {
+			performance.DefaultRegistry.RecordTerminalOutput(n)
 			chunk := string(buffer[:n])
 			session.appendHistory(buffer[:n])
 			m.deliver(session, chunk, buffer[:n])
@@ -377,7 +409,9 @@ func (m *Manager) closeSession(session *Session) {
 			onClose()
 		}
 
-		m.remove(session.id)
+		if m.remove(session.id) {
+			performance.DefaultRegistry.TrackTerminalSession(-1)
+		}
 	})
 }
 
@@ -432,32 +466,51 @@ func (m *Manager) checkCapacity(ownerID int64) error {
 	return nil
 }
 
-func (m *Manager) remove(id string) {
+func (m *Manager) remove(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	delete(m.sessions, id)
+	_, exists := m.sessions[id]
+	if exists {
+		delete(m.sessions, id)
+	}
+	return exists
 }
 
 func (s *Session) appendOutput(chunk []byte) {
 	s.outputMu.Lock()
 	defer s.outputMu.Unlock()
-
-	s.outputBuf = append(s.outputBuf, chunk...)
-	if len(s.outputBuf) <= maxBufferedOutput {
-		return
-	}
-	s.outputBuf = append([]byte(nil), s.outputBuf[len(s.outputBuf)-maxBufferedOutput:]...)
+	s.outputBuf = appendBounded(s.outputBuf, chunk, maxBufferedOutput)
 }
 
 func (s *Session) appendHistory(chunk []byte) {
 	s.outputMu.Lock()
 	defer s.outputMu.Unlock()
+	s.historyBuf = appendBounded(s.historyBuf, chunk, maxBufferedOutput)
+}
 
-	s.historyBuf = append(s.historyBuf, chunk...)
-	if len(s.historyBuf) <= maxBufferedOutput {
-		return
+func appendBounded(buf, chunk []byte, maxBytes int) []byte {
+	if len(chunk) >= maxBytes {
+		if cap(buf) < maxBytes {
+			buf = make([]byte, maxBytes)
+		} else {
+			buf = buf[:maxBytes]
+		}
+		copy(buf, chunk[len(chunk)-maxBytes:])
+		return buf
 	}
-	s.historyBuf = append([]byte(nil), s.historyBuf[len(s.historyBuf)-maxBufferedOutput:]...)
+	buf = append(buf, chunk...)
+	if len(buf) > maxBytes*2 {
+		copy(buf[:maxBytes], buf[len(buf)-maxBytes:])
+		buf = buf[:maxBytes]
+	}
+	return buf
+}
+
+func boundedTailString(buf []byte, maxBytes int) string {
+	if len(buf) > maxBytes {
+		buf = buf[len(buf)-maxBytes:]
+	}
+	return string(buf)
 }
 
 func (m *Manager) ListOwned(ownerID int64) []SessionInfo {

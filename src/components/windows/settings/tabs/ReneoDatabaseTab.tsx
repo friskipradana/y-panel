@@ -28,12 +28,12 @@ function DetailRow({ label, value, tone = 'normal' }: { label: string; value: st
   )
 }
 
-export function ReneoDatabaseTab({ authenticated }: { authenticated?: boolean }) {
+export function ReneoDatabaseTab({ authenticated, active = true }: { authenticated?: boolean; active?: boolean }) {
   const { t } = useI18n()
   const query = useQuery({
     queryKey: ['database-status'],
     queryFn: getDatabaseStatus,
-    refetchInterval: 8000,
+    refetchInterval: active ? 8000 : false,
     retry: 1,
   })
 
