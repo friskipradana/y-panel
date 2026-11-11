@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.3] - 2026-11-11
+
+Trim and assign server error messages to response error.
+
+### Perbaikan
+- **api:** Trim and assign server error messages to response error ([`b786f60`](https://github.com/friskipradana/y-panel/commit/b786f60))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.2...v1.80.3
+
 ## [1.80.2] - 2026-11-11
 
 Improve lifecycle management and concurrency safety.
