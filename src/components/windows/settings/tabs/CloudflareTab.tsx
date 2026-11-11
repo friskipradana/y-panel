@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { CloudflareTokenGuide } from "@/components/cloudflare/CloudflareTokenGuide";
 import { useI18n } from "@/lib/i18n";
 import type { CloudflareSettings } from "../hooks/useCloudflareSettings";
-import { FieldLabel } from "../SettingsPrimitives";
+import { FieldLabel, SettingsGroup } from "../SettingsPrimitives";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -29,26 +29,11 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
   } = cloudflare;
 
   return (
-    <div className="space-y-3">
-      {/* ── Single Unified Cloudflare Card ── */}
-      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
-        {/* ── Section Header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <Cloud className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-            <div>
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">
-                {t("settings.cloudflare.cardTitle")}
-              </h2>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                {t("settings.cloudflare.cardSubtitle")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
+    <div className="space-y-6">
+      <SettingsGroup
+        title={t("settings.cloudflare.cardTitle")}
+        description={t("settings.cloudflare.cardSubtitle")}
+      >
 
         {cfQuery.isError ? (
           <div className="flex-1 flex flex-col items-center justify-center min-h-[220px] my-auto">
@@ -323,7 +308,7 @@ export function CloudflareTab({ cloudflare }: { cloudflare: CloudflareSettings }
             </div>
           </div>
         )}
-      </div>
+      </SettingsGroup>
     </div>
   );
 }

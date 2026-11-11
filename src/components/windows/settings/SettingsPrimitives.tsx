@@ -11,25 +11,64 @@ import { TextInput } from "@/components/ui/Field"
 export function SettingsGroup({
   title,
   description,
+  action,
   children,
   className = "",
+  cardClassName = "",
 }: {
   title?: string;
   description?: string;
+  action?: ReactNode;
   children: ReactNode;
   className?: string;
+  cardClassName?: string;
 }) {
   return (
     <div className={`settings-group ${className}`}>
-      {title ? (
-        <div>
-          <h2 className="settings-group__title">{title}</h2>
-          {description ? <p className="settings-group__desc">{description}</p> : null}
+      {title || action ? (
+        <div className="flex items-center justify-between mb-1.5 px-0.5">
+          <div>
+            {title ? <h2 className="settings-group__title">{title}</h2> : null}
+            {description ? <p className="settings-group__desc">{description}</p> : null}
+          </div>
+          {action ? <div className="shrink-0">{action}</div> : null}
         </div>
       ) : null}
-      <div className="panel-shell-card settings-card">
+      <div className={`panel-shell-card settings-card ${cardClassName}`}>
         {children}
       </div>
+    </div>
+  );
+}
+
+export function AdwActionRow({
+  title,
+  subtitle,
+  icon,
+  control,
+  children,
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: ReactNode;
+  control?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-2 py-3 px-4 border-b border-[var(--win-border)] last:border-b-0 ${className}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {icon ? <span className="text-[var(--text-secondary)] shrink-0">{icon}</span> : null}
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-[var(--win-text)] leading-tight">{title}</div>
+            {subtitle ? <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-normal">{subtitle}</div> : null}
+          </div>
+        </div>
+        {control ? <div className="shrink-0">{control}</div> : null}
+      </div>
+      {children}
     </div>
   );
 }

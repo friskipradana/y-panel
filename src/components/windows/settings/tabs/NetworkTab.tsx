@@ -54,7 +54,7 @@ export function NetworkTab({ host, systemSettings }: { host: HostSettings; syste
   const originsDirty = allowedOriginsText !== savedOrigins;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* ── 1. Runtime Panel Port Group ── */}
       <SettingsGroup
         title={t("settings.runtimePanelPort")}

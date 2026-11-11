@@ -221,7 +221,7 @@ export function EmailServerTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <EmailMethodCard
         form={form}
         onChange={updateField}

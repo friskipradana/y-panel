@@ -82,25 +82,20 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
   const shownTab = SETTINGS_TABS.some((tab) => tab.key === activeTab) ? activeTab : SETTINGS_TABS[0]?.key;
 
   const current = SETTINGS_TABS.find((tab) => tab.key === shownTab);
-  const CurrentIcon = current?.icon;
 
   return (
     <div className="panel-window flex flex-col h-full overflow-hidden">
       <div className="panel-window__body flex-1 min-h-0 flex flex-row overflow-hidden p-0 mobile:flex-col">
         <SettingsNav title={isSuperadmin ? t("settings.title") : t("settings.titleAccount")} groups={groups} active={shownTab} onSelect={setActiveTab} />
 
-        {/* ── Right Content Area ── */}
+        {/* ── Right Content Area (Clean GNOME Layout) ── */}
         <div className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 flex flex-col items-center">
-          <div className="w-full max-w-[740px] flex flex-col gap-4">
-            {current && CurrentIcon ? (
-              <header className="settings-page__head shrink-0">
-                <div className="settings-page__icon-badge">
-                  <CurrentIcon size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="settings-page__title">{t(current.label)}</h1>
-                  <p className="settings-page__desc">{t(current.key === "notifications" && !isSuperadmin ? "settings.desc.notificationsOwn" : current.desc)}</p>
-                </div>
+          <div className="w-full max-w-[700px] flex flex-col gap-5">
+            {current ? (
+              <header className="py-1 shrink-0 flex items-center justify-center">
+                <h1 className="text-[16px] sm:text-[17px] font-semibold text-[var(--win-text)] tracking-tight">
+                  {t(current.label)}
+                </h1>
               </header>
             ) : null}
             {isSuperadmin && host.query.isLoading && (

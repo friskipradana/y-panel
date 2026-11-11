@@ -27,7 +27,7 @@ export function NotificationsTab() {
   const cloud = overview.data?.channels.find((c) => c.kind === 'whatsapp_cloud')
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <div className="overflow-x-auto">
         <Tabs
           label={t('notify.sections')}

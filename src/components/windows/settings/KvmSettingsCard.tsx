@@ -48,13 +48,15 @@ export function KvmSettingsCard({ bare = false }: { bare?: boolean } = {}) {
 
   return (
     <div className={bare ? 'flex flex-col gap-2.5' : 'panel-shell-card settings-card !p-3.5 !gap-2.5'}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
-        <div className="flex items-center gap-2">
-          <Monitor className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
-          <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.kvm.title')}</h2>
+      {!bare ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+          <div className="flex items-center gap-2">
+            <Monitor className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
+            <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.kvm.title')}</h2>
+          </div>
+          <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.kvm.subtitle')}</span>
         </div>
-        <span className="text-[11px] text-[var(--text-secondary)]">{t('settings.kvm.subtitle')}</span>
-      </div>
+      ) : null}
 
       <div className="flex flex-col gap-2.5 pt-1">
         <SettingRow

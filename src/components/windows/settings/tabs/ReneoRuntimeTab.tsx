@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, FolderCog } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { getDatabaseStatus, getSystemSummary } from '@/api/agent'
 import { Badge } from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/states'
@@ -73,16 +73,12 @@ export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) 
   const data = summary.data
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* ── 1. Runtime State Directory Group ── */}
       <SettingsGroup
         title={t('settings.runtime.statePath')}
         description={t('settings.runtime.statePathMeta')}
       >
-        <div className="flex items-center gap-2 mb-2">
-          <FolderCog className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
-          <h3 className="text-[13px] font-semibold text-[var(--win-text)]">{t('settings.runtime.statePath')}</h3>
-        </div>
         <TextInput
           id="settings-state-dir"
           readOnly
@@ -96,15 +92,8 @@ export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) 
       <SettingsGroup
         title={t('system.recentIncidents')}
       >
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0" strokeWidth={1.75} />
-            <h3 className="text-[13px] font-semibold text-[var(--win-text)]">{t('system.recentIncidents')}</h3>
-          </div>
-        </div>
-
         {incidents.length === 0 ? (
-          <div className="flex items-center justify-center gap-2 py-4 px-3 rounded-lg border border-dashed border-[var(--win-border)] bg-[var(--panel-surface)] text-[12px] text-[var(--text-secondary)]">
+          <div className="flex items-center justify-center gap-2 py-6 px-3 text-[12px] text-[var(--text-secondary)]">
             <AlertTriangle className="h-4 w-4 opacity-50 shrink-0" />
             <span>{t('system.noRecentIncidents')}</span>
           </div>
@@ -115,7 +104,7 @@ export function ReneoRuntimeTab({ authenticated }: { authenticated?: boolean }) 
                 key={entry.id}
                 type="button"
                 onClick={() => openProjectsAttention(entry)}
-                className="rounded-md border border-[var(--win-border)] bg-[var(--panel-surface)] p-2 text-left transition-colors hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-border)]"
+                className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-2.5 text-left transition-colors hover:bg-[var(--panel-surface-hover)] hover:border-[var(--panel-primary-border)]"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone={entry.level === 'warning' ? 'warning' : entry.level === 'error' ? 'danger' : 'info'}>{entry.level}</Badge>

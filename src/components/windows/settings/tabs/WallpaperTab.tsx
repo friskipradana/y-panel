@@ -1,17 +1,16 @@
-import { useRef, type CSSProperties } from "react";
-import { CircleCheck, Loader2, Trash2, Upload } from "lucide-react";
+import { useRef } from "react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { WALLPAPERS, useThemeStore, type WallpaperKey } from "@/store/themeStore";
+import { WALLPAPERS, useThemeStore, type WallpaperKey, type WallpaperFit } from "@/store/themeStore";
 import { updateWallpaper } from "@/api/system";
 import { Button } from "@/components/ui/Button";
-import { SelectableCard } from "@/components/ui/SelectableCard";
-import { OptionCards } from "../OptionCards";
-import { SettingsGroup } from "../SettingsPrimitives";
+import { Select } from "@/components/ui/Select";
+import { AdwActionRow, SettingsGroup } from "../SettingsPrimitives";
 
 type PresetKey = Exclude<WallpaperKey, "custom">;
 
-const PHOTOS: PresetKey[] = [
+const ALL_PRESETS: PresetKey[] = [
   "server-datacenter",
   "tokyo-night",
   "dark-mountains",
@@ -20,8 +19,6 @@ const PHOTOS: PresetKey[] = [
   "desert-dusk",
   "minimal-architecture",
   "abstract-wave",
-];
-const GRADIENTS: PresetKey[] = [
   "default",
   "ocean",
   "sunset",
@@ -29,51 +26,8 @@ const GRADIENTS: PresetKey[] = [
   "midnight",
   "aurora",
 ];
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
-// One wallpaper to pick: its picture/gradient, its name, and an indicator when active
-function WallpaperTile({
-  label,
-  style,
-  selected,
-  onClick,
-  loading,
-}: {
-  label: string;
-  style: CSSProperties;
-  selected: boolean;
-  onClick: () => void;
-  loading?: boolean;
-}) {
-  return (
-    <SelectableCard
-      selected={selected}
-      onClick={onClick}
-      className="group relative flex flex-col overflow-hidden rounded-xl text-left border-2 transition-all cursor-pointer"
-    >
-      <span
-        className="block aspect-[16/10] w-full bg-cover bg-center transition-transform duration-200 group-hover:scale-105"
-        style={style}
-        aria-hidden="true"
-      />
-      {loading ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[color-mix(in_srgb,var(--win-content-bg)_60%,transparent)] backdrop-blur-xs">
-          <Loader2 size={16} className="animate-spin text-[var(--panel-primary-solid)]" />
-        </div>
-      ) : null}
-      <span
-        className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 border-t border-[var(--win-border)] transition-colors ${
-          selected ? "bg-[var(--panel-primary-bg)] font-semibold" : "bg-[var(--panel-surface)]"
-        }`}
-      >
-        <span className="truncate text-[11px] text-[var(--win-text)]">{label}</span>
-        {selected ? (
-          <CircleCheck size={13} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" />
-        ) : null}
-      </span>
-    </SelectableCard>
-  );
-}
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 export function WallpaperTab() {
   const { t } = useI18n();
@@ -85,7 +39,6 @@ export function WallpaperTab() {
     setWallpaperFit,
     customImageUrl,
     setCustomImage,
-    wallpaperLoading,
   } = useThemeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,7 +80,7 @@ export function WallpaperTab() {
   const showFit = wallpaper === "custom" || WALLPAPERS[wallpaper as PresetKey]?.type === "image";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <input
         type="file"
         ref={fileInputRef}
@@ -137,116 +90,111 @@ export function WallpaperTab() {
         aria-label={t("settings.appearance.uploadWallpaper")}
       />
 
-      {/* ── 1. HD Wallpapers & Custom Background Group ── */}
+      {/* ── 1. Wallpapers (3-Column Clean GNOME Thumbnail Grid) ── */}
       <SettingsGroup
         title={t("settings.appearance.wallpaperTitle")}
-        description={t("settings.appearance.wallpaperSubtitle")}
+        action={
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            icon={<Plus size={14} />}
+            onClick={() => fileInputRef.current?.click()}
+            className="!h-7 px-2.5 text-[12px]"
+          >
+            {t("settings.appearance.addPicture")}
+          </Button>
+        }
       >
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[12px] font-semibold text-[var(--win-text)]">
-              {t("settings.appearance.hdWallpapers")}
-            </span>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              className="shrink-0 !h-8 text-[11.5px]"
-              icon={<Upload className="h-3.5 w-3.5" />}
-              loading={wallpaperLoading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {t("settings.appearance.uploadWallpaper")}
-            </Button>
-          </div>
-
-          {/* Custom Wallpaper (if uploaded) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {/* Custom Uploaded Picture (if any) */}
           {customImageUrl ? (
-            <div className="p-2.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-hover)]">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
-                  {t("settings.appearance.customWallpaper")}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="!h-6 px-2 text-[11px] text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]"
-                  icon={<Trash2 className="h-3 w-3" />}
-                  onClick={() => void removeCustom()}
-                >
-                  {t("common.delete")}
-                </Button>
-              </div>
-              <div className="max-w-[220px]">
-                <WallpaperTile
-                  label={t("settings.appearance.customWallpaper")}
-                  selected={wallpaper === "custom"}
-                  loading={wallpaper === "custom" && wallpaperLoading}
-                  onClick={() => setWallpaper("custom")}
-                  style={{ backgroundImage: `url("${customImageUrl}")` }}
-                />
-              </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setWallpaper("custom")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") setWallpaper("custom");
+              }}
+              style={{ backgroundImage: `url("${customImageUrl}")` }}
+              className={`adw-wallpaper-tile group ${wallpaper === "custom" ? "adw-wallpaper-tile--active" : ""}`}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void removeCustom();
+                }}
+                title={t("common.delete")}
+                className="absolute top-2 right-2 p-1 rounded-md bg-black/60 text-white hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Trash2 size={12} />
+              </button>
+              {wallpaper === "custom" ? (
+                <div className="adw-wallpaper-tile__badge">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          {/* Grid of Curated Presets */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {PHOTOS.map((key) => {
-              const def = WALLPAPERS[key];
-              if (!def) return null;
-              return (
-                <WallpaperTile
-                  key={key}
-                  label={def.label}
-                  selected={wallpaper === key}
-                  onClick={() => setWallpaper(key)}
-                  style={{ backgroundImage: `url("${def.previewUrl || def.light}")` }}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </SettingsGroup>
-
-      {/* ── 2. Gradient Wallpapers Group ── */}
-      <SettingsGroup
-        title={t("settings.appearance.gradientWallpapers")}
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {GRADIENTS.map((key) => {
+          {/* All Curated Presets */}
+          {ALL_PRESETS.map((key) => {
             const def = WALLPAPERS[key];
             if (!def) return null;
+            const isSelected = wallpaper === key;
+            const bgStyle =
+              def.type === "image"
+                ? { backgroundImage: `url("${def.previewUrl || def.light}")` }
+                : { background: mode === "dark" ? (def.dark ?? def.light) : def.light };
+
             return (
-              <WallpaperTile
+              <div
                 key={key}
-                label={def.label}
-                selected={wallpaper === key}
+                role="button"
+                tabIndex={0}
                 onClick={() => setWallpaper(key)}
-                style={{ background: mode === "dark" ? (def.dark ?? def.light) : def.light }}
-              />
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setWallpaper(key);
+                }}
+                style={bgStyle}
+                className={`adw-wallpaper-tile ${isSelected ? "adw-wallpaper-tile--active" : ""}`}
+                title={def.label}
+              >
+                {isSelected ? (
+                  <div className="adw-wallpaper-tile__badge">
+                    <Check size={12} strokeWidth={3} />
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </div>
       </SettingsGroup>
 
-      {/* ── 3. Fit Mode Group ── */}
+      {/* ── 2. Display Fit Mode (Clean GNOME Row) ── */}
       {showFit ? (
-        <SettingsGroup
-          title={t("settings.appearance.displayMode")}
-          description={t("settings.appearance.displayModeSubtitle")}
-        >
-          <OptionCards
-            label={t("settings.appearance.displayMode")}
-            value={wallpaperFit}
-            onChange={setWallpaperFit}
-            options={[
-              { key: "cover", label: t("settings.appearance.fitCover") },
-              { key: "contain", label: t("settings.appearance.fitContain") },
-              { key: "stretch", label: t("settings.appearance.fitStretch") },
-              { key: "center", label: t("settings.appearance.fitCenter") },
-              { key: "tile", label: t("settings.appearance.fitTile") },
-            ]}
+        <SettingsGroup title={t("settings.appearance.displayMode")} cardClassName="!p-0">
+          <AdwActionRow
+            title={t("settings.appearance.displayMode")}
+            subtitle={t("settings.appearance.displayModeSubtitle")}
+            control={
+              <div className="w-[180px]">
+                <Select
+                  id="settings-wallpaper-fit-select"
+                  value={wallpaperFit}
+                  onChange={(val) => setWallpaperFit(val as WallpaperFit)}
+                  buttonClassName="!h-8 text-[12px] px-2.5"
+                  options={[
+                    { value: "cover", label: t("settings.appearance.fitCover") },
+                    { value: "contain", label: t("settings.appearance.fitContain") },
+                    { value: "stretch", label: t("settings.appearance.fitStretch") },
+                    { value: "center", label: t("settings.appearance.fitCenter") },
+                    { value: "tile", label: t("settings.appearance.fitTile") },
+                  ]}
+                />
+              </div>
+            }
           />
         </SettingsGroup>
       ) : null}

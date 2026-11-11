@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Database, Eye, EyeOff, Key, LockKeyhole, RefreshCcw, ShieldAlert } from "lucide-react";
+import { Copy, Database, Eye, EyeOff, LockKeyhole, RefreshCcw, ShieldAlert } from "lucide-react";
 import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { useI18n } from "@/lib/i18n";
@@ -7,6 +7,7 @@ import type { HostSettings } from "../hooks/useHostSettings";
 import type { SettingsTabKey } from "../constants";
 import { Button } from "@/components/ui/Button";
 import { Field, TextInput } from "@/components/ui/Field";
+import { AdwActionRow, SettingsGroup } from "../SettingsPrimitives";
 
 export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setActiveTab: (tab: SettingsTabKey) => void }) {
   const { t } = useI18n();
@@ -30,25 +31,13 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
   const mismatch = primaryPasswordConfirm !== "" && primaryPassword !== primaryPasswordConfirm;
 
   return (
-    <div className="space-y-3">
-      {/* ── Single Unified Security Card ── */}
-      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
-        {/* ── Section 1: Password Akun Utama Reneo ── */}
+    <div className="space-y-6">
+      {/* ── 1. Primary Account Password Group ── */}
+      <SettingsGroup
+        title={t("settings.primaryPasswordTitle")}
+        description={t("settings.primaryPasswordSubtitle")}
+      >
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <LockKeyhole className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-              <div>
-                <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">
-                  {t("settings.primaryPasswordTitle")}
-                </h2>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                  {t("settings.primaryPasswordSubtitle")}
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field
               label={t("settings.newPassword")}
@@ -149,26 +138,14 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             </Button>
           </div>
         </div>
+      </SettingsGroup>
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* ── Section 2: Database & Storage Section ── */}
+      {/* ── 2. Database & Storage Group ── */}
+      <SettingsGroup
+        title={t("settings.databaseTitle")}
+        description={t("settings.databaseSubtitle")}
+      >
         <div className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <Database className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-              <div>
-                <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">
-                  {t("settings.databaseTitle")}
-                </h2>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                  {t("settings.databaseSubtitle")}
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Status & Rows 2-Column Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)]/50 p-3 flex flex-col justify-between gap-1.5">
@@ -307,34 +284,29 @@ export function SecurityTab({ host, setActiveTab }: { host: HostSettings; setAct
             </div>
           ) : null}
         </div>
+      </SettingsGroup>
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* ── Section 3: Tokens Navigation Row ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <Key className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-            <div>
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">
-                {t("settings.security.tokensCardTitle")}
-              </h2>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-                {t("settings.security.tokensCardHint")}
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            onClick={() => setActiveTab("api_tokens")}
-            variant="default"
-            size="sm"
-            className="!h-8 px-3.5 text-[12px] shrink-0"
-          >
-            {t("settings.security.openMcpTokens")}
-          </Button>
-        </div>
-      </div>
+      {/* ── 3. Tokens Navigation Group ── */}
+      <SettingsGroup
+        title={t("settings.security.tokensCardTitle")}
+        cardClassName="!p-0"
+      >
+        <AdwActionRow
+          title={t("settings.security.tokensCardTitle")}
+          subtitle={t("settings.security.tokensCardHint")}
+          control={
+            <Button
+              type="button"
+              onClick={() => setActiveTab("api_tokens")}
+              variant="default"
+              size="sm"
+              className="!h-8 px-3.5 text-[12px] shrink-0"
+            >
+              {t("settings.security.openMcpTokens")}
+            </Button>
+          }
+        />
+      </SettingsGroup>
     </div>
   );
 }
