@@ -46,6 +46,7 @@ type Session struct {
 	outputMu   sync.RWMutex
 	streamMu   sync.Mutex
 	outputBuf  []byte
+	historyBuf []byte
 }
 
 type SessionMeta struct {
@@ -74,6 +75,14 @@ type StartResult struct {
 	Target     string
 	Cwd        string
 	OSUsername string
+}
+
+type SessionInfo struct {
+	SessionID  string `json:"sessionId"`
+	Target     string `json:"target"`
+	Cwd        string `json:"cwd"`
+	Mode       string `json:"mode"`
+	OSUsername string `json:"osUsername"`
 }
 
 type Manager struct {
@@ -210,9 +219,10 @@ func (m *Manager) Write(id, input string) error {
 }
 
 // Attach binds a websocket to the session and returns an attach generation.
+// If replay is true, recent terminal history is flushed to the connection.
 // Output buffered while detached is flushed first. A previous attachment is
 // told to go away through its onReplaced callback.
-func (m *Manager) Attach(id string, onChunk func(string) error, onClose func(), onReplaced func()) (uint64, error) {
+func (m *Manager) Attach(id string, replay bool, onChunk func(string) error, onClose func(), onReplaced func()) (uint64, error) {
 	session, err := m.get(id)
 	if err != nil {
 		return 0, err
@@ -221,7 +231,10 @@ func (m *Manager) Attach(id string, onChunk func(string) error, onClose func(), 
 	var buffered string
 	session.streamMu.Lock()
 	session.outputMu.Lock()
-	if len(session.outputBuf) > 0 {
+	if replay && len(session.historyBuf) > 0 {
+		buffered = string(append([]byte(nil), session.historyBuf...))
+		session.outputBuf = nil
+	} else if len(session.outputBuf) > 0 {
 		buffered = string(append([]byte(nil), session.outputBuf...))
 		session.outputBuf = nil
 	}
@@ -247,7 +260,9 @@ func (m *Manager) Attach(id string, onChunk func(string) error, onClose func(), 
 
 	if buffered != "" && onChunk != nil {
 		if err := onChunk(buffered); err != nil {
-			session.appendOutput([]byte(buffered))
+			if !replay {
+				session.appendOutput([]byte(buffered))
+			}
 			m.detachIfCurrent(session, gen)
 		}
 	}
@@ -309,11 +324,13 @@ func (m *Manager) captureOutput(session *Session, reader io.Reader) {
 		n, err := reader.Read(buffer)
 		if n > 0 {
 			chunk := string(buffer[:n])
+			session.appendHistory(buffer[:n])
 			m.deliver(session, chunk, buffer[:n])
 		}
 		if err != nil {
 			if err != io.EOF {
 				errChunk := "\r\n[terminal error] " + err.Error() + "\r\n"
+				session.appendHistory([]byte(errChunk))
 				m.deliver(session, errChunk, []byte(errChunk))
 			}
 			m.closeSession(session)
@@ -435,6 +452,39 @@ func (s *Session) appendOutput(chunk []byte) {
 		return
 	}
 	s.outputBuf = append([]byte(nil), s.outputBuf[len(s.outputBuf)-maxBufferedOutput:]...)
+}
+
+func (s *Session) appendHistory(chunk []byte) {
+	s.outputMu.Lock()
+	defer s.outputMu.Unlock()
+
+	s.historyBuf = append(s.historyBuf, chunk...)
+	if len(s.historyBuf) <= maxBufferedOutput {
+		return
+	}
+	s.historyBuf = append([]byte(nil), s.historyBuf[len(s.historyBuf)-maxBufferedOutput:]...)
+}
+
+func (m *Manager) ListOwned(ownerID int64) []SessionInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var result []SessionInfo
+	for _, s := range m.sessions {
+		s.mu.RLock()
+		closed := s.closed
+		s.mu.RUnlock()
+		if s.owner == ownerID && !closed {
+			result = append(result, SessionInfo{
+				SessionID:  s.id,
+				Target:     s.meta.Target,
+				Cwd:        s.meta.Cwd,
+				Mode:       s.meta.Mode,
+				OSUsername: s.meta.OSUsername,
+			})
+		}
+	}
+	return result
 }
 
 func randomID(size int) (string, error) {

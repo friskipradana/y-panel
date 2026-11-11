@@ -47,6 +47,8 @@ export interface TerminalTabPaneProps {
   active: boolean
   target?: string
   cwd?: string
+  initialSessionId?: string
+  onSessionChange?: (sessionId: string | null) => void
   fontFamily: string
   fontSize: number
   onZoom: (step: number) => void
@@ -62,6 +64,8 @@ export function TerminalTabPane({
   active,
   target = 'local',
   cwd,
+  initialSessionId,
+  onSessionChange,
   fontFamily,
   fontSize,
   onZoom,
@@ -74,8 +78,14 @@ export function TerminalTabPane({
   const { t } = useI18n()
   const {
     sessionId, starting, connected, reconnecting, error,
-    start, sendInput, updateTerminalSize, setOutputListener, close,
-  } = useTerminalSession()
+    start, attach, sendInput, updateTerminalSize, setOutputListener, close,
+  } = useTerminalSession({
+    initialSessionId,
+    onSessionChange,
+    onSessionInvalid: () => {
+      void start(target, cwd)
+    },
+  })
 
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const themeMode = useThemeStore((s) => s.mode)
@@ -105,7 +115,10 @@ export function TerminalTabPane({
   useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
 
   useEffect(() => {
-    if (authenticated && !sessionId && !starting) {
+    if (!authenticated) return
+    if (initialSessionId && !sessionId && !starting) {
+      attach(initialSessionId)
+    } else if (!sessionId && !starting) {
       void start(target, cwd)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

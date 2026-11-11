@@ -5,6 +5,8 @@ const KEYS: Array<{ label: string; seq: string; aria: string }> = [
   { label: 'Tab', seq: '\t', aria: 'Tab' },
   { label: 'Ctrl+C', seq: '\x03', aria: 'Control C' },
   { label: 'Ctrl+D', seq: '\x04', aria: 'Control D' },
+  { label: 'Ctrl+Z', seq: '\x1a', aria: 'Control Z' },
+  { label: 'Ctrl+L', seq: '\x0c', aria: 'Control L' },
   { label: '\u2191', seq: '\x1b[A', aria: 'Arrow up' },
   { label: '\u2193', seq: '\x1b[B', aria: 'Arrow down' },
   { label: '\u2190', seq: '\x1b[D', aria: 'Arrow left' },

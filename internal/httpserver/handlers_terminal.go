@@ -149,8 +149,10 @@ func (s *Server) handleTerminalSessionWebSocket(w http.ResponseWriter, r *http.R
 		return conn.SetReadDeadline(time.Now().Add(terminalPongWait))
 	})
 
+	replay := r.URL.Query().Get("replay") == "1" || r.URL.Query().Get("replay") == "true"
 	gen, err := s.terminalManager.Attach(
 		id,
+		replay,
 		func(chunk string) error {
 			return safeWrite(terminalSocketMessage{Type: "output", Data: chunk, Session: id})
 		},
@@ -261,6 +263,19 @@ func (s *Server) handleTerminalSessionClose(w http.ResponseWriter, r *http.Reque
 	}
 	s.auditSensitiveAction(r, currentUser, "terminal.close", "success", map[string]any{"sessionId": id, "mode": meta.Mode, "target": meta.Target, "cwd": meta.Cwd})
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
+func (s *Server) handleListTerminalSessions(w http.ResponseWriter, r *http.Request) {
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	sessions := s.terminalManager.ListOwned(currentUser.ID)
+	if sessions == nil {
+		sessions = []terminal.SessionInfo{}
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"sessions": sessions})
 }
 
 // ─── System Stats WebSocket ─────────────────────────────────────────────────

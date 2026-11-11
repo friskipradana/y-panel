@@ -368,6 +368,7 @@ func (s *Server) routes() {
 	s.mux.Handle("PUT /api/v1/me/toolchain/prefs", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleToolchainPrefs)))
 	s.mux.Handle("POST /api/v1/me/toolchain/install", s.requireCapability(auth.CapabilityTerminalAccess, s.handleToolchainRun(false)))
 	s.mux.Handle("POST /api/v1/me/toolchain/remove", s.requireCapability(auth.CapabilityTerminalAccess, s.handleToolchainRun(true)))
+	s.mux.Handle("GET /api/v1/terminal/sessions", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleListTerminalSessions)))
 	s.mux.Handle("POST /api/v1/terminal/sessions", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionStart)))
 	s.mux.Handle("GET /api/v1/terminal/sessions/{id}/ws", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionWebSocket)))
 	s.mux.Handle("DELETE /api/v1/terminal/sessions/{id}", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleTerminalSessionClose)))

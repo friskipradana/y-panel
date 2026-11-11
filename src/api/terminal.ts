@@ -8,6 +8,17 @@ export interface TerminalPreset {
   createdAt: string
 }
 
+export interface TerminalSessionInfo {
+  sessionId: string
+  target: string
+  cwd: string
+  mode: string
+  osUsername: string
+}
+
+export const listTerminalSessions = () =>
+  agentApi.get<{ sessions: TerminalSessionInfo[] }>('/api/v1/terminal/sessions').then((r) => r.data.sessions)
+
 export const startTerminalSession = (target = 'local', cwd?: string) =>
   agentApi.post<import('@/types').TerminalSessionStartResponse>('/api/v1/terminal/sessions', cwd ? { target, cwd } : { target }).then((r) => r.data)
 

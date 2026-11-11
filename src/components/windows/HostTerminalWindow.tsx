@@ -12,6 +12,8 @@ import {
   createTerminalPreset,
   deleteTerminalPreset,
   resetTerminalPresets,
+  closeTerminalSession,
+  listTerminalSessions,
   type TerminalPreset,
 } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
@@ -36,11 +38,49 @@ interface Tab {
   label: string
   target: string
   cwd?: string
+  sessionId?: string
   connected: boolean
   error: boolean
   reconnecting: boolean
   startFn: ((target?: string) => Promise<void>) | null
   sendInputFn: ((cmd: string) => Promise<void>) | null
+}
+
+const TERMINAL_TABS_STORAGE_KEY = 'reneo-terminal-tabs'
+
+interface StoredTerminalTab {
+  id: number
+  label: string
+  target: string
+  cwd?: string
+  sessionId?: string
+}
+
+interface StoredTerminalState {
+  activeTabId: number
+  tabs: StoredTerminalTab[]
+}
+
+function loadStoredTerminalState(): StoredTerminalState | null {
+  try {
+    const raw = localStorage.getItem(TERMINAL_TABS_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredTerminalState
+    if (parsed && Array.isArray(parsed.tabs) && parsed.tabs.length > 0) {
+      return parsed
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null
+}
+
+function saveStoredTerminalState(state: StoredTerminalState) {
+  try {
+    localStorage.setItem(TERMINAL_TABS_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 // What a terminal's state is called and which color shows it
@@ -90,10 +130,102 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
   // a window opened from the File Manager starts its first terminal in that folder
   const requestedCwd = typeof win?.params?.cwd === 'string' ? win.params.cwd : ''
   const cwdRequest = win?.params?.cwdRequest
-  const [tabs, setTabs] = useState<Tab[]>(() => [
-    { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
-  ])
-  const [activeTabId, setActiveTabId] = useState<number>(tabs[0].id)
+  const [tabs, setTabs] = useState<Tab[]>(() => {
+    const stored = loadStoredTerminalState()
+    if (stored && stored.tabs.length > 0) {
+      const maxId = Math.max(...stored.tabs.map((t) => t.id), 0)
+      if (maxId >= nextTabId) nextTabId = maxId + 1
+
+      return stored.tabs.map((st) => ({
+        id: st.id,
+        label: st.label,
+        target: st.target,
+        cwd: st.cwd,
+        sessionId: st.sessionId,
+        connected: false,
+        error: false,
+        reconnecting: false,
+        startFn: null,
+        sendInputFn: null,
+      }))
+    }
+    return [
+      { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
+    ]
+  })
+  const [activeTabId, setActiveTabId] = useState<number>(() => {
+    const stored = loadStoredTerminalState()
+    if (stored && stored.tabs.some((t) => t.id === stored.activeTabId)) {
+      return stored.activeTabId
+    }
+    return 1
+  })
+
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
+  const activeTabIdRef = useRef(activeTabId)
+  activeTabIdRef.current = activeTabId
+
+  // Verify which stored sessions are still running on the agent
+  useEffect(() => {
+    if (!authenticated) return
+    void listTerminalSessions().then((activeSessions) => {
+      const activeIds = new Set(activeSessions.map((s) => s.sessionId))
+      setTabs((prev) => {
+        let changed = false
+        const next = prev.map((t) => {
+          if (t.sessionId && !activeIds.has(t.sessionId)) {
+            changed = true
+            return { ...t, sessionId: undefined }
+          }
+          return t
+        })
+        if (changed) {
+          saveStoredTerminalState({
+            activeTabId: activeTabIdRef.current,
+            tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+          })
+        }
+        return changed ? next : prev
+      })
+    }).catch(() => {})
+  }, [authenticated])
+
+  const selectTab = useCallback((id: number) => {
+    setActiveTabId(id)
+    activeTabIdRef.current = id
+    saveStoredTerminalState({
+      activeTabId: id,
+      tabs: tabsRef.current.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+    })
+  }, [])
+
+  const handleSessionChange = useCallback((tabId: number, sessionId: string | null) => {
+    setTabs((prev) => {
+      const next = prev.map((t) => (t.id === tabId ? { ...t, sessionId: sessionId || undefined } : t))
+      saveStoredTerminalState({
+        activeTabId: activeTabIdRef.current,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      const isWindowStillOpen = useWindowStore.getState().windows.some((w) => w.kind === 'host-terminal')
+      if (!isWindowStillOpen) {
+        try {
+          localStorage.removeItem(TERMINAL_TABS_STORAGE_KEY)
+        } catch {}
+        for (const tab of tabsRef.current) {
+          if (tab.sessionId) {
+            void closeTerminalSession(tab.sessionId)
+          }
+        }
+      }
+    }
+  }, [])
 
   const [showSshModal, setShowSshModal] = useState(false)
   const [sshInput, setSshInput] = useState('')
@@ -107,19 +239,26 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
 
   const addTab = useCallback((target = 'local', label?: string, cwd?: string) => {
     const id = nextTabId++
-    setTabs((prev) => [...prev, { 
-      id, 
-      label: label || (cwd ? folderLabel(cwd) : target === 'local' ? t('hostTerminal.localServer') : target), 
-      target,
-      cwd,
-      connected: false, 
-      error: false, 
-      reconnecting: false,
-      startFn: null, 
-      sendInputFn: null 
-    }])
-    setActiveTabId(id)
-  }, [t])
+    setTabs((prev) => {
+      const next = [...prev, { 
+        id, 
+        label: label || (cwd ? folderLabel(cwd) : target === 'local' ? t('hostTerminal.localServer') : target), 
+        target,
+        cwd,
+        connected: false, 
+        error: false, 
+        reconnecting: false,
+        startFn: null, 
+        sendInputFn: null 
+      }]
+      saveStoredTerminalState({
+        activeTabId: id,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
+      return next
+    })
+    selectTab(id)
+  }, [t, selectTab])
 
   // Asked again while the window is open (the File Manager's Terminal button): a new terminal in that folder
   const lastCwdRequest = useRef(cwdRequest)
@@ -140,11 +279,21 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
   const closeTab = useCallback((id: number) => {
     setTabs((prev) => {
       if (prev.length === 1) return prev
+      const closing = prev.find((t) => t.id === id)
+      if (closing?.sessionId) {
+        void closeTerminalSession(closing.sessionId)
+      }
       const next = prev.filter((t) => t.id !== id)
+      let nextActiveId = activeTabId
       if (id === activeTabId) {
         const idx = prev.findIndex((t) => t.id === id)
-        setActiveTabId(next[Math.max(0, idx - 1)].id)
+        nextActiveId = next[Math.max(0, idx - 1)].id
+        setActiveTabId(nextActiveId)
       }
+      saveStoredTerminalState({
+        activeTabId: nextActiveId,
+        tabs: next.map((t) => ({ id: t.id, label: t.label, target: t.target, cwd: t.cwd, sessionId: t.sessionId })),
+      })
       return next
     })
   }, [activeTabId])
@@ -301,7 +450,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
       e.preventDefault()
       return
     }
-    setActiveTabId(id)
+    selectTab(id)
   }
 
   // ── Auto-focus scroll for active tab ────────────────────────────────────
@@ -558,7 +707,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setActiveTabId(tab.id)
+                  selectTab(tab.id)
                 }
               }}
             >
@@ -640,6 +789,8 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
               active={tab.id === activeTabId}
               target={tab.target}
               cwd={tab.cwd}
+              initialSessionId={tab.sessionId}
+              onSessionChange={(sid) => handleSessionChange(tab.id, sid)}
               fontFamily={fontFamily}
               fontSize={fontSize}
               onZoom={zoom}
