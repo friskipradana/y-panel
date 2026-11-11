@@ -65,12 +65,12 @@ func (s *Server) handleTerminalExec(w http.ResponseWriter, r *http.Request) {
 
 	osUsername, err := osuser.EnsureUserForRole(u.Username, u.DisplayName, u.Role)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	cmd, err := osuser.WrapCommand(exec.Command("/bin/sh", "-c", command), osUsername)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	cmd.Dir = osuser.ResolveHomeDir(u.Username)
@@ -88,7 +88,7 @@ func (s *Server) handleTerminalExec(w http.ResponseWriter, r *http.Request) {
 	s.auditSensitiveAction(r, u, "terminal.exec", "started", map[string]any{"osUsername": osUsername})
 
 	if err := cmd.Start(); err != nil {
-		s.writeError(w, http.StatusBadGateway, err)
+		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	timedOut := false

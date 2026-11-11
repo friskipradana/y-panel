@@ -76,7 +76,7 @@ func (s *Server) handleInstallKvm(w http.ResponseWriter, r *http.Request) {
 	} else if _, err := exec.LookPath("pacman"); err == nil {
 		cmd = exec.CommandContext(ctx, "pacman", "-S", "--noconfirm", "x11vnc")
 	} else {
-		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Tidak ditemukan package manager (apt-get, dnf, yum, pacman) yang didukung pada server host"})
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "Tidak ditemukan package manager (apt-get, dnf, yum, pacman) yang didukung pada server host"})
 		return
 	}
 
@@ -84,7 +84,7 @@ func (s *Server) handleInstallKvm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[kvm] install x11vnc failed: %v, out: %s", err, string(output))
 		s.auditSensitiveAction(r, currentUser, "kvm.install", "failed", map[string]any{"error": err.Error(), "output": string(output)})
-		s.writeJSON(w, http.StatusBadGateway, jsonResponse{
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{
 			"error": fmt.Sprintf("Gagal memasang x11vnc: %v (%s)", err, strings.TrimSpace(string(output))),
 		})
 		return
@@ -123,7 +123,10 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("x11vnc",
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "x11vnc",
 		"-display", display,
 		"-rfbport", strconv.Itoa(port),
 		"-shared",
@@ -137,7 +140,7 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("[kvm] start x11vnc failed: %v out: %s", err, string(output))
 		s.auditSensitiveAction(r, currentUser, "kvm.start", "failed", map[string]any{"error": err.Error(), "output": string(output)})
-		s.writeJSON(w, http.StatusBadGateway, jsonResponse{
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{
 			"error": fmt.Sprintf("Gagal menjalankan x11vnc: %v (%s)", err, strings.TrimSpace(string(output))),
 		})
 		return

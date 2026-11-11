@@ -80,7 +80,7 @@ func (s *Server) handleTerminalSessionStart(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		log.Printf("[terminal] start failed remote=%s err=%v", remoteAddr(r), err)
 		s.auditSensitiveAction(r, currentUser, "terminal.start", "failed", map[string]any{"target": target, "cwd": cwd, "error": err.Error()})
-		status := http.StatusBadGateway
+		status := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, terminal.ErrTooManySessions):
 			status = http.StatusTooManyRequests
