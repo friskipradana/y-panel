@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.0] - 2026-11-11
+
+2 perubahan, utamanya correct HTTP status codes and add command timeouts.
+
+### Perbaikan
+- **api:** Correct HTTP status codes and add command timeouts ([`d5f7b7a`](https://github.com/friskipradana/y-panel/commit/d5f7b7a))
+
+### Performa
+- **runtime:** Implement non-blocking telemetry and optimized polling ([`56bd6a5`](https://github.com/friskipradana/y-panel/commit/56bd6a5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.79.1...v1.80.0
+
 ## [1.79.1] - 2026-11-11
 
 Add automated x11vnc management and terminal improvements.
