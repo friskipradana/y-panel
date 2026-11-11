@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.79.0] - 2026-11-11
+
+3 perubahan, utamanya add remote desktop access via noVNC.
+
+### Fitur baru
+- **kvm:** Add remote desktop access via noVNC ([`fdb0e7b`](https://github.com/friskipradana/y-panel/commit/fdb0e7b))
+
+### Peningkatan
+- **ui:** Implement GNOME-inspired settings layout and primitives ([`c4b8300`](https://github.com/friskipradana/y-panel/commit/c4b8300))
+- **ui:** Redesign settings interface and enhance terminal usability ([`1c83b82`](https://github.com/friskipradana/y-panel/commit/1c83b82))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.78.0...v1.79.0
+
 ## [1.78.0] - 2026-11-11
 
 Implement session persistence and history replay.
