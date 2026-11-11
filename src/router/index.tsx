@@ -17,11 +17,13 @@ const LegalPage = lazyNamed(() => import('@/pages/legal/LegalPage'), 'LegalPage'
 const OrderInvoicePage = lazyNamed(() => import('@/pages/order/OrderInvoicePage'), 'OrderInvoicePage')
 const OrderPage = lazyNamed(() => import('@/pages/order/OrderPage'), 'OrderPage')
 const DatabaseAdminPage = lazyNamed(() => import('@/pages/database-admin/DatabaseAdminPage'), 'DatabaseAdminPage')
+const KvmPage = lazyNamed(() => import('@/pages/kvm/KvmPage'), 'KvmPage')
 
 // The page of an address, fetched before the first frame of the app, so a reload does not flash an empty page while its code loads
 export function preloadRoute(pathname: string): Promise<unknown> {
   if (pathname === LOGIN_PATH) return LoginPage.preload()
   if (pathname === HOME_PATH || pathname.startsWith(HOME_PATH + '/')) return DesktopPage.preload()
+  if (pathname === '/kvm') return KvmPage.preload()
   if (pathname.startsWith('/database/')) return DatabaseAdminPage.preload()
   if (pathname === '/docs/mcp') return McpGuidePage.preload()
   if (pathname === '/install') return InstallPage.preload()
@@ -135,6 +137,18 @@ export function AppRouter() {
             ) : (
               <div className="absolute inset-0 z-0">
                 <DatabaseAdminPage />
+              </div>
+            )
+          }
+        />
+        <Route
+          path="/kvm"
+          element={
+            !authenticated ? (
+              <Navigate to={`${LOGIN_PATH}?next=${encodeURIComponent(location.pathname)}`} replace />
+            ) : (
+              <div className="absolute inset-0 z-0">
+                <KvmPage />
               </div>
             )
           }

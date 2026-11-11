@@ -77,12 +77,13 @@ export function TerminalTabPane({
 }: TerminalTabPaneProps) {
   const { t } = useI18n()
   const {
-    sessionId, starting, connected, reconnecting, error,
-    start, attach, sendInput, updateTerminalSize, setOutputListener, close,
+    starting, connected, reconnecting, error,
+    start, attach, sendInput, updateTerminalSize, setOutputListener,
   } = useTerminalSession({
     initialSessionId,
     onSessionChange,
     onSessionInvalid: () => {
+      onSessionChange?.(null)
       void start(target, cwd)
     },
   })
@@ -116,9 +117,9 @@ export function TerminalTabPane({
 
   useEffect(() => {
     if (!authenticated) return
-    if (initialSessionId && !sessionId && !starting) {
+    if (initialSessionId) {
       attach(initialSessionId)
-    } else if (!sessionId && !starting) {
+    } else {
       void start(target, cwd)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

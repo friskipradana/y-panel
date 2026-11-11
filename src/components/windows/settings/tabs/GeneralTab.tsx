@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/store/authStore";
 import { SitePublicCard } from "../SitePublicCard";
+import { KvmSettingsCard } from "../KvmSettingsCard";
 import { UpdateCard } from "../UpdateCard";
 import { SettingsSaveBar } from "../SettingsSaveBar";
 import { Globe2, Server } from "lucide-react";
@@ -96,6 +97,9 @@ export function GeneralTab({ host, systemSettings }: { host: HostSettings; syste
 
       {/* ── 4. Public Site Card ── */}
       {isSuperadmin ? <SitePublicCard /> : null}
+
+      {/* ── 5. Host Display / KVM Remote Desktop ── */}
+      {isSuperadmin ? <KvmSettingsCard /> : null}
 
       <SettingsSaveBar
         id="settings-save"

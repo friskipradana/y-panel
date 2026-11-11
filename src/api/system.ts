@@ -136,6 +136,10 @@ export interface SiteSettings {
   invoiceAddress?: string
   invoiceContact?: string
   invoiceNote?: string
+  /** Host display / KVM VNC WebRTC remote desktop for superadmin */
+  kvmEnabled?: boolean
+  kvmPort?: number
+  kvmDisplay?: string
 }
 
 export interface OrderMethod {

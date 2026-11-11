@@ -72,7 +72,7 @@ export interface UseTerminalSessionOptions {
 }
 
 export function useTerminalSession(options?: UseTerminalSessionOptions) {
-  const [sessionId, setSessionId] = useState<string | null>(options?.initialSessionId ?? null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [connected, setConnected] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
@@ -81,7 +81,7 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
   const [closedByUser, setClosedByUser] = useState(false)
 
   const socketRef = useRef<WebSocket | null>(null)
-  const sessionIdRef = useRef<string | null>(options?.initialSessionId ?? null)
+  const sessionIdRef = useRef<string | null>(null)
   const targetRef = useRef('local')
   const cwdRef = useRef<string | undefined>(undefined)
   const manualCloseRef = useRef(false)
@@ -176,10 +176,12 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
     cleanupSocket(true)
     const socket = new WebSocket(resolveTerminalSocketUrl(nextId, replay))
     socketRef.current = socket
+    let hasOpened = false
     const isCurrent = () => socketRef.current === socket && sessionIdRef.current === nextId && sessionEpochRef.current === epoch
 
     socket.onopen = () => {
       if (!isCurrent()) return
+      hasOpened = true
       attemptRef.current = 0
       lastRxRef.current = Date.now()
       setConnected(true)
@@ -226,6 +228,9 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
             setReconnecting(false)
             setClosed(true)
             setConnected(false)
+            sessionIdRef.current = null
+            setSessionId(null)
+            options?.onSessionChange?.(null)
             options?.onSessionInvalid?.(nextId)
             setError('Sesi terminal sudah berakhir. Klik Reconnect untuk sesi baru.')
             return
@@ -245,6 +250,18 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
       clearTimers()
       setConnected(false)
       if (manualCloseRef.current || backendClosedRef.current) return
+
+      if (!hasOpened) {
+        backendClosedRef.current = true
+        setReconnecting(false)
+        setClosed(true)
+        sessionIdRef.current = null
+        setSessionId(null)
+        options?.onSessionChange?.(null)
+        options?.onSessionInvalid?.(nextId)
+        return
+      }
+
       scheduleReconnect(epoch)
     }
   }, [cleanupSocket, clearTimers, scheduleReconnect, options])
@@ -270,21 +287,23 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
     setConnected(false)
     setReconnecting(false)
 
+    sessionIdRef.current = existingId
+    setSessionId(existingId)
+
     void listTerminalSessions().then((activeSessions) => {
       if (sessionEpochRef.current !== epoch) return
-      const found = activeSessions.some((s) => s.sessionId === existingId)
+      const found = Array.isArray(activeSessions) && activeSessions.some((s) => s.sessionId === existingId)
       if (!found) {
+        sessionIdRef.current = null
+        setSessionId(null)
+        options?.onSessionChange?.(null)
         options?.onSessionInvalid?.(existingId)
         return
       }
-      sessionIdRef.current = existingId
-      setSessionId(existingId)
       options?.onSessionChange?.(existingId)
       connectSocket(existingId, epoch, true)
     }).catch(() => {
       if (sessionEpochRef.current !== epoch) return
-      sessionIdRef.current = existingId
-      setSessionId(existingId)
       options?.onSessionChange?.(existingId)
       connectSocket(existingId, epoch, true)
     })

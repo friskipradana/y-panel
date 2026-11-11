@@ -24,6 +24,7 @@ export const DEFAULTS: Record<
   docs: { title: 'Docs', width: 880, height: 530, singleton: true },
 
   // M — Terminal & 2-Column Gauge/Stats (840 x 540)
+  kvm: { title: 'KVM Host Display', width: 980, height: 620, singleton: true },
   speedtest: { title: 'Speed Test', width: 840, height: 540, singleton: true },
   'host-terminal': { title: 'Host Terminal', width: 840, height: 540, singleton: true },
   terminal: { title: 'Terminal', width: 640, height: 400, singleton: true },

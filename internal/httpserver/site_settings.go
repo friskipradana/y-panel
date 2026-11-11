@@ -86,6 +86,10 @@ type siteSettings struct {
 	// name that leads to one) buyers point their domain at
 	PublicBuyerDomains bool   `json:"publicBuyerDomains"`
 	PublicProxyTarget  string `json:"publicProxyTarget"`
+	// KvmEnabled: host display / KVM VNC WebRTC remote desktop for superadmin
+	KvmEnabled bool   `json:"kvmEnabled"`
+	KvmPort    int    `json:"kvmPort"`
+	KvmDisplay string `json:"kvmDisplay"`
 }
 
 var (
@@ -122,6 +126,12 @@ func (s *Server) loadSiteSettings() siteSettings {
 	} else {
 		demo, _ := s.loadDemoSettings()
 		value.HostingEnabled = demo.Enabled
+	}
+	if value.KvmPort <= 0 {
+		value.KvmPort = 5900
+	}
+	if value.KvmDisplay == "" {
+		value.KvmDisplay = ":0"
 	}
 	siteSettingsCache[path] = siteCacheEntry{value: value, loaded: time.Now()}
 	return value
@@ -204,6 +214,9 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		InvoiceAddress       *string `json:"invoiceAddress"`
 		InvoiceContact       *string `json:"invoiceContact"`
 		InvoiceNote          *string `json:"invoiceNote"`
+		KvmEnabled           *bool   `json:"kvmEnabled"`
+		KvmPort              *int    `json:"kvmPort"`
+		KvmDisplay           *string `json:"kvmDisplay"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -219,6 +232,15 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.HostingEnabled != nil {
 		next.HostingEnabled = *req.HostingEnabled
+	}
+	if req.KvmEnabled != nil {
+		next.KvmEnabled = *req.KvmEnabled
+	}
+	if req.KvmPort != nil && *req.KvmPort > 0 && *req.KvmPort <= 65535 {
+		next.KvmPort = *req.KvmPort
+	}
+	if req.KvmDisplay != nil {
+		next.KvmDisplay = strings.TrimSpace(*req.KvmDisplay)
 	}
 	if req.GraceDays != nil {
 		if *req.GraceDays < 0 || *req.GraceDays > planMaxGraceDays {

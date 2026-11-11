@@ -21,6 +21,7 @@ import {
   BuildingRetail24Filled,
   Shield24Filled,
   Mail24Filled,
+  DesktopKeyboard24Filled,
 } from '@fluentui/react-icons'
 import type { WindowKind } from '@/types'
 
@@ -52,6 +53,7 @@ const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSPr
   hosting: { icon: BuildingRetail24Filled, color: '#f43f5e' },
   firewall: { icon: Shield24Filled, color: '#f87171' },
   email: { icon: Mail24Filled, color: '#0ea5e9' },
+  kvm: { icon: DesktopKeyboard24Filled, color: '#06b6d4' },
   trash: { icon: Delete24Filled, color: '#ef4444' },
 }
 

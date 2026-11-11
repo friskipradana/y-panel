@@ -170,7 +170,8 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
   useEffect(() => {
     if (!authenticated) return
     void listTerminalSessions().then((activeSessions) => {
-      const activeIds = new Set(activeSessions.map((s) => s.sessionId))
+      const activeList = Array.isArray(activeSessions) ? activeSessions : []
+      const activeIds = new Set(activeList.map((s) => s.sessionId))
       setTabs((prev) => {
         let changed = false
         const next = prev.map((t) => {

@@ -24,13 +24,14 @@ const WidgetsWindow = lazyNamed(() => import('@/components/windows/WidgetsWindow
 const SpeedtestWindow = lazyNamed(() => import('@/components/windows/SpeedtestWindow'), 'SpeedtestWindow')
 const FirewallWindow = lazyNamed(() => import('@/components/windows/FirewallWindow'), 'FirewallWindow')
 const EmailWindow = lazyNamed(() => import('@/components/windows/EmailWindow'), 'EmailWindow')
+const KvmWindow = lazyNamed(() => import('@/components/windows/KvmWindow'), 'KvmWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
 // databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
 // service journals show every account's activity, and the firewall is the server's
-const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall'])
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm'])
 
 // The public demo account only looks: the windows below work read-only on its own (empty) data.
 // No terminal, files, users, settings or logs: they would need a shell or reach shared data.
@@ -103,12 +104,14 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   hosting: (win, auth) => <HostingWindow win={win} authenticated={auth} />,
   firewall: (win, auth) => <FirewallWindow win={win} authenticated={auth} />,
   email: (win) => <EmailWindow win={win} />,
+  kvm: (win, auth) => <KvmWindow win={win} authenticated={auth} />,
 }
 
 
 export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
   { id: 'apps', label: 'Docker', windowId: 'apps' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },
+  { id: 'kvm', label: 'KVM Display', windowId: 'kvm' },
   { id: 'widgets', label: 'Widgets', windowId: 'widgets' },
   { id: 'tunnels', label: 'Cloudflare', windowId: 'tunnels' },
   { id: 'firewall', label: 'Firewall', windowId: 'firewall' },

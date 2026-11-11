@@ -28,6 +28,7 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'hosting', label: 'Hosting' },
   { kind: 'firewall', label: 'Firewall' },
   { kind: 'email', label: 'Email' },
+  { kind: 'kvm', label: 'KVM Display' },
   { kind: 'changelog', label: 'Changelog' },
 ]
 
@@ -82,6 +83,7 @@ export function Dock() {
       hosting: [],
       firewall: [],
       email: [],
+      kvm: [],
     })
   }, [windows])
 

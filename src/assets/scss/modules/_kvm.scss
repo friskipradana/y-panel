@@ -1,0 +1,134 @@
+// KVM / Host Display Remote Desktop module
+
+.kvm-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--panel-bg);
+  overflow: hidden;
+  user-select: none;
+}
+
+.kvm-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel-surface);
+  flex-shrink: 0;
+  z-index: 10;
+
+  &--standalone {
+    padding: 8px 16px;
+    background: var(--win-bar);
+    border-bottom: 1px solid var(--win-border);
+  }
+}
+
+.kvm-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kvm-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: var(--panel-card-bg);
+  border: 1px solid var(--panel-border);
+  color: var(--panel-text);
+}
+
+.kvm-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-offline);
+
+  &--online {
+    background: var(--status-online);
+  }
+
+  &--busy {
+    background: var(--status-busy);
+  }
+
+  &--pulse {
+    animation: kvm-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes kvm-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.kvm-viewport {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--kvm-viewport-bg);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  // noVNC canvas
+  canvas {
+    outline: none;
+    cursor: default;
+
+    &:focus-visible {
+      outline: 2px solid var(--panel-primary);
+    }
+  }
+}
+
+.kvm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  background: var(--panel-bg);
+}
+
+.kvm-hint-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--panel-input-bg);
+  border: 1px solid var(--panel-border);
+}
+
+.kvm-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 580px;
+  padding: 8px 12px;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-input-bg);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--panel-text);
+}
