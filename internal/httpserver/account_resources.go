@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -66,7 +67,7 @@ func (s *Server) accountResources(u *database.User, includeDisk bool) accountRes
 	var ids []string
 	if containers, err := docker.ListContainers(); err == nil {
 		for _, c := range containers {
-			if c.OwnerUserID == u.ID {
+			if c.OwnerUserID == u.ID && strings.EqualFold(c.State, "running") {
 				ids = append(ids, c.ID)
 			}
 		}

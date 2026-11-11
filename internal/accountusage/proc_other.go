@@ -2,5 +2,14 @@
 
 package accountusage
 
-// Process accounting reads /proc; elsewhere only the containers are counted.
-func processUsage(string) Usage { return Usage{} }
+import (
+	"os"
+)
+
+func platformReadUID(_ int, _ os.FileInfo) (uint32, bool) {
+	return 0, false
+}
+
+func platformLookupUID(_ string) (uint32, bool) {
+	return 0, false
+}

@@ -20,7 +20,6 @@ import (
 
 const (
 	siteName        = "Reneo Panel"
-	siteTagline     = "Pembaruan kendali untuk server"
 	siteDescription = "Reneo Panel adalah panel kontrol server Linux bergaya desktop: Docker, project, database, file, terminal, Cloudflare, pengguna, dan agen AI lewat MCP, dalam satu ruang kerja."
 )
 

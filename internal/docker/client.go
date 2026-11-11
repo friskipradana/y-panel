@@ -143,12 +143,14 @@ func notifyInvalidators() {
 // InvalidateContainers clears container and derived caches after a container mutation.
 func InvalidateContainers() {
 	containersCache.Invalidate()
+	invalidateAllContainerStats()
 	notifyInvalidators()
 }
 
 // InvalidateAll clears all cached Docker views.
 func InvalidateAll() {
 	containersCache.Invalidate()
+	invalidateAllContainerStats()
 	imagesCache.Invalidate()
 	networksCache.Invalidate()
 	volumesCache.Invalidate()

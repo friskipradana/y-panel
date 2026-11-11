@@ -33,16 +33,16 @@ Furthermore, Rust toolchain binaries (`rustc`, `cargo`) are neither present in t
 
 ---
 
-## 3. Audit Finding: Next Real Linux Bottleneck Is Not Go Runtime Speed
+## 3. Audit & Phase 9.1 Resolution: Why Account Usage Was Fixed in Go First
 
-During codebase inspection (`internal/accountusage`), we identified one remaining Linux monitoring pattern relevant to multi-tenant hosting scale:
-- [`internal/accountusage/proc_linux.go`](../../internal/accountusage/proc_linux.go) scans `/proc/[0-9]*/stat` twice with a synchronous `time.Sleep(200 * time.Millisecond)` per UID in `processUsage(osUsername)`.
-- [`internal/accountusage/accountusage.go`](../../internal/accountusage/accountusage.go) executes `docker stats --no-stream` CLI subprocesses (cached for `5s` per account).
+During earlier codebase inspection (`internal/accountusage`), we identified synchronous Linux per-account accounting patterns relevant to multi-tenant hosting scale:
+- Previously, [`internal/accountusage/proc_linux.go`](../../internal/accountusage/proc_linux.go) scanned `/proc/[0-9]*/stat` twice with a synchronous `time.Sleep(200 * time.Millisecond)` per UID in `processUsage(osUsername)`.
+- Previously, [`internal/accountusage/accountusage.go`](../../internal/accountusage/accountusage.go) executed `docker stats --no-stream` CLI subprocesses.
 
-**Why this does NOT justify Rust right now**:
-1. The bottleneck above is **algorithmic** (synchronous `200ms` sleep + subprocess CLI fork), not Go's language overhead.
-2. Fixing it natively in Go (background delta tracker over `/proc` + cgroup v2 memory/CPU accounting + Docker Engine `/containers/{id}/stats?stream=false` over `/var/run/docker.sock`) eliminates the `200ms` wait and subprocess fork completely inside the existing single binary — at ~10% of the engineering cost of building, securing, installing, supervising, and versioning a second Rust daemon.
-3. Because `/proc` and cgroups cannot be executed natively on Windows here, optimizing `internal/accountusage/proc_linux.go` is intentionally deferred until live Linux `go tool pprof` testing can validate accuracy directly against real UID/cgroup trees.
+**Resolution in Phase 9.1 (Still Pure Go, No Rust Needed)**:
+1. The bottleneck was **algorithmic** (synchronous `200ms` sleep + subprocess CLI fork), not Go's language overhead.
+2. Phase 9.1 replaced those paths natively inside [`internal/accountusage`](../../internal/accountusage/accountusage.go) and [`internal/docker/stats.go`](../../internal/docker/stats.go) via a bounded background `/proc` + cgroup v2 delta collector (`procCollector`), cgroup v2 `cpu.stat`/`memory.*`/`pids.*` readers with anti-double-counting (`resolveAccountCompute`), persistent Docker Engine `/containers/{id}/stats?stream=false` calls, and non-blocking timestamped `AccountSnapshot` caching (`SampleSnapshot`).
+3. Live kernel `/proc` + systemd cgroup v2 + 100-container daemon measurements on Linux remain gated pending deployment execution (see [`phase-9.1-accountusage.md`](./phase-9.1-accountusage.md)); Rust remains deferred until production Linux `pprof` profiles prove the optimized Go collectors exceed CPU/GC thresholds.
 
 ---
 

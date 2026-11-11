@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/accountusage"
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
@@ -458,6 +459,7 @@ func (s *Server) Close() error {
 		s.terminalManager.CloseAll()
 	}
 	system.ShutdownCollector()
+	accountusage.Shutdown()
 	s.stopPublicProxy()
 	if s.notify != nil {
 		s.notify.Stop()
