@@ -123,41 +123,78 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
+	type attempt struct {
+		auth []string
+		out  []byte
+		err  error
+	}
+	var authOpts [][]string
+	if xa := strings.TrimSpace(os.Getenv("XAUTHORITY")); xa != "" {
+		if _, statErr := os.Stat(xa); statErr == nil {
+			authOpts = append(authOpts, []string{"-auth", xa})
+		}
+	}
+	authOpts = append(authOpts, []string{"-auth", "guess"}, nil)
 
-	cmd := exec.CommandContext(ctx, "x11vnc",
-		"-display", display,
-		"-rfbport", strconv.Itoa(port),
-		"-shared",
-		"-forever",
-		"-auth", "guess",
-		"-nopw",
-		"-bg",
-	)
-	cmd.Env = append(os.Environ(), "DISPLAY="+display)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Printf("[kvm] start x11vnc failed: %v out: %s", err, string(output))
-		s.auditSensitiveAction(r, currentUser, "kvm.start", "failed", map[string]any{"error": err.Error(), "output": string(output)})
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{
-			"error": fmt.Sprintf("Gagal menjalankan x11vnc: %v (%s)", err, strings.TrimSpace(string(output))),
-		})
-		return
+	portStr := strconv.Itoa(port)
+	var attempts []attempt
+	for _, auth := range authOpts {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		args := []string{"-display", display, "-rfbport", portStr, "-shared", "-forever", "-nopw"}
+		args = append(args, auth...)
+		args = append(args, "-bg")
+		cmd := exec.CommandContext(ctx, "x11vnc", args...)
+		cmd.Env = append(os.Environ(), "DISPLAY="+display)
+		output, err := cmd.CombinedOutput()
+		cancel()
+		attempts = append(attempts, attempt{auth: auth, out: output, err: err})
+
+		if err != nil {
+			continue
+		}
+
+		time.Sleep(600 * time.Millisecond)
+		conn, err = net.DialTimeout("tcp", targetAddr, 1200*time.Millisecond)
+		running := err == nil
+		if conn != nil {
+			_ = conn.Close()
+		}
+		if running {
+			s.auditSensitiveAction(r, currentUser, "kvm.start", "success", map[string]any{"port": port, "display": display, "running": running, "auth": strings.Join(auth, " ")})
+			s.writeJSON(w, http.StatusOK, jsonResponse{
+				"ok":      true,
+				"running": running,
+				"message": "Layanan x11vnc berhasil dijalankan",
+			})
+			return
+		}
 	}
 
-	time.Sleep(600 * time.Millisecond)
-	conn, err = net.DialTimeout("tcp", targetAddr, 1200*time.Millisecond)
-	running := err == nil
-	if conn != nil {
-		_ = conn.Close()
+	var details []string
+	for _, a := range attempts {
+		label := "no-auth"
+		if len(a.auth) > 0 {
+			label = strings.Join(a.auth, " ")
+		}
+		msg := strings.TrimSpace(string(a.out))
+		if a.err != nil {
+			if msg != "" {
+				details = append(details, fmt.Sprintf("[%s] %v (%s)", label, a.err, msg))
+			} else {
+				details = append(details, fmt.Sprintf("[%s] %v", label, a.err))
+			}
+			continue
+		}
+		if msg != "" {
+			details = append(details, fmt.Sprintf("[%s] started but port %s not reachable (%s)", label, portStr, msg))
+		} else {
+			details = append(details, fmt.Sprintf("[%s] started but port %s not reachable", label, portStr))
+		}
 	}
-
-	s.auditSensitiveAction(r, currentUser, "kvm.start", "success", map[string]any{"port": port, "display": display, "running": running})
-	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"ok":      true,
-		"running": running,
-		"message": "Layanan x11vnc berhasil dijalankan",
+	log.Printf("[kvm] start x11vnc failed attempts: %s", strings.Join(details, " | "))
+	s.auditSensitiveAction(r, currentUser, "kvm.start", "failed", map[string]any{"error": strings.Join(details, " | "), "display": display, "port": port})
+	s.writeJSON(w, http.StatusInternalServerError, jsonResponse{
+		"error": fmt.Sprintf("Gagal menjalankan x11vnc: %s", strings.Join(details, " | ")),
 	})
 }
 
