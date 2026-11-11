@@ -25,6 +25,9 @@ agentApi.interceptors.response.use(
     if (data && typeof data === 'object') {
       const localized = localizeServerMessage(data.error)
       if (localized) data.error = localized
+      if (typeof data.error === 'string' && data.error.trim()) {
+        error.message = data.error.trim()
+      }
     }
 
     const isPublicPath = isPublicRoute(window.location.pathname)
