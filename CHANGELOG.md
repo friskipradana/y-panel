@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.2] - 2026-11-11
+
+Improve lifecycle management and concurrency safety.
+
+### Peningkatan
+- **httpserver:** Improve lifecycle management and concurrency safety ([`3fc15d7`](https://github.com/friskipradana/y-panel/commit/3fc15d7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.1...v1.80.2
+
 ## [1.80.1] - 2026-11-11
 
 Implement non-blocking Linux & container accounting.
