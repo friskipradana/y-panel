@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.1] - 2026-11-11
+
+Implement non-blocking Linux & container accounting.
+
+### Fitur baru
+- **accountusage:** Implement non-blocking Linux & container accounting ([`42f65d7`](https://github.com/friskipradana/y-panel/commit/42f65d7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.0...v1.80.1
+
 ## [1.80.0] - 2026-11-11
 
 2 perubahan, utamanya correct HTTP status codes and add command timeouts.
