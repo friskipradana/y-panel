@@ -227,14 +227,15 @@ func (c *Collector) refreshHostFast() SystemSnapshot {
 	uptime := readUptimeSeconds()
 	ips := readIPAddresses()
 
-	// Refresh hostname dynamically in case it changed
-	if h, err := os.Hostname(); err == nil && strings.TrimSpace(h) != "" {
-		c.hostname = h
-	}
+	// Refresh hostname dynamically without mutating Collector fields outside c.mu
+	host, hostErr := os.Hostname()
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if hostErr == nil && strings.TrimSpace(host) != "" {
+		c.hostname = host
+	}
 	snap := c.snapshot
 	snap.Summary = Summary{
 		Hostname:        c.hostname,

@@ -79,6 +79,7 @@ type Server struct {
 	bgCtx                        context.Context
 	bgCancel                     context.CancelFunc
 	recoveryWG                   sync.WaitGroup
+	reconcileStopOnce            sync.Once
 	reconcileStop                chan struct{}
 	reconcileDone                chan struct{}
 	databaseCreateMu             sync.Mutex
@@ -197,11 +198,13 @@ func New(cfg config.Config) *Server {
 
 	s.routes()
 	docker.StartEventWatcher(s.bgCtx)
-	go s.runProjectReconcileLoop(25 * time.Second)
+	reconcileStop := s.reconcileStop
+	reconcileDone := s.reconcileDone
+	go s.runProjectReconcileLoop(25*time.Second, reconcileStop, reconcileDone)
 	s.recoveryWG.Add(1)
 	go func() {
 		defer s.recoveryWG.Done()
-		s.runPlanExpiryLoop(15 * time.Minute)
+		s.runPlanExpiryLoop(15*time.Minute, reconcileStop)
 	}()
 	return s
 }
@@ -358,8 +361,13 @@ func (s *Server) reconcileProjectStatuses() {
 	performance.DefaultRegistry.RecordBackgroundWorker(time.Since(started), nil)
 }
 
-func (s *Server) runProjectReconcileLoop(interval time.Duration) {
-	defer close(s.reconcileDone)
+func (s *Server) runProjectReconcileLoop(interval time.Duration, stop <-chan struct{}, done chan struct{}) {
+	if done != nil {
+		defer close(done)
+	}
+	if stop == nil {
+		return
+	}
 	if interval <= 0 {
 		interval = 25 * time.Second
 	}
@@ -368,7 +376,7 @@ func (s *Server) runProjectReconcileLoop(interval time.Duration) {
 	round := 0
 	for {
 		select {
-		case <-s.reconcileStop:
+		case <-stop:
 			return
 		case <-ticker.C:
 			s.reconcileProjectStatuses()
@@ -438,12 +446,12 @@ func (s *Server) Close() error {
 		s.bgCancel()
 	}
 	if s.reconcileStop != nil {
-		close(s.reconcileStop)
-		s.reconcileStop = nil
+		s.reconcileStopOnce.Do(func() {
+			close(s.reconcileStop)
+		})
 	}
 	if s.reconcileDone != nil {
 		<-s.reconcileDone
-		s.reconcileDone = nil
 	}
 	s.recoveryWG.Wait()
 	if s.metrics != nil {

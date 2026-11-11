@@ -70,3 +70,24 @@ func BenchmarkInspectSnapshot(b *testing.B) {
 		_ = c.GetSnapshot()
 	}
 }
+
+func TestCollectorConcurrentRefreshRaceSafe(t *testing.T) {
+	c := NewCollector("", 15*time.Millisecond, time.Second)
+	c.Start()
+	defer c.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 10; j++ {
+				snap := c.refreshHostFast()
+				if snap.UpdatedAt.IsZero() {
+					t.Errorf("concurrent refreshHostFast returned zero UpdatedAt")
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}

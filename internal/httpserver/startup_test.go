@@ -105,3 +105,34 @@ func TestServerProfilingEnabledStillRequiresSuperadminAuth(t *testing.T) {
 		t.Fatalf("expected unauthenticated /debug/pprof/ to be rejected (401/403), got %d", rec.Code)
 	}
 }
+
+func TestServerImmediateAndRepeatedCloseRaceSafe(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		srv := New(config.Config{
+			StateDir:         t.TempDir(),
+			FrontendDir:      t.TempDir(),
+			DatabaseEnable:   false,
+			SessionTTL:       time.Hour,
+			EncryptionKey:    "test-encryption-key-0123456789abcdef",
+			ProfilingEnabled: false,
+		})
+		done := make(chan error, 1)
+		go func() {
+			err := srv.Close()
+			if err != nil {
+				done <- err
+				return
+			}
+			// Closing a second time must remain idempotent and never panic or block.
+			done <- srv.Close()
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("iteration %d close error: %v", i, err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("iteration %d immediate Close() deadlocked", i)
+		}
+	}
+}

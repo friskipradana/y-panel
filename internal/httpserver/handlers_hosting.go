@@ -518,8 +518,25 @@ func (s *Server) syncHostingRoutesIfOn() {
 	}
 }
 
-func (s *Server) runPlanExpiryLoop(interval time.Duration) {
-	stop := s.reconcileStop
+func (s *Server) runPlanExpiryLoop(interval time.Duration, stop <-chan struct{}) {
+	if interval <= 0 {
+		interval = 15 * time.Minute
+	}
+	var ctxDone <-chan struct{}
+	if s.bgCtx != nil {
+		ctxDone = s.bgCtx.Done()
+	}
+	if stop == nil && ctxDone == nil {
+		return
+	}
+	select {
+	case <-stop:
+		return
+	case <-ctxDone:
+		return
+	default:
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	s.expirePlans(time.Now())
@@ -535,6 +552,8 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration) {
 	for {
 		select {
 		case <-stop:
+			return
+		case <-ctxDone:
 			return
 		case <-ticker.C:
 			s.expirePlans(time.Now())
