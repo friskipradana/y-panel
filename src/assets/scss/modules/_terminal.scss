@@ -322,6 +322,13 @@
   background: color-mix(in srgb, var(--terminal-bright-white) 14%, transparent);
 }
 
+.ht-keybar__key--active,
+.ht-keybar__key.ht-keybar__key--active {
+  background: var(--panel-primary-bg);
+  color: var(--panel-primary-text);
+  border-color: var(--panel-primary-border);
+}
+
 .ht-keybar__key:disabled {
   opacity: 0.4;
   cursor: not-allowed;

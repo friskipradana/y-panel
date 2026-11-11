@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Info } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { SearchInput } from '@/components/ui/SearchInput'
 
 export interface NavTab<K extends string> {
   key: K
@@ -33,13 +34,15 @@ interface SettingsNavProps<K extends string> {
   groups: NavGroup<K>[]
   active: K | undefined
   onSelect: (key: K) => void
+  searchable?: boolean
 }
 
 // The menu of the Settings window, and of the Hosting window: tabs under the name of what they are about
-export function SettingsNav<K extends string>({ title, groups, active, onSelect }: SettingsNavProps<K>) {
+export function SettingsNav<K extends string>({ title, groups, active, onSelect, searchable }: SettingsNavProps<K>) {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
 
+  const [searchQuery, setSearchQuery] = useState('')
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -53,6 +56,31 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
 
   const allTabs = useMemo(() => groups.flatMap((g) => g.tabs), [groups])
   const activeTab = useMemo(() => allTabs.find((tab) => tab.key === active) ?? allTabs[0], [allTabs, active])
+
+  const isSearchActive = searchable ?? allTabs.length > 5
+
+  const filteredGroups = useMemo(() => {
+    if (!isSearchActive || !searchQuery.trim()) return groups
+    const q = searchQuery.trim().toLowerCase()
+    return groups
+      .map((g) => ({
+        ...g,
+        tabs: g.tabs.filter((tab) => {
+          const labelText = t(tab.label).toLowerCase()
+          const descText = tab.desc ? t(tab.desc).toLowerCase() : ''
+          const groupLabel = t(g.label).toLowerCase()
+          return labelText.includes(q) || descText.includes(q) || groupLabel.includes(q)
+        }),
+      }))
+      .filter((g) => g.tabs.length > 0)
+  }, [groups, searchQuery, t, isSearchActive])
+
+  const handleSearchSubmit = () => {
+    const firstTab = filteredGroups[0]?.tabs[0]
+    if (firstTab) {
+      onSelect(firstTab.key)
+    }
+  }
 
   const placePanel = useCallback(() => {
     const el = buttonRef.current
@@ -291,33 +319,52 @@ export function SettingsNav<K extends string>({ title, groups, active, onSelect 
     )
   }
 
-  // Desktop mode: untouched vertical sidebar navigation
+  // Desktop mode: vertical sidebar navigation with instant search filter
   return (
     <nav className="settings-nav" aria-label={title}>
       <p className="settings-nav__title">{title}</p>
-      {groups.map((group) => (
-        <div key={group.key} className="settings-nav__group" role="group" aria-label={t(group.label)}>
-          <p className="settings-nav__label">{t(group.label)}</p>
-          {group.tabs.map((tab) => {
-            const isActive = active === tab.key
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => onSelect(tab.key)}
-                aria-current={isActive ? 'page' : undefined}
-                ref={isActive ? keepVisibleOnPhone : undefined}
-                className={`settings-nav__item${isActive ? ' settings-nav__item--active' : ''}`}
-              >
-                <Icon size={14} className="settings-nav__icon" />
-                <span className="truncate">{t(tab.label)}</span>
-                {tab.count !== undefined ? <span className="settings-nav__count">{tab.count}</span> : null}
-              </button>
-            )
-          })}
+      {isSearchActive ? (
+        <div className="settings-nav__search-wrap">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSubmit={handleSearchSubmit}
+            placeholder={t('settings.searchPlaceholder')}
+            className="settings-nav__search"
+          />
         </div>
-      ))}
+      ) : null}
+      <div className="settings-nav__scroll">
+        {filteredGroups.length === 0 ? (
+          <div className="settings-nav__empty">
+            <p className="settings-nav__empty-text">{t('settings.noResults')}</p>
+          </div>
+        ) : (
+          filteredGroups.map((group) => (
+            <div key={group.key} className="settings-nav__group" role="group" aria-label={t(group.label)}>
+              <p className="settings-nav__label">{t(group.label)}</p>
+              {group.tabs.map((tab) => {
+                const isActive = active === tab.key
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => onSelect(tab.key)}
+                    aria-current={isActive ? 'page' : undefined}
+                    ref={isActive ? keepVisibleOnPhone : undefined}
+                    className={`settings-nav__item${isActive ? ' settings-nav__item--active' : ''}`}
+                  >
+                    <Icon size={15} className="settings-nav__icon" />
+                    <span className="truncate">{t(tab.label)}</span>
+                    {tab.count !== undefined ? <span className="settings-nav__count">{tab.count}</span> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ))
+        )}
+      </div>
     </nav>
   )
 }

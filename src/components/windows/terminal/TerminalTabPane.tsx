@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Copy, X } from 'lucide-react'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -76,14 +76,17 @@ export function TerminalTabPane({
   onConsumeSelection,
 }: TerminalTabPaneProps) {
   const { t } = useI18n()
+  const onSessionChangeRef = useRef(onSessionChange)
+  onSessionChangeRef.current = onSessionChange
+
   const {
     starting, connected, reconnecting, error,
     start, attach, sendInput, updateTerminalSize, setOutputListener,
   } = useTerminalSession({
     initialSessionId,
-    onSessionChange,
+    onSessionChange: (sid) => onSessionChangeRef.current?.(sid),
     onSessionInvalid: () => {
-      onSessionChange?.(null)
+      onSessionChangeRef.current?.(null)
       void start(target, cwd)
     },
   })
@@ -99,12 +102,28 @@ export function TerminalTabPane({
   usePinchZoom(viewportRef, (step) => zoomRef.current(step))
   useTerminalTouchSelect(viewportRef, xtermRef, setSelectedText)
 
-  const startHere = useCallback((next?: string) => start(next ?? 'local', cwd), [start, cwd])
-  useEffect(() => { onStart?.(startHere) }, [onStart, startHere])
-  useEffect(() => { onSendInput?.(sendInput) }, [onSendInput, sendInput])
-  useEffect(() => { onReadText?.(() => (xtermRef.current ? readTerminalText(xtermRef.current) : '')) }, [onReadText])
+  const onStartRef = useRef(onStart)
+  onStartRef.current = onStart
   useEffect(() => {
-    onConsumeSelection?.(() => {
+    onStartRef.current?.((next?: string) => start(next ?? target, cwd))
+  }, [start, target, cwd])
+
+  const onSendInputRef = useRef(onSendInput)
+  onSendInputRef.current = onSendInput
+  useEffect(() => {
+    onSendInputRef.current?.(sendInput)
+  }, [sendInput])
+
+  const onReadTextRef = useRef(onReadText)
+  onReadTextRef.current = onReadText
+  useEffect(() => {
+    onReadTextRef.current?.(() => (xtermRef.current ? readTerminalText(xtermRef.current) : ''))
+  }, [])
+
+  const onConsumeSelectionRef = useRef(onConsumeSelection)
+  onConsumeSelectionRef.current = onConsumeSelection
+  useEffect(() => {
+    onConsumeSelectionRef.current?.(() => {
       const x = xtermRef.current
       if (!x || !x.hasSelection()) return ''
       const picked = x.getSelection()
@@ -112,18 +131,24 @@ export function TerminalTabPane({
       setSelectedText('')
       return picked
     })
-  }, [onConsumeSelection])
-  useEffect(() => { onStatusChange?.(connected, !!error, reconnecting) }, [connected, error, reconnecting, onStatusChange])
+  }, [])
 
+  const onStatusChangeRef = useRef(onStatusChange)
+  onStatusChangeRef.current = onStatusChange
   useEffect(() => {
-    if (!authenticated) return
+    onStatusChangeRef.current?.(connected, !!error, reconnecting)
+  }, [connected, error, reconnecting])
+
+  const hasMountedRef = useRef(false)
+  useEffect(() => {
+    if (!authenticated || hasMountedRef.current) return
+    hasMountedRef.current = true
     if (initialSessionId) {
       attach(initialSessionId)
     } else {
       void start(target, cwd)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated])
+  }, [authenticated, initialSessionId, attach, start, target, cwd])
 
   useEffect(() => {
     const host = viewportRef.current
@@ -250,7 +275,6 @@ export function TerminalTabPane({
   }, [themeMode])
 
   useEffect(() => { if (starting) xtermRef.current?.reset() }, [starting])
-  useEffect(() => () => { void close() }, [close])
 
   const copySelected = async () => {
     const text = xtermRef.current?.getSelection() || selectedText

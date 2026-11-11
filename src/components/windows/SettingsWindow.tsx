@@ -27,7 +27,7 @@ import { useSettingsNavStore } from "@/store/settingsNavStore";
 import { AccountSecurityCard } from "./profile/AccountSecurityCard";
 import { MyNotices } from "./profile/MyNotices";
 import { Button } from "@/components/ui/Button";
-import { LoadingState } from "@/components/ui/states"
+import { LoadingState } from "@/components/ui/states";
 import { Database, RefreshCw } from "lucide-react";
 
 const TAB_STORAGE_KEY = "reneo-settings-tab";
@@ -90,81 +90,85 @@ export function SettingsWindow({ authenticated }: { authenticated?: boolean }) {
         <SettingsNav title={isSuperadmin ? t("settings.title") : t("settings.titleAccount")} groups={groups} active={shownTab} onSelect={setActiveTab} />
 
         {/* ── Right Content Area ── */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-3.5 md:p-4 flex flex-col">
-          {current && CurrentIcon ? (
-            <header className="settings-page__head shrink-0">
-              <CurrentIcon size={16} className="settings-page__icon" />
-              <div className="min-w-0">
-                <h1 className="settings-page__title">{t(current.label)}</h1>
-                <p className="settings-page__desc">{t(current.key === "notifications" && !isSuperadmin ? "settings.desc.notificationsOwn" : current.desc)}</p>
-              </div>
-            </header>
-          ) : null}
-          {isSuperadmin && host.query.isLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
-              <LoadingState>{t("settings.loadingHostSettings")}</LoadingState>
-            </div>
-          )}
-
-          {isSuperadmin && !host.query.isLoading && (host.query.isError || !host.query.data) && (
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
-              <div className="panel-error-state max-w-sm w-full">
-                <Database className="h-5 w-5" />
-                <div>
-                  <p className="font-semibold">
-                    {t("settings.hostLoadFailed")}
-                  </p>
-                  <p className="mt-1 text-[12px] leading-6 opacity-90">
-                    {t("settings.hostLoadFailedHint")}
-                  </p>
+        <div className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 flex flex-col items-center">
+          <div className="w-full max-w-[740px] flex flex-col gap-4">
+            {current && CurrentIcon ? (
+              <header className="settings-page__head shrink-0">
+                <div className="settings-page__icon-badge">
+                  <CurrentIcon size={18} />
                 </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={<RefreshCw size={12} />}
-                  onClick={() => void host.query.refetch()}
-                >
-                  {t("common.retry")}
-                </Button>
+                <div className="min-w-0 flex-1">
+                  <h1 className="settings-page__title">{t(current.label)}</h1>
+                  <p className="settings-page__desc">{t(current.key === "notifications" && !isSuperadmin ? "settings.desc.notificationsOwn" : current.desc)}</p>
+                </div>
+              </header>
+            ) : null}
+            {isSuperadmin && host.query.isLoading && (
+              <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
+                <LoadingState>{t("settings.loadingHostSettings")}</LoadingState>
               </div>
-            </div>
-          )}
+            )}
 
-          {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
-            <>
-              {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
+            {isSuperadmin && !host.query.isLoading && (host.query.isError || !host.query.data) && (
+              <div className="flex-1 flex flex-col items-center justify-center min-h-[280px] my-auto">
+                <div className="panel-error-state max-w-sm w-full">
+                  <Database className="h-5 w-5" />
+                  <div>
+                    <p className="font-semibold">
+                      {t("settings.hostLoadFailed")}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-6 opacity-90">
+                      {t("settings.hostLoadFailedHint")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<RefreshCw size={12} />}
+                    onClick={() => void host.query.refetch()}
+                  >
+                    {t("common.retry")}
+                  </Button>
+                </div>
+              </div>
+            )}
 
-              {shownTab === "appearance" && <AppearanceTab />}
+            {(!isSuperadmin || (!host.query.isLoading && host.query.data)) && (
+              <>
+                {shownTab === "general" && host.query.data && <GeneralTab host={host} systemSettings={host.query.data} />}
 
-              {shownTab === "wallpaper" && <WallpaperTab />}
+                {shownTab === "appearance" && <AppearanceTab />}
 
-              {shownTab === "desktop" && <DesktopTab />}
+                {shownTab === "wallpaper" && <WallpaperTab />}
 
-              {shownTab === "screensaver" && <ScreensaverTab />}
+                {shownTab === "desktop" && <DesktopTab />}
 
-              {shownTab === "sound" && <SoundTab />}
+                {shownTab === "screensaver" && <ScreensaverTab />}
 
-              {shownTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
+                {shownTab === "sound" && <SoundTab />}
 
-              {shownTab === "network" && isSuperadmin && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
+                {shownTab === "cloudflare" && <CloudflareTab cloudflare={cloudflare} />}
 
-              {shownTab === "public_ip" && isSuperadmin && <PublicIpTab />}
+                {shownTab === "network" && isSuperadmin && host.query.data && <NetworkTab host={host} systemSettings={host.query.data} />}
 
-              {shownTab === "email_server" && isSuperadmin && <EmailServerTab />}
+                {shownTab === "public_ip" && isSuperadmin && <PublicIpTab />}
 
-              {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
+                {shownTab === "email_server" && isSuperadmin && <EmailServerTab />}
 
-              {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab /> : <MyNotices />)}
+                {shownTab === "security" && (isSuperadmin ? <SecurityTab host={host} setActiveTab={setActiveTab} /> : <AccountSecurityCard />)}
 
-              {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
+                {shownTab === "notifications" && (isSuperadmin ? <NotificationsTab /> : <MyNotices />)}
 
-              {shownTab === "api_tokens" && <ApiTokensTab />}
+                {shownTab === "audit" && isSuperadmin && <AuditTab host={host} />}
 
-              {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
+                {shownTab === "api_tokens" && <ApiTokensTab />}
 
-              {shownTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
-            </>
-          )}
+                {shownTab === "reneo_database" && isSuperadmin && <ReneoDatabaseTab authenticated={authenticated} />}
+
+                {shownTab === "reneo_runtime" && isSuperadmin && <ReneoRuntimeTab authenticated={authenticated} />}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

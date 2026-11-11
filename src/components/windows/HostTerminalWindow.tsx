@@ -3,8 +3,9 @@ import { toast } from 'sonner'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
 import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
 import { TerminalTabPane } from '@/components/windows/terminal/TerminalTabPane'
-import { ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Keyboard, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import 'xterm/css/xterm.css'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize, TERMINAL_FONT_DEFAULT } from '@/store/windowStore'
 import {
   copyTextToClipboard,
@@ -42,8 +43,6 @@ interface Tab {
   connected: boolean
   error: boolean
   reconnecting: boolean
-  startFn: ((target?: string) => Promise<void>) | null
-  sendInputFn: ((cmd: string) => Promise<void>) | null
 }
 
 const TERMINAL_TABS_STORAGE_KEY = 'reneo-terminal-tabs'
@@ -145,12 +144,10 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
         connected: false,
         error: false,
         reconnecting: false,
-        startFn: null,
-        sendInputFn: null,
       }))
     }
     return [
-      { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false, startFn: null, sendInputFn: null },
+      { id: nextTabId++, label: requestedCwd ? folderLabel(requestedCwd) : t('hostTerminal.localServer'), target: 'local', cwd: requestedCwd || undefined, connected: false, error: false, reconnecting: false },
     ]
   })
   const [activeTabId, setActiveTabId] = useState<number>(() => {
@@ -238,6 +235,20 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated])
 
+  const isMobileLayout = useIsMobileLayout()
+  const [showKeyBar, setShowKeyBar] = useState(() => isMobileLayout || (typeof window !== 'undefined' && window.innerWidth <= 768))
+
+  useEffect(() => {
+    if (isMobileLayout) {
+      setShowKeyBar(true)
+    }
+  }, [isMobileLayout])
+
+  const tabActionsRef = useRef(new Map<number, {
+    start: (target?: string) => Promise<void>
+    sendInput: (cmd: string) => Promise<void>
+  }>())
+
   const addTab = useCallback((target = 'local', label?: string, cwd?: string) => {
     const id = nextTabId++
     setTabs((prev) => {
@@ -249,8 +260,6 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
         connected: false, 
         error: false, 
         reconnecting: false,
-        startFn: null, 
-        sendInputFn: null 
       }]
       saveStoredTerminalState({
         activeTabId: id,
@@ -278,6 +287,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
   }
 
   const closeTab = useCallback((id: number) => {
+    tabActionsRef.current.delete(id)
     setTabs((prev) => {
       if (prev.length === 1) return prev
       const closing = prev.find((t) => t.id === id)
@@ -305,18 +315,6 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
       : prev))
   }, [])
 
-  const handleStart = useCallback((tabId: number, fn: (target?: string) => Promise<void>) => {
-    setTabs((prev) => (prev.some((t) => t.id === tabId && t.startFn !== fn)
-      ? prev.map((t) => (t.id === tabId ? { ...t, startFn: fn } : t))
-      : prev))
-  }, [])
-
-  const handleSendInput = useCallback((tabId: number, fn: (cmd: string) => Promise<void>) => {
-    setTabs((prev) => (prev.some((t) => t.id === tabId && t.sendInputFn !== fn)
-      ? prev.map((t) => (t.id === tabId ? { ...t, sendInputFn: fn } : t))
-      : prev))
-  }, [])
-
   const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId])
 
   // the text of a terminal, for a phone that cannot select from the screen: the copy sheet shows it as plain text
@@ -339,18 +337,24 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
   const pasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText()
-      if (text) await activeTab.sendInputFn?.(text)
+      if (text) {
+        const act = tabActionsRef.current.get(activeTab.id)
+        await act?.sendInput(text)
+      }
     } catch {
       alertLib.fire(t('terminal.paste'), t('terminal.paste.failed'), 'warning', 'host-terminal')
     }
   }
 
-  const handleReconnect = () => activeTab.startFn?.(activeTab.target)
+  const handleReconnect = () => {
+    const act = tabActionsRef.current.get(activeTab.id)
+    void act?.start(activeTab.target)
+  }
 
   const runPreset = async (command: string) => {
-    const fn = activeTab.sendInputFn
-    if (!fn) return
-    await fn(`${command}\r`)
+    const act = tabActionsRef.current.get(activeTab.id)
+    if (!act) return
+    await act.sendInput(`${command}\r`)
   }
 
   // ── Presets ───────────────────────────────────────────────────────────────
@@ -645,6 +649,16 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
       </button>
       <button
         type="button"
+        className={`ht-action-btn${showKeyBar ? ' ht-action-btn--active' : ''}`}
+        aria-label={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+        title={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+        onClick={() => setShowKeyBar((v) => !v)}
+      >
+        <Keyboard size={13} />
+        <span>{t('terminal.keys')}</span>
+      </button>
+      <button
+        type="button"
         className={`ht-action-btn${showPresets ? ' ht-action-btn--active' : ''}`}
         aria-haspopup="menu"
         aria-expanded={showPresets}
@@ -732,7 +746,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
                 aria-label={t('hostTerminal.reconnect')}
                 title={tab.reconnecting ? t('hostTerminal.reconnecting') : t('hostTerminal.reconnect')}
                 disabled={tab.reconnecting}
-                onClick={(e) => { e.stopPropagation(); void tab.startFn?.(tab.target) }}
+                onClick={(e) => { e.stopPropagation(); void tabActionsRef.current.get(tab.id)?.start(tab.target) }}
               >
                 <RefreshCcw size={11} className={tab.reconnecting ? 'animate-spin' : ''} />
               </button>
@@ -771,6 +785,15 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
                 </span>
                 <button
                   type="button"
+                  className={`ht-action-btn ht-action-btn--icon${showKeyBar ? ' ht-action-btn--active' : ''}`}
+                  onClick={() => setShowKeyBar((v) => !v)}
+                  title={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+                  aria-label={showKeyBar ? t('terminal.hideKeys') : t('terminal.showKeys')}
+                >
+                  <Keyboard size={14} />
+                </button>
+                <button
+                  type="button"
                   className="ht-action-btn ht-action-btn--icon"
                   disabled={activeTab.reconnecting}
                   onClick={handleReconnect}
@@ -796,8 +819,16 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
               fontSize={fontSize}
               onZoom={zoom}
               onStatusChange={(c, e, r) => handleStatusChange(tab.id, c, e, r)}
-              onStart={(fn) => handleStart(tab.id, fn)}
-              onSendInput={(fn) => handleSendInput(tab.id, fn)}
+              onStart={(fn) => {
+                const cur = tabActionsRef.current.get(tab.id) || { start: fn, sendInput: async () => {} }
+                cur.start = fn
+                tabActionsRef.current.set(tab.id, cur)
+              }}
+              onSendInput={(fn) => {
+                const cur = tabActionsRef.current.get(tab.id) || { start: async () => {}, sendInput: fn }
+                cur.sendInput = fn
+                tabActionsRef.current.set(tab.id, cur)
+              }}
               onReadText={(read) => { readersRef.current.set(tab.id, read) }}
               onConsumeSelection={(consume) => { selectionReadersRef.current.set(tab.id, consume) }}
             />
@@ -870,17 +901,17 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
         ) : null}
       </div>
 
-      <div className="hidden mobile:block">
+      {showKeyBar ? (
         <TerminalKeyBar
           disabled={!activeTab.connected}
           onKey={(sequence) => {
-            void activeTab.sendInputFn?.(sequence)
+            void tabActionsRef.current.get(activeTab.id)?.sendInput(sequence)
           }}
           onCopy={() => void handleCopyAction()}
           onPaste={() => void pasteFromClipboard()}
           onZoom={zoom}
         />
-      </div>
+      ) : null}
       <TerminalCopyModal text={copyText ?? ''} open={copyText !== null} onClose={() => setCopyText(null)} />
     </div>
   )

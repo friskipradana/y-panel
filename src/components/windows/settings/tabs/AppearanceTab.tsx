@@ -1,10 +1,11 @@
-import { CircleCheck, Globe2, Moon, Palette, RefreshCcw, Sun, Type } from "lucide-react";
+import { Globe2, RefreshCcw, Type } from "lucide-react";
 import { alertLib } from "@/lib/alert";
 import { useI18n, type Language } from "@/lib/i18n";
 import { useThemeStore } from "@/store/themeStore";
 import { Button } from "@/components/ui/Button";
-import { SelectableCard } from "@/components/ui/SelectableCard";
 import { Select } from "@/components/ui/Select";
+import { SettingRow } from "@/components/ui/SettingRow";
+import { SettingsGroup } from "../SettingsPrimitives";
 
 const FONTS = [
   { key: "outfit", name: "Outfit", css: "'Outfit', system-ui, sans-serif" },
@@ -14,7 +15,6 @@ const FONTS = [
   { key: "roboto", name: "Roboto", css: "'Roboto', system-ui, sans-serif" },
 ] as const;
 
-// Language, light or dark, the typeface and its size in a unified compact card
 export function AppearanceTab() {
   const { t, language, setLanguage } = useI18n();
   const { mode, setMode, fontFamily, setFontFamily, fontSize, setFontSize, resetToDefaults } = useThemeStore();
@@ -35,120 +35,201 @@ export function AppearanceTab() {
   };
 
   return (
-    <div className="space-y-3">
-      {/* ── Single Unified Appearance & Language Card ── */}
-      <div className="panel-shell-card settings-card !p-3.5 !gap-3.5">
-        {/* ── Section 1: Bahasa Tampilan ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-            <div>
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t("settings.language.title")}</h2>
-              <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t("settings.language.subtitle")}</p>
+    <div className="space-y-4">
+      {/* ── 1. GNOME Style Selector (Dual Window Mockups) ── */}
+      <SettingsGroup
+        title={t("settings.appearance.themeTitle")}
+        description={t("settings.appearance.themeSubtitle")}
+      >
+        <div role="radiogroup" aria-label={t("settings.appearance.themeTitle")} className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Light Style Mockup Card */}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "light"}
+            onClick={() => setMode("light")}
+            className={`group relative flex flex-col items-center rounded-xl p-3 border-2 transition-all cursor-pointer text-left ${
+              mode === "light"
+                ? "border-[var(--panel-primary-text)] bg-[var(--panel-primary-bg)]/20 shadow-xs"
+                : "border-[var(--win-border)] bg-[var(--panel-surface-strong)] hover:border-[var(--panel-primary-text)]/40 hover:bg-[var(--panel-surface-hover)]"
+            }`}
+          >
+            {/* Miniature Adwaita Window Preview (Light) */}
+            <div className="adw-preview adw-preview--light">
+              <div className="adw-preview__bar">
+                <div className="adw-preview__dot" />
+                <div className="adw-preview__dot" />
+                <div className="adw-preview__title" />
+              </div>
+              <div className="adw-preview__body">
+                <div className="adw-preview__side">
+                  <div className="adw-preview__pill adw-preview__pill--active w-full" />
+                  <div className="adw-preview__pill w-4/5" />
+                  <div className="adw-preview__pill w-3/5" />
+                </div>
+                <div className="adw-preview__main">
+                  <div className="flex flex-col gap-1">
+                    <div className="adw-preview__pill adw-preview__pill--active w-3/4" />
+                    <div className="adw-preview__pill w-full" />
+                    <div className="adw-preview__pill w-5/6" />
+                  </div>
+                  <div className="adw-preview__pill adw-preview__pill--active w-1/2 self-end" />
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="w-full shrink-0 sm:w-[180px]">
-            <Select
-              id="settings-language-select"
-              value={language}
-              onChange={(value) => setLanguage(value as Language)}
-              buttonClassName="!h-8 text-[12px] px-2.5"
-              options={[
-                { value: "id", label: t("language.indonesian") },
-                { value: "en", label: t("language.english") },
-              ]}
-            />
-          </div>
+
+            {/* Radio Indicator & Label */}
+            <div className="mt-2.5 flex items-center gap-2">
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  mode === "light"
+                    ? "border-[var(--panel-primary-text)] bg-[var(--panel-primary-text)]"
+                    : "border-[var(--win-border)] bg-[var(--panel-surface)]"
+                }`}
+              >
+                {mode === "light" ? <div className="w-1.5 h-1.5 rounded-full bg-white" /> : null}
+              </div>
+              <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                {t("settings.appearance.lightMode")}
+              </span>
+            </div>
+          </button>
+
+          {/* Dark Style Mockup Card */}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "dark"}
+            onClick={() => setMode("dark")}
+            className={`group relative flex flex-col items-center rounded-xl p-3 border-2 transition-all cursor-pointer text-left ${
+              mode === "dark"
+                ? "border-[var(--panel-primary-text)] bg-[var(--panel-primary-bg)]/20 shadow-xs"
+                : "border-[var(--win-border)] bg-[var(--panel-surface-strong)] hover:border-[var(--panel-primary-text)]/40 hover:bg-[var(--panel-surface-hover)]"
+            }`}
+          >
+            {/* Miniature Adwaita Window Preview (Dark) */}
+            <div className="adw-preview adw-preview--dark">
+              <div className="adw-preview__bar">
+                <div className="adw-preview__dot" />
+                <div className="adw-preview__dot" />
+                <div className="adw-preview__title" />
+              </div>
+              <div className="adw-preview__body">
+                <div className="adw-preview__side">
+                  <div className="adw-preview__pill adw-preview__pill--active w-full" />
+                  <div className="adw-preview__pill w-4/5" />
+                  <div className="adw-preview__pill w-3/5" />
+                </div>
+                <div className="adw-preview__main">
+                  <div className="flex flex-col gap-1">
+                    <div className="adw-preview__pill adw-preview__pill--active w-3/4" />
+                    <div className="adw-preview__pill w-full" />
+                    <div className="adw-preview__pill w-5/6" />
+                  </div>
+                  <div className="adw-preview__pill adw-preview__pill--active w-1/2 self-end" />
+                </div>
+              </div>
+            </div>
+
+            {/* Radio Indicator & Label */}
+            <div className="mt-2.5 flex items-center gap-2">
+              <div
+                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                  mode === "dark"
+                    ? "border-[var(--panel-primary-text)] bg-[var(--panel-primary-text)]"
+                    : "border-[var(--win-border)] bg-[var(--panel-surface)]"
+                }`}
+              >
+                {mode === "dark" ? <div className="w-1.5 h-1.5 rounded-full bg-white" /> : null}
+              </div>
+              <span className="text-[12.5px] font-semibold text-[var(--win-text)]">
+                {t("settings.appearance.darkMode")}
+              </span>
+            </div>
+          </button>
         </div>
+      </SettingsGroup>
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* ── Section 2: Tema & Skema Warna ── */}
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.appearance.themeTitle")}</h2>
-            </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.appearance.themeSubtitle")}</span>
-          </div>
-
-          <div role="group" aria-label={t("settings.appearance.themeTitle")} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <SelectableCard
-              selected={mode === "light"}
-              onClick={() => setMode("light")}
-              className="flex items-center gap-2.5 rounded-lg p-2.5 text-left"
-            >
-              <Sun className="h-4 w-4 shrink-0 text-[var(--panel-warning-text)]" strokeWidth={1.75} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[12.5px] font-semibold text-[var(--win-text)]">{t("settings.appearance.lightMode")}</div>
-                <div className="text-[10.5px] text-[var(--text-secondary)] leading-tight">{t("settings.appearance.lightModeDesc")}</div>
+      {/* ── 2. Boxed Preferences Group: Language & Typography ── */}
+      <SettingsGroup
+        title={t("settings.fonts.title")}
+        description={t("settings.fonts.subtitle")}
+      >
+        <div className="flex flex-col">
+          {/* Row 1: Language */}
+          <SettingRow
+            title={t("settings.language.title")}
+            description={t("settings.language.subtitle")}
+            icon={<Globe2 size={16} className="text-[var(--panel-primary-text)]" />}
+            control={
+              <div className="w-[180px]">
+                <Select
+                  id="settings-language-select"
+                  value={language}
+                  onChange={(value) => setLanguage(value as Language)}
+                  buttonClassName="!h-8 text-[12px] px-2.5"
+                  options={[
+                    { value: "id", label: t("language.indonesian") },
+                    { value: "en", label: t("language.english") },
+                  ]}
+                />
               </div>
-              {mode === "light" ? <CircleCheck size={14} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-            </SelectableCard>
+            }
+          />
 
-            <SelectableCard
-              selected={mode === "dark"}
-              onClick={() => setMode("dark")}
-              className="flex items-center gap-2.5 rounded-lg p-2.5 text-left"
-            >
-              <Moon className="h-4 w-4 shrink-0 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <div className="min-w-0 flex-1">
-                <div className="text-[12.5px] font-semibold text-[var(--win-text)]">{t("settings.appearance.darkMode")}</div>
-                <div className="text-[10.5px] text-[var(--text-secondary)] leading-tight">{t("settings.appearance.darkModeDesc")}</div>
+          {/* Row 2: Font Family */}
+          <SettingRow
+            title={t("settings.fonts.family")}
+            description={t("settings.fonts.subtitle")}
+            icon={<Type size={16} className="text-[var(--panel-primary-text)]" />}
+            control={
+              <div className="w-[200px]">
+                <Select
+                  id="settings-font-family-select"
+                  value={fontFamily}
+                  onChange={(val) => setFontFamily(val as typeof fontFamily)}
+                  buttonClassName="!h-8 text-[12px] px-2.5"
+                  options={FONTS.map((font) => ({
+                    value: font.key,
+                    label: font.name,
+                  }))}
+                />
               </div>
-              {mode === "dark" ? <CircleCheck size={14} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-            </SelectableCard>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* ── Section 3: Font & Tipografi UI ── */}
-        <div>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <Type className="h-4 w-4 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-              <h2 className="text-[13px] font-semibold text-[var(--win-text)]">{t("settings.fonts.title")}</h2>
+            }
+          >
+            {/* Quick Preview Chips for Fonts */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1">
+              {FONTS.map((font) => {
+                const selected = fontFamily === font.key;
+                return (
+                  <button
+                    key={font.key}
+                    type="button"
+                    onClick={() => setFontFamily(font.key)}
+                    className={`flex flex-col px-2 py-1.5 rounded-lg border text-left transition-colors cursor-pointer ${
+                      selected
+                        ? "border-[var(--panel-primary-text)] bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold"
+                        : "border-[var(--win-border)] bg-[var(--panel-surface-strong)] text-[var(--win-text)] hover:border-[var(--win-border-hover)]"
+                    }`}
+                  >
+                    <span className="text-[11.5px] truncate" style={{ fontFamily: font.css }}>
+                      {font.name}
+                    </span>
+                    <span className="text-[9.5px] opacity-75 truncate" style={{ fontFamily: font.css }}>
+                      Aa Bb 123
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("settings.fonts.subtitle")}</span>
-          </div>
+          </SettingRow>
 
-          <div className="space-y-3">
-            {/* Font Family */}
-            <div>
-              <p className="text-[11.5px] font-medium text-[var(--win-text)] mb-1.5">{t("settings.fonts.family")}</p>
-              <div role="group" aria-label={t("settings.fonts.family")} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                {FONTS.map((font) => {
-                  const selected = fontFamily === font.key;
-                  return (
-                    <SelectableCard
-                      key={font.key}
-                      selected={selected}
-                      onClick={() => setFontFamily(font.key)}
-                      className="flex flex-col justify-between rounded-lg p-2 text-left h-[54px]"
-                    >
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="text-[12.5px] font-semibold text-[var(--win-text)] truncate" style={{ fontFamily: font.css }}>
-                          {font.name}
-                        </span>
-                        {selected ? <CircleCheck size={13} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-                      </div>
-                      <span className="text-[10.5px] text-[var(--text-secondary)] truncate font-normal" style={{ fontFamily: font.css }}>
-                        Aa Bb Gg 123
-                      </span>
-                    </SelectableCard>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Font Size */}
-            <div>
-              <p className="text-[11.5px] font-medium text-[var(--win-text)] mb-1.5">{t("settings.fonts.size")}</p>
-              <div role="group" aria-label={t("settings.fonts.size")} className="grid grid-cols-3 gap-2">
+          {/* Row 3: Text Scale / Font Size */}
+          <SettingRow
+            title={t("settings.fonts.size")}
+            description={t("settings.fonts.subtitle")}
+            control={
+              <div role="group" aria-label={t("settings.fonts.size")} className="inline-flex rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-0.5">
                 {[
                   { key: "small" as const, label: t("settings.fonts.sizeSmall"), pct: "90%" },
                   { key: "medium" as const, label: t("settings.fonts.sizeMedium"), pct: "100%" },
@@ -156,47 +237,43 @@ export function AppearanceTab() {
                 ].map((opt) => {
                   const selected = fontSize === opt.key;
                   return (
-                    <SelectableCard
+                    <button
                       key={opt.key}
-                      selected={selected}
+                      type="button"
                       onClick={() => setFontSize(opt.key)}
-                      className="flex items-center justify-between rounded-lg p-2 text-left h-[46px]"
+                      className={`px-3 py-1 text-[11.5px] font-medium rounded-md transition-all cursor-pointer ${
+                        selected
+                          ? "bg-[var(--panel-primary-bg)] text-[var(--panel-primary-text)] font-semibold shadow-xs"
+                          : "text-[var(--text-secondary)] hover:text-[var(--win-text)]"
+                      }`}
                     >
-                      <div className="min-w-0">
-                        <div className="text-[12px] font-semibold text-[var(--win-text)]">{opt.label}</div>
-                        <div className="text-[10.5px] text-[var(--text-secondary)]">{opt.pct}</div>
-                      </div>
-                      {selected ? <CircleCheck size={13} className="shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" /> : null}
-                    </SelectableCard>
+                      {opt.label} ({opt.pct})
+                    </button>
                   );
                 })}
               </div>
-            </div>
-          </div>
-        </div>
+            }
+          />
 
-        {/* Divider */}
-        <div className="border-t border-[var(--win-border)]" />
-
-        {/* ── Section 4: Reset Seluruh Tampilan ── */}
-        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-          <div className="min-w-0">
-            <div className="text-[12px] font-semibold text-[var(--win-text)]">{t("settings.appearance.resetTitle")}</div>
-            <div className="text-[10.5px] text-[var(--text-secondary)] leading-relaxed">{t("settings.appearance.resetSubtitle")}</div>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="shrink-0 text-[11.5px] !h-8"
-            icon={<RefreshCcw className="h-3.5 w-3.5" />}
-            onClick={() => void reset()}
-          >
-            {t("settings.appearance.resetBtn")}
-          </Button>
+          {/* Row 4: Reset Defaults */}
+          <SettingRow
+            title={t("settings.appearance.resetTitle")}
+            description={t("settings.appearance.resetSubtitle")}
+            control={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-[11.5px] !h-8"
+                icon={<RefreshCcw className="h-3.5 w-3.5" />}
+                onClick={() => void reset()}
+              >
+                {t("settings.appearance.resetBtn")}
+              </Button>
+            }
+          />
         </div>
-      </div>
+      </SettingsGroup>
     </div>
   );
 }
-

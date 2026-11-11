@@ -17,7 +17,7 @@ export const DEFAULTS: Record<
   system: { title: 'System Info', width: 880, height: 530, singleton: true },
   'system-logs': { title: 'System Logs', width: 880, height: 530, singleton: true },
   'file-manager': { title: 'File Manager', width: 880, height: 530, singleton: true },
-  settings: { title: 'Settings', width: 880, height: 530, singleton: true },
+  settings: { title: 'Settings', width: 960, height: 600, singleton: true },
   hosting: { title: 'Hosting', width: 880, height: 530, singleton: true },
   firewall: { title: 'Firewall', width: 880, height: 530, singleton: true },
   email: { title: 'Email', width: 880, height: 530, singleton: true },

@@ -72,6 +72,9 @@ export interface UseTerminalSessionOptions {
 }
 
 export function useTerminalSession(options?: UseTerminalSessionOptions) {
+  const optionsRef = useRef(options)
+  optionsRef.current = options
+
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [connected, setConnected] = useState(false)
@@ -97,6 +100,7 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
   const terminalSizeRef = useRef({ cols: 120, rows: 32 })
   const outputListenerRef = useRef<((chunk: string) => void) | null>(null)
   const connectSocketRef = useRef<(id: string, epoch: number, replay?: boolean) => void>(() => {})
+  const startRef = useRef<(target?: string, cwd?: string) => Promise<void>>(async () => {})
 
   const clearTimers = useCallback(() => {
     if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current)
@@ -137,13 +141,13 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
     const id = sessionIdRef.current
     sessionIdRef.current = null
     setSessionId(null)
-    options?.onSessionChange?.(null)
+    optionsRef.current?.onSessionChange?.(null)
     setConnected(false)
     setReconnecting(false)
     setClosed(true)
 
     await releaseSession(id)
-  }, [cleanupSocket, clearTimers, releaseSession, options])
+  }, [cleanupSocket, clearTimers, releaseSession])
 
   const scheduleReconnect = useCallback((epoch: number, immediate = false) => {
     if (manualCloseRef.current || backendClosedRef.current) return
@@ -218,7 +222,7 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
           setConnected(false)
           setReconnecting(false)
           setClosed(true)
-          options?.onSessionChange?.(null)
+          optionsRef.current?.onSessionChange?.(null)
           return
         }
         if (msg.type === 'error') {
@@ -230,9 +234,9 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
             setConnected(false)
             sessionIdRef.current = null
             setSessionId(null)
-            options?.onSessionChange?.(null)
-            options?.onSessionInvalid?.(nextId)
-            setError('Sesi terminal sudah berakhir. Klik Reconnect untuk sesi baru.')
+            optionsRef.current?.onSessionChange?.(null)
+            optionsRef.current?.onSessionInvalid?.(nextId)
+            void startRef.current(targetRef.current, cwdRef.current)
             return
           }
           setError(text)
@@ -257,21 +261,22 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
         setClosed(true)
         sessionIdRef.current = null
         setSessionId(null)
-        options?.onSessionChange?.(null)
-        options?.onSessionInvalid?.(nextId)
+        optionsRef.current?.onSessionChange?.(null)
+        optionsRef.current?.onSessionInvalid?.(nextId)
+        void startRef.current(targetRef.current, cwdRef.current)
         return
       }
 
       scheduleReconnect(epoch)
     }
-  }, [cleanupSocket, clearTimers, scheduleReconnect, options])
+  }, [cleanupSocket, clearTimers, scheduleReconnect])
 
   useEffect(() => {
     connectSocketRef.current = connectSocket
   }, [connectSocket])
 
   const attach = useCallback((existingId: string) => {
-    if (startInFlightRef.current || !existingId) return
+    if (!existingId) return
     manualCloseRef.current = false
     backendClosedRef.current = false
     attemptRef.current = 0
@@ -296,26 +301,26 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
       if (!found) {
         sessionIdRef.current = null
         setSessionId(null)
-        options?.onSessionChange?.(null)
-        options?.onSessionInvalid?.(existingId)
+        optionsRef.current?.onSessionChange?.(null)
+        optionsRef.current?.onSessionInvalid?.(existingId)
+        void startRef.current(targetRef.current, cwdRef.current)
         return
       }
-      options?.onSessionChange?.(existingId)
+      optionsRef.current?.onSessionChange?.(existingId)
       connectSocket(existingId, epoch, true)
     }).catch(() => {
       if (sessionEpochRef.current !== epoch) return
-      options?.onSessionChange?.(existingId)
+      optionsRef.current?.onSessionChange?.(existingId)
       connectSocket(existingId, epoch, true)
     })
-  }, [cleanupSocket, clearTimers, connectSocket, options])
+  }, [cleanupSocket, clearTimers, connectSocket])
 
   const start = useCallback(async (target = 'local', cwd?: string) => {
-    if (startInFlightRef.current) return
+    manualCloseRef.current = false
+    backendClosedRef.current = false
     startInFlightRef.current = true
     targetRef.current = target
     cwdRef.current = cwd
-    manualCloseRef.current = false
-    backendClosedRef.current = false
     attemptRef.current = 0
     sessionEpochRef.current += 1
     const epoch = sessionEpochRef.current
@@ -332,27 +337,35 @@ export function useTerminalSession(options?: UseTerminalSessionOptions) {
     const prev = sessionIdRef.current
     sessionIdRef.current = null
     setSessionId(null)
-    await releaseSession(prev)
+    if (prev) {
+      void releaseSession(prev)
+    }
 
     try {
       const result = await startTerminalSession(target, cwd)
       if (sessionEpochRef.current !== epoch) {
-        await releaseSession(result.sessionId)
+        void releaseSession(result.sessionId)
         return
       }
       sessionIdRef.current = result.sessionId
       setSessionId(result.sessionId)
-      options?.onSessionChange?.(result.sessionId)
+      optionsRef.current?.onSessionChange?.(result.sessionId)
       connectSocket(result.sessionId, epoch, false)
     } catch (err) {
       if (sessionEpochRef.current === epoch) {
         setError(err instanceof Error ? err.message : 'Gagal memulai terminal session')
       }
     } finally {
-      if (sessionEpochRef.current === epoch) setStarting(false)
-      startInFlightRef.current = false
+      if (sessionEpochRef.current === epoch) {
+        setStarting(false)
+        startInFlightRef.current = false
+      }
     }
-  }, [cleanupSocket, clearTimers, connectSocket, releaseSession, options])
+  }, [cleanupSocket, clearTimers, connectSocket, releaseSession])
+
+  useEffect(() => {
+    startRef.current = start
+  }, [start])
 
   useEffect(() => {
     const kick = () => {

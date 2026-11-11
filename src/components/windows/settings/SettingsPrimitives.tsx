@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { isIpAddress } from "@/lib/hostValidation";
 import { CheckCircle2, Globe2, Plus, Trash2 } from "lucide-react";
 import { Select } from "@/components/ui/Select";
@@ -7,6 +7,32 @@ import { TIMEZONES, PRESET_DNS } from "./constants";
 import { IconButton } from "@/components/ui/IconButton"
 import { Button } from "@/components/ui/Button"
 import { TextInput } from "@/components/ui/Field"
+
+export function SettingsGroup({
+  title,
+  description,
+  children,
+  className = "",
+}: {
+  title?: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`settings-group ${className}`}>
+      {title ? (
+        <div>
+          <h2 className="settings-group__title">{title}</h2>
+          {description ? <p className="settings-group__desc">{description}</p> : null}
+        </div>
+      ) : null}
+      <div className="panel-shell-card settings-card">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function FieldLabel({ label, hint }: { label: string; hint?: string }) {
   return (
