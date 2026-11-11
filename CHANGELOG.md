@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.78.0] - 2026-11-11
+
+Implement session persistence and history replay.
+
+### Fitur baru
+- **terminal:** Implement session persistence and history replay ([`4973fd5`](https://github.com/friskipradana/y-panel/commit/4973fd5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.77.5...v1.78.0
+
 ## [1.77.5] - 2026-11-05
 
 Improve mobile responsiveness and localization.
