@@ -83,6 +83,8 @@ type Server struct {
 	reconcileStop                chan struct{}
 	reconcileDone                chan struct{}
 	databaseCreateMu             sync.Mutex
+	kvmMu                        sync.Mutex
+	kvmManagedPIDs               []int
 	fileRootAccessMu             sync.Mutex
 	fileRootAccess               map[string]time.Time
 	// the public proxy of an install that has a public address, and the routes it answers for
@@ -466,6 +468,7 @@ func (s *Server) Close() error {
 	if s.terminalManager != nil {
 		s.terminalManager.CloseAll()
 	}
+	s.stopManagedKvm()
 	system.ShutdownCollector()
 	accountusage.Shutdown()
 	s.stopPublicProxy()

@@ -18,6 +18,7 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
   const openWindow = useWindowStore((s) => s.openWindow)
   const [copied, setCopied] = useState(false)
   const [showManualCmd, setShowManualCmd] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const siteQuery = useQuery({ queryKey: ['settings', 'site'], queryFn: getSiteSettings, retry: 0 })
   const kvmEnabledSetting = siteQuery.data?.kvmEnabled ?? false
@@ -41,29 +42,47 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
 
   const installMutation = useMutation({
     mutationFn: installKvm,
+    onMutate: () => setActionError(null),
     onSuccess: (data) => {
+      setActionError(null)
       void qc.invalidateQueries({ queryKey: ['kvm-status'] })
       toast.success(data?.message || t('kvm.installedSuccess'))
     },
-    onError: (err: Error) => toast.error(err.message || 'Gagal memasang x11vnc'),
+    onError: (err: Error) => {
+      const msg = err.message || t('kvm.installFailed')
+      setActionError(msg)
+      toast.error(msg)
+    },
   })
 
   const startMutation = useMutation({
     mutationFn: startKvm,
+    onMutate: () => setActionError(null),
     onSuccess: (data) => {
+      setActionError(null)
       void qc.invalidateQueries({ queryKey: ['kvm-status'] })
       toast.success(data?.message || t('kvm.serviceStarted'))
     },
-    onError: (err: Error) => toast.error(err.message || 'Gagal memulai layanan VNC'),
+    onError: (err: Error) => {
+      const msg = err.message || t('kvm.startFailed')
+      setActionError(msg)
+      toast.error(msg)
+    },
   })
 
   const stopMutation = useMutation({
     mutationFn: stopKvm,
+    onMutate: () => setActionError(null),
     onSuccess: () => {
+      setActionError(null)
       void qc.invalidateQueries({ queryKey: ['kvm-status'] })
       toast.success(t('kvm.serviceStopped'))
     },
-    onError: () => toast.error('Gagal menghentikan layanan VNC'),
+    onError: (err: Error) => {
+      const msg = err.message || t('kvm.stopFailed')
+      setActionError(msg)
+      toast.error(msg)
+    },
   })
 
   const data = siteQuery.data
@@ -72,8 +91,10 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
   const kvmPort = data?.kvmPort ?? 5900
   const kvmDisplay = data?.kvmDisplay ?? ':0'
 
-  const isInstalled = kvmQuery.data?.installed ?? true
+  const statusLoading = kvmQuery.isLoading && !kvmQuery.data
+  const isInstalled = kvmQuery.data?.installed ?? false
   const isAvailable = kvmQuery.data?.available ?? false
+  const displayError = actionError || (kvmQuery.error instanceof Error ? kvmQuery.error.message : '')
 
   const copyCommand = (cmd: string) => {
     void navigator.clipboard.writeText(cmd)
@@ -118,7 +139,9 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
-                    !isInstalled
+                    statusLoading
+                      ? 'bg-[var(--text-secondary)]'
+                      : !isInstalled
                       ? 'bg-[var(--panel-warning-text)]'
                       : isAvailable
                       ? 'bg-[var(--status-online)]'
@@ -126,7 +149,9 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
                   }`}
                 />
                 <span className="font-medium text-[var(--win-text)]">
-                  {!isInstalled
+                  {statusLoading
+                    ? t('kvm.checkingStatus')
+                    : !isInstalled
                     ? t('kvm.notInstalledTitle')
                     : isAvailable
                     ? t('settings.kvm.available', { port: kvmPort })
@@ -135,7 +160,16 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                {!isInstalled ? (
+                {statusLoading ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    icon={<RefreshCw className="h-3 w-3 animate-spin" />}
+                    disabled
+                  >
+                    {t('kvm.retry')}
+                  </Button>
+                ) : !isInstalled ? (
                   <Button
                     size="sm"
                     variant="primary"
@@ -239,8 +273,18 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               </div>
             </div>
 
+            {/* ── Inline error feedback ── */}
+            {displayError ? (
+              <div
+                className="panel-error-state !min-h-0 !flex-row !items-start !justify-start !text-left !py-2 !px-2.5 text-[11px]"
+                role="alert"
+              >
+                <span className="font-mono break-all select-text">{displayError}</span>
+              </div>
+            ) : null}
+
             {/* ── Help / Installation notice ── */}
-            {!isInstalled ? (
+            {!statusLoading && !isInstalled ? (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded border border-[var(--panel-warning-border)] bg-[var(--panel-warning-bg)] text-[11px] text-[var(--panel-warning-text)]">
                 <span>{t('kvm.notInstalledDesc')}</span>
                 <Button
@@ -263,7 +307,7 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
                 onClick={() => setShowManualCmd(!showManualCmd)}
                 className="text-[11px] text-[var(--text-secondary)] hover:text-[var(--win-text)] underline cursor-pointer"
               >
-                {showManualCmd ? 'Sembunyikan perintah terminal manual' : 'Tampilkan perintah terminal manual'}
+                {showManualCmd ? t('kvm.hideManualCmd') : t('kvm.showManualCmd')}
               </button>
 
               {showManualCmd ? (

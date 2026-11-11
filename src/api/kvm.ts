@@ -4,6 +4,8 @@ export interface KvmStatus {
   enabled: boolean
   available: boolean
   installed: boolean
+  xvfbInstalled?: boolean
+  activeDisplays?: string[]
   host: string
   port: number
   display: string
@@ -20,7 +22,7 @@ export const installKvm = () =>
   agentApi.post<{ ok: boolean; message?: string }>('/api/v1/kvm/install').then((r) => r.data)
 
 export const startKvm = () =>
-  agentApi.post<{ ok: boolean; running?: boolean; message?: string }>('/api/v1/kvm/start').then((r) => r.data)
+  agentApi.post<{ ok: boolean; running?: boolean; mode?: string; display?: string; message?: string }>('/api/v1/kvm/start').then((r) => r.data)
 
 export const stopKvm = () =>
   agentApi.post<{ ok: boolean; running?: boolean }>('/api/v1/kvm/stop').then((r) => r.data)

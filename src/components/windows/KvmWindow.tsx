@@ -78,23 +78,39 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
     retry: 1,
   })
 
+  const [actionError, setActionError] = useState<string | null>(null)
+
   const installMutation = useMutation({
     mutationFn: installKvm,
+    onMutate: () => setActionError(null),
     onSuccess: (data) => {
+      setActionError(null)
       void qc.invalidateQueries({ queryKey: ['kvm-status'] })
       toast.success(data?.message || t('kvm.installedSuccess'))
     },
-    onError: (err: Error) => toast.error(err.message || 'Gagal memasang x11vnc'),
+    onError: (err: Error) => {
+      const msg = err.message || t('kvm.installFailed')
+      setActionError(msg)
+      toast.error(msg)
+    },
   })
 
   const startMutation = useMutation({
     mutationFn: startKvm,
+    onMutate: () => setActionError(null),
     onSuccess: (data) => {
+      setActionError(null)
       void qc.invalidateQueries({ queryKey: ['kvm-status'] })
       toast.success(data?.message || t('kvm.serviceStarted'))
     },
-    onError: (err: Error) => toast.error(err.message || 'Gagal memulai layanan VNC'),
+    onError: (err: Error) => {
+      const msg = err.message || t('kvm.startFailed')
+      setActionError(msg)
+      toast.error(msg)
+    },
   })
+
+  const kvmActionError = actionError || ''
 
   const connectRfb = useCallback(() => {
     if (!viewportRef.current) return
@@ -227,6 +243,11 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
         <MonitorOff className="h-10 w-10 text-[var(--panel-warning-text)] mb-3" strokeWidth={1.5} />
         <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.notInstalledTitle')}</h3>
         <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.notInstalledDesc')}</p>
+        {kvmActionError ? (
+          <div className="panel-error-state !min-h-0 max-w-lg w-full !py-2 !px-3 mb-3 text-[11px]" role="alert">
+            <span className="font-mono break-all select-text">{kvmActionError}</span>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2">
           <Button
             variant="primary"
@@ -262,6 +283,12 @@ export function KvmWindow({ win, authenticated, standalone, onBack }: KvmWindowP
             {copied ? <Check className="h-3.5 w-3.5 text-[var(--panel-success-text)]" /> : <Copy className="h-3.5 w-3.5" />}
           </IconButton>
         </div>
+
+        {kvmActionError ? (
+          <div className="panel-error-state !min-h-0 max-w-lg w-full !py-2 !px-3 mt-2 text-[11px]" role="alert">
+            <span className="font-mono break-all select-text">{kvmActionError}</span>
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-2 mt-2">
           <Button
