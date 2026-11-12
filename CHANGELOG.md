@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.6] - 2026-11-12
+
+Improve Linux PTY attribute handling and systemd-run support.
+
+### Perbaikan
+- **terminal:** Improve Linux PTY attribute handling and systemd-run support ([`3ba75e7`](https://github.com/friskipradana/y-panel/commit/3ba75e7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.5...v1.80.6
+
 ## [1.80.5] - 2026-11-12
 
 Restructure KVM management and improve cross-platform support.
