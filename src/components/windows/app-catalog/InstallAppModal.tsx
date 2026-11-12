@@ -66,7 +66,7 @@ export function InstallAppModal({
   editingApp,
   onSuccessApp,
 }: InstallAppModalProps) {
-  const { t, lang } = useI18n()
+  const { t, language } = useI18n()
   const userRole = useAuthStore((s) => s.user?.role || '')
   const isSuperadmin = userRole.toLowerCase() === 'superadmin'
   const { installMutation, updateMutation } = useAppCatalogMutations()
@@ -107,7 +107,7 @@ export function InstallAppModal({
     if (catalogApp) {
       setMode('catalog')
       setName(catalogApp.name)
-      setTagline(lang === 'id' ? catalogApp.taglineId : catalogApp.taglineEn)
+      setTagline(language === 'id' ? catalogApp.taglineId : catalogApp.taglineEn)
       setHostPort(String(catalogApp.defaultHostPort || ''))
       setOpenPath(catalogApp.openPath || '/')
       setTargetUrl('')
@@ -133,35 +133,35 @@ export function InstallAppModal({
     setIconKey('globe')
     setIconColor('blue')
     setEnvValues({})
-  }, [open, editingApp, catalogApp, lang])
+  }, [open, editingApp, catalogApp, language])
 
   const containerOptions = useMemo(() => {
     return containers.map((c) => {
-      const cleanName = (c.names?.[0] || c.id.slice(0, 12)).replace(/^\//, '')
-      const publicPort = c.ports?.find((p) => p.publicPort)?.publicPort
+      const cleanName = (c.Names?.[0] || c.Id.slice(0, 12)).replace(/^\//, '')
+      const publicPort = c.Ports?.find((p) => p.PublicPort)?.PublicPort
       return {
-        value: c.id,
+        value: c.Id,
         label: cleanName,
-        description: publicPort ? `${c.image} • :${publicPort}` : c.image,
-        dotTone: c.state === 'running' ? ('success' as const) : ('neutral' as const),
+        description: publicPort ? `${c.Image} • :${publicPort}` : c.Image,
+        dotTone: c.State === 'running' ? ('success' as const) : ('neutral' as const),
       }
     })
   }, [containers])
 
   const selectedContainer = useMemo(
-    () => containers.find((c) => c.id === containerId),
+    () => containers.find((c) => c.Id === containerId),
     [containers, containerId],
   )
 
   const handlePickContainer = (pickedId: string) => {
     setContainerId(pickedId)
-    const found = containers.find((c) => c.id === pickedId)
+    const found = containers.find((c) => c.Id === pickedId)
     if (!found) return
-    const cleanName = (found.names?.[0] || '').replace(/^\//, '')
+    const cleanName = (found.Names?.[0] || '').replace(/^\//, '')
     if (!name.trim() && cleanName) {
       setName(cleanName)
     }
-    const pub = found.ports?.find((p) => p.publicPort)?.publicPort
+    const pub = found.Ports?.find((p) => p.PublicPort)?.PublicPort
     if (pub) {
       setHostPort(String(pub))
     }
@@ -256,7 +256,7 @@ export function InstallAppModal({
       ? `${t('appCatalog.installTitlePrefix')} ${catalogApp.name}`
       : t('appCatalog.customModalTitle')
 
-  const notes = catalogApp ? (lang === 'id' ? catalogApp.notesId : catalogApp.notesEn) : ''
+  const notes = catalogApp ? (language === 'id' ? catalogApp.notesId : catalogApp.notesEn) : ''
 
   return (
     <Modal
@@ -265,7 +265,7 @@ export function InstallAppModal({
       title={title}
       subtitle={
         catalogApp
-          ? lang === 'id'
+          ? language === 'id'
             ? catalogApp.descriptionId
             : catalogApp.descriptionEn
           : undefined
@@ -330,7 +330,7 @@ export function InstallAppModal({
             <Field
               label={t('appCatalog.portLabel')}
               hint={
-                selectedContainer && !selectedContainer.ports?.some((p) => p.publicPort)
+                selectedContainer && !selectedContainer.Ports?.some((p) => p.PublicPort)
                   ? t('appCatalog.containerNoPublishedPort')
                   : undefined
               }
@@ -399,7 +399,7 @@ export function InstallAppModal({
               {catalogApp?.env.map((spec) => (
                 <Field
                   key={spec.key}
-                  label={lang === 'id' ? spec.labelId : spec.labelEn}
+                  label={language === 'id' ? spec.labelId : spec.labelEn}
                 >
                   <TextInput
                     mono

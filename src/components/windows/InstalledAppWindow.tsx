@@ -36,24 +36,33 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const app = data?.installed.find((item) => item.id === appId)
 
   if (isLoading && !app) {
-    return <LoadingState label={t('appCatalog.loading')} />
+    return <LoadingState>{t('appCatalog.loading')}</LoadingState>
   }
 
   if (isError && !app) {
     return (
       <ErrorState
-        message={error instanceof Error ? error.message : t('appCatalog.loadFailed')}
-        onRetry={() => refetch()}
+        title={t('appCatalog.loadFailed')}
+        hint={error instanceof Error ? error.message : undefined}
+        action={
+          <Button size="sm" variant="outline" onClick={() => refetch()}>
+            {t('common.refresh')}
+          </Button>
+        }
       />
     )
   }
 
   if (!app) {
     return (
-      <EmptyState
-        title={t('appCatalog.appNotFoundTitle')}
-        description={t('appCatalog.appNotFoundDesc')}
-      />
+      <EmptyState>
+        <span className="block font-medium text-[var(--win-text)]">
+          {t('appCatalog.appNotFoundTitle')}
+        </span>
+        <span className="block text-[var(--text-secondary)]">
+          {t('appCatalog.appNotFoundDesc')}
+        </span>
+      </EmptyState>
     )
   }
 
@@ -200,25 +209,30 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
       <div className="installed-app-viewport">
         {isMissing ? (
           <ErrorState
-            message={t('appCatalog.containerMissingError')}
-            onRetry={() => refetch()}
-          />
-        ) : !isRunning ? (
-          <EmptyState
-            icon={<InstalledAppGlyph iconKey={app.iconKey} iconColor={app.iconColor} size={40} />}
-            title={t('appCatalog.containerStoppedTitle')}
-            description={t('appCatalog.containerStoppedDesc')}
+            title={t('appCatalog.containerMissingError')}
             action={
-              <Button
-                variant="primary"
-                icon={<Play className="h-3.5 w-3.5" />}
-                loading={actionMutation.isPending}
-                onClick={() => handleAction('start')}
-              >
-                {t('appCatalog.startContainer')}
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                {t('common.refresh')}
               </Button>
             }
           />
+        ) : !isRunning ? (
+          <EmptyState icon={<InstalledAppGlyph iconKey={app.iconKey} iconColor={app.iconColor} size={40} />}>
+            <span className="block font-medium text-[var(--win-text)]">
+              {t('appCatalog.containerStoppedTitle')}
+            </span>
+            <span className="block text-[var(--text-secondary)] mb-2.5">
+              {t('appCatalog.containerStoppedDesc')}
+            </span>
+            <Button
+              variant="primary"
+              icon={<Play className="h-3.5 w-3.5" />}
+              loading={actionMutation.isPending}
+              onClick={() => handleAction('start')}
+            >
+              {t('appCatalog.startContainer')}
+            </Button>
+          </EmptyState>
         ) : (
           <iframe
             key={reloadNonce}

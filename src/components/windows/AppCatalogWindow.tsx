@@ -36,7 +36,7 @@ function appStatusTone(app: InstalledApp): 'success' | 'warning' | 'danger' | 'n
 }
 
 export function AppCatalogWindow() {
-  const { t, lang } = useI18n()
+  const { t, language } = useI18n()
   const { data, isLoading, isError, error, refetch, isFetching } = useAppCatalog()
   const { actionMutation, uninstallMutation } = useAppCatalogMutations()
 
@@ -206,24 +206,32 @@ export function AppCatalogWindow() {
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {isLoading ? (
-          <LoadingState label={t('appCatalog.loading')} />
+          <LoadingState>{t('appCatalog.loading')}</LoadingState>
         ) : isError ? (
           <ErrorState
-            message={error instanceof Error ? error.message : t('appCatalog.loadFailed')}
-            onRetry={() => refetch()}
+            title={t('appCatalog.loadFailed')}
+            hint={error instanceof Error ? error.message : undefined}
+            action={
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                {t('common.refresh')}
+              </Button>
+            }
           />
         ) : tab === 'catalog' ? (
           filteredCatalog.length === 0 ? (
-            <EmptyState
-              icon={<Store className="h-5 w-5" />}
-              title={t('appCatalog.emptyCatalogTitle')}
-              description={t('appCatalog.emptyCatalogDesc')}
-            />
+            <EmptyState icon={<Store className="h-5 w-5" />}>
+              <span className="block font-medium text-[var(--win-text)]">
+                {t('appCatalog.emptyCatalogTitle')}
+              </span>
+              <span className="block text-[var(--text-secondary)]">
+                {t('appCatalog.emptyCatalogDesc')}
+              </span>
+            </EmptyState>
           ) : (
             <div className="app-catalog-grid">
               {filteredCatalog.map((app) => {
                 const existing = installedByCatalogId.get(app.id)
-                const tagline = lang === 'id' ? app.taglineId : app.taglineEn
+                const tagline = language === 'id' ? app.taglineId : app.taglineEn
                 return (
                   <div key={app.id} className="app-catalog-card">
                     <div className="app-catalog-card__header">
@@ -280,16 +288,17 @@ export function AppCatalogWindow() {
             </div>
           )
         ) : filteredInstalled.length === 0 ? (
-          <EmptyState
-            icon={<Store className="h-5 w-5" />}
-            title={t('appCatalog.emptyInstalledTitle')}
-            description={t('appCatalog.emptyInstalledDesc')}
-            action={
-              <Button variant="primary" onClick={() => setTab('catalog')}>
-                {t('appCatalog.browseCatalog')}
-              </Button>
-            }
-          />
+          <EmptyState icon={<Store className="h-5 w-5" />}>
+            <span className="block font-medium text-[var(--win-text)]">
+              {t('appCatalog.emptyInstalledTitle')}
+            </span>
+            <span className="block text-[var(--text-secondary)] mb-2.5">
+              {t('appCatalog.emptyInstalledDesc')}
+            </span>
+            <Button variant="primary" size="sm" onClick={() => setTab('catalog')}>
+              {t('appCatalog.browseCatalog')}
+            </Button>
+          </EmptyState>
         ) : (
           <ListTable
             variant="app-catalog-installed"
