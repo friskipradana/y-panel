@@ -5,6 +5,7 @@ import { getDatabaseStatus, truncateDatabaseData } from '@/api/agent'
 import { Select } from '@/components/ui/Select'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
+import { useAuthStore } from '@/store/authStore'
 import { IconButton } from '@/components/ui/IconButton'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -30,19 +31,21 @@ function DetailRow({ label, value, tone = 'normal' }: { label: string; value: st
 
 export function ReneoDatabaseTab({ authenticated, active = true }: { authenticated?: boolean; active?: boolean }) {
   const { t } = useI18n()
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
   const query = useQuery({
     queryKey: ['database-status'],
     queryFn: getDatabaseStatus,
     refetchInterval: active ? 8000 : false,
     retry: 1,
+    enabled: isSuperadmin && authenticated !== false,
   })
 
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && isSuperadmin) {
       void query.refetch()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated])
+  }, [authenticated, isSuperadmin])
 
   const [logQuery, setLogQuery] = useState('')
   const [logLimit, setLogLimit] = useState(10)

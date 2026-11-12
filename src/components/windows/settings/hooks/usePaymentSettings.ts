@@ -24,7 +24,7 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
     queryKey: ["payment-settings"],
     queryFn: getPaymentSettings,
     retry: 1,
-    enabled: isSuperadmin,
+    enabled: isSuperadmin && authenticated !== false,
   });
 
   // memoized: a fresh [] on every render would re-run the effect below on every render
@@ -110,11 +110,11 @@ export function usePaymentSettings({ authenticated }: { authenticated?: boolean 
   };
 
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && isSuperadmin) {
       void paymentQuery.refetch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]);
+  }, [authenticated, isSuperadmin]);
 
   return {
     paymentSettings,

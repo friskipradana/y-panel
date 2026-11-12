@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { LoadingState } from '@/components/ui/states'
 import { TextInput } from '@/components/ui/Field'
 import { useI18n } from '@/lib/i18n'
+import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useLivePolling } from '@/hooks/useLivePolling'
 import { SettingsGroup } from '../SettingsPrimitives'
@@ -36,10 +37,11 @@ function extractAttentionType(message: string, metadata: string) {
 // Reneo's own runtime: paths, integrations and project reconcile incidents. Superadmin only.
 export function ReneoRuntimeTab({ authenticated, active = true }: { authenticated?: boolean; active?: boolean }) {
   const { t } = useI18n()
+  const isSuperadmin = useAuthStore((s) => s.user?.role) === 'superadmin'
   const openWindow = useWindowStore((state) => state.openWindow)
   const summaryPolling = useLivePolling(15_000)
   const summary = useQuery({ queryKey: ['agent-system-summary'], queryFn: getSystemSummary, retry: 1, refetchInterval: active ? summaryPolling : false, enabled: authenticated !== false })
-  const database = useQuery({ queryKey: ['database-status'], queryFn: getDatabaseStatus, retry: 1, refetchInterval: active ? 15_000 : false, enabled: authenticated !== false })
+  const database = useQuery({ queryKey: ['database-status'], queryFn: getDatabaseStatus, retry: 1, refetchInterval: active ? 15_000 : false, enabled: isSuperadmin && authenticated !== false })
 
   const incidents = useMemo(() => {
     const logs = database.data?.runtimeLogs ?? []

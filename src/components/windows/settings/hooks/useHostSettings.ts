@@ -20,18 +20,19 @@ export function useHostSettings({ authenticated, pollDatabase = false }: { authe
 
   // host settings (hostname, DNS, ports) and the panel's own database are the superadmin's
   const isSuperadmin = useAuthStore((s) => s.user?.role) === "superadmin";
+  const canQueryHost = isSuperadmin && authenticated !== false;
   const query = useQuery({
     queryKey: ["editable-system-settings"],
     queryFn: getEditableSystemSettings,
     retry: 1,
-    enabled: isSuperadmin,
+    enabled: canQueryHost,
   });
   const databaseQuery = useQuery({
     queryKey: ["database-status"],
     queryFn: getDatabaseStatus,
     retry: 1,
     refetchInterval: pollDatabase ? 10_000 : false,
-    enabled: isSuperadmin,
+    enabled: canQueryHost,
   });
 
   const [hostname, setHostname] = useState("");
@@ -305,12 +306,12 @@ export function useHostSettings({ authenticated, pollDatabase = false }: { authe
   const settingsAudit = databaseQuery.data?.settingsAudit ?? [];
 
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && isSuperadmin) {
       void query.refetch();
       void databaseQuery.refetch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]);
+  }, [authenticated, isSuperadmin]);
 
   return {
     query,

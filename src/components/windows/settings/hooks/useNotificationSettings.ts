@@ -20,19 +20,21 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   const role = useAuthStore((s) => s.user?.role);
   const canManage = role === "admin" || role === "superadmin";
 
+  const canQueryNotifications = canManage && authenticated !== false;
+
   // ── Notification Devices ─────────────────────────────────────────────
   const notificationDevicesQuery = useQuery({
     queryKey: ["notification-devices"],
     queryFn: getNotificationDevices,
     retry: 1,
-    enabled: canManage,
+    enabled: canQueryNotifications,
   });
 
   const capturedNotificationsQuery = useQuery({
     queryKey: ["captured-notifications"],
     queryFn: getCapturedNotifications,
     retry: 1,
-    enabled: canManage,
+    enabled: canQueryNotifications,
   });
 
   const notificationDevices = notificationDevicesQuery.data?.devices ?? [];
@@ -147,12 +149,12 @@ export function useNotificationSettings({ authenticated }: { authenticated?: boo
   });
 
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && canManage) {
       void notificationDevicesQuery.refetch();
       void capturedNotificationsQuery.refetch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]);
+  }, [authenticated, canManage]);
 
   return {
     notificationDevicesQuery,
