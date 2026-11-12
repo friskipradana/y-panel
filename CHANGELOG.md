@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.5] - 2026-11-12
+
+Restructure KVM management and improve cross-platform support.
+
+### Peningkatan
+- **kvm:** Restructure KVM management and improve cross-platform support ([`efac90f`](https://github.com/friskipradana/y-panel/commit/efac90f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.4...v1.80.5
+
 ## [1.80.4] - 2026-11-11
 
 Implement retry logic for x11vnc startup with multiple auth methods.
