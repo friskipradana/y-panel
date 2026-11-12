@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.9] - 2026-11-12
+
+Redesign toolbar and hud components for better consistency.
+
+### Peningkatan
+- **kvm:** Redesign toolbar and hud components for better consistency ([`7a5fd21`](https://github.com/friskipradana/y-panel/commit/7a5fd21))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.8...v1.80.9
+
 ## [1.80.8] - 2026-11-12
 
 Remove wallpaper upload and custom background settings.
