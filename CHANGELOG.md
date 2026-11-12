@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.81.4] - 2026-11-12
+
+Add app version management and upgrade capability.
+
+### Fitur baru
+- **app-catalog:** Add app version management and upgrade capability ([`5a26658`](https://github.com/friskipradana/y-panel/commit/5a26658))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.81.3...v1.81.4
+
 ## [1.81.3] - 2026-11-12
 
 Modularize views and improve proxy rewriting.
