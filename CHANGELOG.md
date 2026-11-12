@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.81.3] - 2026-11-12
+
+Modularize views and improve proxy rewriting.
+
+### Peningkatan
+- **app-catalog:** Modularize views and improve proxy rewriting ([`ef191fc`](https://github.com/friskipradana/y-panel/commit/ef191fc))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.81.2...v1.81.3
+
 ## [1.81.2] - 2026-11-12
 
 Enhance app installation and management capabilities.
