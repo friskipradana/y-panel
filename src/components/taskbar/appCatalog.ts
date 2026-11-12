@@ -3,7 +3,7 @@ import type { WindowKind } from '@/types'
 // The applications of the panel, shared by the Applications menu and the quick search so the two
 // always list the same things. Access per account comes from canAccessWindow, not from here.
 
-export type CategoryKey = 'all' | 'system' | 'dev' | 'network' | 'info'
+export type CategoryKey = 'all' | 'system' | 'dev' | 'network' | 'info' | 'installed'
 
 export interface AppMenuItem {
   kind: WindowKind
@@ -17,6 +17,12 @@ export const MENU_ITEMS: AppMenuItem[] = [
     kind: 'apps',
     descId: 'Manajemen container, image, dan resource Docker',
     descEn: 'Docker containers, images, and lifecycle management',
+    category: 'system',
+  },
+  {
+    kind: 'app-catalog',
+    descId: 'Pasang aplikasi self-hosted Docker atau Web App sebagai window desktop',
+    descEn: 'Install self-hosted Docker apps or Web Apps as desktop windows',
     category: 'system',
   },
   {
@@ -125,6 +131,7 @@ export const MENU_ITEMS: AppMenuItem[] = [
 
 export const CATEGORIES: { key: CategoryKey; labelId: string; labelEn: string }[] = [
   { key: 'all', labelId: 'Semua Aplikasi', labelEn: 'All Applications' },
+  { key: 'installed', labelId: 'Aplikasi Terpasang', labelEn: 'Installed Apps' },
   { key: 'system', labelId: 'Sistem & Server', labelEn: 'System & Server' },
   { key: 'dev', labelId: 'Development & Data', labelEn: 'Development & Data' },
   { key: 'network', labelId: 'Jaringan & Akses', labelEn: 'Network & Access' },
@@ -134,6 +141,7 @@ export const CATEGORIES: { key: CategoryKey; labelId: string; labelEn: string }[
 // Words people type for an app besides its name (Indonesian and English), for the quick search
 export const APP_KEYWORDS: Partial<Record<WindowKind, string[]>> = {
   apps: ['docker', 'container', 'kontainer', 'image', 'compose', 'deploy', 'network'],
+  'app-catalog': ['catalog', 'katalog', 'store', 'toko', 'install', 'pasang', 'app', 'aplikasi', 'self-hosted'],
   'host-terminal': ['terminal', 'shell', 'bash', 'ssh', 'console', 'konsol', 'command', 'perintah'],
   system: ['system', 'sistem', 'cpu', 'ram', 'memory', 'memori', 'disk', 'monitor', 'suhu', 'uptime', 'info'],
   'system-logs': ['log', 'logs', 'journal', 'journald', 'error', 'catatan'],

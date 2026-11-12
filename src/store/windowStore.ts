@@ -69,15 +69,23 @@ export const useWindowStore = create<WindowStore>()(
         soundManager.playWindowOpen();
         set((state) => {
           const def = DEFAULTS[kind];
-          const existing = def.singleton
-            ? state.windows.find((w) => w.kind === kind)
-            : undefined;
+          const appIdParam = kind === 'installed-app' && params?.appId ? Number(params.appId) : null;
+          const existing = appIdParam
+            ? state.windows.find(
+                (w) => w.kind === 'installed-app' && Number(w.params?.appId) === appIdParam,
+              )
+            : def.singleton
+              ? state.windows.find((w) => w.kind === kind)
+              : undefined;
 
           if (existing) {
             existing.isMinimized = false;
             existing.lastAction = "restore";
             if (params) {
               existing.params = { ...(existing.params || {}), ...params };
+              if (kind === 'installed-app' && typeof params.appName === 'string' && params.appName.trim()) {
+                existing.title = params.appName.trim();
+              }
             }
             bringToFront(state.windows, existing.id);
             state.focusedId = existing.id;
@@ -122,7 +130,10 @@ export const useWindowStore = create<WindowStore>()(
           state.windows.push({
             id,
             kind,
-            title: nextWindowTitle(kind, state.windows),
+            title:
+              kind === 'installed-app' && typeof params?.appName === 'string' && params.appName.trim()
+                ? params.appName.trim()
+                : nextWindowTitle(kind, state.windows),
             x,
             y,
             width,

@@ -4,6 +4,7 @@ export type WindowKind =
   | 'docs' | 'changelog' | 'settings' | 'database' | 'trash'
   | 'file-manager' | 'file-editor' | 'users' | 'projects' | 'tunnels'
   | 'profile' | 'widgets' | 'speedtest' | 'hosting' | 'firewall' | 'email' | 'kvm'
+  | 'app-catalog' | 'installed-app'
 
 export type WindowId = WindowKind
 
@@ -238,7 +239,7 @@ export interface ContainerStats {
 
 // App shortcut
 export interface AppShortcut {
-  id: string; label: string; icon?: string; color?: string; url?: string; windowId?: WindowKind
+  id: string; label: string; icon?: string; iconKey?: string; iconColor?: string; color?: string; url?: string; windowId?: WindowKind; params?: Record<string, unknown>
 }
 
 export interface TerminalSessionStartResponse { sessionId: string }

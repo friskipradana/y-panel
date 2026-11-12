@@ -124,6 +124,7 @@ Didefinisikan di `_windows.scss` dan `_components.scss`. Ini kosakata UI utama.
 | Prefix | Modul | Isi |
 | :--- | :--- | :--- |
 | `.docker-*` | `_docker.scss`, `_components.scss` | toolbar, flat row, deploy wizard, progress console, image combobox, token chip, log viewer |
+| `.app-catalog-*`, `.installed-app-*` | `_docker.scss` | grid kartu katalog aplikasi (`AppCatalogWindow`), toolbar & viewport iframe aplikasi terpasang (`InstalledAppWindow`) |
 | `.tunnel-flat-row*` | `_components.scss` | baris tunnel Cloudflare |
 | `.ht-*` | `_terminal.scss` | tabbar, pane, preset, manager, status dot |
 | `.taskbar-*` | `_taskbar.scss` | nav, ikon, jam, bahasa, notifikasi |
@@ -136,9 +137,9 @@ Didefinisikan di `_windows.scss` dan `_components.scss`. Ini kosakata UI utama.
 | Jenis | Daftar |
 | :--- | :--- |
 | Store | `windowStore`, `themeStore`, `authStore`, `widgetStore` (`widgetLayout`), `commandStore`, `alertStore`, `editorStore` (`middleware/mutative`) |
-| Hook | `useGlobalShortcuts`, `useRevisionSync`, `useWindowPollingActive`, `useContainers`, `useTerminalSession`, `useTerminalExec`, `useCapturedNotificationsSocket` |
+| Hook | `useGlobalShortcuts`, `useRevisionSync`, `useWindowPollingActive`, `useContainers`, `useTerminalSession`, `useTerminalExec`, `useCapturedNotificationsSocket`, `useAppCatalog`, `useInstalledApps`, `useAppCatalogMutations` |
 | Lib | `i18n` (`t`, `useI18n`; kamus di `lib/locales/id.ts` dan `en.ts`), `alert`, `datetime`, `sound`, `lazy`, `runtimeLogger` |
-| API | `src/api/*` (agent, auth, docker, files, system, tunnels, cloudflare, projects, users, apiTokens, notifications, payment, terminal, docs, email) |
+| API | `src/api/*` (agent, appCatalog, auth, docker, files, system, tunnels, cloudflare, projects, users, apiTokens, notifications, payment, terminal, docs, email) |
 
 ## 8. Menambah Komponen
 

@@ -1,9 +1,12 @@
 import { useMemo } from 'react'
 import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
+import { installedAppWindowParams } from '@/api/appCatalog'
+import { AppIcon } from '@/components/common/AppIcon'
 import { MobileAppsGrid } from '@/components/mobile/MobileAppsGrid'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
 import { NoteHeaderActions } from '@/components/widgets/QuickNoteWidget'
 import { DESKTOP_SHORTCUTS, canAccessWindow } from '@/components/desktop/windowRegistry'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { IconButton } from '@/components/ui/IconButton'
 import { orderWidgetsForMobile, useWidgetStore, widgetAllowedFor } from '@/store/widgetStore'
@@ -13,7 +16,7 @@ import type { WindowKind } from '@/types'
 
 interface MobileHomeProps {
   role?: string | null
-  onLaunch: (kind: WindowKind) => void
+  onLaunch: (kind: WindowKind, params?: Record<string, unknown>) => void
 }
 
 // Reachable from the desktop only through menus; the phone lists them here
@@ -64,6 +67,7 @@ function Meter({ label, percent, detail }: { label: string; percent?: number; de
 export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
+  const { installedApps } = useInstalledApps()
   const placed = useWidgetStore((s) => s.placedWidgets)
   const mobile = useWidgetStore((s) => s.mobile)
   const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
@@ -102,6 +106,29 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
       </section>
 
       <MobileAppsGrid apps={apps} onLaunch={onLaunch} />
+
+      {canAccessWindow('installed-app', role) && installedApps.length > 0 ? (
+        <section aria-label={t('appCatalog.tabInstalled')} className="space-y-2.5">
+          <h2 className="text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
+            {t('appCatalog.tabInstalled')}
+          </h2>
+          <div className="grid grid-cols-3 gap-2">
+            {installedApps.map((app) => (
+              <button
+                key={app.id}
+                type="button"
+                onClick={() => onLaunch('installed-app', installedAppWindowParams(app))}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-center active:scale-95 transition"
+              >
+                <AppIcon kind="installed-app" iconKey={app.iconKey} iconColor={app.iconColor} size={28} />
+                <span className="w-full truncate text-[0.75rem] font-medium text-[var(--win-text)]">
+                  {app.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {widgets.length > 0 ? (
         <section aria-label={t('mobile.widgets')} className="space-y-3">

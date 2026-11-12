@@ -11,8 +11,10 @@ import { WindowErrorBoundary } from '@/components/system/WindowErrorBoundary'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
-import type { WidgetType } from '@/types'
+import type { AppShortcut, WidgetType } from '@/types'
 import { useI18n } from '@/lib/i18n'
+import { installedAppWindowParams } from '@/api/appCatalog'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
 
 import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
 import { WIDGET_TOP, useWidgetStore, widgetsAreFree } from '@/store/widgetStore'
@@ -44,14 +46,25 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const isMobile = useIsMobileLayout()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
+  const { installedApps } = useInstalledApps()
   const visibleWindows = useMemo(
     () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [userRole, windows],
   )
-  const desktopShortcuts = useMemo(
-    () => DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole)),
-    [userRole],
-  )
+  const desktopShortcuts = useMemo<AppShortcut[]>(() => {
+    const base = DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole))
+    const dynamicApps: AppShortcut[] = canAccessWindow('installed-app', userRole)
+      ? installedApps.map((app) => ({
+          id: `installed-app-${app.id}`,
+          label: app.name,
+          iconKey: app.iconKey,
+          iconColor: app.iconColor,
+          windowId: 'installed-app',
+          params: installedAppWindowParams(app),
+        }))
+      : []
+    return [...base, ...dynamicApps]
+  }, [installedApps, userRole])
 
   useEffect(() => {
     if (!authenticated) return

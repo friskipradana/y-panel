@@ -364,6 +364,14 @@ func (s *Server) routes() {
 	s.mux.Handle("PUT /api/v1/docker/templates/{id}", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateUpdate)))
 	s.mux.Handle("DELETE /api/v1/docker/templates/{id}", s.requireCapability(auth.CapabilityDockerTemplateManage, http.HandlerFunc(s.handleDockerTemplateDelete)))
 
+	// ── App Catalog & Installed App Windows ───────────────────────────────────
+	s.mux.Handle("GET /api/v1/app-catalog", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogList)))
+	s.mux.Handle("POST /api/v1/app-catalog/install", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogInstall)))
+	s.mux.Handle("PATCH /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUpdate)))
+	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/action", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogAction)))
+	s.mux.Handle("DELETE /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUninstall)))
+	s.mux.Handle("/api/v1/app-catalog/proxy/", s.requireAuthV2(s.appCatalogProxy()))
+
 	// ── Terminal ──────────────────────────────────────────────────────────────
 	s.mux.Handle("GET /api/v1/me/toolchain", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleToolchainStatus)))
 	s.mux.Handle("PUT /api/v1/me/toolchain/prefs", s.requireCapability(auth.CapabilityTerminalAccess, http.HandlerFunc(s.handleToolchainPrefs)))

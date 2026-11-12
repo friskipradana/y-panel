@@ -12,6 +12,8 @@ export const DEFAULTS: Record<
   projects: { title: 'Projects', width: 1040, height: 528, singleton: true },
   users: { title: 'User Management', width: 1040, height: 528, singleton: true },
   'file-editor': { title: 'Code Editor', width: 1040, height: 528, singleton: true },
+  'app-catalog': { title: 'App Catalog', width: 1040, height: 560, singleton: true },
+  'installed-app': { title: 'Installed App', width: 1040, height: 620, singleton: false },
 
   // L — Management & Monitoring (880 x 530)
   system: { title: 'System Info', width: 880, height: 530, singleton: true },

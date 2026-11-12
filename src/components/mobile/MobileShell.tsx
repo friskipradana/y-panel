@@ -28,7 +28,7 @@ interface MobileShellProps {
 }
 
 const QUICK_APPS: WindowKind[] = ['apps', 'host-terminal', 'file-manager']
-const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings', 'profile', 'hosting']
+const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings', 'profile', 'hosting', 'app-catalog', 'installed-app']
 
 // Phone layout: one app at a time, bottom navigation, no floating windows
 export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
@@ -71,8 +71,8 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
   }, [current, open])
   const kept = open.filter((w) => visited.includes(w.id) || w.id === current?.id)
 
-  const launch = (kind: WindowKind) => {
-    const id = openWindow(kind)
+  const launch = (kind: WindowKind, params?: Record<string, unknown>) => {
+    const id = openWindow(kind, params)
     focusWindow(id)
     setView('app')
     setSwitcher(false)
@@ -122,8 +122,17 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               <ChevronLeft className="h-5 w-5" />
             </IconButton>
             <span className="flex min-w-0 flex-1 items-center gap-2">
-              <AppIcon kind={current.kind} size={18} />
-              <span className="truncate text-[0.9375rem] font-semibold">{t(windowTitleKey(current.kind))}</span>
+              <AppIcon
+                kind={current.kind}
+                iconKey={typeof current.params?.iconKey === 'string' ? current.params.iconKey : undefined}
+                iconColor={typeof current.params?.iconColor === 'string' ? current.params.iconColor : undefined}
+                size={18}
+              />
+              <span className="truncate text-[0.9375rem] font-semibold">
+                {current.kind === 'installed-app' && typeof current.params?.appName === 'string' && current.params.appName
+                  ? current.params.appName
+                  : t(windowTitleKey(current.kind))}
+              </span>
             </span>
             <IconButton
               label={t('common.close')}
@@ -232,8 +241,17 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
                   }}
                   className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-3 text-left"
                 >
-                  <AppIcon kind={win.kind} size={22} />
-                  <span className="truncate text-[0.875rem] font-medium">{t(windowTitleKey(win.kind))}</span>
+                  <AppIcon
+                    kind={win.kind}
+                    iconKey={typeof win.params?.iconKey === 'string' ? win.params.iconKey : undefined}
+                    iconColor={typeof win.params?.iconColor === 'string' ? win.params.iconColor : undefined}
+                    size={22}
+                  />
+                  <span className="truncate text-[0.875rem] font-medium">
+                    {win.kind === 'installed-app' && typeof win.params?.appName === 'string' && win.params.appName
+                      ? win.params.appName
+                      : t(windowTitleKey(win.kind))}
+                  </span>
                 </button>
                 <IconButton
                   label={t('common.close')}

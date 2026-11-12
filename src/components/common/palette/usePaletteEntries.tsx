@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Clock, Cpu, Globe, Languages, Lock, Moon, Radar, RotateCcw, StickyNote, Sun } from 'lucide-react'
 import { getMySubdomains } from '@/api/hosting'
+import { installedAppWindowParams } from '@/api/appCatalog'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { AppIcon } from '@/components/common/AppIcon'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import { APP_KEYWORDS, MENU_ITEMS } from '@/components/taskbar/appCatalog'
@@ -86,9 +88,9 @@ const SETTINGS_TAB_WORDS: Record<SettingsTabKey, string[]> = {
 }
 
 const glyph = (node: ReactNode) => <IconBadge size="md">{node}</IconBadge>
-const appGlyph = (kind: string) => (
+const appGlyph = (kind: string, iconKey?: string, iconColor?: string) => (
   <IconBadge size="md">
-    <AppIcon kind={kind} size={22} />
+    <AppIcon kind={kind} iconKey={iconKey} iconColor={iconColor} size={22} />
   </IconBadge>
 )
 
@@ -109,6 +111,7 @@ export function usePaletteEntries(close: () => void, enabled: boolean): PaletteE
   const toggleMode = useThemeStore((s) => s.toggleMode)
   const setIsLocked = useThemeStore((s) => s.setIsLocked)
   const { hosting } = usePublicSite()
+  const { installedApps } = useInstalledApps()
 
   // a buyer with subdomains in their plan gets a way to their subdomains
   const mine = useQuery({
@@ -128,14 +131,23 @@ export function usePaletteEntries(close: () => void, enabled: boolean): PaletteE
   // windows that are open right now
   for (const win of windows) {
     if (!canAccessWindow(win.kind, role)) continue
+    const isInstalledApp = win.kind === 'installed-app'
+    const appTitle =
+      isInstalledApp && typeof win.params?.appName === 'string' && win.params.appName
+        ? win.params.appName
+        : t(windowTitleKey(win.kind))
     entries.push({
       id: `open:${win.id}`,
       group: 'open',
-      title: t(windowTitleKey(win.kind)),
+      title: appTitle,
       description: win.isMinimized ? t('palette.minimized') : t('palette.openNow'),
-      icon: appGlyph(win.kind),
-      keywords: [win.kind, ...(APP_KEYWORDS[win.kind] ?? [])],
-      run: go(() => openWindow(win.kind)),
+      icon: appGlyph(
+        win.kind,
+        typeof win.params?.iconKey === 'string' ? win.params.iconKey : undefined,
+        typeof win.params?.iconColor === 'string' ? win.params.iconColor : undefined,
+      ),
+      keywords: [win.kind, appTitle, ...(APP_KEYWORDS[win.kind] ?? [])],
+      run: go(() => openWindow(win.kind, win.params)),
     })
   }
 
@@ -154,6 +166,21 @@ export function usePaletteEntries(close: () => void, enabled: boolean): PaletteE
       recordable: true,
       run: go(() => openWindow(app.kind)),
     })
+  }
+
+  if (canAccessWindow('installed-app', role)) {
+    for (const app of installedApps) {
+      entries.push({
+        id: `installed-app:${app.id}`,
+        group: 'apps',
+        title: app.name,
+        description: app.tagline || app.image || app.targetUrl,
+        icon: appGlyph('installed-app', app.iconKey, app.iconColor),
+        keywords: [app.name, app.slug, app.category, app.image, app.targetUrl].filter(Boolean),
+        recordable: true,
+        run: go(() => openWindow('installed-app', installedAppWindowParams(app))),
+      })
+    }
   }
 
   // account: the subdomains a plan includes

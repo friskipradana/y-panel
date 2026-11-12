@@ -27,7 +27,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
     if (app.url) {
       window.open(app.url, '_blank')
     } else if (app.windowId) {
-      openWindow(app.windowId)
+      openWindow(app.windowId, app.params)
     }
   }
 
@@ -90,7 +90,12 @@ export function DesktopIcon({ app, editing = false }: Props) {
               : 'bg-white/50 backdrop-blur-md border border-black/10 shadow-sm shadow-black/5 group-hover:border-black/20 group-hover:shadow-md'
         }`}
       >
-        <AppIcon kind={app.windowId || app.id} size={sizeConfig.iconSize} />
+        <AppIcon
+          kind={app.windowId || app.id}
+          iconKey={app.iconKey}
+          iconColor={app.iconColor}
+          size={sizeConfig.iconSize}
+        />
       </div>
       <span
         className={`${sizeConfig.maxTextWidth} truncate text-center ${textSizeClass} ${fontWeightClass} ${shadowClass} tracking-wide ${

@@ -16,6 +16,8 @@ import {
   PersonCircle24Filled,
   Delete24Filled,
   Apps24Filled,
+  AppStore24Filled,
+  AppGeneric24Filled,
   WindowApps24Filled,
   Gauge24Filled,
   BuildingRetail24Filled,
@@ -23,6 +25,23 @@ import {
   Mail24Filled,
   DesktopKeyboard24Filled,
 } from '@fluentui/react-icons'
+import {
+  Activity,
+  BarChart3,
+  Box,
+  Database,
+  FileText,
+  Folder,
+  GitBranch,
+  Globe,
+  PenTool,
+  Server,
+  Shield,
+  StickyNote,
+  Terminal,
+  Workflow,
+  Wrench,
+} from 'lucide-react'
 import type { WindowKind } from '@/types'
 
 interface AppIconProps {
@@ -30,6 +49,78 @@ interface AppIconProps {
   size?: number
   className?: string
   style?: React.CSSProperties
+  iconKey?: string
+  iconColor?: string
+}
+
+const APP_GLYPH_MAP: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
+  activity: Activity,
+  folder: Folder,
+  wrench: Wrench,
+  workflow: Workflow,
+  shield: Shield,
+  chart: BarChart3,
+  'file-text': FileText,
+  pen: PenTool,
+  'git-branch': GitBranch,
+  note: StickyNote,
+  globe: Globe,
+  box: Box,
+  server: Server,
+  database: Database,
+  terminal: Terminal,
+}
+
+const APP_COLOR_TOKEN_MAP: Record<string, string> = {
+  emerald: 'var(--panel-success-text)',
+  green: 'var(--panel-success-text)',
+  amber: 'var(--panel-warning-text)',
+  orange: 'var(--accent)',
+  blue: 'var(--panel-primary-text)',
+  indigo: 'var(--panel-primary-text)',
+  cyan: 'var(--panel-info-text)',
+  teal: 'var(--panel-info-text)',
+  rose: 'var(--panel-danger-text)',
+  red: 'var(--panel-danger-text)',
+  violet: 'var(--panel-primary-text)',
+  slate: 'var(--panel-neutral-text)',
+}
+
+function resolveAppColorToken(color?: string): string {
+  if (!color) return 'var(--panel-primary-text)'
+  return APP_COLOR_TOKEN_MAP[color.toLowerCase()] || 'var(--panel-primary-text)'
+}
+
+export function InstalledAppGlyph({
+  iconKey,
+  iconColor,
+  size = 24,
+  className = '',
+  style = {},
+}: {
+  iconKey?: string
+  iconColor?: string
+  size?: number
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const Glyph = APP_GLYPH_MAP[(iconKey || '').toLowerCase()] || Globe
+  const glyphSize = Math.max(12, Math.round(size * 0.62))
+  return (
+    <span
+      className={`inline-flex items-center justify-center shrink-0 rounded-md ${className}`}
+      style={{
+        width: size,
+        height: size,
+        color: resolveAppColorToken(iconColor),
+        backgroundColor: 'var(--panel-surface-strong)',
+        border: '1px solid var(--panel-elevated-border)',
+        ...style,
+      }}
+    >
+      <Glyph size={glyphSize} strokeWidth={2} />
+    </span>
+  )
 }
 
 const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSProperties; className?: string }>; color: string }> = {
@@ -55,10 +146,15 @@ const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSPr
   email: { icon: Mail24Filled, color: '#0ea5e9' },
   kvm: { icon: DesktopKeyboard24Filled, color: '#06b6d4' },
   trash: { icon: Delete24Filled, color: '#ef4444' },
+  'app-catalog': { icon: AppStore24Filled, color: 'var(--panel-primary-text)' },
+  'installed-app': { icon: AppGeneric24Filled, color: 'var(--panel-primary-text)' },
 }
 
-export function AppIcon({ kind, size = 24, className = '', style = {} }: AppIconProps) {
-  const item = ICON_MAP[kind] || { icon: Apps24Filled, color: '#94a3b8' }
+export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, iconColor }: AppIconProps) {
+  if (kind === 'installed-app' || iconKey) {
+    return <InstalledAppGlyph iconKey={iconKey} iconColor={iconColor} size={size} className={className} style={style} />
+  }
+  const item = ICON_MAP[kind] || { icon: Apps24Filled, color: 'var(--panel-neutral-text)' }
   const IconComponent = item.icon
 
   return (

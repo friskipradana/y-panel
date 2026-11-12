@@ -29,6 +29,7 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'firewall', label: 'Firewall' },
   { kind: 'email', label: 'Email' },
   { kind: 'kvm', label: 'KVM Display' },
+  { kind: 'app-catalog', label: 'App Catalog' },
   { kind: 'changelog', label: 'Changelog' },
 ]
 
@@ -36,7 +37,18 @@ type DockMenuState = {
   x: number
   y: number
   kind: WindowKind
+  windowId?: string
 } | null
+
+interface DockEntry {
+  key: string
+  kind: WindowKind
+  label: string
+  related: WindowState[]
+  iconKey?: string
+  iconColor?: string
+  windowId?: string
+}
 
 const CONTEXT_MENU_WIDTH = 178
 const CONTEXT_MENU_ESTIMATED_HEIGHT = 108
@@ -44,7 +56,7 @@ const menuButtonClass = 'group flex w-full items-center gap-2.5 rounded-lg px-2.
 
 export function Dock() {
   const { t } = useI18n()
-  const { openWindow, focusWindow, minimizeWindow, toggleDockAutoHide, closeWindowsByKind } = useWindowStore()
+  const { openWindow, focusWindow, minimizeWindow, toggleDockAutoHide, closeWindowsByKind, closeWindow } = useWindowStore()
   const autoHideDock = useWindowStore(selectAutoHideDock)
   const focusedId = useWindowStore(selectFocusedId)
   const windows = useWindowStore(selectWindows)
@@ -57,42 +69,36 @@ export function Dock() {
   const dockRef = useRef<HTMLDivElement | null>(null)
   const dockHideTimerRef = useRef<number | null>(null)
 
-  const groupedWindows = useMemo(() => {
-    return DOCK_ITEMS.reduce<Record<WindowKind, WindowState[]>>((acc, item) => {
-      acc[item.kind] = windows.filter((windowItem: WindowState) => windowItem.kind === item.kind)
-      return acc
-    }, {
-      apps: [],
-      terminal: [],
-      'host-terminal': [],
-      system: [],
-      'system-logs': [],
-      docs: [],
-      changelog: [],
-      settings: [],
-      database: [],
-      trash: [],
-      'file-manager': [],
-      'file-editor': [],
-      users: [],
-      projects: [],
-      tunnels: [],
-      profile: [],
-      widgets: [],
-      speedtest: [],
-      hosting: [],
-      firewall: [],
-      email: [],
-      kvm: [],
-    })
-  }, [windows])
-
-  const visibleDockItems = useMemo(
-    () => DOCK_ITEMS
+  const visibleDockItems = useMemo<DockEntry[]>(() => {
+    const builtin: DockEntry[] = DOCK_ITEMS
       .filter((item) => canAccessWindow(item.kind, role))
-      .filter((item) => groupedWindows[item.kind].length > 0),
-    [groupedWindows, role],
-  )
+      .map((item) => ({
+        key: item.kind,
+        kind: item.kind,
+        label: t(windowTitleKey(item.kind)),
+        related: windows.filter((windowItem) => windowItem.kind === item.kind),
+      }))
+      .filter((entry) => entry.related.length > 0)
+
+    const installedEntries: DockEntry[] = canAccessWindow('installed-app', role)
+      ? windows
+          .filter((windowItem) => windowItem.kind === 'installed-app')
+          .map((windowItem) => ({
+            key: windowItem.id,
+            kind: 'installed-app' as WindowKind,
+            label:
+              typeof windowItem.params?.appName === 'string' && windowItem.params.appName
+                ? windowItem.params.appName
+                : windowItem.title,
+            related: [windowItem],
+            iconKey: typeof windowItem.params?.iconKey === 'string' ? windowItem.params.iconKey : undefined,
+            iconColor: typeof windowItem.params?.iconColor === 'string' ? windowItem.params.iconColor : undefined,
+            windowId: windowItem.id,
+          }))
+      : []
+
+    return [...builtin, ...installedEntries]
+  }, [role, t, windows])
   const openKinds = useMemo(() => [...new Set(windows.map((windowItem) => windowItem.kind))], [windows])
   const hasMaximizedWindow = useMemo(
     () => windows.some((windowItem) => !windowItem.isMinimized && windowItem.isMaximized),
@@ -207,16 +213,16 @@ export function Dock() {
           >
             <AnimatePresence mode="popLayout">
               {visibleDockItems.map((item) => {
-                const related = groupedWindows[item.kind]
-                const isOpen = openKinds.includes(item.kind)
-                const isHovered = hovered === item.kind
+                const related = item.related
+                const isOpen = item.windowId ? true : openKinds.includes(item.kind)
+                const isHovered = hovered === item.key
                 const isFocused = related.some((w) => w.id === focusedId && !w.isMinimized)
                 const allMinimized = related.length > 0 && related.every((w) => w.isMinimized)
                 const hasVisible = related.some((w) => !w.isMinimized)
 
                 return (
                   <motion.div
-                    key={item.kind}
+                    key={item.key}
                     layout
                     initial={{ opacity: 0, scale: 0.7, y: 6 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -228,10 +234,10 @@ export function Dock() {
                       event.stopPropagation()
                       const nextX = Math.min(event.clientX, window.innerWidth - CONTEXT_MENU_WIDTH - 12)
                       const nextY = Math.min(event.clientY, window.innerHeight - CONTEXT_MENU_ESTIMATED_HEIGHT - 12)
-                      setMenu({ x: nextX, y: nextY, kind: item.kind })
+                      setMenu({ x: nextX, y: nextY, kind: item.kind, windowId: item.windowId })
                     }}
-                    onMouseEnter={() => setHovered(item.kind)}
-                    onMouseLeave={() => setHovered((current) => (current === item.kind ? null : current))}
+                    onMouseEnter={() => setHovered(item.key)}
+                    onMouseLeave={() => setHovered((current) => (current === item.key ? null : current))}
                     onClick={() => {
                       const visible = [...related].reverse().find((windowItem) => !windowItem.isMinimized)
                       const minimized = [...related].reverse().find((windowItem) => windowItem.isMinimized)
@@ -261,7 +267,7 @@ export function Dock() {
                           transition={{ duration: 0.12 }}
                           className={`pointer-events-none absolute bottom-full mb-2.5 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border border-white/10 ${tooltipClass}`}
                         >
-                          {t(windowTitleKey(item.kind))}
+                          {item.label}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -279,7 +285,13 @@ export function Dock() {
                             : itemIdleClass,
                       ].join(' ')}
                     >
-                      <AppIcon kind={item.kind} size={22} style={{ filter: 'var(--dock-icon-filter)' }} />
+                      <AppIcon
+                        kind={item.kind}
+                        iconKey={item.iconKey}
+                        iconColor={item.iconColor}
+                        size={22}
+                        style={{ filter: 'var(--dock-icon-filter)' }}
+                      />
                     </motion.div>
 
                     <div className="pointer-events-none absolute -bottom-[11px] left-0 right-0 flex h-1.5 items-center justify-center gap-1">
@@ -332,7 +344,11 @@ export function Dock() {
           <button
             id="dock-menu-close-group"
             onClick={() => {
-              closeWindowsByKind(menu.kind)
+              if (menu.windowId) {
+                closeWindow(menu.windowId)
+              } else {
+                closeWindowsByKind(menu.kind)
+              }
               setMenu(null)
             }}
             className={`${menuButtonClass} ${menuDangerToneClass}`}

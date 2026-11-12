@@ -42,13 +42,15 @@
 
 ---
 
-## 3. Daftar 21 `WindowKind` (`src/components/windows/`)
+## 3. Daftar `WindowKind` (`src/components/windows/`)
 
 Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/index.ts`), `DEFAULTS` (`src/store/windowDefaults.ts` / `src/store/windowStore.ts`), `WINDOW_CONTENT` (`src/components/desktop/windowRegistry.tsx`), `ICON_MAP` (`src/components/common/AppIcon.tsx`), dan key i18n (`src/lib/locales/id.ts` & `en.ts`).
 
 | `WindowKind` | Komponen Utama | Direktori / File Pendamping | Role Akses |
 | :--- | :--- | :--- | :--- |
 | `apps` | `DockerWindow.tsx` | `windows/docker/` (`useDockerWindow.ts`, `DockerToolbar.tsx`, `ContainersTab.tsx`, `ImagesTab.tsx`, `NetworksTab.tsx`, `VolumesTab.tsx`, `TemplatesTab.tsx`, `DeployModal.tsx`, `DeleteContainerModal.tsx`, `LogModal.tsx`, `DockerUpdateModal.tsx`, `DockerProgressOverlay.tsx`, `DockerComponents.tsx`, `constants.ts`, `domainTargets.ts`) | Semua |
+| `app-catalog` | `AppCatalogWindow.tsx` | `windows/app-catalog/` (`InstallAppModal.tsx`) | Non-demo (`user`, `admin`, `superadmin`) |
+| `installed-app` | `InstalledAppWindow.tsx` | Multi-instance window per aplikasi terpasang (embed `/api/v1/app-catalog/proxy/{id}/` atau URL langsung + kontrol container) | Non-demo (`user`, `admin`, `superadmin`) |
 | `host-terminal` | `HostTerminalWindow.tsx` | `windows/terminal/` (`TerminalKeyBar.tsx`, `TerminalCopyModal.tsx`, `terminalText.ts`) | Semua |
 | `terminal` | `TerminalPlaceholder` | Di dalam `windowRegistry.tsx` | Semua |
 | `system` | `SystemWindow.tsx` | `windows/system/` (`IpAddressList.tsx`, `SystemListView.tsx`) | Semua |
@@ -95,10 +97,10 @@ Menambah window baru wajib mendaftarkan di 5 titik: `WindowKind` (`src/types/ind
 - `alertStore.ts`, `commandStore.ts`, `settingsNavStore.ts`, `updateStore.ts`.
 
 ### Custom Hooks (`src/hooks/`)
-- `useWindowPollingActive.ts`, `useGlobalShortcuts.ts`, `useRevisionSync.ts`, `useSystemSampler.ts`, `useLivePolling.ts`, `useWidgetSync.ts`, `useListQuery.ts`, `useContainers.ts`, `useContainerLogs.ts`, `useTerminalSession.ts`, `useTerminalExec.ts`, `useCapturedNotificationsSocket.ts`, `useIsMobileLayout.ts`, `usePinchZoom.ts`, `usePageMeta.ts`, `usePublicSite.ts`.
+- `useWindowPollingActive.ts`, `useGlobalShortcuts.ts`, `useRevisionSync.ts`, `useSystemSampler.ts`, `useLivePolling.ts`, `useWidgetSync.ts`, `useListQuery.ts`, `useContainers.ts`, `useContainerLogs.ts`, `useTerminalSession.ts`, `useTerminalExec.ts`, `useCapturedNotificationsSocket.ts`, `useIsMobileLayout.ts`, `usePinchZoom.ts`, `usePageMeta.ts`, `usePublicSite.ts`, `useAppCatalog.ts`.
 
 ### Modul API (`src/api/`)
-- `client.ts` (`agentApi`), `agent.ts`, `auth.ts`, `apiTokens.ts`, `cloudflare.ts`, `databases.ts`, `docker.ts`, `dockerUpdate.ts`, `docs.ts`, `email.ts`, `files.ts`, `firewall.ts`, `hosting.ts`, `invoice.ts`, `ndjson.ts`, `notifications.ts`, `notify.ts`, `payment.ts`, `projects.ts`, `publicProxy.ts`, `speedtest.ts`, `system.ts`, `terminal.ts`, `toolchain.ts`, `tunnels.ts`, `users.ts`.
+- `client.ts` (`agentApi`), `agent.ts`, `appCatalog.ts`, `auth.ts`, `apiTokens.ts`, `cloudflare.ts`, `databases.ts`, `docker.ts`, `dockerUpdate.ts`, `docs.ts`, `email.ts`, `files.ts`, `firewall.ts`, `hosting.ts`, `invoice.ts`, `ndjson.ts`, `notifications.ts`, `notify.ts`, `payment.ts`, `projects.ts`, `publicProxy.ts`, `speedtest.ts`, `system.ts`, `terminal.ts`, `toolchain.ts`, `tunnels.ts`, `users.ts`.
 
 ---
 

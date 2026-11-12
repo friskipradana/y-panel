@@ -24,7 +24,7 @@
 | `internal/runtimepath` | `runtimepath.go` | Resolusi path produksi (`/etc/reneo`, `/var/lib/reneo`, `/opt/reneo`) dengan fallback instalasi lama. |
 | `internal/crypto` | `crypto.go` | Enkripsi/dekripsi AES-256-GCM untuk rahasia di DB (token Cloudflare, kredensial DB, env project, token bot). |
 | `internal/auth` | `auth.go` | Autentikasi multi-user PostgreSQL + bcrypt, definisi Role (`superadmin`, `admin`, `user`, `demo`) dan Capability RBAC. |
-| `internal/database` | `database.go`, 20 file domain (termasuk `email.go`), `migrations/` | Koneksi PostgreSQL, auto-migration `goose` (`000001` s/d `000044`), repositori data untuk users, templates, managed DBs, hosting, orders, vouchers, custom domains, public routes, payment, notifications, WhatsApp/Telegram, dan email accounts. |
+| `internal/database` | `database.go`, 21 file domain (termasuk `email.go`, `installed_apps.go`), `migrations/` | Koneksi PostgreSQL, auto-migration `goose` (`000001` s/d `000046`), repositori data untuk users, templates, managed DBs, installed apps, hosting, orders, vouchers, custom domains, public routes, payment, notifications, WhatsApp/Telegram, dan email accounts. |
 | `internal/httpserver` | `server.go`, `routes.go`, `middleware.go`, `scope.go`, `handlers_*.go`, `notify_*.go`, `project_*.go`, `public_*.go` | Router HTTP/WebSocket utama, validasi sesi (`reneo_session`) & token API (`rno_...`), isolasi scope per-user, injeksi SEO & `window.__REN_BOOT__`, serta loop rekonsiliasi project & masa aktif paket. |
 | `internal/docker` | `docker.go`, `containers.go`, `deploy.go`, `compose.go`, `images.go`, `networks.go`, `mounts.go`, `logs*.go`, `update.go`, `policy.go` | Orkestrasi Docker CLI & Compose, isolasi container per-user (`panel.owner.user_id`), kuota CPU/RAM, pembatasan mount di dalam home user, streaming log, dan recreate/update image. |
 | `internal/userdb` | `userdb.go`, `admin.go`, `access.go` | Penyediaan container database user (PostgreSQL, MySQL, MariaDB, MongoDB, Redis) di port `20000-29999`, query SQL/koleksi dari panel, dan firewall IPv4/CIDR via rantai iptables `RENEO-DB-<id>` pada `DOCKER-USER`. |
@@ -52,6 +52,7 @@
 - **MCP**: `/mcp`, `/sse`, `/api/v1/mcp`.
 - **Users & Profile**: `/api/v1/users`, `/api/v1/users/table`, `/api/v1/users/summary`, `/api/v1/users/{id}/{suspend,activate,usage,password,quota,plan}`, `/api/v1/me/{usage,password,widgets,toolchain}`.
 - **Docker**: `/api/v1/containers`, `/api/v1/containers/table`, `/api/v1/containers/deploy-{image,compose}`, `/api/v1/containers/{id}/{start,stop,restart,update,config,logs,logs/ws}`, `/api/v1/docker/{version,networks,volumes,images,templates}`.
+- **App Catalog**: `/api/v1/app-catalog`, `/api/v1/app-catalog/install`, `/api/v1/app-catalog/installed/{id}`, `/api/v1/app-catalog/installed/{id}/action`, `/api/v1/app-catalog/proxy/{id}/`.
 - **Databases**: `/api/v1/databases`, `/api/v1/databases/engines`, `/api/v1/databases/{id}/{credentials,start,stop,tables,query,users,access,password}`, `/adminer/`, `/dbx/`.
 - **Projects**: `/api/v1/projects`, `/api/v1/projects/{id}/{start,stop,rebuild,logs,upload-static}`.
 - **Cloudflare & Tunnels**: `/api/v1/me/cloudflare`, `/api/v1/cloudflare/domains/{zoneId}/{dns,redirects}`, `/api/v1/cloudflare/tunnel-profiles`, `/api/v1/tunnels`, `/api/v1/me/{subdomains,custom-domains}`.

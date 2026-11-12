@@ -1,0 +1,167 @@
+import { agentApi } from './client'
+
+export interface CatalogVolumeSpec {
+  hostSubdir: string
+  containerPath: string
+  label: string
+}
+
+export interface CatalogEnvSpec {
+  key: string
+  defaultValue: string
+  labelId: string
+  labelEn: string
+  required: boolean
+  secret: boolean
+  placeholder: string
+}
+
+export interface CatalogApp {
+  id: string
+  name: string
+  taglineId: string
+  taglineEn: string
+  descriptionId: string
+  descriptionEn: string
+  category: string
+  iconKey: string
+  iconColor: string
+  image: string
+  containerPort: number
+  defaultHostPort: number
+  openPath: string
+  keepPrefix: boolean
+  superadminOnly: boolean
+  notesId?: string
+  notesEn?: string
+  volumes: CatalogVolumeSpec[]
+  env: CatalogEnvSpec[]
+}
+
+export type InstalledAppKind = 'docker' | 'existing-container' | 'custom-url'
+
+export interface InstalledApp {
+  id: number
+  userId: number
+  slug: string
+  catalogId: string
+  name: string
+  tagline: string
+  category: string
+  iconKey: string
+  iconColor: string
+  kind: InstalledAppKind
+  image: string
+  containerName: string
+  hostPort: number
+  containerPort: number
+  openPath: string
+  targetUrl: string
+  useProxy: boolean
+  configJson: string
+  keepPrefix: boolean
+  proxyPath: string
+  containerId?: string
+  containerStatus?: string
+  containerState?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AppCatalogResponse {
+  catalog: CatalogApp[]
+  installed: InstalledApp[]
+}
+
+export interface InstallCatalogAppPayload {
+  mode: 'catalog' | 'existing-container' | 'custom-url'
+  catalogId?: string
+  containerId?: string
+  name?: string
+  tagline?: string
+  category?: string
+  iconKey?: string
+  iconColor?: string
+  hostPort?: number
+  openPath?: string
+  targetUrl?: string
+  useProxy?: boolean
+  env?: Record<string, string>
+}
+
+export interface UpdateInstalledAppPayload {
+  name?: string
+  tagline?: string
+  iconKey?: string
+  iconColor?: string
+  openPath?: string
+  targetUrl?: string
+  useProxy?: boolean
+}
+
+export async function getAppCatalog(): Promise<AppCatalogResponse> {
+  const { data } = await agentApi.get<AppCatalogResponse>('/api/v1/app-catalog')
+  return {
+    catalog: Array.isArray(data?.catalog) ? data.catalog : [],
+    installed: Array.isArray(data?.installed) ? data.installed : [],
+  }
+}
+
+export async function installCatalogApp(payload: InstallCatalogAppPayload): Promise<InstalledApp> {
+  const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>('/api/v1/app-catalog/install', payload)
+  return data.app
+}
+
+export async function updateInstalledApp(id: number, payload: UpdateInstalledAppPayload): Promise<InstalledApp> {
+  const { data } = await agentApi.patch<{ ok: boolean; app: InstalledApp }>(
+    `/api/v1/app-catalog/installed/${id}`,
+    payload,
+  )
+  return data.app
+}
+
+export async function runInstalledAppAction(
+  id: number,
+  action: 'start' | 'stop' | 'restart',
+): Promise<InstalledApp> {
+  const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
+    `/api/v1/app-catalog/installed/${id}/action`,
+    { action },
+  )
+  return data.app
+}
+
+export async function uninstallCatalogApp(
+  id: number,
+  opts?: { removeContainer?: boolean; removeVolumes?: boolean },
+): Promise<void> {
+  await agentApi.delete(`/api/v1/app-catalog/installed/${id}`, {
+    params: {
+      removeContainer: opts?.removeContainer ? 'true' : 'false',
+      removeVolumes: opts?.removeVolumes ? 'true' : 'false',
+    },
+  })
+}
+
+export function installedAppOpenUrl(app: Pick<InstalledApp, 'id' | 'openPath' | 'proxyPath' | 'targetUrl' | 'useProxy'>): string {
+  if (!app.useProxy && app.targetUrl) {
+    return app.targetUrl
+  }
+  const base = (import.meta.env.VITE_AGENT_BASE || '').replace(/\/+$/, '')
+  const path = app.proxyPath || `/api/v1/app-catalog/proxy/${app.id}${app.openPath || '/'}`
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path
+  }
+  return base ? `${base}${path}` : path
+}
+
+export function installedAppWindowParams(app: InstalledApp): Record<string, unknown> {
+  return {
+    appId: app.id,
+    appName: app.name,
+    iconKey: app.iconKey,
+    iconColor: app.iconColor,
+    slug: app.slug,
+  }
+}
+

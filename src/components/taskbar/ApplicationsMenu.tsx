@@ -7,6 +7,8 @@ import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { AppIcon } from '@/components/common/AppIcon'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind } from '@/types'
+import { installedAppWindowParams } from '@/api/appCatalog'
+import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { CATEGORIES, MENU_ITEMS, type CategoryKey } from './appCatalog'
 
 interface ApplicationsMenuProps {
@@ -46,10 +48,17 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     }
   }, [isOpen])
 
+  const { installedApps } = useInstalledApps()
+
   const accessibleItems = useMemo(() => {
     // the same access rules as the desktop icons, the dock and the palette
     return MENU_ITEMS.filter((item) => canAccessWindow(item.kind, role))
   }, [role])
+
+  const accessibleInstalled = useMemo(
+    () => (canAccessWindow('installed-app', role) ? installedApps : []),
+    [installedApps, role],
+  )
 
   const filteredItems = useMemo(() => {
     return accessibleItems.filter((item) => {
@@ -57,8 +66,13 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     })
   }, [accessibleItems, activeCategory])
 
-  const handleLaunch = (kind: WindowKind) => {
-    openWindow(kind)
+  const filteredInstalled = useMemo(() => {
+    if (activeCategory !== 'all' && activeCategory !== 'installed') return []
+    return accessibleInstalled
+  }, [accessibleInstalled, activeCategory])
+
+  const handleLaunch = (kind: WindowKind, params?: Record<string, unknown>) => {
+    openWindow(kind, params)
     setIsOpen(false)
   }
 
@@ -107,8 +121,10 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
                   {CATEGORIES.map((cat) => {
                     const isActive = activeCategory === cat.key
                     const count = cat.key === 'all'
-                      ? accessibleItems.length
-                      : accessibleItems.filter((i) => i.category === cat.key).length
+                      ? accessibleItems.length + accessibleInstalled.length
+                      : cat.key === 'installed'
+                        ? accessibleInstalled.length
+                        : accessibleItems.filter((i) => i.category === cat.key).length
 
                     return (
                       <button
@@ -156,13 +172,34 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
                       </button>
                     )
                   })}
+                  {filteredInstalled.map((app) => (
+                    <button
+                      key={`installed-${app.id}`}
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', installedAppWindowParams(app))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon kind="installed-app" iconKey={app.iconKey} iconColor={app.iconColor} size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {app.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {app.tagline || app.image || app.targetUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* ── Bottom Bar: Total Apps Counter ── */}
               <div className="flex items-center justify-end px-4 py-2 border-t border-[var(--win-border)] bg-[var(--panel-surface)] text-[11px] text-[var(--text-secondary)]">
                 <span className="text-[11px] text-[var(--text-secondary)] font-medium">
-                  {accessibleItems.length} {isEn ? 'apps installed' : 'aplikasi'}
+                  {accessibleItems.length + accessibleInstalled.length} {isEn ? 'apps installed' : 'aplikasi'}
                 </span>
               </div>
             </motion.div>

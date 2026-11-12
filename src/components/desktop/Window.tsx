@@ -264,7 +264,11 @@ export function Window({ win, children }: Props) {
 
   const maxTitle = win.isMaximized ? t('window.restore') : t('window.maximize')
   const fullTitle = win.isFullscreen ? t('window.exitFullscreen') : t('window.fullscreen')
-  const lockScroll = win.kind === 'host-terminal' || win.kind === 'system-logs'
+  const lockScroll =
+    win.kind === 'host-terminal' ||
+    win.kind === 'system-logs' ||
+    win.kind === 'installed-app' ||
+    win.kind === 'app-catalog'
 
   return (
     <motion.div
@@ -296,9 +300,16 @@ export function Window({ win, children }: Props) {
         onDoubleClick={() => maximizeWindow(win.id)}
       >
         <div className="flex items-center gap-2 min-w-0 pr-3 pointer-events-none">
-          <AppIcon kind={win.kind} size={16} />
+          <AppIcon
+            kind={win.kind}
+            iconKey={typeof win.params?.iconKey === 'string' ? win.params.iconKey : undefined}
+            iconColor={typeof win.params?.iconColor === 'string' ? win.params.iconColor : undefined}
+            size={16}
+          />
           <span className="text-xs font-semibold truncate tracking-tight transition-colors duration-150" style={{ color: isFocused ? 'var(--win-text)' : 'var(--window-title-muted)' }}>
-            {t(windowTitleKey(win.kind))}
+            {win.kind === 'installed-app' && typeof win.params?.appName === 'string' && win.params.appName
+              ? win.params.appName
+              : t(windowTitleKey(win.kind))}
           </span>
         </div>
 
