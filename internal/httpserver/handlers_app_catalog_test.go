@@ -103,6 +103,34 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	}
 }
 
+func TestResolveCatalogImageVersion(t *testing.T) {
+	if got, err := resolveCatalogImage("louislam/uptime-kuma:1", ""); err != nil || got != "louislam/uptime-kuma:1" {
+		t.Fatalf("empty version should keep default, got %q err=%v", got, err)
+	}
+	if got, err := resolveCatalogImage("docker.n8n.io/n8nio/n8n:latest", "1.88.0"); err != nil || got != "docker.n8n.io/n8nio/n8n:1.88.0" {
+		t.Fatalf("expected custom tag applied, got %q err=%v", got, err)
+	}
+	if got, err := resolveCatalogImage("localhost:5000/myorg/app:1.0", "2.1-alpine"); err != nil || got != "localhost:5000/myorg/app:2.1-alpine" {
+		t.Fatalf("expected registry port preserved, got %q err=%v", got, err)
+	}
+	for _, bad := range []string{"latest;rm", "foo/bar", "1.0@sha256:abc", ".hidden", "has space"} {
+		if _, err := resolveCatalogImage("gitea/gitea:latest", bad); err == nil {
+			t.Fatalf("expected invalid version tag %q to fail", bad)
+		}
+	}
+}
+
+func TestReplaceComposeImageLine(t *testing.T) {
+	compose := "services:\n  app:\n    image: \"louislam/uptime-kuma:1\"\n    restart: unless-stopped\n"
+	out, ok := replaceComposeImageLine(compose, "louislam/uptime-kuma:1-slim")
+	if !ok {
+		t.Fatal("expected image line to be replaced")
+	}
+	if !strings.Contains(out, `    image: "louislam/uptime-kuma:1-slim"`) {
+		t.Fatalf("unexpected compose output:\n%s", out)
+	}
+}
+
 func TestAppCatalogSplitPath(t *testing.T) {
 	id, rest := appCatalogSplitPath("/api/v1/app-catalog/proxy/42/api/v1/status")
 	if id != "42" || rest != "api/v1/status" {

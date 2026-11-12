@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, Play, RotateCw, Square, Store, Trash2 } from 'lucide-react'
+import { ArrowUpCircle, ExternalLink, Pencil, Play, RotateCw, Square, Store, Trash2 } from 'lucide-react'
 import type { InstalledApp } from '@/api/appCatalog'
 import { InstalledAppBadge } from '@/components/common/AppIcon'
 import { Badge } from '@/components/ui/Badge'
@@ -15,6 +15,7 @@ interface InstalledAppsViewProps {
   isError: boolean
   busyAppId: number | null
   onContainerAction: (app: InstalledApp, action: 'start' | 'stop' | 'restart') => void
+  onUpgrade: (app: InstalledApp) => void
   onEdit: (app: InstalledApp) => void
   onUninstall: (app: InstalledApp) => void
 }
@@ -33,6 +34,7 @@ export function InstalledAppsView({
   isError,
   busyAppId,
   onContainerAction,
+  onUpgrade,
   onEdit,
   onUninstall,
 }: InstalledAppsViewProps) {
@@ -98,6 +100,16 @@ export function InstalledAppsView({
       <IconButton label={t('common.edit')} disabled={rowBusy} onClick={() => onEdit(app)}>
         <Pencil className="h-3.5 w-3.5" />
       </IconButton>
+
+      {app.kind !== 'custom-url' ? (
+        <IconButton
+          label={t('appCatalog.upgradeAction')}
+          disabled={rowBusy}
+          onClick={() => onUpgrade(app)}
+        >
+          <ArrowUpCircle className={`h-3.5 w-3.5 ${rowBusy ? 'animate-spin' : ''}`} />
+        </IconButton>
+      ) : null}
 
       <IconButton
         label={t('appCatalog.uninstallAction')}

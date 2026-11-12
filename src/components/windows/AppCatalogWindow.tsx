@@ -30,7 +30,7 @@ export function AppCatalogWindow() {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
   const { data, isLoading, isError, refetch, isFetching } = useAppCatalog()
-  const { actionMutation, uninstallMutation } = useAppCatalogMutations()
+  const { actionMutation, upgradeMutation, uninstallMutation } = useAppCatalogMutations()
 
   const [tab, setTab] = useState<CatalogTab>('catalog')
   const [viewMode, setViewMode] = useState<CatalogViewMode>(readStoredViewMode)
@@ -125,6 +125,27 @@ export function AppCatalogWindow() {
     try {
       await actionMutation.mutateAsync({ id: app.id, action })
       toast.success(t('appCatalog.containerActionSuccess'))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+    } finally {
+      setBusyAppId(null)
+    }
+  }
+
+  const handleUpgradeApp = async (app: InstalledApp) => {
+    const ok = await alertLib.confirm(
+      t('appCatalog.upgradeConfirmTitle'),
+      t('appCatalog.upgradeConfirmBody', { image: app.image }),
+      t('appCatalog.upgradeButton'),
+      t('common.cancel'),
+      'question',
+      'app-catalog',
+    )
+    if (!ok) return
+    setBusyAppId(app.id)
+    try {
+      const updated = await upgradeMutation.mutateAsync({ id: app.id })
+      toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
     } finally {
@@ -314,6 +335,7 @@ export function AppCatalogWindow() {
           isError={isError}
           busyAppId={busyAppId}
           onContainerAction={handleContainerAction}
+          onUpgrade={handleUpgradeApp}
           onEdit={handleOpenEdit}
           onUninstall={openUninstallConfirm}
         />

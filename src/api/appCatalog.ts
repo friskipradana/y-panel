@@ -27,6 +27,7 @@ export interface CatalogApp {
   iconKey: string
   iconColor: string
   image: string
+  versions?: string[]
   containerPort: number
   defaultHostPort: number
   openPath: string
@@ -76,6 +77,7 @@ export interface AppCatalogResponse {
 export interface InstallCatalogAppPayload {
   mode: 'catalog' | 'existing-container' | 'custom-url'
   catalogId?: string
+  version?: string
   containerId?: string
   name?: string
   tagline?: string
@@ -127,6 +129,15 @@ export async function runInstalledAppAction(
   const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
     `/api/v1/app-catalog/installed/${id}/action`,
     { action },
+  )
+  return data.app
+}
+
+export async function upgradeInstalledApp(id: number, version?: string): Promise<InstalledApp> {
+  const trimmed = version?.trim()
+  const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
+    `/api/v1/app-catalog/installed/${id}/upgrade`,
+    trimmed ? { version: trimmed } : {},
   )
   return data.app
 }

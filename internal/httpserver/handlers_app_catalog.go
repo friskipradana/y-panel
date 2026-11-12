@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -54,6 +56,7 @@ type CatalogApp struct {
 	IconKey         string              `json:"iconKey"`
 	IconColor       string              `json:"iconColor"`
 	Image           string              `json:"image"`
+	Versions        []string            `json:"versions,omitempty"`
 	ContainerPort   int                 `json:"containerPort"`
 	DefaultHostPort int                 `json:"defaultHostPort"`
 	OpenPath        string              `json:"openPath"`
@@ -78,6 +81,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "activity",
 		IconColor:       "emerald",
 		Image:           "louislam/uptime-kuma:1",
+		Versions:        []string{"1", "1-slim", "latest"},
 		ContainerPort:   3001,
 		DefaultHostPort: 18001,
 		OpenPath:        "/",
@@ -99,6 +103,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "folder",
 		IconColor:       "amber",
 		Image:           "filebrowser/filebrowser:latest",
+		Versions:        []string{"latest", "s6"},
 		ContainerPort:   80,
 		DefaultHostPort: 18002,
 		OpenPath:        "/",
@@ -124,6 +129,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "wrench",
 		IconColor:       "teal",
 		Image:           "corentinth/it-tools:latest",
+		Versions:        []string{"latest"},
 		ContainerPort:   80,
 		DefaultHostPort: 18003,
 		OpenPath:        "/",
@@ -139,6 +145,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "workflow",
 		IconColor:       "orange",
 		Image:           "docker.n8n.io/n8nio/n8n:latest",
+		Versions:        []string{"latest", "next"},
 		ContainerPort:   5678,
 		DefaultHostPort: 18004,
 		OpenPath:        "/",
@@ -165,6 +172,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "shield",
 		IconColor:       "indigo",
 		Image:           "vaultwarden/server:latest",
+		Versions:        []string{"latest", "alpine"},
 		ContainerPort:   80,
 		DefaultHostPort: 18005,
 		OpenPath:        "/",
@@ -188,6 +196,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "bar-chart",
 		IconColor:       "orange",
 		Image:           "grafana/grafana-oss:latest",
+		Versions:        []string{"latest", "main"},
 		ContainerPort:   3000,
 		DefaultHostPort: 18006,
 		OpenPath:        "/",
@@ -218,6 +227,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "file-text",
 		IconColor:       "rose",
 		Image:           "stirlingtools/stirling-pdf:latest",
+		Versions:        []string{"latest", "latest-fat", "latest-ultra-lite"},
 		ContainerPort:   8080,
 		DefaultHostPort: 18007,
 		OpenPath:        "/",
@@ -243,6 +253,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "pen-tool",
 		IconColor:       "violet",
 		Image:           "excalidraw/excalidraw:latest",
+		Versions:        []string{"latest"},
 		ContainerPort:   80,
 		DefaultHostPort: 18008,
 		OpenPath:        "/",
@@ -258,6 +269,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "git-branch",
 		IconColor:       "emerald",
 		Image:           "gitea/gitea:latest",
+		Versions:        []string{"latest", "1.23", "1.22", "rootless"},
 		ContainerPort:   3000,
 		DefaultHostPort: 18009,
 		OpenPath:        "/",
@@ -280,6 +292,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "notebook",
 		IconColor:       "sky",
 		Image:           "neosmemo/memos:stable",
+		Versions:        []string{"stable", "latest"},
 		ContainerPort:   5230,
 		DefaultHostPort: 18010,
 		OpenPath:        "/",
@@ -452,6 +465,7 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 type installCatalogAppRequest struct {
 	Mode          string            `json:"mode"` // "catalog" | "existing-container" | "custom-url"
 	CatalogID     string            `json:"catalogId"`
+	Version       string            `json:"version"`
 	ContainerID   string            `json:"containerId"`
 	Name          string            `json:"name"`
 	Tagline       string            `json:"tagline"`
@@ -463,6 +477,30 @@ type installCatalogAppRequest struct {
 	TargetURL     string            `json:"targetUrl"`
 	UseProxy      *bool             `json:"useProxy"`
 	Env           map[string]string `json:"env"`
+}
+
+var dockerTagRe = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
+
+func splitImageRepoTag(image string) (repo, tag string) {
+	trimmed := strings.TrimSpace(image)
+	lastSlash := strings.LastIndexByte(trimmed, '/')
+	lastColon := strings.LastIndexByte(trimmed, ':')
+	if lastColon > lastSlash {
+		return trimmed[:lastColon], trimmed[lastColon+1:]
+	}
+	return trimmed, "latest"
+}
+
+func resolveCatalogImage(baseImage, requestedVersion string) (string, error) {
+	tag := strings.TrimSpace(requestedVersion)
+	if tag == "" {
+		return baseImage, nil
+	}
+	if !dockerTagRe.MatchString(tag) {
+		return "", errors.New("tag versi image tidak valid (gunakan huruf, angka, titik, strip, atau garis bawah)")
+	}
+	repo, _ := splitImageRepoTag(baseImage)
+	return repo + ":" + tag, nil
 }
 
 func validateTargetURLForRole(rawURL, role string, willProxy bool) (string, error) {
@@ -558,6 +596,12 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
+	imageRef, imgErr := resolveCatalogImage(spec.Image, req.Version)
+	if imgErr != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": imgErr.Error()})
+		return
+	}
+
 	owner, err := s.resolveDockerOwnerContext(actor, actor.ID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
@@ -632,7 +676,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		IconKey:       iconKey,
 		IconColor:     iconColor,
 		Kind:          "docker",
-		Image:         spec.Image,
+		Image:         imageRef,
 		ContainerName: containerProject,
 		HostPort:      hostPort,
 		ContainerPort: spec.ContainerPort,
@@ -679,7 +723,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 
 	_, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
 		Name:  containerProject,
-		Image: spec.Image,
+		Image: imageRef,
 		Ports: []docker.PortBinding{{
 			HostPort:      strconv.Itoa(hostPort),
 			ContainerPort: strconv.Itoa(spec.ContainerPort),
@@ -694,7 +738,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
-	s.auditSensitiveAction(r, actor, "appcatalog.install", "ok", map[string]any{"catalogId": spec.ID, "name": name, "port": hostPort})
+	s.auditSensitiveAction(r, actor, "appcatalog.install", "ok", map[string]any{"catalogId": spec.ID, "image": imageRef, "name": name, "port": hostPort})
 	containers, _ := docker.ListContainers()
 	view := s.buildInstalledAppView(*created, containers, s.ownerScopeFor(actor))
 	s.writeJSON(w, http.StatusCreated, jsonResponse{"ok": true, "app": view})
@@ -985,6 +1029,150 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 	s.auditSensitiveAction(r, actor, "appcatalog.action", "ok", map[string]any{"appId": app.ID, "action": body.Action})
 	nextContainers, _ := docker.ListContainers()
 	view := s.buildInstalledAppView(*app, nextContainers, s.ownerScopeFor(actor))
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
+}
+
+var composeImageLineRe = regexp.MustCompile(`(?m)^([ \t]*image:[ \t]*)(?:["'][^"'\r\n]+["']|[^\s#\r\n]+)([ \t]*(?:#.*)?)$`)
+
+func replaceComposeImageLine(composeYAML, newImage string) (string, bool) {
+	replaced := false
+	updated := composeImageLineRe.ReplaceAllStringFunc(composeYAML, func(line string) string {
+		if replaced {
+			return line
+		}
+		sub := composeImageLineRe.FindStringSubmatch(line)
+		if len(sub) != 3 {
+			return line
+		}
+		replaced = true
+		return sub[1] + `"` + newImage + `"` + sub[2]
+	})
+	return updated, replaced
+}
+
+func filterNonDefaultEnvVars(env []docker.EnvVar) []docker.EnvVar {
+	out := make([]docker.EnvVar, 0, len(env))
+	for _, item := range env {
+		switch item.Key {
+		case "PATH", "HOME", "TERM", "HOSTNAME":
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	actor, app, code, err := s.loadOwnedInstalledApp(r)
+	if err != nil {
+		s.writeError(w, code, err)
+		return
+	}
+	if app.Kind != "docker" && app.Kind != "existing-container" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "pembaruan container hanya tersedia untuk aplikasi Docker"})
+		return
+	}
+
+	var body struct {
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON payload"})
+		return
+	}
+
+	owner, err := s.resolveDockerOwnerContext(actor, app.UserID)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	targetImage := strings.TrimSpace(app.Image)
+	if strings.TrimSpace(body.Version) != "" {
+		resolved, verErr := resolveCatalogImage(targetImage, body.Version)
+		if verErr != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": verErr.Error()})
+			return
+		}
+		targetImage = resolved
+	}
+	if targetImage == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "nama image aplikasi tidak ditemukan"})
+		return
+	}
+
+	if err := docker.PullImage(targetImage, nil); err != nil {
+		s.writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
+	if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
+		updatedCompose, ok := replaceComposeImageLine(string(rawCompose), targetImage)
+		if !ok {
+			s.writeJSON(w, http.StatusUnprocessableEntity, jsonResponse{"error": "gagal memperbarui baris image di compose.yml aplikasi"})
+			return
+		}
+		if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
+			Name:        app.ContainerName,
+			ComposeYAML: updatedCompose,
+		}); deployErr != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, deployErr)
+			return
+		}
+	} else {
+		containers, listErr := docker.ListContainers()
+		if listErr != nil {
+			s.writeError(w, http.StatusBadGateway, listErr)
+			return
+		}
+		matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor))
+		if matched == nil {
+			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "container aplikasi dan compose.yml tidak ditemukan"})
+			return
+		}
+		cfg, inspErr := docker.InspectContainerConfig(matched.ID)
+		if inspErr != nil {
+			s.writeError(w, http.StatusBadGateway, inspErr)
+			return
+		}
+		projectName := strings.TrimSpace(app.ContainerName)
+		if projectName == "" {
+			projectName = cfg.Name
+		}
+		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil {
+			s.writeError(w, http.StatusBadGateway, delErr)
+			return
+		}
+		if _, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
+			Name:    projectName,
+			Image:   targetImage,
+			Network: cfg.Network,
+			Ports:   cfg.Ports,
+			Env:     filterNonDefaultEnvVars(cfg.Env),
+			Volumes: cfg.Volumes,
+		}); deployErr != nil {
+			s.writeError(w, http.StatusUnprocessableEntity, deployErr)
+			return
+		}
+	}
+
+	updatedApp := app
+	if targetImage != app.Image {
+		if saved, saveErr := s.database.UpdateInstalledApp(app.ID, map[string]any{"image": targetImage}); saveErr == nil && saved != nil {
+			updatedApp = saved
+		}
+	}
+
+	s.auditSensitiveAction(r, actor, "appcatalog.upgrade", "ok", map[string]any{
+		"appId":     app.ID,
+		"name":      app.Name,
+		"prevImage": app.Image,
+		"nextImage": targetImage,
+	})
+	nextContainers, _ := docker.ListContainers()
+	view := s.buildInstalledAppView(*updatedApp, nextContainers, s.ownerScopeFor(actor))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
 }
 

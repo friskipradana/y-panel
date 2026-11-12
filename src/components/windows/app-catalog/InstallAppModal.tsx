@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
+import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   CatalogApp,
@@ -18,11 +18,23 @@ import { Modal } from '@/components/ui/Modal'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Select } from '@/components/ui/Select'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
-import { useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import { useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 
 type InstallMode = 'existing-container' | 'custom-url'
+
+const CUSTOM_VERSION_SENTINEL = '__custom__'
+
+function splitImageRepoTag(image: string): { repo: string; tag: string } {
+  const trimmed = image.trim()
+  const lastSlash = trimmed.lastIndexOf('/')
+  const lastColon = trimmed.lastIndexOf(':')
+  if (lastColon > lastSlash) {
+    return { repo: trimmed.slice(0, lastColon), tag: trimmed.slice(lastColon + 1) }
+  }
+  return { repo: trimmed, tag: 'latest' }
+}
 
 interface CustomEnvEntry {
   key: string
@@ -58,7 +70,8 @@ export function InstallAppModal({
   const { t, language } = useI18n()
   const userRole = useAuthStore((s) => s.user?.role || '')
   const isSuperadmin = userRole.toLowerCase() === 'superadmin'
-  const { installMutation, updateMutation } = useAppCatalogMutations()
+  const { data: catalogData } = useAppCatalog(open && Boolean(editingApp?.catalogId))
+  const { installMutation, updateMutation, upgradeMutation } = useAppCatalogMutations()
 
   const [mode, setMode] = useState<InstallMode>('existing-container')
   const [name, setName] = useState('')
@@ -70,6 +83,8 @@ export function InstallAppModal({
   const [containerId, setContainerId] = useState('')
   const [iconKey, setIconKey] = useState('globe')
   const [iconColor, setIconColor] = useState('blue')
+  const [selectedVersion, setSelectedVersion] = useState('')
+  const [customVersion, setCustomVersion] = useState('')
   const [envValues, setEnvValues] = useState<Record<string, string>>({})
   const [customEnvs, setCustomEnvs] = useState<CustomEnvEntry[]>([])
 
@@ -83,6 +98,7 @@ export function InstallAppModal({
   useEffect(() => {
     if (!open) return
     if (editingApp) {
+      const editParsed = editingApp.image ? splitImageRepoTag(editingApp.image) : null
       setName(editingApp.name)
       setTagline(editingApp.tagline || '')
       setHostPort(editingApp.hostPort ? String(editingApp.hostPort) : '')
@@ -91,11 +107,15 @@ export function InstallAppModal({
       setUseProxy(editingApp.useProxy)
       setIconKey(editingApp.iconKey || 'globe')
       setIconColor(editingApp.iconColor || 'blue')
+      setSelectedVersion(editParsed?.tag || '')
+      setCustomVersion('')
       setEnvValues({})
       setCustomEnvs([])
       return
     }
     if (catalogApp) {
+      const { tag: defaultTag } = splitImageRepoTag(catalogApp.image)
+      const initialVersion = catalogApp.versions?.[0] || defaultTag
       setName(catalogApp.name)
       setTagline(language === 'id' ? catalogApp.taglineId : catalogApp.taglineEn)
       setHostPort(String(catalogApp.defaultHostPort || ''))
@@ -105,6 +125,8 @@ export function InstallAppModal({
       setContainerId('')
       setIconKey(catalogApp.iconKey || 'box')
       setIconColor(catalogApp.iconColor || 'blue')
+      setSelectedVersion(initialVersion)
+      setCustomVersion('')
       const nextEnv: Record<string, string> = {}
       for (const spec of catalogApp.env || []) {
         nextEnv[spec.key] = spec.defaultValue || ''
@@ -160,14 +182,74 @@ export function InstallAppModal({
   const iconKeySelectOptions = useMemo(() => ICON_KEY_OPTIONS.map((k) => ({ value: k, label: k })), [])
   const iconColorSelectOptions = useMemo(() => ICON_COLOR_OPTIONS.map((c) => ({ value: c, label: c })), [])
 
+  const editingCatalogApp = useMemo(
+    () => (editingApp?.catalogId ? catalogData?.catalog.find((c) => c.id === editingApp.catalogId) : undefined),
+    [catalogData?.catalog, editingApp?.catalogId],
+  )
+
+  const { imageRepo, defaultTag, versionOptions, effectiveVersion, resolvedImage } = useMemo(() => {
+    const sourceImage = catalogApp
+      ? catalogApp.image
+      : editingApp && editingApp.kind !== 'custom-url'
+        ? editingApp.image
+        : ''
+    if (!sourceImage) {
+      return {
+        imageRepo: '',
+        defaultTag: '',
+        versionOptions: [] as { value: string; label: string }[],
+        effectiveVersion: '',
+        resolvedImage: '',
+      }
+    }
+    const parsed = splitImageRepoTag(sourceImage)
+    const presetSource = catalogApp?.versions ?? editingCatalogApp?.versions ?? []
+    const rawList = presetSource.length ? presetSource : [parsed.tag]
+    const unique = rawList.includes(parsed.tag) ? rawList : [parsed.tag, ...rawList]
+    const options = [
+      ...unique.map((v) => ({
+        value: v,
+        label: v === parsed.tag ? `${v} ${t('appCatalog.versionDefaultSuffix')}` : v,
+      })),
+      { value: CUSTOM_VERSION_SENTINEL, label: t('appCatalog.versionCustomOption') },
+    ]
+    const chosen =
+      selectedVersion === CUSTOM_VERSION_SENTINEL
+        ? customVersion.trim() || parsed.tag
+        : selectedVersion || parsed.tag
+    return {
+      imageRepo: parsed.repo,
+      defaultTag: parsed.tag,
+      versionOptions: options,
+      effectiveVersion: chosen,
+      resolvedImage: `${parsed.repo}:${chosen}`,
+    }
+  }, [catalogApp, editingApp, editingCatalogApp, selectedVersion, customVersion, t])
+
   const modeTabs: TabItem<InstallMode>[] = [
     { key: 'existing-container', label: t('appCatalog.modeExistingContainer'), icon: <Box className="h-3.5 w-3.5" /> },
     { key: 'custom-url', label: t('appCatalog.modeCustomUrl'), icon: <Globe className="h-3.5 w-3.5" /> },
   ]
 
-  const isBusy = installMutation.isPending || updateMutation.isPending
+  const isBusy = installMutation.isPending || updateMutation.isPending || upgradeMutation.isPending
   const isCustomUrlMode = editingApp ? editingApp.kind === 'custom-url' : !catalogApp && mode === 'custom-url'
   const showPortControls = !isCustomUrlMode
+  const showEditDockerVersion = Boolean(editingApp && editingApp.kind !== 'custom-url' && editingApp.image)
+  const versionChangedInEdit = showEditDockerVersion && Boolean(effectiveVersion && effectiveVersion !== defaultTag)
+
+  const handleDirectUpgrade = async () => {
+    if (!editingApp) return
+    try {
+      const updated = await upgradeMutation.mutateAsync({
+        id: editingApp.id,
+        version: versionChangedInEdit ? effectiveVersion : undefined,
+      })
+      toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
+      onSuccessApp?.(updated, false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -183,8 +265,16 @@ export function InstallAppModal({
         ...(editingApp.kind === 'custom-url' ? { targetUrl: targetUrl.trim() } : {}),
       }
       try {
-        const updated = await updateMutation.mutateAsync({ id: editingApp.id, payload: patch })
-        toast.success(t('appCatalog.updateSuccess'))
+        let updated = await updateMutation.mutateAsync({ id: editingApp.id, payload: patch })
+        if (versionChangedInEdit) {
+          updated = await upgradeMutation.mutateAsync({
+            id: editingApp.id,
+            version: effectiveVersion,
+          })
+          toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
+        } else {
+          toast.success(t('appCatalog.updateSuccess'))
+        }
         onSuccessApp?.(updated, false)
         onClose()
       } catch (err) {
@@ -204,6 +294,7 @@ export function InstallAppModal({
       ? {
           mode: 'catalog',
           catalogId: catalogApp.id,
+          version: effectiveVersion !== defaultTag ? effectiveVersion : undefined,
           name: name.trim() || catalogApp.name,
           tagline: tagline.trim(),
           iconKey,
@@ -251,9 +342,11 @@ export function InstallAppModal({
       ? `${t('appCatalog.installTitlePrefix')} ${catalogApp.name}`
       : t('appCatalog.customModalTitle')
 
-  const subtitle = catalogApp
-    ? `${catalogApp.image} — ${language === 'id' ? catalogApp.descriptionId : catalogApp.descriptionEn}`
-    : undefined
+  const subtitle = editingApp
+    ? editingApp.image || editingApp.targetUrl
+    : catalogApp
+      ? `${resolvedImage} — ${language === 'id' ? catalogApp.descriptionId : catalogApp.descriptionEn}`
+      : undefined
 
   const notes = catalogApp ? (language === 'id' ? catalogApp.notesId : catalogApp.notesEn) : ''
   const targetPortHint = catalogApp
@@ -334,6 +427,77 @@ export function InstallAppModal({
             <Select value={iconColor} onChange={setIconColor} options={iconColorSelectOptions} />
           </Field>
         </div>
+
+        {catalogApp && !editingApp ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field
+              label={t('appCatalog.versionLabel')}
+              hint={t('appCatalog.versionImageHint', { image: `${imageRepo}:${effectiveVersion}` })}
+            >
+              <Select
+                value={selectedVersion || defaultTag}
+                onChange={setSelectedVersion}
+                options={versionOptions}
+              />
+            </Field>
+            {selectedVersion === CUSTOM_VERSION_SENTINEL ? (
+              <Field label={t('appCatalog.versionCustomOption')}>
+                <TextInput
+                  mono
+                  value={customVersion}
+                  onChange={(e) => setCustomVersion(e.target.value)}
+                  placeholder={t('appCatalog.versionCustomPlaceholder')}
+                  required
+                />
+              </Field>
+            ) : null}
+          </div>
+        ) : showEditDockerVersion ? (
+          <div className="app-catalog-volume-list space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="panel-mono text-[11.5px] text-[var(--win-text)] truncate">
+                {t('appCatalog.versionCurrentLabel', { image: editingApp?.image || '' })}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="primary-soft"
+                icon={<ArrowUpCircle className="h-3.5 w-3.5" />}
+                loading={upgradeMutation.isPending}
+                disabled={isBusy}
+                onClick={handleDirectUpgrade}
+              >
+                {versionChangedInEdit ? t('appCatalog.upgradeApplyVersion') : t('appCatalog.upgradeButton')}
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field
+                label={t('appCatalog.versionLabel')}
+                hint={t('appCatalog.versionImageHint', { image: resolvedImage })}
+              >
+                <Select
+                  value={selectedVersion || defaultTag}
+                  onChange={setSelectedVersion}
+                  options={versionOptions}
+                />
+              </Field>
+              {selectedVersion === CUSTOM_VERSION_SENTINEL ? (
+                <Field label={t('appCatalog.versionCustomOption')}>
+                  <TextInput
+                    mono
+                    value={customVersion}
+                    onChange={(e) => setCustomVersion(e.target.value)}
+                    placeholder={t('appCatalog.versionCustomPlaceholder')}
+                    required
+                  />
+                </Field>
+              ) : null}
+            </div>
+            <p className="text-[11.5px] text-[var(--text-secondary)] m-0">
+              {t('appCatalog.versionKeepDataHint')}
+            </p>
+          </div>
+        ) : null}
 
         {isCustomUrlMode ? (
           <Field label={t('appCatalog.targetUrlLabel')}>

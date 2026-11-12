@@ -6,6 +6,7 @@ import {
   runInstalledAppAction,
   uninstallCatalogApp,
   updateInstalledApp,
+  upgradeInstalledApp,
   type InstallCatalogAppPayload,
   type InstalledApp,
   type UpdateInstalledAppPayload,
@@ -85,6 +86,12 @@ export function useAppCatalogMutations() {
     onSuccess: invalidate,
   })
 
+  const upgradeMutation = useMutation({
+    mutationFn: ({ id, version }: { id: number; version?: string }) =>
+      upgradeInstalledApp(id, version),
+    onSuccess: invalidate,
+  })
+
   const uninstallMutation = useMutation({
     mutationFn: ({
       id,
@@ -105,6 +112,7 @@ export function useAppCatalogMutations() {
     installMutation,
     updateMutation,
     actionMutation,
+    upgradeMutation,
     uninstallMutation,
   }
 }

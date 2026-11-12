@@ -141,6 +141,7 @@ func (m *Manager) UpdateInstalledApp(id int64, patch map[string]any) (*Installed
 		"category":   "category",
 		"iconKey":    "icon_key",
 		"iconColor":  "icon_color",
+		"image":      "image",
 		"openPath":   "open_path",
 		"targetUrl":  "target_url",
 		"useProxy":   "use_proxy",
