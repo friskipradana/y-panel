@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.7] - 2026-11-12
+
+Implement secure token-based access and enhanced UI controls.
+
+### Fitur baru
+- **kvm:** Implement secure token-based access and enhanced UI controls ([`d856895`](https://github.com/friskipradana/y-panel/commit/d856895))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.6...v1.80.7
+
 ## [1.80.6] - 2026-11-12
 
 Improve Linux PTY attribute handling and systemd-run support.
