@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.0] - 2026-11-12
+
+2 perubahan, utamanya implement catalog app quota management.
+
+### Fitur baru
+- **hosting:** Implement catalog app quota management ([`741c527`](https://github.com/friskipradana/y-panel/commit/741c527))
+
+### Peningkatan
+- **app-catalog:** Improve docker deployment and app configuration ([`4997f2e`](https://github.com/friskipradana/y-panel/commit/4997f2e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.81.4...v1.82.0
+
 ## [1.81.4] - 2026-11-12
 
 Add app version management and upgrade capability.
