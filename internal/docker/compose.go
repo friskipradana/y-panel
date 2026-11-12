@@ -21,7 +21,7 @@ func namespaceComposeContainerNames(content, projectName string) string {
 			return line
 		}
 		name := slugify(strings.TrimSpace(match[3]))
-		if name == "" || strings.HasPrefix(name, projectName+"-") {
+		if name == "" || name == projectName || strings.HasPrefix(name, projectName+"-") {
 			return line
 		}
 		return match[1] + match[2] + projectName + "-" + name + match[4] + match[5]
@@ -133,11 +133,17 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 		b.WriteString("    networks:\n")
 		b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(network)))
 	}
-	b.WriteString("    deploy:\n")
-	b.WriteString("      resources:\n")
-	b.WriteString("        limits:\n")
-	b.WriteString(fmt.Sprintf("          cpus: \"%.2f\"\n", cpuQuota(owner.CPULimitPct)))
-	b.WriteString(fmt.Sprintf("          memory: %s\n", yamlScalar(fmt.Sprintf("%dM", owner.MemoryLimitMB))))
+	if owner.CPULimitPct > 0 || owner.MemoryLimitMB > 0 {
+		b.WriteString("    deploy:\n")
+		b.WriteString("      resources:\n")
+		b.WriteString("        limits:\n")
+		if owner.CPULimitPct > 0 {
+			b.WriteString(fmt.Sprintf("          cpus: \"%.2f\"\n", cpuQuota(owner.CPULimitPct)))
+		}
+		if owner.MemoryLimitMB > 0 {
+			b.WriteString(fmt.Sprintf("          memory: %s\n", yamlScalar(fmt.Sprintf("%dM", owner.MemoryLimitMB))))
+		}
+	}
 	if network != "" && !builtinNetwork(network) {
 		b.WriteString("networks:\n")
 		b.WriteString(fmt.Sprintf("  %s:\n", yamlScalar(network)))
@@ -151,7 +157,7 @@ func runComposeUp(projectDir, composePath, projectName string) error {
 	if strings.TrimSpace(projectName) != "" {
 		args = append(args, "-p", projectName)
 	}
-	args = append(args, "up", "-d")
+	args = append(args, "up", "-d", "--remove-orphans")
 	cmd := exec.Command("docker", args...)
 	cmd.Dir = projectDir
 	if output, err := cmd.CombinedOutput(); err != nil {

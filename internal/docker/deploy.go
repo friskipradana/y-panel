@@ -202,9 +202,10 @@ func normalizeVolumes(owner OwnerContext, items []VolumeBinding) ([]VolumeBindin
 		if err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(resolved, 0755); err != nil {
+		if err := os.MkdirAll(resolved, 0777); err != nil {
 			return nil, fmt.Errorf("prepare volume path: %w", err)
 		}
+		_ = os.Chmod(resolved, 0777)
 		volumes = append(volumes, VolumeBinding{HostPath: resolved, ContainerPath: containerPath, ReadOnly: item.ReadOnly})
 	}
 	return volumes, nil

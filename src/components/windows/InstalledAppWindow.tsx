@@ -70,12 +70,10 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   }
 
   const isContainer = app.kind === 'docker' || app.kind === 'existing-container'
-  const isRunning = !isContainer || app.containerState === 'running'
+  const isRunning = !isContainer || app.containerState === 'running' || app.containerState === 'restarting'
   const isMissing = isContainer && app.containerState === 'missing'
   const openUrl = installedAppOpenUrl(app)
-  const iframeSrc = reloadNonce > 0
-    ? `${openUrl}${openUrl.includes('?') ? '&' : '?'}_r=${reloadNonce}`
-    : openUrl
+  const iframeSrc = openUrl
   const endpointLabel =
     app.kind === 'custom-url'
       ? app.targetUrl
@@ -217,9 +215,20 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
           <ErrorState
             title={t('appCatalog.containerMissingError')}
             action={
-              <Button size="sm" variant="outline" onClick={() => refetch()}>
-                {t('common.refresh')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  icon={<Play className="h-3.5 w-3.5" />}
+                  loading={actionMutation.isPending}
+                  onClick={() => handleAction('start')}
+                >
+                  {t('appCatalog.startContainer')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => refetch()}>
+                  {t('common.refresh')}
+                </Button>
+              </div>
             }
           />
         ) : !isRunning ? (

@@ -113,9 +113,18 @@ var builtinCatalogApps = []CatalogApp{
 		Volumes: []catalogVolumeSpec{
 			{HostSubdir: "srv", ContainerPath: "/srv", Label: "Direktori berkas"},
 			{HostSubdir: "database", ContainerPath: "/database", Label: "Database konfigurasi"},
+			{HostSubdir: "config", ContainerPath: "/config", Label: "Konfigurasi FileBrowser"},
+		},
+		Env: []catalogEnvSpec{
+			{Key: "FB_DATABASE", DefaultValue: "/database/filebrowser.db", LabelID: "Lokasi Database", LabelEN: "Database Path"},
+			{Key: "FB_ROOT", DefaultValue: "/srv", LabelID: "Direktori Berkas", LabelEN: "Files Root Path"},
 		},
 		ProxyEnv: map[string]string{
-			"FB_BASEURL": "{{PROXY_PREFIX}}",
+			"FB_DATABASE": "/database/filebrowser.db",
+			"FB_ROOT":     "/srv",
+			"FB_PORT":     "80",
+			"FB_ADDRESS":  "0.0.0.0",
+			"FB_BASEURL":  "{{PROXY_PREFIX}}",
 		},
 	},
 	{
@@ -149,7 +158,6 @@ var builtinCatalogApps = []CatalogApp{
 		ContainerPort:   5678,
 		DefaultHostPort: 18004,
 		OpenPath:        "/",
-		KeepPrefix:      true,
 		Volumes: []catalogVolumeSpec{
 			{HostSubdir: "data", ContainerPath: "/home/node/.n8n", Label: "Workflow & kredensial n8n"},
 		},
@@ -158,7 +166,7 @@ var builtinCatalogApps = []CatalogApp{
 			{Key: "N8N_SECURE_COOKIE", DefaultValue: "false", LabelID: "Cookie HTTPS Ketat (false untuk akses LAN/HTTP)", LabelEN: "Strict HTTPS Cookie (false for HTTP/LAN proxy)"},
 		},
 		ProxyEnv: map[string]string{
-			"N8N_PATH": "{{PROXY_PREFIX}}/",
+			"N8N_LISTEN_ADDRESS": "0.0.0.0",
 		},
 	},
 	{
@@ -231,15 +239,11 @@ var builtinCatalogApps = []CatalogApp{
 		ContainerPort:   8080,
 		DefaultHostPort: 18007,
 		OpenPath:        "/",
-		KeepPrefix:      true,
 		Volumes: []catalogVolumeSpec{
 			{HostSubdir: "configs", ContainerPath: "/configs", Label: "Konfigurasi Stirling-PDF"},
 		},
 		Env: []catalogEnvSpec{
 			{Key: "DOCKER_ENABLE_SECURITY", DefaultValue: "false", LabelID: "Aktifkan Login Tambahan", LabelEN: "Enable Built-in Login"},
-		},
-		ProxyEnv: map[string]string{
-			"SERVER_SERVLET_CONTEXT_PATH": "{{PROXY_PREFIX}}",
 		},
 	},
 	{
@@ -381,6 +385,13 @@ func (s *Server) uniqueAppSlug(userID int64, base string) string {
 	return fmt.Sprintf("%s-%d", slug, time.Now().Unix()%10000)
 }
 
+func effectiveKeepPrefix(app database.InstalledApp, meta appConfigMeta) bool {
+	if app.CatalogID == "n8n" || app.CatalogID == "stirling-pdf" {
+		return false
+	}
+	return meta.KeepPrefix
+}
+
 func matchContainerForApp(app database.InstalledApp, containers []docker.Container, scope ownerScope) *docker.Container {
 	if app.ContainerName == "" {
 		return nil
@@ -392,9 +403,13 @@ func matchContainerForApp(app database.InstalledApp, containers []docker.Contain
 			continue
 		}
 		for _, name := range c.Names {
-			if strings.TrimPrefix(name, "/") == want {
+			clean := strings.TrimPrefix(name, "/")
+			if clean == want || clean == want+"-"+want || strings.HasPrefix(clean, want+"-") {
 				return c
 			}
+		}
+		if strings.EqualFold(strings.TrimSpace(c.ProjectName), want) {
+			return c
 		}
 	}
 	return nil
@@ -408,7 +423,7 @@ func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []d
 	}
 	view := installedAppView{
 		InstalledApp: app,
-		KeepPrefix:   meta.KeepPrefix,
+		KeepPrefix:   effectiveKeepPrefix(app, meta),
 		ProxyPath:    proxyPath,
 	}
 	if app.Kind == "docker" || app.Kind == "existing-container" {
@@ -451,6 +466,37 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 
 	containers, _ := docker.ListContainers()
 	scope := s.ownerScopeFor(actor)
+	repairedAny := false
+	for _, item := range installed {
+		if item.Kind != "docker" || strings.TrimSpace(item.ContainerName) == "" {
+			continue
+		}
+		matched := matchContainerForApp(item, containers, scope)
+		owner, ownerErr := s.resolveDockerOwnerContext(actor, item.UserID)
+		if ownerErr != nil {
+			continue
+		}
+		composePath := filepath.Join(owner.DockerRootDir, item.ContainerName, "compose.yml")
+		rawCompose, readErr := os.ReadFile(composePath)
+		if readErr != nil || len(rawCompose) == 0 {
+			continue
+		}
+		sanitized, changed := sanitizeExistingAppCompose(string(rawCompose), item.ContainerName, item.CatalogID)
+		if changed || matched == nil {
+			ensureAppVolumePermissions(owner, item.ContainerName)
+			_ = docker.DeleteContainer(item.ContainerName+"-"+item.ContainerName, false, false)
+			if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
+				Name:        item.ContainerName,
+				ComposeYAML: sanitized,
+			}); deployErr == nil {
+				ensureAppVolumePermissions(owner, item.ContainerName)
+				repairedAny = true
+			}
+		}
+	}
+	if repairedAny {
+		containers, _ = docker.ListContainers()
+	}
 	views := make([]installedAppView, 0, len(installed))
 	for _, item := range installed {
 		views = append(views, s.buildInstalledAppView(item, containers, scope))
@@ -738,6 +784,9 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
+	ensureAppVolumePermissions(owner, containerProject)
+	waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(hostPort))}, 2500*time.Millisecond)
+
 	s.auditSensitiveAction(r, actor, "appcatalog.install", "ok", map[string]any{"catalogId": spec.ID, "image": imageRef, "name": name, "port": hostPort})
 	containers, _ := docker.ListContainers()
 	view := s.buildInstalledAppView(*created, containers, s.ownerScopeFor(actor))
@@ -1004,13 +1053,21 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	actionName := strings.ToLower(strings.TrimSpace(body.Action))
 	matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor))
+	if matched == nil && (actionName == "start" || actionName == "restart") {
+		_, matched = s.healAndResolveAppTargets(actor, app)
+	}
 	if matched == nil {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "container aplikasi tidak ditemukan"})
 		return
 	}
 
-	switch strings.ToLower(strings.TrimSpace(body.Action)) {
+	if owner, ownerErr := s.resolveDockerOwnerContext(actor, app.UserID); ownerErr == nil {
+		ensureAppVolumePermissions(owner, app.ContainerName)
+	}
+
+	switch actionName {
 	case "start":
 		err = docker.StartContainer(matched.ID)
 	case "stop":
@@ -1024,6 +1081,9 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
+	}
+	if (actionName == "start" || actionName == "restart") && app.HostPort > 0 {
+		waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort))}, 2000*time.Millisecond)
 	}
 
 	s.auditSensitiveAction(r, actor, "appcatalog.action", "ok", map[string]any{"appId": app.ID, "action": body.Action})
@@ -1108,8 +1168,13 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	}
 
 	composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
+	ensureAppVolumePermissions(owner, app.ContainerName)
+	if app.ContainerName != "" {
+		_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, false, false)
+	}
 	if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
-		updatedCompose, ok := replaceComposeImageLine(string(rawCompose), targetImage)
+		sanitized, _ := sanitizeExistingAppCompose(string(rawCompose), app.ContainerName, app.CatalogID)
+		updatedCompose, ok := replaceComposeImageLine(sanitized, targetImage)
 		if !ok {
 			s.writeJSON(w, http.StatusUnprocessableEntity, jsonResponse{"error": "gagal memperbarui baris image di compose.yml aplikasi"})
 			return
@@ -1156,6 +1221,11 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 			s.writeError(w, http.StatusUnprocessableEntity, deployErr)
 			return
 		}
+	}
+
+	ensureAppVolumePermissions(owner, app.ContainerName)
+	if app.HostPort > 0 {
+		waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort))}, 2500*time.Millisecond)
 	}
 
 	updatedApp := app
@@ -1425,6 +1495,275 @@ func rewriteCookiePath(cookieHeader, prefix string) string {
 	return strings.Join(parts, ";")
 }
 
+var zeroMemoryDeployRe = regexp.MustCompile(`(?m)\n[ \t]*deploy:\r?\n[ \t]*resources:\r?\n[ \t]*limits:\r?\n(?:[ \t]*cpus:[ \t]*"[^"]*"\r?\n)?[ \t]*memory:[ \t]*"0M"`)
+
+func ensureAppVolumePermissions(owner docker.OwnerContext, containerName string) bool {
+	if strings.TrimSpace(owner.DockerRootDir) == "" || strings.TrimSpace(containerName) == "" {
+		return false
+	}
+	projectDir := filepath.Join(owner.DockerRootDir, strings.TrimSpace(containerName))
+	entries, err := os.ReadDir(projectDir)
+	if err != nil {
+		return false
+	}
+	changed := false
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		dirPath := filepath.Join(projectDir, entry.Name())
+		if info, statErr := os.Stat(dirPath); statErr == nil && info.Mode().Perm() != 0777 {
+			if chmodErr := os.Chmod(dirPath, 0777); chmodErr == nil {
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+func sanitizeExistingAppCompose(composeYAML, projectName, catalogID string) (string, bool) {
+	updated := composeYAML
+	changed := false
+
+	if projectName != "" {
+		doubled := projectName + "-" + projectName
+		if strings.Contains(updated, doubled) {
+			updated = strings.ReplaceAll(updated, doubled, projectName)
+			changed = true
+		}
+	}
+
+	if zeroMemoryDeployRe.MatchString(updated) {
+		updated = zeroMemoryDeployRe.ReplaceAllString(updated, "")
+		changed = true
+	}
+
+	if catalogID == "filebrowser" && !strings.Contains(updated, "FB_DATABASE:") {
+		if strings.Contains(updated, "    environment:\n") {
+			updated = strings.Replace(updated, "    environment:\n", "    environment:\n      FB_DATABASE: \"/database/filebrowser.db\"\n      FB_ROOT: \"/srv\"\n      FB_PORT: \"80\"\n      FB_ADDRESS: \"0.0.0.0\"\n", 1)
+			changed = true
+		}
+	}
+
+	if catalogID == "n8n" && strings.Contains(updated, "N8N_PATH:") {
+		re := regexp.MustCompile(`(?m)^[ \t]*N8N_PATH:.*\r?\n`)
+		updated = re.ReplaceAllString(updated, "")
+		changed = true
+	}
+
+	if catalogID == "stirling-pdf" && strings.Contains(updated, "SERVER_SERVLET_CONTEXT_PATH:") {
+		re := regexp.MustCompile(`(?m)^[ \t]*SERVER_SERVLET_CONTEXT_PATH:.*\r?\n`)
+		updated = re.ReplaceAllString(updated, "")
+		changed = true
+	}
+
+	return updated, changed
+}
+
+func waitForAppHTTPReady(hosts []string, maxWait time.Duration) (string, bool) {
+	if len(hosts) == 0 {
+		return "", false
+	}
+	client := &http.Client{
+		Timeout: 450 * time.Millisecond,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	deadline := time.Now().Add(maxWait)
+	for {
+		for _, host := range hosts {
+			if strings.TrimSpace(host) == "" {
+				continue
+			}
+			resp, err := client.Get("http://" + host + "/")
+			if err == nil {
+				_ = resp.Body.Close()
+				return host, true
+			}
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(180 * time.Millisecond)
+	}
+	return "", false
+}
+
+func appendUniqueHost(list []string, host string) []string {
+	trimmed := strings.TrimSpace(host)
+	if trimmed == "" {
+		return list
+	}
+	for _, item := range list {
+		if strings.EqualFold(item, trimmed) {
+			return list
+		}
+	}
+	return append(list, trimmed)
+}
+
+func (s *Server) collectAppCandidateHosts(actor *database.User, app *database.InstalledApp) ([]string, *docker.Container) {
+	var hosts []string
+	if app.HostPort > 0 {
+		hosts = appendUniqueHost(hosts, net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort)))
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		return hosts, nil
+	}
+	matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor))
+	if matched == nil {
+		return hosts, nil
+	}
+	for _, p := range matched.Ports {
+		if p.PublicPort > 0 {
+			hosts = appendUniqueHost(hosts, net.JoinHostPort("127.0.0.1", strconv.Itoa(p.PublicPort)))
+		}
+	}
+	cPort := app.ContainerPort
+	if cPort <= 0 {
+		for _, p := range matched.Ports {
+			if p.PrivatePort > 0 {
+				cPort = p.PrivatePort
+				break
+			}
+		}
+	}
+	if cPort > 0 {
+		for _, ip := range matched.IPAddresses {
+			if strings.TrimSpace(ip) != "" {
+				hosts = appendUniqueHost(hosts, net.JoinHostPort(strings.TrimSpace(ip), strconv.Itoa(cPort)))
+			}
+		}
+	}
+	return hosts, matched
+}
+
+func (s *Server) healAndResolveAppTargets(actor *database.User, app *database.InstalledApp) ([]string, *docker.Container) {
+	if app.Kind != "docker" && app.Kind != "existing-container" {
+		return nil, nil
+	}
+	permsFixed := false
+	composeRepaired := false
+	if owner, err := s.resolveDockerOwnerContext(actor, app.UserID); err == nil {
+		if app.CatalogID == "filebrowser" && app.ContainerName != "" {
+			cfgDir := filepath.Join(owner.DockerRootDir, app.ContainerName, "config")
+			_ = os.MkdirAll(cfgDir, 0777)
+			_ = os.Chmod(cfgDir, 0777)
+		}
+		permsFixed = ensureAppVolumePermissions(owner, app.ContainerName)
+		if app.ContainerName != "" {
+			composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
+			if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
+				if sanitized, changed := sanitizeExistingAppCompose(string(rawCompose), app.ContainerName, app.CatalogID); changed {
+					_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, false, false)
+					if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
+						Name:        app.ContainerName,
+						ComposeYAML: sanitized,
+					}); deployErr == nil {
+						composeRepaired = true
+						ensureAppVolumePermissions(owner, app.ContainerName)
+					}
+				}
+			}
+		}
+	}
+
+	hosts, matched := s.collectAppCandidateHosts(actor, app)
+	if matched == nil && !composeRepaired {
+		if owner, err := s.resolveDockerOwnerContext(actor, app.UserID); err == nil && app.ContainerName != "" {
+			composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
+			if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
+				sanitized, _ := sanitizeExistingAppCompose(string(rawCompose), app.ContainerName, app.CatalogID)
+				if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
+					Name:        app.ContainerName,
+					ComposeYAML: sanitized,
+				}); deployErr == nil {
+					ensureAppVolumePermissions(owner, app.ContainerName)
+					hosts, matched = s.collectAppCandidateHosts(actor, app)
+				}
+			}
+		}
+	} else if matched != nil && !composeRepaired {
+		state := strings.ToLower(strings.TrimSpace(matched.State))
+		if state == "exited" || state == "created" || state == "dead" {
+			_ = docker.StartContainer(matched.ID)
+			hosts, matched = s.collectAppCandidateHosts(actor, app)
+		} else if permsFixed && (state == "restarting" || matched.RestartCount > 0) {
+			_ = docker.RestartContainer(matched.ID)
+			hosts, matched = s.collectAppCandidateHosts(actor, app)
+		}
+	}
+	return hosts, matched
+}
+
+type appCatalogRoundTripper struct {
+	base       http.RoundTripper
+	server     *Server
+	actor      *database.User
+	app        *database.InstalledApp
+	targetURL  *url.URL
+	keepPrefix bool
+	prefix     string
+}
+
+func (rt *appCatalogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := rt.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	resp, err := base.RoundTrip(req)
+	if err == nil || rt.app.Kind == "custom-url" {
+		return resp, err
+	}
+	if strings.EqualFold(req.Header.Get("Upgrade"), "websocket") {
+		return nil, err
+	}
+	method := req.Method
+	if method != http.MethodGet && method != http.MethodHead && method != http.MethodOptions {
+		return nil, err
+	}
+
+	hosts, _ := rt.server.healAndResolveAppTargets(rt.actor, rt.app)
+	if len(hosts) == 0 {
+		return nil, err
+	}
+
+	deadline := time.Now().Add(3200 * time.Millisecond)
+	var lastErr error = err
+	for {
+		for _, host := range hosts {
+			if req.Context().Err() != nil {
+				return nil, lastErr
+			}
+			clone := req.Clone(req.Context())
+			clone.URL.Host = host
+			clone.Host = host
+			if clone.Header.Get("Origin") != "" {
+				clone.Header.Set("Origin", clone.URL.Scheme+"://"+host)
+			}
+			if ref := clone.Header.Get("Referer"); ref != "" {
+				if refURL, parseErr := url.Parse(ref); parseErr == nil {
+					refURL.Host = host
+					clone.Header.Set("Referer", refURL.String())
+				}
+			}
+			tryResp, tryErr := base.RoundTrip(clone)
+			if tryErr == nil {
+				rt.targetURL.Host = host
+				return tryResp, nil
+			}
+			lastErr = tryErr
+		}
+		if time.Now().After(deadline) || req.Context().Err() != nil {
+			break
+		}
+		time.Sleep(280 * time.Millisecond)
+	}
+	return nil, lastErr
+}
+
 func (s *Server) appCatalogProxy() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := userFromCtx(r)
@@ -1456,6 +1795,31 @@ func (s *Server) appCatalogProxy() http.Handler {
 			return
 		}
 
+		// Lightweight readiness probe from the waiting screen so iframe reloads only once the container answers.
+		if r.Header.Get("X-Reneo-Probe") == "1" {
+			w.Header().Set("Cache-Control", "no-store")
+			if app.Kind == "custom-url" {
+				w.Header().Set("X-Reneo-Proxy-State", "ready")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			hosts, _ := s.collectAppCandidateHosts(u, app)
+			if _, ok := waitForAppHTTPReady(hosts, 500*time.Millisecond); ok {
+				w.Header().Set("X-Reneo-Proxy-State", "ready")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			hosts, _ = s.healAndResolveAppTargets(u, app)
+			if _, ok := waitForAppHTTPReady(hosts, 700*time.Millisecond); ok {
+				w.Header().Set("X-Reneo-Proxy-State", "ready")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			w.Header().Set("X-Reneo-Proxy-State", "waiting")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		var targetURL *url.URL
 		if app.Kind == "custom-url" {
 			if !app.UseProxy {
@@ -1484,9 +1848,19 @@ func (s *Server) appCatalogProxy() http.Handler {
 		}
 
 		meta := parseAppConfigMeta(app.ConfigJSON)
+		keepPrefix := effectiveKeepPrefix(*app, meta)
 		prefix := strings.TrimSuffix(appCatalogProxyPrefix+idStr, "/")
 
 		proxy := &httputil.ReverseProxy{
+			Transport: &appCatalogRoundTripper{
+				base:       http.DefaultTransport,
+				server:     s,
+				actor:      u,
+				app:        app,
+				targetURL:  targetURL,
+				keepPrefix: keepPrefix,
+				prefix:     prefix,
+			},
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.Out.URL.Scheme = targetURL.Scheme
 				pr.Out.URL.Host = targetURL.Host
@@ -1507,7 +1881,7 @@ func (s *Server) appCatalogProxy() http.Handler {
 						if refURL, parseErr := url.Parse(ref); parseErr == nil {
 							refURL.Scheme = targetURL.Scheme
 							refURL.Host = targetURL.Host
-							if !meta.KeepPrefix && (refURL.Path == prefix || strings.HasPrefix(refURL.Path, prefix+"/")) {
+							if !keepPrefix && (refURL.Path == prefix || strings.HasPrefix(refURL.Path, prefix+"/")) {
 								refURL.Path = strings.TrimPrefix(refURL.Path, prefix)
 								if refURL.Path == "" {
 									refURL.Path = "/"
@@ -1517,7 +1891,7 @@ func (s *Server) appCatalogProxy() http.Handler {
 						}
 					}
 				}
-				if meta.KeepPrefix {
+				if keepPrefix {
 					pr.Out.URL.Path = pr.In.URL.Path
 					pr.Out.URL.RawPath = pr.In.URL.RawPath
 				} else {
@@ -1560,10 +1934,10 @@ func (s *Server) appCatalogProxy() http.Handler {
 				}
 
 				if loc := resp.Header.Get("Location"); loc != "" {
-					resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, prefix, meta.KeepPrefix))
+					resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, prefix, keepPrefix))
 				}
 
-				if !meta.KeepPrefix {
+				if !keepPrefix {
 					if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
 						resp.Header.Del("Set-Cookie")
 						for _, c := range cookies {
@@ -1593,14 +1967,40 @@ func (s *Server) appCatalogProxy() http.Handler {
 				}
 				return nil
 			},
-			ErrorHandler: func(rw http.ResponseWriter, _ *http.Request, _ error) {
+			ErrorHandler: func(rw http.ResponseWriter, req *http.Request, _ error) {
+				rw.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+				rw.Header().Set("X-Reneo-Proxy-State", "waiting")
 				rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-				rw.WriteHeader(http.StatusBadGateway)
+				if req.Method == http.MethodGet || req.Method == http.MethodHead {
+					rw.WriteHeader(http.StatusOK)
+				} else {
+					rw.WriteHeader(http.StatusBadGateway)
+				}
 				portLabel := strconv.Itoa(app.HostPort)
 				if app.Kind == "custom-url" {
 					portLabel = app.TargetURL
 				}
-				_, _ = io.WriteString(rw, `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light dark;--bg:#f8fafc;--card:#ffffff;--bd:#e2e8f0;--tx:#0f172a;--sub:#475569;--btn:#2563eb;--btx:#ffffff}@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#182132;--bd:#273549;--tx:#f1f5f9;--sub:#94a3b8;--btn:#3b82f6;--btx:#ffffff}}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);color:var(--tx);font:13px/1.55 system-ui,-apple-system,sans-serif}.box{max-width:400px;width:100%;padding:20px;border-radius:12px;border:1px solid var(--bd);background:var(--card)}.ttl{margin:0 0 6px;font-size:15px;font-weight:600}.dsc{margin:0 0 14px;color:var(--sub)}.btn{border:0;border-radius:8px;padding:8px 14px;background:var(--btn);color:var(--btx);font:600 12.5px inherit;cursor:pointer}.btn:hover{opacity:.92}</style></head><body><div class="box"><h3 class="ttl">Aplikasi sedang memulai atau belum merespons</h3><p class="dsc">Menunggu layanan aktif di <code style="font-family:ui-monospace,monospace">`+htmlEscapeMinimal(portLabel)+`</code>. Container baru biasanya butuh beberapa detik untuk siap.</p><button class="btn" onclick="location.reload()">Muat Ulang</button></div><script>(function(){var n=Number(sessionStorage.getItem("reneo_retry_"+location.pathname)||"0");if(n<8){sessionStorage.setItem("reneo_retry_"+location.pathname,String(n+1));setTimeout(function(){location.reload()},2500)}else{sessionStorage.removeItem("reneo_retry_"+location.pathname)}})()</script></body></html>`)
+				diagHTML := ""
+				if app.Kind != "custom-url" {
+					if _, matched := s.collectAppCandidateHosts(u, app); matched != nil {
+						statusLine := strings.TrimSpace(matched.Status)
+						if statusLine == "" {
+							statusLine = matched.State
+						}
+						logSnippet := ""
+						if logs, logErr := docker.ReadContainerLogs(matched.ID, 8); logErr == nil && len(logs.Lines) > 0 {
+							logSnippet = strings.TrimSpace(strings.Join(logs.Lines, "\n"))
+						}
+						if statusLine != "" || logSnippet != "" {
+							diagHTML = `<div class="diag"><div class="diag-hd">Status Container: <code>` + htmlEscapeMinimal(statusLine) + `</code></div>`
+							if logSnippet != "" {
+								diagHTML += `<pre class="diag-pre">` + htmlEscapeMinimal(logSnippet) + `</pre>`
+							}
+							diagHTML += `</div>`
+						}
+					}
+				}
+				_, _ = io.WriteString(rw, `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light dark;--bg:#f8fafc;--card:#ffffff;--bd:#e2e8f0;--tx:#0f172a;--sub:#475569;--btn:#2563eb;--btx:#ffffff;--pre:#f1f5f9}@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#182132;--bd:#273549;--tx:#f1f5f9;--sub:#94a3b8;--btn:#3b82f6;--btx:#ffffff;--pre:#0b1120}}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);color:var(--tx);font:13px/1.55 system-ui,-apple-system,sans-serif}.box{max-width:460px;width:100%;padding:20px;border-radius:12px;border:1px solid var(--bd);background:var(--card)}.ttl{margin:0 0 6px;font-size:15px;font-weight:600}.dsc{margin:0 0 14px;color:var(--sub)}.diag{margin:0 0 14px;padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--pre);font-size:12px}.diag-hd{margin-bottom:6px;color:var(--sub)}.diag-pre{margin:0;max-height:130px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:11.5px/1.45 ui-monospace,monospace;color:var(--tx)}.btn{border:0;border-radius:8px;padding:8px 14px;background:var(--btn);color:var(--btx);font:600 12.5px inherit;cursor:pointer}.btn:hover{opacity:.92}</style></head><body><div class="box"><h3 class="ttl">Aplikasi sedang memulai atau belum merespons</h3><p class="dsc">Menunggu layanan aktif di <code style="font-family:ui-monospace,monospace">`+htmlEscapeMinimal(portLabel)+`</code>. Halaman ini akan terbuka otomatis begitu layanan siap.</p>`+diagHTML+`<button class="btn" onclick="location.reload()">Muat Ulang</button></div><script>(function(){var tries=0;function poll(){if(tries>=24)return;tries++;fetch(location.href,{headers:{"X-Reneo-Probe":"1"},cache:"no-store"}).then(function(r){if(r.headers.get("X-Reneo-Proxy-State")==="ready"){location.reload();return}setTimeout(poll,2500)}).catch(function(){setTimeout(poll,3000)})}setTimeout(poll,2000)})()</script></body></html>`)
 			},
 		}
 

@@ -131,6 +131,23 @@ func TestReplaceComposeImageLine(t *testing.T) {
 	}
 }
 
+func TestSanitizeExistingAppCompose(t *testing.T) {
+	raw := "services:\n  reneo-app-1-fb:\n    image: \"filebrowser/filebrowser:latest\"\n    container_name: \"reneo-app-1-fb-reneo-app-1-fb\"\n    environment:\n      FB_BASEURL: \"/api/v1/app-catalog/proxy/3\"\n    deploy:\n      resources:\n        limits:\n          cpus: \"1.00\"\n          memory: \"0M\"\n"
+	cleaned, changed := sanitizeExistingAppCompose(raw, "reneo-app-1-fb", "filebrowser")
+	if !changed {
+		t.Fatal("expected compose to be sanitized")
+	}
+	if strings.Contains(cleaned, "reneo-app-1-fb-reneo-app-1-fb") {
+		t.Fatalf("expected doubled container_name fixed:\n%s", cleaned)
+	}
+	if strings.Contains(cleaned, `memory: "0M"`) {
+		t.Fatalf("expected zero memory limit stripped:\n%s", cleaned)
+	}
+	if !strings.Contains(cleaned, `FB_DATABASE: "/database/filebrowser.db"`) {
+		t.Fatalf("expected FB_DATABASE injected:\n%s", cleaned)
+	}
+}
+
 func TestAppCatalogSplitPath(t *testing.T) {
 	id, rest := appCatalogSplitPath("/api/v1/app-catalog/proxy/42/api/v1/status")
 	if id != "42" || rest != "api/v1/status" {
