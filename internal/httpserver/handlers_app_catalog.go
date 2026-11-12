@@ -597,23 +597,48 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		NotesEN:    spec.NotesEN,
 	})
 
+	tagline := strings.TrimSpace(req.Tagline)
+	if tagline == "" {
+		tagline = spec.TaglineID
+	}
+	iconKey := strings.TrimSpace(req.IconKey)
+	if iconKey == "" {
+		iconKey = spec.IconKey
+	}
+	iconColor := strings.TrimSpace(req.IconColor)
+	if iconColor == "" {
+		iconColor = spec.IconColor
+	}
+	openPath := normalizeOpenPath(spec.OpenPath)
+	if strings.TrimSpace(req.OpenPath) != "" {
+		openPath = normalizeOpenPath(req.OpenPath)
+	}
+	useProxy := true
+	if req.UseProxy != nil {
+		useProxy = *req.UseProxy
+	}
+	targetURL := ""
+	if !useProxy {
+		targetURL = fmt.Sprintf("http://127.0.0.1:%d%s", hostPort, openPath)
+	}
+
 	created, err := s.database.CreateInstalledApp(&database.InstalledApp{
 		UserID:        actor.ID,
 		Slug:          slug,
 		CatalogID:     spec.ID,
 		Name:          name,
-		Tagline:       spec.TaglineID,
+		Tagline:       tagline,
 		Category:      spec.Category,
-		IconKey:       spec.IconKey,
-		IconColor:     spec.IconColor,
+		IconKey:       iconKey,
+		IconColor:     iconColor,
 		Kind:          "docker",
 		Image:         spec.Image,
 		ContainerName: containerProject,
 		HostPort:      hostPort,
 		ContainerPort: spec.ContainerPort,
-		OpenPath:      normalizeOpenPath(spec.OpenPath),
-		TargetURL:     "",
-		UseProxy:      true,
+		OpenPath:      openPath,
+		TargetURL:     targetURL,
+		UseProxy:      useProxy,
 		ConfigJSON:    string(metaBytes),
 	})
 	if err != nil {
@@ -628,13 +653,15 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 			envMap[e.Key] = e.DefaultValue
 		}
 	}
+	if useProxy {
+		for k, v := range spec.ProxyEnv {
+			envMap[k] = strings.ReplaceAll(v, "{{PROXY_PREFIX}}", proxyPrefix)
+		}
+	}
 	for k, v := range req.Env {
 		if strings.TrimSpace(k) != "" {
 			envMap[strings.TrimSpace(k)] = v
 		}
-	}
-	for k, v := range spec.ProxyEnv {
-		envMap[k] = strings.ReplaceAll(v, "{{PROXY_PREFIX}}", proxyPrefix)
 	}
 
 	envVars := make([]docker.EnvVar, 0, len(envMap))

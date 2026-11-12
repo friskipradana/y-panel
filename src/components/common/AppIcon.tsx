@@ -42,6 +42,7 @@ import {
   Workflow,
   Wrench,
 } from 'lucide-react'
+import { IconBadge, type IconBadgeSize, type UiTone } from '@/components/ui/IconBadge'
 import type { WindowKind } from '@/types'
 
 interface AppIconProps {
@@ -90,9 +91,49 @@ const APP_COLOR_TOKEN_MAP: Record<string, string> = {
   slate: 'var(--panel-neutral-text)',
 }
 
+const APP_BADGE_TONE_MAP: Record<string, UiTone> = {
+  emerald: 'success',
+  green: 'success',
+  amber: 'warning',
+  orange: 'warning',
+  blue: 'primary',
+  indigo: 'primary',
+  violet: 'primary',
+  cyan: 'info',
+  sky: 'info',
+  teal: 'info',
+  rose: 'danger',
+  red: 'danger',
+  slate: 'neutral',
+}
+
 function resolveAppColorToken(color?: string): string {
   if (!color) return 'var(--panel-primary-text)'
   return APP_COLOR_TOKEN_MAP[color.toLowerCase()] || 'var(--panel-primary-text)'
+}
+
+function resolveAppBadgeTone(color?: string): UiTone {
+  if (!color) return 'primary'
+  return APP_BADGE_TONE_MAP[color.toLowerCase()] || 'primary'
+}
+
+export function InstalledAppBadge({
+  iconKey,
+  iconColor,
+  size = 'md',
+  className = '',
+}: {
+  iconKey?: string
+  iconColor?: string
+  size?: IconBadgeSize
+  className?: string
+}) {
+  const Glyph = APP_GLYPH_MAP[(iconKey || '').toLowerCase()] || Globe
+  return (
+    <IconBadge size={size} tone={resolveAppBadgeTone(iconColor)} className={className}>
+      <Glyph />
+    </IconBadge>
+  )
 }
 
 export function InstalledAppGlyph({
@@ -109,20 +150,18 @@ export function InstalledAppGlyph({
   style?: React.CSSProperties
 }) {
   const Glyph = APP_GLYPH_MAP[(iconKey || '').toLowerCase()] || Globe
-  const glyphSize = Math.max(12, Math.round(size * 0.62))
+  const glyphSize = Math.max(14, Math.round(size * 0.82))
   return (
     <span
-      className={`inline-flex items-center justify-center shrink-0 rounded-md ${className}`}
+      className={`inline-flex items-center justify-center shrink-0 ${className}`}
       style={{
         width: size,
         height: size,
         color: resolveAppColorToken(iconColor),
-        backgroundColor: 'var(--panel-surface-strong)',
-        border: '1px solid var(--panel-elevated-border)',
         ...style,
       }}
     >
-      <Glyph size={glyphSize} strokeWidth={2} />
+      <Glyph size={glyphSize} strokeWidth={1.75} />
     </span>
   )
 }

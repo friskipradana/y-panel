@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { installedAppOpenUrl } from '@/api/appCatalog'
-import { InstalledAppGlyph } from '@/components/common/AppIcon'
+import { InstalledAppBadge } from '@/components/common/AppIcon'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -122,7 +122,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
     <div className="installed-app-shell">
       <div className="installed-app-toolbar">
         <div className="flex items-center gap-2 min-w-0">
-          <InstalledAppGlyph iconKey={app.iconKey} iconColor={app.iconColor} size={24} />
+          <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="sm" />
           <span className="text-[13px] font-semibold text-[var(--win-text)] truncate">
             {app.name}
           </span>
@@ -217,7 +217,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
             }
           />
         ) : !isRunning ? (
-          <EmptyState icon={<InstalledAppGlyph iconKey={app.iconKey} iconColor={app.iconColor} size={40} />}>
+          <EmptyState icon={<InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="lg" />}>
             <span className="block font-medium text-[var(--win-text)]">
               {t('appCatalog.containerStoppedTitle')}
             </span>
