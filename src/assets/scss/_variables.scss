@@ -343,6 +343,24 @@
   --adw-preview-dark-main: #1c2128;
   --adw-preview-dark-dot: #8b949e;
   --adw-preview-dark-active: #58a6ff;
+
+  // Theme color card swatches
+  --theme-card-white-bg: #ffffff;
+  --theme-card-white-bar: #f1f5f9;
+  --theme-card-white-border: #cbd5e1;
+  --theme-card-white-accent: #334155;
+  --theme-card-black-bg: #09090b;
+  --theme-card-black-bar: #18181b;
+  --theme-card-black-border: #3f3f46;
+  --theme-card-black-accent: #f4f4f5;
+  --theme-card-pink-bg: #fff5f8;
+  --theme-card-pink-bar: #fce7f3;
+  --theme-card-pink-border: #f9a8d4;
+  --theme-card-pink-accent: #db2777;
+  --theme-card-blue-bg: #f0f6ff;
+  --theme-card-blue-bar: #dbeafe;
+  --theme-card-blue-border: #93c5fd;
+  --theme-card-blue-accent: #2563eb;
 }
 
 [data-theme="dark"] {
@@ -528,6 +546,192 @@
   --docker-progress-term-fg: #e5e7eb;
   --docker-progress-success: #34d399;
   --docker-progress-error: #fca5a5;
+  --theme-card-pink-bg: #1d0f19;
+  --theme-card-pink-bar: #2d1626;
+  --theme-card-pink-border: #831843;
+  --theme-card-pink-accent: #f472b6;
+  --theme-card-blue-bg: #0f172a;
+  --theme-card-blue-bar: #172554;
+  --theme-card-blue-border: #1e40af;
+  --theme-card-blue-accent: #60a5fa;
+}
+
+// Color Theme: White (Putih)
+:root[data-color-theme="white"] {
+  --tb-bg: rgba(255, 255, 255, 0.98);
+  --tb-border: rgba(203, 213, 225, 0.9);
+  --tb-hover: rgba(15, 23, 42, 0.06);
+  --win-bg: rgba(255, 255, 255, 0.98);
+  --win-border: rgba(203, 213, 225, 0.9);
+  --win-border-focus: rgba(148, 163, 184, 0.95);
+  --win-bar: rgba(250, 250, 252, 0.98);
+  --win-bar-focus: #ffffff;
+  --win-bar-border: rgba(203, 213, 225, 0.85);
+  --win-content-bg: #ffffff;
+  --widget-bg: rgba(255, 255, 255, 0.96);
+  --widget-border: rgba(203, 213, 225, 0.85);
+  --panel-surface: rgba(15, 23, 42, 0.025);
+  --panel-surface-strong: rgba(15, 23, 42, 0.045);
+  --panel-surface-hover: rgba(15, 23, 42, 0.07);
+  --panel-card-icon-bg: rgba(15, 23, 42, 0.06);
+  --panel-primary-bg: rgba(15, 23, 42, 0.08);
+  --panel-primary-hover: rgba(15, 23, 42, 0.14);
+  --panel-primary-text: #0f172a;
+  --panel-primary-solid: #334155;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+  --panel-primary-soft: rgba(15, 23, 42, 0.08);
+  --dock-bg: rgba(255, 255, 255, 0.96);
+  --dock-border: rgba(203, 213, 225, 0.88);
+  --menu-bg: rgba(255, 255, 255, 0.99);
+  --menu-border: rgba(203, 213, 225, 0.9);
+  --menu-divider: rgba(226, 232, 240, 0.85);
+  --focus-ring: #334155;
+  --adw-preview-light-active: #334155;
+}
+
+// Color Theme: Black (Hitam)
+:root[data-color-theme="black"],
+[data-theme="dark"][data-color-theme="black"] {
+  --tb-bg: rgba(9, 9, 11, 0.94);
+  --tb-border: rgba(255, 255, 255, 0.1);
+  --tb-text: #fafafa;
+  --text-secondary: #a1a1aa;
+  --tb-clock: #e4e4e7;
+  --tb-hover: rgba(255, 255, 255, 0.1);
+  --tb-icon: #fafafa;
+  --win-bg: rgba(10, 10, 12, 0.97);
+  --win-border: rgba(255, 255, 255, 0.14);
+  --win-border-focus: rgba(255, 255, 255, 0.24);
+  --win-bar: rgba(17, 17, 20, 0.98);
+  --win-bar-focus: rgba(24, 24, 29, 0.99);
+  --win-bar-border: rgba(255, 255, 255, 0.14);
+  --win-content-bg: #09090b;
+  --win-text: #fafafa;
+  --widget-bg: rgba(12, 12, 15, 0.94);
+  --widget-border: rgba(255, 255, 255, 0.12);
+  --panel-surface: rgba(255, 255, 255, 0.035);
+  --panel-surface-strong: rgba(255, 255, 255, 0.055);
+  --panel-surface-hover: rgba(255, 255, 255, 0.085);
+  --panel-field-bg: rgba(255, 255, 255, 0.05);
+  --panel-field-focus: rgba(255, 255, 255, 0.09);
+  --panel-card-icon-bg: rgba(255, 255, 255, 0.08);
+  --panel-primary-bg: rgba(255, 255, 255, 0.11);
+  --panel-primary-hover: rgba(255, 255, 255, 0.18);
+  --panel-primary-text: #f4f4f5;
+  --panel-primary-solid: #3f3f46;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  --panel-primary-soft: rgba(255, 255, 255, 0.12);
+  --dock-bg: rgba(10, 10, 12, 0.94);
+  --dock-border: rgba(255, 255, 255, 0.1);
+  --dock-item-open-bg: linear-gradient(180deg, rgba(39, 39, 42, 0.88), rgba(24, 24, 27, 0.88));
+  --dock-item-open-border: rgba(255, 255, 255, 0.12);
+  --dock-preview-bg: rgba(9, 9, 11, 0.96);
+  --dock-preview-active-bg: linear-gradient(to right, #27272a, #18181b);
+  --dock-preview-active-border: rgba(244, 244, 245, 0.35);
+  --dock-menu-bg: rgba(12, 12, 15, 0.97);
+  --menu-bg: rgba(12, 12, 15, 0.98);
+  --menu-border: rgba(255, 255, 255, 0.12);
+  --menu-divider: rgba(255, 255, 255, 0.09);
+  --focus-ring: #e4e4e7;
+  --focus-ring-offset: #09090b;
+  --adw-preview-dark-active: #e4e4e7;
+}
+
+// Color Theme: Pink (Light & Dark)
+:root[data-color-theme="pink"]:not([data-theme="dark"]) {
+  --tb-bg: rgba(255, 247, 250, 0.96);
+  --tb-border: rgba(244, 114, 182, 0.25);
+  --tb-hover: rgba(219, 39, 119, 0.08);
+  --win-bg: rgba(255, 248, 251, 0.96);
+  --win-border: rgba(244, 114, 182, 0.28);
+  --win-border-focus: rgba(219, 39, 119, 0.4);
+  --win-bar: rgba(253, 242, 248, 0.96);
+  --win-bar-focus: #fff7fa;
+  --win-bar-border: rgba(244, 114, 182, 0.28);
+  --win-content-bg: #fffbfc;
+  --widget-bg: rgba(255, 247, 250, 0.94);
+  --widget-border: rgba(244, 114, 182, 0.26);
+  --panel-surface: rgba(219, 39, 119, 0.03);
+  --panel-surface-strong: rgba(219, 39, 119, 0.055);
+  --panel-surface-hover: rgba(219, 39, 119, 0.085);
+  --panel-field-bg: rgba(219, 39, 119, 0.04);
+  --panel-field-focus: rgba(219, 39, 119, 0.07);
+  --panel-card-icon-bg: rgba(219, 39, 119, 0.1);
+  --panel-primary-bg: rgba(219, 39, 119, 0.11);
+  --panel-primary-hover: rgba(219, 39, 119, 0.18);
+  --panel-primary-text: #be185d;
+  --panel-primary-solid: #db2777;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(219, 39, 119, 0.18);
+  --panel-primary-soft: rgba(219, 39, 119, 0.11);
+  --dock-bg: rgba(255, 244, 249, 0.94);
+  --dock-border: rgba(244, 114, 182, 0.3);
+  --dock-preview-active-border: rgba(219, 39, 119, 0.45);
+  --menu-bg: rgba(255, 249, 252, 0.98);
+  --menu-border: rgba(244, 114, 182, 0.28);
+  --menu-divider: rgba(244, 114, 182, 0.2);
+  --focus-ring: #db2777;
+  --adw-preview-light-active: #db2777;
+}
+
+[data-theme="dark"][data-color-theme="pink"] {
+  --tb-bg: rgba(22, 10, 18, 0.92);
+  --tb-border: rgba(244, 114, 182, 0.16);
+  --tb-hover: rgba(244, 114, 182, 0.14);
+  --win-bg: rgba(24, 11, 20, 0.96);
+  --win-border: rgba(244, 114, 182, 0.22);
+  --win-border-focus: rgba(244, 114, 182, 0.35);
+  --win-bar: rgba(34, 15, 28, 0.98);
+  --win-bar-focus: rgba(44, 19, 36, 0.99);
+  --win-bar-border: rgba(244, 114, 182, 0.22);
+  --win-content-bg: #170b13;
+  --widget-bg: rgba(24, 11, 20, 0.92);
+  --widget-border: rgba(244, 114, 182, 0.18);
+  --panel-surface: rgba(244, 114, 182, 0.045);
+  --panel-surface-strong: rgba(244, 114, 182, 0.075);
+  --panel-surface-hover: rgba(244, 114, 182, 0.11);
+  --panel-field-bg: rgba(244, 114, 182, 0.06);
+  --panel-field-focus: rgba(244, 114, 182, 0.1);
+  --panel-card-icon-bg: rgba(244, 114, 182, 0.14);
+  --panel-primary-bg: rgba(244, 114, 182, 0.16);
+  --panel-primary-hover: rgba(244, 114, 182, 0.24);
+  --panel-primary-text: #f9a8d4;
+  --panel-primary-solid: #db2777;
+  --panel-primary-solid-shadow: 0 8px 16px rgba(219, 39, 119, 0.24);
+  --panel-primary-soft: rgba(244, 114, 182, 0.16);
+  --dock-bg: rgba(22, 10, 18, 0.93);
+  --dock-border: rgba(244, 114, 182, 0.18);
+  --dock-item-open-bg: linear-gradient(180deg, rgba(61, 24, 49, 0.88), rgba(34, 15, 28, 0.88));
+  --dock-preview-bg: rgba(18, 8, 15, 0.96);
+  --dock-preview-active-bg: linear-gradient(to right, #3b172e, #240f1d);
+  --dock-preview-active-border: rgba(244, 114, 182, 0.45);
+  --dock-menu-bg: rgba(24, 11, 20, 0.97);
+  --menu-bg: rgba(24, 11, 20, 0.98);
+  --menu-border: rgba(244, 114, 182, 0.16);
+  --menu-divider: rgba(244, 114, 182, 0.12);
+  --focus-ring: #f472b6;
+  --focus-ring-offset: #170b13;
+  --adw-preview-dark-active: #f472b6;
+}
+
+// Color Theme: Blue (Biru)
+:root[data-color-theme="blue"]:not([data-theme="dark"]) {
+  --tb-bg: rgba(245, 249, 255, 0.96);
+  --tb-border: rgba(147, 197, 253, 0.45);
+  --tb-hover: rgba(37, 99, 235, 0.08);
+  --win-bg: rgba(246, 250, 255, 0.96);
+  --win-border: rgba(147, 197, 253, 0.55);
+  --win-border-focus: rgba(59, 130, 246, 0.45);
+  --win-bar: rgba(236, 244, 255, 0.96);
+  --win-bar-focus: #f4f8ff;
+  --win-bar-border: rgba(147, 197, 253, 0.5);
+  --win-content-bg: #f8fbff;
+  --widget-bg: rgba(245, 249, 255, 0.94);
+  --widget-border: rgba(147, 197, 253, 0.5);
+  --dock-bg: rgba(242, 248, 255, 0.94);
+  --dock-border: rgba(147, 197, 253, 0.52);
+  --menu-bg: rgba(248, 251, 255, 0.98);
+  --menu-border: rgba(147, 197, 253, 0.48);
+  --menu-divider: rgba(191, 219, 254, 0.65);
 }
 
 * {

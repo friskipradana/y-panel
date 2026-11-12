@@ -1,7 +1,16 @@
 import { create } from 'zustand'
 
 import { getWallpaper, updateWallpaper } from '@/api/agent'
+import {
+  applyCustomColorVars,
+  clearCustomColorVars,
+  DEFAULT_CUSTOM_THEME_COLOR,
+  normalizeHexColor,
+  type ColorTheme,
+} from './colorTheme'
 
+export type { ColorTheme }
+export { DEFAULT_CUSTOM_THEME_COLOR, normalizeHexColor }
 export type ThemeMode = 'light' | 'dark'
 export type WallpaperKey =
   | 'default'
@@ -136,6 +145,8 @@ export const WALLPAPERS: Record<Exclude<WallpaperKey, 'custom'>, WallpaperDef> =
 
 interface StoredTheme {
   mode?: ThemeMode
+  colorTheme?: ColorTheme
+  customThemeColor?: string
   wallpaper?: WallpaperKey
   wallpaperFit?: WallpaperFit
   customImageUrl?: string | null
@@ -157,6 +168,8 @@ interface StoredTheme {
 
 interface ThemeStore {
   mode: ThemeMode
+  colorTheme: ColorTheme
+  customThemeColor: string
   wallpaper: WallpaperKey
   wallpaperFit: WallpaperFit
   /** Data URL or blob URL for custom wallpaper image */
@@ -178,6 +191,8 @@ interface ThemeStore {
   fontFamily: FontFamilyKey
   fontSize: FontSizeKey
   setMode: (mode: ThemeMode) => void
+  setColorTheme: (colorTheme: ColorTheme) => void
+  setCustomThemeColor: (hex: string) => void
   setWallpaper: (key: WallpaperKey) => void
   setWallpaperFit: (fit: WallpaperFit) => void
   setDesktopIconStyle: (style: DesktopIconStyle) => void
@@ -220,8 +235,14 @@ const persist = (data: Partial<StoredTheme>) => {
   } catch {}
 }
 
-const applyTheme = (mode: ThemeMode) => {
+const applyTheme = (mode: ThemeMode, colorTheme: ColorTheme, customColor: string) => {
   document.documentElement.setAttribute('data-theme', mode)
+  document.documentElement.setAttribute('data-color-theme', colorTheme)
+  if (colorTheme === 'custom') {
+    applyCustomColorVars(customColor, mode)
+  } else {
+    clearCustomColorVars()
+  }
 }
 
 const applyFontFamily = (font: FontFamilyKey) => {
@@ -270,7 +291,10 @@ const getImageStyle = (url: string, fit: WallpaperFit): React.CSSProperties => {
 
 export const useThemeStore = create<ThemeStore>((set, get) => {
   const stored = loadStored()
-  applyTheme(stored.mode ?? 'light')
+  const initialMode: ThemeMode = stored.mode ?? 'light'
+  const initialColorTheme: ColorTheme = stored.colorTheme ?? 'blue'
+  const initialCustomColor = normalizeHexColor(stored.customThemeColor ?? '') ?? DEFAULT_CUSTOM_THEME_COLOR
+  applyTheme(initialMode, initialColorTheme, initialCustomColor)
   applyFontFamily(stored.fontFamily ?? 'outfit')
   applyFontSize(stored.fontSize ?? 'medium')
 
@@ -304,7 +328,9 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
   }
 
   return {
-    mode: stored.mode ?? 'light',
+    mode: initialMode,
+    colorTheme: initialColorTheme,
+    customThemeColor: initialCustomColor,
     wallpaper: stored.wallpaper ?? 'default',
     wallpaperFit: stored.wallpaperFit ?? 'cover',
     customImageUrl: stored.customImageUrl ?? null,
@@ -355,9 +381,37 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     },
 
     setMode: (mode) => {
-      applyTheme(mode)
-      persist({ mode })
-      set({ mode })
+      const currentColorTheme = get().colorTheme
+      const colorTheme: ColorTheme =
+        mode === 'dark' && currentColorTheme === 'white'
+          ? 'black'
+          : mode === 'light' && currentColorTheme === 'black'
+            ? 'white'
+            : currentColorTheme
+      applyTheme(mode, colorTheme, get().customThemeColor)
+      persist({ mode, colorTheme })
+      set({ mode, colorTheme })
+    },
+
+    setColorTheme: (colorTheme) => {
+      const mode: ThemeMode =
+        colorTheme === 'white'
+          ? 'light'
+          : colorTheme === 'black'
+            ? 'dark'
+            : get().mode
+      applyTheme(mode, colorTheme, get().customThemeColor)
+      persist({ mode, colorTheme })
+      set({ mode, colorTheme })
+    },
+
+    setCustomThemeColor: (hex) => {
+      const normalized = normalizeHexColor(hex)
+      if (!normalized) return
+      const mode = get().mode
+      applyTheme(mode, 'custom', normalized)
+      persist({ colorTheme: 'custom', customThemeColor: normalized })
+      set({ colorTheme: 'custom', customThemeColor: normalized })
     },
 
     setWallpaper: (wallpaper) => {
@@ -460,15 +514,23 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     toggleMode: () => {
       set((s) => {
         const mode: ThemeMode = s.mode === 'light' ? 'dark' : 'light'
-        applyTheme(mode)
-        persist({ mode })
-        return { mode }
+        const colorTheme: ColorTheme =
+          mode === 'dark' && s.colorTheme === 'white'
+            ? 'black'
+            : mode === 'light' && s.colorTheme === 'black'
+              ? 'white'
+              : s.colorTheme
+        applyTheme(mode, colorTheme, s.customThemeColor)
+        persist({ mode, colorTheme })
+        return { mode, colorTheme }
       })
     },
 
     resetToDefaults: () => {
       const defaults: StoredTheme = {
         mode: 'light',
+        colorTheme: 'blue',
+        customThemeColor: DEFAULT_CUSTOM_THEME_COLOR,
         wallpaper: 'default',
         wallpaperFit: 'cover',
         customImageUrl: null,
@@ -487,7 +549,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
         fontFamily: 'outfit',
         fontSize: 'medium',
       }
-      applyTheme('light')
+      applyTheme('light', 'blue', DEFAULT_CUSTOM_THEME_COLOR)
       applyFontFamily('outfit')
       applyFontSize('medium')
       try {

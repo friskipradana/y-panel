@@ -1,10 +1,20 @@
-import { RefreshCcw } from "lucide-react";
+import { useState, type CSSProperties } from "react";
+import { Check, Palette, RefreshCcw } from "lucide-react";
 import { alertLib } from "@/lib/alert";
 import { useI18n, type Language } from "@/lib/i18n";
-import { useThemeStore } from "@/store/themeStore";
+import { normalizeHexColor, useThemeStore, type ColorTheme } from "@/store/themeStore";
 import { Button } from "@/components/ui/Button";
+import { TextInput } from "@/components/ui/Field";
 import { Select } from "@/components/ui/Select";
 import { AdwActionRow, SettingsGroup } from "../SettingsPrimitives";
+
+const COLOR_THEMES: ReadonlyArray<{ key: ColorTheme; labelKey: string }> = [
+  { key: "white", labelKey: "settings.appearance.colorWhite" },
+  { key: "black", labelKey: "settings.appearance.colorBlack" },
+  { key: "pink", labelKey: "settings.appearance.colorPink" },
+  { key: "blue", labelKey: "settings.appearance.colorBlue" },
+  { key: "custom", labelKey: "settings.appearance.colorCustom" },
+];
 
 const FONTS = [
   { key: "outfit", name: "Outfit", css: "'Outfit', system-ui, sans-serif" },
@@ -19,12 +29,24 @@ export function AppearanceTab() {
   const {
     mode,
     setMode,
+    colorTheme,
+    setColorTheme,
+    customThemeColor,
+    setCustomThemeColor,
     fontFamily,
     setFontFamily,
     fontSize,
     setFontSize,
     resetToDefaults,
   } = useThemeStore();
+
+  const [hexDraft, setHexDraft] = useState(customThemeColor);
+  const [syncedHex, setSyncedHex] = useState(customThemeColor);
+  if (syncedHex !== customThemeColor) {
+    setSyncedHex(customThemeColor);
+    setHexDraft(customThemeColor);
+  }
+  const hexInvalid = colorTheme === "custom" && normalizeHexColor(hexDraft) === null;
 
   const reset = async () => {
     const confirmed = await alertLib.confirm(
@@ -95,6 +117,95 @@ export function AppearanceTab() {
             </span>
           </button>
         </div>
+      </SettingsGroup>
+
+      {/* ── 1b. Color Theme Group (White, Black, Pink, Blue, Custom) ── */}
+      <SettingsGroup title={t("settings.appearance.colorThemeTitle")} cardClassName="!p-0">
+        <div className="p-3.5 sm:p-4">
+          <div className="theme-color-grid">
+            {COLOR_THEMES.map((item) => {
+              const active = colorTheme === item.key;
+              const customPreviewStyle =
+                item.key === "custom"
+                  ? ({ "--theme-custom-preview": customThemeColor } as CSSProperties)
+                  : undefined;
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setColorTheme(item.key)}
+                  aria-label={t(item.labelKey)}
+                  aria-pressed={active}
+                  className={`theme-color-card ${active ? "theme-color-card--active" : ""}`}
+                >
+                  <div
+                    className={`theme-color-card__preview theme-color-card__preview--${item.key}`}
+                    style={customPreviewStyle}
+                  >
+                    <div className="theme-color-card__bar" />
+                    <div className="theme-color-card__body">
+                      <span className="theme-color-card__pill" />
+                    </div>
+                  </div>
+                  <div className="theme-color-card__footer">
+                    <span className="theme-color-card__label">{t(item.labelKey)}</span>
+                    {active ? (
+                      <Check className="h-3.5 w-3.5 shrink-0 text-[var(--panel-primary-text)]" aria-hidden="true" />
+                    ) : item.key === "custom" ? (
+                      <Palette className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {colorTheme === "custom" ? (
+          <AdwActionRow
+            title={t("settings.appearance.customColorLabel")}
+            subtitle={t("settings.appearance.customColorDesc")}
+            control={
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={customThemeColor}
+                  onChange={(e) => setCustomThemeColor(e.target.value)}
+                  aria-label={t("settings.appearance.customColorPicker")}
+                  title={t("settings.appearance.customColorPicker")}
+                  className="theme-color-swatch-input"
+                />
+                <TextInput
+                  mono
+                  invalid={hexInvalid}
+                  value={hexDraft}
+                  maxLength={7}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setHexDraft(next);
+                    const normalized = normalizeHexColor(next);
+                    if (normalized) {
+                      setCustomThemeColor(normalized);
+                    }
+                  }}
+                  onBlur={() => {
+                    const normalized = normalizeHexColor(hexDraft);
+                    if (normalized) {
+                      setCustomThemeColor(normalized);
+                      setHexDraft(normalized);
+                    } else {
+                      setHexDraft(customThemeColor);
+                    }
+                  }}
+                  aria-label={t("settings.appearance.customColorHex")}
+                  placeholder={customThemeColor}
+                  className="w-28"
+                />
+              </div>
+            }
+          />
+        ) : null}
       </SettingsGroup>
 
       {/* ── 2. Preferences Group (Flat GNOME Action Rows) ── */}

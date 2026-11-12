@@ -1774,6 +1774,185 @@ button:focus-visible,
   }
 }
 
+.theme-color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 390px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.theme-color-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface);
+  color: var(--win-text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--text-secondary) 45%, var(--win-border));
+    background: var(--panel-surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  &--active {
+    border-color: var(--panel-primary-solid);
+    background: var(--panel-primary-bg);
+    box-shadow: inset 0 0 0 1px var(--panel-primary-solid);
+  }
+}
+
+.theme-color-card__preview {
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--win-border);
+
+  &--white {
+    background: var(--theme-card-white-bg);
+    border-color: var(--theme-card-white-border);
+
+    .theme-color-card__bar {
+      background: var(--theme-card-white-bar);
+      border-bottom-color: var(--theme-card-white-border);
+    }
+
+    .theme-color-card__pill {
+      background: var(--theme-card-white-accent);
+    }
+  }
+
+  &--black {
+    background: var(--theme-card-black-bg);
+    border-color: var(--theme-card-black-border);
+
+    .theme-color-card__bar {
+      background: var(--theme-card-black-bar);
+      border-bottom-color: var(--theme-card-black-border);
+    }
+
+    .theme-color-card__pill {
+      background: var(--theme-card-black-accent);
+    }
+  }
+
+  &--pink {
+    background: var(--theme-card-pink-bg);
+    border-color: var(--theme-card-pink-border);
+
+    .theme-color-card__bar {
+      background: var(--theme-card-pink-bar);
+      border-bottom-color: var(--theme-card-pink-border);
+    }
+
+    .theme-color-card__pill {
+      background: var(--theme-card-pink-accent);
+    }
+  }
+
+  &--blue {
+    background: var(--theme-card-blue-bg);
+    border-color: var(--theme-card-blue-border);
+
+    .theme-color-card__bar {
+      background: var(--theme-card-blue-bar);
+      border-bottom-color: var(--theme-card-blue-border);
+    }
+
+    .theme-color-card__pill {
+      background: var(--theme-card-blue-accent);
+    }
+  }
+
+  &--custom {
+    background: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 12%, var(--win-content-bg));
+    border-color: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 45%, var(--win-border));
+
+    .theme-color-card__bar {
+      background: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 22%, var(--win-content-bg));
+      border-bottom-color: color-mix(in srgb, var(--theme-custom-preview, var(--panel-primary-solid)) 35%, transparent);
+    }
+
+    .theme-color-card__pill {
+      background: var(--theme-custom-preview, var(--panel-primary-solid));
+    }
+  }
+}
+
+.theme-color-card__bar {
+  height: 12px;
+  border-bottom: 1px solid var(--win-border);
+  flex-shrink: 0;
+}
+
+.theme-color-card__body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.theme-color-card__pill {
+  height: 6px;
+  width: 56%;
+  border-radius: 999px;
+}
+
+.theme-color-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.theme-color-card__label {
+  font-size: var(--control-font);
+  font-weight: 600;
+  color: var(--win-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-color-swatch-input {
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 2px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 5px;
+  }
+}
+
 .adw-wallpaper-tile {
   position: relative;
   aspect-ratio: 16 / 10;
