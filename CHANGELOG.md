@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.81.0] - 2026-11-12
+
+2 perubahan, utamanya implement application catalog and installed apps management.
+
+### Fitur baru
+- **app-catalog:** Implement application catalog and installed apps management ([`232eb60`](https://github.com/friskipradana/y-panel/commit/232eb60))
+
+### Peningkatan
+- **app-catalog:** Improve UI components and fix container property access ([`6e8c69e`](https://github.com/friskipradana/y-panel/commit/6e8c69e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.10...v1.81.0
+
 ## [1.80.10] - 2026-11-12
 
 4 perubahan, utamanya implement color theme selection and custom accent colors.
