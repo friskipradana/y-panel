@@ -30,8 +30,8 @@ const KvmWindow = lazyNamed(() => import('@/components/windows/KvmWindow'), 'Kvm
 // Every account works in its own area (terminal as its own OS account, own files, containers,
 // databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
-// service journals show every account's activity, and the firewall is the server's
-const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm'])
+// service journals, host firewall, KVM display, and the Docs window belong to the superadmin
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs'])
 
 // The public demo account only looks: the windows below work read-only on its own (empty) data.
 // No terminal, files, users, settings or logs: they would need a shell or reach shared data.
