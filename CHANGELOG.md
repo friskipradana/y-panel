@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.81.2] - 2026-11-12
+
+Enhance app installation and management capabilities.
+
+### Fitur baru
+- **app-catalog:** Enhance app installation and management capabilities ([`c49bb63`](https://github.com/friskipradana/y-panel/commit/c49bb63))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.81.1...v1.81.2
+
 ## [1.81.1] - 2026-11-12
 
 Expand icon glyph and color token mappings.
