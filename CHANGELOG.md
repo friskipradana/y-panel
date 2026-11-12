@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.81.1] - 2026-11-12
+
+Expand icon glyph and color token mappings.
+
+### Peningkatan
+- **ui:** Expand icon glyph and color token mappings ([`1980dd8`](https://github.com/friskipradana/y-panel/commit/1980dd8))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.81.0...v1.81.1
+
 ## [1.81.0] - 2026-11-12
 
 2 perubahan, utamanya implement application catalog and installed apps management.
