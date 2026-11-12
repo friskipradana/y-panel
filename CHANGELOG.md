@@ -2,6 +2,22 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.10] - 2026-11-12
+
+4 perubahan, utamanya implement color theme selection and custom accent colors.
+
+### Fitur baru
+- **desktop:** Restrict email window access to superadmins ([`61a57e8`](https://github.com/friskipradana/y-panel/commit/61a57e8))
+- **ui:** Implement color theme selection and custom accent colors ([`206326e`](https://github.com/friskipradana/y-panel/commit/206326e))
+
+### Perbaikan
+- **settings:** Tighten authorization checks for sensitive settings hooks and tabs ([`33e229a`](https://github.com/friskipradana/y-panel/commit/33e229a))
+
+### Peningkatan
+- **desktop:** Add docs window to superadmin restricted kinds ([`21bbf02`](https://github.com/friskipradana/y-panel/commit/21bbf02))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.9...v1.80.10
+
 ## [1.80.9] - 2026-11-12
 
 Redesign toolbar and hud components for better consistency.
