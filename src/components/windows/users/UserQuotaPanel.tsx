@@ -20,6 +20,7 @@ const FIELDS: { key: keyof UserQuota; labelKey: string }[] = [
   { key: 'maxProjects', labelKey: 'users.maxProjects' },
   { key: 'maxTunnels', labelKey: 'users.maxTunnels' },
   { key: 'maxDatabases', labelKey: 'users.maxDatabases' },
+  { key: 'maxApps', labelKey: 'users.maxApps' },
   { key: 'diskQuotaMb', labelKey: 'users.diskMb' },
   { key: 'cpuLimitPct', labelKey: 'users.cpuLimitPct' },
   { key: 'memoryLimitMb', labelKey: 'users.ramMb' },
@@ -75,6 +76,7 @@ export function UserQuotaPanel({ user, quota, saving, showPlan = false, onSave }
             <UsageMeter label={t('users.usageProjects')} used={usage.data.projects} limit={quota.maxProjects} />
             <UsageMeter label={t('users.usageTunnels')} used={usage.data.tunnels} limit={quota.maxTunnels} />
             <UsageMeter label={t('users.usageDatabases')} used={usage.data.databases} limit={quota.maxDatabases} />
+            <UsageMeter label={t('users.usageApps')} used={usage.data.apps ?? 0} limit={quota.maxApps ?? 0} />
             <UsageMeter label={t('users.usageDisk')} used={usage.data.diskUsedMb} limit={quota.diskQuotaMb} unit="MB" />
             <p className="text-[12px] text-[var(--text-secondary)]">
               {t('users.usageRunning', { count: usage.data.projectsActive })}

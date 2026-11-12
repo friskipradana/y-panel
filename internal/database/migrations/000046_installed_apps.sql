@@ -25,7 +25,12 @@ CREATE TABLE IF NOT EXISTS installed_apps (
 
 CREATE INDEX IF NOT EXISTS idx_installed_apps_user ON installed_apps(user_id);
 
+ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2;
+
 -- +goose Down
+ALTER TABLE hosting_plans DROP COLUMN IF EXISTS max_apps;
+ALTER TABLE user_quotas DROP COLUMN IF EXISTS max_apps;
 DROP INDEX IF EXISTS idx_installed_apps_user;
 DROP TABLE IF EXISTS installed_apps;
 

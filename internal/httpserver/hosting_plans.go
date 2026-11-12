@@ -46,7 +46,7 @@ func exampleHostingPlans() []database.HostingPlan {
 				"Subdomain dengan HTTPS lewat Cloudflare",
 				"Terminal dan File Manager di panel",
 			},
-			MaxProjects: 2, MaxTunnels: 2, MaxDatabases: 1, DiskQuotaMB: 1024, CPULimitPct: 100, MemoryLimitMB: 512, MaxSubdomains: 1,
+			MaxProjects: 2, MaxTunnels: 2, MaxDatabases: 1, MaxApps: 1, DiskQuotaMB: 1024, CPULimitPct: 100, MemoryLimitMB: 512, MaxSubdomains: 1,
 			Visible: true, SortOrder: 0,
 		},
 		{
@@ -56,7 +56,7 @@ func exampleHostingPlans() []database.HostingPlan {
 				"Beberapa proyek dan database sekaligus",
 				"Ruang disk dan RAM yang lebih besar",
 			},
-			MaxProjects: 4, MaxTunnels: 4, MaxDatabases: 3, DiskQuotaMB: 3072, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3, MaxCustomDomains: 1,
+			MaxProjects: 4, MaxTunnels: 4, MaxDatabases: 3, MaxApps: 3, DiskQuotaMB: 3072, CPULimitPct: 200, MemoryLimitMB: 1024, MaxSubdomains: 3, MaxCustomDomains: 1,
 			Highlighted: true, Visible: true, SortOrder: 1,
 		},
 		{
@@ -66,7 +66,7 @@ func exampleHostingPlans() []database.HostingPlan {
 				"Batas proyek, database, dan subdomain tertinggi",
 				"RAM 2 GB dan domain milik sendiri",
 			},
-			MaxProjects: 8, MaxTunnels: 8, MaxDatabases: 5, DiskQuotaMB: 6144, CPULimitPct: 200, MemoryLimitMB: 2048, MaxSubdomains: 6, MaxCustomDomains: 2,
+			MaxProjects: 8, MaxTunnels: 8, MaxDatabases: 5, MaxApps: 6, DiskQuotaMB: 6144, CPULimitPct: 200, MemoryLimitMB: 2048, MaxSubdomains: 6, MaxCustomDomains: 2,
 			Visible: true, SortOrder: 2,
 		},
 	}
@@ -146,6 +146,7 @@ func planQuota(p database.HostingPlan, userID int64) database.UserQuota {
 		MaxProjects:   p.MaxProjects,
 		MaxTunnels:    p.MaxTunnels,
 		MaxDatabases:  p.MaxDatabases,
+		MaxApps:       p.MaxApps,
 		DiskQuotaMB:   p.DiskQuotaMB,
 		CPULimitPct:   p.CPULimitPct,
 		MemoryLimitMB: p.MemoryLimitMB,

@@ -4986,4 +4986,7 @@ export const en: Record<string, string> = {
   'email.ph.testTo': "recipient@otherdomain.com",
   'email.ph.localPart': "admin / support / billing",
   'email.ph.displayName': "Support Team / Server Admin",
+  'users.maxApps': "Max catalog apps",
+  'users.usageApps': "Catalog apps",
+  'hosting.landing.apps': "{count} catalog apps",
 }

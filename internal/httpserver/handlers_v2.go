@@ -676,6 +676,7 @@ func (s *Server) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	s.stopUserWorkloads(targetUser.ID)
 	s.stopUserDatabases(targetUser.ID, true)
+	s.stopUserContainers(targetUser.ID, true)
 	_ = s.database.DeleteUserSessions(targetUser.ID)
 	// the DNS records of their subdomains must go before the rows do
 	s.releaseUserSubdomains(targetUser.ID)
@@ -759,6 +760,7 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 		MaxProjects   *int   `json:"maxProjects"`
 		MaxTunnels    *int   `json:"maxTunnels"`
 		MaxDatabases  *int   `json:"maxDatabases"`
+		MaxApps       *int   `json:"maxApps"`
 		DiskQuotaMB   *int64 `json:"diskQuotaMb"`
 		CPULimitPct   *int   `json:"cpuLimitPct"`
 		MemoryLimitMB *int   `json:"memoryLimitMb"`
@@ -775,6 +777,9 @@ func (s *Server) handleUpdateUserQuota(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.MaxDatabases != nil {
 		q.MaxDatabases = *patch.MaxDatabases
+	}
+	if patch.MaxApps != nil {
+		q.MaxApps = *patch.MaxApps
 	}
 	if patch.DiskQuotaMB != nil {
 		q.DiskQuotaMB = *patch.DiskQuotaMB

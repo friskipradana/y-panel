@@ -42,6 +42,7 @@ func planDifferences(have, want database.HostingPlan) []string {
 	add("maxProjects", have.MaxProjects, want.MaxProjects)
 	add("maxTunnels", have.MaxTunnels, want.MaxTunnels)
 	add("maxDatabases", have.MaxDatabases, want.MaxDatabases)
+	add("maxApps", have.MaxApps, want.MaxApps)
 	add("diskQuotaMb", have.DiskQuotaMB, want.DiskQuotaMB)
 	add("cpuLimitPct", have.CPULimitPct, want.CPULimitPct)
 	add("memoryLimitMb", have.MemoryLimitMB, want.MemoryLimitMB)

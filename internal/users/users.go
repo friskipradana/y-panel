@@ -62,6 +62,7 @@ const (
 	maxQuotaProjects  = 1000
 	maxQuotaTunnels   = 1000
 	maxQuotaDatabases = 200
+	maxQuotaApps      = 500
 	maxQuotaDiskMB    = 100 * 1024 * 1024
 	maxQuotaCPUPct    = 6400
 	maxQuotaMemoryMB  = 4 * 1024 * 1024
@@ -76,6 +77,8 @@ func ValidateQuota(q database.UserQuota) error {
 		return fmt.Errorf("maxTunnels must be between 0 and %d", maxQuotaTunnels)
 	case q.MaxDatabases < 0 || q.MaxDatabases > maxQuotaDatabases:
 		return fmt.Errorf("maxDatabases must be between 0 and %d", maxQuotaDatabases)
+	case q.MaxApps < 0 || q.MaxApps > maxQuotaApps:
+		return fmt.Errorf("maxApps must be between 0 and %d", maxQuotaApps)
 	case q.DiskQuotaMB < 0 || q.DiskQuotaMB > maxQuotaDiskMB:
 		return fmt.Errorf("diskQuotaMb must be between 0 and %d", maxQuotaDiskMB)
 	case q.CPULimitPct < 1 || q.CPULimitPct > maxQuotaCPUPct:

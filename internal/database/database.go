@@ -530,6 +530,8 @@ func (m *Manager) ensureSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_account ON email_messages(account_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_received ON email_messages(received_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_to_addr ON email_messages(to_addr)`,
+		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 3`,
+		`ALTER TABLE hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2`,
 	}
 
 	for _, stmt := range stmts {
@@ -979,6 +981,7 @@ type UserQuota struct {
 	MaxProjects   int   `json:"maxProjects"`
 	MaxTunnels    int   `json:"maxTunnels"`
 	MaxDatabases  int   `json:"maxDatabases"`
+	MaxApps       int   `json:"maxApps"`
 	DiskQuotaMB   int64 `json:"diskQuotaMb"`
 	CPULimitPct   int   `json:"cpuLimitPct"`
 	MemoryLimitMB int   `json:"memoryLimitMb"`
@@ -994,16 +997,16 @@ func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	// the superadmin runs the server: a quota is for the accounts it gives out
 	var role string
 	if err := m.db.QueryRow(`SELECT role FROM users WHERE id = $1`, userID).Scan(&role); err == nil && role == "superadmin" {
-		return &UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited}, nil
+		return &UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited, MaxApps: QuotaUnlimited}, nil
 	}
 	var q UserQuota
 	err := m.db.QueryRow(`
-		SELECT user_id, max_projects, max_tunnels, max_databases, disk_quota_mb, cpu_limit_pct, memory_limit_mb
+		SELECT user_id, max_projects, max_tunnels, max_databases, max_apps, disk_quota_mb, cpu_limit_pct, memory_limit_mb
 		FROM user_quotas WHERE user_id = $1
-	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.MaxDatabases, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
+	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.MaxDatabases, &q.MaxApps, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
 	if err == sql.ErrNoRows {
 		// Return defaults
-		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
+		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, MaxApps: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
 	}
 	return &q, err
 }
@@ -1013,17 +1016,18 @@ func (m *Manager) UpdateUserQuota(q UserQuota) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`
-		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, max_databases, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO user_quotas (user_id, max_projects, max_tunnels, max_databases, max_apps, disk_quota_mb, cpu_limit_pct, memory_limit_mb)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (user_id) DO UPDATE SET
 			max_projects = EXCLUDED.max_projects,
 			max_tunnels = EXCLUDED.max_tunnels,
 			max_databases = EXCLUDED.max_databases,
+			max_apps = EXCLUDED.max_apps,
 			disk_quota_mb = EXCLUDED.disk_quota_mb,
 			cpu_limit_pct = EXCLUDED.cpu_limit_pct,
 			memory_limit_mb = EXCLUDED.memory_limit_mb,
 			updated_at = NOW()
-	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.MaxDatabases, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
+	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.MaxDatabases, q.MaxApps, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
 	return err
 }
 

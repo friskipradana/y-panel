@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/docker"
 	panelosuser "github.com/friskipradana/panel-desktop-ui/internal/osuser"
 	"github.com/friskipradana/panel-desktop-ui/internal/users"
 )
@@ -114,11 +116,14 @@ func (s *Server) vetUserFields(actor, target *database.User, in map[string]any) 
 // or deleted account does not keep serving traffic.
 func (s *Server) stopUserWorkloads(userID int64) {
 	// open shells end with the account
-	s.terminalManager.CloseOwned(userID)
+	if s.terminalManager != nil {
+		s.terminalManager.CloseOwned(userID)
+	}
 	if s.database == nil {
 		return
 	}
 	s.stopUserDatabases(userID, false)
+	s.stopUserContainers(userID, false)
 	if s.projectManager != nil {
 		if list, err := s.database.ListProjects(userID); err == nil {
 			for _, p := range list {
@@ -139,12 +144,47 @@ func (s *Server) stopUserWorkloads(userID int64) {
 	}
 }
 
+func (s *Server) stopUserContainers(userID int64, remove bool) {
+	if userID <= 0 {
+		return
+	}
+	containers, err := docker.ListContainers()
+	if err != nil {
+		return
+	}
+	appPrefix := fmt.Sprintf("reneo-app-%d-", userID)
+	for _, c := range containers {
+		if kind := docker.ManagedKind(c); kind != "" {
+			continue
+		}
+		owned := c.OwnerUserID == userID || strings.HasPrefix(strings.ToLower(strings.TrimSpace(c.ProjectName)), appPrefix)
+		if !owned {
+			for _, rawName := range c.Names {
+				clean := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(rawName, "/")))
+				if strings.HasPrefix(clean, appPrefix) {
+					owned = true
+					break
+				}
+			}
+		}
+		if !owned {
+			continue
+		}
+		if remove {
+			_ = docker.DeleteContainer(c.ID, true, false)
+		} else if strings.EqualFold(strings.TrimSpace(c.State), "running") || strings.EqualFold(strings.TrimSpace(c.State), "restarting") {
+			_ = docker.StopContainer(c.ID)
+		}
+	}
+}
+
 type accountUsage struct {
 	UserID          int64               `json:"userId"`
 	Projects        int                 `json:"projects"`
 	ProjectsActive  int                 `json:"projectsActive"`
 	Tunnels         int                 `json:"tunnels"`
 	Databases       int                 `json:"databases"`
+	Apps            int                 `json:"apps"`
 	DiskUsedMB      int64               `json:"diskUsedMb"`
 	DiskScanPartial bool                `json:"diskScanPartial"`
 	Quota           *database.UserQuota `json:"quota"`
@@ -165,6 +205,9 @@ func (s *Server) collectUsage(target *database.User) accountUsage {
 	}
 	if n, err := s.database.CountManagedDatabases(target.ID); err == nil {
 		usage.Databases = n
+	}
+	if apps, err := s.database.ListInstalledApps(target.ID); err == nil {
+		usage.Apps = len(apps)
 	}
 	usage.Quota, _ = s.database.GetUserQuota(target.ID)
 

@@ -58,6 +58,7 @@ export interface UserQuota {
   maxProjects: number
   maxTunnels: number
   maxDatabases: number
+  maxApps: number
   diskQuotaMb: number
   cpuLimitPct: number
   memoryLimitMb: number
@@ -127,6 +128,7 @@ export interface AccountUsage {
   projectsActive: number
   tunnels: number
   databases: number
+  apps: number
   diskUsedMb: number
   diskScanPartial: boolean
   quota: UserQuota | null

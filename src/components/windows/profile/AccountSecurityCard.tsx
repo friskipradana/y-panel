@@ -57,6 +57,7 @@ export function AccountUsage() {
       <UsageLine label={t('users.usageProjects')} used={usage.data.projects} limit={quota.maxProjects} />
       <UsageLine label={t('users.usageTunnels')} used={usage.data.tunnels} limit={quota.maxTunnels} />
       <UsageLine label={t('users.usageDatabases')} used={usage.data.databases} limit={quota.maxDatabases} />
+      <UsageLine label={t('users.usageApps')} used={usage.data.apps ?? 0} limit={quota.maxApps ?? 0} />
       <UsageLine label={t('users.usageDisk')} used={usage.data.diskUsedMb} limit={quota.diskQuotaMb} unit="MB" />
     </div>
   )

@@ -604,6 +604,18 @@ func (s *Server) handleAppCatalogInstall(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if quota, _ := s.database.GetUserQuota(actor.ID); quota != nil {
+		existingApps, _ := s.database.ListInstalledApps(actor.ID)
+		if len(existingApps) >= quota.MaxApps {
+			if quota.MaxApps <= 0 {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "paket hosting Anda tidak mengizinkan pemasangan aplikasi katalog"})
+			} else {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": fmt.Sprintf("kuota aplikasi katalog telah mencapai batas paket Anda (%d/%d aplikasi)", len(existingApps), quota.MaxApps)})
+			}
+			return
+		}
+	}
+
 	var req installCatalogAppRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON payload"})
@@ -651,6 +663,10 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	owner, err := s.resolveDockerOwnerContext(actor, actor.ID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
+	if !auth.IsSuperAdmin(actor.Role) && owner.DiskQuotaMB > 0 && s.accountDiskUsed(actor) >= uint64(owner.DiskQuotaMB)<<20 {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "kuota penyimpanan disk paket Anda sudah penuh"})
 		return
 	}
 
@@ -1145,6 +1161,10 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	owner, err := s.resolveDockerOwnerContext(actor, app.UserID)
 	if err != nil {
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
+	if !auth.IsSuperAdmin(actor.Role) && owner.DiskQuotaMB > 0 && s.accountDiskUsed(actor) >= uint64(owner.DiskQuotaMB)<<20 {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "kuota penyimpanan disk paket Anda sudah penuh"})
 		return
 	}
 

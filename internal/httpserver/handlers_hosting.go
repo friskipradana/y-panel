@@ -137,6 +137,7 @@ type publicPlan struct {
 	MaxProjects   int      `json:"maxProjects"`
 	MaxTunnels    int      `json:"maxTunnels"`
 	MaxDatabases  int      `json:"maxDatabases"`
+	MaxApps       int      `json:"maxApps"`
 	DiskQuotaMB   int64    `json:"diskQuotaMb"`
 	MemoryLimitMB int      `json:"memoryLimitMb"`
 	MaxSubdomains int      `json:"maxSubdomains"`
@@ -173,7 +174,7 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 	for _, p := range plans {
 		entry := publicPlan{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
-			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, DiskQuotaMB: p.DiskQuotaMB,
+			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, MaxApps: p.MaxApps, DiskQuotaMB: p.DiskQuotaMB,
 			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, OwnNotify: p.OwnNotify, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
 			DurationDiscounts: p.DurationDiscounts,
 		}
@@ -464,7 +465,7 @@ func (s *Server) expirePlans(now time.Time) {
 			}
 			s.emitPlanEnded(user, planName, up.ExpiresAt)
 			s.buyerPlanEnded(user, planName, up.ExpiresAt)
-			s.terminalManager.CloseOwned(user.ID)
+			s.stopUserWorkloads(user.ID)
 			suspendedAny = true
 		}
 		if err := s.database.SetPlanSuspendedForExpiry(user.ID, true); err != nil {

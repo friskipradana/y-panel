@@ -4986,4 +4986,7 @@ export const id: Record<string, string> = {
   'email.ph.testTo': "tujuan@domainlain.com",
   'email.ph.localPart': "admin / support / billing",
   'email.ph.displayName': "Tim Support / Admin Server",
+  'users.maxApps': "Maks. aplikasi katalog",
+  'users.usageApps': "Aplikasi katalog",
+  'hosting.landing.apps': "{count} aplikasi katalog",
 }

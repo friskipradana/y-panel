@@ -22,6 +22,7 @@ export interface HostingPlan {
   maxProjects: number
   maxTunnels: number
   maxDatabases: number
+  maxApps: number
   diskQuotaMb: number
   cpuLimitPct: number
   memoryLimitMb: number
