@@ -2,10 +2,17 @@ package httpserver
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +26,161 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const x11SocketDir = "/tmp/.X11-unix"
+const (
+	x11SocketDir         = "/tmp/.X11-unix"
+	defaultKvmResolution = "1280x800"
+	kvmMinWidth          = 640
+	kvmMinHeight         = 480
+	kvmMaxWidth          = 3840
+	kvmMaxHeight         = 2160
+	kvmTokenTTL          = 30 * time.Minute
+)
+
+// parseKvmResolution validates and normalizes a "<width>x<height>" display resolution string.
+func parseKvmResolution(raw string) (width, height int, normalized string, ok bool) {
+	cleaned := strings.ToLower(strings.TrimSpace(raw))
+	parts := strings.Split(cleaned, "x")
+	if len(parts) != 2 {
+		return 0, 0, "", false
+	}
+	w, errW := strconv.Atoi(strings.TrimSpace(parts[0]))
+	h, errH := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if errW != nil || errH != nil {
+		return 0, 0, "", false
+	}
+	if w < kvmMinWidth || w > kvmMaxWidth || h < kvmMinHeight || h > kvmMaxHeight {
+		return 0, 0, "", false
+	}
+	return w, h, fmt.Sprintf("%dx%d", w, h), true
+}
+
+func (s *Server) kvmSigningKey() []byte {
+	if s == nil {
+		sum := sha256.Sum256([]byte("nil-server"))
+		return sum[:]
+	}
+	if key := strings.TrimSpace(s.cfg.EncryptionKey); key != "" {
+		sum := sha256.Sum256([]byte("reneo-kvm-token|" + key))
+		return sum[:]
+	}
+	s.kvmFallbackSecretOnce.Do(func() {
+		buf := make([]byte, 32)
+		if _, err := rand.Read(buf); err != nil {
+			sum := sha256.Sum256([]byte(fmt.Sprintf("%d|%d", time.Now().UnixNano(), os.Getpid())))
+			s.kvmFallbackSecret = sum[:]
+			return
+		}
+		s.kvmFallbackSecret = buf
+	})
+	return s.kvmFallbackSecret
+}
+
+func (s *Server) mintKvmToken(userID int64, now time.Time) (string, time.Time) {
+	expiresAt := now.Add(kvmTokenTTL)
+	epoch := uint64(0)
+	if s != nil {
+		epoch = s.kvmTokenEpoch.Load()
+	}
+	payload := fmt.Sprintf("kvm|%d|%d|%d|%s", userID, epoch, expiresAt.Unix(), randomToken(12))
+	encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
+	mac := hmac.New(sha256.New, s.kvmSigningKey())
+	_, _ = mac.Write([]byte(encoded))
+	return encoded + "." + hex.EncodeToString(mac.Sum(nil)), expiresAt
+}
+
+func (s *Server) validateKvmToken(token string, expectedUserID int64) bool {
+	if s == nil || expectedUserID <= 0 {
+		return false
+	}
+	tok := strings.TrimSpace(token)
+	dot := strings.IndexByte(tok, '.')
+	if dot <= 0 || dot >= len(tok)-1 {
+		return false
+	}
+	encoded := tok[:dot]
+	sigHex := tok[dot+1:]
+	gotMAC, err := hex.DecodeString(sigHex)
+	if err != nil {
+		return false
+	}
+	mac := hmac.New(sha256.New, s.kvmSigningKey())
+	_, _ = mac.Write([]byte(encoded))
+	if !hmac.Equal(gotMAC, mac.Sum(nil)) {
+		return false
+	}
+	rawPayload, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return false
+	}
+	parts := strings.Split(string(rawPayload), "|")
+	if len(parts) != 5 || parts[0] != "kvm" || parts[4] == "" {
+		return false
+	}
+	uid, errUID := strconv.ParseInt(parts[1], 10, 64)
+	epoch, errEpoch := strconv.ParseUint(parts[2], 10, 64)
+	exp, errExp := strconv.ParseInt(parts[3], 10, 64)
+	if errUID != nil || errEpoch != nil || errExp != nil {
+		return false
+	}
+	if uid != expectedUserID || epoch != s.kvmTokenEpoch.Load() || time.Now().Unix() > exp {
+		return false
+	}
+	return s.loadSiteSettings().KvmEnabled
+}
+
+func kvmRequestToken(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if tok := strings.TrimSpace(r.URL.Query().Get("token")); tok != "" {
+		return tok
+	}
+	return strings.TrimSpace(r.Header.Get("X-KVM-Token"))
+}
+
+func waitTCPPortClosed(addr string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if !isTCPPortOpen(addr, 120*time.Millisecond) {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return !isTCPPortOpen(addr, 120*time.Millisecond)
+}
+
+func trySetX11Resolution(display, resolution string) error {
+	if runtime.GOOS != "linux" || strings.TrimSpace(display) == "" {
+		return fmt.Errorf("xrandr hanya didukung pada display X11 Linux")
+	}
+	if _, err := exec.LookPath("xrandr"); err != nil {
+		return err
+	}
+	authFiles := discoverXAuthFiles()
+	attempts := make([]string, 0, len(authFiles)+1)
+	attempts = append(attempts, "")
+	attempts = append(attempts, authFiles...)
+	var lastErr error
+	for _, authPath := range attempts {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		cmd := exec.CommandContext(ctx, "xrandr", "--display", display, "-s", resolution)
+		env := append(os.Environ(), "DISPLAY="+display)
+		if authPath != "" {
+			env = append(env, "XAUTHORITY="+authPath)
+		}
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		cancel()
+		if err == nil {
+			return nil
+		}
+		lastErr = fmt.Errorf("%v (%s)", err, tailText(string(out), 160))
+	}
+	if lastErr == nil {
+		return fmt.Errorf("xrandr gagal mengubah resolusi")
+	}
+	return lastErr
+}
 
 type kvmPkgManagerSpec struct {
 	bin        string
@@ -337,20 +498,39 @@ func (s *Server) stopManagedKvm() {
 }
 
 func (s *Server) stopManagedKvmLocked() {
-	if s == nil || len(s.kvmManagedPIDs) == 0 {
+	if s == nil {
 		return
 	}
 	for i := len(s.kvmManagedPIDs) - 1; i >= 0; i-- {
 		terminateKvmPID(s.kvmManagedPIDs[i])
 	}
 	s.kvmManagedPIDs = nil
+	s.kvmActiveMode = ""
+	s.kvmActiveDisplay = ""
 }
 
 // handleGetKvmStatus probes local VNC display service on the host and returns its reachability and installation state.
-func (s *Server) handleGetKvmStatus(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleGetKvmStatus(w http.ResponseWriter, r *http.Request) {
+	if tok := kvmRequestToken(r); tok != "" {
+		currentUser := s.currentUserRecord(r)
+		if currentUser == nil || !s.validateKvmToken(tok, currentUser.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Token akses KVM tidak valid atau kedaluwarsa"})
+			return
+		}
+	}
+
 	settings := s.loadSiteSettings()
 	port, display := kvmPortAndDisplay(settings)
 	available := isTCPPortOpen(fmt.Sprintf("127.0.0.1:%d", port), 800*time.Millisecond)
+	_, _, resolution, resOK := parseKvmResolution(settings.KvmResolution)
+	if !resOK {
+		resolution = defaultKvmResolution
+	}
+
+	s.kvmMu.Lock()
+	activeMode := s.kvmActiveMode
+	activeDisplay := s.kvmActiveDisplay
+	s.kvmMu.Unlock()
 
 	_, lookErr := exec.LookPath("x11vnc")
 	installed := lookErr == nil
@@ -366,6 +546,9 @@ func (s *Server) handleGetKvmStatus(w http.ResponseWriter, _ *http.Request) {
 		"host":           "127.0.0.1",
 		"port":           port,
 		"display":        display,
+		"activeDisplay":  activeDisplay,
+		"resolution":     resolution,
+		"mode":           activeMode,
 		"os":             runtime.GOOS,
 	})
 }
@@ -496,7 +679,10 @@ func launchHeadlessSessionApps(display string) []int {
 	return pids
 }
 
-func tryStartWithXvfb(ctx context.Context, port int) (pids []int, vDisplay string, err error) {
+func tryStartWithXvfb(ctx context.Context, port, width, height int) (pids []int, vDisplay string, err error) {
+	if width < kvmMinWidth || height < kvmMinHeight {
+		width, height = 1280, 800
+	}
 	if _, lookErr := exec.LookPath("Xvfb"); lookErr != nil {
 		installCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 		pkgs, out, instErr := installKvmPackages(installCtx, false, true)
@@ -507,7 +693,8 @@ func tryStartWithXvfb(ctx context.Context, port int) (pids []int, vDisplay strin
 	}
 
 	vDisplay = pickFreeVirtualDisplay(x11SocketDir)
-	xvfbArgs := []string{vDisplay, "-screen", "0", "1280x800x24", "-nolisten", "tcp", "-ac"}
+	screenGeom := fmt.Sprintf("%dx%dx24", width, height)
+	xvfbArgs := []string{vDisplay, "-screen", "0", screenGeom, "-nolisten", "tcp", "-ac"}
 	xvfbPID, err := startDetachedAndWait("Xvfb", xvfbArgs, nil, fmt.Sprintf("reneo-xvfb-%d.log", port), 4*time.Second, func() bool {
 		return xDisplaySocketExists(x11SocketDir, vDisplay)
 	})
@@ -543,10 +730,28 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 	currentUser := s.currentUserRecord(r)
 	settings := s.loadSiteSettings()
 	port, configuredDisplay := kvmPortAndDisplay(settings)
+	width, height, resolution, resOK := parseKvmResolution(settings.KvmResolution)
+	if !resOK {
+		width, height, resolution = 1280, 800, defaultKvmResolution
+	}
 	targetAddr := fmt.Sprintf("127.0.0.1:%d", port)
 
 	if isTCPPortOpen(targetAddr, 500*time.Millisecond) {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "running": true, "message": "Layanan VNC sudah aktif di port " + strconv.Itoa(port)})
+		s.kvmMu.Lock()
+		mode := s.kvmActiveMode
+		disp := s.kvmActiveDisplay
+		s.kvmMu.Unlock()
+		if disp == "" {
+			disp = configuredDisplay
+		}
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":         true,
+			"running":    true,
+			"mode":       mode,
+			"display":    disp,
+			"resolution": resolution,
+			"message":    "Layanan VNC sudah aktif di port " + strconv.Itoa(port),
+		})
 		return
 	}
 
@@ -554,7 +759,18 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 	defer s.kvmMu.Unlock()
 
 	if isTCPPortOpen(targetAddr, 300*time.Millisecond) {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "running": true, "message": "Layanan VNC sudah aktif di port " + strconv.Itoa(port)})
+		disp := s.kvmActiveDisplay
+		if disp == "" {
+			disp = configuredDisplay
+		}
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":         true,
+			"running":    true,
+			"mode":       s.kvmActiveMode,
+			"display":    disp,
+			"resolution": resolution,
+			"message":    "Layanan VNC sudah aktif di port " + strconv.Itoa(port),
+		})
 		return
 	}
 
@@ -575,31 +791,37 @@ func (s *Server) handleStartKvm(w http.ResponseWriter, r *http.Request) {
 	vncPID, usedDisplay, usedAuth, attachErrs := tryAttachExistingDisplays(candidates, port)
 	if vncPID > 0 {
 		s.kvmManagedPIDs = []int{vncPID}
+		s.kvmActiveMode = "x11"
+		s.kvmActiveDisplay = usedDisplay
 		s.auditSensitiveAction(r, currentUser, "kvm.start", "success", map[string]any{
 			"port": port, "display": usedDisplay, "auth": usedAuth, "mode": "x11",
 		})
 		s.writeJSON(w, http.StatusOK, jsonResponse{
-			"ok":      true,
-			"running": true,
-			"mode":    "x11",
-			"display": usedDisplay,
-			"message": fmt.Sprintf("Layanan x11vnc berhasil dijalankan pada display %s", usedDisplay),
+			"ok":         true,
+			"running":    true,
+			"mode":       "x11",
+			"display":    usedDisplay,
+			"resolution": resolution,
+			"message":    fmt.Sprintf("Layanan x11vnc berhasil dijalankan pada display %s", usedDisplay),
 		})
 		return
 	}
 
-	pids, vDisplay, xvfbErr := tryStartWithXvfb(r.Context(), port)
+	pids, vDisplay, xvfbErr := tryStartWithXvfb(r.Context(), port, width, height)
 	if xvfbErr == nil {
 		s.kvmManagedPIDs = pids
+		s.kvmActiveMode = "xvfb"
+		s.kvmActiveDisplay = vDisplay
 		s.auditSensitiveAction(r, currentUser, "kvm.start", "success", map[string]any{
-			"port": port, "display": vDisplay, "mode": "xvfb",
+			"port": port, "display": vDisplay, "mode": "xvfb", "resolution": resolution,
 		})
 		s.writeJSON(w, http.StatusOK, jsonResponse{
-			"ok":      true,
-			"running": true,
-			"mode":    "xvfb",
-			"display": vDisplay,
-			"message": fmt.Sprintf("Layanan x11vnc berhasil dijalankan pada display virtual %s", vDisplay),
+			"ok":         true,
+			"running":    true,
+			"mode":       "xvfb",
+			"display":    vDisplay,
+			"resolution": resolution,
+			"message":    fmt.Sprintf("Layanan x11vnc berhasil dijalankan pada display virtual %s", vDisplay),
 		})
 		return
 	}
@@ -628,11 +850,145 @@ func (s *Server) handleStopKvm(w http.ResponseWriter, r *http.Request) {
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "running": false})
 }
 
+// handleCreateKvmToken mints a short-lived signed KVM URL token bound to the current superadmin user and server token epoch.
+func (s *Server) handleCreateKvmToken(w http.ResponseWriter, r *http.Request) {
+	settings := s.loadSiteSettings()
+	if !settings.KvmEnabled {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Fitur KVM / Host Display dinonaktifkan di Pengaturan"})
+		return
+	}
+	currentUser := s.currentUserRecord(r)
+	if currentUser == nil || currentUser.ID <= 0 {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "Sesi pengguna tidak valid"})
+		return
+	}
+	token, expiresAt := s.mintKvmToken(currentUser.ID, time.Now())
+	s.auditSensitiveAction(r, currentUser, "kvm.token.create", "success", map[string]any{
+		"expiresAt": expiresAt.UTC().Format(time.RFC3339),
+	})
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":        true,
+		"token":     token,
+		"url":       "/kvm?token=" + url.QueryEscape(token),
+		"expiresAt": expiresAt.UTC().Format(time.RFC3339),
+	})
+}
+
+// handleRevokeKvmTokens invalidates all previously issued KVM access tokens by bumping the token epoch.
+func (s *Server) handleRevokeKvmTokens(w http.ResponseWriter, r *http.Request) {
+	newEpoch := s.kvmTokenEpoch.Add(1)
+	currentUser := s.currentUserRecord(r)
+	s.auditSensitiveAction(r, currentUser, "kvm.token.revoke", "success", map[string]any{
+		"epoch": newEpoch,
+	})
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":    true,
+		"epoch": newEpoch,
+	})
+}
+
+// handleSetKvmResolution validates, persists, and (when live) applies the target KVM framebuffer resolution.
+func (s *Server) handleSetKvmResolution(w http.ResponseWriter, r *http.Request) {
+	if tok := kvmRequestToken(r); tok != "" {
+		currentUser := s.currentUserRecord(r)
+		if currentUser == nil || !s.validateKvmToken(tok, currentUser.ID) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Token akses KVM tidak valid atau kedaluwarsa"})
+			return
+		}
+	}
+
+	var req struct {
+		Resolution string `json:"resolution"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Payload resolusi tidak valid"})
+		return
+	}
+	width, height, normalized, ok := parseKvmResolution(req.Resolution)
+	if !ok {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Format resolusi tidak valid (gunakan contoh 1280x800 atau 1920x1080 dalam rentang 640x480 - 3840x2160)"})
+		return
+	}
+
+	settings := s.loadSiteSettings()
+	if !settings.KvmEnabled {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Fitur KVM / Host Display dinonaktifkan di Pengaturan"})
+		return
+	}
+
+	settings.KvmResolution = normalized
+	if err := s.saveSiteSettings(settings); err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "Gagal menyimpan pengaturan resolusi KVM"})
+		return
+	}
+
+	port, configuredDisplay := kvmPortAndDisplay(settings)
+	targetAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	running := isTCPPortOpen(targetAddr, 500*time.Millisecond)
+
+	applied := false
+	restarted := false
+	if running {
+		s.kvmMu.Lock()
+		mode := s.kvmActiveMode
+		activeDisplay := s.kvmActiveDisplay
+		hasManaged := len(s.kvmManagedPIDs) > 0
+		s.kvmMu.Unlock()
+
+		if mode == "xvfb" && hasManaged && runtime.GOOS == "linux" {
+			s.kvmMu.Lock()
+			s.stopManagedKvmLocked()
+			_ = waitTCPPortClosed(targetAddr, 2*time.Second)
+			pids, vDisplay, err := tryStartWithXvfb(r.Context(), port, width, height)
+			if err == nil {
+				s.kvmManagedPIDs = pids
+				s.kvmActiveMode = "xvfb"
+				s.kvmActiveDisplay = vDisplay
+				applied = true
+				restarted = true
+			}
+			s.kvmMu.Unlock()
+			if err != nil {
+				s.writeJSON(w, http.StatusUnprocessableEntity, jsonResponse{"error": err.Error()})
+				return
+			}
+		} else {
+			disp := activeDisplay
+			if disp == "" {
+				disp = configuredDisplay
+			}
+			if trySetX11Resolution(disp, normalized) == nil {
+				applied = true
+			}
+		}
+	}
+
+	currentUser := s.currentUserRecord(r)
+	s.auditSensitiveAction(r, currentUser, "kvm.resolution", "success", map[string]any{
+		"resolution": normalized,
+		"applied":    applied,
+		"restarted":  restarted,
+	})
+	s.writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":         true,
+		"resolution": normalized,
+		"applied":    applied,
+		"restarted":  restarted,
+	})
+}
+
 // handleKvmWebSocket bridges browser WebSocket (RFB/noVNC binary stream) to local VNC display server.
 func (s *Server) handleKvmWebSocket(w http.ResponseWriter, r *http.Request) {
 	settings := s.loadSiteSettings()
 	if !settings.KvmEnabled {
 		http.Error(w, "Fitur KVM / Host Display dinonaktifkan di Pengaturan", http.StatusForbidden)
+		return
+	}
+
+	currentUser := s.currentUserRecord(r)
+	tok := kvmRequestToken(r)
+	if currentUser == nil || !s.validateKvmToken(tok, currentUser.ID) {
+		http.Error(w, "Token akses KVM tidak valid atau kedaluwarsa", http.StatusForbidden)
 		return
 	}
 

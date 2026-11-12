@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Download, ExternalLink, Monitor, Play, RefreshCw, Square, Terminal } from 'lucide-react'
+import { Check, Copy, Download, ExternalLink, Monitor, Play, RefreshCw, ShieldOff, Square, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
 import { getSiteSettings, setSiteSettings, type SiteSettings } from '@/api/system'
-import { getKvmStatus, installKvm, startKvm, stopKvm } from '@/api/kvm'
+import { getKvmStatus, installKvm, revokeKvmTokens, setKvmResolution, startKvm, stopKvm } from '@/api/kvm'
 import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextInput } from '@/components/ui/Field'
+import { Select } from '@/components/ui/Select'
+import { KVM_RESOLUTION_VALUES, launchTokenizedKvmTab } from '../kvmHelpers'
 import { useI18n } from '@/lib/i18n'
 import { useWindowStore } from '@/store/windowStore'
 
@@ -24,7 +26,7 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
   const kvmEnabledSetting = siteQuery.data?.kvmEnabled ?? false
   const kvmQuery = useQuery({
     queryKey: ['kvm-status'],
-    queryFn: getKvmStatus,
+    queryFn: () => getKvmStatus(),
     retry: 1,
     enabled: kvmEnabledSetting,
     refetchInterval: kvmEnabledSetting && active ? 10_000 : false,
@@ -85,11 +87,38 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
     },
   })
 
+  const revokeMutation = useMutation({
+    mutationFn: revokeKvmTokens,
+    onSuccess: () => {
+      toast.success(t('kvm.linksRevoked'))
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || t('kvm.tokenFailed'))
+    },
+  })
+
+  const resolutionMutation = useMutation({
+    mutationFn: (res: string) => setKvmResolution(res),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: ['settings', 'site'] })
+      void qc.invalidateQueries({ queryKey: ['kvm-status'] })
+      toast.success(t('kvm.resolutionChanged', { resolution: res.resolution }))
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || t('kvm.resolutionFailed'))
+    },
+  })
+
   const data = siteQuery.data
   const busy = !data || mutation.isPending
   const kvmEnabled = data?.kvmEnabled ?? false
   const kvmPort = data?.kvmPort ?? 5900
   const kvmDisplay = data?.kvmDisplay ?? ':0'
+  const kvmResolution = data?.kvmResolution ?? kvmQuery.data?.resolution ?? '1280x800'
+  const resolutionOptions = Array.from(new Set([...KVM_RESOLUTION_VALUES, kvmResolution])).map((res) => ({
+    value: res,
+    label: res,
+  }))
 
   const statusLoading = kvmQuery.isLoading && !kvmQuery.data
   const isInstalled = kvmQuery.data?.installed ?? false
@@ -194,7 +223,13 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
                       size="sm"
                       variant="outline"
                       icon={<ExternalLink className="h-3 w-3" />}
-                      onClick={() => window.open('/kvm', '_blank')}
+                      onClick={() =>
+                        void launchTokenizedKvmTab(
+                          () => toast.error(t('kvm.popupBlocked')),
+                          (msg) => toast.error(msg),
+                          t('kvm.tokenFailed'),
+                        )
+                      }
                     >
                       {t('settings.kvm.openInNewTab')}
                     </Button>
@@ -235,8 +270,8 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
               </div>
             </div>
 
-            {/* ── Parameters (Port & Display) ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* ── Parameters (Port, Display & Resolution) ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
                   {t('settings.kvm.port')}
@@ -271,6 +306,38 @@ export function KvmSettingsCard({ bare = false, active = true }: { bare?: boolea
                   placeholder=":0"
                 />
               </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                  {t('settings.kvm.resolution')}
+                </label>
+                <Select
+                  value={kvmResolution}
+                  disabled={busy || resolutionMutation.isPending}
+                  options={resolutionOptions}
+                  buttonClassName="font-mono"
+                  onChange={(nextRes) => {
+                    if (isAvailable) {
+                      resolutionMutation.mutate(nextRes)
+                    } else {
+                      mutation.mutate({ kvmResolution: nextRes })
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<ShieldOff className="h-3 w-3" />}
+                loading={revokeMutation.isPending}
+                disabled={revokeMutation.isPending}
+                onClick={() => revokeMutation.mutate()}
+              >
+                {t('settings.kvm.revokeLinks')}
+              </Button>
             </div>
 
             {/* ── Inline error feedback ── */}

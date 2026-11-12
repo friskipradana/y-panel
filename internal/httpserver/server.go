@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/accountusage"
@@ -85,6 +86,11 @@ type Server struct {
 	databaseCreateMu             sync.Mutex
 	kvmMu                        sync.Mutex
 	kvmManagedPIDs               []int
+	kvmActiveMode                string
+	kvmActiveDisplay             string
+	kvmTokenEpoch                atomic.Uint64
+	kvmFallbackSecretOnce        sync.Once
+	kvmFallbackSecret            []byte
 	fileRootAccessMu             sync.Mutex
 	fileRootAccess               map[string]time.Time
 	// the public proxy of an install that has a public address, and the routes it answers for

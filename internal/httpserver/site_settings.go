@@ -87,9 +87,10 @@ type siteSettings struct {
 	PublicBuyerDomains bool   `json:"publicBuyerDomains"`
 	PublicProxyTarget  string `json:"publicProxyTarget"`
 	// KvmEnabled: host display / KVM VNC WebRTC remote desktop for superadmin
-	KvmEnabled bool   `json:"kvmEnabled"`
-	KvmPort    int    `json:"kvmPort"`
-	KvmDisplay string `json:"kvmDisplay"`
+	KvmEnabled    bool   `json:"kvmEnabled"`
+	KvmPort       int    `json:"kvmPort"`
+	KvmDisplay    string `json:"kvmDisplay"`
+	KvmResolution string `json:"kvmResolution"`
 }
 
 var (
@@ -132,6 +133,11 @@ func (s *Server) loadSiteSettings() siteSettings {
 	}
 	if value.KvmDisplay == "" {
 		value.KvmDisplay = ":0"
+	}
+	if _, _, norm, ok := parseKvmResolution(value.KvmResolution); ok {
+		value.KvmResolution = norm
+	} else {
+		value.KvmResolution = defaultKvmResolution
 	}
 	siteSettingsCache[path] = siteCacheEntry{value: value, loaded: time.Now()}
 	return value
@@ -217,6 +223,7 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 		KvmEnabled           *bool   `json:"kvmEnabled"`
 		KvmPort              *int    `json:"kvmPort"`
 		KvmDisplay           *string `json:"kvmDisplay"`
+		KvmResolution        *string `json:"kvmResolution"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid JSON"})
@@ -241,6 +248,14 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.KvmDisplay != nil {
 		next.KvmDisplay = strings.TrimSpace(*req.KvmDisplay)
+	}
+	if req.KvmResolution != nil {
+		if _, _, norm, ok := parseKvmResolution(*req.KvmResolution); !ok {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "resolusi KVM tidak valid (gunakan format LebarxTinggi antara 640x480 dan 3840x2160)"})
+			return
+		} else {
+			next.KvmResolution = norm
+		}
 	}
 	if req.GraceDays != nil {
 		if *req.GraceDays < 0 || *req.GraceDays > planMaxGraceDays {
@@ -340,6 +355,10 @@ func (s *Server) handleSetSiteSettings(w http.ResponseWriter, r *http.Request) {
 	// without hosting mode there is no demo account and no sold subdomain is served
 	if current.HostingEnabled && !next.HostingEnabled {
 		s.disableDemoAccount()
+	}
+	if current.KvmEnabled && !next.KvmEnabled {
+		s.kvmTokenEpoch.Add(1)
+		s.stopManagedKvm()
 	}
 	if current.HostingEnabled != next.HostingEnabled {
 		go s.syncHostingRoutes()

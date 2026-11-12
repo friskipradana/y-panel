@@ -145,9 +145,9 @@ export function AppRouter() {
           path="/kvm"
           element={
             !authenticated ? (
-              <Navigate to={`${LOGIN_PATH}?next=${encodeURIComponent(location.pathname)}`} replace />
+              <Navigate to={`${LOGIN_PATH}?next=${encodeURIComponent(location.pathname + location.search)}`} replace />
             ) : (
-              <div className="absolute inset-0 z-0">
+              <div className="fixed inset-0 z-0 h-screen w-screen overflow-hidden">
                 <KvmPage />
               </div>
             )

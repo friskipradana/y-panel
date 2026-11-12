@@ -140,6 +140,7 @@ export interface SiteSettings {
   kvmEnabled?: boolean
   kvmPort?: number
   kvmDisplay?: string
+  kvmResolution?: string
 }
 
 export interface OrderMethod {

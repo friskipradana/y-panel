@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/performance"
 	"github.com/gorilla/websocket"
@@ -110,6 +111,25 @@ func (s *Server) requireHTMLAuthV2(next http.Handler) http.Handler {
 			http.Redirect(w, r, "/home", http.StatusFound)
 			return
 		}
+		if authed && (path == "/kvm" || strings.HasPrefix(path, "/kvm/")) {
+			u := s.currentUserRecord(r)
+			if u == nil || !auth.HasRole(u.Role, auth.SuperadminRole) {
+				if acceptsHTML(r) {
+					s.writeStatusPage(w, r, http.StatusForbidden, "Akses ditolak", "Halaman layar host KVM hanya tersedia untuk superadmin.", "Masuk menggunakan akun superadmin untuk mengakses KVM.", false)
+				} else {
+					http.Error(w, "forbidden", http.StatusForbidden)
+				}
+				return
+			}
+			if !s.validateKvmToken(r.URL.Query().Get("token"), u.ID) {
+				if acceptsHTML(r) {
+					s.writeStatusPage(w, r, http.StatusForbidden, "Token KVM tidak valid atau kedaluwarsa", "Tautan tab KVM harus memiliki token aktif yang valid milik akun superadmin Anda.", "Buka ulang tab baru KVM langsung dari jendela KVM atau menu Pengaturan di panel.", false)
+				} else {
+					http.Error(w, "invalid kvm token", http.StatusForbidden)
+				}
+				return
+			}
+		}
 
 		next.ServeHTTP(w, r)
 	})
@@ -148,7 +168,7 @@ func (s *Server) withCORS(next http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")
 			}
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-KVM-Token")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
@@ -524,6 +544,7 @@ func (s *Server) auditFileAction(r *http.Request, action, result string, metadat
 func isProtectedPagePath(path string) bool {
 	return path == "/home" || strings.HasPrefix(path, "/home/") ||
 		path == "/database" || strings.HasPrefix(path, "/database/") ||
+		path == "/kvm" || strings.HasPrefix(path, "/kvm/") ||
 		path == "/adminer" || strings.HasPrefix(path, "/adminer/") ||
 		path == "/dbx" || strings.HasPrefix(path, "/dbx/")
 }
