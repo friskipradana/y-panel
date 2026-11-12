@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  Keyboard,
   Maximize2,
   Minimize2,
   Monitor,
@@ -97,8 +96,8 @@ export function KvmFloatingHud({
         >
           <span className={dotClass} />
           <span>{t(KVM_QUALITY_PRESETS[qualityMode].labelKey)}</span>
-          <span className="panel-mono text-[11px] opacity-75">{resolution}</span>
-          <ChevronDown className="h-3.5 w-3.5" />
+          <span className="panel-mono text-[11px] text-[var(--text-secondary)]">{resolution}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
         </button>
       </div>
     )
@@ -141,53 +140,74 @@ export function KvmFloatingHud({
 
         <div className="kvm-hud__divider" />
 
+        <Button
+          variant="outline"
+          size="sm"
+          className="kvm-key-btn"
+          disabled={connState !== 'connected'}
+          onClick={onSendCad}
+          title={t('kvm.cad')}
+          aria-label={t('kvm.cad')}
+        >
+          {t('kvm.cadShort')}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="kvm-key-btn"
+          disabled={connState !== 'connected'}
+          onClick={onSendSuper}
+          title={t('kvm.superKey')}
+          aria-label={t('kvm.superKey')}
+        >
+          {t('kvm.superShort')}
+        </Button>
+
+        <div className="kvm-hud__divider" />
+
         <IconButton
           tone={scaleToFit ? 'primary' : 'default'}
+          className={scaleToFit ? 'kvm-icon-btn--active' : ''}
           label={t('kvm.scale')}
+          aria-pressed={scaleToFit}
           onClick={onToggleScale}
         >
           <Monitor className="h-3.5 w-3.5" />
         </IconButton>
 
-        <Button
-          variant="outline"
-          size="sm"
-          icon={<Keyboard className="h-3.5 w-3.5" />}
-          disabled={connState !== 'connected'}
-          onClick={onSendCad}
-        >
-          {t('kvm.cad')}
-        </Button>
-
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={connState !== 'connected'}
-          onClick={onSendSuper}
-        >
-          {t('kvm.superKey')}
-        </Button>
-
-        <IconButton label={t('kvm.reconnect')} onClick={onReconnect}>
-          <RefreshCw className="h-3.5 w-3.5" />
+        <IconButton label={t('kvm.reconnect')} disabled={connState === 'connecting'} onClick={onReconnect}>
+          <RefreshCw className={`h-3.5 w-3.5 ${connState === 'connecting' ? 'animate-spin' : ''}`} />
         </IconButton>
 
-        <IconButton label={t('kvm.fullscreen')} onClick={onToggleFullscreen}>
+        <IconButton label={t('kvm.fullscreen')} aria-pressed={isFullscreen} onClick={onToggleFullscreen}>
           {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </IconButton>
 
         <IconButton
           tone={pinned ? 'primary' : 'default'}
+          className={pinned ? 'kvm-icon-btn--active' : ''}
           label={pinned ? t('kvm.hideControls') : t('kvm.showControls')}
+          aria-pressed={pinned}
           onClick={onTogglePin}
         >
           {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
         </IconButton>
 
         {onBack ? (
-          <Button variant="outline" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onBack}>
-            {t('kvm.backToPanel')}
-          </Button>
+          <>
+            <div className="kvm-hud__divider" />
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<ArrowLeft className="h-3.5 w-3.5" />}
+              onClick={onBack}
+              title={t('kvm.backToPanel')}
+              aria-label={t('kvm.backToPanel')}
+            >
+              {t('kvm.backShort')}
+            </Button>
+          </>
         ) : null}
 
         <IconButton label={t('kvm.hideControls')} onClick={onCollapse}>

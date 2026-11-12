@@ -543,29 +543,42 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
             buttonClassName="kvm-hud__select kvm-hud__select--mono"
             dropdownWidth={148}
           />
-          <Button size="sm" variant="ghost" disabled={!connected} onClick={handleSendCad} title={t('kvm.cad')} aria-label={t('kvm.cad')}>
-            {t('kvm.cad')}
-          </Button>
-          <Button size="sm" variant="ghost" disabled={!connected} onClick={handleSendSuper} title={t('kvm.superKey')} aria-label={t('kvm.superKey')}>
-            {t('kvm.superKey')}
+          <Button
+            size="sm"
+            variant="outline"
+            className="kvm-key-btn"
+            disabled={!connected}
+            onClick={handleSendCad}
+            title={t('kvm.cad')}
+            aria-label={t('kvm.cad')}
+          >
+            {t('kvm.cadShort')}
           </Button>
           <Button
             size="sm"
-            variant={scaleToFit ? 'outline' : 'ghost'}
-            icon={<Scale className="h-3.5 w-3.5" />}
+            variant="outline"
+            className="kvm-key-btn"
+            disabled={!connected}
+            onClick={handleSendSuper}
+            title={t('kvm.superKey')}
+            aria-label={t('kvm.superKey')}
+          >
+            {t('kvm.superShort')}
+          </Button>
+          <div className="kvm-toolbar__divider" />
+          <IconButton
+            tone={scaleToFit ? 'primary' : 'default'}
+            className={scaleToFit ? 'kvm-icon-btn--active' : ''}
+            label={t('kvm.scale')}
+            aria-pressed={scaleToFit}
             onClick={handleToggleScale}
-            title={t('kvm.scale')}
-            aria-label={t('kvm.scale')}
-          />
+          >
+            <Scale className="h-3.5 w-3.5" />
+          </IconButton>
           {connected ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={<Power className="h-3.5 w-3.5 text-[var(--panel-danger-text)]" />}
-              onClick={handleDisconnect}
-              title={t('kvm.disconnect')}
-              aria-label={t('kvm.disconnect')}
-            />
+            <IconButton tone="danger" label={t('kvm.disconnect')} onClick={handleDisconnect}>
+              <Power className="h-3.5 w-3.5" />
+            </IconButton>
           ) : (
             <Button
               size="sm"
@@ -579,10 +592,8 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
               {t('kvm.reconnect')}
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={<ExternalLink className="h-3.5 w-3.5" />}
+          <IconButton
+            label={t('kvm.openInNewTab')}
             onClick={() =>
               void launchTokenizedKvmTab(
                 () => toast.error(t('kvm.popupBlocked')),
@@ -590,18 +601,17 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
                 t('kvm.tokenFailed'),
               )
             }
-            title={t('kvm.openInNewTab')}
-            aria-label={t('kvm.openInNewTab')}
-          />
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </IconButton>
           {win ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            <IconButton
+              label={t('kvm.fullscreen')}
+              aria-pressed={isFullscreen}
               onClick={() => toggleFullscreen(win.id)}
-              title={t('kvm.fullscreen')}
-              aria-label={t('kvm.fullscreen')}
-            />
+            >
+              {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            </IconButton>
           ) : null}
         </div>
       </div>
