@@ -17,6 +17,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { InstallAppModal } from '@/components/windows/app-catalog/InstallAppModal'
 import { useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useI18n } from '@/lib/i18n'
 import type { WindowState } from '@/types'
 
@@ -26,11 +27,13 @@ interface InstalledAppWindowProps {
 
 export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const appId = Number(win.params?.appId || 0)
-  const { data, isLoading, isError, error, refetch } = useAppCatalog()
+  const { data, isLoading, isError, error, refetch, isFetching } = useAppCatalog()
   const { actionMutation, updateMutation } = useAppCatalogMutations()
 
   const [reloadNonce, setReloadNonce] = useState(0)
+  const [loadedNonce, setLoadedNonce] = useState(-1)
   const [editOpen, setEditOpen] = useState(false)
 
   const app = data?.installed.find((item) => item.id === appId)
@@ -73,12 +76,17 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const iframeSrc = reloadNonce > 0
     ? `${openUrl}${openUrl.includes('?') ? '&' : '?'}_r=${reloadNonce}`
     : openUrl
+  const endpointLabel =
+    app.kind === 'custom-url'
+      ? app.targetUrl
+      : `127.0.0.1:${app.hostPort}${app.openPath}`
+  const frameLoading = isRunning && !isMissing && loadedNonce !== reloadNonce
 
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
     try {
       await actionMutation.mutateAsync({ id: app.id, action })
       if (action === 'start' || action === 'restart') {
-        setTimeout(() => setReloadNonce((n) => n + 1), 800)
+        setTimeout(() => setReloadNonce((n) => n + 1), 900)
       }
       toast.success(t('appCatalog.containerActionSuccess'))
     } catch (err) {
@@ -120,21 +128,17 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
 
   return (
     <div className="installed-app-shell">
-      <div className="installed-app-toolbar">
-        <div className="flex items-center gap-2 min-w-0">
-          <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="sm" />
-          <span className="text-[13px] font-semibold text-[var(--win-text)] truncate">
-            {app.name}
-          </span>
+      <div className={`installed-app-toolbar ${isMobile ? 'installed-app-toolbar--mobile' : ''}`}>
+        <div className="installed-app-toolbar__meta">
           <Badge tone={statusTone} size="sm" dot>
             {statusLabel}
           </Badge>
-          <span className="panel-mono text-[11px] text-[var(--text-secondary)] truncate hidden sm:inline">
-            {app.kind === 'custom-url' ? app.targetUrl : `127.0.0.1:${app.hostPort}${app.openPath}`}
+          <span className="installed-app-endpoint panel-mono" title={endpointLabel}>
+            {endpointLabel}
           </span>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="installed-app-toolbar__actions">
           {isContainer ? (
             isRunning ? (
               <>
@@ -143,7 +147,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
                   onClick={() => handleAction('restart')}
                   disabled={actionMutation.isPending}
                 >
-                  <RotateCw className="h-3.5 w-3.5" />
+                  <RotateCw className={`h-3.5 w-3.5 ${actionMutation.isPending ? 'animate-spin' : ''}`} />
                 </IconButton>
                 <IconButton
                   label={t('appCatalog.stopContainer')}
@@ -175,6 +179,8 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
             </Button>
           )}
 
+          <span className="installed-app-toolbar__sep" aria-hidden="true" />
+
           <IconButton
             label={t('appCatalog.resetHome')}
             onClick={() => setReloadNonce((n) => n + 1)}
@@ -190,7 +196,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
               setReloadNonce((n) => n + 1)
             }}
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className={`h-3.5 w-3.5 ${frameLoading || isFetching ? 'animate-spin' : ''}`} />
           </IconButton>
 
           <IconButton
@@ -234,13 +240,21 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
             </Button>
           </EmptyState>
         ) : (
-          <iframe
-            key={reloadNonce}
-            src={iframeSrc}
-            title={app.name}
-            className="installed-app-frame"
-            allow="clipboard-read; clipboard-write; fullscreen"
-          />
+          <>
+            {frameLoading ? (
+              <div className="installed-app-loading" aria-live="polite">
+                <LoadingState>{t('appCatalog.loadingAppView')}</LoadingState>
+              </div>
+            ) : null}
+            <iframe
+              key={`${app.id}-${reloadNonce}`}
+              src={iframeSrc}
+              title={app.name}
+              onLoad={() => setLoadedNonce(reloadNonce)}
+              className="installed-app-frame"
+              allow="clipboard-read; clipboard-write; fullscreen"
+            />
+          </>
         )}
       </div>
 
@@ -253,4 +267,3 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
     </div>
   )
 }
-

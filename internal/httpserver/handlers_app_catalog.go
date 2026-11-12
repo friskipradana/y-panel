@@ -1050,27 +1050,113 @@ func stripPanelCookies(cookieHeader string) string {
 }
 
 var (
-	htmlRootAttrRe = regexp.MustCompile(`(?i)(\b(?:href|src|action|poster|data-src)=["'])(/[^/"'][^"']*)`)
+	htmlRootAttrRe  = regexp.MustCompile(`(?i)(\b(?:href|src|action|poster|data|data-src|formaction)=)(["'])(/(?:[^/"'][^"']*)?)(["'])`)
+	htmlSrcsetRe    = regexp.MustCompile(`(?i)(\bsrcset=)(["'])([^"']+)(["'])`)
+	htmlInlineStyle = regexp.MustCompile(`(?is)(<style\b[^>]*>)(.*?)(</style>)`)
+	cssURLRe        = regexp.MustCompile(`(?i)url\(\s*(["']?)(/(?:[^/"')][^"')]*?)?)(["']?)\s*\)`)
 )
 
-func rewriteProxyHTML(body []byte, prefix string) []byte {
-	// Prefix root-relative HTML attributes like href="/assets/..." except "//" and already-prefixed paths
-	rewritten := htmlRootAttrRe.ReplaceAllFunc(body, func(match []byte) []byte {
-		sub := htmlRootAttrRe.FindSubmatch(match)
-		if len(sub) != 3 {
+func rewriteRootPath(val, prefix string) string {
+	if !strings.HasPrefix(val, "/") || strings.HasPrefix(val, "//") {
+		return val
+	}
+	if val == prefix || strings.HasPrefix(val, prefix+"/") {
+		return val
+	}
+	return prefix + val
+}
+
+func rewriteProxyCSS(body []byte, prefix string) []byte {
+	return cssURLRe.ReplaceAllFunc(body, func(match []byte) []byte {
+		sub := cssURLRe.FindSubmatch(match)
+		if len(sub) != 4 {
 			return match
 		}
+		quote := string(sub[1])
 		val := string(sub[2])
-		if strings.HasPrefix(val, prefix+"/") || val == prefix {
+		endQuote := string(sub[3])
+		if quote != endQuote {
 			return match
 		}
-		return append(append([]byte{}, sub[1]...), []byte(prefix+val)...)
+		rewritten := rewriteRootPath(val, prefix)
+		if rewritten == val {
+			return match
+		}
+		return []byte("url(" + quote + rewritten + quote + ")")
+	})
+}
+
+func isInsideBaseTag(buf []byte, attrOffset int) bool {
+	openIdx := bytes.LastIndexByte(buf[:attrOffset], '<')
+	if openIdx == -1 {
+		return false
+	}
+	if closeIdx := bytes.LastIndexByte(buf[:attrOffset], '>'); closeIdx > openIdx {
+		return false
+	}
+	tagStart := strings.ToLower(strings.TrimSpace(string(buf[openIdx+1 : attrOffset])))
+	return strings.HasPrefix(tagStart, "base ") || strings.HasPrefix(tagStart, "base\t") || strings.HasPrefix(tagStart, "base\n") || tagStart == "base"
+}
+
+const proxyShimTemplate = `<script>(function(){var P=__PREFIX__;var ORI=location.origin;function hasP(p){return p===P||p.indexOf(P+"/")===0}function normRest(p){var r=p.slice(P.length)||"/";return r.charAt(0)==="/"?r:"/"+r}function rw(u){if(typeof u!=="string"||!u)return u;var c=u.charAt(0);if(c==="#"||c==="?")return u;if(/^(?:data|blob|mailto|tel|javascript):/i.test(u))return u;if(u.indexOf("//")===0)return u;if(c==="/"){return hasP(u)?u:P+u}if(/^(?:https?|wss?):\/\//i.test(u)){try{var parsed=new URL(u);if(parsed.host===location.host&&!hasP(parsed.pathname)){parsed.pathname=P+(parsed.pathname.charAt(0)==="/"?parsed.pathname:"/"+parsed.pathname);return parsed.href}}catch(e){}return u}try{var base=ORI+P+(location.pathname.charAt(0)==="/"?location.pathname:"/"+location.pathname);var rel=new URL(u,base);if(rel.origin===ORI&&!hasP(rel.pathname)){rel.pathname=P+rel.pathname}return rel.href}catch(e){return u}}if(window.history&&window.history.replaceState){var cur=location.pathname;if(hasP(cur)){try{window.history.replaceState(window.history.state,"",normRest(cur)+location.search+location.hash)}catch(e){}}var oPush=window.history.pushState;var oRep=window.history.replaceState;window.history.pushState=function(s,t,u){if(typeof u==="string"&&hasP(u))u=normRest(u);return oPush.call(this,s,t,u)};window.history.replaceState=function(s,t,u){if(typeof u==="string"&&hasP(u))u=normRest(u);return oRep.call(this,s,t,u)}}if(window.fetch){var oFetch=window.fetch;window.fetch=function(i,o){if(typeof i==="string"){i=rw(i)}else if(i&&typeof i.url==="string"){var nu=rw(i.url);if(nu!==i.url){try{i=new Request(nu,i)}catch(e){}}}return oFetch.call(this,i,o)}}if(window.XMLHttpRequest){var oOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"){arguments[1]=rw(u)}return oOpen.apply(this,arguments)}}if(window.WebSocket){var OWS=window.WebSocket;window.WebSocket=function(u,pr){if(typeof u==="string")u=rw(u);return arguments.length>1?new OWS(u,pr):new OWS(u)};window.WebSocket.prototype=OWS.prototype;window.WebSocket.CONNECTING=OWS.CONNECTING;window.WebSocket.OPEN=OWS.OPEN;window.WebSocket.CLOSING=OWS.CLOSING;window.WebSocket.CLOSED=OWS.CLOSED}if(window.EventSource){var OES=window.EventSource;window.EventSource=function(u,cfg){if(typeof u==="string")u=rw(u);return cfg?new OES(u,cfg):new OES(u)};window.EventSource.prototype=OES.prototype}if(navigator.sendBeacon){var oSB=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return oSB(typeof u==="string"?rw(u):u,d)}}if(window.Worker){var OWK=window.Worker;window.Worker=function(u,opts){if(typeof u==="string")u=rw(u);return opts?new OWK(u,opts):new OWK(u)};window.Worker.prototype=OWK.prototype}var oSA=Element.prototype.setAttribute;var ATTRS={src:1,href:1,data:1,action:1,poster:1,"data-src":1,formaction:1};var TAGS={IMG:1,SCRIPT:1,LINK:1,OBJECT:1,IFRAME:1,SOURCE:1,VIDEO:1,AUDIO:1,FORM:1};Element.prototype.setAttribute=function(k,v){if(typeof k==="string"&&typeof v==="string"&&ATTRS[k.toLowerCase()]&&TAGS[this.tagName]){v=rw(v)}return oSA.call(this,k,v)};function hookProp(Proto,prop){if(!Proto)return;var desc=Object.getOwnPropertyDescriptor(Proto,prop);if(desc&&desc.set&&desc.configurable){Object.defineProperty(Proto,prop,{get:desc.get,set:function(v){return desc.set.call(this,typeof v==="string"?rw(v):v)},enumerable:desc.enumerable,configurable:true})}}hookProp(HTMLImageElement.prototype,"src");hookProp(HTMLScriptElement.prototype,"src");hookProp(HTMLLinkElement.prototype,"href");hookProp(HTMLObjectElement.prototype,"data");document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a||a.target||a.hasAttribute("download"))return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var dest=new URL(href,ORI+P+location.pathname);if(dest.origin===ORI&&!hasP(dest.pathname)){e.preventDefault();location.href=ORI+P+dest.pathname+dest.search+dest.hash}}catch(err){}},false)})();</script>`
+
+func rewriteProxyHTML(body []byte, prefix string) []byte {
+	matches := htmlRootAttrRe.FindAllSubmatchIndex(body, -1)
+	var outBuf bytes.Buffer
+	last := 0
+	for _, m := range matches {
+		// m[0]:m[1] full match, m[2]:m[3] attr=, m[4]:m[5] q1, m[6]:m[7] val, m[8]:m[9] q2
+		outBuf.Write(body[last:m[0]])
+		if strings.EqualFold(string(body[m[2]:m[3]]), "href=") && isInsideBaseTag(body, m[0]) {
+			outBuf.Write(body[m[0]:m[1]])
+		} else {
+			val := string(body[m[6]:m[7]])
+			rewritten := rewriteRootPath(val, prefix)
+			outBuf.Write(body[m[2]:m[3]])
+			outBuf.Write(body[m[4]:m[5]])
+			outBuf.WriteString(rewritten)
+			outBuf.Write(body[m[8]:m[9]])
+		}
+		last = m[1]
+	}
+	outBuf.Write(body[last:])
+	rewritten := outBuf.Bytes()
+
+	// Rewrite srcset="/img-1x.png 1x, /img-2x.png 2x"
+	rewritten = htmlSrcsetRe.ReplaceAllFunc(rewritten, func(match []byte) []byte {
+		sub := htmlSrcsetRe.FindSubmatch(match)
+		if len(sub) != 5 {
+			return match
+		}
+		parts := strings.Split(string(sub[3]), ",")
+		for i, part := range parts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed == "" {
+				continue
+			}
+			fields := strings.Fields(trimmed)
+			if len(fields) > 0 {
+				fields[0] = rewriteRootPath(fields[0], prefix)
+				parts[i] = strings.Join(fields, " ")
+			}
+		}
+		return []byte(string(sub[1]) + string(sub[2]) + strings.Join(parts, ", ") + string(sub[4]))
 	})
 
-	shim := fmt.Sprintf(
-		`<script>(function(){var P=%q;function rw(u){if(typeof u==="string"&&u.charAt(0)==="/"&&u.charAt(1)!=="/"&&u.indexOf(P+"/")!==0&&u!==P){return P+u}return u}if(window.fetch){var f=window.fetch;window.fetch=function(i,o){if(typeof i==="string"){i=rw(i)}else if(i&&typeof i.url==="string"&&i.url.indexOf(location.origin+"/")===0){var rel=i.url.slice(location.origin.length);var nr=rw(rel);if(nr!==rel)i=new Request(location.origin+nr,i)}return f.call(this,i,o)}}var XO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"){arguments[1]=rw(u)}return XO.apply(this,arguments)}})();</script>`,
-		prefix,
-	)
+	// Rewrite root-relative url(/...) inside inline <style> blocks
+	rewritten = htmlInlineStyle.ReplaceAllFunc(rewritten, func(match []byte) []byte {
+		sub := htmlInlineStyle.FindSubmatch(match)
+		if len(sub) != 4 {
+			return match
+		}
+		var b bytes.Buffer
+		b.Write(sub[1])
+		b.Write(rewriteProxyCSS(sub[2], prefix))
+		b.Write(sub[3])
+		return b.Bytes()
+	})
+
+	shim := strings.ReplaceAll(proxyShimTemplate, "__PREFIX__", strconv.Quote(prefix))
 
 	if idx := bytes.Index(bytes.ToLower(rewritten), []byte("<head>")); idx != -1 {
 		pos := idx + len("<head>")
@@ -1080,7 +1166,51 @@ func rewriteProxyHTML(body []byte, prefix string) []byte {
 		out.Write(rewritten[pos:])
 		return out.Bytes()
 	}
+	if idx := bytes.Index(bytes.ToLower(rewritten), []byte("<head ")); idx != -1 {
+		if gt := bytes.IndexByte(rewritten[idx:], '>'); gt != -1 {
+			pos := idx + gt + 1
+			var out bytes.Buffer
+			out.Write(rewritten[:pos])
+			out.WriteString(shim)
+			out.Write(rewritten[pos:])
+			return out.Bytes()
+		}
+	}
 	return append([]byte(shim), rewritten...)
+}
+
+func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPrefix bool) string {
+	trimmed := strings.TrimSpace(loc)
+	if trimmed == "" {
+		return loc
+	}
+	// Strip upstream internal loopback host (e.g. http://127.0.0.1:18001/setup -> /setup) so redirects stay on the panel origin.
+	if strings.HasPrefix(strings.ToLower(trimmed), "http://") || strings.HasPrefix(strings.ToLower(trimmed), "https://") {
+		if parsed, err := url.Parse(trimmed); err == nil && targetURL != nil {
+			hostMatch := strings.EqualFold(parsed.Host, targetURL.Host)
+			if !hostMatch && targetURL.Port() != "" {
+				hostMatch = strings.EqualFold(parsed.Host, net.JoinHostPort("localhost", targetURL.Port())) ||
+					strings.EqualFold(parsed.Host, net.JoinHostPort("127.0.0.1", targetURL.Port()))
+			}
+			if hostMatch {
+				rel := parsed.Path
+				if rel == "" {
+					rel = "/"
+				}
+				if parsed.RawQuery != "" {
+					rel += "?" + parsed.RawQuery
+				}
+				if parsed.Fragment != "" {
+					rel += "#" + parsed.Fragment
+				}
+				trimmed = rel
+			}
+		}
+	}
+	if !keepPrefix {
+		return rewriteRootPath(trimmed, prefix)
+	}
+	return trimmed
 }
 
 func rewriteCookiePath(cookieHeader, prefix string) string {
@@ -1179,6 +1309,26 @@ func (s *Server) appCatalogProxy() http.Handler {
 				} else {
 					pr.Out.Header.Del("Cookie")
 				}
+				if app.Kind != "custom-url" {
+					// Align Origin/Referer with the container target so CSRF & Socket.IO checks pass cleanly inside Reneo's window.
+					upstreamOrigin := targetURL.Scheme + "://" + targetURL.Host
+					if pr.In.Header.Get("Origin") != "" {
+						pr.Out.Header.Set("Origin", upstreamOrigin)
+					}
+					if ref := pr.In.Header.Get("Referer"); ref != "" {
+						if refURL, parseErr := url.Parse(ref); parseErr == nil {
+							refURL.Scheme = targetURL.Scheme
+							refURL.Host = targetURL.Host
+							if !meta.KeepPrefix && (refURL.Path == prefix || strings.HasPrefix(refURL.Path, prefix+"/")) {
+								refURL.Path = strings.TrimPrefix(refURL.Path, prefix)
+								if refURL.Path == "" {
+									refURL.Path = "/"
+								}
+							}
+							pr.Out.Header.Set("Referer", refURL.String())
+						}
+					}
+				}
 				if meta.KeepPrefix {
 					pr.Out.URL.Path = pr.In.URL.Path
 					pr.Out.URL.RawPath = pr.In.URL.RawPath
@@ -1186,14 +1336,22 @@ func (s *Server) appCatalogProxy() http.Handler {
 					basePath := strings.TrimSuffix(targetURL.Path, "/")
 					pr.Out.URL.Path = basePath + "/" + rest
 					pr.Out.URL.RawPath = ""
-					// Request uncompressed HTML/text so root-relative rewrites stay clean and fast.
+					// Request uncompressed text so HTML/CSS sub-path rewrites and SPA shims always apply cleanly.
 					pr.Out.Header.Del("Accept-Encoding")
+					if strings.Contains(pr.In.Header.Get("Accept"), "text/html") || strings.Contains(pr.In.Header.Get("Accept"), "text/css") || strings.HasSuffix(pr.Out.URL.Path, ".html") || strings.HasSuffix(pr.Out.URL.Path, ".css") {
+						pr.Out.Header.Del("If-None-Match")
+						pr.Out.Header.Del("If-Modified-Since")
+					}
 				}
 				pr.SetXForwarded()
 			},
 			ModifyResponse: func(resp *http.Response) error {
+				if resp.StatusCode == http.StatusSwitchingProtocols {
+					return nil
+				}
 				resp.Header.Del("X-Frame-Options")
 				resp.Header.Del("Cross-Origin-Opener-Policy")
+				resp.Header.Del("Cross-Origin-Embedder-Policy")
 				if csp := resp.Header.Get("Content-Security-Policy"); csp != "" && strings.Contains(strings.ToLower(csp), "frame-ancestors") {
 					// Strip restrictive frame-ancestors so the app renders inside its Reneo desktop window.
 					directives := strings.Split(csp, ";")
@@ -1213,12 +1371,11 @@ func (s *Server) appCatalogProxy() http.Handler {
 					}
 				}
 
+				if loc := resp.Header.Get("Location"); loc != "" {
+					resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, prefix, meta.KeepPrefix))
+				}
+
 				if !meta.KeepPrefix {
-					if loc := resp.Header.Get("Location"); loc != "" {
-						if strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, "//") && !strings.HasPrefix(loc, prefix+"/") && loc != prefix {
-							resp.Header.Set("Location", prefix+loc)
-						}
-					}
 					if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
 						resp.Header.Del("Set-Cookie")
 						for _, c := range cookies {
@@ -1226,14 +1383,23 @@ func (s *Server) appCatalogProxy() http.Handler {
 						}
 					}
 					ct := strings.ToLower(resp.Header.Get("Content-Type"))
-					if strings.Contains(ct, "text/html") && resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
-						raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-						_ = resp.Body.Close()
-						if err == nil {
-							updated := rewriteProxyHTML(raw, prefix)
-							resp.Body = io.NopCloser(bytes.NewReader(updated))
-							resp.ContentLength = int64(len(updated))
-							resp.Header.Set("Content-Length", strconv.Itoa(len(updated)))
+					if resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
+						isHTML := strings.Contains(ct, "text/html")
+						isCSS := strings.Contains(ct, "text/css")
+						if isHTML || isCSS {
+							raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+							_ = resp.Body.Close()
+							if readErr == nil {
+								var updated []byte
+								if isHTML {
+									updated = rewriteProxyHTML(raw, prefix)
+								} else {
+									updated = rewriteProxyCSS(raw, prefix)
+								}
+								resp.Body = io.NopCloser(bytes.NewReader(updated))
+								resp.ContentLength = int64(len(updated))
+								resp.Header.Set("Content-Length", strconv.Itoa(len(updated)))
+							}
 						}
 					}
 				}
@@ -1242,10 +1408,19 @@ func (s *Server) appCatalogProxy() http.Handler {
 			ErrorHandler: func(rw http.ResponseWriter, _ *http.Request, _ error) {
 				rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 				rw.WriteHeader(http.StatusBadGateway)
-				_, _ = io.WriteString(rw, "<!doctype html><html><body style=\"font-family:sans-serif;padding:24px;color:#334155\"><h3>Aplikasi belum merespons</h3><p>Pastikan container sedang berjalan dan siap menerima koneksi di port "+strconv.Itoa(app.HostPort)+".</p></body></html>")
+				portLabel := strconv.Itoa(app.HostPort)
+				if app.Kind == "custom-url" {
+					portLabel = app.TargetURL
+				}
+				_, _ = io.WriteString(rw, `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light dark;--bg:#f8fafc;--card:#ffffff;--bd:#e2e8f0;--tx:#0f172a;--sub:#475569;--btn:#2563eb;--btx:#ffffff}@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#182132;--bd:#273549;--tx:#f1f5f9;--sub:#94a3b8;--btn:#3b82f6;--btx:#ffffff}}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);color:var(--tx);font:13px/1.55 system-ui,-apple-system,sans-serif}.box{max-width:400px;width:100%;padding:20px;border-radius:12px;border:1px solid var(--bd);background:var(--card)}.ttl{margin:0 0 6px;font-size:15px;font-weight:600}.dsc{margin:0 0 14px;color:var(--sub)}.btn{border:0;border-radius:8px;padding:8px 14px;background:var(--btn);color:var(--btx);font:600 12.5px inherit;cursor:pointer}.btn:hover{opacity:.92}</style></head><body><div class="box"><h3 class="ttl">Aplikasi sedang memulai atau belum merespons</h3><p class="dsc">Menunggu layanan aktif di <code style="font-family:ui-monospace,monospace">`+htmlEscapeMinimal(portLabel)+`</code>. Container baru biasanya butuh beberapa detik untuk siap.</p><button class="btn" onclick="location.reload()">Muat Ulang</button></div><script>(function(){var n=Number(sessionStorage.getItem("reneo_retry_"+location.pathname)||"0");if(n<8){sessionStorage.setItem("reneo_retry_"+location.pathname,String(n+1));setTimeout(function(){location.reload()},2500)}else{sessionStorage.removeItem("reneo_retry_"+location.pathname)}})()</script></body></html>`)
 			},
 		}
 
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+func htmlEscapeMinimal(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&#39;")
+	return r.Replace(s)
 }

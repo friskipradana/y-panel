@@ -1,27 +1,14 @@
 import { useMemo, useState } from 'react'
-import {
-  ExternalLink,
-  Pencil,
-  Play,
-  Plus,
-  RefreshCw,
-  RotateCw,
-  Search,
-  Square,
-  Store,
-  Trash2,
-} from 'lucide-react'
+import { LayoutGrid, List as ListIcon, Plus, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
-import { InstalledAppBadge } from '@/components/common/AppIcon'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { FilterMenu } from '@/components/ui/FilterMenu'
-import { IconButton } from '@/components/ui/IconButton'
-import { ListState, ListTable } from '@/components/ui/ListTable'
 import { Modal } from '@/components/ui/Modal'
+import { CatalogAppsView, type CatalogViewMode } from '@/components/windows/app-catalog/CatalogAppsView'
 import { InstallAppModal } from '@/components/windows/app-catalog/InstallAppModal'
+import { InstalledAppsView } from '@/components/windows/app-catalog/InstalledAppsView'
 import { openInstalledAppWindow, useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
@@ -29,20 +16,24 @@ import { useI18n } from '@/lib/i18n'
 
 type CatalogTab = 'catalog' | 'installed'
 
-function appStatusTone(app: InstalledApp): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
-  if (app.kind === 'custom-url') return app.useProxy ? 'info' : 'neutral'
-  if (app.containerState === 'running') return 'success'
-  if (app.containerState === 'missing') return 'danger'
-  return 'warning'
+const VIEW_MODE_KEY = 'reneo.appCatalog.viewMode'
+
+function readStoredViewMode(): CatalogViewMode {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === 'grid' ? 'grid' : 'list'
+  } catch {
+    return 'list'
+  }
 }
 
 export function AppCatalogWindow() {
-  const { t, language } = useI18n()
+  const { t } = useI18n()
   const isMobile = useIsMobileLayout()
   const { data, isLoading, isError, refetch, isFetching } = useAppCatalog()
   const { actionMutation, uninstallMutation } = useAppCatalogMutations()
 
   const [tab, setTab] = useState<CatalogTab>('catalog')
+  const [viewMode, setViewMode] = useState<CatalogViewMode>(readStoredViewMode)
   const [category, setCategory] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [busyAppId, setBusyAppId] = useState<number | null>(null)
@@ -57,6 +48,15 @@ export function AppCatalogWindow() {
 
   const catalog = useMemo(() => data?.catalog ?? [], [data?.catalog])
   const installed = useMemo(() => data?.installed ?? [], [data?.installed])
+
+  const updateViewMode = (mode: CatalogViewMode) => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, mode)
+    } catch {
+      // Abaikan jika penyimpanan lokal dibatasi
+    }
+  }
 
   const installedByCatalogId = useMemo(() => {
     const map = new Map<string, InstalledApp>()
@@ -174,21 +174,6 @@ export function AppCatalogWindow() {
     }
   }
 
-  const statusLabel = (app: InstalledApp) => {
-    if (app.kind === 'custom-url') {
-      return app.useProxy ? t('appCatalog.statusProxy') : t('appCatalog.statusDirect')
-    }
-    if (app.containerState === 'running') return t('appCatalog.statusRunning')
-    if (app.containerState === 'missing') return t('appCatalog.statusMissing')
-    return t('appCatalog.statusStopped')
-  }
-
-  const kindLabel = (kind: InstalledApp['kind']) => {
-    if (kind === 'docker') return t('appCatalog.kindDocker')
-    if (kind === 'existing-container') return t('appCatalog.kindExisting')
-    return t('appCatalog.kindCustomUrl')
-  }
-
   const viewFilter = (
     <FilterMenu
       label={t('appCatalog.viewFilterLabel')}
@@ -215,6 +200,35 @@ export function AppCatalogWindow() {
       <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
       <span>{t('appCatalog.addCustomButton')}</span>
     </button>
+  )
+
+  const viewModeSwitch = (mobile = false) => (
+    <div
+      className={`app-catalog-view-toggle ${mobile ? 'app-catalog-view-toggle--mobile' : ''}`}
+      role="group"
+      aria-label={t('appCatalog.viewFilterLabel')}
+    >
+      <button
+        type="button"
+        onClick={() => updateViewMode('list')}
+        className={`app-catalog-view-toggle__btn ${viewMode === 'list' ? 'app-catalog-view-toggle__btn--active' : ''}`}
+        title={t('appCatalog.viewList')}
+        aria-label={t('appCatalog.viewList')}
+        aria-pressed={viewMode === 'list'}
+      >
+        <ListIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={() => updateViewMode('grid')}
+        className={`app-catalog-view-toggle__btn ${viewMode === 'grid' ? 'app-catalog-view-toggle__btn--active' : ''}`}
+        title={t('appCatalog.viewCard')}
+        aria-label={t('appCatalog.viewCard')}
+        aria-pressed={viewMode === 'grid'}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+    </div>
   )
 
   const refreshButton = (cls = 'docker-icon-btn') => (
@@ -254,6 +268,7 @@ export function AppCatalogWindow() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            {viewModeSwitch(true)}
             {refreshButton('docker-icon-btn docker-icon-btn--mobile')}
           </div>
         </div>
@@ -276,196 +291,32 @@ export function AppCatalogWindow() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            {viewModeSwitch()}
             {refreshButton()}
           </div>
         </div>
       )}
 
       {tab === 'catalog' ? (
-        <ListTable
-          variant="app-catalog"
-          empty={isLoading || isError || filteredCatalog.length === 0}
-          columns={[
-            { label: '#' },
-            { label: t('appCatalog.colApp') },
-            { label: t('appCatalog.colDescription') },
-            { label: t('appCatalog.colCategory') },
-            { label: t('appCatalog.colActions'), actions: true },
-          ]}
-        >
-          <ListState
-            loading={isLoading}
-            error={isError}
-            errorTitle={t('appCatalog.loadFailed')}
-            loadingText={t('appCatalog.loading')}
-            empty={filteredCatalog.length === 0}
-            emptyIcon={<Store />}
-            emptyTitle={t('appCatalog.emptyCatalogTitle')}
-            emptyHint={t('appCatalog.emptyCatalogDesc')}
-          >
-            {filteredCatalog.map((app, idx) => {
-              const existing = installedByCatalogId.get(app.id)
-              const tagline = language === 'id' ? app.taglineId : app.taglineEn
-              return (
-                <div key={app.id} className="docker-row">
-                  <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
-                  <div className="docker-row__app">
-                    <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
-                    <div className="docker-row__text">
-                      <span className="docker-app-name" title={app.name}>{app.name}</span>
-                      <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
-                    </div>
-                  </div>
-                  <div className="docker-cell min-w-0">
-                    <span className="text-[12px] text-[var(--text-secondary)] truncate" title={tagline}>
-                      {tagline}
-                    </span>
-                  </div>
-                  <div className="docker-cell docker-cell--keep">
-                    <Badge tone={existing ? 'success' : 'neutral'} size="sm" dot={Boolean(existing)}>
-                      {existing ? t('appCatalog.installedBadge') : t(`appCatalog.cat.${app.category}`)}
-                    </Badge>
-                  </div>
-                  <div className="docker-action-btns">
-                    {existing ? (
-                      <>
-                        <Button
-                          variant="primary-soft"
-                          size="sm"
-                          icon={<ExternalLink className="h-3.5 w-3.5" />}
-                          onClick={() => openInstalledAppWindow(existing)}
-                        >
-                          {t('appCatalog.openWindow')}
-                        </Button>
-                        <IconButton
-                          label={t('appCatalog.installAnother')}
-                          onClick={() => handleOpenInstallCatalog(app)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </IconButton>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenInstallCatalog(app)}
-                      >
-                        {t('appCatalog.installAction')}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </ListState>
-        </ListTable>
+        <CatalogAppsView
+          items={filteredCatalog}
+          installedByCatalogId={installedByCatalogId}
+          viewMode={viewMode}
+          isLoading={isLoading}
+          isError={isError}
+          onInstallCatalog={handleOpenInstallCatalog}
+        />
       ) : (
-        <ListTable
-          variant="app-catalog-installed"
-          empty={isLoading || isError || filteredInstalled.length === 0}
-          columns={[
-            { label: '#' },
-            { label: t('appCatalog.colApp') },
-            { label: t('appCatalog.colKind') },
-            { label: t('appCatalog.colStatus') },
-            { label: t('appCatalog.colEndpoint') },
-            { label: t('appCatalog.colActions'), actions: true },
-          ]}
-        >
-          <ListState
-            loading={isLoading}
-            error={isError}
-            errorTitle={t('appCatalog.loadFailed')}
-            loadingText={t('appCatalog.loading')}
-            empty={filteredInstalled.length === 0}
-            emptyIcon={<Store />}
-            emptyTitle={t('appCatalog.emptyInstalledTitle')}
-            emptyHint={t('appCatalog.emptyInstalledDesc')}
-          >
-            {filteredInstalled.map((app, idx) => {
-              const rowBusy = busyAppId === app.id
-              return (
-                <div key={app.id} className="docker-row">
-                  <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
-                  <div className="docker-row__app">
-                    <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
-                    <div className="docker-row__text">
-                      <span className="docker-app-name" title={app.name}>{app.name}</span>
-                      <span className="docker-row__sub truncate" title={app.tagline || app.image || app.targetUrl}>
-                        {app.tagline || app.image || app.targetUrl}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="docker-cell">
-                    <Badge tone="neutral" size="sm">{kindLabel(app.kind)}</Badge>
-                  </div>
-                  <div className="docker-cell docker-cell--keep">
-                    <Badge tone={appStatusTone(app)} size="sm" dot>{statusLabel(app)}</Badge>
-                  </div>
-                  <div className="docker-cell min-w-0">
-                    <span className="panel-mono text-[12px] text-[var(--text-secondary)] truncate">
-                      {app.kind === 'custom-url' ? app.targetUrl : `127.0.0.1:${app.hostPort}${app.openPath}`}
-                    </span>
-                  </div>
-                  <div className="docker-action-btns">
-                    <IconButton
-                      label={t('appCatalog.openWindow')}
-                      tone="primary"
-                      disabled={rowBusy}
-                      onClick={() => openInstalledAppWindow(app)}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </IconButton>
-
-                    {app.kind !== 'custom-url' ? (
-                      app.containerState === 'running' ? (
-                        <>
-                          <IconButton
-                            label={t('appCatalog.restartContainer')}
-                            disabled={rowBusy}
-                            onClick={() => handleContainerAction(app, 'restart')}
-                          >
-                            <RotateCw className={`h-3.5 w-3.5 ${rowBusy ? 'animate-spin' : ''}`} />
-                          </IconButton>
-                          <IconButton
-                            label={t('appCatalog.stopContainer')}
-                            tone="warning"
-                            disabled={rowBusy}
-                            onClick={() => handleContainerAction(app, 'stop')}
-                          >
-                            <Square className="h-3.5 w-3.5" />
-                          </IconButton>
-                        </>
-                      ) : (
-                        <IconButton
-                          label={t('appCatalog.startContainer')}
-                          tone="success"
-                          disabled={rowBusy || app.containerState === 'missing'}
-                          onClick={() => handleContainerAction(app, 'start')}
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                        </IconButton>
-                      )
-                    ) : null}
-
-                    <IconButton label={t('common.edit')} disabled={rowBusy} onClick={() => handleOpenEdit(app)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </IconButton>
-
-                    <IconButton
-                      label={t('appCatalog.uninstallAction')}
-                      tone="danger"
-                      disabled={rowBusy}
-                      onClick={() => openUninstallConfirm(app)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </IconButton>
-                  </div>
-                </div>
-              )
-            })}
-          </ListState>
-        </ListTable>
+        <InstalledAppsView
+          items={filteredInstalled}
+          viewMode={viewMode}
+          isLoading={isLoading}
+          isError={isError}
+          busyAppId={busyAppId}
+          onContainerAction={handleContainerAction}
+          onEdit={handleOpenEdit}
+          onUninstall={openUninstallConfirm}
+        />
       )}
 
       <InstallAppModal
