@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.80.8] - 2026-11-12
+
+Remove wallpaper upload and custom background settings.
+
+### Peningkatan
+- **ui:** Remove wallpaper upload and custom background settings ([`995372b`](https://github.com/friskipradana/y-panel/commit/995372b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.80.7...v1.80.8
+
 ## [1.80.7] - 2026-11-12
 
 Implement secure token-based access and enhanced UI controls.
