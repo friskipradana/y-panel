@@ -14,11 +14,23 @@ func TestAppCatalogSlugAndOpenPathNormalization(t *testing.T) {
 	if got := sanitizeAppSlug("  Uptime Kuma (Prod)! "); got != "uptime-kuma-prod" {
 		t.Fatalf("unexpected slug: %q", got)
 	}
-	if got := normalizeOpenPath(""); got != "/" {
-		t.Fatalf("expected /, got %q", got)
-	}
-	if got := normalizeOpenPath("admin/login"); got != "/admin/login" {
-		t.Fatalf("expected /admin/login, got %q", got)
+	for _, tc := range []struct {
+		input string
+		slugs []string
+		want  string
+	}{
+		{"", nil, "/"},
+		{"admin/login", nil, "/admin/login"},
+		{"/app/grafana", []string{"grafana"}, "/"},
+		{"/app/grafana/", []string{"grafana"}, "/"},
+		{"/app/grafana/d/dashboard", []string{"grafana"}, "/d/dashboard"},
+		{"/api/v1/app-catalog/proxy/6/app/grafana/", []string{"grafana"}, "/"},
+		{"/api/v1/app-catalog/proxy/6/d/dashboard", []string{"grafana"}, "/d/dashboard"},
+		{"/grafana", []string{"grafana"}, "/"},
+	} {
+		if got := normalizeOpenPath(tc.input, tc.slugs...); got != tc.want {
+			t.Fatalf("normalizeOpenPath(%q, %v) = %q, want %q", tc.input, tc.slugs, got, tc.want)
+		}
 	}
 }
 
@@ -100,6 +112,15 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	}
 	if got := rewriteProxyLocation("http://localhost:18006/api/v1/app-catalog/proxy/6/login", &url.URL{Scheme: "http", Host: "127.0.0.1:18006"}, "/api/v1/app-catalog/proxy/6", true); got != "/api/v1/app-catalog/proxy/6/login" {
 		t.Fatalf("expected keepPrefix redirect host stripped, got %q", got)
+	}
+	if got := rewriteProxyLocation("grafana/", nil, "/app/grafana", true); got != "/app/grafana/" {
+		t.Fatalf("expected relative self-redirect resolved cleanly, got %q", got)
+	}
+	if got := rewriteProxyLocation("/api/v1/app-catalog/proxy/6/login", nil, "/app/grafana", true); got != "/app/grafana/login" {
+		t.Fatalf("expected keepPrefix translated to gateway slug, got %q", got)
+	}
+	if got := rewriteProxyLocation("/app/grafana/app/grafana/", nil, "/app/grafana", true); got != "/app/grafana/" {
+		t.Fatalf("expected duplicate slug stripped, got %q", got)
 	}
 }
 

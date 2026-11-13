@@ -355,13 +355,59 @@ func sanitizeAppSlug(raw string) string {
 	return strings.Trim(b.String(), "-")
 }
 
-func normalizeOpenPath(raw string) string {
+func normalizeOpenPath(raw string, slugs ...string) string {
 	p := strings.TrimSpace(raw)
 	if p == "" {
 		return "/"
 	}
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
+	}
+	// Strip proxy prefix if accidentally included (/api/v1/app-catalog/proxy/<id>)
+	if idx := strings.Index(p, appCatalogProxyPrefix); idx != -1 {
+		rest := p[idx+len(appCatalogProxyPrefix):]
+		if slash := strings.Index(rest, "/"); slash != -1 {
+			p = rest[slash:]
+		} else {
+			return "/"
+		}
+	}
+	// Strip repeated leading /app/ or /app
+	for strings.HasPrefix(p, "/app/") {
+		p = strings.TrimPrefix(p, "/app")
+	}
+	if p == "/app" {
+		return "/"
+	}
+	// Strip specified slugs
+	for _, s := range slugs {
+		clean := strings.TrimSpace(s)
+		if clean == "" {
+			continue
+		}
+		prefix := "/" + clean
+		for strings.HasPrefix(p, prefix+"/") {
+			p = strings.TrimPrefix(p, prefix)
+		}
+		if p == prefix {
+			return "/"
+		}
+	}
+	// Strip builtin catalog IDs (e.g. /grafana, /n8n, /uptime-kuma)
+	for _, cat := range builtinCatalogApps {
+		prefix := "/" + cat.ID
+		for strings.HasPrefix(p, prefix+"/") {
+			p = strings.TrimPrefix(p, prefix)
+		}
+		if p == prefix {
+			return "/"
+		}
+	}
+	if p == "" || !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	for strings.Contains(p, "//") {
+		p = strings.ReplaceAll(p, "//", "/")
 	}
 	return p
 }
@@ -418,15 +464,17 @@ func matchContainerForApp(app database.InstalledApp, containers []docker.Contain
 func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []docker.Container, scope ownerScope) installedAppView {
 	meta := parseAppConfigMeta(app.ConfigJSON)
 	slug := strings.TrimSpace(app.Slug)
+	cleanOpen := normalizeOpenPath(app.OpenPath, slug, app.CatalogID)
 	var proxyPath string
 	if slug != "" {
-		proxyPath = fmt.Sprintf("/app/%s%s", slug, normalizeOpenPath(app.OpenPath))
+		proxyPath = fmt.Sprintf("/app/%s%s", slug, cleanOpen)
 	} else {
-		proxyPath = fmt.Sprintf("%s%d%s", appCatalogProxyPrefix, app.ID, normalizeOpenPath(app.OpenPath))
+		proxyPath = fmt.Sprintf("%s%d%s", appCatalogProxyPrefix, app.ID, cleanOpen)
 	}
 	if !app.UseProxy && app.TargetURL != "" {
 		proxyPath = app.TargetURL
 	}
+	app.OpenPath = cleanOpen
 	view := installedAppView{
 		InstalledApp: app,
 		KeepPrefix:   effectiveKeepPrefix(app, meta),
@@ -732,9 +780,9 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	if iconColor == "" {
 		iconColor = spec.IconColor
 	}
-	openPath := normalizeOpenPath(spec.OpenPath)
+	openPath := normalizeOpenPath(spec.OpenPath, slug, spec.ID)
 	if strings.TrimSpace(req.OpenPath) != "" {
-		openPath = normalizeOpenPath(req.OpenPath)
+		openPath = normalizeOpenPath(req.OpenPath, slug, spec.ID)
 	}
 	useProxy := true
 	if req.UseProxy != nil {
@@ -888,9 +936,15 @@ func (s *Server) installFromExistingContainer(w http.ResponseWriter, r *http.Req
 		iconColor = "sky"
 	}
 
+	slugCandidate := strings.TrimSpace(req.Slug)
+	if slugCandidate == "" {
+		slugCandidate = name
+	}
+	slug := s.uniqueAppSlug(actor.ID, slugCandidate)
+
 	created, err := s.database.CreateInstalledApp(&database.InstalledApp{
 		UserID:        actor.ID,
-		Slug:          s.uniqueAppSlug(actor.ID, name),
+		Slug:          slug,
 		CatalogID:     "",
 		Name:          name,
 		Tagline:       strings.TrimSpace(req.Tagline),
@@ -902,7 +956,7 @@ func (s *Server) installFromExistingContainer(w http.ResponseWriter, r *http.Req
 		ContainerName: containerName,
 		HostPort:      selectedHostPort,
 		ContainerPort: selectedContainerPort,
-		OpenPath:      normalizeOpenPath(req.OpenPath),
+		OpenPath:      normalizeOpenPath(req.OpenPath, slug),
 		TargetURL:     "",
 		UseProxy:      true,
 		ConfigJSON:    "{}",
@@ -942,9 +996,15 @@ func (s *Server) installFromCustomURL(w http.ResponseWriter, r *http.Request, ac
 		iconColor = "blue"
 	}
 
+	slugCandidate := strings.TrimSpace(req.Slug)
+	if slugCandidate == "" {
+		slugCandidate = name
+	}
+	slug := s.uniqueAppSlug(actor.ID, slugCandidate)
+
 	created, err := s.database.CreateInstalledApp(&database.InstalledApp{
 		UserID:    actor.ID,
-		Slug:      s.uniqueAppSlug(actor.ID, name),
+		Slug:      slug,
 		CatalogID: "",
 		Name:      name,
 		Tagline:   strings.TrimSpace(req.Tagline),
@@ -1045,7 +1105,11 @@ func (s *Server) handleAppCatalogUpdate(w http.ResponseWriter, r *http.Request) 
 		patch["iconColor"] = strings.TrimSpace(*body.IconColor)
 	}
 	if body.OpenPath != nil {
-		patch["openPath"] = normalizeOpenPath(*body.OpenPath)
+		activeSlug := app.Slug
+		if s, ok := patch["slug"].(string); ok && s != "" {
+			activeSlug = s
+		}
+		patch["openPath"] = normalizeOpenPath(*body.OpenPath, activeSlug, app.CatalogID)
 	}
 	nextUseProxy := app.UseProxy
 	if body.UseProxy != nil {
@@ -1514,6 +1578,7 @@ func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPre
 	if trimmed == "" {
 		return loc
 	}
+	cleanPrefix := strings.TrimSuffix(prefix, "/")
 	// Strip upstream internal loopback host (e.g. http://127.0.0.1:18001/setup -> /setup) so redirects stay on the panel origin.
 	if strings.HasPrefix(strings.ToLower(trimmed), "http://") || strings.HasPrefix(strings.ToLower(trimmed), "https://") {
 		if parsed, err := url.Parse(trimmed); err == nil && targetURL != nil {
@@ -1537,8 +1602,42 @@ func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPre
 			}
 		}
 	}
+
+	// Handle relative redirects (e.g. "grafana/" or "./login")
+	if !strings.HasPrefix(trimmed, "/") && !strings.Contains(trimmed, "://") {
+		cleanRel := strings.TrimPrefix(trimmed, "./")
+		cleanSlug := strings.TrimPrefix(cleanPrefix, "/app/")
+		if strings.TrimSuffix(cleanRel, "/") == cleanSlug || strings.HasSuffix(cleanPrefix, "/"+strings.TrimSuffix(cleanRel, "/")) {
+			return cleanPrefix + "/"
+		}
+		return cleanPrefix + "/" + cleanRel
+	}
+
+	// For keepPrefix apps accessed via /app/<slug>, rewrite internal /api/v1/app-catalog/proxy/<id> redirects to /app/<slug>
+	if keepPrefix && cleanPrefix != "" {
+		if idx := strings.Index(trimmed, appCatalogProxyPrefix); idx != -1 {
+			rest := trimmed[idx+len(appCatalogProxyPrefix):]
+			if slash := strings.Index(rest, "/"); slash != -1 {
+				trimmed = cleanPrefix + rest[slash:]
+			} else {
+				trimmed = cleanPrefix + "/"
+			}
+		}
+		// Strip any nested repetition (e.g. /app/grafana/app/grafana)
+		if strings.HasPrefix(cleanPrefix, "/app/") {
+			dup := cleanPrefix + cleanPrefix
+			for strings.Contains(trimmed, dup) {
+				trimmed = strings.ReplaceAll(trimmed, dup, cleanPrefix)
+			}
+			if strings.HasPrefix(trimmed, cleanPrefix+"/app/") {
+				trimmed = strings.ReplaceAll(trimmed, cleanPrefix+"/app/", "/app/")
+			}
+		}
+		return trimmed
+	}
+
 	if !keepPrefix {
-		return rewriteRootPath(trimmed, prefix)
+		return rewriteRootPath(trimmed, cleanPrefix)
 	}
 	return trimmed
 }
@@ -1898,6 +1997,7 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 	meta := parseAppConfigMeta(app.ConfigJSON)
 	keepPrefix := effectiveKeepPrefix(*app, meta)
 	cleanPrefix := strings.TrimSuffix(prefix, "/")
+	internalProxyPrefix := fmt.Sprintf("%s%d", appCatalogProxyPrefix, app.ID)
 
 	proxy := &httputil.ReverseProxy{
 		Transport: &appCatalogRoundTripper{
@@ -1940,8 +2040,21 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 				}
 			}
 			if keepPrefix {
-				pr.Out.URL.Path = pr.In.URL.Path
-				pr.Out.URL.RawPath = pr.In.URL.RawPath
+				if cleanPrefix != internalProxyPrefix && strings.HasPrefix(pr.In.URL.Path, cleanPrefix) {
+					sub := strings.TrimPrefix(pr.In.URL.Path, cleanPrefix)
+					if sub == "" {
+						sub = "/"
+					}
+					pr.Out.URL.Path = internalProxyPrefix + sub
+					pr.Out.URL.RawPath = ""
+				} else {
+					cleanedPath := pr.In.URL.Path
+					if app.Slug != "" && strings.Contains(cleanedPath, "/app/"+app.Slug) && strings.Contains(cleanedPath, internalProxyPrefix) {
+						cleanedPath = strings.ReplaceAll(cleanedPath, "/app/"+app.Slug, "")
+					}
+					pr.Out.URL.Path = cleanedPath
+					pr.Out.URL.RawPath = ""
+				}
 			} else {
 				basePath := strings.TrimSuffix(targetURL.Path, "/")
 				pr.Out.URL.Path = basePath + "/" + rest
@@ -1966,7 +2079,35 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 			resp.Header.Del("Content-Security-Policy-Report-Only")
 
 			if loc := resp.Header.Get("Location"); loc != "" {
-				resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, cleanPrefix, keepPrefix))
+				rewritten := rewriteProxyLocation(loc, targetURL, cleanPrefix, keepPrefix)
+				if rewritten == r.URL.RequestURI() || rewritten == r.URL.Path {
+					rewritten = cleanPrefix + "/"
+				}
+				resp.Header.Set("Location", rewritten)
+			}
+
+			if keepPrefix && cleanPrefix != internalProxyPrefix {
+				if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
+					resp.Header.Del("Set-Cookie")
+					for _, c := range cookies {
+						resp.Header.Add("Set-Cookie", strings.ReplaceAll(c, internalProxyPrefix, cleanPrefix))
+					}
+				}
+				ct := strings.ToLower(resp.Header.Get("Content-Type"))
+				if resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
+					isHTML := strings.Contains(ct, "text/html")
+					isJS := strings.Contains(ct, "javascript")
+					if isHTML || isJS {
+						raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+						_ = resp.Body.Close()
+						if readErr == nil {
+							updated := bytes.ReplaceAll(raw, []byte(internalProxyPrefix), []byte(cleanPrefix))
+							resp.Body = io.NopCloser(bytes.NewReader(updated))
+							resp.ContentLength = int64(len(updated))
+							resp.Header.Set("Content-Length", strconv.Itoa(len(updated)))
+						}
+					}
+				}
 			}
 
 			if !keepPrefix {

@@ -9,7 +9,7 @@ const APP_SHELL = [
   '/brand/icon-512.png',
 ]
 
-const API_PREFIXES = ['/api', '/agent', '/portainer']
+const API_PREFIXES = ['/api', '/agent', '/portainer', '/app']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -49,7 +49,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (requestUrl.pathname.startsWith('/agent') || requestUrl.pathname.startsWith('/portainer')) {
+  if (
+    requestUrl.pathname.startsWith('/agent') ||
+    requestUrl.pathname.startsWith('/portainer') ||
+    requestUrl.pathname.startsWith('/app')
+  ) {
     return
   }
 

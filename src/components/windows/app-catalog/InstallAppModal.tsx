@@ -71,7 +71,7 @@ function slugify(text: string): string {
 
 function parseAppAccessPath(raw: string, defaultSlug: string): { slug: string; subpath: string } {
   let cleaned = raw.trim()
-  if (!cleaned) cleaned = `/app/${defaultSlug}`
+  if (!cleaned || cleaned === '/') return { slug: defaultSlug, subpath: '/' }
   if (!cleaned.startsWith('/')) cleaned = '/' + cleaned
   if (cleaned.startsWith('/app/')) {
     const rest = cleaned.slice(5)
@@ -79,9 +79,19 @@ function parseAppAccessPath(raw: string, defaultSlug: string): { slug: string; s
     if (slashIdx === -1) {
       return { slug: slugify(rest) || defaultSlug, subpath: '/' }
     }
+    const slugPart = slugify(rest.slice(0, slashIdx)) || defaultSlug
+    let subPart = rest.slice(slashIdx) || '/'
+    while (subPart.startsWith('/app/')) {
+      subPart = subPart.slice(4)
+    }
+    if (subPart.startsWith(`/${slugPart}/`)) {
+      subPart = subPart.slice(slugPart.length + 1)
+    } else if (subPart === `/${slugPart}`) {
+      subPart = '/'
+    }
     return {
-      slug: slugify(rest.slice(0, slashIdx)) || defaultSlug,
-      subpath: rest.slice(slashIdx) || '/',
+      slug: slugPart,
+      subpath: subPart || '/',
     }
   }
   const trimmed = cleaned.replace(/^\/+/, '')
@@ -89,9 +99,11 @@ function parseAppAccessPath(raw: string, defaultSlug: string): { slug: string; s
   if (slashIdx === -1) {
     return { slug: slugify(trimmed) || defaultSlug, subpath: '/' }
   }
+  const slugPart = slugify(trimmed.slice(0, slashIdx)) || defaultSlug
+  const subPart = trimmed.slice(slashIdx) || '/'
   return {
-    slug: slugify(trimmed.slice(0, slashIdx)) || defaultSlug,
-    subpath: trimmed.slice(slashIdx) || '/',
+    slug: slugPart,
+    subpath: subPart || '/',
   }
 }
 
@@ -136,7 +148,15 @@ export function InstallAppModal({
     if (editingApp) {
       const editParsed = editingApp.image ? splitImageRepoTag(editingApp.image) : null
       const currentSlug = editingApp.slug || String(editingApp.id)
-      const currentSub = editingApp.openPath && editingApp.openPath !== '/' ? editingApp.openPath : ''
+      let currentSub = editingApp.openPath && editingApp.openPath !== '/' ? editingApp.openPath : ''
+      while (currentSub.startsWith('/app/')) {
+        currentSub = currentSub.slice(4)
+      }
+      if (currentSub.startsWith(`/${currentSlug}/`)) {
+        currentSub = currentSub.slice(currentSlug.length + 1)
+      } else if (currentSub === `/${currentSlug}`) {
+        currentSub = ''
+      }
       setName(editingApp.name)
       setTagline(editingApp.tagline || '')
       setHostPort(editingApp.hostPort ? String(editingApp.hostPort) : '')
