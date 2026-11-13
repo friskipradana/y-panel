@@ -14,7 +14,7 @@ const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'ut
 // `virtual:locale/<lang>/public` and `virtual:locale/<lang>/rest` are made from src/lib/locales/<lang>.ts, which stays the one source.
 const PUBLIC_LOCALE_PREFIXES = [
   'language', 'common', 'app', 'public', 'landing', 'order', 'legal', 'invoice', 'login', 'articles', 'mcpGuide', 'status',
-  'errorBoundary', 'server', 'gate', 'install', 'hosting', 'ui', 'table', 'plan', 'update', 'alert',
+  'errorBoundary', 'server', 'gate', 'install', 'hosting', 'ui', 'table', 'plan', 'update', 'alert', 'desktop',
 ]
 
 const BENIGN_WS_CODES = new Set(['ECONNABORTED', 'ECONNRESET', 'EPIPE'])

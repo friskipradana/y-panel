@@ -117,7 +117,12 @@ export function DesktopContextMenu({ x, y, onClose, role }: DesktopContextMenuPr
   }, [onClose])
 
   const sortBy = (kind: IconSort) => {
-    const title = (id: string) => t(windowTitleKey(apps.find((a) => a.id === id)?.windowId ?? id))
+    const title = (id: string) => {
+      const winId = apps.find((a) => a.id === id)?.windowId ?? id
+      const key = `desktop.app.${winId}`
+      const loc = t(key)
+      return loc !== key ? loc : t(windowTitleKey(winId))
+    }
     const category = (id: string) => {
       const item = MENU_ITEMS.find((m) => m.kind === apps.find((a) => a.id === id)?.windowId)
       const at = CATEGORIES.findIndex((c) => c.key === item?.category)

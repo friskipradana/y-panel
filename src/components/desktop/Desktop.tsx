@@ -12,7 +12,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import type { AppShortcut, WidgetType } from '@/types'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { installedAppWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
 
@@ -31,7 +31,7 @@ interface DesktopProps {
 }
 
 export function Desktop({ onLogout, authenticated }: DesktopProps) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const { windows } = useWindowStore()
   const {
     getBackgroundStyle,
@@ -52,7 +52,16 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
     [userRole, windows],
   )
   const desktopShortcuts = useMemo<AppShortcut[]>(() => {
-    const base = DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole))
+    void language
+    const base = DESKTOP_SHORTCUTS.filter((s) => canAccessWindow(s.windowId, userRole)).map((s) => {
+      const desktopKey = `desktop.app.${s.windowId}`
+      const localized = t(desktopKey)
+      const label = localized !== desktopKey ? localized : (t(windowTitleKey(s.windowId)) || s.label)
+      return {
+        ...s,
+        label,
+      }
+    })
     const dynamicApps: AppShortcut[] = canAccessWindow('installed-app', userRole)
       ? installedApps.map((app) => ({
           id: `installed-app-${app.id}`,
@@ -64,7 +73,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         }))
       : []
     return [...base, ...dynamicApps]
-  }, [installedApps, userRole])
+  }, [installedApps, userRole, t, language])
 
   useEffect(() => {
     if (!authenticated) return

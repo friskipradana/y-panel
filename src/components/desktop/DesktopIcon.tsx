@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import type { AppShortcut } from '@/types'
 import { useWindowStore } from '@/store/windowStore'
 import { useThemeStore } from '@/store/themeStore'
 import { useWallpaperTone } from '@/lib/wallpaperTone'
 import { AppIcon } from '@/components/common/AppIcon'
+import { useI18n, windowTitleKey } from '@/lib/i18n'
 
 interface Props {
   app: AppShortcut
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export function DesktopIcon({ app, editing = false }: Props) {
+  const { t } = useI18n()
   const { openWindow } = useWindowStore()
   const desktopIconStyle = useThemeStore((s) => s.desktopIconStyle)
   const desktopIconSize = useThemeStore((s) => s.desktopIconSize)
@@ -21,6 +24,21 @@ export function DesktopIcon({ app, editing = false }: Props) {
   const isDark = useWallpaperTone() === 'dark'
 
   const isPlain = desktopIconStyle === 'plain'
+
+  const displayLabel = useMemo(() => {
+    if (app.windowId === 'installed-app') {
+      return app.label
+    }
+    if (app.windowId) {
+      const desktopKey = `desktop.app.${app.windowId}`
+      const localized = t(desktopKey)
+      if (localized && localized !== desktopKey) return localized
+      const winKey = windowTitleKey(app.windowId)
+      const winLocalized = t(winKey)
+      if (winLocalized && winLocalized !== winKey) return winLocalized
+    }
+    return app.label
+  }, [app.label, app.windowId, t])
 
   const handleClick = () => {
     if (editing) return
@@ -79,6 +97,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
     <button
       type="button"
       onClick={handleClick}
+      title={displayLabel}
       className={`group flex ${sizeConfig.btnWidth} flex-col items-center gap-1 rounded-xl p-1.5 active:scale-95 ${isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'} focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--panel-primary-solid)] select-none ${editing ? 'cursor-grab' : 'cursor-pointer'} transition-colors duration-150`}
     >
       <div
@@ -104,7 +123,7 @@ export function DesktopIcon({ app, editing = false }: Props) {
             : 'text-slate-800'
         }`}
       >
-        {app.label}
+        {displayLabel}
       </span>
     </button>
   )
