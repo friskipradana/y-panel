@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.19] - 2026-11-13
+
+2 perubahan, utamanya allow host.docker.internal in host guard.
+
+### Perbaikan
+- **httpserver:** Allow host.docker.internal in host guard ([`946a20c`](https://github.com/friskipradana/y-panel/commit/946a20c))
+
+### Peningkatan
+- **ui:** Simplify app installation subtitle ([`179fe39`](https://github.com/friskipradana/y-panel/commit/179fe39))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.18...v1.83.19
+
 ## [1.83.18] - 2026-11-13
 
 Align license payment methods with hosting pattern and add crm v1.0.4.
