@@ -253,8 +253,8 @@ func TestAppCatalogLicenseEndpoint(t *testing.T) {
 	if !strings.Contains(body, `"reneo-crm"`) {
 		t.Fatalf("expected response to contain catalog ID reneo-crm, got %s", body)
 	}
-	if !strings.Contains(body, `"status":"ACTIVE"`) {
-		t.Fatalf("expected active status, got %s", body)
+	if !strings.Contains(body, `"status":"UNLICENSED"`) {
+		t.Fatalf("expected unlicensed status, got %s", body)
 	}
 }
 

@@ -319,7 +319,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
 		Image:           "reneoofc/crm-services:latest",
-		Versions:        []string{"latest", "1.0.4", "1.0.3", "1.0.0"},
+		Versions:        []string{"latest", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -2977,28 +2977,25 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// 1 month subscription fallback managed by Reneo
 	now := time.Now()
-	expiresAt := now.AddDate(0, 1, 0)
-
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":            true,
 		"catalogId":     catalogID,
-		"status":        "ACTIVE",
-		"plan":          "Bulanan (Reneo Managed)",
+		"status":        "UNLICENSED",
+		"plan":          "Belum Diaktivasi",
 		"period":        "monthly",
-		"expiresAt":     expiresAt.Format(time.RFC3339),
-		"daysRemaining": 30,
-		"daysLeft":      30,
-		"isExpired":     false,
-		"licenseKey":    "RN-CRM-DEMO-2026",
+		"expiresAt":     now.Format(time.RFC3339),
+		"daysRemaining": 0,
+		"daysLeft":      0,
+		"isExpired":     true,
+		"licenseKey":    "",
 		"billingUrl":    "/hosting",
 		"features": map[string]any{
-			"unlimitedBroadcast": true,
-			"birthdayBot":        true,
-			"liveChat":           true,
-			"maxContacts":        10000,
-			"wahaSync":           true,
+			"unlimitedBroadcast": false,
+			"birthdayBot":        false,
+			"liveChat":           false,
+			"maxContacts":        0,
+			"wahaSync":           false,
 		},
 	})
 }
