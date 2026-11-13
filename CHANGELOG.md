@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.3] - 2026-11-13
+
+Restrict licensing scope to reneo-crm and update UI tables.
+
+### Perbaikan
+- **app-licenses:** Restrict licensing scope to reneo-crm and update UI tables ([`ebeea53`](https://github.com/friskipradana/y-panel/commit/ebeea53))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.2...v1.83.3
+
 ## [1.83.2] - 2026-11-13
 
 Refine app discovery and license UI presentation.
