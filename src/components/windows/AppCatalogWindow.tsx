@@ -214,7 +214,7 @@ export function AppCatalogWindow() {
     />
   )
 
-  const categoryFilter = tab === 'catalog' ? (
+  const categoryFilter = tab === 'catalog' && viewMode === 'list' ? (
     <FilterMenu
       label={t('appCatalog.categoryFilterLabel')}
       value={category}
@@ -332,6 +332,9 @@ export function AppCatalogWindow() {
           viewMode={viewMode}
           isLoading={isLoading}
           isError={isError}
+          categories={categories}
+          selectedCategory={category}
+          onSelectCategory={setCategory}
           onInstallCatalog={handleOpenInstallCatalog}
         />
       ) : (

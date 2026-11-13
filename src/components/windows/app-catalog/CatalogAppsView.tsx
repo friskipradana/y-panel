@@ -1,8 +1,19 @@
-import { ExternalLink, Plus, Store } from 'lucide-react'
+import {
+  Activity,
+  ExternalLink,
+  Folder,
+  Layers,
+  Plus,
+  Shield,
+  Store,
+  Workflow,
+  Wrench,
+} from 'lucide-react'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { InstalledAppBadge } from '@/components/common/AppIcon'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import type { FilterMenuItem } from '@/components/ui/FilterMenu'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { openInstalledAppWindow } from '@/hooks/useAppCatalog'
@@ -16,7 +27,28 @@ interface CatalogAppsViewProps {
   viewMode: CatalogViewMode
   isLoading: boolean
   isError: boolean
+  categories?: FilterMenuItem[]
+  selectedCategory?: string
+  onSelectCategory?: (categoryKey: string) => void
   onInstallCatalog: (app: CatalogApp) => void
+}
+
+function renderCategoryIcon(categoryKey: string) {
+  switch (categoryKey) {
+    case 'monitoring':
+      return <Activity className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'files':
+      return <Folder className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'security':
+      return <Shield className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'dev':
+      return <Wrench className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'automation':
+      return <Workflow className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'all':
+    default:
+      return <Layers className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+  }
 }
 
 export function CatalogAppsView({
@@ -25,6 +57,9 @@ export function CatalogAppsView({
   viewMode,
   isLoading,
   isError,
+  categories,
+  selectedCategory = 'all',
+  onSelectCategory,
   onInstallCatalog,
 }: CatalogAppsViewProps) {
   const { t, language } = useI18n()
@@ -42,6 +77,32 @@ export function CatalogAppsView({
   if (viewMode === 'grid') {
     return (
       <div className="app-catalog-cards-scroll">
+        {categories && categories.length > 0 && onSelectCategory ? (
+          <div className="app-catalog-category-bar" role="tablist" aria-label={t('appCatalog.categoryFilterLabel')}>
+            {categories.map((cat) => {
+              const active = (selectedCategory || 'all') === cat.key
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => onSelectCategory(cat.key)}
+                  className={`app-catalog-category-chip ${active ? 'app-catalog-category-chip--active' : ''}`}
+                >
+                  <span className="app-catalog-category-chip__icon" aria-hidden="true">
+                    {renderCategoryIcon(cat.key)}
+                  </span>
+                  <span className="app-catalog-category-chip__label">{cat.label}</span>
+                  {typeof cat.count === 'number' ? (
+                    <span className="app-catalog-category-chip__count">{cat.count}</span>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
         <ListState {...stateProps}>
           <div className="app-catalog-card-grid">
             {items.map((app) => {
