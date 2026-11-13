@@ -185,6 +185,38 @@ func TestProxyShimTemplateDoesNotStripHistory(t *testing.T) {
 	if !strings.Contains(proxyShimTemplate, "window.history.pushState") {
 		t.Fatal("proxyShimTemplate must hook pushState to preserve gateway prefix")
 	}
+	if strings.Contains(proxyShimTemplate, ":///") {
+		t.Fatal("proxyShimTemplate must not contain unescaped regex slashes :///")
+	}
+	if !strings.Contains(proxyShimTemplate, `:\/\//`) {
+		t.Fatal("proxyShimTemplate must escape regex slashes as :\\/\\/")
+	}
+	// Check balanced parentheses, braces, brackets in the JS body
+	body := strings.TrimPrefix(proxyShimTemplate, "<script>")
+	body = strings.TrimSuffix(body, "</script>")
+	paren, brace, bracket := 0, 0, 0
+	for _, ch := range body {
+		switch ch {
+		case '(':
+			paren++
+		case ')':
+			paren--
+		case '{':
+			brace++
+		case '}':
+			brace--
+		case '[':
+			bracket++
+		case ']':
+			bracket--
+		}
+		if paren < 0 || brace < 0 || bracket < 0 {
+			t.Fatalf("unbalanced bracket in proxyShimTemplate: paren=%d brace=%d bracket=%d", paren, brace, bracket)
+		}
+	}
+	if paren != 0 || brace != 0 || bracket != 0 {
+		t.Fatalf("unclosed bracket in proxyShimTemplate: paren=%d brace=%d bracket=%d", paren, brace, bracket)
+	}
 }
 
 
