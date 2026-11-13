@@ -2,6 +2,21 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.1] - 2026-11-13
+
+3 perubahan, utamanya add loading state to IconButton and improve action feedback.
+
+### Fitur baru
+- **ui:** Add loading state to IconButton and improve action feedback ([`e1a3249`](https://github.com/friskipradana/y-panel/commit/e1a3249))
+
+### Perbaikan
+- **app-catalog:** Expand uptime-kuma versions and improve upgrade logic ([`16d2d97`](https://github.com/friskipradana/y-panel/commit/16d2d97))
+
+### Peningkatan
+- **app-catalog:** Update uptime-kuma image and version availability ([`73e32f6`](https://github.com/friskipradana/y-panel/commit/73e32f6))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.0...v1.82.1
+
 ## [1.82.0] - 2026-11-12
 
 2 perubahan, utamanya implement catalog app quota management.
