@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.4] - 2026-11-13
+
+2 perubahan, utamanya enhance desktop localization and update reliability.
+
+### Fitur baru
+- **ui:** Enhance desktop localization and update reliability ([`2de9284`](https://github.com/friskipradana/y-panel/commit/2de9284))
+
+### Perbaikan
+- **api:** Escape regex slashes in proxy shim template ([`87131d9`](https://github.com/friskipradana/y-panel/commit/87131d9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.3...v1.82.4
+
 ## [1.82.3] - 2026-11-13
 
 Implement app gateway proxy and slug-based routing.
