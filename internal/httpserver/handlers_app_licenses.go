@@ -799,37 +799,11 @@ func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.R
 	type appItem struct {
 		CatalogID string `json:"catalogId"`
 		Name      string `json:"name"`
-		Type      string `json:"type"` // catalog | custom
+		Type      string `json:"type"` // catalog
 	}
 
-	seen := make(map[string]bool)
-	apps := make([]appItem, 0)
-
-	addApp := func(cid, name, appType string) {
-		if cid == "" || seen[cid] {
-			return
-		}
-		seen[cid] = true
-		if name == "" {
-			name = cid
-		}
-		apps = append(apps, appItem{CatalogID: cid, Name: name, Type: appType})
-	}
-
-	// 1. Built-in licensed app Reneo CRM
-	addApp("reneo-crm", "Reneo CRM Services", "catalog")
-
-	// 2. Apps specifically registered with licenses or pricing plans
-	if s.database != nil && s.database.IsConnected() {
-		if distinct, err := s.database.ListDistinctAppCatalogIDs(); err == nil {
-			for _, cid := range distinct {
-				name := cid
-				if lic, _ := s.database.GetAppLicense(actor.ID, cid); lic != nil && lic.AppName != "" {
-					name = lic.AppName
-				}
-				addApp(cid, name, "custom")
-			}
-		}
+	apps := []appItem{
+		{CatalogID: "reneo-crm", Name: "Reneo CRM Services", Type: "catalog"},
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{

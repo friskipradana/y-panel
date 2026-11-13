@@ -787,6 +787,18 @@
     --docker-cols: 48px minmax(0, 1.4fr) minmax(150px, 1fr) minmax(0, 1.6fr) minmax(64px, 0.4fr) minmax(88px, 0.6fr) 84px;
   }
 
+  &--app-licenses {
+    --docker-cols: 40px minmax(0, 1.4fr) minmax(140px, 1.1fr) minmax(100px, 0.8fr) minmax(130px, 1fr) minmax(0, 1.6fr) 170px;
+  }
+
+  &--app-plans {
+    --docker-cols: 40px minmax(0, 1.5fr) minmax(110px, 0.9fr) minmax(80px, 0.7fr) minmax(0, 2fr) minmax(80px, 0.7fr) 130px;
+  }
+
+  &--app-orders {
+    --docker-cols: 40px minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(110px, 0.9fr) minmax(110px, 0.8fr) minmax(120px, 0.9fr) 130px;
+  }
+
   &--hosting-vouchers {
     --docker-cols: 48px minmax(0, 1.5fr) minmax(88px, 0.7fr) minmax(84px, 0.7fr) minmax(96px, 0.8fr) minmax(0, 1fr) minmax(104px, 0.8fr) minmax(124px, 0.9fr) 120px;
   }

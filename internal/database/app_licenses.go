@@ -232,12 +232,17 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		return nil
 	}
 
-	if catalogID == "" {
-		catalogID = "reneo-crm"
+	// Purge any accidental non-reneo-crm plans or licenses from testing
+	_, _ = m.db.Exec(`DELETE FROM app_license_plans WHERE catalog_id != 'reneo-crm'`)
+	_, _ = m.db.Exec(`DELETE FROM app_licenses WHERE catalog_id != 'reneo-crm'`)
+	_, _ = m.db.Exec(`DELETE FROM app_license_orders WHERE catalog_id != 'reneo-crm'`)
+
+	if catalogID != "reneo-crm" {
+		return nil
 	}
 
 	var count int
-	_ = m.db.QueryRow(`SELECT COUNT(*) FROM app_license_plans WHERE catalog_id = $1`, catalogID).Scan(&count)
+	_ = m.db.QueryRow(`SELECT COUNT(*) FROM app_license_plans WHERE catalog_id = 'reneo-crm'`).Scan(&count)
 	if count > 0 {
 		return nil
 	}
@@ -701,28 +706,7 @@ func (m *Manager) DeleteAppLicensePlan(id int64) error {
 
 // ListDistinctAppCatalogIDs returns a slice of all distinct catalog IDs with licenses or plans.
 func (m *Manager) ListDistinctAppCatalogIDs() ([]string, error) {
-	if m == nil || !m.IsConnected() {
-		return []string{"reneo-crm"}, nil
-	}
-	rows, err := m.db.Query(`
-		SELECT DISTINCT catalog_id FROM app_licenses
-		UNION
-		SELECT DISTINCT catalog_id FROM app_license_plans
-		ORDER BY catalog_id ASC
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []string
-	for rows.Next() {
-		var cid string
-		if err := rows.Scan(&cid); err == nil && cid != "" {
-			out = append(out, cid)
-		}
-	}
-	return out, rows.Err()
+	return []string{"reneo-crm"}, nil
 }
 
 // CreateAppLicenseOrder creates an order and issues an invoice with unique payment code.
