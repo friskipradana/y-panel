@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.4] - 2026-11-13
+
+Add view mode toggle and optimize table layouts.
+
+### Fitur baru
+- **ui:** Add view mode toggle and optimize table layouts ([`4d1b2cf`](https://github.com/friskipradana/y-panel/commit/4d1b2cf))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.3...v1.83.4
+
 ## [1.83.3] - 2026-11-13
 
 Restrict licensing scope to reneo-crm and update UI tables.
