@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 )
 
 const (
@@ -327,12 +329,12 @@ var builtinCatalogApps = []CatalogApp{
 			{HostSubdir: "data", ContainerPath: "/app/data", Label: "Data CRM & Berkas"},
 		},
 		Env: []catalogEnvSpec{
-			{Key: "DATABASE_URL", DefaultValue: "postgresql://postgres:postgres@host.docker.internal:5432/crm_db", LabelID: "Koneksi PostgreSQL", LabelEN: "PostgreSQL Database URL", Required: true, Placeholder: "postgresql://user:password@host:5432/crm_db"},
-			{Key: "REDIS_URL", DefaultValue: "redis://host.docker.internal:6379", LabelID: "Koneksi Redis Queue", LabelEN: "Redis Queue URL", Required: true, Placeholder: "redis://host.docker.internal:6379"},
+			{Key: "DATABASE_URL", DefaultValue: "", LabelID: "Koneksi PostgreSQL", LabelEN: "PostgreSQL Database URL", Hidden: true},
+			{Key: "REDIS_URL", DefaultValue: "", LabelID: "Koneksi Redis Queue", LabelEN: "Redis Queue URL", Hidden: true},
 			{Key: "WAHA_BASE_URL", DefaultValue: "http://reneo-waha:3000", LabelID: "Base URL WAHA Reneo", LabelEN: "Reneo WAHA Base URL", Hidden: true},
 			{Key: "WAHA_SESSION", DefaultValue: "", LabelID: "Nama Sesi WhatsApp", LabelEN: "WhatsApp Session Name", Hidden: true},
 			{Key: "WAHA_API_KEY", DefaultValue: "", LabelID: "API Key WAHA (opsional)", LabelEN: "WAHA API Key", Secret: true, Hidden: true},
-			{Key: "RENEO_PANEL_URL", DefaultValue: "http://host.docker.internal:8000", LabelID: "URL Panel Reneo", LabelEN: "Reneo Panel URL", Required: true, Placeholder: "http://host.docker.internal:8000"},
+			{Key: "RENEO_PANEL_URL", DefaultValue: "", LabelID: "URL Panel Reneo", LabelEN: "Reneo Panel URL", Hidden: true},
 		},
 	},
 	{
@@ -900,6 +902,86 @@ func matchContainerForApp(app database.InstalledApp, containers []docker.Contain
 	return nil
 }
 
+func (s *Server) ensureManagedDependencyDB(actor *database.User, engineID, defaultName string) (string, error) {
+	if actor == nil || s.database == nil || !s.database.IsConnected() {
+		return "", errors.New("database panel tidak aktif")
+	}
+	engine, ok := userdb.Lookup(engineID)
+	if !ok {
+		return "", fmt.Errorf("engine %s tidak didukung", engineID)
+	}
+	existing, err := s.database.ListManagedDatabases(actor.ID, false)
+	if err == nil {
+		var fallback *database.ManagedDatabase
+		for i := range existing {
+			item := &existing[i]
+			if item.Engine != engineID || item.Status == "error" {
+				continue
+			}
+			if item.Name == defaultName {
+				fallback = item
+				break
+			}
+			if fallback == nil {
+				fallback = item
+			}
+		}
+		if fallback != nil {
+			if fallback.Status == "stopped" {
+				_ = userdb.Start(fallback.ID)
+				_ = s.database.SetManagedDatabaseStatus(fallback.ID, "ready", "")
+			}
+			password, decErr := crypto.Decrypt(s.cfg.EncryptionKey, fallback.PasswordEncrypted)
+			if decErr == nil && password != "" {
+				return userdb.ConnectionURL(engine, "host.docker.internal", fallback.HostPort, fallback.DatabaseName, fallback.Username, password), nil
+			}
+		}
+	}
+
+	s.databaseCreateMu.Lock()
+	defer s.databaseCreateMu.Unlock()
+	port, err := s.allocateDatabasePort()
+	if err != nil {
+		return "", err
+	}
+	password, err := userdb.RandomPassword(24)
+	if err != nil {
+		return "", err
+	}
+	encrypted, err := crypto.Encrypt(s.cfg.EncryptionKey, password)
+	if err != nil {
+		return "", err
+	}
+	dbName, dbUser := "", ""
+	if engine.HasDatabaseName {
+		dbName = userdb.SQLIdent(defaultName)
+	}
+	if engine.HasUser {
+		dbUser = userdb.SQLIdent(defaultName)
+	}
+	row, err := s.database.CreateManagedDatabase(actor.ID, defaultName, engine.ID, engine.DefaultVersion, dbName, dbUser, encrypted, port)
+	if err != nil {
+		return "", err
+	}
+	spec := userdb.Spec{
+		ID:        row.ID,
+		OwnerID:   actor.ID,
+		OwnerName: actor.Username,
+		Engine:    engine,
+		Version:   engine.DefaultVersion,
+		HostPort:  port,
+		Database:  dbName,
+		User:      dbUser,
+		Password:  password,
+	}
+	if err := userdb.Create(spec); err != nil {
+		_ = s.database.SetManagedDatabaseStatus(row.ID, "error", err.Error())
+		return "", err
+	}
+	_ = s.database.SetManagedDatabaseStatus(row.ID, "ready", "")
+	return userdb.ConnectionURL(engine, "host.docker.internal", port, dbName, dbUser, password), nil
+}
+
 func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []docker.Container, scope ownerScope) installedAppView {
 	meta := parseAppConfigMeta(app.ConfigJSON)
 	slug := strings.TrimSpace(app.Slug)
@@ -1289,6 +1371,29 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	}
 
 	if spec.ID == "reneo-crm" {
+		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
+			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", "reneo-crm-db")
+			if pgErr != nil {
+				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan PostgreSQL bawaan Reneo: " + pgErr.Error()})
+				return
+			}
+			envMap["DATABASE_URL"] = pgURL
+		}
+		if v, ok := envMap["REDIS_URL"]; !ok || strings.TrimSpace(v) == "" {
+			redisURL, redisErr := s.ensureManagedDependencyDB(actor, "redis", "reneo-crm-redis")
+			if redisErr != nil {
+				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan Redis bawaan Reneo: " + redisErr.Error()})
+				return
+			}
+			envMap["REDIS_URL"] = redisURL
+		}
+		if v, ok := envMap["RENEO_PANEL_URL"]; !ok || strings.TrimSpace(v) == "" {
+			port := listenPort(s.cfg.BindAddr)
+			if port == "" {
+				port = "8000"
+			}
+			envMap["RENEO_PANEL_URL"] = "http://host.docker.internal:" + port
+		}
 		userSession := strings.TrimSpace(actor.Username)
 		if userSession == "" {
 			userSession = "default"
