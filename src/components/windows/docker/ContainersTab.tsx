@@ -328,12 +328,16 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
           <div className="app-catalog-card-grid">
             {filteredContainers.map((container) => {
               const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
+              const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
               const isDatabase = container.Labels?.['reneo.kind'] === 'database'
               const isControl = isDatabaseControl(container)
               const isWhatsApp = isWaha(container)
+              const isAppCatalog =
+                container.Labels?.['reneo.kind'] === 'app-catalog' ||
+                name.startsWith('reneo-app-') ||
+                stack.startsWith('reneo-app-')
               const portsText = formatContainerPorts(container.Ports)
               const ipText = formatContainerIps(container.IpAddresses)
-              const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
 
               return (
                 <article key={container.Id} className="app-catalog-card">
@@ -350,6 +354,8 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                               <Badge tone="info" size="sm" title={t('docker.databaseControlHint')}>{t('docker.databaseControlBadge')}</Badge>
                             ) : isWhatsApp ? (
                               <Badge tone="info" size="sm" title={t('docker.wahaHint')}>{t('docker.wahaBadge')}</Badge>
+                            ) : isAppCatalog ? (
+                              <Badge tone="info" size="sm" title={t('docker.appCatalogHint')}>{t('docker.appCatalogBadge')}</Badge>
                             ) : null}
                           </div>
                           <span className="docker-row__sub panel-mono truncate" title={container.Image}>
@@ -438,12 +444,16 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
           filteredContainers.map((container, idx) => {
             const name =
               container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
+            const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
             const isDatabase = container.Labels?.['reneo.kind'] === 'database'
             const isControl = isDatabaseControl(container)
             const isWhatsApp = isWaha(container)
+            const isAppCatalog =
+              container.Labels?.['reneo.kind'] === 'app-catalog' ||
+              name.startsWith('reneo-app-') ||
+              stack.startsWith('reneo-app-')
             const portsText = formatContainerPorts(container.Ports)
             const ipText = formatContainerIps(container.IpAddresses)
-            const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
             const indexStr = String(idx + 1).padStart(2, '0')
 
             return (
@@ -470,6 +480,10 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                       ) : isWhatsApp ? (
                         <Badge tone="info" title={t('docker.wahaHint')}>
                           {t('docker.wahaBadge')}
+                        </Badge>
+                      ) : isAppCatalog ? (
+                        <Badge tone="info" title={t('docker.appCatalogHint')}>
+                          {t('docker.appCatalogBadge')}
                         </Badge>
                       ) : null}
                     </span>

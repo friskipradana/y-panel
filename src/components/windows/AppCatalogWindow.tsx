@@ -49,7 +49,6 @@ export function AppCatalogWindow() {
 
   const [uninstallTarget, setUninstallTarget] = useState<InstalledApp | null>(null)
   const [removeVolumes, setRemoveVolumes] = useState(false)
-  const [removeImage, setRemoveImage] = useState(false)
 
   const catalog = useMemo(() => data?.catalog ?? [], [data?.catalog])
   const installed = useMemo(() => data?.installed ?? [], [data?.installed])
@@ -182,7 +181,6 @@ export function AppCatalogWindow() {
     }
     setUninstallTarget(app)
     setRemoveVolumes(false)
-    setRemoveImage(false)
   }
 
   const handleConfirmUninstall = async () => {
@@ -196,7 +194,7 @@ export function AppCatalogWindow() {
         id,
         removeContainer,
         removeVolumes,
-        removeImage,
+        removeImage: Boolean(targetImg),
       })
       if (res?.imageInUse) {
         toast.warning(
@@ -410,15 +408,6 @@ export function AppCatalogWindow() {
                 label={t('appCatalog.removeVolumesLabel')}
                 description={t('appCatalog.removeVolumesDesc')}
               />
-              {uninstallTarget.image ? (
-                <Checkbox
-                  checked={removeImage}
-                  onChange={setRemoveImage}
-                  tone="warning"
-                  label={t('appCatalog.removeImageLabel')}
-                  description={t('appCatalog.removeImageDesc', { image: uninstallTarget.image })}
-                />
-              ) : null}
             </div>
           ) : null}
         </div>
