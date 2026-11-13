@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.5] - 2026-11-13
+
+Improve asset handling and audio context management.
+
+### Peningkatan
+- Improve asset handling and audio context management ([`18cce1b`](https://github.com/friskipradana/y-panel/commit/18cce1b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.4...v1.82.5
+
 ## [1.82.4] - 2026-11-13
 
 2 perubahan, utamanya enhance desktop localization and update reliability.
