@@ -942,6 +942,13 @@ func (s *Server) ensureManagedDependencyDB(actor *database.User, engineID, defau
 			}
 			password, decErr := crypto.Decrypt(s.cfg.EncryptionKey, fallback.PasswordEncrypted)
 			if decErr == nil && password != "" {
+				cName := strings.TrimSpace(fallback.ContainerName)
+				if cName == "" {
+					cName = fmt.Sprintf("reneo-db-%d", fallback.ID)
+				}
+				if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr == nil {
+					return userdb.ConnectionURL(engine, cName, engine.InternalPort, fallback.DatabaseName, fallback.Username, password), nil
+				}
 				return userdb.ConnectionURL(engine, "host.docker.internal", fallback.HostPort, fallback.DatabaseName, fallback.Username, password), nil
 			}
 		}
@@ -988,6 +995,13 @@ func (s *Server) ensureManagedDependencyDB(actor *database.User, engineID, defau
 		return "", err
 	}
 	_ = s.database.SetManagedDatabaseStatus(row.ID, "ready", "")
+	cName := strings.TrimSpace(row.ContainerName)
+	if cName == "" {
+		cName = fmt.Sprintf("reneo-db-%d", row.ID)
+	}
+	if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr == nil {
+		return userdb.ConnectionURL(engine, cName, engine.InternalPort, dbName, dbUser, password), nil
+	}
 	return userdb.ConnectionURL(engine, "host.docker.internal", port, dbName, dbUser, password), nil
 }
 
@@ -1441,6 +1455,12 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		})
 	}
 
+	deployNetwork := ""
+	if spec.ID == "reneo-crm" {
+		deployNetwork = "reneo-internal"
+		_ = docker.EnsureContainerOnNetwork(deployNetwork, "reneo-waha")
+	}
+
 	_, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
 		Name:  containerProject,
 		Image: imageRef,
@@ -1451,6 +1471,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		}},
 		Env:     envVars,
 		Volumes: volumes,
+		Network: deployNetwork,
 	})
 	if deployErr != nil {
 		_ = s.database.DeleteInstalledApp(created.ID)

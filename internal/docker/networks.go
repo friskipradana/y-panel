@@ -205,3 +205,40 @@ func RemoveNetwork(id string) error {
 	performance.DefaultRegistry.RecordDockerOp("remove_network", time.Since(started), err)
 	return err
 }
+
+// EnsureContainerOnNetwork creates the bridge network if missing and connects containerName to it.
+func EnsureContainerOnNetwork(networkName, containerName string) error {
+	networkName = strings.TrimSpace(networkName)
+	containerName = strings.TrimSpace(containerName)
+	if networkName == "" || containerName == "" {
+		return nil
+	}
+	nets, err := ListNetworks()
+	exists := false
+	if err == nil {
+		for _, n := range nets {
+			if n.Name == networkName {
+				exists = true
+				break
+			}
+		}
+	}
+	if !exists {
+		if cErr := CreateNetwork(networkName, "", ""); cErr != nil {
+			if !strings.Contains(strings.ToLower(cErr.Error()), "already exists") {
+				return cErr
+			}
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultOpTimeout)
+	defer cancel()
+	out, cErr := exec.CommandContext(ctx, "docker", "network", "connect", networkName, containerName).CombinedOutput()
+	if cErr != nil {
+		msg := strings.ToLower(string(out))
+		if strings.Contains(msg, "already exists") {
+			return nil
+		}
+		return fmt.Errorf("network connect %s -> %s: %w — %s", containerName, networkName, cErr, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
