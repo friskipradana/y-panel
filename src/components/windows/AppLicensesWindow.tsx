@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Sparkles,
   RefreshCw,
   Search,
   CheckCircle2,
@@ -486,7 +485,7 @@ export function AppLicensesWindow() {
                           onClick={() => handleOpenRenew(lic)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
                         >
-                          <Sparkles size={14} />
+                          <CreditCard size={14} />
                           Perpanjang Lisensi
                         </Button>
 
@@ -548,17 +547,21 @@ export function AppLicensesWindow() {
                       <div className="space-y-1">
                         <span className="text-[var(--text-secondary)]">Fitur Terkoneksi:</span>
                         <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            ✓ WA Broadcast Pacing
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                            <Check size={10} strokeWidth={2.5} />
+                            WA Broadcast Pacing
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            ✓ Bot Ulang Tahun
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                            <Check size={10} strokeWidth={2.5} />
+                            Bot Ulang Tahun
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            ✓ Live Chat CRM
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                            <Check size={10} strokeWidth={2.5} />
+                            Live Chat CRM
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                            ✓ 10.000 Kontak
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-flex items-center gap-1">
+                            <Check size={10} strokeWidth={2.5} />
+                            10.000 Kontak
                           </span>
                         </div>
                       </div>
