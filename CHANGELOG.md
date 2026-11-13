@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.20] - 2026-11-13
+
+2 perubahan, utamanya replace native confirms with alertLib in license management.
+
+### Fitur baru
+- **ui:** Replace native confirms with alertLib in license management ([`f19d72d`](https://github.com/friskipradana/y-panel/commit/f19d72d))
+
+### Perbaikan
+- **app-catalog,licenses,middleware:** Return UNLICENSED fallback, allow host.docker.internal, modernize confirms, remove duplicate modal info ([`3c02630`](https://github.com/friskipradana/y-panel/commit/3c02630))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.19...v1.83.20
+
 ## [1.83.19] - 2026-11-13
 
 2 perubahan, utamanya allow host.docker.internal in host guard.
