@@ -2,6 +2,20 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.0] - 2026-11-13
+
+4 perubahan, utamanya add plans and invoice order endpoints, active methods, and enhanced UI tabs.
+
+### Fitur baru
+- **app-licenses:** Add plans and invoice order endpoints, active methods, and enhanced UI tabs ([`39fee21`](https://github.com/friskipradana/y-panel/commit/39fee21))
+- **app-licenses:** Implement centralized application license manager window and renewal system ([`9cbcb5d`](https://github.com/friskipradana/y-panel/commit/9cbcb5d))
+- **db:** Add schema for application license plans and orders ([`dab4747`](https://github.com/friskipradana/y-panel/commit/dab4747))
+
+### Peningkatan
+- **ui:** Refine license window iconography and feature badges ([`3990172`](https://github.com/friskipradana/y-panel/commit/3990172))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.8...v1.83.0
+
 ## [1.82.8] - 2026-11-13
 
 Implement view mode switching across multiple windows.
