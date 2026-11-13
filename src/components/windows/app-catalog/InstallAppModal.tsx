@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Smartphone, Trash2 } from 'lucide-react'
+import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   CatalogApp,
@@ -530,10 +530,21 @@ export function InstallAppModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label={t('appCatalog.iconLabel')}>
-            <Select value={iconKey} onChange={setIconKey} options={iconKeySelectOptions} searchable />
+            <Select
+              value={iconKey}
+              onChange={setIconKey}
+              options={iconKeySelectOptions}
+              searchable
+              disabled={Boolean(catalogApp || editingApp?.catalogId)}
+            />
           </Field>
           <Field label={t('appCatalog.colorLabel')}>
-            <Select value={iconColor} onChange={setIconColor} options={iconColorSelectOptions} />
+            <Select
+              value={iconColor}
+              onChange={setIconColor}
+              options={iconColorSelectOptions}
+              disabled={Boolean(catalogApp || editingApp?.catalogId)}
+            />
           </Field>
         </div>
 
@@ -682,26 +693,6 @@ export function InstallAppModal({
                 {t('appCatalog.addEnvButton')}
               </Button>
             </div>
-
-            {isReneoCrm ? (
-              <div className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] p-3 space-y-2">
-                <div className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--win-text)]">
-                  <Smartphone className="h-4 w-4 text-[var(--panel-primary-text)]" />
-                  <span>{t('appCatalog.wahaAutoTitle')}</span>
-                </div>
-                <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed m-0">
-                  {t('appCatalog.wahaAutoDesc', { username: currentUsername ? `@${currentUsername}` : '@user' })}
-                </p>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--card-border)]">
-                  <span>
-                    {t('appCatalog.wahaSessionLabel')}: <span className="panel-mono text-[var(--win-text)] font-medium">{currentUsername || 'default'}</span>
-                  </span>
-                  <span>
-                    {t('appCatalog.wahaRuntimeLabel')}: <span className="panel-mono text-[var(--win-text)] font-medium">reneo-waha:3000</span>
-                  </span>
-                </div>
-              </div>
-            ) : null}
 
             {visibleEnvSpecs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
