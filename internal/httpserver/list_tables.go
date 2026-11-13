@@ -104,7 +104,7 @@ func imageInUse(img docker.Image, used map[string]bool) bool {
 	id := strings.TrimPrefix(img.ID, "sha256:")
 	for name := range used {
 		wanted := strings.TrimPrefix(name, "sha256:")
-		if len(wanted) >= 8 && isHex(wanted) && strings.HasPrefix(id, wanted) {
+		if len(wanted) >= 8 && isHex(wanted) && (strings.HasPrefix(id, wanted) || (len(id) >= 8 && strings.HasPrefix(wanted, id))) {
 			return true
 		}
 	}
