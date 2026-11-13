@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.6] - 2026-11-13
+
+Update compose generation and app image registry.
+
+### Peningkatan
+- **docker:** Update compose generation and app image registry ([`d919340`](https://github.com/friskipradana/y-panel/commit/d919340))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.5...v1.83.6
+
 ## [1.83.5] - 2026-11-13
 
 Automate WAHA configuration for reneo-crm.
