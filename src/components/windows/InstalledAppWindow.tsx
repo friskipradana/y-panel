@@ -271,7 +271,10 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
         open={editOpen}
         onClose={() => setEditOpen(false)}
         editingApp={app}
-        onSuccessApp={() => setReloadNonce((n) => n + 1)}
+        onSuccessApp={() => {
+          refetch()
+          setReloadNonce((n) => n + 1)
+        }}
       />
     </div>
   )

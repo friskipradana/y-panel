@@ -81,7 +81,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "activity",
 		IconColor:       "emerald",
 		Image:           "louislam/uptime-kuma:2",
-		Versions:        []string{"2", "2-slim", "1"},
+		Versions:        []string{"2", "2-slim", "1", "1-slim"},
 		ContainerPort:   3001,
 		DefaultHostPort: 18001,
 		OpenPath:        "/",
@@ -1189,7 +1189,12 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 
 	composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
 	ensureAppVolumePermissions(owner, app.ContainerName)
+	existingContainers, _ := docker.ListContainers()
+	if matched := matchContainerForApp(*app, existingContainers, s.ownerScopeFor(actor)); matched != nil {
+		_ = docker.DeleteContainer(matched.ID, false, false)
+	}
 	if app.ContainerName != "" {
+		_ = docker.DeleteContainer(app.ContainerName, false, false)
 		_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, false, false)
 	}
 	if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
