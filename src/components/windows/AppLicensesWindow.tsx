@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Search,
   CheckCircle2,
+  Lock,
   Wallet,
   Building,
   ReceiptText,
@@ -41,6 +42,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { ListTable, ListRowIcon, ListState } from '@/components/ui/ListTable'
+import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
@@ -81,6 +83,7 @@ export function AppLicensesWindow() {
   const { data: catalogData } = useAppCatalog()
 
   const [activeTab, setActiveTab] = useState<LicenseTab>('licenses')
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRED'>('ALL')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -100,7 +103,7 @@ export function AppLicensesWindow() {
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<AppLicenseOrder | null>(null)
 
-  // Queries (pinnned to reneo-crm as the current single app)
+  // Queries (reneo-crm)
   const {
     data: licenses = [],
     isLoading: licensesLoading,
@@ -457,11 +460,13 @@ export function AppLicensesWindow() {
                 </button>
               </div>
 
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+
               <Button
                 size="sm"
                 variant="primary"
                 onClick={() => setCreateLicenseModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
+                className="gap-1.5 shadow-sm"
               >
                 <Plus size={14} />
                 Buat Lisensi
@@ -469,21 +474,9 @@ export function AppLicensesWindow() {
             </div>
           </div>
 
-          {/* List Table of Licenses */}
-          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
-            <ListTable
-              variant="app-licenses"
-              empty={licensesLoading || licensesError || filteredLicenses.length === 0}
-              columns={[
-                { label: '#' },
-                { label: 'Aplikasi & Paket' },
-                { label: 'License Key' },
-                { label: 'Tarif' },
-                { label: 'Masa Berlaku' },
-                { label: 'Fitur Terkoneksi' },
-                { label: 'Aksi', actions: true },
-              ]}
-            >
+          {/* Licenses Content (Card vs List) */}
+          {viewMode === 'grid' ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <ListState
                 loading={licensesLoading}
                 error={licensesError}
@@ -495,153 +488,379 @@ export function AppLicensesWindow() {
                 emptyTitle="Belum ada lisensi aplikasi"
                 emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
               >
-                {filteredLicenses.map((lic, index) => {
-                  const isExpired = lic.isExpired || lic.status === 'EXPIRED'
-                  return (
-                    <div className="docker-row" key={lic.id}>
-                      <div className="docker-row__num">{indexLabel(index)}</div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
+                  {filteredLicenses.map((lic) => {
+                    const isExpired = lic.isExpired || lic.status === 'EXPIRED'
+                    const progressPct = Math.min(100, Math.max(0, (lic.daysLeft / 30) * 100))
 
-                      <div className="docker-row__app">
-                        <ListRowIcon>
-                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                        </ListRowIcon>
-                        <div className="docker-row__text">
-                          <span className="docker-app-name" title={lic.appName}>
-                            {lic.appName}
-                          </span>
-                          <span className="docker-row__sub">
-                            {lic.planName} · <span className="font-mono">{lic.catalogId}</span>
-                          </span>
-                        </div>
-                      </div>
+                    return (
+                      <div
+                        key={lic.id}
+                        className={`rounded-xl border p-4 flex flex-col justify-between transition-all bg-[var(--card-bg)] shadow-sm gap-3 ${
+                          isExpired
+                            ? 'border-rose-500/30'
+                            : 'border-[var(--win-border)] hover:border-[var(--win-border-focus)]'
+                        }`}
+                      >
+                        <div className="space-y-3">
+                          {/* Header Identity */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                                  isExpired
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+                                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                                }`}
+                              >
+                                {isExpired ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-sm font-bold text-[var(--win-text)] truncate">
+                                    {lic.appName}
+                                  </h3>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--text-secondary)] shrink-0">
+                                    {lic.catalogId}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                                  Paket: <span className="font-medium text-[var(--win-text)]">{lic.planName}</span>
+                                </div>
+                              </div>
+                            </div>
 
-                      <div className="docker-cell docker-cell--mono">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                            {lic.licenseKey}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyKey(lic.licenseKey)}
-                            className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition"
-                            title="Salin License Key"
-                          >
-                            {copiedKey === lic.licenseKey ? (
-                              <Check size={12} className="text-emerald-500" />
-                            ) : (
-                              <Copy size={12} />
-                            )}
-                          </button>
-                        </div>
-                      </div>
+                            <div className="shrink-0">
+                              {isExpired ? (
+                                <Badge tone="danger" dot size="sm">
+                                  Kedaluwarsa
+                                </Badge>
+                              ) : lic.status === 'TRIAL' ? (
+                                <Badge tone="warning" dot size="sm">
+                                  Trial ({lic.daysLeft}h)
+                                </Badge>
+                              ) : (
+                                <Badge tone="success" dot size="sm">
+                                  Aktif ({lic.daysLeft}h)
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
 
-                      <div className="docker-cell docker-cell--mono font-semibold">
-                        Rp {lic.priceAmount?.toLocaleString('id-ID')}
-                        <span className="text-[10px] font-normal text-[var(--text-secondary)]">
-                          {' '}
-                          / {lic.period === 'annual' ? 'thn' : 'bln'}
-                        </span>
-                      </div>
+                          {/* Key Bar */}
+                          <div className="p-2.5 rounded-lg bg-[var(--win-bg)] border border-[var(--win-border)] flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Lock size={12} className="text-[var(--text-secondary)] shrink-0" />
+                              <span className="text-[11px] text-[var(--text-secondary)] shrink-0">
+                                License Key:
+                              </span>
+                              <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+                                {lic.licenseKey}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyKey(lic.licenseKey)}
+                              className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition shrink-0"
+                              title="Salin Key"
+                            >
+                              {copiedKey === lic.licenseKey ? (
+                                <Check size={13} className="text-emerald-500" />
+                              ) : (
+                                <Copy size={13} />
+                              )}
+                            </button>
+                          </div>
 
-                      <div className="docker-cell space-y-1">
-                        <div className="text-[11px] font-medium text-[var(--win-text)]">
-                          {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </div>
-                        <div>
-                          {isExpired ? (
-                            <Badge tone="danger" dot size="sm">
-                              Kedaluwarsa
-                            </Badge>
-                          ) : lic.status === 'TRIAL' ? (
-                            <Badge tone="warning" dot size="sm">
-                              Trial ({lic.daysLeft}h)
-                            </Badge>
-                          ) : (
-                            <Badge tone="success" dot size="sm">
-                              Aktif ({lic.daysLeft}h)
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="docker-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {lic.features && Object.keys(lic.features).length > 0 ? (
-                            Object.entries(lic.features).map(([k, v]) => {
-                              const label = formatFeatureBadge(k, v)
-                              if (!label) return null
-                              return (
-                                <span
-                                  key={k}
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-0.5"
-                                >
-                                  <Check size={9} strokeWidth={2.5} />
-                                  {label}
+                          {/* Meta Details */}
+                          <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+                            <div className="space-y-0.5">
+                              <span className="text-[11px] text-[var(--text-secondary)]">Tarif Langganan:</span>
+                              <div className="font-semibold text-sm text-[var(--win-text)]">
+                                Rp {lic.priceAmount?.toLocaleString('id-ID')}
+                                <span className="text-[11px] font-normal text-[var(--text-secondary)]">
+                                  {' '}
+                                  / {lic.period === 'annual' ? 'tahun' : 'bulan'}
                                 </span>
-                              )
-                            })
-                          ) : (
-                            <span className="text-[11px] text-[var(--text-secondary)]">-</span>
-                          )}
+                              </div>
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[11px] text-[var(--text-secondary)]">Masa Berlaku:</span>
+                              <div className="font-medium text-xs text-[var(--win-text)]">
+                                Hingga{' '}
+                                {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </div>
+                              <div className="w-full bg-[var(--win-bg)] border border-[var(--win-border)] rounded-full h-1.5 mt-1 overflow-hidden">
+                                <div
+                                  className={`h-full ${
+                                    isExpired
+                                      ? 'bg-rose-500'
+                                      : lic.daysLeft < 7
+                                      ? 'bg-amber-500'
+                                      : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Features */}
+                          <div className="space-y-1 pt-1">
+                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Terkoneksi:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {lic.features && Object.keys(lic.features).length > 0 ? (
+                                Object.entries(lic.features).map(([k, v]) => {
+                                  const label = formatFeatureBadge(k, v)
+                                  if (!label) return null
+                                  return (
+                                    <span
+                                      key={k}
+                                      className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1 font-medium"
+                                    >
+                                      <Check size={9} strokeWidth={2.5} />
+                                      {label}
+                                    </span>
+                                  )
+                                })
+                              ) : (
+                                <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card Actions Footer */}
+                        <div className="pt-2 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleOpenRenew(lic)}
+                            className="text-xs h-7 px-2.5 gap-1.5 shadow-sm"
+                          >
+                            <CreditCard size={12} />
+                            Perpanjang
+                          </Button>
+
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setIntegrationLicense(lic)
+                                setIntegrationModalOpen(true)
+                              }}
+                              className="text-xs h-7 px-2.5 gap-1"
+                            >
+                              <Code2 size={12} />
+                              API
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenApp(lic)}
+                              className="text-xs h-7 px-2.5 gap-1"
+                            >
+                              <ExternalLink size={12} />
+                              Buka
+                            </Button>
+                            <IconButton
+                              label="Hapus Lisensi"
+                              onClick={() => {
+                                if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
+                                  deleteLicenseMutation.mutate(lic.id)
+                                }
+                              }}
+                              className="text-rose-500 hover:bg-rose-500/10 h-7 w-7"
+                            >
+                              <Trash2 size={12} />
+                            </IconButton>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="docker-action-btns">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => handleOpenRenew(lic)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] h-7 px-2 gap-1 shadow-sm"
-                        >
-                          <CreditCard size={12} />
-                          Perpanjang
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setIntegrationLicense(lic)
-                            setIntegrationModalOpen(true)
-                          }}
-                          className="text-[11px] h-7 px-2 gap-1"
-                        >
-                          <Code2 size={12} />
-                          API
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenApp(lic)}
-                          className="text-[11px] h-7 px-2 gap-1"
-                        >
-                          <ExternalLink size={12} />
-                          Buka
-                        </Button>
-
-                        <IconButton
-                          label="Hapus Lisensi"
-                          onClick={() => {
-                            if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
-                              deleteLicenseMutation.mutate(lic.id)
-                            }
-                          }}
-                          className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
-                        >
-                          <Trash2 size={12} />
-                        </IconButton>
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </ListState>
-            </ListTable>
-          </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+              <ListTable
+                variant="app-licenses"
+                empty={licensesLoading || licensesError || filteredLicenses.length === 0}
+                columns={[
+                  { label: '#' },
+                  { label: 'Aplikasi & Paket' },
+                  { label: 'License Key' },
+                  { label: 'Tarif' },
+                  { label: 'Masa Berlaku' },
+                  { label: 'Fitur Terkoneksi' },
+                  { label: 'Aksi', actions: true },
+                ]}
+              >
+                <ListState
+                  loading={licensesLoading}
+                  error={licensesError}
+                  errorTitle="Gagal memuat lisensi"
+                  errorHint="Periksa koneksi database atau coba segarkan kembali."
+                  loadingText="Memuat lisensi aplikasi..."
+                  empty={filteredLicenses.length === 0}
+                  emptyIcon={<Shield size={28} />}
+                  emptyTitle="Belum ada lisensi aplikasi"
+                  emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
+                >
+                  {filteredLicenses.map((lic, index) => {
+                    const isExpired = lic.isExpired || lic.status === 'EXPIRED'
+                    return (
+                      <div className="docker-row" key={lic.id}>
+                        <div className="docker-row__num">{indexLabel(index)}</div>
+
+                        <div className="docker-row__app">
+                          <ListRowIcon>
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                          </ListRowIcon>
+                          <div className="docker-row__text">
+                            <span className="docker-app-name" title={lic.appName}>
+                              {lic.appName}
+                            </span>
+                            <span className="docker-row__sub">
+                              {lic.planName} · <span className="font-mono">{lic.catalogId}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="docker-cell docker-cell--mono">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              {lic.licenseKey}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyKey(lic.licenseKey)}
+                              className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition"
+                              title="Salin License Key"
+                            >
+                              {copiedKey === lic.licenseKey ? (
+                                <Check size={12} className="text-emerald-500" />
+                              ) : (
+                                <Copy size={12} />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="docker-cell docker-cell--mono font-semibold">
+                          Rp {lic.priceAmount?.toLocaleString('id-ID')}
+                          <span className="text-[10px] font-normal text-[var(--text-secondary)]">
+                            {' '}
+                            / {lic.period === 'annual' ? 'thn' : 'bln'}
+                          </span>
+                        </div>
+
+                        <div className="docker-cell space-y-1">
+                          <div className="text-[11px] font-medium text-[var(--win-text)]">
+                            {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          <div>
+                            {isExpired ? (
+                              <Badge tone="danger" dot size="sm">
+                                Kedaluwarsa
+                              </Badge>
+                            ) : lic.status === 'TRIAL' ? (
+                              <Badge tone="warning" dot size="sm">
+                                Trial ({lic.daysLeft}h)
+                              </Badge>
+                            ) : (
+                              <Badge tone="success" dot size="sm">
+                                Aktif ({lic.daysLeft}h)
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="docker-cell">
+                          <div className="flex flex-wrap gap-1">
+                            {lic.features && Object.keys(lic.features).length > 0 ? (
+                              Object.entries(lic.features).map(([k, v]) => {
+                                const label = formatFeatureBadge(k, v)
+                                if (!label) return null
+                                return (
+                                  <span
+                                    key={k}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-0.5"
+                                  >
+                                    <Check size={9} strokeWidth={2.5} />
+                                    {label}
+                                  </span>
+                                )
+                              })
+                            ) : (
+                              <span className="text-[11px] text-[var(--text-secondary)]">-</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="docker-action-btns">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleOpenRenew(lic)}
+                            className="text-[11px] h-7 px-2 gap-1 shadow-sm"
+                          >
+                            <CreditCard size={12} />
+                            Perpanjang
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIntegrationLicense(lic)
+                              setIntegrationModalOpen(true)
+                            }}
+                            className="text-[11px] h-7 px-2 gap-1"
+                          >
+                            <Code2 size={12} />
+                            API
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenApp(lic)}
+                            className="text-[11px] h-7 px-2 gap-1"
+                          >
+                            <ExternalLink size={12} />
+                            Buka
+                          </Button>
+
+                          <IconButton
+                            label="Hapus Lisensi"
+                            onClick={() => {
+                              if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
+                                deleteLicenseMutation.mutate(lic.id)
+                              }
+                            }}
+                            className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
+                          >
+                            <Trash2 size={12} />
+                          </IconButton>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </ListState>
+              </ListTable>
+            </div>
+          )}
         </div>
       )}
 
@@ -664,32 +883,23 @@ export function AppLicensesWindow() {
               </p>
             </div>
 
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => setCreatePlanModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
-            >
-              <Plus size={14} />
-              Tambah Paket Tarif
-            </Button>
+            <div className="flex items-center gap-2">
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setCreatePlanModalOpen(true)}
+                className="gap-1.5 shadow-sm"
+              >
+                <Plus size={14} />
+                Tambah Paket Tarif
+              </Button>
+            </div>
           </div>
 
-          {/* List Table of Plans */}
-          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
-            <ListTable
-              variant="app-plans"
-              empty={plansLoading || plansError || plans.length === 0}
-              columns={[
-                { label: '#' },
-                { label: 'Nama Paket' },
-                { label: 'Tarif' },
-                { label: 'Durasi' },
-                { label: 'Fitur & Kuota' },
-                { label: 'Status' },
-                { label: 'Aksi', actions: true },
-              ]}
-            >
+          {/* Plans Content (Card vs List) */}
+          {viewMode === 'grid' ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <ListState
                 loading={plansLoading}
                 error={plansError}
@@ -701,128 +911,234 @@ export function AppLicensesWindow() {
                 emptyTitle="Belum ada paket tarif"
                 emptyHint="Klik tombol 'Tambah Paket Tarif' untuk mendaftarkan tier harga baru."
               >
-                {plans.map((p, index) => (
-                  <div className="docker-row" key={p.id}>
-                    <div className="docker-row__num">{indexLabel(index)}</div>
-
-                    <div className="docker-row__app">
-                      <ListRowIcon>
-                        <Boxes className="h-3.5 w-3.5 text-emerald-500" />
-                      </ListRowIcon>
-                      <div className="docker-row__text">
-                        <span className="docker-app-name" title={p.name}>
-                          {p.name}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4">
+                  {plans.map((p) => (
+                    <div
+                      key={p.id}
+                      className={`rounded-xl border p-4 flex flex-col justify-between transition-all bg-[var(--card-bg)] shadow-sm ${
+                        p.highlighted
+                          ? 'border-emerald-500 ring-1 ring-emerald-500/30'
+                          : 'border-[var(--win-border)] hover:border-[var(--win-border-focus)]'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
+                              {p.period === 'annual' ? 'Paket Tahunan' : 'Paket Bulanan'}
+                            </span>
+                            <h4 className="text-base font-bold text-[var(--win-text)]">{p.name}</h4>
+                          </div>
                           {p.highlighted && (
-                            <span className="ml-1.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0">
                               Paling Populer
                             </span>
                           )}
-                        </span>
-                        <span className="docker-row__sub" title={p.tagline}>
-                          {p.tagline || p.slug}
-                        </span>
+                        </div>
+
+                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed min-h-[36px]">
+                          {p.tagline}
+                        </p>
+
+                        <div className="pt-1">
+                          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                            Rp {p.priceAmount.toLocaleString('id-ID')}
+                            <span className="text-xs font-normal text-[var(--text-secondary)]">
+                              {' '}
+                              / {p.period === 'annual' ? 'tahun' : 'bulan'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Feature check-list */}
+                        <div className="border-t border-[var(--win-border)] pt-3 space-y-2 text-xs">
+                          {p.features && Object.keys(p.features).length > 0 ? (
+                            Object.entries(p.features).map(([k, v]) => {
+                              const label = formatFeatureBadge(k, v)
+                              if (!label) return null
+                              return (
+                                <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
+                                  <Check size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                  <span>{label}</span>
+                                </div>
+                              )
+                            })
+                          ) : (
+                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 mt-3 border-t border-[var(--win-border)] flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={p.highlighted ? 'primary' : 'outline'}
+                          block
+                          loading={orderMutation.isPending}
+                          onClick={() => handleOrderPlan(p)}
+                          className="text-xs h-8 gap-1.5 flex-1"
+                        >
+                          <ReceiptText size={13} />
+                          Pesan & Invoice
+                        </Button>
+                        <IconButton
+                          label="Hapus Paket"
+                          onClick={() => {
+                            if (window.confirm(`Hapus paket "${p.name}"?`)) {
+                              deletePlanMutation.mutate(p.id)
+                            }
+                          }}
+                          className="text-rose-500 hover:bg-rose-500/10 h-8 w-8"
+                        >
+                          <Trash2 size={13} />
+                        </IconButton>
                       </div>
                     </div>
-
-                    <div className="docker-cell docker-cell--mono font-semibold">
-                      Rp {p.priceAmount.toLocaleString('id-ID')}
-                      <span className="text-[10px] font-normal text-[var(--text-secondary)]">
-                        {' '}
-                        / {p.period === 'annual' ? 'thn' : 'bln'}
-                      </span>
-                    </div>
-
-                    <div className="docker-cell text-xs">
-                      {p.period === 'annual' ? '12 Bulan (Tahunan)' : `${p.months || 1} Bulan`}
-                    </div>
-
-                    <div className="docker-cell">
-                      <div className="flex flex-wrap gap-1">
-                        {p.features && Object.keys(p.features).length > 0 ? (
-                          Object.entries(p.features).map(([k, v]) => {
-                            const label = formatFeatureBadge(k, v)
-                            if (!label) return null
-                            return (
-                              <span
-                                key={k}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--win-text)] inline-flex items-center gap-0.5"
-                              >
-                                <Check size={9} className="text-emerald-500" strokeWidth={2.5} />
-                                {label}
-                              </span>
-                            )
-                          })
-                        ) : (
-                          <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="docker-cell--keep">
-                      <Badge tone="success" dot size="sm">
-                        Tersedia
-                      </Badge>
-                    </div>
-
-                    <div className="docker-action-btns">
-                      <Button
-                        size="sm"
-                        variant={p.highlighted ? 'primary' : 'outline'}
-                        loading={orderMutation.isPending}
-                        onClick={() => handleOrderPlan(p)}
-                        className={`text-[11px] h-7 px-2.5 gap-1 ${
-                          p.highlighted ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
-                        }`}
-                      >
-                        <ReceiptText size={12} />
-                        Pesan & Invoice
-                      </Button>
-                      <IconButton
-                        label="Hapus Paket"
-                        onClick={() => {
-                          if (window.confirm(`Hapus paket "${p.name}"?`)) {
-                            deletePlanMutation.mutate(p.id)
-                          }
-                        }}
-                        className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
-                      >
-                        <Trash2 size={12} />
-                      </IconButton>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </ListState>
-            </ListTable>
-          </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+              <ListTable
+                variant="app-plans"
+                empty={plansLoading || plansError || plans.length === 0}
+                columns={[
+                  { label: '#' },
+                  { label: 'Nama Paket' },
+                  { label: 'Tarif' },
+                  { label: 'Durasi' },
+                  { label: 'Fitur & Kuota' },
+                  { label: 'Status' },
+                  { label: 'Aksi', actions: true },
+                ]}
+              >
+                <ListState
+                  loading={plansLoading}
+                  error={plansError}
+                  errorTitle="Gagal memuat paket tarif"
+                  errorHint="Periksa koneksi database atau coba segarkan kembali."
+                  loadingText="Memuat paket langganan aplikasi..."
+                  empty={plans.length === 0}
+                  emptyIcon={<Boxes size={28} />}
+                  emptyTitle="Belum ada paket tarif"
+                  emptyHint="Klik tombol 'Tambah Paket Tarif' untuk mendaftarkan tier harga baru."
+                >
+                  {plans.map((p, index) => (
+                    <div className="docker-row" key={p.id}>
+                      <div className="docker-row__num">{indexLabel(index)}</div>
+
+                      <div className="docker-row__app">
+                        <ListRowIcon>
+                          <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                        </ListRowIcon>
+                        <div className="docker-row__text">
+                          <span className="docker-app-name" title={p.name}>
+                            {p.name}
+                            {p.highlighted && (
+                              <span className="ml-1.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white">
+                                Paling Populer
+                              </span>
+                            )}
+                          </span>
+                          <span className="docker-row__sub" title={p.tagline}>
+                            {p.tagline || p.slug}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="docker-cell docker-cell--mono font-semibold">
+                        Rp {p.priceAmount.toLocaleString('id-ID')}
+                        <span className="text-[10px] font-normal text-[var(--text-secondary)]">
+                          {' '}
+                          / {p.period === 'annual' ? 'thn' : 'bln'}
+                        </span>
+                      </div>
+
+                      <div className="docker-cell text-xs">
+                        {p.period === 'annual' ? '12 Bulan (Tahunan)' : `${p.months || 1} Bulan`}
+                      </div>
+
+                      <div className="docker-cell">
+                        <div className="flex flex-wrap gap-1">
+                          {p.features && Object.keys(p.features).length > 0 ? (
+                            Object.entries(p.features).map(([k, v]) => {
+                              const label = formatFeatureBadge(k, v)
+                              if (!label) return null
+                              return (
+                                <span
+                                  key={k}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--win-text)] inline-flex items-center gap-0.5"
+                                >
+                                  <Check size={9} className="text-emerald-500" strokeWidth={2.5} />
+                                  {label}
+                                </span>
+                              )
+                            })
+                          ) : (
+                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="docker-cell--keep">
+                        <Badge tone="success" dot size="sm">
+                          Tersedia
+                        </Badge>
+                      </div>
+
+                      <div className="docker-action-btns">
+                        <Button
+                          size="sm"
+                          variant={p.highlighted ? 'primary' : 'outline'}
+                          loading={orderMutation.isPending}
+                          onClick={() => handleOrderPlan(p)}
+                          className="text-[11px] h-7 px-2.5 gap-1"
+                        >
+                          <ReceiptText size={12} />
+                          Pesan & Invoice
+                        </Button>
+                        <IconButton
+                          label="Hapus Paket"
+                          onClick={() => {
+                            if (window.confirm(`Hapus paket "${p.name}"?`)) {
+                              deletePlanMutation.mutate(p.id)
+                            }
+                          }}
+                          className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
+                        >
+                          <Trash2 size={12} />
+                        </IconButton>
+                      </div>
+                    </div>
+                  ))}
+                </ListState>
+              </ListTable>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tab 3: Riwayat Invoice */}
       {activeTab === 'invoices' && (
         <div className="flex-1 flex flex-col min-h-0 p-5 space-y-3 overflow-hidden">
-          <div className="shrink-0">
-            <h3 className="text-sm font-semibold text-[var(--win-text)]">
-              Daftar Tagihan & Invoice Lisensi
-            </h3>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Semua invoice pesanan lisensi aplikasi yang diterbitkan untuk akun ini.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--win-text)]">
+                Daftar Tagihan & Invoice Lisensi
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Semua invoice pesanan lisensi aplikasi yang diterbitkan untuk akun ini.
+              </p>
+            </div>
+
+            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
           </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
-            <ListTable
-              variant="app-orders"
-              empty={ordersLoading || ordersError || orders.length === 0}
-              columns={[
-                { label: '#' },
-                { label: 'Nomor Invoice' },
-                { label: 'Paket Aplikasi' },
-                { label: 'Total Tagihan' },
-                { label: 'Status' },
-                { label: 'Waktu Terbit' },
-                { label: 'Aksi', actions: true },
-              ]}
-            >
+          {/* Invoices Content (Card vs List) */}
+          {viewMode === 'grid' ? (
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <ListState
                 loading={ordersLoading}
                 error={ordersError}
@@ -834,93 +1150,204 @@ export function AppLicensesWindow() {
                 emptyTitle="Belum ada invoice yang diterbitkan"
                 emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk menerbitkan pesanan pertama."
               >
-                {orders.map((ord, index) => {
-                  const isPaid = ord.status === 'paid'
-                  return (
-                    <div className="docker-row" key={ord.id}>
-                      <div className="docker-row__num">{indexLabel(index)}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-4">
+                  {orders.map((ord) => {
+                    const isPaid = ord.status === 'paid'
+                    return (
+                      <div
+                        key={ord.id}
+                        className="rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] hover:border-[var(--win-border-focus)] transition p-4 flex flex-col justify-between gap-3 shadow-sm"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="font-mono text-xs font-bold text-[var(--win-text)] block">
+                                {ord.invoiceNumber}
+                              </span>
+                              <span className="text-[11px] text-[var(--text-secondary)]">
+                                {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
+                              </span>
+                            </div>
+                            {isPaid ? (
+                              <Badge tone="success" dot size="sm">
+                                Lunas
+                              </Badge>
+                            ) : (
+                              <Badge tone="warning" dot size="sm">
+                                Menunggu Bayar
+                              </Badge>
+                            )}
+                          </div>
 
-                      <div className="docker-row__app">
-                        <ListRowIcon>
-                          <ReceiptText className="h-3.5 w-3.5 text-emerald-500" />
-                        </ListRowIcon>
-                        <div className="docker-row__text">
-                          <span className="docker-app-name docker-app-name--mono">
-                            {ord.invoiceNumber}
+                          <div className="text-xs text-[var(--win-text)]">
+                            <span className="font-semibold">{ord.appName}</span> - {ord.planName} ({ord.months} Bulan)
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[11px] text-[var(--text-secondary)]">Total Tagihan:</span>
+                            <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                              Rp {ord.amountTotal.toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-[var(--text-secondary)]">
+                            {new Date(ord.createdAt).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </span>
-                          <span className="docker-row__sub">
-                            {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {!isPaid && (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => {
+                                  setSelectedOrder(ord)
+                                  setInvoiceModalOpen(true)
+                                }}
+                                className="text-xs h-7 px-2 gap-1"
+                              >
+                                <CreditCard size={12} />
+                                Bayar
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedOrder(ord)
+                                setInvoiceModalOpen(true)
+                              }}
+                              className="text-xs h-7 px-2 gap-1"
+                            >
+                              <FileText size={12} />
+                              Invoice
+                            </Button>
+                          </div>
                         </div>
                       </div>
+                    )
+                  })}
+                </div>
+              </ListState>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+              <ListTable
+                variant="app-orders"
+                empty={ordersLoading || ordersError || orders.length === 0}
+                columns={[
+                  { label: '#' },
+                  { label: 'Nomor Invoice' },
+                  { label: 'Paket Aplikasi' },
+                  { label: 'Total Tagihan' },
+                  { label: 'Status' },
+                  { label: 'Waktu Terbit' },
+                  { label: 'Aksi', actions: true },
+                ]}
+              >
+                <ListState
+                  loading={ordersLoading}
+                  error={ordersError}
+                  errorTitle="Gagal memuat invoice"
+                  errorHint="Periksa koneksi database atau coba segarkan kembali."
+                  loadingText="Memuat riwayat invoice..."
+                  empty={orders.length === 0}
+                  emptyIcon={<ReceiptText size={28} />}
+                  emptyTitle="Belum ada invoice yang diterbitkan"
+                  emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk menerbitkan pesanan pertama."
+                >
+                  {orders.map((ord, index) => {
+                    const isPaid = ord.status === 'paid'
+                    return (
+                      <div className="docker-row" key={ord.id}>
+                        <div className="docker-row__num">{indexLabel(index)}</div>
 
-                      <div className="docker-cell text-xs">
-                        <span className="font-medium text-[var(--win-text)]">{ord.planName}</span>
-                        <span className="text-[11px] text-[var(--text-secondary)] block">
-                          ({ord.months} Bulan)
-                        </span>
-                      </div>
+                        <div className="docker-row__app">
+                          <ListRowIcon>
+                            <ReceiptText className="h-3.5 w-3.5 text-emerald-500" />
+                          </ListRowIcon>
+                          <div className="docker-row__text">
+                            <span className="docker-app-name docker-app-name--mono">
+                              {ord.invoiceNumber}
+                            </span>
+                            <span className="docker-row__sub">
+                              {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="docker-cell docker-cell--mono font-semibold text-emerald-600 dark:text-emerald-400">
-                        Rp {ord.amountTotal.toLocaleString('id-ID')}
-                      </div>
+                        <div className="docker-cell text-xs">
+                          <span className="font-medium text-[var(--win-text)]">{ord.planName}</span>
+                          <span className="text-[11px] text-[var(--text-secondary)] block">
+                            ({ord.months} Bulan)
+                          </span>
+                        </div>
 
-                      <div className="docker-cell--keep">
-                        {isPaid ? (
-                          <Badge tone="success" dot size="sm">
-                            Lunas
-                          </Badge>
-                        ) : (
-                          <Badge tone="warning" dot size="sm">
-                            Menunggu Bayar
-                          </Badge>
-                        )}
-                      </div>
+                        <div className="docker-cell docker-cell--mono font-semibold text-emerald-600 dark:text-emerald-400">
+                          Rp {ord.amountTotal.toLocaleString('id-ID')}
+                        </div>
 
-                      <div className="docker-cell text-[11px] text-[var(--text-secondary)]">
-                        {new Date(ord.createdAt).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </div>
+                        <div className="docker-cell--keep">
+                          {isPaid ? (
+                            <Badge tone="success" dot size="sm">
+                              Lunas
+                            </Badge>
+                          ) : (
+                            <Badge tone="warning" dot size="sm">
+                              Menunggu Bayar
+                            </Badge>
+                          )}
+                        </div>
 
-                      <div className="docker-action-btns">
-                        {!isPaid && (
+                        <div className="docker-cell text-[11px] text-[var(--text-secondary)]">
+                          {new Date(ord.createdAt).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </div>
+
+                        <div className="docker-action-btns">
+                          {!isPaid && (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => {
+                                setSelectedOrder(ord)
+                                setInvoiceModalOpen(true)
+                              }}
+                              className="text-[11px] h-7 px-2 gap-1"
+                            >
+                              <CreditCard size={12} />
+                              Bayar
+                            </Button>
+                          )}
                           <Button
                             size="sm"
-                            variant="primary"
+                            variant="outline"
                             onClick={() => {
                               setSelectedOrder(ord)
                               setInvoiceModalOpen(true)
                             }}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] h-7 px-2 gap-1"
+                            className="text-[11px] h-7 px-2 gap-1"
                           >
-                            <CreditCard size={12} />
-                            Bayar
+                            <FileText size={12} />
+                            Invoice
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedOrder(ord)
-                            setInvoiceModalOpen(true)
-                          }}
-                          className="text-[11px] h-7 px-2 gap-1"
-                        >
-                          <FileText size={12} />
-                          Invoice
-                        </Button>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </ListState>
-            </ListTable>
-          </div>
+                    )
+                  })}
+                </ListState>
+              </ListTable>
+            </div>
+          )}
         </div>
       )}
 
@@ -957,7 +1384,7 @@ export function AppLicensesWindow() {
                         method: 'saldo',
                       })
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    className="gap-1.5"
                   >
                     <CheckCircle2 size={14} />
                     Bayar Sekarang (Saldo Reneo)
@@ -1105,7 +1532,7 @@ export function AppLicensesWindow() {
                       paymentMethod,
                     })
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  className="gap-1.5"
                 >
                   <CheckCircle2 size={14} />
                   Konfirmasi & Bayar
