@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.15] - 2026-11-13
+
+Improve slug uniqueness and error cleanup.
+
+### Peningkatan
+- **app-catalog:** Improve slug uniqueness and error cleanup ([`d89a1cb`](https://github.com/friskipradana/y-panel/commit/d89a1cb))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.14...v1.83.15
+
 ## [1.83.14] - 2026-11-13
 
 3 perubahan, utamanya implement automated managed database provisioning.
