@@ -532,6 +532,25 @@ func (m *Manager) ensureSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_email_messages_to_addr ON email_messages(to_addr)`,
 		`ALTER TABLE user_quotas ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE hosting_plans ADD COLUMN IF NOT EXISTS max_apps INTEGER NOT NULL DEFAULT 2`,
+		`CREATE TABLE IF NOT EXISTS app_licenses (
+			id           BIGSERIAL    PRIMARY KEY,
+			user_id      BIGINT       NOT NULL DEFAULT 1,
+			catalog_id   VARCHAR(80)  NOT NULL,
+			app_name     VARCHAR(120) NOT NULL,
+			license_key  VARCHAR(120) NOT NULL UNIQUE,
+			status       VARCHAR(32)  NOT NULL DEFAULT 'ACTIVE',
+			plan_name    VARCHAR(80)  NOT NULL DEFAULT 'Bulanan (Pro)',
+			period       VARCHAR(32)  NOT NULL DEFAULT 'monthly',
+			price_amount BIGINT       NOT NULL DEFAULT 99000,
+			started_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			expires_at   TIMESTAMPTZ  NOT NULL,
+			features     JSONB,
+			created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+			UNIQUE(user_id, catalog_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_licenses_user_id ON app_licenses(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_licenses_catalog_id ON app_licenses(catalog_id)`,
 	}
 
 	for _, stmt := range stmts {

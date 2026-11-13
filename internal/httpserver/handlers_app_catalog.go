@@ -2314,7 +2314,33 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 		catalogID = "reneo-crm"
 	}
 
-	// 1 month subscription window managed by Reneo
+	userID := int64(1)
+	if actor := s.currentUserRecord(r); actor != nil {
+		userID = actor.ID
+	}
+
+	if s.database != nil && s.database.IsConnected() {
+		lic, err := s.database.GetAppLicense(userID, catalogID)
+		if err == nil && lic != nil {
+			s.writeJSON(w, http.StatusOK, jsonResponse{
+				"ok":            true,
+				"catalogId":     lic.CatalogID,
+				"status":        lic.Status,
+				"plan":          lic.PlanName,
+				"period":        lic.Period,
+				"expiresAt":     lic.ExpiresAt,
+				"daysRemaining": lic.DaysLeft,
+				"daysLeft":      lic.DaysLeft,
+				"isExpired":     lic.IsExpired,
+				"licenseKey":    lic.LicenseKey,
+				"billingUrl":    "/hosting",
+				"features":      lic.Features,
+			})
+			return
+		}
+	}
+
+	// 1 month subscription fallback managed by Reneo
 	now := time.Now()
 	expiresAt := now.AddDate(0, 1, 0)
 
@@ -2326,12 +2352,16 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 		"period":        "monthly",
 		"expiresAt":     expiresAt.Format(time.RFC3339),
 		"daysRemaining": 30,
+		"daysLeft":      30,
+		"isExpired":     false,
+		"licenseKey":    "RN-CRM-DEMO-2026",
 		"billingUrl":    "/hosting",
 		"features": map[string]any{
 			"unlimitedBroadcast": true,
 			"birthdayBot":        true,
 			"liveChat":           true,
 			"maxContacts":        10000,
+			"wahaSync":           true,
 		},
 	})
 }

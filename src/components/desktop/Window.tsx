@@ -268,7 +268,8 @@ export function Window({ win, children }: Props) {
     win.kind === 'host-terminal' ||
     win.kind === 'system-logs' ||
     win.kind === 'installed-app' ||
-    win.kind === 'app-catalog'
+    win.kind === 'app-catalog' ||
+    win.kind === 'app-licenses'
 
   return (
     <motion.div

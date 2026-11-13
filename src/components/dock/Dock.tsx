@@ -30,6 +30,7 @@ const DOCK_ITEMS: { kind: WindowKind; label: string }[] = [
   { kind: 'email', label: 'Email' },
   { kind: 'kvm', label: 'KVM Display' },
   { kind: 'app-catalog', label: 'App Catalog' },
+  { kind: 'app-licenses', label: 'Lisensi Aplikasi' },
   { kind: 'changelog', label: 'Changelog' },
 ]
 

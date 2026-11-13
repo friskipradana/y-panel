@@ -28,7 +28,7 @@ interface MobileShellProps {
 }
 
 const QUICK_APPS: WindowKind[] = ['apps', 'host-terminal', 'file-manager']
-const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings', 'profile', 'hosting', 'app-catalog', 'installed-app']
+const SCROLL_OWNERS: WindowKind[] = ['host-terminal', 'system-logs', 'file-editor', 'settings', 'profile', 'hosting', 'app-catalog', 'installed-app', 'app-licenses']
 
 // Phone layout: one app at a time, bottom navigation, no floating windows
 export function MobileShell({ authenticated, onLogout }: MobileShellProps) {

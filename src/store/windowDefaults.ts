@@ -14,6 +14,7 @@ export const DEFAULTS: Record<
   'file-editor': { title: 'Code Editor', width: 1040, height: 528, singleton: true },
   'app-catalog': { title: 'App Catalog', width: 1040, height: 560, singleton: true },
   'installed-app': { title: 'Installed App', width: 1040, height: 620, singleton: false },
+  'app-licenses': { title: 'Kelola Lisensi Aplikasi', width: 980, height: 580, singleton: true },
 
   // L — Management & Monitoring (880 x 530)
   system: { title: 'System Info', width: 880, height: 530, singleton: true },

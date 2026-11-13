@@ -240,4 +240,23 @@ func TestProxyShimTemplateDoesNotStripHistory(t *testing.T) {
 	}
 }
 
+func TestAppCatalogLicenseEndpoint(t *testing.T) {
+	srv := &Server{}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/license/reneo-crm", nil)
+	w := httptest.NewRecorder()
+
+	srv.handleAppCatalogLicense(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"reneo-crm"`) {
+		t.Fatalf("expected response to contain catalog ID reneo-crm, got %s", body)
+	}
+	if !strings.Contains(body, `"status":"ACTIVE"`) {
+		t.Fatalf("expected active status, got %s", body)
+	}
+}
+
+
 

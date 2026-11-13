@@ -27,6 +27,7 @@ const EmailWindow = lazyNamed(() => import('@/components/windows/EmailWindow'), 
 const KvmWindow = lazyNamed(() => import('@/components/windows/KvmWindow'), 'KvmWindow')
 const AppCatalogWindow = lazyNamed(() => import('@/components/windows/AppCatalogWindow'), 'AppCatalogWindow')
 const InstalledAppWindow = lazyNamed(() => import('@/components/windows/InstalledAppWindow'), 'InstalledAppWindow')
+const AppLicensesWindow = lazyNamed(() => import('@/components/windows/AppLicensesWindow'), 'AppLicensesWindow')
 
 
 // Every account works in its own area (terminal as its own OS account, own files, containers,
@@ -109,11 +110,13 @@ export const WINDOW_CONTENT: Partial<Record<WindowKind, (win: WindowState, authe
   kvm: (win, auth) => <KvmWindow win={win} authenticated={auth} />,
   'app-catalog': () => <AppCatalogWindow />,
   'installed-app': (win) => <InstalledAppWindow win={win} />,
+  'app-licenses': () => <AppLicensesWindow />,
 }
 
 export const DESKTOP_SHORTCUTS: { id: string; label: string; windowId: WindowKind }[] = [
   { id: 'apps', label: 'Docker', windowId: 'apps' },
   { id: 'app-catalog', label: 'App Catalog', windowId: 'app-catalog' },
+  { id: 'app-licenses', label: 'Lisensi Aplikasi', windowId: 'app-licenses' },
   { id: 'host-terminal', label: 'Terminal', windowId: 'host-terminal' },
   { id: 'kvm', label: 'KVM Display', windowId: 'kvm' },
   { id: 'widgets', label: 'Widgets', windowId: 'widgets' },

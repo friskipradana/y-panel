@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, RefreshCw, Search } from 'lucide-react'
+import { Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { Button } from '@/components/ui/Button'
@@ -14,6 +14,7 @@ import {
   type BusyCatalogAction,
 } from '@/components/windows/app-catalog/InstalledAppsView'
 import { openInstalledAppWindow, useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import { useWindowStore } from '@/store/windowStore'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -231,6 +232,18 @@ export function AppCatalogWindow() {
     </button>
   )
 
+  const licenseButton = (
+    <button
+      type="button"
+      onClick={() => useWindowStore.getState().openWindow('app-licenses')}
+      className="panel-btn panel-btn--sm flex items-center gap-1.5 border border-[var(--win-border)] bg-[var(--win-bg)] text-xs text-[var(--win-text)] hover:border-emerald-500/50 hover:text-emerald-600 transition"
+      title="Kelola Lisensi & Langganan Aplikasi"
+    >
+      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" strokeWidth={1.75} />
+      <span>{t('appCatalog.manageLicenses') || 'Lisensi'}</span>
+    </button>
+  )
+
   const viewModeSwitch = (mobile = false) => (
     <ViewModeToggle mode={viewMode} onChange={updateViewMode} isMobile={mobile} />
   )
@@ -258,6 +271,7 @@ export function AppCatalogWindow() {
           <div className="docker-topbar__mobile-row">
             {viewFilter}
             {addButton}
+            {licenseButton}
             {categoryFilter}
           </div>
           <div className="docker-topbar__mobile-search">
@@ -282,6 +296,7 @@ export function AppCatalogWindow() {
             {viewFilter}
             {categoryFilter}
             {addButton}
+            {licenseButton}
           </div>
           <div className="docker-topbar__right">
             <div className="docker-search-wrap">
