@@ -372,8 +372,14 @@ func (s *Server) routes() {
 	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/upgrade", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogUpgrade)))
 	s.mux.Handle("DELETE /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUninstall)))
 	s.mux.Handle("GET /api/v1/app-catalog/license/{catalogId}", http.HandlerFunc(s.handleAppCatalogLicense))
+	s.mux.Handle("GET /api/v1/app-catalog/plans/{catalogId}", http.HandlerFunc(s.handleAppLicensePlans))
+	s.mux.Handle("POST /api/v1/app-catalog/order", http.HandlerFunc(s.handleAppLicenseCreateOrder))
+	s.mux.Handle("GET /api/v1/app-catalog/orders/{publicId}", http.HandlerFunc(s.handleAppLicenseGetOrder))
+	s.mux.Handle("POST /api/v1/app-catalog/orders/{publicId}/pay", http.HandlerFunc(s.handleAppLicensePayOrder))
 	s.mux.Handle("GET /api/v1/app-licenses", s.requireAuthV2(http.HandlerFunc(s.handleAppLicensesList)))
 	s.mux.Handle("POST /api/v1/app-licenses/renew", s.requireAuthV2(http.HandlerFunc(s.handleAppLicensesRenew)))
+	s.mux.Handle("GET /api/v1/app-license-orders", s.requireAuthV2(http.HandlerFunc(s.handleAppLicensesOrdersList)))
+	s.mux.Handle("GET /api/v1/public/app-orders/{publicId}/invoice", http.HandlerFunc(s.handlePublicAppLicenseInvoice))
 	s.mux.Handle("/api/v1/app-catalog/proxy/", s.requireAuthV2(s.appCatalogProxy()))
 
 	// ── Terminal ──────────────────────────────────────────────────────────────

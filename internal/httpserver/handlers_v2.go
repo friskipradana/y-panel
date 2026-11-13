@@ -87,6 +87,9 @@ func querySearch(r *http.Request) string {
 }
 
 func (s *Server) notifyUserAction(userID int64, title, body, notifType string) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
 	if err := s.database.CreateNotification(userID, title, body, notifType, ""); err != nil {
 		return
 	}

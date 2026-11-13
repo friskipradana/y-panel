@@ -258,5 +258,37 @@ func TestAppCatalogLicenseEndpoint(t *testing.T) {
 	}
 }
 
+func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
+	srv := &Server{}
+
+	// Test GET plans
+	reqPlans := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/plans/reneo-crm", nil)
+	wPlans := httptest.NewRecorder()
+	srv.handleAppLicensePlans(wPlans, reqPlans)
+
+	if wPlans.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for plans, got %d", wPlans.Code)
+	}
+	plansBody := wPlans.Body.String()
+	if !strings.Contains(plansBody, "Pro Bulanan") {
+		t.Fatalf("expected plans response to contain Pro Bulanan, got %s", plansBody)
+	}
+
+	// Test POST order
+	orderPayload := `{"catalogId":"reneo-crm","planSlug":"pro-monthly","buyerName":"Budi Santoso","paymentMethod":"qris"}`
+	reqOrder := httptest.NewRequest(http.MethodPost, "/api/v1/app-catalog/order", strings.NewReader(orderPayload))
+	wOrder := httptest.NewRecorder()
+	srv.handleAppLicenseCreateOrder(wOrder, reqOrder)
+
+	if wOrder.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for order, got %d", wOrder.Code)
+	}
+	orderBody := wOrder.Body.String()
+	if !strings.Contains(orderBody, "INV-") {
+		t.Fatalf("expected order response to contain invoice number INV-, got %s", orderBody)
+	}
+}
+
+
 
 
