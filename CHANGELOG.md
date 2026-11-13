@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.7] - 2026-11-13
+
+Improve path normalization and slug handling.
+
+### Peningkatan
+- **app-catalog:** Improve path normalization and slug handling ([`44c78ae`](https://github.com/friskipradana/y-panel/commit/44c78ae))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.6...v1.82.7
+
 ## [1.82.6] - 2026-11-13
 
 Implement role-based access control and enhanced tunnel management.
