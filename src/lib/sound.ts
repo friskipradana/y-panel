@@ -6,25 +6,60 @@ class SoundManager {
   // The browser refuses audio until the page has been touched; no context is made (and no warning logged) before that
   private unlocked = false
 
-  public init() {
-    if (typeof window === 'undefined') return
+  public unlock(): void {
     this.unlocked = true
+  }
+
+  private safeResume(ctx: AudioContext): void {
+    if (ctx.state === 'suspended') {
+      try {
+        ctx.resume().catch(() => {
+          // Ignore autoplay prevention rejection silently
+        })
+      } catch {
+        // Ignore immediate sync errors
+      }
+    }
+  }
+
+  public init(): void {
+    if (typeof window === 'undefined') return
+
+    // Respect browser autoplay policy: only create AudioContext after user has actually interacted with the document
+    const hasActiveGesture =
+      typeof navigator !== 'undefined' && 'userActivation' in navigator
+        ? navigator.userActivation.hasBeenActive
+        : this.unlocked
+
+    if (!hasActiveGesture) return
+
     if (!this.ctx) {
       const AudioCtx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       if (AudioCtx) {
-        this.ctx = new AudioCtx()
+        try {
+          this.ctx = new AudioCtx()
+        } catch {
+          return
+        }
       }
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      void this.ctx.resume()
+    if (this.ctx) {
+      this.safeResume(this.ctx)
     }
   }
 
   private getContext(): AudioContext | null {
-    if (!this.unlocked && !navigator.userActivation?.hasBeenActive) return null
-    this.init()
+    const hasActiveGesture =
+      typeof navigator !== 'undefined' && 'userActivation' in navigator
+        ? navigator.userActivation.hasBeenActive
+        : this.unlocked
+
+    if (!hasActiveGesture) return null
+    if (!this.ctx) {
+      this.init()
+    }
     return this.ctx
   }
 
@@ -35,7 +70,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -74,7 +109,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -104,7 +139,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -134,7 +169,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -164,7 +199,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -195,7 +230,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -224,7 +259,7 @@ class SoundManager {
     if (!ctx) return
 
     try {
-      if (ctx.state === 'suspended') void ctx.resume()
+      this.safeResume(ctx)
       const now = ctx.currentTime
       const vol = Math.max(0, Math.min(1, soundVolume ?? 0.7))
 
@@ -252,12 +287,18 @@ export const soundManager = new SoundManager()
 // Auto-unlock audio context on first user pointer/key interaction
 if (typeof window !== 'undefined') {
   const unlockAudio = () => {
-    soundManager.init()
-    window.removeEventListener('pointerdown', unlockAudio)
-    window.removeEventListener('keydown', unlockAudio)
-    window.removeEventListener('click', unlockAudio)
+    soundManager.unlock()
+    const hasActiveGesture =
+      !('userActivation' in navigator) || navigator.userActivation.hasBeenActive
+    if (hasActiveGesture) {
+      soundManager.init()
+      window.removeEventListener('click', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+      window.removeEventListener('touchend', unlockAudio)
+    }
   }
-  window.addEventListener('pointerdown', unlockAudio, { passive: true })
-  window.addEventListener('keydown', unlockAudio, { passive: true })
+  // Use click, keydown, touchend instead of pointerdown so Chrome has established userActivation
   window.addEventListener('click', unlockAudio, { passive: true })
+  window.addEventListener('keydown', unlockAudio, { passive: true })
+  window.addEventListener('touchend', unlockAudio, { passive: true })
 }

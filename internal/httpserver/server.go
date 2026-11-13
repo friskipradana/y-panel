@@ -592,6 +592,13 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			return
 		}
 
+		// Static assets with known extensions must return 404 if missing, never falling back to SPA HTML.
+		ext := strings.ToLower(filepath.Ext(cleanPath))
+		if ext == ".js" || ext == ".css" || ext == ".map" || ext == ".json" || ext == ".ico" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg" || ext == ".woff" || ext == ".woff2" || ext == ".wasm" {
+			http.NotFound(w, r)
+			return
+		}
+
 		http.ServeFile(w, r, indexPath)
 	})
 }
