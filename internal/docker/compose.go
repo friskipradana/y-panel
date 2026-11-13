@@ -85,6 +85,7 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 	b.WriteString(fmt.Sprintf("  %s:\n", serviceName))
 	b.WriteString(fmt.Sprintf("    image: %s\n", yamlScalar(image)))
 	b.WriteString(fmt.Sprintf("    container_name: %s\n", yamlScalar(projectName)))
+	b.WriteString("    pull_policy: missing\n")
 	b.WriteString("    restart: unless-stopped\n")
 	b.WriteString("    labels:\n")
 	b.WriteString(fmt.Sprintf("      %s: \"panel\"\n", labelManagedBy))
@@ -125,6 +126,8 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 			b.WriteString(fmt.Sprintf("      - %s\n", yamlScalar(mapping)))
 		}
 	}
+	b.WriteString("    extra_hosts:\n")
+	b.WriteString("      - \"host.docker.internal:host-gateway\"\n")
 	// the networks docker makes itself (bridge, host, none) cannot be joined as a network of the project: compose would give the
 	// service a name alias there, which only networks made by the user support. They are the network mode instead.
 	if builtinNetwork(network) {

@@ -315,7 +315,7 @@ var builtinCatalogApps = []CatalogApp{
 		Category:        "automation",
 		IconKey:         "workflow",
 		IconColor:       "emerald",
-		Image:           "reneo/crm-services:latest",
+		Image:           "reneoofc/crm-services:latest",
 		Versions:        []string{"latest", "1.0.0"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
