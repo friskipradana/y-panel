@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.9] - 2026-11-13
+
+Implement brand icons and expand application list.
+
+### Fitur baru
+- **app-catalog:** Implement brand icons and expand application list ([`da8e0d5`](https://github.com/friskipradana/y-panel/commit/da8e0d5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.8...v1.83.9
+
 ## [1.83.8] - 2026-11-13
 
 Add reneo-crm to prefix exclusion list.
