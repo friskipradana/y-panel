@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getAppCatalog,
+  createCustomCatalogApp,
   installCatalogApp,
   installedAppWindowParams,
   runInstalledAppAction,
   uninstallCatalogApp,
   updateInstalledApp,
   upgradeInstalledApp,
+  type CreateCustomCatalogPayload,
   type InstallCatalogAppPayload,
   type InstalledApp,
   type UpdateInstalledAppPayload,
@@ -110,8 +112,14 @@ export function useAppCatalogMutations() {
     },
   })
 
+  const createCatalogMutation = useMutation({
+    mutationFn: (payload: CreateCustomCatalogPayload) => createCustomCatalogApp(payload),
+    onSuccess: invalidate,
+  })
+
   return {
     installMutation,
+    createCatalogMutation,
     updateMutation,
     actionMutation,
     upgradeMutation,

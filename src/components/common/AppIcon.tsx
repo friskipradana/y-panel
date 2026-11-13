@@ -141,6 +141,15 @@ function resolveAppBadgeTone(color?: string): UiTone {
   return APP_BADGE_TONE_MAP[color.toLowerCase()] || 'primary'
 }
 
+function resolveIconImageSrc(iconKey?: string): string | null {
+  const raw = (iconKey || '').trim()
+  if (!raw) return null
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('/')) {
+    return raw
+  }
+  return BRAND_ICON_MAP[raw.toLowerCase()] || null
+}
+
 export function InstalledAppBadge({
   iconKey,
   iconColor,
@@ -152,17 +161,22 @@ export function InstalledAppBadge({
   size?: IconBadgeSize
   className?: string
 }) {
+  const [imgFailed, setImgFailed] = React.useState(false)
+  React.useEffect(() => {
+    setImgFailed(false)
+  }, [iconKey])
   const key = (iconKey || '').toLowerCase()
-  const brandSrc = BRAND_ICON_MAP[key]
+  const brandSrc = !imgFailed ? resolveIconImageSrc(iconKey) : null
   if (brandSrc) {
     return (
       <IconBadge size={size} tone="neutral" className={className}>
         <img
           src={brandSrc}
           alt=""
-          className="h-[72%] w-[72%] object-contain"
+          className="h-[72%] w-[72%] object-contain rounded-sm"
           loading="lazy"
           draggable={false}
+          onError={() => setImgFailed(true)}
         />
       </IconBadge>
     )
@@ -188,8 +202,12 @@ export function InstalledAppGlyph({
   className?: string
   style?: React.CSSProperties
 }) {
+  const [imgFailed, setImgFailed] = React.useState(false)
+  React.useEffect(() => {
+    setImgFailed(false)
+  }, [iconKey])
   const key = (iconKey || '').toLowerCase()
-  const brandSrc = BRAND_ICON_MAP[key]
+  const brandSrc = !imgFailed ? resolveIconImageSrc(iconKey) : null
   if (brandSrc) {
     const imgSize = Math.max(14, Math.round(size * 0.92))
     return (
@@ -206,9 +224,10 @@ export function InstalledAppGlyph({
           alt=""
           width={imgSize}
           height={imgSize}
-          className="object-contain"
+          className="object-contain rounded-sm"
           style={{ width: imgSize, height: imgSize }}
           draggable={false}
+          onError={() => setImgFailed(true)}
         />
       </span>
     )

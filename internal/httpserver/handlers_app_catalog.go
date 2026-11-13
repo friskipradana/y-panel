@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
@@ -553,6 +554,207 @@ func findCatalogApp(id string) (CatalogApp, bool) {
 	return CatalogApp{}, false
 }
 
+var customCatalogMu sync.Mutex
+
+func (s *Server) customCatalogPath() string {
+	return filepath.Join(s.cfg.StateDir, "custom_app_catalog.json")
+}
+
+func (s *Server) loadCustomCatalogApps() []CatalogApp {
+	customCatalogMu.Lock()
+	defer customCatalogMu.Unlock()
+	data, err := os.ReadFile(s.customCatalogPath())
+	if err != nil {
+		return nil
+	}
+	var items []CatalogApp
+	if err := json.Unmarshal(data, &items); err != nil {
+		return nil
+	}
+	return items
+}
+
+func (s *Server) saveCustomCatalogApps(items []CatalogApp) error {
+	customCatalogMu.Lock()
+	defer customCatalogMu.Unlock()
+	if err := os.MkdirAll(s.cfg.StateDir, 0o755); err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(items, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.customCatalogPath(), raw, 0o600)
+}
+
+func (s *Server) findCatalogAppByID(id string) (CatalogApp, bool) {
+	if item, ok := findCatalogApp(id); ok {
+		return item, true
+	}
+	trimmed := strings.TrimSpace(id)
+	for _, item := range s.loadCustomCatalogApps() {
+		if item.ID == trimmed {
+			return item, true
+		}
+	}
+	return CatalogApp{}, false
+}
+
+type createCustomCatalogRequest struct {
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	Tagline         string   `json:"tagline"`
+	Description     string   `json:"description"`
+	Category        string   `json:"category"`
+	IconKey         string   `json:"iconKey"`
+	IconColor       string   `json:"iconColor"`
+	Image           string   `json:"image"`
+	Versions        []string `json:"versions"`
+	ContainerPort   int      `json:"containerPort"`
+	DefaultHostPort int      `json:"defaultHostPort"`
+	OpenPath        string   `json:"openPath"`
+	Notes           string   `json:"notes"`
+}
+
+var customCatalogSlugRe = regexp.MustCompile(`[^a-z0-9-]+`)
+
+func customCatalogSlug(raw string) string {
+	s := strings.ToLower(strings.TrimSpace(raw))
+	s = customCatalogSlugRe.ReplaceAllString(s, "-")
+	return strings.Trim(s, "-")
+}
+
+func (s *Server) handleCreateCustomCatalogApp(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil || !auth.IsSuperAdmin(actor.Role) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "hanya superadmin yang dapat menambahkan item katalog"})
+		return
+	}
+	var req createCustomCatalogRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "payload tidak valid"})
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	image := strings.TrimSpace(req.Image)
+	if name == "" || image == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "nama dan image Docker wajib diisi"})
+		return
+	}
+	if req.ContainerPort < 1 || req.ContainerPort > 65535 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "port container tidak valid (1-65535)"})
+		return
+	}
+	slug := customCatalogSlug(req.ID)
+	if slug == "" {
+		slug = customCatalogSlug(name)
+	}
+	if slug == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "id/slug katalog tidak valid"})
+		return
+	}
+	if _, exists := s.findCatalogAppByID(slug); exists {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "aplikasi dengan ID tersebut sudah ada di katalog"})
+		return
+	}
+	tagline := strings.TrimSpace(req.Tagline)
+	if tagline == "" {
+		tagline = name
+	}
+	desc := strings.TrimSpace(req.Description)
+	if desc == "" {
+		desc = tagline
+	}
+	cat := strings.TrimSpace(req.Category)
+	if cat == "" {
+		cat = "tools"
+	}
+	iconKey := strings.TrimSpace(req.IconKey)
+	if iconKey == "" {
+		iconKey = "box"
+	}
+	iconColor := strings.TrimSpace(req.IconColor)
+	if iconColor == "" {
+		iconColor = "sky"
+	}
+	openPath := strings.TrimSpace(req.OpenPath)
+	if openPath == "" {
+		openPath = "/"
+	} else if !strings.HasPrefix(openPath, "/") {
+		openPath = "/" + openPath
+	}
+	defaultHostPort := req.DefaultHostPort
+	if defaultHostPort < 1 || defaultHostPort > 65535 {
+		defaultHostPort = 18100
+	}
+	versions := req.Versions
+	if len(versions) == 0 {
+		if idx := strings.LastIndex(image, ":"); idx > strings.LastIndex(image, "/") {
+			versions = []string{image[idx+1:]}
+		} else {
+			versions = []string{"latest"}
+		}
+	}
+	item := CatalogApp{
+		ID:              slug,
+		Name:            name,
+		TaglineID:       tagline,
+		TaglineEN:       tagline,
+		DescriptionID:   desc,
+		DescriptionEN:   desc,
+		Category:        cat,
+		IconKey:         iconKey,
+		IconColor:       iconColor,
+		Image:           image,
+		Versions:        versions,
+		ContainerPort:   req.ContainerPort,
+		DefaultHostPort: defaultHostPort,
+		OpenPath:        openPath,
+		NotesID:         strings.TrimSpace(req.Notes),
+		NotesEN:         strings.TrimSpace(req.Notes),
+	}
+	existing := s.loadCustomCatalogApps()
+	existing = append(existing, item)
+	if err := s.saveCustomCatalogApps(existing); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.auditSensitiveAction(r, actor, "appcatalog.create_catalog", "ok", map[string]any{"id": item.ID, "image": item.Image})
+	s.writeJSON(w, http.StatusCreated, jsonResponse{"item": item})
+}
+
+func (s *Server) handleDeleteCustomCatalogApp(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil || !auth.IsSuperAdmin(actor.Role) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "hanya superadmin yang dapat menghapus item katalog kustom"})
+		return
+	}
+	id := strings.TrimSpace(r.PathValue("id"))
+	if _, isBuiltin := findCatalogApp(id); isBuiltin {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "item katalog bawaan tidak dapat dihapus"})
+		return
+	}
+	existing := s.loadCustomCatalogApps()
+	next := make([]CatalogApp, 0, len(existing))
+	found := false
+	for _, item := range existing {
+		if item.ID == id {
+			found = true
+			continue
+		}
+		next = append(next, item)
+	}
+	if !found {
+		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "item katalog kustom tidak ditemukan"})
+		return
+	}
+	if err := s.saveCustomCatalogApps(next); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+}
+
 type installedAppView struct {
 	database.InstalledApp
 	KeepPrefix      bool   `json:"keepPrefix"`
@@ -713,7 +915,7 @@ func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []d
 	}
 	app.OpenPath = cleanOpen
 	if app.CatalogID != "" {
-		if cat, ok := findCatalogApp(app.CatalogID); ok && cat.IconKey != "" {
+		if cat, ok := s.findCatalogAppByID(app.CatalogID); ok && cat.IconKey != "" {
 			switch strings.ToLower(strings.TrimSpace(app.IconKey)) {
 			case "", "activity", "folder", "wrench", "workflow", "shield", "bar-chart", "chart", "file-text", "pen-tool", "pen", "git-branch", "notebook", "note", "box", "globe":
 				app.IconKey = cat.IconKey
@@ -751,6 +953,12 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 	catalog := make([]CatalogApp, 0, len(builtinCatalogApps))
 	isSuper := auth.IsSuperAdmin(actor.Role)
 	for _, item := range builtinCatalogApps {
+		if item.SuperadminOnly && !isSuper {
+			continue
+		}
+		catalog = append(catalog, item)
+	}
+	for _, item := range s.loadCustomCatalogApps() {
 		if item.SuperadminOnly && !isSuper {
 			continue
 		}
@@ -944,7 +1152,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin deploy container Docker"})
 		return
 	}
-	spec, ok := findCatalogApp(req.CatalogID)
+	spec, ok := s.findCatalogAppByID(req.CatalogID)
 	if !ok {
 		s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "aplikasi tidak ditemukan di katalog"})
 		return
@@ -1533,7 +1741,7 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	}
 
 	baseImage := strings.TrimSpace(app.Image)
-	if spec, ok := findCatalogApp(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
+	if spec, ok := s.findCatalogAppByID(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
 		baseImage = strings.TrimSpace(spec.Image)
 	}
 	targetImage := baseImage

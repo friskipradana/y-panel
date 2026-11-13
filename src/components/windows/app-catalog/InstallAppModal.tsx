@@ -22,7 +22,7 @@ import { useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 
-type InstallMode = 'existing-container' | 'custom-url'
+type InstallMode = 'existing-container' | 'custom-url' | 'custom-catalog'
 
 const CUSTOM_VERSION_SENTINEL = '__custom__'
 
@@ -124,12 +124,17 @@ export function InstallAppModal({
   const currentUsername = currentUser?.username || ''
   const isSuperadmin = userRole.toLowerCase() === 'superadmin'
   const isReneoCrm = catalogApp?.id === 'reneo-crm'
+  const isCatalogApp = Boolean(catalogApp || editingApp?.catalogId)
   const { data: catalogData } = useAppCatalog(open && Boolean(editingApp?.catalogId))
-  const { installMutation, updateMutation, upgradeMutation } = useAppCatalogMutations()
+  const { installMutation, createCatalogMutation, updateMutation, upgradeMutation } = useAppCatalogMutations()
 
   const [mode, setMode] = useState<InstallMode>('existing-container')
   const [name, setName] = useState('')
   const [tagline, setTagline] = useState('')
+  const [catalogImage, setCatalogImage] = useState('')
+  const [catalogContainerPort, setCatalogContainerPort] = useState('80')
+  const [catalogCategory, setCatalogCategory] = useState('tools')
+  const [catalogDescription, setCatalogDescription] = useState('')
   const [hostPort, setHostPort] = useState('')
   const [openPath, setOpenPath] = useState('/app/my-app')
   const [isPathCustomized, setIsPathCustomized] = useState(false)
@@ -137,6 +142,7 @@ export function InstallAppModal({
   const [useProxy, setUseProxy] = useState(true)
   const [containerId, setContainerId] = useState('')
   const [iconKey, setIconKey] = useState('globe')
+  const [iconSourceMode, setIconSourceMode] = useState<'preset' | 'url'>('preset')
   const [iconColor, setIconColor] = useState('blue')
   const [selectedVersion, setSelectedVersion] = useState('')
   const [customVersion, setCustomVersion] = useState('')
@@ -171,7 +177,9 @@ export function InstallAppModal({
       setIsPathCustomized(true)
       setTargetUrl(editingApp.targetUrl || '')
       setUseProxy(editingApp.useProxy)
-      setIconKey(editingApp.iconKey || 'globe')
+      const nextIcon = editingApp.iconKey || 'globe'
+      setIconKey(nextIcon)
+      setIconSourceMode(/^https?:\/\//i.test(nextIcon) ? 'url' : 'preset')
       setIconColor(editingApp.iconColor || 'blue')
       setSelectedVersion(editParsed?.tag || '')
       setCustomVersion('')
@@ -192,6 +200,7 @@ export function InstallAppModal({
       setUseProxy(true)
       setContainerId('')
       setIconKey(catalogApp.iconKey || 'box')
+      setIconSourceMode(/^https?:\/\//i.test(catalogApp.iconKey || '') ? 'url' : 'preset')
       setIconColor(catalogApp.iconColor || 'blue')
       setSelectedVersion(initialVersion)
       setCustomVersion('')
@@ -219,7 +228,12 @@ export function InstallAppModal({
     setUseProxy(true)
     setContainerId('')
     setIconKey('box')
+    setIconSourceMode('preset')
     setIconColor('sky')
+    setCatalogImage('')
+    setCatalogContainerPort('80')
+    setCatalogCategory('tools')
+    setCatalogDescription('')
     setEnvValues({})
     setCustomEnvs([])
   }, [open, editingApp, catalogApp, language, currentUsername])
@@ -315,9 +329,17 @@ export function InstallAppModal({
   const modeTabs: TabItem<InstallMode>[] = [
     { key: 'existing-container', label: t('appCatalog.modeExistingContainer'), icon: <Box className="h-3.5 w-3.5" /> },
     { key: 'custom-url', label: t('appCatalog.modeCustomUrl'), icon: <Globe className="h-3.5 w-3.5" /> },
+    ...(isSuperadmin
+      ? [{ key: 'custom-catalog' as const, label: t('appCatalog.modeCustomCatalog'), icon: <Layers className="h-3.5 w-3.5" /> }]
+      : []),
   ]
 
-  const isBusy = installMutation.isPending || updateMutation.isPending || upgradeMutation.isPending
+  const isBusy =
+    installMutation.isPending ||
+    createCatalogMutation.isPending ||
+    updateMutation.isPending ||
+    upgradeMutation.isPending
+  const isCustomCatalogMode = !editingApp && !catalogApp && mode === 'custom-catalog'
   const isCustomUrlMode = editingApp ? editingApp.kind === 'custom-url' : !catalogApp && mode === 'custom-url'
   const showPortControls = !isCustomUrlMode
   const showEditDockerVersion = Boolean(editingApp && editingApp.kind !== 'custom-url' && editingApp.image)
@@ -384,6 +406,30 @@ export function InstallAppModal({
       if (!mergedEnv['WAHA_BASE_URL']) {
         mergedEnv['WAHA_BASE_URL'] = 'http://reneo-waha:3000'
       }
+    }
+
+    if (isCustomCatalogMode) {
+      const parsedPort = hostPort.trim() ? Number(hostPort.trim()) : undefined
+      const parsedContainerPort = Number(catalogContainerPort.trim() || '80')
+      try {
+        await createCatalogMutation.mutateAsync({
+          name: name.trim(),
+          tagline: tagline.trim() || name.trim(),
+          description: catalogDescription.trim() || tagline.trim() || name.trim(),
+          category: catalogCategory,
+          iconKey: iconKey.trim() || 'box',
+          iconColor,
+          image: catalogImage.trim(),
+          containerPort: parsedContainerPort,
+          defaultHostPort: parsedPort,
+          openPath: openPath.trim() || '/',
+        })
+        toast.success(t('appCatalog.catalogCreateSuccess'))
+        onClose()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t('appCatalog.installFailed'))
+      }
+      return
     }
 
     const defaultSlug = catalogApp?.id || slugify(name) || 'app'
@@ -471,7 +517,11 @@ export function InstallAppModal({
             {t('common.cancel')}
           </Button>
           <Button type="submit" form="app-catalog-install-form" variant="primary" loading={isBusy}>
-            {editingApp ? t('common.save') : t('appCatalog.installAction')}
+            {editingApp
+              ? t('common.save')
+              : isCustomCatalogMode
+                ? t('appCatalog.catalogCreateAction')
+                : t('appCatalog.installAction')}
           </Button>
         </>
       }
@@ -503,47 +553,152 @@ export function InstallAppModal({
           </Field>
         ) : null}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label={t('appCatalog.nameLabel')}>
-            <TextInput
-              value={name}
-              onChange={(e) => {
-                const val = e.target.value
-                setName(val)
-                if (!isPathCustomized && !catalogApp && !editingApp) {
-                  const s = slugify(val)
-                  setOpenPath(s ? `/app/${s}` : '/app/my-app')
-                }
-              }}
-              placeholder={t('appCatalog.namePlaceholder')}
-              required
-            />
-          </Field>
-          <Field label={t('appCatalog.taglineLabel')}>
-            <TextInput
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder={t('appCatalog.taglinePlaceholder')}
-            />
-          </Field>
-        </div>
+        {isCatalogApp ? (
+          <div className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] p-3 space-y-1.5">
+            <div className="text-[13px] font-semibold text-[var(--win-text)]">
+              {catalogApp?.name || editingCatalogApp?.name || name}
+            </div>
+            <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed m-0 whitespace-normal">
+              {language === 'id'
+                ? catalogApp?.descriptionId || editingCatalogApp?.descriptionId || tagline
+                : catalogApp?.descriptionEn || editingCatalogApp?.descriptionEn || tagline}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label={t('appCatalog.nameLabel')}>
+              <TextInput
+                value={name}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setName(val)
+                  if (!isPathCustomized && !catalogApp && !editingApp) {
+                    const s = slugify(val)
+                    setOpenPath(s ? `/app/${s}` : '/app/my-app')
+                  }
+                }}
+                placeholder={t('appCatalog.namePlaceholder')}
+                required
+              />
+            </Field>
+            <Field label={t('appCatalog.taglineLabel')}>
+              <TextInput
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                placeholder={t('appCatalog.taglinePlaceholder')}
+              />
+            </Field>
+          </div>
+        )}
+
+        {isCustomCatalogMode ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label={t('appCatalog.catalogImageLabel')}>
+              <TextInput
+                mono
+                value={catalogImage}
+                onChange={(e) => setCatalogImage(e.target.value)}
+                placeholder={t('appCatalog.catalogImagePlaceholder')}
+                required
+              />
+            </Field>
+            <Field label={t('appCatalog.catalogContainerPortLabel')}>
+              <TextInput
+                mono
+                type="number"
+                min={1}
+                max={65535}
+                value={catalogContainerPort}
+                onChange={(e) => setCatalogContainerPort(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label={t('appCatalog.catalogCategoryLabel')}>
+              <Select
+                value={catalogCategory}
+                onChange={setCatalogCategory}
+                options={[
+                  { value: 'tools', label: 'Tools' },
+                  { value: 'automation', label: 'Automation' },
+                  { value: 'monitoring', label: 'Monitoring' },
+                  { value: 'security', label: 'Security' },
+                  { value: 'productivity', label: 'Productivity' },
+                  { value: 'media', label: 'Media' },
+                ]}
+              />
+            </Field>
+            <div className="sm:col-span-3">
+              <Field label={t('appCatalog.catalogDescriptionLabel')}>
+                <TextInput
+                  value={catalogDescription}
+                  onChange={(e) => setCatalogDescription(e.target.value)}
+                  placeholder={t('appCatalog.taglinePlaceholder')}
+                />
+              </Field>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label={t('appCatalog.iconLabel')}>
-            <Select
-              value={iconKey}
-              onChange={setIconKey}
-              options={iconKeySelectOptions}
-              searchable
-              disabled={Boolean(catalogApp || editingApp?.catalogId)}
-            />
+            {!isCatalogApp ? (
+              <div className="space-y-2">
+                <div className="flex gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={iconSourceMode === 'preset' ? 'default' : 'ghost'}
+                    onClick={() => {
+                      setIconSourceMode('preset')
+                      if (/^https?:\/\//i.test(iconKey)) setIconKey('box')
+                    }}
+                  >
+                    {t('appCatalog.iconPresetOption')}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={iconSourceMode === 'url' ? 'default' : 'ghost'}
+                    onClick={() => {
+                      setIconSourceMode('url')
+                      if (!/^https?:\/\//i.test(iconKey)) setIconKey('')
+                    }}
+                  >
+                    {t('appCatalog.iconUrlOption')}
+                  </Button>
+                </div>
+                {iconSourceMode === 'url' ? (
+                  <TextInput
+                    mono
+                    value={iconKey}
+                    onChange={(e) => setIconKey(e.target.value)}
+                    placeholder={t('appCatalog.iconUrlPlaceholder')}
+                  />
+                ) : (
+                  <Select
+                    value={iconKey}
+                    onChange={setIconKey}
+                    options={iconKeySelectOptions}
+                    searchable
+                  />
+                )}
+              </div>
+            ) : (
+              <Select
+                value={iconKey}
+                onChange={setIconKey}
+                options={iconKeySelectOptions}
+                searchable
+                disabled
+              />
+            )}
           </Field>
           <Field label={t('appCatalog.colorLabel')}>
             <Select
               value={iconColor}
               onChange={setIconColor}
               options={iconColorSelectOptions}
-              disabled={Boolean(catalogApp || editingApp?.catalogId)}
+              disabled={isCatalogApp || iconSourceMode === 'url'}
             />
           </Field>
         </div>

@@ -167,6 +167,30 @@ export async function uninstallCatalogApp(
   return data
 }
 
+export interface CreateCustomCatalogPayload {
+  id?: string
+  name: string
+  tagline: string
+  description?: string
+  category?: string
+  iconKey?: string
+  iconColor?: string
+  image: string
+  containerPort: number
+  defaultHostPort?: number
+  openPath?: string
+  notes?: string
+}
+
+export async function createCustomCatalogApp(payload: CreateCustomCatalogPayload): Promise<CatalogApp> {
+  const { data } = await agentApi.post<{ item: CatalogApp }>('/api/v1/app-catalog/catalog', payload)
+  return data.item
+}
+
+export async function deleteCustomCatalogApp(id: string): Promise<void> {
+  await agentApi.delete(`/api/v1/app-catalog/catalog/${encodeURIComponent(id)}`)
+}
+
 export function installedAppOpenUrl(app: Pick<InstalledApp, 'id' | 'openPath' | 'proxyPath' | 'targetUrl' | 'useProxy'>): string {
   if (!app.useProxy && app.targetUrl) {
     return app.targetUrl

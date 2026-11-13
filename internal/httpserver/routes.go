@@ -366,6 +366,8 @@ func (s *Server) routes() {
 
 	// ── App Catalog & Installed App Windows ───────────────────────────────────
 	s.mux.Handle("GET /api/v1/app-catalog", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogList)))
+	s.mux.Handle("POST /api/v1/app-catalog/catalog", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleCreateCustomCatalogApp)))
+	s.mux.Handle("DELETE /api/v1/app-catalog/catalog/{id}", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleDeleteCustomCatalogApp)))
 	s.mux.Handle("POST /api/v1/app-catalog/install", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogInstall)))
 	s.mux.Handle("PATCH /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUpdate)))
 	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/action", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogAction)))
