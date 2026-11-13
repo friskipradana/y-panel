@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.6] - 2026-11-13
+
+Implement role-based access control and enhanced tunnel management.
+
+### Fitur baru
+- **ui:** Implement role-based access control and enhanced tunnel management ([`510c5f1`](https://github.com/friskipradana/y-panel/commit/510c5f1))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.5...v1.82.6
+
 ## [1.82.5] - 2026-11-13
 
 Improve asset handling and audio context management.
