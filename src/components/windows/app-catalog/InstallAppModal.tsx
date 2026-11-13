@@ -536,7 +536,7 @@ export function InstallAppModal({
 
         {catalogApp && (catalogApp.volumes?.length || 0) > 0 && !editingApp ? (
           <div className="space-y-1.5">
-            <div className="panel-section-label flex items-center gap-1.5">
+            <div className="app-catalog-section-title">
               <HardDrive className="h-3.5 w-3.5" />
               <span>{t('appCatalog.volumesSectionTitle')}</span>
             </div>
@@ -556,7 +556,7 @@ export function InstallAppModal({
         {catalogApp && !editingApp ? (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-              <div className="panel-section-label flex items-center gap-1.5 mb-0">
+              <div className="app-catalog-section-title mb-0">
                 <Layers className="h-3.5 w-3.5" />
                 <span>{t('appCatalog.envSectionTitle')}</span>
               </div>

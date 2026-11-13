@@ -2241,6 +2241,22 @@
   }
 }
 
+.app-catalog-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-secondary);
+
+  svg {
+    display: block;
+    flex-shrink: 0;
+  }
+}
+
 .app-catalog-volume-list {
   display: flex;
   flex-direction: column;

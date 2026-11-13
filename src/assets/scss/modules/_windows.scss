@@ -883,6 +883,13 @@ button:focus-visible,
   font-weight: 600;
   line-height: 1.4;
   color: var(--text-secondary);
+
+  &.flex,
+  &--flex {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 }
 
 .panel-meta-line {
