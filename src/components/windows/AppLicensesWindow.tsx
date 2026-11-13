@@ -43,6 +43,7 @@ import { ListTable, ListRowIcon, ListState } from '@/components/ui/ListTable'
 import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
 import { useWindowStore } from '@/store/windowStore'
+import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { CreateLicenseModal } from './app-licenses/CreateLicenseModal'
 import { CreatePlanModal } from './app-licenses/CreatePlanModal'
@@ -222,6 +223,34 @@ export function AppLicensesWindow() {
     setSelectedLicense(lic)
     setMonths(1)
     setRenewModalOpen(true)
+  }
+
+  const handleDeleteLicense = async (lic: AppLicense) => {
+    const ok = await alertLib.confirm(
+      'Hapus Lisensi?',
+      `Lisensi ${lic.appName} (${lic.licenseKey}) akan dihapus permanen.`,
+      'Hapus',
+      'Batal',
+      'warning',
+      'app-licenses'
+    )
+    if (ok) {
+      deleteLicenseMutation.mutate(lic.id)
+    }
+  }
+
+  const handleDeletePlan = async (plan: AppLicensePlan) => {
+    const ok = await alertLib.confirm(
+      'Hapus Paket?',
+      `Paket "${plan.name}" akan dihapus dari daftar paket lisensi.`,
+      'Hapus',
+      'Batal',
+      'warning',
+      'app-licenses'
+    )
+    if (ok) {
+      deletePlanMutation.mutate(plan.id)
+    }
   }
 
   const handleOpenApp = (lic: AppLicense) => {
@@ -667,11 +696,7 @@ export function AppLicensesWindow() {
                             </Button>
                             <IconButton
                               label="Hapus Lisensi"
-                              onClick={() => {
-                                if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
-                                  deleteLicenseMutation.mutate(lic.id)
-                                }
-                              }}
+                              onClick={() => void handleDeleteLicense(lic)}
                               className="text-rose-500 hover:bg-rose-500/10 h-7 w-7"
                             >
                               <Trash2 size={12} />
@@ -841,11 +866,7 @@ export function AppLicensesWindow() {
 
                           <IconButton
                             label="Hapus Lisensi"
-                            onClick={() => {
-                              if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
-                                deleteLicenseMutation.mutate(lic.id)
-                              }
-                            }}
+                            onClick={() => void handleDeleteLicense(lic)}
                             className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
                           >
                             <Trash2 size={12} />
@@ -981,11 +1002,7 @@ export function AppLicensesWindow() {
                         </Button>
                         <IconButton
                           label="Hapus Paket"
-                          onClick={() => {
-                            if (window.confirm(`Hapus paket "${p.name}"?`)) {
-                              deletePlanMutation.mutate(p.id)
-                            }
-                          }}
+                          onClick={() => void handleDeletePlan(p)}
                           className="text-rose-500 hover:bg-rose-500/10 h-8 w-8"
                         >
                           <Trash2 size={13} />
@@ -1098,11 +1115,7 @@ export function AppLicensesWindow() {
                         </Button>
                         <IconButton
                           label="Hapus Paket"
-                          onClick={() => {
-                            if (window.confirm(`Hapus paket "${p.name}"?`)) {
-                              deletePlanMutation.mutate(p.id)
-                            }
-                          }}
+                          onClick={() => void handleDeletePlan(p)}
                           className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
                         >
                           <Trash2 size={12} />
