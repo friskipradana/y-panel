@@ -1,4 +1,5 @@
 import { Plus, RefreshCw, Search } from 'lucide-react'
+import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { ProjectsWindowState } from './useProjectsWindow'
 
@@ -36,6 +37,8 @@ export function ProjectsToolbar({ pw }: { pw: ProjectsWindowState }) {
             />
           </div>
 
+          <ViewModeToggle mode={pw.viewMode} onChange={pw.setViewMode} isMobile />
+
           <button
             type="button"
             className="docker-icon-btn docker-icon-btn--mobile"
@@ -72,6 +75,8 @@ export function ProjectsToolbar({ pw }: { pw: ProjectsWindowState }) {
             onChange={(e) => list.setText(e.target.value)}
           />
         </div>
+
+        <ViewModeToggle mode={pw.viewMode} onChange={pw.setViewMode} />
 
         <button type="button" className="docker-icon-btn" title={t('projects.refresh')} aria-label={t('projects.refresh')} onClick={() => void refetch()}>
           <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />

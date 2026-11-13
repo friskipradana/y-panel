@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { LayoutGrid, List as ListIcon, Plus, RefreshCw, Search } from 'lucide-react'
+import { Plus, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { Modal } from '@/components/ui/Modal'
+import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { CatalogAppsView, type CatalogViewMode } from '@/components/windows/app-catalog/CatalogAppsView'
 import { InstallAppModal } from '@/components/windows/app-catalog/InstallAppModal'
 import {
@@ -231,32 +232,7 @@ export function AppCatalogWindow() {
   )
 
   const viewModeSwitch = (mobile = false) => (
-    <div
-      className={`app-catalog-view-toggle ${mobile ? 'app-catalog-view-toggle--mobile' : ''}`}
-      role="group"
-      aria-label={t('appCatalog.viewFilterLabel')}
-    >
-      <button
-        type="button"
-        onClick={() => updateViewMode('list')}
-        className={`app-catalog-view-toggle__btn ${viewMode === 'list' ? 'app-catalog-view-toggle__btn--active' : ''}`}
-        title={t('appCatalog.viewList')}
-        aria-label={t('appCatalog.viewList')}
-        aria-pressed={viewMode === 'list'}
-      >
-        <ListIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
-      </button>
-      <button
-        type="button"
-        onClick={() => updateViewMode('grid')}
-        className={`app-catalog-view-toggle__btn ${viewMode === 'grid' ? 'app-catalog-view-toggle__btn--active' : ''}`}
-        title={t('appCatalog.viewCard')}
-        aria-label={t('appCatalog.viewCard')}
-        aria-pressed={viewMode === 'grid'}
-      >
-        <LayoutGrid className="h-3.5 w-3.5" strokeWidth={1.75} />
-      </button>
-    </div>
+    <ViewModeToggle mode={viewMode} onChange={updateViewMode} isMobile={mobile} />
   )
 
   const refreshButton = (cls = 'docker-icon-btn') => (

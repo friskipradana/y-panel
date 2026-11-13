@@ -30,6 +30,19 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
   const pollingActive = useWindowPollingActive(win)
   const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<DockerTab>('containers')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
+    try {
+      return (localStorage.getItem('reneo:docker:view-mode') as 'list' | 'grid') || 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const updateViewMode = (mode: 'list' | 'grid') => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('reneo:docker:view-mode', mode)
+    } catch {}
+  }
   // each table keeps its own search, order and column filters; the agent applies them
   const lists = {
     containers: useListQuery(),
@@ -285,6 +298,8 @@ export function useDockerWindow({ win, authenticated }: { win?: WindowState; aut
     filteredContainers,
     stats,
     deployReady,
+    viewMode,
+    setViewMode: updateViewMode,
   }
 }
 

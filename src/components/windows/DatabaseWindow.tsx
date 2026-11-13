@@ -1,6 +1,7 @@
 import { CircleArrowUp, Database, ExternalLink, KeyRound, LoaderCircle, Play, Plus, RefreshCw, Search, Settings2, Square, Trash2 } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
+import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { WindowState } from '@/types'
 import { ConnectionModal } from './database/ConnectionModal'
@@ -24,6 +25,61 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
   const isMobile = useIsMobileLayout()
   const dbw = useDatabasesWindow(win)
   const { t, query, list, items, all, facets, narrowed, startMut, stopMut, upgradeMut, deleteBusy, confirmDelete, setShowCreate, setConnectionTarget, setManageTarget, setOpenClientTarget, setUpgradeTarget } = dbw
+
+  const renderDatabaseActions = (item: UserDatabase) => {
+    const running = item.state === 'running'
+    const pending = item.status === 'creating'
+    const broken = item.status === 'error'
+    const starting = startMut.isPending && startMut.variables === item.id
+    const stopping = stopMut.isPending && stopMut.variables === item.id
+
+    return (
+      <div className="docker-action-btns">
+        <button
+          type="button"
+          className="docker-act-btn"
+          title={t('databases.chooseClientTitle')}
+          aria-label={t('databases.chooseClientTitle')}
+          disabled={pending || broken || !running}
+          onClick={() => setOpenClientTarget(item)}
+        >
+          <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        <button type="button" className="docker-act-btn" title={t('databases.admin.manage')} aria-label={t('databases.admin.manage')} disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>
+          <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        <button type="button" className="docker-act-btn" title={t('databases.showConnection')} aria-label={t('databases.showConnection')} disabled={pending || broken} onClick={() => setConnectionTarget(item)}>
+          <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          className="docker-act-btn"
+          title={t('databases.upgradeTitle')}
+          aria-label={t('databases.upgradeTitle')}
+          disabled={pending || broken || upgradeMut.isPending}
+          onClick={() => setUpgradeTarget(item)}
+        >
+          <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+        {starting || stopping ? (
+          <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('databases.working')} aria-label={t('databases.working')}>
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+          </button>
+        ) : running ? (
+          <button type="button" className="docker-act-btn docker-act-btn--stop" title={t('databases.stop')} aria-label={t('databases.stop')} onClick={() => stopMut.mutate(item.id)}>
+            <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+          </button>
+        ) : (
+          <button type="button" className="docker-act-btn docker-act-btn--start" title={t('databases.start')} aria-label={t('databases.start')} disabled={pending || broken} onClick={() => startMut.mutate(item.id)}>
+            <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+          </button>
+        )}
+        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={pending || deleteBusy(item.id)} onClick={() => void confirmDelete(item)}>
+          {deleteBusy(item.id) ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="panel-window docker-window-root relative overflow-hidden">
@@ -54,6 +110,8 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                 onChange={(e) => list.setText(e.target.value)}
               />
             </div>
+
+            <ViewModeToggle mode={dbw.viewMode} onChange={dbw.setViewMode} isMobile />
 
             <button
               type="button"
@@ -88,6 +146,7 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
                 onChange={(e) => list.setText(e.target.value)}
               />
             </div>
+            <ViewModeToggle mode={dbw.viewMode} onChange={dbw.setViewMode} />
             <button type="button" className="docker-icon-btn" title={t('common.refresh')} aria-label={t('common.refresh')} disabled={query.isFetching} onClick={() => void query.refetch()}>
               <RefreshCw className={`h-3.5 w-3.5 ${(query.isFetching && !query.isLoading) ? 'animate-spin' : ''}`} strokeWidth={1.75} />
             </button>
@@ -96,105 +155,121 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
         </div>
       )}
 
-      <ListTable
-        variant="databases"
-        empty={query.isLoading || query.isError || items.length === 0}
-        columns={[
-          { label: t('docker.colIndex') },
-          list.column('name', t('databases.col.database'), facets?.name, { filterable: false }),
-          list.column('engine', t('databases.engine'), facets?.engine),
-          list.column('port', t('databases.col.address'), facets?.port),
-          list.column('state', t('databases.col.status'), facets?.state, { labelOf: (v) => t(`databases.state.${v}`) }),
-          { label: t('databases.col.actions'), actions: true },
-        ]}
-      >
-        <ListState
-          loading={query.isLoading}
-          error={query.isError}
-          errorTitle={t('databases.loadFailed')}
-          errorHint={t('databases.loadFailedHint')}
-          loadingText={t('databases.loading')}
-          empty={items.length === 0}
-          emptyIcon={<Database />}
-          emptyTitle={narrowed ? t('docker.noResults') : t('databases.empty')}
+      {dbw.viewMode === 'grid' ? (
+        <div className="app-catalog-cards-scroll">
+          <ListState
+            loading={query.isLoading}
+            error={query.isError}
+            errorTitle={t('databases.loadFailed')}
+            errorHint={t('databases.loadFailedHint')}
+            loadingText={t('databases.loading')}
+            empty={items.length === 0}
+            emptyIcon={<Database />}
+            emptyTitle={narrowed ? t('docker.noResults') : t('databases.empty')}
+          >
+            <div className="app-catalog-card-grid">
+              {items.map((item) => {
+                const broken = item.status === 'error'
+                const address = `${item.host}:${item.port}`
+
+                return (
+                  <article key={item.id} className="app-catalog-card">
+                    <div className="space-y-2.5 min-w-0">
+                      <div className="app-catalog-card__head">
+                        <div className="app-catalog-card__identity">
+                          <ListRowIcon><Database className="h-3.5 w-3.5" /></ListRowIcon>
+                          <div className="app-catalog-card__titles">
+                            <span className="docker-app-name truncate" title={item.name}>{item.name}</span>
+                            <span className="docker-row__sub panel-mono truncate" title={item.engineLabel}>
+                              {item.engineLabel}{item.version ? ` (${item.version})` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`docker-status-pill docker-status-pill--${statePill(item)}`}>
+                          <span className="docker-status-dot" />
+                          <span>{t(`databases.state.${item.state}`)}</span>
+                        </span>
+                      </div>
+
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                          <span className="opacity-70 shrink-0">{t('databases.col.address')}:</span>
+                          <span className="panel-mono text-[var(--win-text)] truncate">{address}</span>
+                        </div>
+                        {broken && item.lastError ? (
+                          <p className="docker-row__warn truncate" title={item.lastError}>{item.lastError}</p>
+                        ) : item.ownerName ? (
+                          <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                            <span className="opacity-70 shrink-0">{t('databases.owner') || 'Owner'}:</span>
+                            <span className="text-[var(--win-text)] truncate">{item.ownerName}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="app-catalog-card__footer">
+                      {renderDatabaseActions(item)}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </ListState>
+        </div>
+      ) : (
+        <ListTable
+          variant="databases"
+          empty={query.isLoading || query.isError || items.length === 0}
+          columns={[
+            { label: t('docker.colIndex') },
+            list.column('name', t('databases.col.database'), facets?.name, { filterable: false }),
+            list.column('engine', t('databases.engine'), facets?.engine),
+            list.column('port', t('databases.col.address'), facets?.port),
+            list.column('state', t('databases.col.status'), facets?.state, { labelOf: (v) => t(`databases.state.${v}`) }),
+            { label: t('databases.col.actions'), actions: true },
+          ]}
         >
-          {items.map((item, index) => {
-            const running = item.state === 'running'
-            const pending = item.status === 'creating'
-            const broken = item.status === 'error'
-            const address = `${item.host}:${item.port}`
-            const starting = startMut.isPending && startMut.variables === item.id
-            const stopping = stopMut.isPending && stopMut.variables === item.id
-            return (
-              <div key={item.id} className="docker-row">
-                <div className="docker-row__num">{String(index + 1).padStart(2, '0')}</div>
-                <div className="docker-row__app">
-                  <ListRowIcon><Database className="h-3.5 w-3.5" /></ListRowIcon>
-                  <div className="docker-row__text">
-                    <span className="docker-app-name" title={item.name}>{item.name}</span>
-                    <span className="docker-row__sub" title={broken && item.lastError ? item.lastError : undefined}>
-                      {broken && item.lastError ? <span className="docker-row__warn">{item.lastError}</span> : [item.version, item.ownerName].filter(Boolean).join(' \u00b7 ')}
-                    </span>
-                    <span className="docker-row__meta">{`${item.engineLabel} \u00b7 ${address}`}</span>
+          <ListState
+            loading={query.isLoading}
+            error={query.isError}
+            errorTitle={t('databases.loadFailed')}
+            errorHint={t('databases.loadFailedHint')}
+            loadingText={t('databases.loading')}
+            empty={items.length === 0}
+            emptyIcon={<Database />}
+            emptyTitle={narrowed ? t('docker.noResults') : t('databases.empty')}
+          >
+            {items.map((item, index) => {
+              const broken = item.status === 'error'
+              const address = `${item.host}:${item.port}`
+              return (
+                <div key={item.id} className="docker-row">
+                  <div className="docker-row__num">{String(index + 1).padStart(2, '0')}</div>
+                  <div className="docker-row__app">
+                    <ListRowIcon><Database className="h-3.5 w-3.5" /></ListRowIcon>
+                    <div className="docker-row__text">
+                      <span className="docker-app-name" title={item.name}>{item.name}</span>
+                      <span className="docker-row__sub" title={broken && item.lastError ? item.lastError : undefined}>
+                        {broken && item.lastError ? <span className="docker-row__warn">{item.lastError}</span> : [item.version, item.ownerName].filter(Boolean).join(' \u00b7 ')}
+                      </span>
+                      <span className="docker-row__meta">{`${item.engineLabel} \u00b7 ${address}`}</span>
+                    </div>
                   </div>
+                  <div className="docker-cell">{item.engineLabel}</div>
+                  <div className="docker-cell docker-cell--mono">{address}</div>
+                  <div className="docker-cell--keep">
+                    <span className={`docker-status-pill docker-status-pill--${statePill(item)}`}>
+                      <span className="docker-status-dot" />
+                      <span>{t(`databases.state.${item.state}`)}</span>
+                    </span>
+                  </div>
+                  {renderDatabaseActions(item)}
                 </div>
-                <div className="docker-cell">{item.engineLabel}</div>
-                <div className="docker-cell docker-cell--mono">{address}</div>
-                <div className="docker-cell--keep">
-                  <span className={`docker-status-pill docker-status-pill--${statePill(item)}`}>
-                    <span className="docker-status-dot" />
-                    <span>{t(`databases.state.${item.state}`)}</span>
-                  </span>
-                </div>
-                <div className="docker-action-btns">
-                  <button
-                    type="button"
-                    className="docker-act-btn"
-                    title={t('databases.chooseClientTitle')}
-                    aria-label={t('databases.chooseClientTitle')}
-                    disabled={pending || broken || !running}
-                    onClick={() => setOpenClientTarget(item)}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  <button type="button" className="docker-act-btn" title={t('databases.admin.manage')} aria-label={t('databases.admin.manage')} disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>
-                    <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  <button type="button" className="docker-act-btn" title={t('databases.showConnection')} aria-label={t('databases.showConnection')} disabled={pending || broken} onClick={() => setConnectionTarget(item)}>
-                    <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  <button
-                    type="button"
-                    className="docker-act-btn"
-                    title={t('databases.upgradeTitle')}
-                    aria-label={t('databases.upgradeTitle')}
-                    disabled={pending || broken || upgradeMut.isPending}
-                    onClick={() => setUpgradeTarget(item)}
-                  >
-                    <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-                  {starting || stopping ? (
-                    <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('databases.working')} aria-label={t('databases.working')}>
-                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-                    </button>
-                  ) : running ? (
-                    <button type="button" className="docker-act-btn docker-act-btn--stop" title={t('databases.stop')} aria-label={t('databases.stop')} onClick={() => stopMut.mutate(item.id)}>
-                      <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
-                    </button>
-                  ) : (
-                    <button type="button" className="docker-act-btn docker-act-btn--start" title={t('databases.start')} aria-label={t('databases.start')} disabled={pending || broken} onClick={() => startMut.mutate(item.id)}>
-                      <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
-                    </button>
-                  )}
-                  <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={pending || deleteBusy(item.id)} onClick={() => void confirmDelete(item)}>
-                    {deleteBusy(item.id) ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </ListState>
-      </ListTable>
+              )
+            })}
+          </ListState>
+        </ListTable>
+      )}
 
       <CreateDatabaseModal dbw={dbw} />
       <ConnectionModal dbw={dbw} />

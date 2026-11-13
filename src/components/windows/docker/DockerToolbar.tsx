@@ -1,5 +1,6 @@
 import { RefreshCw, Plus, Search } from 'lucide-react'
 import { FilterMenu } from '@/components/ui/FilterMenu'
+import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { DOCKER_TABS, type DockerTab } from './constants'
 import type { DockerWindowState } from './useDockerWindow'
@@ -86,6 +87,10 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
             />
           </div>
 
+          {activeTab === 'containers' ? (
+            <ViewModeToggle mode={docker.viewMode} onChange={docker.setViewMode} isMobile />
+          ) : null}
+
           <button type="button" className="docker-icon-btn docker-icon-btn--mobile" title={t('docker.refresh')} aria-label={t('docker.refresh')} onClick={refreshAll}>
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
@@ -125,6 +130,10 @@ export function DockerToolbar({ docker }: { docker: DockerWindowState }) {
             onChange={(e) => current.setText(e.target.value)}
           />
         </div>
+
+        {activeTab === 'containers' ? (
+          <ViewModeToggle mode={docker.viewMode} onChange={docker.setViewMode} />
+        ) : null}
 
         <button type="button" className="docker-icon-btn" title={t('docker.refresh')} aria-label={t('docker.refresh')} onClick={refreshAll}>
           <RefreshCw className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`} strokeWidth={1.75} />

@@ -33,6 +33,19 @@ export function useDatabasesWindow(win?: WindowState) {
   const [manageTarget, setManageTarget] = useState<UserDatabase | null>(null)
   const [openClientTarget, setOpenClientTarget] = useState<UserDatabase | null>(null)
   const [upgradeTarget, setUpgradeTarget] = useState<UserDatabase | null>(null)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
+    try {
+      return (localStorage.getItem('reneo:databases:view-mode') as 'list' | 'grid') || 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const updateViewMode = (mode: 'list' | 'grid') => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('reneo:databases:view-mode', mode)
+    } catch {}
+  }
 
   // the search, the order and the column filters; the agent applies them
   const list = useListQuery()
@@ -101,6 +114,8 @@ export function useDatabasesWindow(win?: WindowState) {
     engines: enginesQuery.data ?? [],
     showCreate,
     setShowCreate,
+    viewMode,
+    setViewMode: updateViewMode,
     connectionTarget,
     setConnectionTarget,
     manageTarget,

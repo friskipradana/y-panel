@@ -159,6 +159,235 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
     }
   }
 
+  const renderActions = (container: Container) => {
+    const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
+    const isRunning = container.State === 'running'
+    const isRestarting = container.State === 'restarting'
+    const hasPort = domainTargets(container).length > 0
+    const busy = [startMutation, stopMutation, restartMutation].some((m) => m.isPending && m.variables === container.Id)
+    const isDatabase = container.Labels?.['reneo.kind'] === 'database'
+    const isControl = isDatabaseControl(container)
+    const isWhatsApp = isWaha(container)
+    const isManaged = isDatabase || isControl || isWhatsApp
+
+    return (
+      <div className="docker-action-btns">
+        {/* Edit and redeploy */}
+        <button
+          type="button"
+          className="docker-act-btn"
+          title={t('docker.editRedeploy')}
+          aria-label={t('docker.editRedeploy')}
+          disabled={editLoading}
+          onClick={() => void handleEditRedeploy(container)}
+        >
+          <SquarePen className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+
+        {/* Start, or Restart and Stop */}
+        {busy ? (
+          <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('docker.working')} aria-label={t('docker.working')}>
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+          </button>
+        ) : !isRunning && !isRestarting ? (
+          <button
+            type="button"
+            className="docker-act-btn docker-act-btn--start"
+            title={t('common.start')}
+            aria-label={t('common.start')}
+            onClick={() => run(startMutation, container.Id)}
+          >
+            <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+          </button>
+        ) : (
+          <>
+            {isRunning ? (
+              <button
+                type="button"
+                className="docker-act-btn docker-act-btn--restart"
+                title={t('docker.restartContainer')}
+                aria-label={t('docker.restartContainer')}
+                onClick={() => run(restartMutation, container.Id)}
+              >
+                <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="docker-act-btn docker-act-btn--stop"
+              title={t('common.stop')}
+              aria-label={t('common.stop')}
+              onClick={() => run(stopMutation, container.Id)}
+            >
+              <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
+            </button>
+          </>
+        )}
+
+        {/* Download newest image */}
+        {isDatabase || container.Image.startsWith('sha256:') ? null : (
+          <button
+            type="button"
+            className="docker-act-btn"
+            title={t('docker.update.action')}
+            aria-label={t('docker.update.action')}
+            onClick={() => setUpdateTarget(isWhatsApp ? { kind: 'waha', name, image: container.Image } : { kind: 'container', id: container.Id, name, image: container.Image })}
+          >
+            <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        )}
+
+        {/* Cloudflare tunnel domain */}
+        {isManaged || !hasPort ? null : (
+          <button
+            type="button"
+            className="docker-act-btn"
+            title={isRunning ? t('docker.domain.title') : t('docker.domain.needsRunning')}
+            aria-label={t('docker.domain.title')}
+            disabled={!isRunning}
+            onClick={() => setDomainContainer(container)}
+          >
+            <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        )}
+
+        {/* Realtime Logs */}
+        <button
+          type="button"
+          className="docker-act-btn"
+          title={t('docker.viewRealtimeLog')}
+          aria-label={t('docker.viewRealtimeLog')}
+          onClick={() => {
+            setLogModal({ id: container.Id, name })
+          }}
+        >
+          <ScrollText className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+
+        {/* Delete */}
+        {isManaged ? null : (
+          <button
+            type="button"
+            className="docker-act-btn docker-act-btn--danger"
+            title={t('docker.deleteContainer')}
+            aria-label={t('docker.deleteContainer')}
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              setDeleteOpts({ removeVolumes: false, removeImage: false })
+              setDeleteConfirm({
+                id: container.Id,
+                name,
+                image: container.Image,
+              })
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  if (docker.viewMode === 'grid') {
+    return (
+      <div className="app-catalog-cards-scroll">
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 my-auto min-h-[240px]">
+            <LoadingState>{t('docker.connectingAgent')}</LoadingState>
+          </div>
+        ) : isError ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 my-auto min-h-[240px]">
+            <div className="panel-error-state max-w-md w-full">
+              <ContainerIcon className="h-5 w-5" strokeWidth={1.75} />
+              <div>
+                <p className="font-semibold">{t('docker.containersLoadFailed')}</p>
+                <p className="mt-1 text-[12px] leading-6 opacity-90">{(error as Error).message}</p>
+                <p className="mt-1 text-[12px] leading-6 opacity-80">{t('docker.agentAccessHint')}</p>
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<RefreshCw size={12} />}
+                onClick={() => void containersQuery.refetch()}
+              >
+                {t('common.retry')}
+              </Button>
+            </div>
+          </div>
+        ) : filteredContainers.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 my-auto min-h-[240px]">
+            <div className="panel-empty panel-empty--wide">
+              <Boxes className="h-8 w-8" strokeWidth={1.75} />
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-[var(--win-text)]">{narrowed ? t('docker.noResults') : t('docker.noContainersMatch')}</div>
+                {narrowed ? null : <div>{t('docker.emptyContainersHint')}</div>}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="app-catalog-card-grid">
+            {filteredContainers.map((container) => {
+              const name = container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
+              const isDatabase = container.Labels?.['reneo.kind'] === 'database'
+              const isControl = isDatabaseControl(container)
+              const isWhatsApp = isWaha(container)
+              const portsText = formatContainerPorts(container.Ports)
+              const ipText = formatContainerIps(container.IpAddresses)
+              const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
+
+              return (
+                <article key={container.Id} className="app-catalog-card">
+                  <div className="space-y-2.5 min-w-0">
+                    <div className="app-catalog-card__head">
+                      <div className="app-catalog-card__identity">
+                        <DockerContainerIcon />
+                        <div className="app-catalog-card__titles">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="docker-app-name truncate" title={name}>{name}</span>
+                            {isDatabase ? (
+                              <Badge tone="info" size="sm" title={t('docker.databaseHint')}>{t('docker.databaseBadge')}</Badge>
+                            ) : isControl ? (
+                              <Badge tone="info" size="sm" title={t('docker.databaseControlHint')}>{t('docker.databaseControlBadge')}</Badge>
+                            ) : isWhatsApp ? (
+                              <Badge tone="info" size="sm" title={t('docker.wahaHint')}>{t('docker.wahaBadge')}</Badge>
+                            ) : null}
+                          </div>
+                          <span className="docker-row__sub panel-mono truncate" title={container.Image}>
+                            {container.Image}{stack ? ` · ${stack}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <StatusPill state={container.State} />
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      {portsText !== '-' ? (
+                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                          <span className="opacity-70 shrink-0">{t('docker.colPort')}:</span>
+                          <span className="panel-mono text-[var(--win-text)] truncate" title={portsText}>{portsText.replace(/\n/g, ' ')}</span>
+                        </div>
+                      ) : null}
+                      {ipText !== '-' ? (
+                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
+                          <span className="opacity-70 shrink-0">{t('docker.colIpAddress')}:</span>
+                          <span className="panel-mono text-[var(--win-text)] truncate" title={ipText}>{ipText.replace(/\n/g, ', ')}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="app-catalog-card__footer">
+                    {renderActions(container)}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <ListTable
       variant="containers"
@@ -209,17 +438,9 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
           filteredContainers.map((container, idx) => {
             const name =
               container.Names?.[0]?.replace(/^\//, '') || container.Id.slice(0, 12)
-            const isRunning = container.State === 'running'
-            const isRestarting = container.State === 'restarting'
-            // a tunnel needs a port to point at; without one the button would lead nowhere
-            const hasPort = domainTargets(container).length > 0
-            // only this container's own action counts, not another row's
-            const busy = [startMutation, stopMutation, restartMutation].some((m) => m.isPending && m.variables === container.Id)
             const isDatabase = container.Labels?.['reneo.kind'] === 'database'
             const isControl = isDatabaseControl(container)
             const isWhatsApp = isWaha(container)
-            // made and kept by the Database window or by the notifications: no domain, no delete here
-            const isManaged = isDatabase || isControl || isWhatsApp
             const portsText = formatContainerPorts(container.Ports)
             const ipText = formatContainerIps(container.IpAddresses)
             const stack = container.ProjectName || container.Labels?.['com.docker.compose.project'] || ''
@@ -267,121 +488,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
                 <div className="docker-port-text">{portsText}</div>
 
                 {/* Column 6: Actions */}
-                <div className="docker-action-btns">
-                  {/* Edit and redeploy */}
-                  <button
-                    type="button"
-                    className="docker-act-btn"
-                    title={t('docker.editRedeploy')}
-                    aria-label={t('docker.editRedeploy')}
-                    disabled={editLoading}
-                    onClick={() => void handleEditRedeploy(container)}
-                  >
-                    <SquarePen className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-
-                  {/* Start, or Restart and Stop. While one of them runs on this container the buttons give way
-                      to a spinner, so a second click cannot land and a stopped container shows no Stop */}
-                  {busy ? (
-                    <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('docker.working')} aria-label={t('docker.working')}>
-                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-                    </button>
-                  ) : !isRunning && !isRestarting ? (
-                    <button
-                      type="button"
-                      className="docker-act-btn docker-act-btn--start"
-                      title={t('common.start')}
-                      aria-label={t('common.start')}
-                      onClick={() => run(startMutation, container.Id)}
-                    >
-                      <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
-                    </button>
-                  ) : (
-                    <>
-                      {isRunning ? (
-                        <button
-                          type="button"
-                          className="docker-act-btn docker-act-btn--restart"
-                          title={t('docker.restartContainer')}
-                          aria-label={t('docker.restartContainer')}
-                          onClick={() => run(restartMutation, container.Id)}
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="docker-act-btn docker-act-btn--stop"
-                        title={t('common.stop')}
-                        aria-label={t('common.stop')}
-                        onClick={() => run(stopMutation, container.Id)}
-                      >
-                        <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
-                      </button>
-                    </>
-                  )}
-
-                  {/* Download the newest image and make the container again from it */}
-                  {isDatabase || container.Image.startsWith('sha256:') ? null : (
-                    <button
-                      type="button"
-                      className="docker-act-btn"
-                      title={t('docker.update.action')}
-                      aria-label={t('docker.update.action')}
-                      onClick={() => setUpdateTarget(isWhatsApp ? { kind: 'waha', name, image: container.Image } : { kind: 'container', id: container.Id, name, image: container.Image })}
-                    >
-                      <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                  )}
-
-                  {/* Point a domain at this container through a Cloudflare tunnel; a database is not a website */}
-                  {isManaged || !hasPort ? null : (
-                    <button
-                      type="button"
-                      className="docker-act-btn"
-                      title={isRunning ? t('docker.domain.title') : t('docker.domain.needsRunning')}
-                      aria-label={t('docker.domain.title')}
-                      disabled={!isRunning}
-                      onClick={() => setDomainContainer(container)}
-                    >
-                      <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                  )}
-
-                  {/* Realtime Logs */}
-                  <button
-                    type="button"
-                    className="docker-act-btn"
-                    title={t('docker.viewRealtimeLog')}
-                    aria-label={t('docker.viewRealtimeLog')}
-                    onClick={() => {
-                      setLogModal({ id: container.Id, name })
-                    }}
-                  >
-                    <ScrollText className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </button>
-
-                  {/* Delete (non-database) */}
-                  {isManaged ? null : (
-                    <button
-                      type="button"
-                      className="docker-act-btn docker-act-btn--danger"
-                      title={t('docker.deleteContainer')}
-                      aria-label={t('docker.deleteContainer')}
-                      disabled={deleteMutation.isPending}
-                      onClick={() => {
-                        setDeleteOpts({ removeVolumes: false, removeImage: false })
-                        setDeleteConfirm({
-                          id: container.Id,
-                          name,
-                          image: container.Image,
-                        })
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                  )}
-                </div>
+                {renderActions(container)}
               </div>
             )
           })

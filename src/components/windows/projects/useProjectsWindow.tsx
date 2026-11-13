@@ -48,6 +48,19 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
   const { t } = useI18n()
   const [showCreate, setShowCreate] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>(() => {
+    try {
+      return (localStorage.getItem('reneo:projects:view-mode') as 'list' | 'grid') || 'list'
+    } catch {
+      return 'list'
+    }
+  })
+  const updateViewMode = (mode: 'list' | 'grid') => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('reneo:projects:view-mode', mode)
+    } catch {}
+  }
   // the search, the order and the column filters; the agent applies them to the whole list
   const list = useListQuery()
   const { setFilter, setText } = list
@@ -342,6 +355,8 @@ export function useProjectsWindow({ win }: ProjectsWindowProps) {
     logProject,
     setLogProject,
     pollingActive,
+    viewMode,
+    setViewMode: updateViewMode,
     openStaticUpload,
     openCreate,
     openEditProject,

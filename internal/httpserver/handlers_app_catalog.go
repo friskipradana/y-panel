@@ -304,6 +304,36 @@ var builtinCatalogApps = []CatalogApp{
 			{HostSubdir: "data", ContainerPath: "/var/opt/memos", Label: "Database catatan Memos"},
 		},
 	},
+	{
+		ID:              "reneo-crm",
+		Name:            "Reneo CRM WhatsApp",
+		TaglineID:       "CRM WhatsApp, siaran terjadwal, ucapan ultah & live chat lead",
+		TaglineEN:       "WhatsApp CRM with scheduled broadcast, birthday bot & live chat",
+		DescriptionID:   "Kelola database pelanggan, jalankan siaran WhatsApp terjadwal dengan jeda anti-ban, otomatisasi ucapan ulang tahun, serta pantau status pesan terkirim dan dibaca (centang biru) secara real-time.",
+		DescriptionEN:   "Manage customer leads, execute scheduled WhatsApp broadcasts with anti-ban delay, automate birthday greetings, and track real-time delivery and read receipts.",
+		Category:        "automation",
+		IconKey:         "workflow",
+		IconColor:       "emerald",
+		Image:           "reneo/crm-services:latest",
+		Versions:        []string{"latest", "1.0.0"},
+		ContainerPort:   80,
+		DefaultHostPort: 18011,
+		OpenPath:        "/",
+		KeepPrefix:      true,
+		NotesID:         "Aplikasi berlisensi berlangganan bulanan. Dikelola dan dibayar langsung melalui panel Hosting Reneo.",
+		NotesEN:         "Subscription-based licensed application. Managed and billed directly through the Reneo Hosting panel.",
+		Volumes: []catalogVolumeSpec{
+			{HostSubdir: "data", ContainerPath: "/app/data", Label: "Data CRM & Berkas"},
+		},
+		Env: []catalogEnvSpec{
+			{Key: "DATABASE_URL", DefaultValue: "postgresql://postgres:postgres@host.docker.internal:5432/crm_db", LabelID: "Koneksi PostgreSQL", LabelEN: "PostgreSQL Database URL", Required: true, Placeholder: "postgresql://user:password@host:5432/crm_db"},
+			{Key: "REDIS_URL", DefaultValue: "redis://host.docker.internal:6379", LabelID: "Koneksi Redis Queue", LabelEN: "Redis Queue URL", Required: true, Placeholder: "redis://host.docker.internal:6379"},
+			{Key: "WAHA_BASE_URL", DefaultValue: "http://reneo-waha:3000", LabelID: "Base URL WAHA Reneo", LabelEN: "Reneo WAHA Base URL", Required: true, Placeholder: "http://reneo-waha:3000"},
+			{Key: "WAHA_SESSION", DefaultValue: "default", LabelID: "Nama Sesi WhatsApp", LabelEN: "WhatsApp Session Name", Placeholder: "default"},
+			{Key: "WAHA_API_KEY", DefaultValue: "", LabelID: "API Key WAHA (opsional)", LabelEN: "WAHA API Key", Secret: true},
+			{Key: "RENEO_PANEL_URL", DefaultValue: "http://host.docker.internal:8000", LabelID: "URL Panel Reneo", LabelEN: "Reneo Panel URL", Required: true, Placeholder: "http://host.docker.internal:8000"},
+		},
+	},
 }
 
 func findCatalogApp(id string) (CatalogApp, bool) {
@@ -2276,4 +2306,32 @@ func (s *Server) appCatalogProxy() http.Handler {
 func htmlEscapeMinimal(s string) string {
 	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&#39;")
 	return r.Replace(s)
+}
+
+func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request) {
+	catalogID := r.PathValue("catalogId")
+	if catalogID == "" {
+		catalogID = "reneo-crm"
+	}
+
+	// 1 month subscription window managed by Reneo
+	now := time.Now()
+	expiresAt := now.AddDate(0, 1, 0)
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":            true,
+		"catalogId":     catalogID,
+		"status":        "ACTIVE",
+		"plan":          "Bulanan (Reneo Managed)",
+		"period":        "monthly",
+		"expiresAt":     expiresAt.Format(time.RFC3339),
+		"daysRemaining": 30,
+		"billingUrl":    "/hosting",
+		"features": map[string]any{
+			"unlimitedBroadcast": true,
+			"birthdayBot":        true,
+			"liveChat":           true,
+			"maxContacts":        10000,
+		},
+	})
 }
