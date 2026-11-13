@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.16] - 2026-11-13
+
+Improve docker image usage detection.
+
+### Perbaikan
+- **httpserver:** Improve docker image usage detection ([`a33a476`](https://github.com/friskipradana/y-panel/commit/a33a476))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.15...v1.83.16
+
 ## [1.83.15] - 2026-11-13
 
 Improve slug uniqueness and error cleanup.
