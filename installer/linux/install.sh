@@ -133,7 +133,7 @@ random_string() {
   local value
 
   set +o pipefail
-  value="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$length")"
+  value="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c "$length")"
   set -o pipefail
 
   if [[ -z "$value" ]]; then
