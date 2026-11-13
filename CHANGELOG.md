@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.7] - 2026-11-13
+
+2 perubahan, utamanya add option to remove Docker image during uninstallation.
+
+### Fitur baru
+- **app-catalog:** Add option to remove Docker image during uninstallation ([`9f08547`](https://github.com/friskipradana/y-panel/commit/9f08547))
+
+### Peningkatan
+- **app-catalog:** Simplify uninstallation logic and UI ([`959633d`](https://github.com/friskipradana/y-panel/commit/959633d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.6...v1.83.7
+
 ## [1.83.6] - 2026-11-13
 
 Update compose generation and app image registry.
