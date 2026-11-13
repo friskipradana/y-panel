@@ -320,7 +320,6 @@ var builtinCatalogApps = []CatalogApp{
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
-		KeepPrefix:      true,
 		NotesID:         "Aplikasi berlisensi berlangganan bulanan. Dikelola dan dibayar langsung melalui panel Hosting Reneo.",
 		NotesEN:         "Subscription-based licensed application. Managed and billed directly through the Reneo Hosting panel.",
 		Volumes: []catalogVolumeSpec{
@@ -463,7 +462,7 @@ func (s *Server) uniqueAppSlug(userID int64, base string) string {
 }
 
 func effectiveKeepPrefix(app database.InstalledApp, meta appConfigMeta) bool {
-	if app.CatalogID == "n8n" || app.CatalogID == "stirling-pdf" {
+	if app.CatalogID == "n8n" || app.CatalogID == "stirling-pdf" || app.CatalogID == "reneo-crm" {
 		return false
 	}
 	return meta.KeepPrefix
