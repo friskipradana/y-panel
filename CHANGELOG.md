@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.10] - 2026-11-13
+
+2 perubahan, utamanya remove deprecated version for adguard-home.
+
+### Perbaikan
+- **app-catalog:** Remove deprecated version for adguard-home ([`5d441f4`](https://github.com/friskipradana/y-panel/commit/5d441f4))
+
+### Peningkatan
+- **ui:** Remove container auto-remove note from uninstall confirmation ([`f3d973f`](https://github.com/friskipradana/y-panel/commit/f3d973f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.9...v1.83.10
+
 ## [1.83.9] - 2026-11-13
 
 Implement brand icons and expand application list.
