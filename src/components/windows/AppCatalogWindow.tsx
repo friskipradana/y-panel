@@ -403,11 +403,6 @@ export function AppCatalogWindow() {
           <p className="text-[var(--text-secondary)]">{t('appCatalog.uninstallConfirmBody')}</p>
           {uninstallTarget && uninstallTarget.kind !== 'custom-url' ? (
             <div className="space-y-2.5 pt-1">
-              {uninstallTarget.containerName ? (
-                <div className="rounded border border-[var(--border-subtle)] bg-[var(--bg-muted)]/40 px-3 py-2 text-[12px] text-[var(--text-secondary)]">
-                  <span>{t('appCatalog.containerAutoRemoveNote', { container: uninstallTarget.containerName })}</span>
-                </div>
-              ) : null}
               <Checkbox
                 checked={removeVolumes}
                 onChange={setRemoveVolumes}
