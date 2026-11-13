@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.5] - 2026-11-13
+
+Automate WAHA configuration for reneo-crm.
+
+### Fitur baru
+- **app-catalog:** Automate WAHA configuration for reneo-crm ([`15fcf1a`](https://github.com/friskipradana/y-panel/commit/15fcf1a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.4...v1.83.5
+
 ## [1.83.4] - 2026-11-13
 
 Add view mode toggle and optimize table layouts.
