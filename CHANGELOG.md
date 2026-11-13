@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.21] - 2026-11-13
+
+Allow admins to delete any app license and bump crm-services to 1.0.6.
+
+### Perbaikan
+- **licenses:** Allow admins to delete any app license and bump crm-services to 1.0.6 ([`50b8df1`](https://github.com/friskipradana/y-panel/commit/50b8df1))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.20...v1.83.21
+
 ## [1.83.20] - 2026-11-13
 
 2 perubahan, utamanya replace native confirms with alertLib in license management.
