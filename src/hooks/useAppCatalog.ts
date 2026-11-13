@@ -97,11 +97,13 @@ export function useAppCatalogMutations() {
       id,
       removeContainer,
       removeVolumes,
+      removeImage,
     }: {
       id: number
       removeContainer?: boolean
       removeVolumes?: boolean
-    }) => uninstallCatalogApp(id, { removeContainer, removeVolumes }),
+      removeImage?: boolean
+    }) => uninstallCatalogApp(id, { removeContainer, removeVolumes, removeImage }),
     onSuccess: (_, vars) => {
       closeInstalledAppWindows(vars.id)
       invalidate()

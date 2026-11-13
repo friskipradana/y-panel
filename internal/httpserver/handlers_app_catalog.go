@@ -1434,20 +1434,59 @@ func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Reques
 
 	removeContainer := r.URL.Query().Get("removeContainer") == "true"
 	removeVolumes := r.URL.Query().Get("removeVolumes") == "true"
+	removeImage := r.URL.Query().Get("removeImage") == "true"
 
-	if removeContainer && (app.Kind == "docker" || app.Kind == "existing-container") {
-		if !auth.HasCapability(actor.Role, auth.CapabilityDockerLifecycle) {
-			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin menghapus container"})
-			return
-		}
+	var matchedID string
+	var matchedImage string
+
+	if app.Kind == "docker" || app.Kind == "existing-container" {
 		if containers, listErr := docker.ListContainers(); listErr == nil {
 			if matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor)); matched != nil {
-				if docker.ManagedKind(*matched) == "" {
-					if delErr := docker.DeleteContainer(matched.ID, removeVolumes, false); delErr != nil {
-						s.writeError(w, http.StatusBadGateway, delErr)
+				matchedID = matched.ID
+				matchedImage = matched.Image
+				if removeContainer {
+					if !auth.HasCapability(actor.Role, auth.CapabilityDockerLifecycle) {
+						s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin menghapus container"})
 						return
 					}
+					if docker.ManagedKind(*matched) == "" {
+						if delErr := docker.DeleteContainer(matched.ID, removeVolumes, false); delErr != nil {
+							s.writeError(w, http.StatusBadGateway, delErr)
+							return
+						}
+					}
 				}
+			}
+		}
+	}
+
+	imageDeleted := false
+	imageInUse := false
+	imageSkippedReason := ""
+
+	targetImage := strings.TrimSpace(matchedImage)
+	if targetImage == "" {
+		targetImage = strings.TrimSpace(app.Image)
+	}
+
+	if removeImage && targetImage != "" {
+		if !auth.HasCapability(actor.Role, auth.CapabilityDockerLifecycle) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin menghapus image docker"})
+			return
+		}
+		excludeID := ""
+		if removeContainer {
+			excludeID = matchedID
+		}
+		inUse, chkErr := docker.IsImageInUse(targetImage, excludeID)
+		if chkErr == nil && inUse {
+			imageInUse = true
+			imageSkippedReason = "Image masih digunakan oleh container lain di sistem"
+		} else {
+			if delImgErr := docker.RemoveImage(targetImage); delImgErr != nil {
+				imageSkippedReason = delImgErr.Error()
+			} else {
+				imageDeleted = true
 			}
 		}
 	}
@@ -1456,8 +1495,21 @@ func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Reques
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	s.auditSensitiveAction(r, actor, "appcatalog.uninstall", "ok", map[string]any{"appId": app.ID, "name": app.Name, "removeContainer": removeContainer})
-	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
+	s.auditSensitiveAction(r, actor, "appcatalog.uninstall", "ok", map[string]any{
+		"appId":           app.ID,
+		"name":            app.Name,
+		"removeContainer": removeContainer,
+		"removeImage":     removeImage,
+		"imageDeleted":    imageDeleted,
+		"imageInUse":      imageInUse,
+	})
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":                 true,
+		"imageDeleted":       imageDeleted,
+		"imageInUse":         imageInUse,
+		"imageSkippedReason": imageSkippedReason,
+		"targetImage":        targetImage,
+	})
 }
 
 func appGatewaySplitPath(p string) (slug, rest string, hasSlash bool) {

@@ -501,19 +501,104 @@ func DeleteContainer(id string, removeVolumes bool, removeImage bool) error {
 	return nil
 }
 
-// IsImageInUse returns true if the image (by name or ID prefix) is used by any container
+func isHexString(s string) bool {
+	for _, r := range s {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+			return false
+		}
+	}
+	return s != ""
+}
+
+func imageRefsMatch(refA, refB string) bool {
+	refA = strings.TrimSpace(refA)
+	refB = strings.TrimSpace(refB)
+	if refA == "" || refB == "" {
+		return false
+	}
+	if strings.EqualFold(refA, refB) {
+		return true
+	}
+	idA := strings.TrimPrefix(refA, "sha256:")
+	idB := strings.TrimPrefix(refB, "sha256:")
+	if len(idA) >= 8 && len(idB) >= 8 && isHexString(idA) && isHexString(idB) {
+		if strings.HasPrefix(idA, idB) || strings.HasPrefix(idB, idA) {
+			return true
+		}
+	}
+
+	repoA, tagA := splitRepoTag(refA)
+	repoB, tagB := splitRepoTag(refB)
+	if repoA == "<none>" || repoB == "<none>" || repoA == "" || repoB == "" {
+		return false
+	}
+	if !strings.EqualFold(repoA, repoB) {
+		return false
+	}
+	if tagA == "<none>" || tagA == "" {
+		tagA = "latest"
+	}
+	if tagB == "<none>" || tagB == "" {
+		tagB = "latest"
+	}
+	return strings.EqualFold(tagA, tagB)
+}
+
+func isContainerExcluded(c Container, excludeID string) bool {
+	if excludeID == "" {
+		return false
+	}
+	if strings.HasPrefix(c.ID, excludeID) || strings.HasPrefix(excludeID, c.ID) {
+		return true
+	}
+	cleanExclude := strings.TrimPrefix(excludeID, "/")
+	for _, name := range c.Names {
+		cleanName := strings.TrimPrefix(name, "/")
+		if cleanName != "" && cleanName == cleanExclude {
+			return true
+		}
+	}
+	return false
+}
+
+// IsImageInUse returns true if the image (by name, tag, or ID) is used by any container
 // other than the one with excludeID.
 func IsImageInUse(imageRef, excludeID string) (bool, error) {
+	imageRef = strings.TrimSpace(imageRef)
+	if imageRef == "" {
+		return false, nil
+	}
 	containers, err := ListContainers()
 	if err != nil {
 		return false, fmt.Errorf("check image usage: %w", err)
 	}
+
+	aliases := []string{imageRef}
+	if images, imgErr := ListImages(); imgErr == nil {
+		for _, img := range images {
+			fullTag := img.Repository + ":" + img.Tag
+			matches := imageRefsMatch(imageRef, fullTag) ||
+				imageRefsMatch(imageRef, img.Repository) ||
+				imageRefsMatch(imageRef, img.ID) ||
+				imageRefsMatch(imageRef, "sha256:"+img.ID)
+			if matches {
+				aliases = append(aliases, fullTag, img.Repository, img.ID, "sha256:"+img.ID)
+			}
+		}
+	}
+
 	for _, c := range containers {
-		if excludeID != "" && (strings.HasPrefix(c.ID, excludeID) || strings.HasPrefix(excludeID, c.ID)) {
+		if isContainerExcluded(c, excludeID) {
 			continue
 		}
-		if c.Image == imageRef || strings.HasPrefix(c.Image, imageRef) {
-			return true, nil
+		cImg := strings.TrimSpace(c.Image)
+		if cImg == "" {
+			continue
+		}
+		for _, alias := range aliases {
+			if imageRefsMatch(alias, cImg) {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

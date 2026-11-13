@@ -145,16 +145,26 @@ export async function upgradeInstalledApp(id: number, version?: string): Promise
   return data.app
 }
 
+export interface UninstallAppResult {
+  ok: boolean
+  imageDeleted?: boolean
+  imageInUse?: boolean
+  imageSkippedReason?: string
+  targetImage?: string
+}
+
 export async function uninstallCatalogApp(
   id: number,
-  opts?: { removeContainer?: boolean; removeVolumes?: boolean },
-): Promise<void> {
-  await agentApi.delete(`/api/v1/app-catalog/installed/${id}`, {
+  opts?: { removeContainer?: boolean; removeVolumes?: boolean; removeImage?: boolean },
+): Promise<UninstallAppResult> {
+  const { data } = await agentApi.delete<UninstallAppResult>(`/api/v1/app-catalog/installed/${id}`, {
     params: {
       removeContainer: opts?.removeContainer ? 'true' : 'false',
       removeVolumes: opts?.removeVolumes ? 'true' : 'false',
+      removeImage: opts?.removeImage ? 'true' : 'false',
     },
   })
+  return data
 }
 
 export function installedAppOpenUrl(app: Pick<InstalledApp, 'id' | 'openPath' | 'proxyPath' | 'targetUrl' | 'useProxy'>): string {

@@ -50,6 +50,7 @@ export function AppCatalogWindow() {
   const [uninstallTarget, setUninstallTarget] = useState<InstalledApp | null>(null)
   const [removeContainer, setRemoveContainer] = useState(false)
   const [removeVolumes, setRemoveVolumes] = useState(false)
+  const [removeImage, setRemoveImage] = useState(false)
 
   const catalog = useMemo(() => data?.catalog ?? [], [data?.catalog])
   const installed = useMemo(() => data?.installed ?? [], [data?.installed])
@@ -183,19 +184,36 @@ export function AppCatalogWindow() {
     setUninstallTarget(app)
     setRemoveContainer(app.kind === 'docker')
     setRemoveVolumes(false)
+    setRemoveImage(false)
   }
 
   const handleConfirmUninstall = async () => {
     if (!uninstallTarget) return
     const id = uninstallTarget.id
+    const targetImg = uninstallTarget.image
     setBusyAction({ id, action: 'uninstall' })
     try {
-      await uninstallMutation.mutateAsync({
+      const res = await uninstallMutation.mutateAsync({
         id,
         removeContainer,
         removeVolumes: removeContainer && removeVolumes,
+        removeImage,
       })
-      toast.success(t('appCatalog.uninstallSuccess'))
+      if (res?.imageInUse) {
+        toast.warning(
+          t('appCatalog.uninstallImageInUseNotice', {
+            image: res.targetImage || targetImg || '',
+          }),
+        )
+      } else if (res?.imageDeleted) {
+        toast.success(
+          t('appCatalog.uninstallSuccessWithImage', {
+            image: res.targetImage || targetImg || '',
+          }),
+        )
+      } else {
+        toast.success(t('appCatalog.uninstallSuccess'))
+      }
       setUninstallTarget(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
@@ -400,6 +418,15 @@ export function AppCatalogWindow() {
                   tone="warning"
                   label={t('appCatalog.removeVolumesLabel')}
                   description={t('appCatalog.removeVolumesDesc')}
+                />
+              ) : null}
+              {uninstallTarget.image ? (
+                <Checkbox
+                  checked={removeImage}
+                  onChange={setRemoveImage}
+                  tone="warning"
+                  label={t('appCatalog.removeImageLabel')}
+                  description={t('appCatalog.removeImageDesc', { image: uninstallTarget.image })}
                 />
               ) : null}
             </div>
