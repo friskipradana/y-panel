@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.8] - 2026-11-13
+
+Implement view mode switching across multiple windows.
+
+### Fitur baru
+- **ui:** Implement view mode switching across multiple windows ([`458eae6`](https://github.com/friskipradana/y-panel/commit/458eae6))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.7...v1.82.8
+
 ## [1.82.7] - 2026-11-13
 
 Improve path normalization and slug handling.
