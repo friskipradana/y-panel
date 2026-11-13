@@ -59,6 +59,8 @@ type Collector struct {
 	dockerBusyMu sync.Mutex
 	dockerBusy   bool
 
+	ctx      context.Context
+	cancel   context.CancelFunc
 	stopCh   chan struct{}
 	stopOnce sync.Once
 	wg       sync.WaitGroup
@@ -72,11 +74,14 @@ func NewCollector(stateDir string, metricInterval, dockerInterval time.Duration)
 	if dockerInterval <= 0 {
 		dockerInterval = 15 * time.Second
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	c := &Collector{
 		stateDir:       stateDir,
 		metricInterval: metricInterval,
 		dockerInterval: dockerInterval,
 		dockerTimeout:  5 * time.Second,
+		ctx:            ctx,
+		cancel:         cancel,
 		stopCh:         make(chan struct{}),
 		snapshot: SystemSnapshot{
 			DockerState: DockerHealthUnknown,
@@ -99,13 +104,21 @@ func (c *Collector) initStatic() {
 
 // Start launches background workers for host metrics and Docker health monitoring.
 func (c *Collector) Start() {
+	baseCtx := c.ctx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+
 	// Immediate initial Docker check asynchronously so API startup is non-blocking
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		ctx, cancel := context.WithTimeout(context.Background(), c.dockerTimeout)
+		ctx, cancel := context.WithTimeout(baseCtx, c.dockerTimeout)
 		c.refreshDockerHealth(ctx)
 		cancel()
+		if baseCtx.Err() != nil {
+			return
+		}
 		c.refreshHostFast()
 
 		ticker := time.NewTicker(c.dockerInterval)
@@ -115,7 +128,7 @@ func (c *Collector) Start() {
 			case <-c.stopCh:
 				return
 			case <-ticker.C:
-				ctx, cancel := context.WithTimeout(context.Background(), c.dockerTimeout)
+				ctx, cancel := context.WithTimeout(baseCtx, c.dockerTimeout)
 				c.refreshDockerHealth(ctx)
 				cancel()
 			}
@@ -141,6 +154,9 @@ func (c *Collector) Start() {
 // Close gracefully terminates background sampling goroutines.
 func (c *Collector) Close() {
 	c.stopOnce.Do(func() {
+		if c.cancel != nil {
+			c.cancel()
+		}
 		close(c.stopCh)
 	})
 	c.wg.Wait()
