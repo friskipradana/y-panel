@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.2] - 2026-11-13
+
+Refine app discovery and license UI presentation.
+
+### Peningkatan
+- **app-licenses:** Refine app discovery and license UI presentation ([`af5b614`](https://github.com/friskipradana/y-panel/commit/af5b614))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.1...v1.83.2
+
 ## [1.83.1] - 2026-11-13
 
 Implement full license management system.
