@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.14] - 2026-11-13
+
+3 perubahan, utamanya implement automated managed database provisioning.
+
+### Fitur baru
+- **api:** Implement automated managed database provisioning ([`78c2d9d`](https://github.com/friskipradana/y-panel/commit/78c2d9d))
+- **app-catalog:** Add support for custom catalog management ([`10b24b8`](https://github.com/friskipradana/y-panel/commit/10b24b8))
+
+### Perbaikan
+- **app-catalog:** Update app versions and fix shell locale issue ([`a8cacb8`](https://github.com/friskipradana/y-panel/commit/a8cacb8))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.13...v1.83.14
+
 ## [1.83.13] - 2026-11-13
 
 Label catalog containers in Docker and simplify uninstall modal.
