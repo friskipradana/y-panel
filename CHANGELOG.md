@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.2] - 2026-11-13
+
+2 perubahan, utamanya implement category filtering bar in app catalog.
+
+### Fitur baru
+- **ui:** Implement category filtering bar in app catalog ([`ea5c59c`](https://github.com/friskipradana/y-panel/commit/ea5c59c))
+
+### Peningkatan
+- **ui:** Standardize app catalog section titles ([`0839562`](https://github.com/friskipradana/y-panel/commit/0839562))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.1...v1.82.2
+
 ## [1.82.1] - 2026-11-13
 
 3 perubahan, utamanya add loading state to IconButton and improve action feedback.
