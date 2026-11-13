@@ -19,6 +19,9 @@ import {
   Boxes,
   FileText,
   Printer,
+  Plus,
+  Code2,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -28,6 +31,9 @@ import {
   fetchAppLicenseOrders,
   createAppLicenseOrder,
   payAppLicenseOrder,
+  fetchAvailableApps,
+  deleteAppLicense,
+  deleteAppLicensePlan,
   type AppLicense,
   type AppLicensePlan,
   type AppLicenseOrder,
@@ -40,6 +46,9 @@ import { EmptyState, LoadingState } from '@/components/ui/states'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
 import { useWindowStore } from '@/store/windowStore'
 import { useI18n } from '@/lib/i18n'
+import { CreateLicenseModal } from './app-licenses/CreateLicenseModal'
+import { CreatePlanModal } from './app-licenses/CreatePlanModal'
+import { LicenseIntegrationModal } from './app-licenses/LicenseIntegrationModal'
 
 type LicenseTab = 'licenses' | 'plans' | 'invoices'
 
@@ -52,9 +61,16 @@ export function AppLicensesWindow() {
   const [activeTab, setActiveTab] = useState<LicenseTab>('licenses')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRED'>('ALL')
+  const [selectedAppFilter, setSelectedAppFilter] = useState<string>('ALL')
+  const [selectedPlansApp, setSelectedPlansApp] = useState<string>('reneo-crm')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   // Modals
+  const [createLicenseModalOpen, setCreateLicenseModalOpen] = useState(false)
+  const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false)
+  const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
+  const [integrationLicense, setIntegrationLicense] = useState<AppLicense | null>(null)
+
   const [renewModalOpen, setRenewModalOpen] = useState(false)
   const [selectedLicense, setSelectedLicense] = useState<AppLicense | null>(null)
   const [months, setMonths] = useState<number>(1)
@@ -72,8 +88,17 @@ export function AppLicensesWindow() {
     refetch: refetchLicenses,
   } = useQuery({
     queryKey: ['app-licenses'],
-    queryFn: fetchAppLicenses,
+    queryFn: () => fetchAppLicenses(),
     staleTime: 30_000,
+  })
+
+  const {
+    data: availableApps = [],
+    refetch: refetchApps,
+  } = useQuery({
+    queryKey: ['app-licenses-available-apps'],
+    queryFn: fetchAvailableApps,
+    staleTime: 60_000,
   })
 
   const {
@@ -81,8 +106,8 @@ export function AppLicensesWindow() {
     isLoading: plansLoading,
     refetch: refetchPlans,
   } = useQuery({
-    queryKey: ['app-license-plans', 'reneo-crm'],
-    queryFn: () => fetchAppLicensePlans('reneo-crm'),
+    queryKey: ['app-license-plans', selectedPlansApp],
+    queryFn: () => fetchAppLicensePlans(selectedPlansApp),
     staleTime: 60_000,
   })
 
@@ -97,6 +122,28 @@ export function AppLicensesWindow() {
   })
 
   // Mutations
+  const deleteLicenseMutation = useMutation({
+    mutationFn: deleteAppLicense,
+    onSuccess: () => {
+      toast.success('Lisensi berhasil dihapus.')
+      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Gagal menghapus lisensi.')
+    },
+  })
+
+  const deletePlanMutation = useMutation({
+    mutationFn: deleteAppLicensePlan,
+    onSuccess: () => {
+      toast.success('Paket tarif berhasil dihapus.')
+      queryClient.invalidateQueries({ queryKey: ['app-license-plans'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Gagal menghapus paket tarif.')
+    },
+  })
+
   const renewMutation = useMutation({
     mutationFn: renewAppLicense,
     onSuccess: (data) => {
@@ -178,8 +225,9 @@ export function AppLicensesWindow() {
   const filteredLicenses = useMemo(() => {
     const q = search.trim().toLowerCase()
     return licenses.filter((lic) => {
-      if (statusFilter === 'ACTIVE' && lic.isExpired) return false
-      if (statusFilter === 'EXPIRED' && !lic.isExpired) return false
+      if (selectedAppFilter !== 'ALL' && lic.catalogId !== selectedAppFilter) return false
+      if (statusFilter === 'ACTIVE' && (lic.isExpired || lic.status === 'EXPIRED')) return false
+      if (statusFilter === 'EXPIRED' && !lic.isExpired && lic.status !== 'EXPIRED') return false
       if (!q) return true
       return (
         lic.appName.toLowerCase().includes(q) ||
@@ -188,10 +236,10 @@ export function AppLicensesWindow() {
         lic.planName.toLowerCase().includes(q)
       )
     })
-  }, [licenses, search, statusFilter])
+  }, [licenses, search, statusFilter, selectedAppFilter])
 
   const activeCount = useMemo(
-    () => licenses.filter((l) => !l.isExpired && l.status === 'ACTIVE').length,
+    () => licenses.filter((l) => !l.isExpired && l.status !== 'EXPIRED').length,
     [licenses]
   )
   const expiredCount = useMemo(
@@ -321,6 +369,7 @@ export function AppLicensesWindow() {
           loading={licensesRefetching}
           onClick={() => {
             refetchLicenses()
+            refetchApps()
             refetchPlans()
             refetchOrders()
           }}
@@ -335,52 +384,78 @@ export function AppLicensesWindow() {
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Subheader Filter Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="relative">
-              <Search
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
-                size={14}
-              />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari lisensi aplikasi..."
-                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] focus:outline-none focus:border-emerald-500 w-52 sm:w-64 transition"
-              />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative">
+                <Search
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
+                  size={14}
+                />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari lisensi aplikasi..."
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] focus:outline-none focus:border-emerald-500 w-44 sm:w-56 transition"
+                />
+              </div>
+
+              {/* App selector filter */}
+              <select
+                value={selectedAppFilter}
+                onChange={(e) => setSelectedAppFilter(e.target.value)}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 transition"
+              >
+                <option value="ALL">Semua Aplikasi ({licenses.length})</option>
+                {availableApps.map((a) => (
+                  <option key={a.catalogId} value={a.catalogId}>
+                    {a.name} ({a.catalogId})
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex items-center bg-[var(--card-bg)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-md transition ${
+                    statusFilter === 'ALL'
+                      ? 'bg-[var(--win-bg)] font-semibold text-[var(--win-text)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                  }`}
+                >
+                  Semua ({licenses.length})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('ACTIVE')}
+                  className={`px-2.5 py-1 rounded-md transition ${
+                    statusFilter === 'ACTIVE'
+                      ? 'bg-[var(--win-bg)] font-semibold text-emerald-600 shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-emerald-600'
+                  }`}
+                >
+                  Aktif ({activeCount})
+                </button>
+                <button
+                  onClick={() => setStatusFilter('EXPIRED')}
+                  className={`px-2.5 py-1 rounded-md transition ${
+                    statusFilter === 'EXPIRED'
+                      ? 'bg-[var(--win-bg)] font-semibold text-rose-600 shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-rose-600'
+                  }`}
+                >
+                  Kedaluwarsa ({expiredCount})
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center bg-[var(--card-bg)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
-              <button
-                onClick={() => setStatusFilter('ALL')}
-                className={`px-2.5 py-1 rounded-md transition ${
-                  statusFilter === 'ALL'
-                    ? 'bg-[var(--win-bg)] font-semibold text-[var(--win-text)] shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                }`}
-              >
-                Semua ({licenses.length})
-              </button>
-              <button
-                onClick={() => setStatusFilter('ACTIVE')}
-                className={`px-2.5 py-1 rounded-md transition ${
-                  statusFilter === 'ACTIVE'
-                    ? 'bg-[var(--win-bg)] font-semibold text-emerald-600 shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:text-emerald-600'
-                }`}
-              >
-                Aktif ({activeCount})
-              </button>
-              <button
-                onClick={() => setStatusFilter('EXPIRED')}
-                className={`px-2.5 py-1 rounded-md transition ${
-                  statusFilter === 'EXPIRED'
-                    ? 'bg-[var(--win-bg)] font-semibold text-rose-600 shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:text-rose-600'
-                }`}
-              >
-                Kedaluwarsa ({expiredCount})
-              </button>
-            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setCreateLicenseModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
+            >
+              <Plus size={14} />
+              Buat Lisensi Baru
+            </Button>
           </div>
 
           {/* Licenses List */}
@@ -442,6 +517,10 @@ export function AppLicensesWindow() {
                               <Badge tone="danger" dot size="sm">
                                 Kedaluwarsa
                               </Badge>
+                            ) : lic.status === 'TRIAL' ? (
+                              <Badge tone="warning" dot size="sm">
+                                Trial ({lic.daysLeft} hari lagi)
+                              </Badge>
                             ) : (
                               <Badge tone="success" dot size="sm">
                                 Aktif ({lic.daysLeft} hari lagi)
@@ -492,12 +571,37 @@ export function AppLicensesWindow() {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => {
+                            setIntegrationLicense(lic)
+                            setIntegrationModalOpen(true)
+                          }}
+                          className="text-xs gap-1.5"
+                        >
+                          <Code2 size={14} />
+                          Integrasi API
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleOpenApp(lic)}
                           className="text-xs gap-1.5"
                         >
                           <ExternalLink size={14} />
                           Buka Aplikasi
                         </Button>
+
+                        <IconButton
+                          label="Hapus Lisensi"
+                          onClick={() => {
+                            if (window.confirm(`Hapus lisensi ${lic.appName} (${lic.licenseKey})?`)) {
+                              deleteLicenseMutation.mutate(lic.id)
+                            }
+                          }}
+                          className="text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20"
+                        >
+                          <Trash2 size={14} />
+                        </IconButton>
                       </div>
                     </div>
 
@@ -547,22 +651,55 @@ export function AppLicensesWindow() {
                       <div className="space-y-1">
                         <span className="text-[var(--text-secondary)]">Fitur Terkoneksi:</span>
                         <div className="flex flex-wrap gap-1.5 pt-0.5">
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                            <Check size={10} strokeWidth={2.5} />
-                            WA Broadcast Pacing
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                            <Check size={10} strokeWidth={2.5} />
-                            Bot Ulang Tahun
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                            <Check size={10} strokeWidth={2.5} />
-                            Live Chat CRM
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-flex items-center gap-1">
-                            <Check size={10} strokeWidth={2.5} />
-                            10.000 Kontak
-                          </span>
+                          {lic.features && Object.keys(lic.features).length > 0 ? (
+                            Object.entries(lic.features).map(([k, v]) => {
+                              if (v === false || v === null || v === undefined) return null
+                              const label =
+                                k === 'broadcast' || k === 'unlimitedBroadcast'
+                                  ? 'Broadcast WA'
+                                  : k === 'apiAccess'
+                                  ? 'Akses API'
+                                  : k === 'multiUser'
+                                  ? 'Multi-User'
+                                  : k === 'fullModules'
+                                  ? 'Semua Modul'
+                                  : k === 'liveChat'
+                                  ? 'Live Chat CRM'
+                                  : k === 'botBirthday'
+                                  ? 'Bot Ultah'
+                                  : k === 'maxContacts'
+                                  ? `${Number(v).toLocaleString('id-ID')} Kontak`
+                                  : `${k}: ${String(v)}`
+                              return (
+                                <span
+                                  key={k}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1"
+                                >
+                                  <Check size={10} strokeWidth={2.5} />
+                                  {label}
+                                </span>
+                              )
+                            })
+                          ) : (
+                            <>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                                <Check size={10} strokeWidth={2.5} />
+                                WA Broadcast Pacing
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                                <Check size={10} strokeWidth={2.5} />
+                                Bot Ulang Tahun
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
+                                <Check size={10} strokeWidth={2.5} />
+                                Live Chat CRM
+                              </span>
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-flex items-center gap-1">
+                                <Check size={10} strokeWidth={2.5} />
+                                10.000 Kontak
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -577,7 +714,7 @@ export function AppLicensesWindow() {
       {/* Tab 2: Plans & Pricing (Diatur dari Reneo) */}
       {activeTab === 'plans' && (
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="p-4 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent flex items-center justify-between gap-4">
+          <div className="p-4 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
                 <Boxes size={20} />
@@ -587,15 +724,67 @@ export function AppLicensesWindow() {
                   Paket & Tarif Lisensi Aplikasi Terpusat
                 </h4>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Aplikasi katalog (seperti Reneo CRM) otomatis menangkap API tarif ini. Pesanan menerbitkan invoice resmi dan dapat dibayar langsung di sini.
+                  Kelola paket langganan untuk aplikasi katalog, proyek kustom, atau server. Pesanan menerbitkan invoice resmi dan dapat dibayar langsung di sini.
                 </p>
               </div>
             </div>
+
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setCreatePlanModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
+            >
+              <Plus size={14} />
+              Tambah Paket Tarif
+            </Button>
+          </div>
+
+          {/* App Switcher for Plans */}
+          <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-[var(--win-border)]">
+            <span className="text-xs font-semibold text-[var(--win-text)] mr-1">Pilih Aplikasi:</span>
+            {availableApps.map((a) => {
+              const isSelected = selectedPlansApp === a.catalogId
+              return (
+                <button
+                  key={a.catalogId}
+                  type="button"
+                  onClick={() => setSelectedPlansApp(a.catalogId)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-[var(--card-bg)] border border-[var(--win-border)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                  }`}
+                >
+                  {a.name} ({a.catalogId})
+                </button>
+              )
+            })}
           </div>
 
           {plansLoading ? (
             <div className="py-16">
               <LoadingState>Memuat paket langganan aplikasi...</LoadingState>
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="py-16">
+              <EmptyState>
+                <div className="flex flex-col items-center gap-2">
+                  <Boxes size={36} className="text-[var(--text-secondary)] opacity-60" />
+                  <span className="font-semibold text-sm">Belum ada paket tarif untuk aplikasi ini</span>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    Klik tombol "Tambah Paket Tarif" untuk membuat tier harga baru.
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    className="mt-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => setCreatePlanModalOpen(true)}
+                  >
+                    Tambah Paket Tarif
+                  </Button>
+                </div>
+              </EmptyState>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -634,47 +823,75 @@ export function AppLicensesWindow() {
                     </div>
 
                     <div className="border-t border-[var(--win-border)] pt-3 space-y-2 text-xs">
-                      <div className="flex items-center gap-2 text-[var(--win-text)]">
-                        <Check size={14} className="text-emerald-500 shrink-0" />
-                        <span>Kapasitas Kontak: {p.features?.maxContacts?.toLocaleString?.() || '10.000'} Kontak</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[var(--win-text)]">
-                        <Check size={14} className="text-emerald-500 shrink-0" />
-                        <span>
-                          {p.features?.unlimitedBroadcast ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[var(--win-text)]">
-                        <Check size={14} className="text-emerald-500 shrink-0" />
-                        <span>Bot Ucapan Ulang Tahun Otomatis</span>
-                      </div>
+                      {p.features?.maxContacts && (
+                        <div className="flex items-center gap-2 text-[var(--win-text)]">
+                          <Check size={14} className="text-emerald-500 shrink-0" />
+                          <span>Kapasitas Kontak: {Number(p.features.maxContacts).toLocaleString('id-ID')} Kontak</span>
+                        </div>
+                      )}
+                      {p.features?.unlimitedBroadcast !== undefined && (
+                        <div className="flex items-center gap-2 text-[var(--win-text)]">
+                          <Check size={14} className="text-emerald-500 shrink-0" />
+                          <span>
+                            {p.features.unlimitedBroadcast ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'}
+                          </span>
+                        </div>
+                      )}
+                      {p.features?.botBirthday && (
+                        <div className="flex items-center gap-2 text-[var(--win-text)]">
+                          <Check size={14} className="text-emerald-500 shrink-0" />
+                          <span>Bot Ucapan Ulang Tahun Otomatis</span>
+                        </div>
+                      )}
                       {p.features?.liveChat && (
                         <div className="flex items-center gap-2 text-[var(--win-text)]">
                           <Check size={14} className="text-emerald-500 shrink-0" />
                           <span>Live Chat & Conversation CRM Inbox</span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-[var(--win-text)]">
-                        <Check size={14} className="text-emerald-500 shrink-0" />
-                        <span>Integrasi WAHA Reneo Tanpa Scan Ulang</span>
-                      </div>
+                      {p.features &&
+                        Object.entries(p.features)
+                          .filter(
+                            ([k]) =>
+                              !['maxContacts', 'unlimitedBroadcast', 'botBirthday', 'liveChat'].includes(k)
+                          )
+                          .map(([k, v]) => {
+                            if (!v) return null
+                            return (
+                              <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
+                                <Check size={14} className="text-emerald-500 shrink-0" />
+                                <span>{String(v === true ? k : `${k}: ${v}`)}</span>
+                              </div>
+                            )
+                          })}
                     </div>
                   </div>
 
-                  <div className="pt-5">
+                  <div className="pt-5 flex items-center gap-2">
                     <Button
                       size="sm"
                       variant={p.highlighted ? 'primary' : 'outline'}
                       block
                       loading={orderMutation.isPending}
                       onClick={() => handleOrderPlan(p)}
-                      className={`text-xs gap-1.5 ${
+                      className={`text-xs gap-1.5 flex-1 ${
                         p.highlighted ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
                       }`}
                     >
                       <ReceiptText size={14} />
                       Terbitkan Invoice & Langganan
                     </Button>
+                    <IconButton
+                      label="Hapus Paket"
+                      onClick={() => {
+                        if (window.confirm(`Hapus paket "${p.name}"?`)) {
+                          deletePlanMutation.mutate(p.id)
+                        }
+                      }}
+                      className="text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20"
+                    >
+                      <Trash2 size={14} />
+                    </IconButton>
                   </div>
                 </div>
               ))}
@@ -1086,6 +1303,43 @@ export function AppLicensesWindow() {
           </div>
         </Modal>
       )}
+
+      {/* Create License Modal */}
+      <CreateLicenseModal
+        open={createLicenseModalOpen}
+        onClose={() => setCreateLicenseModalOpen(false)}
+        availableApps={availableApps}
+        onSuccess={() => {
+          refetchLicenses()
+          refetchApps()
+          queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
+          queryClient.invalidateQueries({ queryKey: ['app-licenses-available-apps'] })
+        }}
+      />
+
+      {/* Create Plan Modal */}
+      <CreatePlanModal
+        open={createPlanModalOpen}
+        onClose={() => setCreatePlanModalOpen(false)}
+        availableApps={availableApps}
+        defaultCatalogId={selectedPlansApp}
+        onSuccess={() => {
+          refetchPlans()
+          refetchApps()
+          queryClient.invalidateQueries({ queryKey: ['app-license-plans'] })
+          queryClient.invalidateQueries({ queryKey: ['app-licenses-available-apps'] })
+        }}
+      />
+
+      {/* Integration Guide Modal */}
+      <LicenseIntegrationModal
+        open={integrationModalOpen}
+        onClose={() => {
+          setIntegrationModalOpen(false)
+          setIntegrationLicense(null)
+        }}
+        license={integrationLicense}
+      />
     </div>
   )
 }

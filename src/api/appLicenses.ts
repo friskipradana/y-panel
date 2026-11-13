@@ -85,9 +85,81 @@ export interface CreateAppOrderPayload {
   buyerPhone?: string
 }
 
-export async function fetchAppLicenses(): Promise<AppLicense[]> {
-  const res = await agentApi.get<{ ok: boolean; licenses: AppLicense[] }>('/api/v1/app-licenses')
+export interface AvailableApp {
+  catalogId: string
+  name: string
+  type: 'catalog' | 'project' | 'custom'
+}
+
+export interface CreateAppLicensePayload {
+  catalogId: string
+  appName?: string
+  licenseKey?: string
+  status?: 'ACTIVE' | 'TRIAL' | 'EXPIRED'
+  planName?: string
+  period?: string
+  priceAmount?: number
+  months?: number
+  expiresAt?: string
+  features?: Record<string, boolean | number | string>
+}
+
+export interface CreateAppPlanPayload {
+  catalogId: string
+  slug?: string
+  name: string
+  tagline?: string
+  period?: string
+  months?: number
+  priceAmount: number
+  features?: Record<string, boolean | number | string>
+  highlighted?: boolean
+  isActive?: boolean
+  sortOrder?: number
+}
+
+export async function fetchAppLicenses(catalogId?: string): Promise<AppLicense[]> {
+  const res = await agentApi.get<{ ok: boolean; licenses: AppLicense[] }>('/api/v1/app-licenses', {
+    params: catalogId ? { catalogId } : undefined,
+  })
   return res.data.licenses || []
+}
+
+export async function createAppLicense(payload: CreateAppLicensePayload): Promise<AppLicense> {
+  const res = await agentApi.post<{ ok: boolean; message: string; license: AppLicense }>(
+    '/api/v1/app-licenses',
+    payload
+  )
+  return res.data.license
+}
+
+export async function updateAppLicense(id: number, payload: Partial<CreateAppLicensePayload>): Promise<AppLicense> {
+  const res = await agentApi.put<{ ok: boolean; message: string; license: AppLicense }>(
+    `/api/v1/app-licenses/${id}`,
+    payload
+  )
+  return res.data.license
+}
+
+export async function deleteAppLicense(id: number): Promise<void> {
+  await agentApi.delete(`/api/v1/app-licenses/${id}`)
+}
+
+export async function fetchAvailableApps(): Promise<AvailableApp[]> {
+  const res = await agentApi.get<{ ok: boolean; apps: AvailableApp[] }>('/api/v1/app-licenses/available-apps')
+  return res.data.apps || []
+}
+
+export async function createAppLicensePlan(payload: CreateAppPlanPayload): Promise<AppLicensePlan> {
+  const res = await agentApi.post<{ ok: boolean; message: string; plan: AppLicensePlan }>(
+    '/api/v1/app-license-plans',
+    payload
+  )
+  return res.data.plan
+}
+
+export async function deleteAppLicensePlan(id: number): Promise<void> {
+  await agentApi.delete(`/api/v1/app-license-plans/${id}`)
 }
 
 export async function renewAppLicense(payload: RenewLicensePayload): Promise<AppLicense> {

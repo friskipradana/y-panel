@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -330,6 +332,8 @@ func (s *Server) handleAppLicensesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	catalogID := r.URL.Query().Get("catalogId")
+
 	if s.database == nil || !s.database.IsConnected() {
 		now := time.Now()
 		expiresAt := now.AddDate(0, 1, 0)
@@ -365,7 +369,7 @@ func (s *Server) handleAppLicensesList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	licenses, err := s.database.ListAppLicenses(actor.ID)
+	licenses, err := s.database.ListAppLicenses(actor.ID, catalogID)
 	if err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
 		return
@@ -529,4 +533,382 @@ func (s *Server) handlePublicAppLicenseInvoice(w http.ResponseWriter, r *http.Re
 		"ok":      true,
 		"invoice": view,
 	})
+}
+
+type createAppLicensePayload struct {
+	CatalogID   string          `json:"catalogId"`
+	AppName     string          `json:"appName"`
+	LicenseKey  string          `json:"licenseKey"`
+	Status      string          `json:"status"` // ACTIVE, TRIAL, EXPIRED
+	PlanName    string          `json:"planName"`
+	Period      string          `json:"period"` // monthly, annual, lifetime, trial
+	PriceAmount int64           `json:"priceAmount"`
+	Months      int             `json:"months"` // 1, 3, 6, 12, 0=lifetime, -1=trial
+	ExpiresAt   string          `json:"expiresAt"`
+	Features    json.RawMessage `json:"features"`
+}
+
+// handleAppLicensesCreate allows creating a license directly for any application.
+func (s *Server) handleAppLicensesCreate(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	var req createAppLicensePayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
+		return
+	}
+
+	if req.CatalogID == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "catalogId required"})
+		return
+	}
+	if req.AppName == "" {
+		req.AppName = req.CatalogID
+	}
+	if req.PlanName == "" {
+		req.PlanName = "Bulanan (Pro)"
+	}
+	if req.Period == "" {
+		req.Period = "monthly"
+	}
+	if req.Status == "" {
+		req.Status = "ACTIVE"
+	}
+
+	now := time.Now()
+	var expiresAt time.Time
+	if req.ExpiresAt != "" {
+		t, err := time.Parse(time.RFC3339, req.ExpiresAt)
+		if err == nil {
+			expiresAt = t
+		}
+	}
+	if expiresAt.IsZero() {
+		switch req.Months {
+		case 0:
+			// Lifetime (100 years)
+			expiresAt = now.AddDate(100, 0, 0)
+			req.Period = "lifetime"
+		case -1:
+			// Trial 14 days
+			expiresAt = now.AddDate(0, 0, 14)
+			req.Period = "trial"
+			req.Status = "TRIAL"
+		default:
+			if req.Months <= 0 {
+				req.Months = 1
+			}
+			expiresAt = now.AddDate(0, req.Months, 0)
+		}
+	}
+
+	licData := database.AppLicense{
+		UserID:      actor.ID,
+		CatalogID:   req.CatalogID,
+		AppName:     req.AppName,
+		LicenseKey:  req.LicenseKey,
+		Status:      req.Status,
+		PlanName:    req.PlanName,
+		Period:      req.Period,
+		PriceAmount: req.PriceAmount,
+		StartedAt:   now.Format(time.RFC3339),
+		ExpiresAt:   expiresAt.Format(time.RFC3339),
+		Features:    req.Features,
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		licData.ID = 1
+		s.writeJSON(w, http.StatusCreated, jsonResponse{"ok": true, "license": licData})
+		return
+	}
+
+	created, err := s.database.CreateAppLicense(licData)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.notifyUserAction(actor.ID, "Lisensi Baru Dibuat", fmt.Sprintf("Lisensi baru untuk aplikasi %s (%s) berhasil diterbitkan.", created.AppName, created.LicenseKey), "success")
+
+	s.writeJSON(w, http.StatusCreated, jsonResponse{
+		"ok":      true,
+		"message": "Lisensi aplikasi berhasil dibuat",
+		"license": created,
+	})
+}
+
+// handleAppLicensesUpdate updates an existing license.
+func (s *Server) handleAppLicensesUpdate(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid license ID"})
+		return
+	}
+
+	var req createAppLicensePayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
+		return
+	}
+
+	licData := database.AppLicense{
+		AppName:     req.AppName,
+		Status:      req.Status,
+		PlanName:    req.PlanName,
+		Period:      req.Period,
+		PriceAmount: req.PriceAmount,
+		ExpiresAt:   req.ExpiresAt,
+		Features:    req.Features,
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "license": licData})
+		return
+	}
+
+	updated, err := s.database.UpdateAppLicense(id, actor.ID, licData)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":      true,
+		"message": "Lisensi berhasil diperbarui",
+		"license": updated,
+	})
+}
+
+// handleAppLicensesDelete deletes an existing license.
+func (s *Server) handleAppLicensesDelete(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid license ID"})
+		return
+	}
+
+	if s.database != nil && s.database.IsConnected() {
+		if err := s.database.DeleteAppLicense(id, actor.ID); err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Lisensi berhasil dihapus"})
+}
+
+// handleAppLicensesVerify provides license validation for internal or external applications.
+func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("key")
+	if key == "" {
+		key = r.Header.Get("X-License-Key")
+	}
+	catalogID := r.URL.Query().Get("catalogId")
+
+	if key == "" && catalogID == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "license key or catalogId required", "valid": false})
+		return
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      true,
+			"valid":   true,
+			"status":  "ACTIVE",
+			"message": "Demo mode license is active",
+		})
+		return
+	}
+
+	var lic *database.AppLicense
+	var err error
+	if key != "" {
+		lic, err = s.database.GetAppLicenseByKey(key)
+	} else if catalogID != "" {
+		userID := int64(1)
+		if actor := s.currentUserRecord(r); actor != nil {
+			userID = actor.ID
+		}
+		lic, err = s.database.GetAppLicense(userID, catalogID)
+	}
+
+	if err != nil || lic == nil {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      false,
+			"valid":   false,
+			"status":  "NOT_FOUND",
+			"message": "Lisensi tidak ditemukan atau belum terdaftar.",
+		})
+		return
+	}
+
+	if catalogID != "" && lic.CatalogID != catalogID {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      false,
+			"valid":   false,
+			"status":  "INVALID_APP",
+			"message": fmt.Sprintf("Kunci lisensi ini untuk aplikasi '%s', bukan '%s'", lic.CatalogID, catalogID),
+		})
+		return
+	}
+
+	valid := !lic.IsExpired && (lic.Status == "ACTIVE" || lic.Status == "TRIAL")
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":         true,
+		"valid":      valid,
+		"status":     lic.Status,
+		"appName":    lic.AppName,
+		"catalogId":  lic.CatalogID,
+		"licenseKey": lic.LicenseKey,
+		"planName":   lic.PlanName,
+		"period":     lic.Period,
+		"daysLeft":   lic.DaysLeft,
+		"isExpired":  lic.IsExpired,
+		"startedAt":  lic.StartedAt,
+		"expiresAt":  lic.ExpiresAt,
+		"features":   lic.Features,
+	})
+}
+
+// handleAppLicensesAvailableApps returns all apps known in the system (catalog, projects, and custom).
+func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	type appItem struct {
+		CatalogID string `json:"catalogId"`
+		Name      string `json:"name"`
+		Type      string `json:"type"` // catalog | project | custom
+	}
+
+	seen := make(map[string]bool)
+	apps := make([]appItem, 0)
+
+	addApp := func(cid, name, appType string) {
+		if cid == "" || seen[cid] {
+			return
+		}
+		seen[cid] = true
+		if name == "" {
+			name = cid
+		}
+		apps = append(apps, appItem{CatalogID: cid, Name: name, Type: appType})
+	}
+
+	// 1. Built-in catalog app Reneo CRM
+	addApp("reneo-crm", "Reneo CRM Services", "catalog")
+
+	// 2. Installed apps from catalog
+	if s.database != nil && s.database.IsConnected() {
+		if installed, err := s.database.ListInstalledApps(actor.ID); err == nil {
+			for _, it := range installed {
+				addApp(it.CatalogID, it.Name, "catalog")
+			}
+		}
+
+		// 3. Projects created on server
+		if projs, err := s.database.ListProjects(actor.ID); err == nil {
+			for _, p := range projs {
+				slug := "proj-" + strings.ToLower(strings.ReplaceAll(p.Name, " ", "-"))
+				addApp(slug, p.Name, "project")
+			}
+		}
+
+		// 4. Any other custom apps already in app_licenses or app_license_plans
+		if distinct, err := s.database.ListDistinctAppCatalogIDs(); err == nil {
+			for _, cid := range distinct {
+				addApp(cid, cid, "custom")
+			}
+		}
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":   true,
+		"apps": apps,
+	})
+}
+
+// handleAppLicensePlansCreate creates or updates a plan tier for an application.
+func (s *Server) handleAppLicensePlansCreate(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	var plan database.AppLicensePlan
+	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
+		return
+	}
+
+	if plan.CatalogID == "" || plan.Name == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "catalogId and name required"})
+		return
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		plan.ID = 1
+		s.writeJSON(w, http.StatusCreated, jsonResponse{"ok": true, "plan": plan})
+		return
+	}
+
+	created, err := s.database.CreateAppLicensePlan(plan)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.writeJSON(w, http.StatusCreated, jsonResponse{
+		"ok":      true,
+		"message": "Paket tarif aplikasi berhasil disimpan",
+		"plan":    created,
+	})
+}
+
+// handleAppLicensePlansDelete deletes a plan tier by ID.
+func (s *Server) handleAppLicensePlansDelete(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid plan ID"})
+		return
+	}
+
+	if s.database != nil && s.database.IsConnected() {
+		if err := s.database.DeleteAppLicensePlan(id); err != nil {
+			s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+			return
+		}
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Paket tarif berhasil dihapus"})
 }
