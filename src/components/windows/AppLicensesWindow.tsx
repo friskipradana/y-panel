@@ -12,8 +12,6 @@ import {
   Search,
   CheckCircle2,
   Lock,
-  Wallet,
-  Building,
   ReceiptText,
   Boxes,
   FileText,
@@ -97,7 +95,7 @@ export function AppLicensesWindow() {
   const [renewModalOpen, setRenewModalOpen] = useState(false)
   const [selectedLicense, setSelectedLicense] = useState<AppLicense | null>(null)
   const [months, setMonths] = useState<number>(1)
-  const [paymentMethod, setPaymentMethod] = useState<'saldo' | 'qris' | 'va'>('saldo')
+  const [paymentMethod] = useState<'transfer'>('transfer')
 
   // Invoice & Order modal
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false)
@@ -223,7 +221,6 @@ export function AppLicensesWindow() {
   const handleOpenRenew = (lic: AppLicense) => {
     setSelectedLicense(lic)
     setMonths(1)
-    setPaymentMethod('saldo')
     setRenewModalOpen(true)
   }
 
@@ -1381,13 +1378,13 @@ export function AppLicensesWindow() {
                     onClick={() => {
                       payMutation.mutate({
                         publicId: selectedOrder.publicId,
-                        method: 'saldo',
+                        method: selectedOrder.paymentMethod || 'transfer',
                       })
                     }}
                     className="gap-1.5"
                   >
                     <CheckCircle2 size={14} />
-                    Bayar Sekarang (Saldo Reneo)
+                    Konfirmasi Lunas
                   </Button>
                 ) : (
                   <Button variant="outline" size="sm" onClick={() => setInvoiceModalOpen(false)}>
@@ -1578,51 +1575,10 @@ export function AppLicensesWindow() {
               </div>
             </div>
 
-            <div>
-              <label className="block font-semibold text-[var(--win-text)] mb-2">
-                Metode Pembayaran (Reneo Gateway):
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('saldo')}
-                  className={`p-2.5 rounded-xl border text-center transition ${
-                    paymentMethod === 'saldo'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-semibold'
-                      : 'border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  <Wallet size={18} className="mx-auto mb-1" />
-                  <span className="text-[11px] block">Saldo Reneo</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('qris')}
-                  className={`p-2.5 rounded-xl border text-center transition ${
-                    paymentMethod === 'qris'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-semibold'
-                      : 'border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  <CreditCard size={18} className="mx-auto mb-1" />
-                  <span className="text-[11px] block">QRIS Instan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('va')}
-                  className={`p-2.5 rounded-xl border text-center transition ${
-                    paymentMethod === 'va'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-semibold'
-                      : 'border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  <Building size={18} className="mx-auto mb-1" />
-                  <span className="text-[11px] block">Virtual Account</span>
-                </button>
-              </div>
-            </div>
-
             <div className="p-3 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2">
+              <div className="text-[11px] text-[var(--text-secondary)]">
+                Invoice akan diterbitkan menggunakan metode pembayaran aktif dari Pengaturan Situs Reneo (sama seperti pesanan Hosting).
+              </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[var(--text-secondary)]">Aplikasi:</span>
                 <span className="font-semibold text-[var(--win-text)]">{selectedLicense.appName}</span>

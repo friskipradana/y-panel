@@ -33,36 +33,7 @@ type payAppLicenseOrderRequest struct {
 }
 
 func (s *Server) getActivePaymentMethods() []orderMethod {
-	methods := activeOrderMethods(s.loadSiteSettings())
-	if len(methods) == 0 {
-		return []orderMethod{
-			{
-				ID:      "qris-default",
-				Kind:    "qris",
-				Name:    "QRIS Instan Reneo",
-				Account: "NMID: ID1020030040050",
-				Holder:  "PT RENEO TEKNOLOGI INDONESIA",
-				Enabled: true,
-			},
-			{
-				ID:      "bca-default",
-				Kind:    "bank",
-				Name:    "Bank Central Asia (BCA)",
-				Account: "8831-2940-11",
-				Holder:  "Reneo Payments",
-				Enabled: true,
-			},
-			{
-				ID:      "mandiri-default",
-				Kind:    "bank",
-				Name:    "Bank Mandiri",
-				Account: "137-00-1928472-1",
-				Holder:  "Reneo Payments",
-				Enabled: true,
-			},
-		}
-	}
-	return methods
+	return activeOrderMethods(s.loadSiteSettings())
 }
 
 // handleAppLicensePlans returns pricing packages for an application (e.g. reneo-crm).
