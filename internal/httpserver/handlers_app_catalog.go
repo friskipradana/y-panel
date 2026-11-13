@@ -861,10 +861,19 @@ func (s *Server) uniqueAppSlug(userID int64, base string) string {
 	if len(slug) > 60 {
 		slug = strings.Trim(slug[:60], "-")
 	}
+	usedContainers := make(map[string]bool)
+	if containers, err := docker.ListContainers(); err == nil {
+		for _, c := range containers {
+			for _, n := range c.Names {
+				usedContainers[strings.TrimPrefix(n, "/")] = true
+			}
+		}
+	}
 	candidate := slug
 	for i := 2; i < 100; i++ {
 		existing, _ := s.database.GetInstalledAppBySlug(userID, candidate)
-		if existing == nil {
+		projectName := fmt.Sprintf("reneo-app-%d-%s", userID, candidate)
+		if existing == nil && !usedContainers[projectName] {
 			return candidate
 		}
 		candidate = fmt.Sprintf("%s-%d", slug, i)
@@ -1374,6 +1383,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
 			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", "reneo-crm-db")
 			if pgErr != nil {
+				_ = s.database.DeleteInstalledApp(created.ID)
 				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan PostgreSQL bawaan Reneo: " + pgErr.Error()})
 				return
 			}
@@ -1382,6 +1392,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		if v, ok := envMap["REDIS_URL"]; !ok || strings.TrimSpace(v) == "" {
 			redisURL, redisErr := s.ensureManagedDependencyDB(actor, "redis", "reneo-crm-redis")
 			if redisErr != nil {
+				_ = s.database.DeleteInstalledApp(created.ID)
 				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan Redis bawaan Reneo: " + redisErr.Error()})
 				return
 			}
