@@ -8,7 +8,10 @@ import { FilterMenu } from '@/components/ui/FilterMenu'
 import { Modal } from '@/components/ui/Modal'
 import { CatalogAppsView, type CatalogViewMode } from '@/components/windows/app-catalog/CatalogAppsView'
 import { InstallAppModal } from '@/components/windows/app-catalog/InstallAppModal'
-import { InstalledAppsView } from '@/components/windows/app-catalog/InstalledAppsView'
+import {
+  InstalledAppsView,
+  type BusyCatalogAction,
+} from '@/components/windows/app-catalog/InstalledAppsView'
 import { openInstalledAppWindow, useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
@@ -36,7 +39,7 @@ export function AppCatalogWindow() {
   const [viewMode, setViewMode] = useState<CatalogViewMode>(readStoredViewMode)
   const [category, setCategory] = useState<string>('all')
   const [search, setSearch] = useState('')
-  const [busyAppId, setBusyAppId] = useState<number | null>(null)
+  const [busyAction, setBusyAction] = useState<BusyCatalogAction | null>(null)
 
   const [installModalOpen, setInstallModalOpen] = useState(false)
   const [selectedCatalogApp, setSelectedCatalogApp] = useState<CatalogApp | null>(null)
@@ -121,14 +124,14 @@ export function AppCatalogWindow() {
   }
 
   const handleContainerAction = async (app: InstalledApp, action: 'start' | 'stop' | 'restart') => {
-    setBusyAppId(app.id)
+    setBusyAction({ id: app.id, action })
     try {
       await actionMutation.mutateAsync({ id: app.id, action })
       toast.success(t('appCatalog.containerActionSuccess'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
     } finally {
-      setBusyAppId(null)
+      setBusyAction(null)
     }
   }
 
@@ -142,14 +145,14 @@ export function AppCatalogWindow() {
       'app-catalog',
     )
     if (!ok) return
-    setBusyAppId(app.id)
+    setBusyAction({ id: app.id, action: 'upgrade' })
     try {
       const updated = await upgradeMutation.mutateAsync({ id: app.id })
       toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
     } finally {
-      setBusyAppId(null)
+      setBusyAction(null)
     }
   }
 
@@ -164,14 +167,14 @@ export function AppCatalogWindow() {
         'app-catalog',
       )
       if (!ok) return
-      setBusyAppId(app.id)
+      setBusyAction({ id: app.id, action: 'uninstall' })
       try {
         await uninstallMutation.mutateAsync({ id: app.id })
         toast.success(t('appCatalog.uninstallSuccess'))
       } catch (err) {
         toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
       } finally {
-        setBusyAppId(null)
+        setBusyAction(null)
       }
       return
     }
@@ -182,9 +185,11 @@ export function AppCatalogWindow() {
 
   const handleConfirmUninstall = async () => {
     if (!uninstallTarget) return
+    const id = uninstallTarget.id
+    setBusyAction({ id, action: 'uninstall' })
     try {
       await uninstallMutation.mutateAsync({
-        id: uninstallTarget.id,
+        id,
         removeContainer,
         removeVolumes: removeContainer && removeVolumes,
       })
@@ -192,6 +197,8 @@ export function AppCatalogWindow() {
       setUninstallTarget(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+    } finally {
+      setBusyAction(null)
     }
   }
 
@@ -333,7 +340,7 @@ export function AppCatalogWindow() {
           viewMode={viewMode}
           isLoading={isLoading}
           isError={isError}
-          busyAppId={busyAppId}
+          busyAction={busyAction}
           onContainerAction={handleContainerAction}
           onUpgrade={handleUpgradeApp}
           onEdit={handleOpenEdit}

@@ -35,6 +35,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const [reloadNonce, setReloadNonce] = useState(0)
   const [loadedNonce, setLoadedNonce] = useState(-1)
   const [editOpen, setEditOpen] = useState(false)
+  const [pendingAction, setPendingAction] = useState<'start' | 'stop' | 'restart' | null>(null)
 
   const app = data?.installed.find((item) => item.id === appId)
 
@@ -81,6 +82,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const frameLoading = isRunning && !isMissing && loadedNonce !== reloadNonce
 
   const handleAction = async (action: 'start' | 'stop' | 'restart') => {
+    setPendingAction(action)
     try {
       await actionMutation.mutateAsync({ id: app.id, action })
       if (action === 'start' || action === 'restart') {
@@ -89,6 +91,8 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
       toast.success(t('appCatalog.containerActionSuccess'))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+    } finally {
+      setPendingAction(null)
     }
   }
 
@@ -143,14 +147,16 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
                 <IconButton
                   label={t('appCatalog.restartContainer')}
                   onClick={() => handleAction('restart')}
+                  loading={actionMutation.isPending && pendingAction === 'restart'}
                   disabled={actionMutation.isPending}
                 >
-                  <RotateCw className={`h-3.5 w-3.5 ${actionMutation.isPending ? 'animate-spin' : ''}`} />
+                  <RotateCw className="h-3.5 w-3.5" />
                 </IconButton>
                 <IconButton
                   label={t('appCatalog.stopContainer')}
                   tone="warning"
                   onClick={() => handleAction('stop')}
+                  loading={actionMutation.isPending && pendingAction === 'stop'}
                   disabled={actionMutation.isPending}
                 >
                   <Square className="h-3.5 w-3.5" />
@@ -161,6 +167,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
                 label={t('appCatalog.startContainer')}
                 tone="success"
                 onClick={() => handleAction('start')}
+                loading={actionMutation.isPending && pendingAction === 'start'}
                 disabled={actionMutation.isPending || isMissing}
               >
                 <Play className="h-3.5 w-3.5" />
@@ -194,7 +201,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
               setReloadNonce((n) => n + 1)
             }}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${frameLoading || isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           </IconButton>
 
           <IconButton

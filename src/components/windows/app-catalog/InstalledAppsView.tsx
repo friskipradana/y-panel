@@ -8,12 +8,20 @@ import type { CatalogViewMode } from '@/components/windows/app-catalog/CatalogAp
 import { openInstalledAppWindow } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
 
+export type CatalogRowAction = 'start' | 'stop' | 'restart' | 'upgrade' | 'uninstall'
+
+export interface BusyCatalogAction {
+  id: number
+  action: CatalogRowAction
+}
+
 interface InstalledAppsViewProps {
   items: InstalledApp[]
   viewMode: CatalogViewMode
   isLoading: boolean
   isError: boolean
-  busyAppId: number | null
+  busyAppId?: number | null
+  busyAction?: BusyCatalogAction | null
   onContainerAction: (app: InstalledApp, action: 'start' | 'stop' | 'restart') => void
   onUpgrade: (app: InstalledApp) => void
   onEdit: (app: InstalledApp) => void
@@ -33,12 +41,19 @@ export function InstalledAppsView({
   isLoading,
   isError,
   busyAppId,
+  busyAction,
   onContainerAction,
   onUpgrade,
   onEdit,
   onUninstall,
 }: InstalledAppsViewProps) {
   const { t } = useI18n()
+
+  const isActionBusy = (appId: number, action: CatalogRowAction) =>
+    busyAction ? busyAction.id === appId && busyAction.action === action : busyAppId === appId
+
+  const isRowBusy = (appId: number) =>
+    busyAction ? busyAction.id === appId : busyAppId === appId
 
   const statusLabel = (app: InstalledApp) => {
     if (app.kind === 'custom-url') {
@@ -72,14 +87,16 @@ export function InstalledAppsView({
             <IconButton
               label={t('appCatalog.restartContainer')}
               disabled={rowBusy}
+              loading={isActionBusy(app.id, 'restart')}
               onClick={() => onContainerAction(app, 'restart')}
             >
-              <RotateCw className={`h-3.5 w-3.5 ${rowBusy ? 'animate-spin' : ''}`} />
+              <RotateCw className="h-3.5 w-3.5" />
             </IconButton>
             <IconButton
               label={t('appCatalog.stopContainer')}
               tone="warning"
               disabled={rowBusy}
+              loading={isActionBusy(app.id, 'stop')}
               onClick={() => onContainerAction(app, 'stop')}
             >
               <Square className="h-3.5 w-3.5" />
@@ -90,6 +107,7 @@ export function InstalledAppsView({
             label={t('appCatalog.startContainer')}
             tone="success"
             disabled={rowBusy || app.containerState === 'missing'}
+            loading={isActionBusy(app.id, 'start')}
             onClick={() => onContainerAction(app, 'start')}
           >
             <Play className="h-3.5 w-3.5" />
@@ -105,9 +123,10 @@ export function InstalledAppsView({
         <IconButton
           label={t('appCatalog.upgradeAction')}
           disabled={rowBusy}
+          loading={isActionBusy(app.id, 'upgrade')}
           onClick={() => onUpgrade(app)}
         >
-          <ArrowUpCircle className={`h-3.5 w-3.5 ${rowBusy ? 'animate-spin' : ''}`} />
+          <ArrowUpCircle className="h-3.5 w-3.5" />
         </IconButton>
       ) : null}
 
@@ -115,6 +134,7 @@ export function InstalledAppsView({
         label={t('appCatalog.uninstallAction')}
         tone="danger"
         disabled={rowBusy}
+        loading={isActionBusy(app.id, 'uninstall')}
         onClick={() => onUninstall(app)}
       >
         <Trash2 className="h-3.5 w-3.5" />
@@ -139,7 +159,7 @@ export function InstalledAppsView({
         <ListState {...stateProps}>
           <div className="app-catalog-card-grid">
             {items.map((app) => {
-              const rowBusy = busyAppId === app.id
+              const rowBusy = isRowBusy(app.id)
               const endpoint =
                 app.kind === 'custom-url'
                   ? app.targetUrl
@@ -198,7 +218,7 @@ export function InstalledAppsView({
     >
       <ListState {...stateProps}>
         {items.map((app, idx) => {
-          const rowBusy = busyAppId === app.id
+          const rowBusy = isRowBusy(app.id)
           const endpoint =
             app.kind === 'custom-url'
               ? app.targetUrl
