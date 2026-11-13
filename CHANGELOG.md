@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.1] - 2026-11-13
+
+Implement full license management system.
+
+### Fitur baru
+- **app-licenses:** Implement full license management system ([`19cad75`](https://github.com/friskipradana/y-panel/commit/19cad75))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.0...v1.83.1
+
 ## [1.83.0] - 2026-11-13
 
 4 perubahan, utamanya add plans and invoice order endpoints, active methods, and enhanced UI tabs.
