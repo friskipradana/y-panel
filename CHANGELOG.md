@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.13] - 2026-11-13
+
+Label catalog containers in Docker and simplify uninstall modal.
+
+### Fitur baru
+- **app-catalog:** Label catalog containers in Docker and simplify uninstall modal ([`5406844`](https://github.com/friskipradana/y-panel/commit/5406844))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.12...v1.83.13
+
 ## [1.83.12] - 2026-11-13
 
 Implement context propagation in Collector.
