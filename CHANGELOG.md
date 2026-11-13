@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.18] - 2026-11-13
+
+Align license payment methods with hosting pattern and add crm v1.0.4.
+
+### Perbaikan
+- **app-catalog,licenses:** Align license payment methods with hosting pattern and add crm v1.0.4 ([`7e90d90`](https://github.com/friskipradana/y-panel/commit/7e90d90))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.17...v1.83.18
+
 ## [1.83.17] - 2026-11-13
 
 Add network management for managed dependencies.
