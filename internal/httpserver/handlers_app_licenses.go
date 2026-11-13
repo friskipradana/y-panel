@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -789,7 +788,7 @@ func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-// handleAppLicensesAvailableApps returns all apps known in the system (catalog, projects, and custom).
+// handleAppLicensesAvailableApps returns only apps specifically registered/managed for licensing.
 func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.Request) {
 	actor := s.currentUserRecord(r)
 	if actor == nil {
@@ -800,7 +799,7 @@ func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.R
 	type appItem struct {
 		CatalogID string `json:"catalogId"`
 		Name      string `json:"name"`
-		Type      string `json:"type"` // catalog | project | custom
+		Type      string `json:"type"` // catalog | custom
 	}
 
 	seen := make(map[string]bool)
@@ -817,29 +816,18 @@ func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.R
 		apps = append(apps, appItem{CatalogID: cid, Name: name, Type: appType})
 	}
 
-	// 1. Built-in catalog app Reneo CRM
+	// 1. Built-in licensed app Reneo CRM
 	addApp("reneo-crm", "Reneo CRM Services", "catalog")
 
-	// 2. Installed apps from catalog
+	// 2. Apps specifically registered with licenses or pricing plans
 	if s.database != nil && s.database.IsConnected() {
-		if installed, err := s.database.ListInstalledApps(actor.ID); err == nil {
-			for _, it := range installed {
-				addApp(it.CatalogID, it.Name, "catalog")
-			}
-		}
-
-		// 3. Projects created on server
-		if projs, err := s.database.ListProjects(actor.ID); err == nil {
-			for _, p := range projs {
-				slug := "proj-" + strings.ToLower(strings.ReplaceAll(p.Name, " ", "-"))
-				addApp(slug, p.Name, "project")
-			}
-		}
-
-		// 4. Any other custom apps already in app_licenses or app_license_plans
 		if distinct, err := s.database.ListDistinctAppCatalogIDs(); err == nil {
 			for _, cid := range distinct {
-				addApp(cid, cid, "custom")
+				name := cid
+				if lic, _ := s.database.GetAppLicense(actor.ID, cid); lic != nil && lic.AppName != "" {
+					name = lic.AppName
+				}
+				addApp(cid, name, "custom")
 			}
 		}
 	}

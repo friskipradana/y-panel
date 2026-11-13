@@ -168,10 +168,10 @@ export function CreateLicenseModal({
             onChange={(e) => handleAppChange(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
           >
-            <optgroup label="Aplikasi Terdaftar & Proyek">
+            <optgroup label="Aplikasi Terdaftar">
               {availableApps.map((app) => (
                 <option key={app.catalogId} value={app.catalogId}>
-                  {app.name} ({app.catalogId}) [{app.type}]
+                  {app.name} ({app.catalogId})
                 </option>
               ))}
             </optgroup>

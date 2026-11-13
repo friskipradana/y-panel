@@ -52,6 +52,26 @@ import { LicenseIntegrationModal } from './app-licenses/LicenseIntegrationModal'
 
 type LicenseTab = 'licenses' | 'plans' | 'invoices'
 
+function formatFeatureBadge(key: string, value: unknown): string | null {
+  if (value === false || value === null || value === undefined) return null
+  const k = key.toLowerCase()
+  if (k === 'wahasync') return 'Integrasi WAHA'
+  if (k === 'birthdaybot' || k === 'botbirthday') return 'Bot Ulang Tahun'
+  if (k === 'livechat' || k === 'livechatcrm') return 'Live Chat CRM'
+  if (k === 'broadcast' || k === 'unlimitedbroadcast') {
+    return value === true ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'
+  }
+  if (k === 'apiaccess') return 'Akses API'
+  if (k === 'multiuser') return 'Multi-User'
+  if (k === 'fullmodules') return 'Semua Modul'
+  if (k === 'maxcontacts') return `${Number(value).toLocaleString('id-ID')} Kontak`
+  if (k === 'supportpriority') return `Prioritas Support: ${String(value).toUpperCase()}`
+  if (typeof value === 'boolean') {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim()
+  }
+  return `${key}: ${String(value)}`
+}
+
 export function AppLicensesWindow() {
   const { t } = useI18n()
   const queryClient = useQueryClient()
@@ -395,26 +415,31 @@ export function AppLicensesWindow() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari lisensi aplikasi..."
-                  className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] focus:outline-none focus:border-emerald-500 w-44 sm:w-56 transition"
+                  className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] focus:outline-none focus:border-emerald-500 w-48 sm:w-56 transition"
                 />
               </div>
 
-              {/* App selector filter */}
-              <select
-                value={selectedAppFilter}
-                onChange={(e) => setSelectedAppFilter(e.target.value)}
-                className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 transition"
-              >
-                <option value="ALL">Semua Aplikasi ({licenses.length})</option>
-                {availableApps.map((a) => (
-                  <option key={a.catalogId} value={a.catalogId}>
-                    {a.name} ({a.catalogId})
-                  </option>
-                ))}
-              </select>
+              {/* App selector filter (only if multiple apps exist) */}
+              {availableApps.length > 1 && (
+                <select
+                  value={selectedAppFilter}
+                  onChange={(e) => setSelectedAppFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 transition"
+                >
+                  <option value="ALL">Semua Aplikasi ({licenses.length})</option>
+                  {availableApps.map((a) => (
+                    <option key={a.catalogId} value={a.catalogId}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
+            <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center bg-[var(--card-bg)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
                 <button
+                  type="button"
                   onClick={() => setStatusFilter('ALL')}
                   className={`px-2.5 py-1 rounded-md transition ${
                     statusFilter === 'ALL'
@@ -425,6 +450,7 @@ export function AppLicensesWindow() {
                   Semua ({licenses.length})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setStatusFilter('ACTIVE')}
                   className={`px-2.5 py-1 rounded-md transition ${
                     statusFilter === 'ACTIVE'
@@ -435,6 +461,7 @@ export function AppLicensesWindow() {
                   Aktif ({activeCount})
                 </button>
                 <button
+                  type="button"
                   onClick={() => setStatusFilter('EXPIRED')}
                   className={`px-2.5 py-1 rounded-md transition ${
                     statusFilter === 'EXPIRED'
@@ -445,17 +472,17 @@ export function AppLicensesWindow() {
                   Kedaluwarsa ({expiredCount})
                 </button>
               </div>
-            </div>
 
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => setCreateLicenseModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
-            >
-              <Plus size={14} />
-              Buat Lisensi Baru
-            </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setCreateLicenseModalOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
+              >
+                <Plus size={14} />
+                Buat Lisensi
+              </Button>
+            </div>
           </div>
 
           {/* Licenses List */}
@@ -557,15 +584,15 @@ export function AppLicensesWindow() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex flex-wrap items-center gap-2 lg:self-center">
+                      <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
                         <Button
                           size="sm"
                           variant="primary"
                           onClick={() => handleOpenRenew(lic)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 shadow-sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1 shadow-sm"
                         >
-                          <CreditCard size={14} />
-                          Perpanjang Lisensi
+                          <CreditCard size={13} />
+                          Perpanjang
                         </Button>
 
                         <Button
@@ -575,20 +602,20 @@ export function AppLicensesWindow() {
                             setIntegrationLicense(lic)
                             setIntegrationModalOpen(true)
                           }}
-                          className="text-xs gap-1.5"
+                          className="text-xs gap-1"
                         >
-                          <Code2 size={14} />
-                          Integrasi API
+                          <Code2 size={13} />
+                          API
                         </Button>
 
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleOpenApp(lic)}
-                          className="text-xs gap-1.5"
+                          className="text-xs gap-1"
                         >
-                          <ExternalLink size={14} />
-                          Buka Aplikasi
+                          <ExternalLink size={13} />
+                          Buka
                         </Button>
 
                         <IconButton
@@ -600,7 +627,7 @@ export function AppLicensesWindow() {
                           }}
                           className="text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </IconButton>
                       </div>
                     </div>
@@ -653,23 +680,8 @@ export function AppLicensesWindow() {
                         <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {lic.features && Object.keys(lic.features).length > 0 ? (
                             Object.entries(lic.features).map(([k, v]) => {
-                              if (v === false || v === null || v === undefined) return null
-                              const label =
-                                k === 'broadcast' || k === 'unlimitedBroadcast'
-                                  ? 'Broadcast WA'
-                                  : k === 'apiAccess'
-                                  ? 'Akses API'
-                                  : k === 'multiUser'
-                                  ? 'Multi-User'
-                                  : k === 'fullModules'
-                                  ? 'Semua Modul'
-                                  : k === 'liveChat'
-                                  ? 'Live Chat CRM'
-                                  : k === 'botBirthday'
-                                  ? 'Bot Ultah'
-                                  : k === 'maxContacts'
-                                  ? `${Number(v).toLocaleString('id-ID')} Kontak`
-                                  : `${k}: ${String(v)}`
+                              const label = formatFeatureBadge(k, v)
+                              if (!label) return null
                               return (
                                 <span
                                   key={k}
@@ -681,24 +693,7 @@ export function AppLicensesWindow() {
                               )
                             })
                           ) : (
-                            <>
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                                <Check size={10} strokeWidth={2.5} />
-                                WA Broadcast Pacing
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                                <Check size={10} strokeWidth={2.5} />
-                                Bot Ulang Tahun
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-                                <Check size={10} strokeWidth={2.5} />
-                                Live Chat CRM
-                              </span>
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 inline-flex items-center gap-1">
-                                <Check size={10} strokeWidth={2.5} />
-                                10.000 Kontak
-                              </span>
-                            </>
+                            <span className="text-[10px] text-[var(--text-secondary)]">Fitur Standar</span>
                           )}
                         </div>
                       </div>
@@ -714,19 +709,43 @@ export function AppLicensesWindow() {
       {/* Tab 2: Plans & Pricing (Diatur dari Reneo) */}
       {activeTab === 'plans' && (
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="p-4 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
-                <Boxes size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-[var(--win-text)]">
-                  Paket & Tarif Lisensi Aplikasi Terpusat
-                </h4>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Kelola paket langganan untuk aplikasi katalog, proyek kustom, atau server. Pesanan menerbitkan invoice resmi dan dapat dibayar langsung di sini.
-                </p>
-              </div>
+          {/* Subheader Toolbar for Plans */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)]">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-semibold text-[var(--win-text)]">Aplikasi:</span>
+              {availableApps.length <= 3 ? (
+                <div className="flex items-center gap-1.5">
+                  {availableApps.map((a) => {
+                    const isSelected = selectedPlansApp === a.catalogId
+                    return (
+                      <button
+                        key={a.catalogId}
+                        type="button"
+                        onClick={() => setSelectedPlansApp(a.catalogId)}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                        }`}
+                      >
+                        {a.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <select
+                  value={selectedPlansApp}
+                  onChange={(e) => setSelectedPlansApp(e.target.value)}
+                  className="px-2.5 py-1 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--win-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500"
+                >
+                  {availableApps.map((a) => (
+                    <option key={a.catalogId} value={a.catalogId}>
+                      {a.name} ({a.catalogId})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <Button
@@ -738,28 +757,6 @@ export function AppLicensesWindow() {
               <Plus size={14} />
               Tambah Paket Tarif
             </Button>
-          </div>
-
-          {/* App Switcher for Plans */}
-          <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-[var(--win-border)]">
-            <span className="text-xs font-semibold text-[var(--win-text)] mr-1">Pilih Aplikasi:</span>
-            {availableApps.map((a) => {
-              const isSelected = selectedPlansApp === a.catalogId
-              return (
-                <button
-                  key={a.catalogId}
-                  type="button"
-                  onClick={() => setSelectedPlansApp(a.catalogId)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : 'bg-[var(--card-bg)] border border-[var(--win-border)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                  }`}
-                >
-                  {a.name} ({a.catalogId})
-                </button>
-              )
-            })}
           </div>
 
           {plansLoading ? (
@@ -823,47 +820,20 @@ export function AppLicensesWindow() {
                     </div>
 
                     <div className="border-t border-[var(--win-border)] pt-3 space-y-2 text-xs">
-                      {p.features?.maxContacts && (
-                        <div className="flex items-center gap-2 text-[var(--win-text)]">
-                          <Check size={14} className="text-emerald-500 shrink-0" />
-                          <span>Kapasitas Kontak: {Number(p.features.maxContacts).toLocaleString('id-ID')} Kontak</span>
-                        </div>
-                      )}
-                      {p.features?.unlimitedBroadcast !== undefined && (
-                        <div className="flex items-center gap-2 text-[var(--win-text)]">
-                          <Check size={14} className="text-emerald-500 shrink-0" />
-                          <span>
-                            {p.features.unlimitedBroadcast ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'}
-                          </span>
-                        </div>
-                      )}
-                      {p.features?.botBirthday && (
-                        <div className="flex items-center gap-2 text-[var(--win-text)]">
-                          <Check size={14} className="text-emerald-500 shrink-0" />
-                          <span>Bot Ucapan Ulang Tahun Otomatis</span>
-                        </div>
-                      )}
-                      {p.features?.liveChat && (
-                        <div className="flex items-center gap-2 text-[var(--win-text)]">
-                          <Check size={14} className="text-emerald-500 shrink-0" />
-                          <span>Live Chat & Conversation CRM Inbox</span>
-                        </div>
-                      )}
-                      {p.features &&
-                        Object.entries(p.features)
-                          .filter(
-                            ([k]) =>
-                              !['maxContacts', 'unlimitedBroadcast', 'botBirthday', 'liveChat'].includes(k)
+                      {p.features && Object.keys(p.features).length > 0 ? (
+                        Object.entries(p.features).map(([k, v]) => {
+                          const label = formatFeatureBadge(k, v)
+                          if (!label) return null
+                          return (
+                            <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
+                              <Check size={14} className="text-emerald-500 shrink-0" />
+                              <span>{label}</span>
+                            </div>
                           )
-                          .map(([k, v]) => {
-                            if (!v) return null
-                            return (
-                              <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
-                                <Check size={14} className="text-emerald-500 shrink-0" />
-                                <span>{String(v === true ? k : `${k}: ${v}`)}</span>
-                              </div>
-                            )
-                          })}
+                        })
+                      ) : (
+                        <div className="text-[var(--text-secondary)]">Fitur Standar</div>
+                      )}
                     </div>
                   </div>
 

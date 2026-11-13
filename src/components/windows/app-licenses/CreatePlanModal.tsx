@@ -134,7 +134,7 @@ export function CreatePlanModal({
             }}
             className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
           >
-            <optgroup label="Aplikasi & Proyek Server">
+            <optgroup label="Aplikasi Terdaftar">
               {availableApps.map((a) => (
                 <option key={a.catalogId} value={a.catalogId}>
                   {a.name} ({a.catalogId})
