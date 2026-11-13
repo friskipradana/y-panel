@@ -493,7 +493,7 @@ export function InstallAppModal({
   const subtitle = editingApp
     ? editingApp.image || editingApp.targetUrl
     : catalogApp
-      ? `${resolvedImage} — ${language === 'id' ? catalogApp.descriptionId : catalogApp.descriptionEn}`
+      ? resolvedImage
       : undefined
 
   const notes = catalogApp ? (language === 'id' ? catalogApp.notesId : catalogApp.notesEn) : ''
