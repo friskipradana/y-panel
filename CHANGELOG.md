@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.11] - 2026-11-13
+
+Disable icon and color selection for existing apps.
+
+### Peningkatan
+- **ui:** Disable icon and color selection for existing apps ([`835c209`](https://github.com/friskipradana/y-panel/commit/835c209))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.10...v1.83.11
+
 ## [1.83.10] - 2026-11-13
 
 2 perubahan, utamanya remove deprecated version for adguard-home.
