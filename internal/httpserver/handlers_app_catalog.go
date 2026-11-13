@@ -345,7 +345,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "adguard-home",
 		IconColor:       "emerald",
 		Image:           "adguard/adguardhome:latest",
-		Versions:        []string{"latest", "v0.107"},
+		Versions:        []string{"latest"},
 		ContainerPort:   3000,
 		DefaultHostPort: 18012,
 		OpenPath:        "/",
