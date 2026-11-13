@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.12] - 2026-11-13
+
+Implement context propagation in Collector.
+
+### Peningkatan
+- **system:** Implement context propagation in Collector ([`8ca1b3c`](https://github.com/friskipradana/y-panel/commit/8ca1b3c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.11...v1.83.12
+
 ## [1.83.11] - 2026-11-13
 
 Disable icon and color selection for existing apps.
