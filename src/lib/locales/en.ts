@@ -1529,6 +1529,7 @@ export const en: Record<string, string> = {
   'appCatalog.uninstallModalTitle': "Uninstall Application",
   'appCatalog.uninstallConfirmBody': "This application will be removed from your desktop and Applications menu.",
   'appCatalog.removeContainerLabel': "Also remove linked Docker container",
+  'appCatalog.containerAutoRemoveNote': "Docker container ({container}) will automatically be stopped and removed from the host.",
   'appCatalog.removeVolumesLabel': "Also delete container volume data",
   'appCatalog.removeVolumesDesc': "Data and configuration stored inside removed container volumes cannot be recovered.",
   'appCatalog.removeImageLabel': "Also remove Docker image",

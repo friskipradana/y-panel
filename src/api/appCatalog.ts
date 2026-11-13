@@ -159,7 +159,7 @@ export async function uninstallCatalogApp(
 ): Promise<UninstallAppResult> {
   const { data } = await agentApi.delete<UninstallAppResult>(`/api/v1/app-catalog/installed/${id}`, {
     params: {
-      removeContainer: opts?.removeContainer ? 'true' : 'false',
+      removeContainer: opts?.removeContainer !== false ? 'true' : 'false',
       removeVolumes: opts?.removeVolumes ? 'true' : 'false',
       removeImage: opts?.removeImage ? 'true' : 'false',
     },

@@ -48,7 +48,6 @@ export function AppCatalogWindow() {
   const [editingApp, setEditingApp] = useState<InstalledApp | null>(null)
 
   const [uninstallTarget, setUninstallTarget] = useState<InstalledApp | null>(null)
-  const [removeContainer, setRemoveContainer] = useState(false)
   const [removeVolumes, setRemoveVolumes] = useState(false)
   const [removeImage, setRemoveImage] = useState(false)
 
@@ -182,7 +181,6 @@ export function AppCatalogWindow() {
       return
     }
     setUninstallTarget(app)
-    setRemoveContainer(app.kind === 'docker')
     setRemoveVolumes(false)
     setRemoveImage(false)
   }
@@ -191,12 +189,13 @@ export function AppCatalogWindow() {
     if (!uninstallTarget) return
     const id = uninstallTarget.id
     const targetImg = uninstallTarget.image
+    const removeContainer = uninstallTarget.kind !== 'custom-url'
     setBusyAction({ id, action: 'uninstall' })
     try {
       const res = await uninstallMutation.mutateAsync({
         id,
         removeContainer,
-        removeVolumes: removeContainer && removeVolumes,
+        removeVolumes,
         removeImage,
       })
       if (res?.imageInUse) {
@@ -403,23 +402,19 @@ export function AppCatalogWindow() {
         <div className="space-y-3 text-[13px]">
           <p className="text-[var(--text-secondary)]">{t('appCatalog.uninstallConfirmBody')}</p>
           {uninstallTarget && uninstallTarget.kind !== 'custom-url' ? (
-            <div className="space-y-2 pt-1">
-              <Checkbox
-                checked={removeContainer}
-                onChange={setRemoveContainer}
-                tone="warning"
-                label={t('appCatalog.removeContainerLabel')}
-                description={uninstallTarget.containerName}
-              />
-              {removeContainer ? (
-                <Checkbox
-                  checked={removeVolumes}
-                  onChange={setRemoveVolumes}
-                  tone="warning"
-                  label={t('appCatalog.removeVolumesLabel')}
-                  description={t('appCatalog.removeVolumesDesc')}
-                />
+            <div className="space-y-2.5 pt-1">
+              {uninstallTarget.containerName ? (
+                <div className="rounded border border-[var(--border-subtle)] bg-[var(--bg-muted)]/40 px-3 py-2 text-[12px] text-[var(--text-secondary)]">
+                  <span>{t('appCatalog.containerAutoRemoveNote', { container: uninstallTarget.containerName })}</span>
+                </div>
               ) : null}
+              <Checkbox
+                checked={removeVolumes}
+                onChange={setRemoveVolumes}
+                tone="warning"
+                label={t('appCatalog.removeVolumesLabel')}
+                description={t('appCatalog.removeVolumesDesc')}
+              />
               {uninstallTarget.image ? (
                 <Checkbox
                   checked={removeImage}

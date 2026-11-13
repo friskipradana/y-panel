@@ -1529,6 +1529,7 @@ export const id: Record<string, string> = {
   'appCatalog.uninstallModalTitle': "Hapus Aplikasi",
   'appCatalog.uninstallConfirmBody': "Aplikasi akan dilepas dari desktop dan daftar Aplikasi Anda.",
   'appCatalog.removeContainerLabel': "Hapus juga container Docker terkait",
+  'appCatalog.containerAutoRemoveNote': "Container Docker ({container}) akan otomatis dihentikan dan dihapus dari server.",
   'appCatalog.removeVolumesLabel': "Hapus juga volume data container",
   'appCatalog.removeVolumesDesc': "Data dan konfigurasi di dalam container yang dihapus tidak dapat dipulihkan.",
   'appCatalog.removeImageLabel': "Hapus juga image Docker",

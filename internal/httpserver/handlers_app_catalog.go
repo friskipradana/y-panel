@@ -1432,7 +1432,8 @@ func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	removeContainer := r.URL.Query().Get("removeContainer") == "true"
+	removeContainerParam := r.URL.Query().Get("removeContainer")
+	removeContainer := removeContainerParam != "false"
 	removeVolumes := r.URL.Query().Get("removeVolumes") == "true"
 	removeImage := r.URL.Query().Get("removeImage") == "true"
 
