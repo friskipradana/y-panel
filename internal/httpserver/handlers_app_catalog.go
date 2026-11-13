@@ -417,7 +417,13 @@ func matchContainerForApp(app database.InstalledApp, containers []docker.Contain
 
 func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []docker.Container, scope ownerScope) installedAppView {
 	meta := parseAppConfigMeta(app.ConfigJSON)
-	proxyPath := fmt.Sprintf("%s%d%s", appCatalogProxyPrefix, app.ID, normalizeOpenPath(app.OpenPath))
+	slug := strings.TrimSpace(app.Slug)
+	var proxyPath string
+	if slug != "" {
+		proxyPath = fmt.Sprintf("/app/%s%s", slug, normalizeOpenPath(app.OpenPath))
+	} else {
+		proxyPath = fmt.Sprintf("%s%d%s", appCatalogProxyPrefix, app.ID, normalizeOpenPath(app.OpenPath))
+	}
 	if !app.UseProxy && app.TargetURL != "" {
 		proxyPath = app.TargetURL
 	}
@@ -512,6 +518,7 @@ type installCatalogAppRequest struct {
 	Mode          string            `json:"mode"` // "catalog" | "existing-container" | "custom-url"
 	CatalogID     string            `json:"catalogId"`
 	Version       string            `json:"version"`
+	Slug          string            `json:"slug"`
 	ContainerID   string            `json:"containerId"`
 	Name          string            `json:"name"`
 	Tagline       string            `json:"tagline"`
@@ -674,7 +681,17 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	if name == "" {
 		name = spec.Name
 	}
-	slug := s.uniqueAppSlug(actor.ID, name)
+	slugCandidate := strings.TrimSpace(req.Slug)
+	if slugCandidate == "" && strings.HasPrefix(strings.TrimSpace(req.OpenPath), "/app/") {
+		parts := strings.Split(strings.TrimPrefix(strings.TrimSpace(req.OpenPath), "/app/"), "/")
+		if len(parts) > 0 && strings.TrimSpace(parts[0]) != "" {
+			slugCandidate = parts[0]
+		}
+	}
+	if slugCandidate == "" {
+		slugCandidate = name
+	}
+	slug := s.uniqueAppSlug(actor.ID, slugCandidate)
 	containerProject := fmt.Sprintf("reneo-app-%d-%s", actor.ID, slug)
 
 	hostPort := req.HostPort
@@ -983,6 +1000,7 @@ func (s *Server) handleAppCatalogUpdate(w http.ResponseWriter, r *http.Request) 
 	}
 	var body struct {
 		Name      *string `json:"name"`
+		Slug      *string `json:"slug"`
 		Tagline   *string `json:"tagline"`
 		IconKey   *string `json:"iconKey"`
 		IconColor *string `json:"iconColor"`
@@ -1003,6 +1021,19 @@ func (s *Server) handleAppCatalogUpdate(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		patch["name"] = trimmed
+	}
+	if body.Slug != nil {
+		candidate := sanitizeAppSlug(*body.Slug)
+		if candidate == "" {
+			candidate = sanitizeAppSlug(app.Name)
+		}
+		if candidate != "" && candidate != app.Slug {
+			if existing, _ := s.database.GetInstalledAppBySlug(actor.ID, candidate); existing != nil && existing.ID != app.ID {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "path slug aplikasi ini sudah digunakan"})
+				return
+			}
+			patch["slug"] = candidate
+		}
 	}
 	if body.Tagline != nil {
 		patch["tagline"] = strings.TrimSpace(*body.Tagline)
@@ -1168,9 +1199,13 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	targetImage := strings.TrimSpace(app.Image)
+	baseImage := strings.TrimSpace(app.Image)
+	if spec, ok := findCatalogApp(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
+		baseImage = strings.TrimSpace(spec.Image)
+	}
+	targetImage := baseImage
 	if strings.TrimSpace(body.Version) != "" {
-		resolved, verErr := resolveCatalogImage(targetImage, body.Version)
+		resolved, verErr := resolveCatalogImage(baseImage, body.Version)
 		if verErr != nil {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": verErr.Error()})
 			return
@@ -1306,6 +1341,18 @@ func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Reques
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
+func appGatewaySplitPath(p string) (slug, rest string, hasSlash bool) {
+	trimmed := strings.TrimPrefix(p, "/app/")
+	if !strings.HasPrefix(p, "/app/") {
+		trimmed = strings.TrimPrefix(p, "/app")
+	}
+	idx := strings.IndexByte(trimmed, '/')
+	if idx == -1 {
+		return trimmed, "", false
+	}
+	return trimmed[:idx], trimmed[idx+1:], true
+}
+
 func appCatalogSplitPath(p string) (idStr, rest string) {
 	trimmed := strings.TrimPrefix(p, appCatalogProxyPrefix)
 	idStr, rest, _ = strings.Cut(trimmed, "/")
@@ -1381,7 +1428,7 @@ func isInsideBaseTag(buf []byte, attrOffset int) bool {
 	return strings.HasPrefix(tagStart, "base ") || strings.HasPrefix(tagStart, "base\t") || strings.HasPrefix(tagStart, "base\n") || tagStart == "base"
 }
 
-const proxyShimTemplate = `<script>(function(){var P=__PREFIX__;var ORI=location.origin;function hasP(p){return p===P||p.indexOf(P+"/")===0}function normRest(p){var r=p.slice(P.length)||"/";return r.charAt(0)==="/"?r:"/"+r}function rw(u){if(typeof u!=="string"||!u)return u;var c=u.charAt(0);if(c==="#"||c==="?")return u;if(/^(?:data|blob|mailto|tel|javascript):/i.test(u))return u;if(u.indexOf("//")===0)return u;if(c==="/"){return hasP(u)?u:P+u}if(/^(?:https?|wss?):\/\//i.test(u)){try{var parsed=new URL(u);if(parsed.host===location.host&&!hasP(parsed.pathname)){parsed.pathname=P+(parsed.pathname.charAt(0)==="/"?parsed.pathname:"/"+parsed.pathname);return parsed.href}}catch(e){}return u}try{var base=ORI+P+(location.pathname.charAt(0)==="/"?location.pathname:"/"+location.pathname);var rel=new URL(u,base);if(rel.origin===ORI&&!hasP(rel.pathname)){rel.pathname=P+rel.pathname}return rel.href}catch(e){return u}}if(window.history&&window.history.replaceState){var cur=location.pathname;if(hasP(cur)){try{window.history.replaceState(window.history.state,"",normRest(cur)+location.search+location.hash)}catch(e){}}var oPush=window.history.pushState;var oRep=window.history.replaceState;window.history.pushState=function(s,t,u){if(typeof u==="string"&&hasP(u))u=normRest(u);return oPush.call(this,s,t,u)};window.history.replaceState=function(s,t,u){if(typeof u==="string"&&hasP(u))u=normRest(u);return oRep.call(this,s,t,u)}}if(window.fetch){var oFetch=window.fetch;window.fetch=function(i,o){if(typeof i==="string"){i=rw(i)}else if(i&&typeof i.url==="string"){var nu=rw(i.url);if(nu!==i.url){try{i=new Request(nu,i)}catch(e){}}}return oFetch.call(this,i,o)}}if(window.XMLHttpRequest){var oOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"){arguments[1]=rw(u)}return oOpen.apply(this,arguments)}}if(window.WebSocket){var OWS=window.WebSocket;window.WebSocket=function(u,pr){if(typeof u==="string")u=rw(u);return arguments.length>1?new OWS(u,pr):new OWS(u)};window.WebSocket.prototype=OWS.prototype;window.WebSocket.CONNECTING=OWS.CONNECTING;window.WebSocket.OPEN=OWS.OPEN;window.WebSocket.CLOSING=OWS.CLOSING;window.WebSocket.CLOSED=OWS.CLOSED}if(window.EventSource){var OES=window.EventSource;window.EventSource=function(u,cfg){if(typeof u==="string")u=rw(u);return cfg?new OES(u,cfg):new OES(u)};window.EventSource.prototype=OES.prototype}if(navigator.sendBeacon){var oSB=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return oSB(typeof u==="string"?rw(u):u,d)}}if(window.Worker){var OWK=window.Worker;window.Worker=function(u,opts){if(typeof u==="string")u=rw(u);return opts?new OWK(u,opts):new OWK(u)};window.Worker.prototype=OWK.prototype}var oSA=Element.prototype.setAttribute;var ATTRS={src:1,href:1,data:1,action:1,poster:1,"data-src":1,formaction:1};var TAGS={IMG:1,SCRIPT:1,LINK:1,OBJECT:1,IFRAME:1,SOURCE:1,VIDEO:1,AUDIO:1,FORM:1};Element.prototype.setAttribute=function(k,v){if(typeof k==="string"&&typeof v==="string"&&ATTRS[k.toLowerCase()]&&TAGS[this.tagName]){v=rw(v)}return oSA.call(this,k,v)};function hookProp(Proto,prop){if(!Proto)return;var desc=Object.getOwnPropertyDescriptor(Proto,prop);if(desc&&desc.set&&desc.configurable){Object.defineProperty(Proto,prop,{get:desc.get,set:function(v){return desc.set.call(this,typeof v==="string"?rw(v):v)},enumerable:desc.enumerable,configurable:true})}}hookProp(HTMLImageElement.prototype,"src");hookProp(HTMLScriptElement.prototype,"src");hookProp(HTMLLinkElement.prototype,"href");hookProp(HTMLObjectElement.prototype,"data");document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a||a.target||a.hasAttribute("download"))return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var dest=new URL(href,ORI+P+location.pathname);if(dest.origin===ORI&&!hasP(dest.pathname)){e.preventDefault();location.href=ORI+P+dest.pathname+dest.search+dest.hash}}catch(err){}},false)})();</script>`
+const proxyShimTemplate = `<script>(function(){var P=__PREFIX__;var ORI=location.origin;function hasP(p){return p===P||p.indexOf(P+"/")===0}function rw(u){if(typeof u!=="string"||!u)return u;var c=u.charAt(0);if(c==="#"||c==="?")return u;if(/^(?:data|blob|mailto|tel|javascript):/i.test(u))return u;if(u.indexOf("//")===0)return u;if(c==="/"){return hasP(u)?u:P+u}if(/^(?:https?|wss?):///i.test(u)){try{var parsed=new URL(u);if(parsed.host===location.host&&!hasP(parsed.pathname)){parsed.pathname=P+(parsed.pathname.charAt(0)==="/"?parsed.pathname:"/"+parsed.pathname);return parsed.href}}catch(e){}return u}try{var base=ORI+P+(location.pathname.charAt(0)==="/"?location.pathname:"/"+location.pathname);var rel=new URL(u,base);if(rel.origin===ORI&&!hasP(rel.pathname)){rel.pathname=P+rel.pathname}return rel.href}catch(e){return u}}if(window.history&&window.history.pushState){var oPush=window.history.pushState;var oRep=window.history.replaceState;window.history.pushState=function(s,t,u){if(typeof u==="string")u=rw(u);return oPush.call(this,s,t,u)};window.history.replaceState=function(s,t,u){if(typeof u==="string")u=rw(u);return oRep.call(this,s,t,u)}}if(window.fetch){var oFetch=window.fetch;window.fetch=function(i,o){if(typeof i==="string"){i=rw(i)}else if(i&&typeof i.url==="string"){var nu=rw(i.url);if(nu!==i.url){try{i=new Request(nu,i)}catch(e){}}}return oFetch.call(this,i,o)}}if(window.XMLHttpRequest){var oOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"){arguments[1]=rw(u)}return oOpen.apply(this,arguments)}}if(window.WebSocket){var OWS=window.WebSocket;window.WebSocket=function(u,pr){if(typeof u==="string")u=rw(u);return arguments.length>1?new OWS(u,pr):new OWS(u)};window.WebSocket.prototype=OWS.prototype;window.WebSocket.CONNECTING=OWS.CONNECTING;window.WebSocket.OPEN=OWS.OPEN;window.WebSocket.CLOSING=OWS.CLOSING;window.WebSocket.CLOSED=OWS.CLOSED}if(window.EventSource){var OES=window.EventSource;window.EventSource=function(u,cfg){if(typeof u==="string")u=rw(u);return cfg?new OES(u,cfg):new OES(u)};window.EventSource.prototype=OES.prototype}if(navigator.sendBeacon){var oSB=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return oSB(typeof u==="string"?rw(u):u,d)}}if(window.Worker){var OWK=window.Worker;window.Worker=function(u,opts){if(typeof u==="string")u=rw(u);return opts?new OWK(u,opts):new OWK(u)};window.Worker.prototype=OWK.prototype}var oSA=Element.prototype.setAttribute;var ATTRS={src:1,href:1,data:1,action:1,poster:1,"data-src":1,formaction:1};var TAGS={IMG:1,SCRIPT:1,LINK:1,OBJECT:1,IFRAME:1,SOURCE:1,VIDEO:1,AUDIO:1,FORM:1};Element.prototype.setAttribute=function(k,v){if(typeof k==="string"&&typeof v==="string"&&ATTRS[k.toLowerCase()]&&TAGS[this.tagName]){v=rw(v)}return oSA.call(this,k,v)};function hookProp(Proto,prop){if(!Proto)return;var desc=Object.getOwnPropertyDescriptor(Proto,prop);if(desc&&desc.set&&desc.configurable){Object.defineProperty(Proto,prop,{get:desc.get,set:function(v){return desc.set.call(this,typeof v==="string"?rw(v):v)},enumerable:desc.enumerable,configurable:true})}}hookProp(HTMLImageElement.prototype,"src");hookProp(HTMLScriptElement.prototype,"src");hookProp(HTMLLinkElement.prototype,"href");hookProp(HTMLObjectElement.prototype,"data");document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a||a.target||a.hasAttribute("download"))return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var dest=new URL(href,ORI+P+location.pathname);if(dest.origin===ORI&&!hasP(dest.pathname)){e.preventDefault();location.href=ORI+P+dest.pathname+dest.search+dest.hash}}catch(err){}},false)})();</script>`
 
 func rewriteProxyHTML(body []byte, prefix string) []byte {
 	matches := htmlRootAttrRe.FindAllSubmatchIndex(body, -1)
@@ -1789,6 +1836,283 @@ func (rt *appCatalogRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	return nil, lastErr
 }
 
+func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *database.User, app *database.InstalledApp, prefix, rest string) {
+	// Intercept Cloudflare RUM / Web Analytics to avoid 404 upstream spam
+	if strings.Contains(r.URL.Path, "cdn-cgi/rum") || strings.HasSuffix(rest, "cdn-cgi/rum") {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Lightweight readiness probe from the waiting screen so iframe reloads only once the container answers.
+	if r.Header.Get("X-Reneo-Probe") == "1" {
+		w.Header().Set("Cache-Control", "no-store")
+		if app.Kind == "custom-url" {
+			w.Header().Set("X-Reneo-Proxy-State", "ready")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		hosts, _ := s.collectAppCandidateHosts(u, app)
+		if _, ok := waitForAppHTTPReady(hosts, 500*time.Millisecond); ok {
+			w.Header().Set("X-Reneo-Proxy-State", "ready")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		hosts, _ = s.healAndResolveAppTargets(u, app)
+		if _, ok := waitForAppHTTPReady(hosts, 700*time.Millisecond); ok {
+			w.Header().Set("X-Reneo-Proxy-State", "ready")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("X-Reneo-Proxy-State", "waiting")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var targetURL *url.URL
+	if app.Kind == "custom-url" {
+		if !app.UseProxy {
+			http.Error(w, "proxy disabled for this custom url app", http.StatusForbidden)
+			return
+		}
+		valid, err := validateTargetURLForRole(app.TargetURL, u.Role, true)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		targetURL, err = url.Parse(valid)
+		if err != nil {
+			http.Error(w, "invalid target url", http.StatusBadGateway)
+			return
+		}
+	} else {
+		if app.HostPort <= 0 {
+			http.Error(w, "application host port is not configured", http.StatusBadGateway)
+			return
+		}
+		targetURL = &url.URL{
+			Scheme: "http",
+			Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort)),
+		}
+	}
+
+	meta := parseAppConfigMeta(app.ConfigJSON)
+	keepPrefix := effectiveKeepPrefix(*app, meta)
+	cleanPrefix := strings.TrimSuffix(prefix, "/")
+
+	proxy := &httputil.ReverseProxy{
+		Transport: &appCatalogRoundTripper{
+			base:       http.DefaultTransport,
+			server:     s,
+			actor:      u,
+			app:        app,
+			targetURL:  targetURL,
+			keepPrefix: keepPrefix,
+			prefix:     cleanPrefix,
+		},
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.Out.URL.Scheme = targetURL.Scheme
+			pr.Out.URL.Host = targetURL.Host
+			pr.Out.Host = targetURL.Host
+			pr.Out.Header.Del("Authorization")
+			if cleanedCookies := stripPanelCookies(pr.In.Header.Get("Cookie")); cleanedCookies != "" {
+				pr.Out.Header.Set("Cookie", cleanedCookies)
+			} else {
+				pr.Out.Header.Del("Cookie")
+			}
+			if app.Kind != "custom-url" {
+				// Align Origin/Referer with the container target so CSRF & Socket.IO checks pass cleanly inside Reneo's window.
+				upstreamOrigin := targetURL.Scheme + "://" + targetURL.Host
+				if pr.In.Header.Get("Origin") != "" {
+					pr.Out.Header.Set("Origin", upstreamOrigin)
+				}
+				if ref := pr.In.Header.Get("Referer"); ref != "" {
+					if refURL, parseErr := url.Parse(ref); parseErr == nil {
+						refURL.Scheme = targetURL.Scheme
+						refURL.Host = targetURL.Host
+						if !keepPrefix && (refURL.Path == cleanPrefix || strings.HasPrefix(refURL.Path, cleanPrefix+"/")) {
+							refURL.Path = strings.TrimPrefix(refURL.Path, cleanPrefix)
+							if refURL.Path == "" {
+								refURL.Path = "/"
+							}
+						}
+						pr.Out.Header.Set("Referer", refURL.String())
+					}
+				}
+			}
+			if keepPrefix {
+				pr.Out.URL.Path = pr.In.URL.Path
+				pr.Out.URL.RawPath = pr.In.URL.RawPath
+			} else {
+				basePath := strings.TrimSuffix(targetURL.Path, "/")
+				pr.Out.URL.Path = basePath + "/" + rest
+				pr.Out.URL.RawPath = ""
+				// Request uncompressed text so HTML/CSS sub-path rewrites and SPA shims always apply cleanly.
+				pr.Out.Header.Del("Accept-Encoding")
+				if strings.Contains(pr.In.Header.Get("Accept"), "text/html") || strings.Contains(pr.In.Header.Get("Accept"), "text/css") || strings.HasSuffix(pr.Out.URL.Path, ".html") || strings.HasSuffix(pr.Out.URL.Path, ".css") {
+					pr.Out.Header.Del("If-None-Match")
+					pr.Out.Header.Del("If-Modified-Since")
+				}
+			}
+			pr.SetXForwarded()
+		},
+		ModifyResponse: func(resp *http.Response) error {
+			if resp.StatusCode == http.StatusSwitchingProtocols {
+				return nil
+			}
+			resp.Header.Del("X-Frame-Options")
+			resp.Header.Del("Cross-Origin-Opener-Policy")
+			resp.Header.Del("Cross-Origin-Embedder-Policy")
+			if csp := resp.Header.Get("Content-Security-Policy"); csp != "" && strings.Contains(strings.ToLower(csp), "frame-ancestors") {
+				// Strip restrictive frame-ancestors so the app renders inside its Reneo desktop window.
+				directives := strings.Split(csp, ";")
+				filtered := make([]string, 0, len(directives))
+				for _, d := range directives {
+					if strings.HasPrefix(strings.ToLower(strings.TrimSpace(d)), "frame-ancestors") {
+						continue
+					}
+					if strings.TrimSpace(d) != "" {
+						filtered = append(filtered, d)
+					}
+				}
+				if len(filtered) > 0 {
+					resp.Header.Set("Content-Security-Policy", strings.Join(filtered, ";"))
+				} else {
+					resp.Header.Del("Content-Security-Policy")
+				}
+			}
+
+			if loc := resp.Header.Get("Location"); loc != "" {
+				resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, cleanPrefix, keepPrefix))
+			}
+
+			if !keepPrefix {
+				if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
+					resp.Header.Del("Set-Cookie")
+					for _, c := range cookies {
+						resp.Header.Add("Set-Cookie", rewriteCookiePath(c, cleanPrefix))
+					}
+				}
+				ct := strings.ToLower(resp.Header.Get("Content-Type"))
+				if resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
+					isHTML := strings.Contains(ct, "text/html")
+					isCSS := strings.Contains(ct, "text/css")
+					if isHTML || isCSS {
+						raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+						_ = resp.Body.Close()
+						if readErr == nil {
+							var updated []byte
+							if isHTML {
+								updated = rewriteProxyHTML(raw, cleanPrefix)
+							} else {
+								updated = rewriteProxyCSS(raw, cleanPrefix)
+							}
+							resp.Body = io.NopCloser(bytes.NewReader(updated))
+							resp.ContentLength = int64(len(updated))
+							resp.Header.Set("Content-Length", strconv.Itoa(len(updated)))
+						}
+					}
+				}
+			}
+			return nil
+		},
+		ErrorHandler: func(rw http.ResponseWriter, req *http.Request, _ error) {
+			rw.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+			rw.Header().Set("X-Reneo-Proxy-State", "waiting")
+			rw.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if req.Method == http.MethodGet || req.Method == http.MethodHead {
+				rw.WriteHeader(http.StatusOK)
+			} else {
+				rw.WriteHeader(http.StatusBadGateway)
+			}
+			portLabel := strconv.Itoa(app.HostPort)
+			if app.Kind == "custom-url" {
+				portLabel = app.TargetURL
+			}
+			diagHTML := ""
+			if app.Kind != "custom-url" {
+				if _, matched := s.collectAppCandidateHosts(u, app); matched != nil {
+					statusLine := strings.TrimSpace(matched.Status)
+					if statusLine == "" {
+						statusLine = matched.State
+					}
+					logSnippet := ""
+					if logs, logErr := docker.ReadContainerLogs(matched.ID, 8); logErr == nil && len(logs.Lines) > 0 {
+						logSnippet = strings.TrimSpace(strings.Join(logs.Lines, "\n"))
+					}
+					if statusLine != "" || logSnippet != "" {
+						diagHTML = `<div class="diag"><div class="diag-hd">Status Container: <code>` + htmlEscapeMinimal(statusLine) + `</code></div>`
+						if logSnippet != "" {
+							diagHTML += `<pre class="diag-pre">` + htmlEscapeMinimal(logSnippet) + `</pre>`
+						}
+						diagHTML += `</div>`
+					}
+				}
+			}
+			_, _ = io.WriteString(rw, `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light dark;--bg:#f8fafc;--card:#ffffff;--bd:#e2e8f0;--tx:#0f172a;--sub:#475569;--btn:#2563eb;--btx:#ffffff;--pre:#f1f5f9}@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#182132;--bd:#273549;--tx:#f1f5f9;--sub:#94a3b8;--btn:#3b82f6;--btx:#ffffff;--pre:#0b1120}}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);color:var(--tx);font:13px/1.55 system-ui,-apple-system,sans-serif}.box{max-width:460px;width:100%;padding:20px;border-radius:12px;border:1px solid var(--bd);background:var(--card)}.ttl{margin:0 0 6px;font-size:15px;font-weight:600}.dsc{margin:0 0 14px;color:var(--sub)}.diag{margin:0 0 14px;padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--pre);font-size:12px}.diag-hd{margin-bottom:6px;color:var(--sub)}.diag-pre{margin:0;max-height:130px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:11.5px/1.45 ui-monospace,monospace;color:var(--tx)}.btn{border:0;border-radius:8px;padding:8px 14px;background:var(--btn);color:var(--btx);font:600 12.5px inherit;cursor:pointer}.btn:hover{opacity:.92}</style></head><body><div class="box"><h3 class="ttl">Aplikasi sedang memulai atau belum merespons</h3><p class="dsc">Menunggu layanan aktif di <code style="font-family:ui-monospace,monospace">`+htmlEscapeMinimal(portLabel)+`</code>. Halaman ini akan terbuka otomatis begitu layanan siap.</p>`+diagHTML+`<button class="btn" onclick="location.reload()">Muat Ulang</button></div><script>(function(){var tries=0;function poll(){if(tries>=24)return;tries++;fetch(location.href,{headers:{"X-Reneo-Probe":"1"},cache:"no-store"}).then(function(r){if(r.headers.get("X-Reneo-Proxy-State")==="ready"){location.reload();return}setTimeout(poll,2500)}).catch(function(){setTimeout(poll,3000)})}setTimeout(poll,2000)})()</script></body></html>`)
+		},
+	}
+
+	proxy.ServeHTTP(w, r)
+}
+
+func (s *Server) appGatewayProxy() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug, rest, hasSlash := appGatewaySplitPath(r.URL.Path)
+		slug = strings.TrimSpace(slug)
+		if slug == "" {
+			http.NotFound(w, r)
+			return
+		}
+		if !hasSlash {
+			target := "/app/" + slug + "/"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+			return
+		}
+
+		u := s.currentUserRecord(r)
+		if u == nil {
+			// Check if an app exists with this slug
+			app, _ := s.database.GetInstalledAppBySlugAnyUser(slug)
+			if app == nil {
+				http.NotFound(w, r)
+				return
+			}
+			// Unauthenticated browser navigation: redirect to login with redirect parameter
+			isHTML := strings.Contains(r.Header.Get("Accept"), "text/html") || r.Header.Get("Sec-Fetch-Dest") == "document"
+			if (r.Method == http.MethodGet || r.Method == http.MethodHead) && isHTML {
+				targetURI := r.URL.RequestURI()
+				http.Redirect(w, r, "/login?redirect="+url.QueryEscape(targetURI), http.StatusFound)
+				return
+			}
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if s.isDemoUser(u) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+
+		app, err := s.database.GetInstalledAppBySlug(u.ID, slug)
+		if (app == nil || err != nil) && (auth.IsSuperAdmin(u.Role) || auth.IsAdmin(u.Role)) {
+			app, _ = s.database.GetInstalledAppBySlugAnyUser(slug)
+		}
+		if app == nil {
+			http.NotFound(w, r)
+			return
+		}
+		if app.UserID != u.ID && !s.ownerScopeFor(u).has(app.UserID) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+
+		s.serveAppProxy(w, r, u, app, "/app/"+slug, rest)
+	})
+}
+
 func (s *Server) appCatalogProxy() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u := userFromCtx(r)
@@ -1820,216 +2144,7 @@ func (s *Server) appCatalogProxy() http.Handler {
 			return
 		}
 
-		// Lightweight readiness probe from the waiting screen so iframe reloads only once the container answers.
-		if r.Header.Get("X-Reneo-Probe") == "1" {
-			w.Header().Set("Cache-Control", "no-store")
-			if app.Kind == "custom-url" {
-				w.Header().Set("X-Reneo-Proxy-State", "ready")
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			hosts, _ := s.collectAppCandidateHosts(u, app)
-			if _, ok := waitForAppHTTPReady(hosts, 500*time.Millisecond); ok {
-				w.Header().Set("X-Reneo-Proxy-State", "ready")
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			hosts, _ = s.healAndResolveAppTargets(u, app)
-			if _, ok := waitForAppHTTPReady(hosts, 700*time.Millisecond); ok {
-				w.Header().Set("X-Reneo-Proxy-State", "ready")
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			w.Header().Set("X-Reneo-Proxy-State", "waiting")
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		var targetURL *url.URL
-		if app.Kind == "custom-url" {
-			if !app.UseProxy {
-				http.Error(w, "proxy disabled for this custom url app", http.StatusForbidden)
-				return
-			}
-			valid, err := validateTargetURLForRole(app.TargetURL, u.Role, true)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusForbidden)
-				return
-			}
-			targetURL, err = url.Parse(valid)
-			if err != nil {
-				http.Error(w, "invalid target url", http.StatusBadGateway)
-				return
-			}
-		} else {
-			if app.HostPort <= 0 {
-				http.Error(w, "application host port is not configured", http.StatusBadGateway)
-				return
-			}
-			targetURL = &url.URL{
-				Scheme: "http",
-				Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort)),
-			}
-		}
-
-		meta := parseAppConfigMeta(app.ConfigJSON)
-		keepPrefix := effectiveKeepPrefix(*app, meta)
-		prefix := strings.TrimSuffix(appCatalogProxyPrefix+idStr, "/")
-
-		proxy := &httputil.ReverseProxy{
-			Transport: &appCatalogRoundTripper{
-				base:       http.DefaultTransport,
-				server:     s,
-				actor:      u,
-				app:        app,
-				targetURL:  targetURL,
-				keepPrefix: keepPrefix,
-				prefix:     prefix,
-			},
-			Rewrite: func(pr *httputil.ProxyRequest) {
-				pr.Out.URL.Scheme = targetURL.Scheme
-				pr.Out.URL.Host = targetURL.Host
-				pr.Out.Host = targetURL.Host
-				pr.Out.Header.Del("Authorization")
-				if cleanedCookies := stripPanelCookies(pr.In.Header.Get("Cookie")); cleanedCookies != "" {
-					pr.Out.Header.Set("Cookie", cleanedCookies)
-				} else {
-					pr.Out.Header.Del("Cookie")
-				}
-				if app.Kind != "custom-url" {
-					// Align Origin/Referer with the container target so CSRF & Socket.IO checks pass cleanly inside Reneo's window.
-					upstreamOrigin := targetURL.Scheme + "://" + targetURL.Host
-					if pr.In.Header.Get("Origin") != "" {
-						pr.Out.Header.Set("Origin", upstreamOrigin)
-					}
-					if ref := pr.In.Header.Get("Referer"); ref != "" {
-						if refURL, parseErr := url.Parse(ref); parseErr == nil {
-							refURL.Scheme = targetURL.Scheme
-							refURL.Host = targetURL.Host
-							if !keepPrefix && (refURL.Path == prefix || strings.HasPrefix(refURL.Path, prefix+"/")) {
-								refURL.Path = strings.TrimPrefix(refURL.Path, prefix)
-								if refURL.Path == "" {
-									refURL.Path = "/"
-								}
-							}
-							pr.Out.Header.Set("Referer", refURL.String())
-						}
-					}
-				}
-				if keepPrefix {
-					pr.Out.URL.Path = pr.In.URL.Path
-					pr.Out.URL.RawPath = pr.In.URL.RawPath
-				} else {
-					basePath := strings.TrimSuffix(targetURL.Path, "/")
-					pr.Out.URL.Path = basePath + "/" + rest
-					pr.Out.URL.RawPath = ""
-					// Request uncompressed text so HTML/CSS sub-path rewrites and SPA shims always apply cleanly.
-					pr.Out.Header.Del("Accept-Encoding")
-					if strings.Contains(pr.In.Header.Get("Accept"), "text/html") || strings.Contains(pr.In.Header.Get("Accept"), "text/css") || strings.HasSuffix(pr.Out.URL.Path, ".html") || strings.HasSuffix(pr.Out.URL.Path, ".css") {
-						pr.Out.Header.Del("If-None-Match")
-						pr.Out.Header.Del("If-Modified-Since")
-					}
-				}
-				pr.SetXForwarded()
-			},
-			ModifyResponse: func(resp *http.Response) error {
-				if resp.StatusCode == http.StatusSwitchingProtocols {
-					return nil
-				}
-				resp.Header.Del("X-Frame-Options")
-				resp.Header.Del("Cross-Origin-Opener-Policy")
-				resp.Header.Del("Cross-Origin-Embedder-Policy")
-				if csp := resp.Header.Get("Content-Security-Policy"); csp != "" && strings.Contains(strings.ToLower(csp), "frame-ancestors") {
-					// Strip restrictive frame-ancestors so the app renders inside its Reneo desktop window.
-					directives := strings.Split(csp, ";")
-					filtered := make([]string, 0, len(directives))
-					for _, d := range directives {
-						if strings.HasPrefix(strings.ToLower(strings.TrimSpace(d)), "frame-ancestors") {
-							continue
-						}
-						if strings.TrimSpace(d) != "" {
-							filtered = append(filtered, d)
-						}
-					}
-					if len(filtered) > 0 {
-						resp.Header.Set("Content-Security-Policy", strings.Join(filtered, ";"))
-					} else {
-						resp.Header.Del("Content-Security-Policy")
-					}
-				}
-
-				if loc := resp.Header.Get("Location"); loc != "" {
-					resp.Header.Set("Location", rewriteProxyLocation(loc, targetURL, prefix, keepPrefix))
-				}
-
-				if !keepPrefix {
-					if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
-						resp.Header.Del("Set-Cookie")
-						for _, c := range cookies {
-							resp.Header.Add("Set-Cookie", rewriteCookiePath(c, prefix))
-						}
-					}
-					ct := strings.ToLower(resp.Header.Get("Content-Type"))
-					if resp.Header.Get("Content-Encoding") == "" && resp.Body != nil {
-						isHTML := strings.Contains(ct, "text/html")
-						isCSS := strings.Contains(ct, "text/css")
-						if isHTML || isCSS {
-							raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-							_ = resp.Body.Close()
-							if readErr == nil {
-								var updated []byte
-								if isHTML {
-									updated = rewriteProxyHTML(raw, prefix)
-								} else {
-									updated = rewriteProxyCSS(raw, prefix)
-								}
-								resp.Body = io.NopCloser(bytes.NewReader(updated))
-								resp.ContentLength = int64(len(updated))
-								resp.Header.Set("Content-Length", strconv.Itoa(len(updated)))
-							}
-						}
-					}
-				}
-				return nil
-			},
-			ErrorHandler: func(rw http.ResponseWriter, req *http.Request, _ error) {
-				rw.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
-				rw.Header().Set("X-Reneo-Proxy-State", "waiting")
-				rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-				if req.Method == http.MethodGet || req.Method == http.MethodHead {
-					rw.WriteHeader(http.StatusOK)
-				} else {
-					rw.WriteHeader(http.StatusBadGateway)
-				}
-				portLabel := strconv.Itoa(app.HostPort)
-				if app.Kind == "custom-url" {
-					portLabel = app.TargetURL
-				}
-				diagHTML := ""
-				if app.Kind != "custom-url" {
-					if _, matched := s.collectAppCandidateHosts(u, app); matched != nil {
-						statusLine := strings.TrimSpace(matched.Status)
-						if statusLine == "" {
-							statusLine = matched.State
-						}
-						logSnippet := ""
-						if logs, logErr := docker.ReadContainerLogs(matched.ID, 8); logErr == nil && len(logs.Lines) > 0 {
-							logSnippet = strings.TrimSpace(strings.Join(logs.Lines, "\n"))
-						}
-						if statusLine != "" || logSnippet != "" {
-							diagHTML = `<div class="diag"><div class="diag-hd">Status Container: <code>` + htmlEscapeMinimal(statusLine) + `</code></div>`
-							if logSnippet != "" {
-								diagHTML += `<pre class="diag-pre">` + htmlEscapeMinimal(logSnippet) + `</pre>`
-							}
-							diagHTML += `</div>`
-						}
-					}
-				}
-				_, _ = io.WriteString(rw, `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light dark;--bg:#f8fafc;--card:#ffffff;--bd:#e2e8f0;--tx:#0f172a;--sub:#475569;--btn:#2563eb;--btx:#ffffff;--pre:#f1f5f9}@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#182132;--bd:#273549;--tx:#f1f5f9;--sub:#94a3b8;--btn:#3b82f6;--btx:#ffffff;--pre:#0b1120}}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);color:var(--tx);font:13px/1.55 system-ui,-apple-system,sans-serif}.box{max-width:460px;width:100%;padding:20px;border-radius:12px;border:1px solid var(--bd);background:var(--card)}.ttl{margin:0 0 6px;font-size:15px;font-weight:600}.dsc{margin:0 0 14px;color:var(--sub)}.diag{margin:0 0 14px;padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--pre);font-size:12px}.diag-hd{margin-bottom:6px;color:var(--sub)}.diag-pre{margin:0;max-height:130px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:11.5px/1.45 ui-monospace,monospace;color:var(--tx)}.btn{border:0;border-radius:8px;padding:8px 14px;background:var(--btn);color:var(--btx);font:600 12.5px inherit;cursor:pointer}.btn:hover{opacity:.92}</style></head><body><div class="box"><h3 class="ttl">Aplikasi sedang memulai atau belum merespons</h3><p class="dsc">Menunggu layanan aktif di <code style="font-family:ui-monospace,monospace">`+htmlEscapeMinimal(portLabel)+`</code>. Halaman ini akan terbuka otomatis begitu layanan siap.</p>`+diagHTML+`<button class="btn" onclick="location.reload()">Muat Ulang</button></div><script>(function(){var tries=0;function poll(){if(tries>=24)return;tries++;fetch(location.href,{headers:{"X-Reneo-Probe":"1"},cache:"no-store"}).then(function(r){if(r.headers.get("X-Reneo-Proxy-State")==="ready"){location.reload();return}setTimeout(poll,2500)}).catch(function(){setTimeout(poll,3000)})}setTimeout(poll,2000)})()</script></body></html>`)
-			},
-		}
-
-		proxy.ServeHTTP(w, r)
+		s.serveAppProxy(w, r, u, app, appCatalogProxyPrefix+idStr, rest)
 	})
 }
 

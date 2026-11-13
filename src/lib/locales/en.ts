@@ -1541,6 +1541,7 @@ export const en: Record<string, string> = {
   'appCatalog.taglineLabel': "Short Description",
   'appCatalog.taglinePlaceholder': "Brief note on what this app does",
   'appCatalog.openPathLabel': "Open Path",
+  'appCatalog.openPathHint': "Direct app gateway path (defaults to /app/[name]). Users must log into Reneo first.",
   'appCatalog.iconLabel': "Icon",
   'appCatalog.colorLabel': "Color",
   'appCatalog.versionLabel': "Version / Image Tag",

@@ -438,5 +438,8 @@ func (s *Server) routes() {
 		})
 	}
 
+	// Direct app catalog gateway proxy (/app/{slug}/*)
+	s.mux.Handle("/app/", s.appGatewayProxy())
+
 	s.mux.Handle("/", s.authedFrontend)
 }

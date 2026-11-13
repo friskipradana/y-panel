@@ -1541,6 +1541,7 @@ export const id: Record<string, string> = {
   'appCatalog.taglineLabel': "Deskripsi Singkat",
   'appCatalog.taglinePlaceholder': "Catatan singkat mengenai fungsi aplikasi",
   'appCatalog.openPathLabel': "Path Awal",
+  'appCatalog.openPathHint': "Path akses langsung (otomatis /app/[nama]). Pengguna wajib login Reneo sebelum mengakses.",
   'appCatalog.iconLabel': "Ikon",
   'appCatalog.colorLabel': "Warna",
   'appCatalog.versionLabel': "Versi / Tag Image",

@@ -59,9 +59,14 @@ export function AppRouter() {
 
   const handleLogin = async (userData?: { username: string; role?: string }) => {
     await loginSuccess(userData)
-    // a page that sent the visitor to the login form (e.g. /database/3) is where they go back to
-    const next = new URLSearchParams(location.search).get('next')
+    // a page that sent the visitor to the login form (e.g. /app/grafana/ or /database/3) is where they go back to
+    const searchParams = new URLSearchParams(location.search)
+    const next = searchParams.get('next') || searchParams.get('redirect')
     const safeNext = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith(LOGIN_PATH) ? next : HOME_PATH
+    if (safeNext.startsWith('/app/')) {
+      window.location.href = safeNext
+      return
+    }
     navigate(safeNext, { replace: true })
   }
 
@@ -102,7 +107,19 @@ export function AppRouter() {
           path={LOGIN_PATH}
           element={
             authenticated ? (
-              <Navigate to={HOME_PATH} replace />
+              (() => {
+                const searchParams = new URLSearchParams(location.search)
+                const next = searchParams.get('next') || searchParams.get('redirect')
+                const safeNext = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith(LOGIN_PATH) ? next : null
+                if (safeNext) {
+                  if (safeNext.startsWith('/app/')) {
+                    window.location.href = safeNext
+                    return null
+                  }
+                  return <Navigate to={safeNext} replace />
+                }
+                return <Navigate to={HOME_PATH} replace />
+              })()
             ) : (
               <div
                 className="absolute inset-0 z-[10000] overflow-hidden"

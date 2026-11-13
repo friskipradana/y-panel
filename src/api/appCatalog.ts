@@ -78,6 +78,7 @@ export interface InstallCatalogAppPayload {
   mode: 'catalog' | 'existing-container' | 'custom-url'
   catalogId?: string
   version?: string
+  slug?: string
   containerId?: string
   name?: string
   tagline?: string
@@ -93,6 +94,7 @@ export interface InstallCatalogAppPayload {
 
 export interface UpdateInstalledAppPayload {
   name?: string
+  slug?: string
   tagline?: string
   iconKey?: string
   iconColor?: string

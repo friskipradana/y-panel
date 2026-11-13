@@ -102,6 +102,21 @@ func (m *Manager) GetInstalledAppBySlug(userID int64, slug string) (*InstalledAp
 	return item, err
 }
 
+func (m *Manager) GetInstalledAppBySlugAnyUser(slug string) (*InstalledApp, error) {
+	if m == nil || !m.IsConnected() {
+		return nil, errors.New("database not connected")
+	}
+	row := m.db.QueryRow(
+		`SELECT `+installedAppCols+` FROM installed_apps WHERE slug = $1 ORDER BY id ASC LIMIT 1`,
+		slug,
+	)
+	item, err := scanInstalledApp(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return item, err
+}
+
 func (m *Manager) CreateInstalledApp(app *InstalledApp) (*InstalledApp, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")

@@ -161,3 +161,30 @@ func TestAppCatalogSplitPath(t *testing.T) {
 	}
 }
 
+func TestAppGatewaySplitPath(t *testing.T) {
+	slug, rest, hasSlash := appGatewaySplitPath("/app/uptime-kuma/setup")
+	if slug != "uptime-kuma" || rest != "setup" || !hasSlash {
+		t.Fatalf("unexpected split: slug=%q rest=%q hasSlash=%v", slug, rest, hasSlash)
+	}
+
+	slug, rest, hasSlash = appGatewaySplitPath("/app/grafana/")
+	if slug != "grafana" || rest != "" || !hasSlash {
+		t.Fatalf("unexpected split trailing slash: slug=%q rest=%q hasSlash=%v", slug, rest, hasSlash)
+	}
+
+	slug, rest, hasSlash = appGatewaySplitPath("/app/grafana")
+	if slug != "grafana" || rest != "" || hasSlash {
+		t.Fatalf("unexpected split without slash: slug=%q rest=%q hasSlash=%v", slug, rest, hasSlash)
+	}
+}
+
+func TestProxyShimTemplateDoesNotStripHistory(t *testing.T) {
+	if strings.Contains(proxyShimTemplate, "normRest(cur)") {
+		t.Fatal("proxyShimTemplate must not strip history prefix, which causes 404 on refresh")
+	}
+	if !strings.Contains(proxyShimTemplate, "window.history.pushState") {
+		t.Fatal("proxyShimTemplate must hook pushState to preserve gateway prefix")
+	}
+}
+
+

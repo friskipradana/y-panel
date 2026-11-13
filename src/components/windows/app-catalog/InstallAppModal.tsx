@@ -60,6 +60,41 @@ const ICON_COLOR_OPTIONS = [
   'violet', 'indigo', 'rose', 'orange', 'slate',
 ]
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function parseAppAccessPath(raw: string, defaultSlug: string): { slug: string; subpath: string } {
+  let cleaned = raw.trim()
+  if (!cleaned) cleaned = `/app/${defaultSlug}`
+  if (!cleaned.startsWith('/')) cleaned = '/' + cleaned
+  if (cleaned.startsWith('/app/')) {
+    const rest = cleaned.slice(5)
+    const slashIdx = rest.indexOf('/')
+    if (slashIdx === -1) {
+      return { slug: slugify(rest) || defaultSlug, subpath: '/' }
+    }
+    return {
+      slug: slugify(rest.slice(0, slashIdx)) || defaultSlug,
+      subpath: rest.slice(slashIdx) || '/',
+    }
+  }
+  const trimmed = cleaned.replace(/^\/+/, '')
+  const slashIdx = trimmed.indexOf('/')
+  if (slashIdx === -1) {
+    return { slug: slugify(trimmed) || defaultSlug, subpath: '/' }
+  }
+  return {
+    slug: slugify(trimmed.slice(0, slashIdx)) || defaultSlug,
+    subpath: trimmed.slice(slashIdx) || '/',
+  }
+}
+
 export function InstallAppModal({
   open,
   onClose,
@@ -77,7 +112,8 @@ export function InstallAppModal({
   const [name, setName] = useState('')
   const [tagline, setTagline] = useState('')
   const [hostPort, setHostPort] = useState('')
-  const [openPath, setOpenPath] = useState('/')
+  const [openPath, setOpenPath] = useState('/app/my-app')
+  const [isPathCustomized, setIsPathCustomized] = useState(false)
   const [targetUrl, setTargetUrl] = useState('')
   const [useProxy, setUseProxy] = useState(true)
   const [containerId, setContainerId] = useState('')
@@ -99,10 +135,13 @@ export function InstallAppModal({
     if (!open) return
     if (editingApp) {
       const editParsed = editingApp.image ? splitImageRepoTag(editingApp.image) : null
+      const currentSlug = editingApp.slug || String(editingApp.id)
+      const currentSub = editingApp.openPath && editingApp.openPath !== '/' ? editingApp.openPath : ''
       setName(editingApp.name)
       setTagline(editingApp.tagline || '')
       setHostPort(editingApp.hostPort ? String(editingApp.hostPort) : '')
-      setOpenPath(editingApp.openPath || '/')
+      setOpenPath(`/app/${currentSlug}${currentSub}`)
+      setIsPathCustomized(true)
       setTargetUrl(editingApp.targetUrl || '')
       setUseProxy(editingApp.useProxy)
       setIconKey(editingApp.iconKey || 'globe')
@@ -116,10 +155,12 @@ export function InstallAppModal({
     if (catalogApp) {
       const { tag: defaultTag } = splitImageRepoTag(catalogApp.image)
       const initialVersion = catalogApp.versions?.[0] || defaultTag
+      const defaultSlug = catalogApp.id || slugify(catalogApp.name) || 'app'
       setName(catalogApp.name)
       setTagline(language === 'id' ? catalogApp.taglineId : catalogApp.taglineEn)
       setHostPort(String(catalogApp.defaultHostPort || ''))
-      setOpenPath(catalogApp.openPath || '/')
+      setOpenPath(`/app/${defaultSlug}`)
+      setIsPathCustomized(false)
       setTargetUrl('')
       setUseProxy(true)
       setContainerId('')
@@ -139,7 +180,8 @@ export function InstallAppModal({
     setName('')
     setTagline('')
     setHostPort('')
-    setOpenPath('/')
+    setOpenPath('/app/my-app')
+    setIsPathCustomized(false)
     setTargetUrl('')
     setUseProxy(true)
     setContainerId('')
@@ -255,12 +297,15 @@ export function InstallAppModal({
     e.preventDefault()
 
     if (editingApp) {
+      const defaultSlug = editingApp.slug || slugify(name) || 'app'
+      const { slug: parsedSlug, subpath } = parseAppAccessPath(openPath, defaultSlug)
       const patch: UpdateInstalledAppPayload = {
         name: name.trim(),
+        slug: parsedSlug,
         tagline: tagline.trim(),
         iconKey,
         iconColor,
-        openPath: openPath.trim() || '/',
+        openPath: subpath,
         useProxy,
         ...(editingApp.kind === 'custom-url' ? { targetUrl: targetUrl.trim() } : {}),
       }
@@ -289,18 +334,21 @@ export function InstallAppModal({
       if (k) mergedEnv[k] = row.value
     }
 
+    const defaultSlug = catalogApp?.id || slugify(name) || 'app'
+    const { slug: parsedSlug, subpath } = parseAppAccessPath(openPath, defaultSlug)
     const parsedPort = hostPort.trim() ? Number(hostPort.trim()) : undefined
     const payload: InstallCatalogAppPayload = catalogApp
       ? {
           mode: 'catalog',
           catalogId: catalogApp.id,
           version: effectiveVersion !== defaultTag ? effectiveVersion : undefined,
+          slug: parsedSlug,
           name: name.trim() || catalogApp.name,
           tagline: tagline.trim(),
           iconKey,
           iconColor,
           hostPort: parsedPort,
-          openPath: openPath.trim() || catalogApp.openPath || '/',
+          openPath: subpath,
           useProxy,
           env: mergedEnv,
         }
@@ -308,16 +356,18 @@ export function InstallAppModal({
         ? {
             mode: 'existing-container',
             containerId,
+            slug: parsedSlug,
             name: name.trim(),
             tagline: tagline.trim(),
             hostPort: parsedPort,
-            openPath: openPath.trim() || '/',
+            openPath: subpath,
             iconKey,
             iconColor,
             useProxy: true,
           }
         : {
             mode: 'custom-url',
+            slug: parsedSlug,
             name: name.trim(),
             tagline: tagline.trim(),
             targetUrl: targetUrl.trim(),
@@ -405,7 +455,14 @@ export function InstallAppModal({
           <Field label={t('appCatalog.nameLabel')}>
             <TextInput
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value
+                setName(val)
+                if (!isPathCustomized && !catalogApp && !editingApp) {
+                  const s = slugify(val)
+                  setOpenPath(s ? `/app/${s}` : '/app/my-app')
+                }
+              }}
               placeholder={t('appCatalog.namePlaceholder')}
               required
             />
@@ -523,12 +580,15 @@ export function InstallAppModal({
                 disabled={Boolean(editingApp)}
               />
             </Field>
-            <Field label={t('appCatalog.openPathLabel')}>
+            <Field label={t('appCatalog.openPathLabel')} hint={t('appCatalog.openPathHint')}>
               <TextInput
                 mono
                 value={openPath}
-                onChange={(e) => setOpenPath(e.target.value)}
-                placeholder="/"
+                onChange={(e) => {
+                  setOpenPath(e.target.value)
+                  setIsPathCustomized(true)
+                }}
+                placeholder="/app/my-app"
               />
             </Field>
           </div>
