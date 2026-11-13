@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.82.3] - 2026-11-13
+
+Implement app gateway proxy and slug-based routing.
+
+### Fitur baru
+- **api:** Implement app gateway proxy and slug-based routing ([`6e19198`](https://github.com/friskipradana/y-panel/commit/6e19198))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.82.2...v1.82.3
+
 ## [1.82.2] - 2026-11-13
 
 2 perubahan, utamanya implement category filtering bar in app catalog.
