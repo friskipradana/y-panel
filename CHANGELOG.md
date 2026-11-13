@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.17] - 2026-11-13
+
+Add network management for managed dependencies.
+
+### Fitur baru
+- **docker:** Add network management for managed dependencies ([`9be533e`](https://github.com/friskipradana/y-panel/commit/9be533e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.16...v1.83.17
+
 ## [1.83.16] - 2026-11-13
 
 Improve docker image usage detection.
