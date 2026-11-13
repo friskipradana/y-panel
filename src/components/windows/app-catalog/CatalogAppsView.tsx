@@ -1,6 +1,7 @@
 import {
   Activity,
   ExternalLink,
+  Film,
   Folder,
   Layers,
   Plus,
@@ -45,6 +46,8 @@ function renderCategoryIcon(categoryKey: string) {
       return <Wrench className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
     case 'automation':
       return <Workflow className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+    case 'media':
+      return <Film className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
     case 'all':
     default:
       return <Layers className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />

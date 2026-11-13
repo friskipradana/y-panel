@@ -50,6 +50,10 @@ interface InstallAppModalProps {
 }
 
 const ICON_KEY_OPTIONS = [
+  'uptime-kuma', 'filebrowser', 'it-tools', 'n8n', 'vaultwarden', 'grafana',
+  'stirling-pdf', 'excalidraw', 'gitea', 'memos', 'reneo-crm',
+  'adguard-home', 'jellyfin', 'nextcloud', 'nginx-proxy-manager', 'open-webui',
+  'beszel', 'actual-budget', 'vikunja', 'metube', 'pairdrop',
   'activity', 'folder', 'wrench', 'workflow', 'shield', 'bar-chart',
   'file-text', 'pen-tool', 'git-branch', 'notebook', 'globe', 'box',
   'server', 'database', 'terminal',

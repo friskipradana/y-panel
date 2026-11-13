@@ -1484,6 +1484,7 @@ export const id: Record<string, string> = {
   'appCatalog.cat.dev': "Developer & Git",
   'appCatalog.cat.automation': "Otomasi",
   'appCatalog.cat.security': "Keamanan",
+  'appCatalog.cat.media': "Media & Streaming",
   'appCatalog.cat.custom': "Kustom",
   'appCatalog.searchPlaceholder': "Cari aplikasi, image, atau URL...",
   'appCatalog.addCustomButton': "Tambah Kustom",

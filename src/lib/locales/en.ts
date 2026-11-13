@@ -1484,6 +1484,7 @@ export const en: Record<string, string> = {
   'appCatalog.cat.dev': "Developer & Git",
   'appCatalog.cat.automation': "Automation",
   'appCatalog.cat.security': "Security",
+  'appCatalog.cat.media': "Media & Streaming",
   'appCatalog.cat.custom': "Custom",
   'appCatalog.searchPlaceholder': "Search apps, images, or URLs...",
   'appCatalog.addCustomButton': "Add Custom",
