@@ -1,9 +1,12 @@
-import { Globe2, Network } from 'lucide-react'
+import { Cloud, Globe2, Network, Settings } from 'lucide-react'
 import { alertLib } from '@/lib/alert'
+import { Button } from '@/components/ui/Button'
+import { IconBadge } from '@/components/ui/IconBadge'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { DnsRow, RouteRow } from './TunnelRows'
 import { TunnelsScope } from './TunnelsScope'
 import { STATUS_CONFIG } from './tunnelForms'
+import { openCloudflareSettings } from './openCloudflareSettings'
 import type { TunnelsWindowState } from './useTunnelsWindow'
 
 // The domains tab lists the DNS records of one domain; the tunnels tab lists the routes of one profile
@@ -37,7 +40,31 @@ export function TunnelsBody({ tw }: { tw: TunnelsWindowState }) {
     handleSync,
   } = tw
 
-  if (cfNotConfigured) return null
+  if (cfNotConfigured) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[260px]">
+        <div className="max-w-md w-full panel-shell-card p-6 flex flex-col items-center text-center gap-3">
+          <IconBadge size="lg" tone="primary">
+            <Cloud className="h-5 w-5" strokeWidth={1.75} />
+          </IconBadge>
+          <div>
+            <h3 className="font-semibold text-[13.5px] text-[var(--win-text)]">{t('tunnels.cfNotConnectedTitle')}</h3>
+            <p className="mt-1 text-[12px] text-[var(--text-secondary)] leading-relaxed">
+              {t('tunnels.cfNotConnectedHint')}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Settings className="h-3.5 w-3.5" />}
+            onClick={openCloudflareSettings}
+          >
+            {t('tunnels.openCloudflareSettings')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   if (tab === 'domains') {
     const loading = domainsLoading || (!!selectedDomainId && dnsLoading)

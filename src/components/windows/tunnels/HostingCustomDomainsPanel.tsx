@@ -52,7 +52,7 @@ export function HostingCustomDomainsPanel() {
   const copyTarget = () => void copyTextToClipboard(data.target).then(() => toast.success(t('hosting.custom.targetCopied')))
 
   return (
-    <div className="px-4 pb-3">
+    <div className="w-full">
       <div className="panel-shell-card flex flex-col gap-3 p-3.5">
         <SectionHeader
           icon={<Globe />}

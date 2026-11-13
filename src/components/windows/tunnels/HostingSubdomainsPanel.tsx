@@ -59,7 +59,7 @@ export function HostingSubdomainsPanel() {
   const extra = data.items.filter((row) => !row.panel)
 
   return (
-    <div className="px-4 py-3">
+    <div className="w-full">
       <div className="panel-shell-card flex flex-col gap-3 p-3.5">
         <SectionHeader
           icon={<Globe2 />}
