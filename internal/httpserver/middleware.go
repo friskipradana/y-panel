@@ -230,7 +230,7 @@ func (s *Server) withHostGuard(next http.Handler) http.Handler {
 
 func (s *Server) isHostAllowed(hostport string) bool {
 	host := normalizeHost(hostport)
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" {
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0" || host == "host.docker.internal" {
 		return true
 	}
 	if host == "" {
