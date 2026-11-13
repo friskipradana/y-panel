@@ -42,6 +42,7 @@ type catalogEnvSpec struct {
 	Required     bool   `json:"required"`
 	Secret       bool   `json:"secret"`
 	Placeholder  string `json:"placeholder"`
+	Hidden       bool   `json:"hidden,omitempty"`
 }
 
 // CatalogApp describes a curated one-click self-hosted application in Reneo's App Catalog.
@@ -328,9 +329,9 @@ var builtinCatalogApps = []CatalogApp{
 		Env: []catalogEnvSpec{
 			{Key: "DATABASE_URL", DefaultValue: "postgresql://postgres:postgres@host.docker.internal:5432/crm_db", LabelID: "Koneksi PostgreSQL", LabelEN: "PostgreSQL Database URL", Required: true, Placeholder: "postgresql://user:password@host:5432/crm_db"},
 			{Key: "REDIS_URL", DefaultValue: "redis://host.docker.internal:6379", LabelID: "Koneksi Redis Queue", LabelEN: "Redis Queue URL", Required: true, Placeholder: "redis://host.docker.internal:6379"},
-			{Key: "WAHA_BASE_URL", DefaultValue: "http://reneo-waha:3000", LabelID: "Base URL WAHA Reneo", LabelEN: "Reneo WAHA Base URL", Required: true, Placeholder: "http://reneo-waha:3000"},
-			{Key: "WAHA_SESSION", DefaultValue: "default", LabelID: "Nama Sesi WhatsApp", LabelEN: "WhatsApp Session Name", Placeholder: "default"},
-			{Key: "WAHA_API_KEY", DefaultValue: "", LabelID: "API Key WAHA (opsional)", LabelEN: "WAHA API Key", Secret: true},
+			{Key: "WAHA_BASE_URL", DefaultValue: "http://reneo-waha:3000", LabelID: "Base URL WAHA Reneo", LabelEN: "Reneo WAHA Base URL", Hidden: true},
+			{Key: "WAHA_SESSION", DefaultValue: "", LabelID: "Nama Sesi WhatsApp", LabelEN: "WhatsApp Session Name", Hidden: true},
+			{Key: "WAHA_API_KEY", DefaultValue: "", LabelID: "API Key WAHA (opsional)", LabelEN: "WAHA API Key", Secret: true, Hidden: true},
 			{Key: "RENEO_PANEL_URL", DefaultValue: "http://host.docker.internal:8000", LabelID: "URL Panel Reneo", LabelEN: "Reneo Panel URL", Required: true, Placeholder: "http://host.docker.internal:8000"},
 		},
 	},
@@ -862,6 +863,30 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	for k, v := range req.Env {
 		if strings.TrimSpace(k) != "" {
 			envMap[strings.TrimSpace(k)] = v
+		}
+	}
+
+	if spec.ID == "reneo-crm" {
+		userSession := strings.TrimSpace(actor.Username)
+		if userSession == "" {
+			userSession = "default"
+		}
+		if s, ok := envMap["WAHA_SESSION"]; !ok || strings.TrimSpace(s) == "" || strings.TrimSpace(s) == "default" {
+			envMap["WAHA_SESSION"] = userSession
+		}
+		if b, ok := envMap["WAHA_BASE_URL"]; !ok || strings.TrimSpace(b) == "" {
+			envMap["WAHA_BASE_URL"] = "http://reneo-waha:3000"
+		}
+		if k, ok := envMap["WAHA_API_KEY"]; !ok || strings.TrimSpace(k) == "" {
+			if s.notify != nil {
+				_ = s.notify.EnableWaha()
+				_, wahaKey, _, _, err := s.notify.WahaProxyTarget()
+				if err == nil && wahaKey != "" {
+					envMap["WAHA_API_KEY"] = wahaKey
+				}
+			}
+		} else if s.notify != nil {
+			_ = s.notify.EnableWaha()
 		}
 	}
 

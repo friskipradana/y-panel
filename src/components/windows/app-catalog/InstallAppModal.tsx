@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
+import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Smartphone, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   CatalogApp,
@@ -115,8 +115,11 @@ export function InstallAppModal({
   onSuccessApp,
 }: InstallAppModalProps) {
   const { t, language } = useI18n()
-  const userRole = useAuthStore((s) => s.user?.role || '')
+  const currentUser = useAuthStore((s) => s.user)
+  const userRole = currentUser?.role || ''
+  const currentUsername = currentUser?.username || ''
   const isSuperadmin = userRole.toLowerCase() === 'superadmin'
+  const isReneoCrm = catalogApp?.id === 'reneo-crm'
   const { data: catalogData } = useAppCatalog(open && Boolean(editingApp?.catalogId))
   const { installMutation, updateMutation, upgradeMutation } = useAppCatalogMutations()
 
@@ -192,6 +195,12 @@ export function InstallAppModal({
       for (const spec of catalogApp.env || []) {
         nextEnv[spec.key] = spec.defaultValue || ''
       }
+      if (catalogApp.id === 'reneo-crm') {
+        if (currentUsername) {
+          nextEnv['WAHA_SESSION'] = currentUsername
+        }
+        nextEnv['WAHA_BASE_URL'] = nextEnv['WAHA_BASE_URL'] || 'http://reneo-waha:3000'
+      }
       setEnvValues(nextEnv)
       setCustomEnvs([])
       return
@@ -209,7 +218,7 @@ export function InstallAppModal({
     setIconColor('sky')
     setEnvValues({})
     setCustomEnvs([])
-  }, [open, editingApp, catalogApp, language])
+  }, [open, editingApp, catalogApp, language, currentUsername])
 
   const containerOptions = useMemo(
     () =>
@@ -248,6 +257,17 @@ export function InstallAppModal({
     () => (editingApp?.catalogId ? catalogData?.catalog.find((c) => c.id === editingApp.catalogId) : undefined),
     [catalogData?.catalog, editingApp?.catalogId],
   )
+
+  const visibleEnvSpecs = useMemo(() => {
+    if (!catalogApp?.env) return []
+    return catalogApp.env.filter((spec) => {
+      if (spec.hidden) return false
+      if (isReneoCrm && (spec.key === 'WAHA_BASE_URL' || spec.key === 'WAHA_SESSION' || spec.key === 'WAHA_API_KEY')) {
+        return false
+      }
+      return true
+    })
+  }, [catalogApp?.env, isReneoCrm])
 
   const { imageRepo, defaultTag, versionOptions, effectiveVersion, resolvedImage } = useMemo(() => {
     const sourceImage = catalogApp
@@ -352,6 +372,14 @@ export function InstallAppModal({
     for (const row of customEnvs) {
       const k = row.key.trim()
       if (k) mergedEnv[k] = row.value
+    }
+    if (isReneoCrm) {
+      if (!mergedEnv['WAHA_SESSION'] || mergedEnv['WAHA_SESSION'] === 'default') {
+        if (currentUsername) mergedEnv['WAHA_SESSION'] = currentUsername
+      }
+      if (!mergedEnv['WAHA_BASE_URL']) {
+        mergedEnv['WAHA_BASE_URL'] = 'http://reneo-waha:3000'
+      }
     }
 
     const defaultSlug = catalogApp?.id || slugify(name) || 'app'
@@ -651,9 +679,29 @@ export function InstallAppModal({
               </Button>
             </div>
 
-            {(catalogApp.env?.length || 0) > 0 ? (
+            {isReneoCrm ? (
+              <div className="rounded-md border border-[var(--card-border)] bg-[var(--card-bg)] p-3 space-y-2">
+                <div className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--win-text)]">
+                  <Smartphone className="h-4 w-4 text-[var(--panel-primary-text)]" />
+                  <span>{t('appCatalog.wahaAutoTitle')}</span>
+                </div>
+                <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed m-0">
+                  {t('appCatalog.wahaAutoDesc', { username: currentUsername ? `@${currentUsername}` : '@user' })}
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5 text-[11px] text-[var(--text-muted)] border-t border-[var(--card-border)]">
+                  <span>
+                    {t('appCatalog.wahaSessionLabel')}: <span className="panel-mono text-[var(--win-text)] font-medium">{currentUsername || 'default'}</span>
+                  </span>
+                  <span>
+                    {t('appCatalog.wahaRuntimeLabel')}: <span className="panel-mono text-[var(--win-text)] font-medium">reneo-waha:3000</span>
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            {visibleEnvSpecs.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {catalogApp.env.map((spec) => (
+                {visibleEnvSpecs.map((spec) => (
                   <Field key={spec.key} label={language === 'id' ? spec.labelId : spec.labelEn}>
                     {spec.secret ? (
                       <PasswordInput

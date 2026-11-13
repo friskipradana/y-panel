@@ -14,6 +14,7 @@ export interface CatalogEnvSpec {
   required: boolean
   secret: boolean
   placeholder: string
+  hidden?: boolean
 }
 
 export interface CatalogApp {
