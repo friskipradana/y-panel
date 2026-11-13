@@ -567,11 +567,17 @@ func (m *Manager) UpdateAppLicense(id int64, userID int64, item AppLicense) (*Ap
 }
 
 // DeleteAppLicense removes a license permanently.
-func (m *Manager) DeleteAppLicense(id int64, userID int64) error {
+func (m *Manager) DeleteAppLicense(id int64, userID int64, isAdmin bool) error {
 	if m == nil || !m.IsConnected() {
 		return errors.New("database not connected")
 	}
-	res, err := m.db.Exec(`DELETE FROM app_licenses WHERE id = $1 AND user_id = $2`, id, userID)
+	var res sql.Result
+	var err error
+	if isAdmin {
+		res, err = m.db.Exec(`DELETE FROM app_licenses WHERE id = $1`, id)
+	} else {
+		res, err = m.db.Exec(`DELETE FROM app_licenses WHERE id = $1 AND user_id = $2`, id, userID)
+	}
 	if err != nil {
 		return err
 	}

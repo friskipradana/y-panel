@@ -319,7 +319,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
 		Image:           "reneoofc/crm-services:latest",
-		Versions:        []string{"latest", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
+		Versions:        []string{"latest", "1.0.6", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",

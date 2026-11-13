@@ -675,8 +675,9 @@ func (s *Server) handleAppLicensesDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	isAdmin := actor.Role == "superadmin" || actor.Role == "admin"
 	if s.database != nil && s.database.IsConnected() {
-		if err := s.database.DeleteAppLicense(id, actor.ID); err != nil {
+		if err := s.database.DeleteAppLicense(id, actor.ID, isAdmin); err != nil {
 			s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
 			return
 		}
