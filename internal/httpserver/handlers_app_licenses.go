@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
+	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 )
 
 type renewLicenseRequest struct {
@@ -182,6 +184,14 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 	}
 
 	methods := s.getActivePaymentMethods()
+
+	if s.database != nil && s.database.IsConnected() && s.notify != nil && userID > 0 {
+		if buyerKind := s.notify.BuyerChannel(); buyerKind != "" && strings.TrimSpace(req.BuyerPhone) != "" {
+			if phone, normErr := notify.NormalizePhone(req.BuyerPhone); normErr == nil && phone != "" {
+				_ = s.database.SaveBuyerContact(userID, buyerKind, phone)
+			}
+		}
+	}
 
 	s.notifyUserAction(
 		userID,

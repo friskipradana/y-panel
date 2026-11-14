@@ -14,6 +14,7 @@ import {
   type BusyCatalogAction,
 } from '@/components/windows/app-catalog/InstalledAppsView'
 import { openInstalledAppWindow, useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
@@ -34,6 +35,7 @@ function readStoredViewMode(): CatalogViewMode {
 export function AppCatalogWindow() {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
+  const isSuperadmin = useAuthStore((s) => s.user?.role === 'superadmin')
   const { data, isLoading, isError, refetch, isFetching } = useAppCatalog()
   const { actionMutation, upgradeMutation, uninstallMutation } = useAppCatalogMutations()
 
@@ -240,14 +242,14 @@ export function AppCatalogWindow() {
     />
   ) : null
 
-  const addButton = (
+  const addButton = isSuperadmin ? (
     <button type="button" onClick={handleOpenAddCustom} className="docker-primary-btn">
       <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
       <span>{t('appCatalog.addCustomButton')}</span>
     </button>
-  )
+  ) : null
 
-  const licenseButton = (
+  const licenseButton = isSuperadmin ? (
     <button
       type="button"
       onClick={() => useWindowStore.getState().openWindow('app-licenses')}
@@ -257,7 +259,7 @@ export function AppCatalogWindow() {
       <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" strokeWidth={1.75} />
       <span>{t('appCatalog.manageLicenses') || 'Lisensi'}</span>
     </button>
-  )
+  ) : null
 
   const viewModeSwitch = (mobile = false) => (
     <ViewModeToggle mode={viewMode} onChange={updateViewMode} isMobile={mobile} />

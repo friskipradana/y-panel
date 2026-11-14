@@ -33,8 +33,8 @@ const AppLicensesWindow = lazyNamed(() => import('@/components/windows/AppLicens
 // Every account works in its own area (terminal as its own OS account, own files, containers,
 // databases, projects, Cloudflare token, widgets, settings). Only user management is for admins.
 const ADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['users'])
-// service journals, host firewall, KVM display, Docs, and Email windows belong to the superadmin
-const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email'])
+// service journals, host firewall, KVM display, Docs, Email, and App Licenses windows belong to the superadmin
+const SUPERADMIN_ONLY_WINDOW_KINDS = new Set<WindowKind>(['system-logs', 'firewall', 'kvm', 'docs', 'email', 'app-licenses'])
 
 // The public demo account only looks: the windows below work read-only on its own (empty) data.
 // No terminal, files, users, settings or logs: they would need a shell or reach shared data.
