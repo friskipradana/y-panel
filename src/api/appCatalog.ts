@@ -34,6 +34,7 @@ export interface CatalogApp {
   openPath: string
   keepPrefix: boolean
   superadminOnly: boolean
+  official?: boolean
   notesId?: string
   notesEn?: string
   volumes: CatalogVolumeSpec[]

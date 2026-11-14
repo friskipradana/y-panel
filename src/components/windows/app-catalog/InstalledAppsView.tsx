@@ -171,7 +171,14 @@ export function InstalledAppsView({
                       <div className="app-catalog-card__identity">
                         <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
                         <div className="app-catalog-card__titles">
-                          <span className="docker-app-name" title={app.name}>{app.name}</span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="docker-app-name" title={app.name}>{app.name}</span>
+                            {app.catalogId === 'reneo-crm' ? (
+                              <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
+                                {t('appCatalog.officialBadge')}
+                              </Badge>
+                            ) : null}
+                          </div>
                           <span
                             className="docker-row__sub truncate"
                             title={app.tagline || app.image || app.targetUrl}
@@ -229,7 +236,14 @@ export function InstalledAppsView({
               <div className="docker-row__app">
                 <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
                 <div className="docker-row__text">
-                  <span className="docker-app-name" title={app.name}>{app.name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="docker-app-name" title={app.name}>{app.name}</span>
+                    {app.catalogId === 'reneo-crm' ? (
+                      <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
+                        {t('appCatalog.officialBadge')}
+                      </Badge>
+                    ) : null}
+                  </div>
                   <span
                     className="docker-row__sub truncate"
                     title={app.tagline || app.image || app.targetUrl}

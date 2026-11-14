@@ -118,7 +118,14 @@ export function CatalogAppsView({
                       <div className="app-catalog-card__identity">
                         <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
                         <div className="app-catalog-card__titles">
-                          <span className="docker-app-name" title={app.name}>{app.name}</span>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="docker-app-name" title={app.name}>{app.name}</span>
+                            {app.official ? (
+                              <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
+                                {t('appCatalog.officialBadge')}
+                              </Badge>
+                            ) : null}
+                          </div>
                           <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
                         </div>
                       </div>
@@ -188,7 +195,14 @@ export function CatalogAppsView({
               <div className="docker-row__app">
                 <InstalledAppBadge iconKey={app.iconKey} iconColor={app.iconColor} size="md" />
                 <div className="docker-row__text">
-                  <span className="docker-app-name" title={app.name}>{app.name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="docker-app-name" title={app.name}>{app.name}</span>
+                    {app.official ? (
+                      <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
+                        {t('appCatalog.officialBadge')}
+                      </Badge>
+                    ) : null}
+                  </div>
                   <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
                 </div>
               </div>

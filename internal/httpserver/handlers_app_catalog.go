@@ -66,6 +66,7 @@ type CatalogApp struct {
 	OpenPath        string              `json:"openPath"`
 	KeepPrefix      bool                `json:"keepPrefix"`
 	SuperadminOnly  bool                `json:"superadminOnly"`
+	Official        bool                `json:"official,omitempty"`
 	NotesID         string              `json:"notesId,omitempty"`
 	NotesEN         string              `json:"notesEn,omitempty"`
 	Volumes         []catalogVolumeSpec `json:"volumes"`
@@ -318,6 +319,7 @@ var builtinCatalogApps = []CatalogApp{
 		Category:        "automation",
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
+		Official:        true,
 		Image:           "reneoofc/crm-services:latest",
 		Versions:        []string{"latest", "1.0.7", "1.0.6", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
 		ContainerPort:   80,

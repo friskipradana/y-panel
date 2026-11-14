@@ -1493,6 +1493,8 @@ export const en: Record<string, string> = {
   'appCatalog.emptyCatalogTitle': "No matching apps",
   'appCatalog.emptyCatalogDesc': "Try another search query or pick a different category.",
   'appCatalog.installedBadge': "Installed",
+  'appCatalog.officialBadge': "Official Reneo",
+  'appCatalog.officialTooltip': "Official application developed by Reneo",
   'appCatalog.openWindow': "Open Window",
   'appCatalog.installAction': "Install",
   'appCatalog.installAnother': "Install Another",

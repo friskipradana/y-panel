@@ -1493,6 +1493,8 @@ export const id: Record<string, string> = {
   'appCatalog.emptyCatalogTitle': "Aplikasi tidak ditemukan",
   'appCatalog.emptyCatalogDesc': "Ubah kata kunci pencarian atau pilih kategori lain.",
   'appCatalog.installedBadge': "Terpasang",
+  'appCatalog.officialBadge': "Official Reneo",
+  'appCatalog.officialTooltip': "Aplikasi resmi yang dikembangkan oleh Reneo",
   'appCatalog.openWindow': "Buka Window",
   'appCatalog.installAction': "Pasang",
   'appCatalog.installAnother': "Pasang Lagi",
