@@ -169,6 +169,12 @@ func (r *Recorder) Run() {
 		values, counters := r.sample()
 		r.Record(values, counters, time.Now())
 	}
+	select {
+	case <-r.stop:
+		r.persist()
+		return
+	case <-time.After(15 * time.Millisecond):
+	}
 	collect()
 	for {
 		select {

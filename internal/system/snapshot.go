@@ -113,6 +113,9 @@ func (c *Collector) Start() {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
+		if baseCtx.Err() != nil {
+			return
+		}
 		ctx, cancel := context.WithTimeout(baseCtx, c.dockerTimeout)
 		c.refreshDockerHealth(ctx)
 		cancel()
@@ -294,6 +297,7 @@ func (c *Collector) refreshDockerHealth(ctx context.Context) {
 
 	if installed {
 		cmd := exec.CommandContext(ctx, "docker", "info")
+		cmd.WaitDelay = 500 * time.Millisecond
 		if err := cmd.Run(); err == nil {
 			reachable = true
 			state = DockerHealthAvailable

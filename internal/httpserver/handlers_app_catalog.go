@@ -1801,6 +1801,11 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 		ensureAppVolumePermissions(owner, app.ContainerName)
 	}
 
+	if (actionName == "start" || actionName == "restart") && app.CatalogID == "reneo-crm" {
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", matched.ID)
+	}
+
 	switch actionName {
 	case "start":
 		err = docker.StartContainer(matched.ID)

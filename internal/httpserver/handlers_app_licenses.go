@@ -3,7 +3,9 @@ package httpserver
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +38,46 @@ type payAppLicenseOrderRequest struct {
 
 func (s *Server) getActivePaymentMethods() []orderMethod {
 	return activeOrderMethods(s.loadSiteSettings())
+}
+
+// licenseOrderBaseURL prefers the actual panel origin where the buyer placed or confirmed the
+// license order (e.g. https://panel.reneo.my.id) rather than forcing RENEO_PUBLIC_URL or the
+// root landing domain. Falls back to orderBaseURL(r) only for loopback/empty hosts.
+func (s *Server) licenseOrderBaseURL(r *http.Request) string {
+	if r != nil {
+		for _, candidate := range []string{r.Header.Get("Origin"), r.Header.Get("Referer")} {
+			if strings.TrimSpace(candidate) == "" {
+				continue
+			}
+			if u, err := url.Parse(candidate); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && !isLoopbackHost(u.Host) {
+				return u.Scheme + "://" + u.Host
+			}
+		}
+		host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+		if i := strings.Index(host, ","); i > 0 {
+			host = strings.TrimSpace(host[:i])
+		}
+		if host == "" {
+			host = strings.TrimSpace(r.Host)
+		}
+		if host != "" && !isLoopbackHost(host) {
+			scheme := "http"
+			if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+				scheme = "https"
+			}
+			return scheme + "://" + host
+		}
+	}
+	return s.orderBaseURL(r)
+}
+
+func isLoopbackHost(hostport string) bool {
+	h := hostport
+	if parsed, _, err := net.SplitHostPort(hostport); err == nil {
+		h = parsed
+	}
+	h = strings.ToLower(strings.TrimSpace(h))
+	return h == "" || h == "localhost" || h == "127.0.0.1" || h == "::1"
 }
 
 // handleAppLicensePlans returns pricing packages for an application (e.g. reneo-crm).
@@ -209,7 +251,7 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		"info",
 	)
 	s.emitAppLicenseOrderCreated(created, username)
-	s.buyerAppLicenseOrderCreated(created, s.orderBaseURL(r))
+	s.buyerAppLicenseOrderCreated(created, s.licenseOrderBaseURL(r))
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":             true,
@@ -321,7 +363,7 @@ func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request
 		"success",
 	)
 	s.emitAppLicenseOrderPaid(order, username, req.PaymentMethod)
-	s.buyerAppLicenseOrderPaid(order, username, s.orderBaseURL(r))
+	s.buyerAppLicenseOrderPaid(order, username, s.licenseOrderBaseURL(r))
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":      true,

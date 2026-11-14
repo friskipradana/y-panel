@@ -170,6 +170,9 @@ func New(cfg config.Config) *Server {
 	s.authedFrontend = s.requireHTMLAuthV2(s.seoFrontend(s.frontendFS, cfg.FrontendDir))
 
 	s.metrics = metrics.New(cfg.StateDir, func() (map[string]float64, map[string]uint64) {
+		if s.bgCtx.Err() != nil {
+			return nil, nil
+		}
 		sm := system.TakeSample(cfg.StateDir)
 		values := map[string]float64{"cpu": sm.CPUPercent, "ram": sm.RAMPercent, "disk": sm.DiskPercent}
 		if sm.CPUTemp > 0 {

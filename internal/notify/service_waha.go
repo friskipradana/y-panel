@@ -420,6 +420,9 @@ func (s *Service) runWahaContainer(ctx context.Context, cfg wahaConfig, key, das
 	if out, err := DockerRun(ctx, env, args...); err != nil {
 		return fmt.Errorf("the WAHA container could not be created: %s", lastLines(out, 3))
 	}
+	// Ensure reneo-waha is reachable by internal apps (e.g. reneo-crm) on reneo-internal.
+	_, _ = DockerRun(ctx, nil, "network", "create", "reneo-internal")
+	_, _ = DockerRun(ctx, nil, "network", "connect", "reneo-internal", wahaContainer)
 	client := NewWaha(cfg.BaseURL, key)
 	// from here WAHA has to answer soon; the long limit above was for the download
 	ctx, stopWait := context.WithTimeout(ctx, wahaStartTimeout)
