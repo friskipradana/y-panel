@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.37] - 2026-11-14
+
+Add multi-agent license limits, public CSAT proxy bypass, and tunnel publicUrls.
+
+### Fitur baru
+- **app-catalog:** Add multi-agent license limits, public CSAT proxy bypass, and tunnel publicUrls ([`63b498e`](https://github.com/friskipradana/y-panel/commit/63b498e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.36...v1.83.37
+
 ## [1.83.36] - 2026-11-14
 
 Add version info, update check, rollback, and update release notes preview.
