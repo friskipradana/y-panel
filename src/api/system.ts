@@ -46,11 +46,26 @@ export const resetDatabasePassword = () =>
 export const resetPrimaryPanelPassword = (payload: ResetPrimaryPanelPasswordPayload) =>
   agentApi.post<ResetPrimaryPanelPasswordResponse>('/api/v1/settings/panel-primary/reset-password', payload).then((r) => r.data)
 
-export const getWallpaper = () =>
-  agentApi.get<{ data: string }>('/api/v1/settings/wallpaper').then((r) => r.data)
+export interface WallpaperPrefsResponse {
+  data: string
+  wallpaper?: string
+  fit?: string
+}
 
-export const updateWallpaper = (data: string) =>
-  agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', { data }).then((r) => r.data)
+export interface UpdateWallpaperPayload {
+  data?: string
+  wallpaper?: string
+  fit?: string
+  clearCustom?: boolean
+}
+
+export const getWallpaper = () =>
+  agentApi.get<WallpaperPrefsResponse>('/api/v1/settings/wallpaper').then((r) => r.data)
+
+export const updateWallpaper = (payload: string | UpdateWallpaperPayload) => {
+  const body = typeof payload === 'string' ? { data: payload } : payload
+  return agentApi.post<{ ok: boolean }>('/api/v1/settings/wallpaper', body).then((r) => r.data)
+}
 
 export interface PingResult {
   ok: boolean

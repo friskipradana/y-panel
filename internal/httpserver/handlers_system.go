@@ -431,28 +431,56 @@ func (s *Server) handleUpdatePanelOrigins(w http.ResponseWriter, r *http.Request
 
 // ─── Wallpaper Handlers ────────────────────────────────────────────────────
 
+type storedWallpaperPrefs struct {
+	Wallpaper   string `json:"wallpaper,omitempty"`
+	Fit         string `json:"fit,omitempty"`
+	CustomImage string `json:"customImage,omitempty"`
+}
+
+func parseStoredWallpaper(raw string) storedWallpaperPrefs {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return storedWallpaperPrefs{}
+	}
+	if strings.HasPrefix(trimmed, "{") {
+		var prefs storedWallpaperPrefs
+		if err := json.Unmarshal([]byte(trimmed), &prefs); err == nil {
+			return prefs
+		}
+	}
+	return storedWallpaperPrefs{
+		Wallpaper:   "custom",
+		CustomImage: raw,
+	}
+}
+
 func (s *Server) handleGetWallpaper(w http.ResponseWriter, r *http.Request) {
 	currentUser := s.currentUserRecord(r)
 	if currentUser == nil {
-		currentUser, _ = s.database.GetUserByUsername("admin")
-	}
-	if currentUser == nil {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": "", "wallpaper": "", "fit": ""})
 		return
 	}
 	wallpaperData, err := s.database.GetWallpaper(currentUser.ID)
 	if err != nil {
-		s.writeJSON(w, http.StatusOK, jsonResponse{"data": ""})
+		s.writeJSON(w, http.StatusOK, jsonResponse{"data": "", "wallpaper": "", "fit": ""})
 		return
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"data": wallpaperData})
+	prefs := parseStoredWallpaper(wallpaperData)
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"data":      prefs.CustomImage,
+		"wallpaper": prefs.Wallpaper,
+		"fit":       prefs.Fit,
+	})
 }
 
 func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var req struct {
-		Data string `json:"data"`
+		Data        string `json:"data"`
+		Wallpaper   string `json:"wallpaper"`
+		Fit         string `json:"fit"`
+		ClearCustom bool   `json:"clearCustom"`
 	}
 
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&req); err != nil {
@@ -462,19 +490,42 @@ func (s *Server) handleUpdateWallpaper(w http.ResponseWriter, r *http.Request) {
 
 	currentUser := s.currentUserRecord(r)
 	if currentUser == nil {
-		currentUser, _ = s.database.GetUserByUsername("admin")
-	}
-	if currentUser == nil {
 		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
 		return
 	}
 
-	if err := s.database.SetWallpaper(currentUser.ID, req.Data); err != nil {
+	existingRaw, _ := s.database.GetWallpaper(currentUser.ID)
+	prefs := parseStoredWallpaper(existingRaw)
+
+	if req.ClearCustom {
+		prefs.CustomImage = ""
+	} else if req.Data != "" {
+		prefs.CustomImage = req.Data
+		if req.Wallpaper == "" {
+			prefs.Wallpaper = "custom"
+		}
+	}
+	if req.Wallpaper != "" {
+		prefs.Wallpaper = req.Wallpaper
+	}
+	if req.Fit != "" {
+		prefs.Fit = req.Fit
+	}
+
+	encoded, err := json.Marshal(prefs)
+	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	s.notifyCurrentServerUser(r, "Wallpaper diganti", "Wallpaper desktop diganti.", "success")
+	if err := s.database.SetWallpaper(currentUser.ID, string(encoded)); err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if req.Wallpaper != "" || req.Data != "" || req.ClearCustom {
+		s.notifyCurrentServerUser(r, "Wallpaper diganti", "Wallpaper desktop diganti.", "success")
+	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 

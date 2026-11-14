@@ -19,6 +19,7 @@ import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Select } from '@/components/ui/Select'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 
@@ -474,14 +475,39 @@ export function InstallAppModal({
             useProxy,
           }
 
-    try {
-      const created = await installMutation.mutateAsync(payload)
-      toast.success(t('appCatalog.installSuccess'))
-      onSuccessApp?.(created, true)
-      onClose()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('appCatalog.installFailed'))
+    const submitInstall = async (targetPayload: InstallCatalogAppPayload): Promise<void> => {
+      try {
+        const created = await installMutation.mutateAsync(targetPayload)
+        toast.success(t('appCatalog.installSuccess'))
+        onSuccessApp?.(created, true)
+        onClose()
+      } catch (err) {
+        const errData = (err as { response?: { data?: { code?: string; port?: number; suggestedPort?: number } } })
+          ?.response?.data
+        if (errData?.code === 'port_in_use' && typeof errData.suggestedPort === 'number' && errData.suggestedPort > 0) {
+          const nextPort = errData.suggestedPort
+          const ok = await alertLib.confirm(
+            t('appCatalog.portInUseTitle'),
+            t('appCatalog.portInUseConfirm', {
+              port: String(errData.port ?? targetPayload.hostPort ?? ''),
+              suggestedPort: String(nextPort),
+            }),
+            t('appCatalog.portInUseSwitchBtn', { suggestedPort: String(nextPort) }),
+            t('common.cancel'),
+            'warning',
+            'app-catalog',
+          )
+          if (ok) {
+            setHostPort(String(nextPort))
+            await submitInstall({ ...targetPayload, hostPort: nextPort })
+          }
+          return
+        }
+        toast.error(err instanceof Error ? err.message : t('appCatalog.installFailed'))
+      }
     }
+
+    await submitInstall(payload)
   }
 
   const title = editingApp

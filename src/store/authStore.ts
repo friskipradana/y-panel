@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { getMeV2, logoutAgent, probeMe } from '@/api/agent'
 import type { AuthMeV2 } from '@/api/auth'
 import { runtimeLogger } from '@/lib/runtimeLogger'
+import { useThemeStore } from '@/store/themeStore'
 import { useWindowStore } from '@/store/windowStore'
 
 const CACHE_KEY = 'me-v2-cache'
@@ -50,6 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             window.localStorage.setItem(CACHE_KEY, JSON.stringify(me))
           }
           set({ authenticated: true, user: me, checkingSession: false })
+          useThemeStore.getState().switchUserScope(me)
           return true
         }
       } catch (err: any) {
@@ -60,6 +62,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(CACHE_KEY)
       }
+      useThemeStore.getState().switchUserScope(null)
       set({ authenticated: false, user: null, checkingSession: false })
       return false
     })().finally(() => {
@@ -76,6 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(fullMe))
       }
       set({ authenticated: true, user: fullMe, checkingSession: false })
+      useThemeStore.getState().switchUserScope(fullMe)
     } catch {
       const fallbackUser: AuthMeV2 = {
         id: 0,
@@ -93,6 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(fallbackUser))
       }
       set({ authenticated: true, user: fallbackUser, checkingSession: false })
+      useThemeStore.getState().switchUserScope(fallbackUser)
     }
   },
 
@@ -104,6 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       runtimeLogger.warn('auth', 'logout api call failed, continuing local cleanup', { error: e })
     } finally {
       useWindowStore.getState().resetWindows()
+      useThemeStore.getState().switchUserScope(null)
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(CACHE_KEY)
         if ('caches' in window) {
@@ -117,6 +123,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   handleSessionExpired: () => {
     runtimeLogger.warn('auth', 'session expired, resetting store state')
     useWindowStore.getState().resetWindows()
+    useThemeStore.getState().switchUserScope(null)
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(CACHE_KEY)
     }
@@ -124,6 +131,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setUser: (user) => {
+    useThemeStore.getState().switchUserScope(user)
     if (user) {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(user))

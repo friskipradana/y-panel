@@ -3,7 +3,6 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { WALLPAPERS, useThemeStore, type WallpaperKey, type WallpaperFit } from "@/store/themeStore";
-import { updateWallpaper } from "@/api/system";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { AdwActionRow, SettingsGroup } from "../SettingsPrimitives";
@@ -39,6 +38,7 @@ export function WallpaperTab() {
     setWallpaperFit,
     customImageUrl,
     setCustomImage,
+    clearCustomImage,
   } = useThemeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,13 +68,8 @@ export function WallpaperTab() {
   };
 
   const removeCustom = async () => {
-    useThemeStore.setState({ customImageUrl: null, wallpaper: "dark-mountains" });
-    try {
-      await updateWallpaper("");
-      toast.success(t("settings.appearance.resetSuccessTitle"));
-    } catch {
-      // ignore
-    }
+    await clearCustomImage();
+    toast.success(t("settings.appearance.resetSuccessTitle"));
   };
 
   const showFit = wallpaper === "custom" || WALLPAPERS[wallpaper as PresetKey]?.type === "image";

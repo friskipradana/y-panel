@@ -168,6 +168,10 @@ func (s *Server) freePort(from, to int, skip func(int) bool) (int, error) {
 // writePortError answers a refused port with 409. Only the superadmin is told who holds the port:
 // to everyone else that would name another account's project or container.
 func (s *Server) writePortError(w http.ResponseWriter, actor *database.User, err error) {
+	s.writePortErrorWithSuggestion(w, actor, err, 0)
+}
+
+func (s *Server) writePortErrorWithSuggestion(w http.ResponseWriter, actor *database.User, err error, suggestedPort int) {
 	var conflict *portConflictError
 	if !errors.As(err, &conflict) {
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -177,9 +181,13 @@ func (s *Server) writePortError(w http.ResponseWriter, actor *database.User, err
 	if (actor == nil || actor.Role != "superadmin") && !strings.HasPrefix(by, "another mapping") {
 		by = "another service"
 	}
-	s.writeJSON(w, http.StatusConflict, jsonResponse{
+	resp := jsonResponse{
 		"error": fmt.Sprintf("port %d/%s is already used by %s", conflict.port, conflict.proto, by),
 		"code":  "port_in_use",
 		"port":  conflict.port,
-	})
+	}
+	if suggestedPort > 0 {
+		resp["suggestedPort"] = suggestedPort
+	}
+	s.writeJSON(w, http.StatusConflict, resp)
 }

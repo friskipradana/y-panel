@@ -36,12 +36,7 @@ export function LoginPage({ onLoginSuccess, onBack }: LoginPageProps) {
     mode: themeMode,
     toggleMode,
     getBackgroundStyle,
-    syncCustomImage,
   } = useThemeStore()
-
-  useEffect(() => {
-    void syncCustomImage()
-  }, [syncCustomImage])
 
   const backgroundStyle = getBackgroundStyle()
 

@@ -1305,7 +1305,8 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	hostPort := req.HostPort
 	if hostPort > 0 {
 		if err := s.ensurePortsFree([]docker.HostPort{{Port: hostPort, Proto: "tcp"}}, portIgnore{composeName: containerProject}); err != nil {
-			s.writePortError(w, actor, err)
+			suggestedPort, _ := s.freePort(appCatalogPortMin, appCatalogPortMax, func(p int) bool { return p == hostPort })
+			s.writePortErrorWithSuggestion(w, actor, err, suggestedPort)
 			return
 		}
 	} else {

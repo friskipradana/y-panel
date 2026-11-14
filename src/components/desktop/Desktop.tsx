@@ -76,9 +76,10 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   }, [installedApps, userRole, t, language])
 
   useEffect(() => {
-    if (!authenticated) return
+    if (!authenticated || !user?.username) return
+    useThemeStore.getState().switchUserScope(user)
     void syncCustomImage()
-  }, [authenticated, syncCustomImage])
+  }, [authenticated, user, syncCustomImage])
 
   useEffect(() => {
     const clamp = () => useWindowStore.getState().clampWindowsToViewport()

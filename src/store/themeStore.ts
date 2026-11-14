@@ -211,7 +211,9 @@ interface ThemeStore {
   setFontFamily: (font: FontFamilyKey) => void
   setFontSize: (size: FontSizeKey) => void
   setCustomImage: (dataUrl: string) => Promise<void>
+  clearCustomImage: () => Promise<void>
   syncCustomImage: () => Promise<void>
+  switchUserScope: (user: { id?: number; username?: string } | null) => void
   toggleMode: () => void
   resetToDefaults: () => void
   /** Returns the CSS background value for the current wallpaper+mode */
@@ -220,9 +222,60 @@ interface ThemeStore {
   getBackgroundStyle: () => React.CSSProperties
 }
 
-const loadStored = (): StoredTheme => {
+const THEME_DEFAULTS: Required<StoredTheme> = {
+  mode: 'light',
+  colorTheme: 'blue',
+  customThemeColor: DEFAULT_CUSTOM_THEME_COLOR,
+  wallpaper: 'default',
+  wallpaperFit: 'cover',
+  customImageUrl: null,
+  desktopIconStyle: 'framed',
+  desktopIconSize: 'small',
+  desktopIconFontSize: 'medium',
+  desktopIconFontWeight: 'medium',
+  desktopIconShadow: true,
+  lockScreenStyle: 'clock',
+  lockScreenEnabled: true,
+  requirePasswordOnWake: true,
+  wakeOnMouseMove: true,
+  soundEnabled: true,
+  soundVolume: 0.7,
+  autoLockTimeout: 0,
+  fontFamily: 'outfit',
+  fontSize: 'medium',
+}
+
+function resolveUserScope(user: { id?: number; username?: string } | null | undefined): string | null {
+  if (!user) return null
+  if (typeof user.id === 'number' && user.id > 0) return String(user.id)
+  if (user.username) return user.username
+  return null
+}
+
+function readInitialUserScope(): string | null {
   try {
-    return JSON.parse(localStorage.getItem('reneo-theme') ?? '{}')
+    const raw = localStorage.getItem('me-v2-cache')
+    if (!raw) return null
+    return resolveUserScope(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+let activeUserScope: string | null = readInitialUserScope()
+
+const getThemeStorageKey = (scope: string | null = activeUserScope) =>
+  scope ? `reneo-theme:${scope}` : 'reneo-theme:guest'
+
+const isValidWallpaperKey = (val: unknown): val is WallpaperKey =>
+  val === 'custom' || (typeof val === 'string' && val in WALLPAPERS)
+
+const isValidWallpaperFit = (val: unknown): val is WallpaperFit =>
+  val === 'cover' || val === 'contain' || val === 'stretch' || val === 'center' || val === 'tile'
+
+const loadStored = (scope: string | null = activeUserScope): StoredTheme => {
+  try {
+    return JSON.parse(localStorage.getItem(getThemeStorageKey(scope)) ?? '{}')
   } catch {
     return {}
   }
@@ -230,8 +283,9 @@ const loadStored = (): StoredTheme => {
 
 const persist = (data: Partial<StoredTheme>) => {
   try {
+    const key = getThemeStorageKey()
     const existing = loadStored()
-    localStorage.setItem('reneo-theme', JSON.stringify({ ...existing, ...data }))
+    localStorage.setItem(key, JSON.stringify({ ...existing, ...data }))
   } catch {}
 }
 
@@ -417,11 +471,17 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     setWallpaper: (wallpaper) => {
       persist({ wallpaper })
       set({ wallpaper })
+      if (activeUserScope) {
+        void updateWallpaper({ wallpaper }).catch(() => {})
+      }
     },
 
     setWallpaperFit: (wallpaperFit) => {
       persist({ wallpaperFit })
       set({ wallpaperFit })
+      if (activeUserScope) {
+        void updateWallpaper({ fit: wallpaperFit }).catch(() => {})
+      }
     },
 
     setDesktopIconStyle: (desktopIconStyle) => {
@@ -474,41 +534,90 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
     },
 
     setCustomImage: async (dataUrl) => {
+      const fit = get().wallpaperFit
       set({ wallpaper: 'custom', customImageUrl: dataUrl, wallpaperLoading: true })
-      persist({ wallpaper: 'custom' }) 
+      persist({ wallpaper: 'custom', customImageUrl: dataUrl })
       try {
-        await updateWallpaper(dataUrl)
+        await updateWallpaper({ data: dataUrl, wallpaper: 'custom', fit })
       } catch {
-          // ignore wallpaper sync error
+        // ignore wallpaper sync error
       } finally {
         set({ wallpaperLoading: false })
       }
     },
 
+    clearCustomImage: async () => {
+      const fallback: WallpaperKey = 'dark-mountains'
+      set({ customImageUrl: null, wallpaper: fallback })
+      persist({ customImageUrl: null, wallpaper: fallback })
+      try {
+        await updateWallpaper({ wallpaper: fallback, clearCustom: true })
+      } catch {
+        // ignore wallpaper sync error
+      }
+    },
+
     syncCustomImage: async () => {
+      if (!activeUserScope) return
       const isCustom = get().wallpaper === 'custom'
       if (isCustom && !get().customImageUrl) {
         set({ wallpaperLoading: true })
       }
       try {
         const res = await getWallpaper()
-        if (res && res.data) {
-           set({ customImageUrl: res.data })
-           try {
-             const stored = JSON.parse(localStorage.getItem('reneo-theme') ?? '{}')
-             if (!stored.wallpaper) {
-               set({ wallpaper: 'custom' })
-               persist({ wallpaper: 'custom' })
-             }
-           } catch {
-             // ignore
-           }
+        const customImageUrl = res?.data ? res.data : null
+        const updates: Partial<StoredTheme> = { customImageUrl }
+
+        if (isValidWallpaperKey(res?.wallpaper)) {
+          if (res.wallpaper === 'custom' && !customImageUrl) {
+            updates.wallpaper = 'default'
+          } else {
+            updates.wallpaper = res.wallpaper
+          }
+        } else if (!customImageUrl && get().wallpaper === 'custom') {
+          updates.wallpaper = 'default'
         }
+
+        if (isValidWallpaperFit(res?.fit)) {
+          updates.wallpaperFit = res.fit
+        }
+
+        persist(updates)
+        set(updates)
       } catch {
         // ignore
       } finally {
         set({ wallpaperLoading: false })
       }
+    },
+
+    switchUserScope: (user) => {
+      const nextScope = resolveUserScope(user)
+      if (nextScope === activeUserScope) return
+      activeUserScope = nextScope
+      const nextStored = loadStored(nextScope)
+      const mode: ThemeMode = nextStored.mode ?? THEME_DEFAULTS.mode
+      const colorTheme: ColorTheme = nextStored.colorTheme ?? THEME_DEFAULTS.colorTheme
+      const customThemeColor =
+        normalizeHexColor(nextStored.customThemeColor ?? '') ?? THEME_DEFAULTS.customThemeColor
+      const fontFamily = nextStored.fontFamily ?? THEME_DEFAULTS.fontFamily
+      const fontSize = nextStored.fontSize ?? THEME_DEFAULTS.fontSize
+
+      applyTheme(mode, colorTheme, customThemeColor)
+      applyFontFamily(fontFamily)
+      applyFontSize(fontSize)
+
+      set({
+        ...THEME_DEFAULTS,
+        ...nextStored,
+        mode,
+        colorTheme,
+        customThemeColor,
+        fontFamily,
+        fontSize,
+        isLocked: false,
+        wallpaperLoading: false,
+      })
     },
 
     toggleMode: () => {
@@ -553,7 +662,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => {
       applyFontFamily('outfit')
       applyFontSize('medium')
       try {
-        localStorage.setItem('reneo-theme', JSON.stringify(defaults))
+        localStorage.setItem(getThemeStorageKey(), JSON.stringify(defaults))
       } catch {}
       set({
         ...defaults,
