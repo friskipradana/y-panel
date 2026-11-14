@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.30] - 2026-11-14
+
+2 perubahan, utamanya implement license suspension functionality.
+
+### Fitur baru
+- **app-licenses:** Implement license suspension functionality ([`d5d5d59`](https://github.com/friskipradana/y-panel/commit/d5d5d59))
+- **app-licenses:** Restrict access and save buyer contact info ([`2395adb`](https://github.com/friskipradana/y-panel/commit/2395adb))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.29...v1.83.30
+
 ## [1.83.29] - 2026-11-14
 
 Add WhatsApp order notifications and align quota grid.
