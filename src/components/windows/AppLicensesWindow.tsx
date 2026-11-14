@@ -149,8 +149,11 @@ export function AppLicensesWindow() {
   // Mutations
   const deleteLicenseMutation = useMutation({
     mutationFn: deleteAppLicense,
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       toast.success('Lisensi berhasil dihapus.')
+      queryClient.setQueryData<AppLicense[]>(['app-licenses'], (prev) =>
+        (prev || []).filter((item) => item.id !== deletedId),
+      )
       queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
     },
     onError: (err: Error) => {
