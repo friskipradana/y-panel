@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -173,15 +174,9 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 
 		existing, _ := s.database.ListAppLicenses(userID, req.CatalogID)
 		for _, lic := range existing {
-			if strings.EqualFold(lic.Status, "ACTIVE") && !lic.IsExpired {
+			if (strings.EqualFold(lic.Status, "ACTIVE") || strings.EqualFold(lic.Status, "TRIAL")) && !lic.IsExpired {
 				s.writeJSON(w, http.StatusConflict, jsonResponse{
-					"error": fmt.Sprintf("Anda sudah memiliki lisensi aktif (%s).", lic.PlanName),
-				})
-				return
-			}
-			if strings.EqualFold(lic.Status, "TRIAL") && strings.HasPrefix(lic.PlanName, planName) {
-				s.writeJSON(w, http.StatusConflict, jsonResponse{
-					"error": fmt.Sprintf("Paket trial untuk %s sudah pernah diaktifkan sebelumnya.", planName),
+					"error": fmt.Sprintf("Aplikasi ini sudah memiliki 1 sesi lisensi aktif (%s). Hanya 1 lisensi aktif yang diizinkan per aplikasi.", lic.PlanName),
 				})
 				return
 			}
@@ -852,7 +847,11 @@ func (s *Server) handleAppLicensesCreate(w http.ResponseWriter, r *http.Request)
 
 	created, err := s.database.CreateAppLicense(licData)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		status := http.StatusInternalServerError
+		if errors.Is(err, database.ErrActiveLicenseExists) {
+			status = http.StatusConflict
+		}
+		s.writeJSON(w, status, jsonResponse{"error": err.Error()})
 		return
 	}
 
@@ -904,7 +903,11 @@ func (s *Server) handleAppLicensesUpdate(w http.ResponseWriter, r *http.Request)
 	isAdmin := actor.Role == "superadmin" || actor.Role == "admin"
 	updated, err := s.database.UpdateAppLicense(id, actor.ID, isAdmin, licData)
 	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		status := http.StatusInternalServerError
+		if errors.Is(err, database.ErrActiveLicenseExists) {
+			status = http.StatusConflict
+		}
+		s.writeJSON(w, status, jsonResponse{"error": err.Error()})
 		return
 	}
 

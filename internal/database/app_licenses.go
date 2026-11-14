@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// ErrActiveLicenseExists is returned when creating or activating a second active license for the same app.
+var ErrActiveLicenseExists = errors.New("aplikasi ini sudah memiliki 1 sesi lisensi aktif; hanya 1 lisensi aktif yang diizinkan per aplikasi")
+
 // AppLicense represents a managed license and subscription for a Reneo catalog application.
 type AppLicense struct {
 	ID          int64           `json:"id"`
@@ -452,6 +455,23 @@ func (m *Manager) GetAppLicenseByKey(licenseKey string) (*AppLicense, error) {
 	return item, err
 }
 
+func (m *Manager) hasOtherActiveLicense(userID int64, catalogID string, excludeID int64) (bool, error) {
+	if m == nil || !m.IsConnected() {
+		return false, nil
+	}
+	var count int
+	err := m.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM app_licenses
+		WHERE user_id = $1
+		  AND catalog_id = $2
+		  AND id <> $3
+		  AND UPPER(status) IN ('ACTIVE', 'TRIAL')
+		  AND expires_at > NOW()
+	`, userID, catalogID, excludeID).Scan(&count)
+	return count > 0, err
+}
+
 // CreateAppLicense creates a brand new license for any application.
 func (m *Manager) CreateAppLicense(item AppLicense) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {
@@ -474,6 +494,12 @@ func (m *Manager) CreateAppLicense(item AppLicense) (*AppLicense, error) {
 	}
 	if item.Period == "" {
 		item.Period = "monthly"
+	}
+
+	if strings.EqualFold(item.Status, "ACTIVE") || strings.EqualFold(item.Status, "TRIAL") {
+		if exists, err := m.hasOtherActiveLicense(item.UserID, item.CatalogID, 0); err == nil && exists {
+			return nil, ErrActiveLicenseExists
+		}
 	}
 
 	now := time.Now()
@@ -519,6 +545,18 @@ func (m *Manager) CreateAppLicense(item AppLicense) (*AppLicense, error) {
 func (m *Manager) UpdateAppLicense(id int64, userID int64, isAdmin bool, item AppLicense) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
+	}
+
+	if strings.EqualFold(item.Status, "ACTIVE") || strings.EqualFold(item.Status, "TRIAL") {
+		existing, err := m.GetAppLicenseByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			if exists, err := m.hasOtherActiveLicense(existing.UserID, existing.CatalogID, id); err == nil && exists {
+				return nil, ErrActiveLicenseExists
+			}
+		}
 	}
 
 	var expiresAt time.Time
