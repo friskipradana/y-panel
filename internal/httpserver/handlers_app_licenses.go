@@ -294,6 +294,54 @@ func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// handleAppLicenseCancelOrder cancels a pending invoice/order.
+func (s *Server) handleAppLicenseCancelOrder(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "authentication required"})
+		return
+	}
+
+	publicID := r.PathValue("publicId")
+	if publicID == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "publicId required"})
+		return
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      true,
+			"message": "Invoice berhasil dibatalkan.",
+			"order": database.AppLicenseOrder{
+				PublicID:      publicID,
+				InvoiceNumber: "INV-CRM-DEMO-0001",
+				Status:        "cancelled",
+			},
+		})
+		return
+	}
+
+	isAdmin := actor.Role == "superadmin" || actor.Role == "admin"
+	order, err := s.database.CancelAppLicenseOrder(publicID, actor.ID, isAdmin)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.notifyUserAction(
+		order.UserID,
+		"Invoice Dibatalkan",
+		fmt.Sprintf("Invoice %s untuk %s (%s) telah dibatalkan.", order.InvoiceNumber, order.AppName, order.PlanName),
+		"info",
+	)
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":      true,
+		"message": "Invoice berhasil dibatalkan.",
+		"order":   order,
+	})
+}
+
 // handleAppLicensesList returns user's active licenses.
 func (s *Server) handleAppLicensesList(w http.ResponseWriter, r *http.Request) {
 	actor := s.currentUserRecord(r)
@@ -647,7 +695,8 @@ func (s *Server) handleAppLicensesUpdate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	updated, err := s.database.UpdateAppLicense(id, actor.ID, licData)
+	isAdmin := actor.Role == "superadmin" || actor.Role == "admin"
+	updated, err := s.database.UpdateAppLicense(id, actor.ID, isAdmin, licData)
 	if err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
 		return

@@ -19,6 +19,8 @@ import {
   Plus,
   Code2,
   Trash2,
+  Pencil,
+  XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -28,6 +30,7 @@ import {
   fetchAppLicenseOrders,
   createAppLicenseOrder,
   payAppLicenseOrder,
+  cancelAppLicenseOrder,
   fetchAvailableApps,
   deleteAppLicense,
   deleteAppLicensePlan,
@@ -46,6 +49,7 @@ import { useWindowStore } from '@/store/windowStore'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { CreateLicenseModal } from './app-licenses/CreateLicenseModal'
+import { EditLicenseModal } from './app-licenses/EditLicenseModal'
 import { CreatePlanModal } from './app-licenses/CreatePlanModal'
 import { LicenseIntegrationModal } from './app-licenses/LicenseIntegrationModal'
 
@@ -89,6 +93,8 @@ export function AppLicensesWindow() {
 
   // Modals
   const [createLicenseModalOpen, setCreateLicenseModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingLicense, setEditingLicense] = useState<AppLicense | null>(null)
   const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false)
   const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
   const [integrationLicense, setIntegrationLicense] = useState<AppLicense | null>(null)
@@ -214,6 +220,34 @@ export function AppLicensesWindow() {
       toast.error(err.message || 'Gagal memproses pembayaran.')
     },
   })
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: (publicId: string) => cancelAppLicenseOrder(publicId),
+    onSuccess: (data) => {
+      toast.success(`Invoice ${data.invoiceNumber} berhasil dibatalkan.`)
+      queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
+      if (selectedOrder?.publicId === data.publicId) {
+        setSelectedOrder(data)
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Gagal membatalkan invoice.')
+    },
+  })
+
+  const handleCancelOrder = async (ord: AppLicenseOrder) => {
+    const ok = await alertLib.confirm(
+      'Batalkan Invoice?',
+      `Invoice ${ord.invoiceNumber} untuk ${ord.appName} (${ord.planName}) akan dibatalkan.`,
+      'Batalkan Invoice',
+      'Kembali',
+      'warning',
+      'app-licenses'
+    )
+    if (ok) {
+      cancelOrderMutation.mutate(ord.publicId)
+    }
+  }
 
   const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key)
@@ -698,6 +732,16 @@ export function AppLicensesWindow() {
                               Buka
                             </Button>
                             <IconButton
+                              label="Edit Lisensi"
+                              onClick={() => {
+                                setEditingLicense(lic)
+                                setEditModalOpen(true)
+                              }}
+                              className="h-7 w-7"
+                            >
+                              <Pencil size={12} />
+                            </IconButton>
+                            <IconButton
                               label="Hapus Lisensi"
                               onClick={() => void handleDeleteLicense(lic)}
                               className="text-rose-500 hover:bg-rose-500/10 h-7 w-7"
@@ -866,6 +910,17 @@ export function AppLicensesWindow() {
                             <ExternalLink size={12} />
                             Buka
                           </Button>
+
+                          <IconButton
+                            label="Edit Lisensi"
+                            onClick={() => {
+                              setEditingLicense(lic)
+                              setEditModalOpen(true)
+                            }}
+                            className="h-7 w-7 border-transparent"
+                          >
+                            <Pencil size={12} />
+                          </IconButton>
 
                           <IconButton
                             label="Hapus Lisensi"
@@ -1166,6 +1221,8 @@ export function AppLicensesWindow() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-4">
                   {orders.map((ord) => {
                     const isPaid = ord.status === 'paid'
+                    const isCancelled = ord.status === 'cancelled'
+                    const isPending = ord.status === 'pending'
                     return (
                       <div
                         key={ord.id}
@@ -1184,6 +1241,10 @@ export function AppLicensesWindow() {
                             {isPaid ? (
                               <Badge tone="success" dot size="sm">
                                 Lunas
+                              </Badge>
+                            ) : isCancelled ? (
+                              <Badge tone="neutral" dot size="sm">
+                                Dibatalkan
                               </Badge>
                             ) : (
                               <Badge tone="warning" dot size="sm">
@@ -1213,19 +1274,30 @@ export function AppLicensesWindow() {
                             })}
                           </span>
                           <div className="flex items-center gap-1.5">
-                            {!isPaid && (
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => {
-                                  setSelectedOrder(ord)
-                                  setInvoiceModalOpen(true)
-                                }}
-                                className="text-xs h-7 px-2 gap-1"
-                              >
-                                <CreditCard size={12} />
-                                Bayar
-                              </Button>
+                            {isPending && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={() => {
+                                    setSelectedOrder(ord)
+                                    setInvoiceModalOpen(true)
+                                  }}
+                                  className="text-xs h-7 px-2 gap-1"
+                                >
+                                  <CreditCard size={12} />
+                                  Bayar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => void handleCancelOrder(ord)}
+                                  className="text-xs h-7 px-2 gap-1 text-rose-500 hover:bg-rose-500/10"
+                                >
+                                  <XCircle size={12} />
+                                  Batalkan
+                                </Button>
+                              </>
                             )}
                             <Button
                               size="sm"
@@ -1275,6 +1347,8 @@ export function AppLicensesWindow() {
                 >
                   {orders.map((ord, index) => {
                     const isPaid = ord.status === 'paid'
+                    const isCancelled = ord.status === 'cancelled'
+                    const isPending = ord.status === 'pending'
                     return (
                       <div className="docker-row" key={ord.id}>
                         <div className="docker-row__num">{indexLabel(index)}</div>
@@ -1309,6 +1383,10 @@ export function AppLicensesWindow() {
                             <Badge tone="success" dot size="sm">
                               Lunas
                             </Badge>
+                          ) : isCancelled ? (
+                            <Badge tone="neutral" dot size="sm">
+                              Dibatalkan
+                            </Badge>
                           ) : (
                             <Badge tone="warning" dot size="sm">
                               Menunggu Bayar
@@ -1327,19 +1405,30 @@ export function AppLicensesWindow() {
                         </div>
 
                         <div className="docker-action-btns">
-                          {!isPaid && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => {
-                                setSelectedOrder(ord)
-                                setInvoiceModalOpen(true)
-                              }}
-                              className="text-[11px] h-7 px-2 gap-1"
-                            >
-                              <CreditCard size={12} />
-                              Bayar
-                            </Button>
+                          {isPending && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => {
+                                  setSelectedOrder(ord)
+                                  setInvoiceModalOpen(true)
+                                }}
+                                className="text-[11px] h-7 px-2 gap-1"
+                              >
+                                <CreditCard size={12} />
+                                Bayar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void handleCancelOrder(ord)}
+                                className="text-[11px] h-7 px-2 gap-1 text-rose-500 hover:bg-rose-500/10"
+                              >
+                                <XCircle size={12} />
+                                Batalkan
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="sm"
@@ -1387,21 +1476,33 @@ export function AppLicensesWindow() {
                   Cetak
                 </Button>
                 {selectedOrder.status === 'pending' ? (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    loading={payMutation.isPending}
-                    onClick={() => {
-                      payMutation.mutate({
-                        publicId: selectedOrder.publicId,
-                        method: selectedOrder.paymentMethod || 'transfer',
-                      })
-                    }}
-                    className="gap-1.5"
-                  >
-                    <CheckCircle2 size={14} />
-                    Konfirmasi Lunas
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      loading={cancelOrderMutation.isPending}
+                      onClick={() => void handleCancelOrder(selectedOrder)}
+                      className="gap-1 text-rose-500 hover:bg-rose-500/10"
+                    >
+                      <XCircle size={13} />
+                      Batalkan
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      loading={payMutation.isPending}
+                      onClick={() => {
+                        payMutation.mutate({
+                          publicId: selectedOrder.publicId,
+                          method: selectedOrder.paymentMethod || 'transfer',
+                        })
+                      }}
+                      className="gap-1.5"
+                    >
+                      <CheckCircle2 size={14} />
+                      Konfirmasi Lunas
+                    </Button>
+                  </>
                 ) : (
                   <Button variant="outline" size="sm" onClick={() => setInvoiceModalOpen(false)}>
                     Tutup
@@ -1417,12 +1518,16 @@ export function AppLicensesWindow() {
               className={`p-3.5 rounded-xl border flex items-center justify-between ${
                 selectedOrder.status === 'paid'
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                  : selectedOrder.status === 'cancelled'
+                    ? 'bg-[var(--win-bg)] border-[var(--win-border)] text-[var(--text-secondary)]'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
               }`}
             >
               <div className="flex items-center gap-2.5">
                 {selectedOrder.status === 'paid' ? (
                   <CheckCircle2 size={18} />
+                ) : selectedOrder.status === 'cancelled' ? (
+                  <XCircle size={18} />
                 ) : (
                   <AlertTriangle size={18} />
                 )}
@@ -1430,16 +1535,20 @@ export function AppLicensesWindow() {
                   <span className="font-bold block">
                     {selectedOrder.status === 'paid'
                       ? 'Lunas (Telah Dibayar)'
-                      : 'Menunggu Pembayaran'}
+                      : selectedOrder.status === 'cancelled'
+                        ? 'Invoice Dibatalkan'
+                        : 'Menunggu Pembayaran'}
                   </span>
                   <span className="text-[11px] opacity-80">
                     {selectedOrder.status === 'paid'
                       ? `Lisensi telah aktif sejak ${new Date(
                           selectedOrder.paidAt || selectedOrder.createdAt
                         ).toLocaleDateString('id-ID')}`
-                      : `Batas waktu pembayaran: ${new Date(
-                          selectedOrder.expiresAt
-                        ).toLocaleDateString('id-ID')}`}
+                      : selectedOrder.status === 'cancelled'
+                        ? 'Pesanan ini telah dibatalkan dan tidak perlu dibayar.'
+                        : `Batas waktu pembayaran: ${new Date(
+                            selectedOrder.expiresAt
+                          ).toLocaleDateString('id-ID')}`}
                   </span>
                 </div>
               </div>
@@ -1620,6 +1729,20 @@ export function AppLicensesWindow() {
           refetchApps()
           queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
           queryClient.invalidateQueries({ queryKey: ['app-licenses-available-apps'] })
+        }}
+      />
+
+      {/* Edit License Modal */}
+      <EditLicenseModal
+        open={editModalOpen}
+        license={editingLicense}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingLicense(null)
+        }}
+        onSuccess={() => {
+          refetchLicenses()
+          queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
         }}
       />
 

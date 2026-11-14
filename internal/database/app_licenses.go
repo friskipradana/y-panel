@@ -512,7 +512,7 @@ func (m *Manager) CreateAppLicense(item AppLicense) (*AppLicense, error) {
 }
 
 // UpdateAppLicense modifies an existing license.
-func (m *Manager) UpdateAppLicense(id int64, userID int64, item AppLicense) (*AppLicense, error) {
+func (m *Manager) UpdateAppLicense(id int64, userID int64, isAdmin bool, item AppLicense) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
 	}
@@ -543,11 +543,21 @@ func (m *Manager) UpdateAppLicense(id int64, userID int64, item AppLicense) (*Ap
 	args := []any{item.AppName, item.Status, item.PlanName, item.Period, item.PriceAmount, featJSON}
 
 	if !expiresAt.IsZero() {
-		query += `, expires_at = $7 WHERE id = $8 AND user_id = $9`
-		args = append(args, expiresAt, id, userID)
+		if isAdmin {
+			query += `, expires_at = $7 WHERE id = $8`
+			args = append(args, expiresAt, id)
+		} else {
+			query += `, expires_at = $7 WHERE id = $8 AND user_id = $9`
+			args = append(args, expiresAt, id, userID)
+		}
 	} else {
-		query += ` WHERE id = $7 AND user_id = $8`
-		args = append(args, id, userID)
+		if isAdmin {
+			query += ` WHERE id = $7`
+			args = append(args, id)
+		} else {
+			query += ` WHERE id = $7 AND user_id = $8`
+			args = append(args, id, userID)
+		}
 	}
 
 	res, err := m.db.Exec(query, args...)
@@ -847,6 +857,42 @@ func (m *Manager) MarkAppLicenseOrderPaid(publicID string, paymentMethod string)
 	_, err = m.RenewAppLicense(order.UserID, order.CatalogID, order.Months, order.PlanName, order.Period, order.AmountList)
 	if err != nil {
 		return nil, fmt.Errorf("order marked paid but failed to renew license: %w", err)
+	}
+
+	return m.GetAppLicenseOrderByPublicID(publicID)
+}
+
+// CancelAppLicenseOrder cancels a pending license order.
+func (m *Manager) CancelAppLicenseOrder(publicID string, userID int64, isAdmin bool) (*AppLicenseOrder, error) {
+	if m == nil || !m.IsConnected() {
+		return nil, errors.New("database not connected")
+	}
+
+	order, err := m.GetAppLicenseOrderByPublicID(publicID)
+	if err != nil {
+		return nil, err
+	}
+	if order == nil {
+		return nil, errors.New("order not found")
+	}
+	if !isAdmin && order.UserID != userID {
+		return nil, errors.New("unauthorized")
+	}
+	if order.Status != "pending" {
+		return nil, fmt.Errorf("order cannot be cancelled because status is %s", order.Status)
+	}
+
+	res, err := m.db.Exec(`
+		UPDATE app_license_orders
+		SET status = 'cancelled'
+		WHERE public_id = $1 AND status = 'pending'
+	`, publicID)
+	if err != nil {
+		return nil, err
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, errors.New("order not found or not pending")
 	}
 
 	return m.GetAppLicenseOrderByPublicID(publicID)

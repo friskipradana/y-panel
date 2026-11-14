@@ -206,3 +206,10 @@ export async function payAppLicenseOrder(publicId: string, paymentMethod = 'sald
   )
   return res.data.order
 }
+
+export async function cancelAppLicenseOrder(publicId: string): Promise<AppLicenseOrder> {
+  const res = await agentApi.post<{ ok: boolean; order: AppLicenseOrder }>(
+    `/api/v1/app-catalog/orders/${publicId}/cancel`
+  )
+  return res.data.order
+}
