@@ -171,6 +171,109 @@ func (s *Server) emitOrderPaid(o *database.HostingOrder, username, plan, note st
 	})
 }
 
+func appLicensePeriodText(months int) notify.Localized {
+	if months <= 1 {
+		return notify.Localized{"id": "1 bulan", "en": "1 month"}
+	}
+	return notify.Localized{"id": fmt.Sprintf("%d bulan", months), "en": fmt.Sprintf("%d months", months)}
+}
+
+func (s *Server) emitAppLicenseOrderCreated(o *database.AppLicenseOrder, username string) {
+	if s.notify == nil || o == nil {
+		return
+	}
+	s.notify.Emit(notify.Event{
+		Name: notify.EventOrderCreated,
+		Key:  fmt.Sprintf("app-order-%d", o.ID),
+		Data: map[string]any{
+			"order":    o.ID,
+			"username": username,
+			"plan":     fmt.Sprintf("%s - %s", o.AppName, o.PlanName),
+			"period":   appLicensePeriodText(o.Months),
+			"kind":     notify.Localized{"id": "lisensi aplikasi", "en": "app license"},
+			"amount":   amountText(o.AmountTotal),
+			"voucher":  "",
+			"address":  "",
+			"invoice":  o.InvoiceNumber,
+		},
+	})
+}
+
+func (s *Server) buyerAppLicenseOrderCreated(o *database.AppLicenseOrder, publicBase string) {
+	if s.notify == nil || o == nil || o.AmountTotal <= 0 || o.UserID <= 0 {
+		return
+	}
+	var first orderMethod
+	if methods := activeOrderMethods(s.loadSiteSettings()); len(methods) > 0 {
+		first = methods[0]
+	}
+	url := strings.TrimRight(publicBase, "/") + "/order/license/" + o.PublicID + "/invoice"
+	s.notify.Emit(notify.Event{
+		Name:    notify.EventBuyerOrderCreated,
+		UserIDs: []int64{o.UserID},
+		Key:     fmt.Sprintf("app-order-%d", o.ID),
+		Data: map[string]any{
+			"order":    o.ID,
+			"invoice":  o.InvoiceNumber,
+			"plan":     fmt.Sprintf("%s - %s", o.AppName, o.PlanName),
+			"period":   appLicensePeriodText(o.Months),
+			"amount":   rupiah(o.AmountTotal),
+			"bank":     first.Name,
+			"account":  first.Account,
+			"holder":   first.Holder,
+			"deadline": o.ExpiresAt.Local().Format(notify.TimeLayout),
+			"url":      url,
+		},
+	})
+}
+
+func (s *Server) emitAppLicenseOrderPaid(o *database.AppLicenseOrder, username, note string) {
+	if s.notify == nil || o == nil {
+		return
+	}
+	s.notify.Emit(notify.Event{
+		Name: notify.EventOrderPaid,
+		Key:  fmt.Sprintf("app-order-%d", o.ID),
+		Data: map[string]any{
+			"order":    o.ID,
+			"username": username,
+			"plan":     fmt.Sprintf("%s - %s", o.AppName, o.PlanName),
+			"amount":   amountText(o.AmountTotal),
+			"note":     orderPaidHow(note),
+			"invoice":  o.InvoiceNumber,
+		},
+	})
+}
+
+func (s *Server) buyerAppLicenseOrderPaid(o *database.AppLicenseOrder, username, publicBase string) {
+	if s.notify == nil || o == nil || o.UserID <= 0 {
+		return
+	}
+	url := strings.TrimRight(publicBase, "/") + "/login"
+	until := time.Now().AddDate(0, o.Months, 0).Local().Format(notify.TimeLayout)
+	if s.database != nil && s.database.IsConnected() {
+		if lic, err := s.database.GetAppLicense(o.UserID, o.CatalogID); err == nil && lic != nil && lic.ExpiresAt != "" {
+			if t, err := time.Parse(time.RFC3339, lic.ExpiresAt); err == nil {
+				until = t.Local().Format(notify.TimeLayout)
+			}
+		}
+	}
+	s.notify.Emit(notify.Event{
+		Name:    notify.EventBuyerOrderPaid,
+		UserIDs: []int64{o.UserID},
+		Key:     fmt.Sprintf("app-order-%d", o.ID),
+		Data: map[string]any{
+			"order":    o.ID,
+			"amount":   amountText(o.AmountTotal),
+			"invoice":  o.InvoiceNumber,
+			"plan":     fmt.Sprintf("%s - %s", o.AppName, o.PlanName),
+			"username": username,
+			"until":    until,
+			"url":      url,
+		},
+	})
+}
+
 // alertSellerOrder tells the admins in the panel, and the seller outside it, that an order needs handling
 func (s *Server) alertSellerOrder(orderID int64, detail notify.Localized, level string) {
 	text := detail["id"]

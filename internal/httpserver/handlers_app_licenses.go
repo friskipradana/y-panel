@@ -89,8 +89,10 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 	}
 
 	userID := int64(1)
+	actorUsername := ""
 	if actor := s.currentUserRecord(r); actor != nil {
 		userID = actor.ID
+		actorUsername = actor.Username
 		if req.BuyerName == "" {
 			req.BuyerName = actor.DisplayName
 			if req.BuyerName == "" {
@@ -184,9 +186,20 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 	s.notifyUserAction(
 		userID,
 		"Invoice Lisensi Diterbitkan",
-		fmt.Sprintf("Invoice %s untuk paket %s sebesar Rp %s siap dibayarkan.", created.InvoiceNumber, created.PlanName, rupiah(created.AmountTotal)),
+		fmt.Sprintf("Invoice %s untuk paket %s sebesar %s siap dibayarkan.", created.InvoiceNumber, created.PlanName, rupiah(created.AmountTotal)),
 		"info",
 	)
+	username := created.BuyerName
+	if actorUsername != "" {
+		username = actorUsername
+	}
+	s.notifyAllAdmins(
+		"Pesanan Lisensi Baru",
+		fmt.Sprintf("%s menerbitkan invoice %s untuk %s (%s) sebesar %s.", username, created.InvoiceNumber, created.AppName, created.PlanName, rupiah(created.AmountTotal)),
+		"info",
+	)
+	s.emitAppLicenseOrderCreated(created, username)
+	s.buyerAppLicenseOrderCreated(created, s.orderBaseURL(r))
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":             true,
@@ -286,6 +299,19 @@ func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request
 		fmt.Sprintf("Invoice %s berhasil dilunasi. Lisensi %s paket %s telah aktif!", order.InvoiceNumber, order.AppName, order.PlanName),
 		"success",
 	)
+	username := order.BuyerName
+	if s.database != nil && s.database.IsConnected() {
+		if u, err := s.database.GetUserByID(order.UserID); err == nil && u != nil && u.Username != "" {
+			username = u.Username
+		}
+	}
+	s.notifyAllAdmins(
+		"Pembayaran Lisensi Lunas",
+		fmt.Sprintf("%s melunasi invoice %s untuk %s (%s).", username, order.InvoiceNumber, order.AppName, order.PlanName),
+		"success",
+	)
+	s.emitAppLicenseOrderPaid(order, username, req.PaymentMethod)
+	s.buyerAppLicenseOrderPaid(order, username, s.orderBaseURL(r))
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":      true,
@@ -332,6 +358,11 @@ func (s *Server) handleAppLicenseCancelOrder(w http.ResponseWriter, r *http.Requ
 		order.UserID,
 		"Invoice Dibatalkan",
 		fmt.Sprintf("Invoice %s untuk %s (%s) telah dibatalkan.", order.InvoiceNumber, order.AppName, order.PlanName),
+		"info",
+	)
+	s.notifyAllAdmins(
+		"Invoice Lisensi Dibatalkan",
+		fmt.Sprintf("Invoice %s untuk %s (%s) dibatalkan oleh %s.", order.InvoiceNumber, order.AppName, order.PlanName, actor.Username),
 		"info",
 	)
 
