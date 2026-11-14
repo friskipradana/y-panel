@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.25] - 2026-11-14
+
+Add license editing and order cancellation.
+
+### Fitur baru
+- **app-licenses:** Add license editing and order cancellation ([`d12d6a5`](https://github.com/friskipradana/y-panel/commit/d12d6a5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.24...v1.83.25
+
 ## [1.83.24] - 2026-11-14
 
 Optimize license deletion and prevent response caching.
