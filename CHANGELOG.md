@@ -2,6 +2,24 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.40] - 2026-11-14
+
+Enforce 1 active license session per app and align AppLicenses UI to Reneo design system.
+
+### Fitur baru
+- **app-licenses:** Enforce 1 active license session per app (`ACTIVE`/`TRIAL`) in database & API ([`106f03a`](https://github.com/friskipradana/y-panel/commit/106f03a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.39...v1.83.40
+
+## [1.83.39] - 2026-11-14
+
+Align AppLicenses UI to Reneo design system, replace shield icons, and add 7-day trial endpoint.
+
+### Perbaikan
+- **app-licenses:** Align AppLicenses UI to Reneo design system, replace shield icons with key icons, and add `POST /api/v1/app-catalog/trial` ([`158c80c`](https://github.com/friskipradana/y-panel/commit/158c80c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.38...v1.83.39
+
 ## [1.83.38] - 2026-11-14
 
 Add update and rollback progress modal with extended pull timeout.
