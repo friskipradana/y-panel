@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.41] - 2026-11-14
+
+Remove duplicate icon in AppLicensesWindow header toolbar.
+
+### Perbaikan
+- **app-licenses:** Remove duplicate header icon in `AppLicensesWindow`
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.40...v1.83.41
+
 ## [1.83.40] - 2026-11-14
 
 Enforce 1 active license session per app and align AppLicenses UI to Reneo design system.

@@ -1,7 +1,7 @@
 {
   "name": "reneo",
   "private": true,
-  "version": "1.83.40",
+  "version": "1.83.41",
   "description": "Reneo is a desktop-style Linux server control panel built with React 19 and Go",
   "type": "module",
   "scripts": {

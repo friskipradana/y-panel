@@ -454,28 +454,23 @@ export function AppLicensesWindow() {
     <div className="flex flex-col h-full w-full bg-[var(--win-bg)] text-[var(--win-text)] overflow-hidden">
       {/* Header Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[var(--win-border)] bg-[var(--panel-surface)] shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <IconBadge size="lg" tone="primary">
-            <KeyRound />
-          </IconBadge>
-          <div className="min-w-0">
-            <div className="flex items-center flex-wrap gap-2">
-              <h2 className="text-sm font-semibold leading-none text-[var(--win-text)]">
-                Pusat Lisensi & Tagihan Aplikasi
-              </h2>
-              <Badge tone="success" dot size="sm">
-                {activeCount} Aktif
+        <div className="min-w-0">
+          <div className="flex items-center flex-wrap gap-2">
+            <h2 className="text-sm font-semibold leading-none text-[var(--win-text)]">
+              Pusat Lisensi & Tagihan Aplikasi
+            </h2>
+            <Badge tone="success" dot size="sm">
+              {activeCount} Aktif
+            </Badge>
+            {pendingOrdersCount > 0 && (
+              <Badge tone="warning" dot size="sm">
+                {pendingOrdersCount} Menunggu Bayar
               </Badge>
-              {pendingOrdersCount > 0 && (
-                <Badge tone="warning" dot size="sm">
-                  {pendingOrdersCount} Menunggu Bayar
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
-              Kelola lisensi, paket langganan, dan tagihan Reneo CRM Services.
-            </p>
+            )}
           </div>
+          <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+            Kelola lisensi, paket langganan, dan tagihan Reneo CRM Services.
+          </p>
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
