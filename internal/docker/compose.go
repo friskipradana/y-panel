@@ -160,7 +160,7 @@ func runComposeUp(projectDir, composePath, projectName string) error {
 	if strings.TrimSpace(projectName) != "" {
 		args = append(args, "-p", projectName)
 	}
-	args = append(args, "up", "-d", "--remove-orphans")
+	args = append(args, "up", "-d", "--force-recreate", "--remove-orphans")
 	cmd := exec.Command("docker", args...)
 	cmd.Dir = projectDir
 	if output, err := cmd.CombinedOutput(); err != nil {

@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -320,7 +321,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
 		Official:        true,
-		Image:           "reneoofc/crm-services:latest",
+		Image:           "ghcr.io/aknalre/crm-services:latest",
 		Versions:        []string{"latest", "1.0.7", "1.0.6", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
@@ -1979,6 +1980,9 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	}
 
 	ensureAppVolumePermissions(owner, app.ContainerName)
+	if app.CatalogID == "reneo-crm" {
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
+	}
 	if app.HostPort > 0 {
 		waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort))}, 2500*time.Millisecond)
 	}
@@ -2017,20 +2021,40 @@ func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Reques
 	var matchedImage string
 
 	if app.Kind == "docker" || app.Kind == "existing-container" {
+		if removeContainer && !auth.HasCapability(actor.Role, auth.CapabilityDockerLifecycle) {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin menghapus container"})
+			return
+		}
 		if containers, listErr := docker.ListContainers(); listErr == nil {
 			if matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor)); matched != nil {
 				matchedID = matched.ID
 				matchedImage = matched.Image
-				if removeContainer {
-					if !auth.HasCapability(actor.Role, auth.CapabilityDockerLifecycle) {
-						s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "tidak memiliki izin menghapus container"})
+				if removeContainer && docker.ManagedKind(*matched) == "" {
+					if delErr := docker.DeleteContainer(matched.ID, removeVolumes, false); delErr != nil {
+						s.writeError(w, http.StatusBadGateway, delErr)
 						return
 					}
-					if docker.ManagedKind(*matched) == "" {
-						if delErr := docker.DeleteContainer(matched.ID, removeVolumes, false); delErr != nil {
-							s.writeError(w, http.StatusBadGateway, delErr)
-							return
+				}
+			}
+		}
+		if removeContainer && app.Kind == "docker" && strings.TrimSpace(app.ContainerName) != "" {
+			_ = docker.DeleteContainer(app.ContainerName, removeVolumes, false)
+			_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, removeVolumes, false)
+			if owner, ownerErr := s.resolveDockerOwnerContext(actor, app.UserID); ownerErr == nil {
+				projectDir := filepath.Join(owner.DockerRootDir, app.ContainerName)
+				if filepath.Dir(projectDir) == filepath.Clean(owner.DockerRootDir) {
+					composePath := filepath.Join(projectDir, "compose.yml")
+					if _, statErr := os.Stat(composePath); statErr == nil {
+						downArgs := []string{"compose", "-f", composePath, "-p", app.ContainerName, "down", "--remove-orphans"}
+						if removeVolumes {
+							downArgs = append(downArgs, "-v")
 						}
+						downCmd := exec.Command("docker", downArgs...)
+						downCmd.Dir = projectDir
+						_ = downCmd.Run()
+					}
+					if removeVolumes {
+						_ = os.RemoveAll(projectDir)
 					}
 				}
 			}
