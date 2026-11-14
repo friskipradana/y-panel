@@ -32,14 +32,19 @@ export function EditLicenseModal({
   const [priceAmount, setPriceAmount] = useState<number>(0)
   const [expiresDate, setExpiresDate] = useState('')
 
-  // Feature flags
+  // Feature flags & monetization quotas
   const [unlimitedBroadcast, setUnlimitedBroadcast] = useState(false)
+  const [maxBroadcastPerMonth, setMaxBroadcastPerMonth] = useState<number>(0)
   const [liveChat, setLiveChat] = useState(false)
   const [multiSession, setMultiSession] = useState(false)
   const [maxSessions, setMaxSessions] = useState<number>(1)
+  const [maxTemplates, setMaxTemplates] = useState<number>(0)
+  const [maxUsers, setMaxUsers] = useState<number>(1)
   const [birthdayBot, setBirthdayBot] = useState(false)
   const [wahaSync, setWahaSync] = useState(false)
+  const [apiAccess, setApiAccess] = useState(false)
   const [maxContacts, setMaxContacts] = useState<number>(1000)
+  const [supportPriority, setSupportPriority] = useState<string>('standard')
 
   const [loading, setLoading] = useState(false)
 
@@ -55,13 +60,20 @@ export function EditLicenseModal({
       setExpiresDate(toDateInputValue(license.expiresAt))
 
       const feats = license.features || {}
-      setUnlimitedBroadcast(Boolean(feats.unlimitedBroadcast ?? feats.broadcast))
+      const isUnlim = Boolean(feats.unlimitedBroadcast ?? feats.broadcast)
+      setUnlimitedBroadcast(isUnlim)
+      setMaxBroadcastPerMonth(Number(feats.maxBroadcastPerMonth ?? (isUnlim ? 0 : 500)) || 0)
       setLiveChat(Boolean(feats.liveChat ?? feats.liveChatCrm))
-      setMultiSession(Boolean(feats.multiSession ?? feats.multiUser))
-      setMaxSessions(Number(feats.maxSessions ?? 1) || 1)
+      const isMulti = Boolean(feats.multiSession ?? feats.multiUser)
+      setMultiSession(isMulti)
+      setMaxSessions(Number(feats.maxSessions ?? (isMulti ? 5 : 1)) || 1)
+      setMaxTemplates(Number(feats.maxTemplates ?? 0) || 0)
+      setMaxUsers(Number(feats.maxUsers ?? 1) || 1)
       setBirthdayBot(Boolean(feats.birthdayBot ?? feats.botBirthday))
       setWahaSync(Boolean(feats.wahaSync))
-      setMaxContacts(Number(feats.maxContacts ?? 1000) || 1000)
+      setApiAccess(Boolean(feats.apiAccess))
+      setMaxContacts(Number(feats.maxContacts ?? 1000) || 0)
+      setSupportPriority(String(feats.supportPriority || 'standard').toLowerCase())
     }
   }, [open, license])
 
@@ -82,12 +94,17 @@ export function EditLicenseModal({
       const mergedFeatures: Record<string, string | number | boolean> = {
         ...(license.features || {}),
         unlimitedBroadcast,
+        maxBroadcastPerMonth: unlimitedBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
         liveChat,
-        multiSession,
-        maxSessions: multiSession ? Math.max(1, maxSessions) : 1,
+        multiSession: multiSession || maxSessions > 1,
+        maxSessions: Math.max(1, maxSessions),
+        maxTemplates: Math.max(0, maxTemplates),
+        maxUsers: Math.max(1, maxUsers),
         birthdayBot,
         wahaSync,
+        apiAccess,
         maxContacts: Math.max(0, maxContacts),
+        supportPriority,
       }
 
       const expiresAtIso = expiresDate ? `${expiresDate}T23:59:59Z` : undefined
@@ -286,12 +303,22 @@ export function EditLicenseModal({
               />
               <span>Bot Ulang Tahun</span>
             </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={apiAccess}
+                onChange={(e) => setApiAccess(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Akses API & Webhook</span>
+            </label>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                Maksimal Kontak CRM
+                Maks. Kontak (0 = Unlimited)
               </label>
               <input
                 type="number"
@@ -302,20 +329,78 @@ export function EditLicenseModal({
               />
             </div>
 
-            {multiSession && (
-              <div>
-                <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                  Maksimal Sesi WA
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={maxSessions}
-                  onChange={(e) => setMaxSessions(Number(e.target.value))}
-                  className="panel-input panel-input--mono w-full text-xs"
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Kuota Sesi WA (Multi-Sesi)
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={maxSessions}
+                onChange={(e) => {
+                  const val = Math.max(1, Number(e.target.value))
+                  setMaxSessions(val)
+                  if (val > 1) setMultiSession(true)
+                }}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Kuota Broadcast / Bln
+              </label>
+              <input
+                type="number"
+                min={0}
+                disabled={unlimitedBroadcast}
+                value={unlimitedBroadcast ? 0 : maxBroadcastPerMonth}
+                onChange={(e) => setMaxBroadcastPerMonth(Number(e.target.value))}
+                className="panel-input panel-input--mono w-full text-xs disabled:opacity-50"
+                placeholder={unlimitedBroadcast ? 'Tanpa Batas' : '500'}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Kuota Template (0 = Unlim)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={maxTemplates}
+                onChange={(e) => setMaxTemplates(Number(e.target.value))}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Maks. User / Agent
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={maxUsers}
+                onChange={(e) => setMaxUsers(Math.max(1, Number(e.target.value)))}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Prioritas Support
+              </label>
+              <select
+                value={supportPriority}
+                onChange={(e) => setSupportPriority(e.target.value)}
+                className="panel-input w-full text-xs"
+              >
+                <option value="standard">Standard</option>
+                <option value="fast">Fast</option>
+                <option value="vip">VIP</option>
+              </select>
+            </div>
           </div>
         </div>
       </form>

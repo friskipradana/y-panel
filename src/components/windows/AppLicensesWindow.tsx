@@ -66,13 +66,30 @@ function formatFeatureBadge(key: string, value: unknown): string | null {
   if (k === 'wahasync') return 'Integrasi WAHA'
   if (k === 'birthdaybot' || k === 'botbirthday') return 'Bot Ulang Tahun'
   if (k === 'livechat' || k === 'livechatcrm') return 'Live Chat CRM'
+  if (k === 'multisession') return 'Multi-Sesi WA'
+  if (k === 'maxsessions') return `${Number(value).toLocaleString('id-ID')} Sesi WA`
   if (k === 'broadcast' || k === 'unlimitedbroadcast') {
     return value === true ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'
+  }
+  if (k === 'maxbroadcastpermonth') {
+    const n = Number(value)
+    return n > 0 ? `${n.toLocaleString('id-ID')} Broadcast/bln` : null
+  }
+  if (k === 'maxtemplates') {
+    const n = Number(value)
+    return n > 0 ? `${n.toLocaleString('id-ID')} Template` : null
+  }
+  if (k === 'maxusers') {
+    const n = Number(value)
+    return n > 0 ? `${n.toLocaleString('id-ID')} User/Agent` : null
   }
   if (k === 'apiaccess') return 'Akses API'
   if (k === 'multiuser') return 'Multi-User'
   if (k === 'fullmodules') return 'Semua Modul'
-  if (k === 'maxcontacts') return `${Number(value).toLocaleString('id-ID')} Kontak`
+  if (k === 'maxcontacts') {
+    const n = Number(value)
+    return n === 0 ? 'Kontak Tanpa Batas' : `${n.toLocaleString('id-ID')} Kontak`
+  }
   if (k === 'supportpriority') return `Support: ${String(value).toUpperCase()}`
   if (typeof value === 'boolean') {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim()

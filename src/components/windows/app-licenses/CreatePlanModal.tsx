@@ -31,11 +31,19 @@ export function CreatePlanModal({
   const [priceAmount, setPriceAmount] = useState<number>(99000)
   const [highlighted, setHighlighted] = useState(false)
 
-  // Custom features
+  // Custom features & quotas
   const [maxContacts, setMaxContacts] = useState(10000)
   const [featBroadcast, setFeatBroadcast] = useState(true)
+  const [maxBroadcastPerMonth, setMaxBroadcastPerMonth] = useState(0)
   const [featLiveChat, setFeatLiveChat] = useState(true)
+  const [featMultiSession, setFeatMultiSession] = useState(false)
+  const [maxSessions, setMaxSessions] = useState(1)
+  const [maxTemplates, setMaxTemplates] = useState(0)
+  const [maxUsers, setMaxUsers] = useState(1)
   const [featBotUltah, setFeatBotUltah] = useState(true)
+  const [featWahaSync, setFeatWahaSync] = useState(true)
+  const [featApiAccess, setFeatApiAccess] = useState(false)
+  const [supportPriority, setSupportPriority] = useState('standard')
 
   const [loading, setLoading] = useState(false)
 
@@ -86,10 +94,18 @@ export function CreatePlanModal({
         highlighted,
         isActive: true,
         features: {
-          maxContacts,
+          maxContacts: Math.max(0, maxContacts),
           unlimitedBroadcast: featBroadcast,
+          maxBroadcastPerMonth: featBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
           liveChat: featLiveChat,
-          botBirthday: featBotUltah,
+          multiSession: featMultiSession || maxSessions > 1,
+          maxSessions: Math.max(1, maxSessions),
+          maxTemplates: Math.max(0, maxTemplates),
+          maxUsers: Math.max(1, maxUsers),
+          birthdayBot: featBotUltah,
+          wahaSync: featWahaSync,
+          apiAccess: featApiAccess,
+          supportPriority,
         },
       }
 
@@ -272,19 +288,92 @@ export function CreatePlanModal({
         {/* Feature inclusions */}
         <div>
           <label className="block font-semibold text-[var(--win-text)] mb-1.5">
-            Fitur dalam Paket:
+            Fitur & Kuota dalam Paket:
           </label>
-          <div className="space-y-2 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]">
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--win-text)]">Kapasitas Kontak / Kuota:</span>
-              <input
-                type="number"
-                value={maxContacts}
-                onChange={(e) => setMaxContacts(Number(e.target.value))}
-                className="w-28 px-2 py-1 text-right rounded border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] text-xs"
-              />
+          <div className="space-y-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Maks. Kontak (0 = Unlim)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxContacts}
+                  onChange={(e) => setMaxContacts(Number(e.target.value))}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Kuota Sesi WA
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxSessions}
+                  onChange={(e) => {
+                    const v = Math.max(1, Number(e.target.value))
+                    setMaxSessions(v)
+                    if (v > 1) setFeatMultiSession(true)
+                  }}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Kuota Broadcast / Bln
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  disabled={featBroadcast}
+                  value={featBroadcast ? 0 : maxBroadcastPerMonth}
+                  onChange={(e) => setMaxBroadcastPerMonth(Number(e.target.value))}
+                  className="panel-input panel-input--mono w-full text-xs disabled:opacity-50"
+                  placeholder={featBroadcast ? 'Tanpa Batas' : '500'}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Kuota Template (0 = Unlim)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxTemplates}
+                  onChange={(e) => setMaxTemplates(Number(e.target.value))}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Maks. User / Agent
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxUsers}
+                  onChange={(e) => setMaxUsers(Math.max(1, Number(e.target.value)))}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Prioritas Support
+                </label>
+                <select
+                  value={supportPriority}
+                  onChange={(e) => setSupportPriority(e.target.value)}
+                  className="panel-input w-full text-xs"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="fast">Fast</option>
+                  <option value="vip">VIP</option>
+                </select>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--win-border)]">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--win-border)]">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -306,11 +395,38 @@ export function CreatePlanModal({
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
+                  checked={featMultiSession}
+                  onChange={(e) => setFeatMultiSession(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Multi-Sesi WhatsApp</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featWahaSync}
+                  onChange={(e) => setFeatWahaSync(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Integrasi WAHA</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
                   checked={featBotUltah}
                   onChange={(e) => setFeatBotUltah(e.target.checked)}
                   className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
                 />
-                <span>Bot Otomatis</span>
+                <span>Bot Ulang Tahun</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featApiAccess}
+                  onChange={(e) => setFeatApiAccess(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Akses API & Webhook</span>
               </label>
             </div>
           </div>
