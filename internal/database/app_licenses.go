@@ -267,7 +267,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       49000,
 			highlighted: false,
 			sortOrder:   1,
-			features:    `{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"wahaSync":true,"supportPriority":"standard"}`,
+			features:    `{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true,"supportPriority":"standard"}`,
 		},
 		{
 			slug:        "pro-monthly",
@@ -278,7 +278,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       99000,
 			highlighted: true,
 			sortOrder:   2,
-			features:    `{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"wahaSync":true,"supportPriority":"fast"}`,
+			features:    `{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true,"supportPriority":"fast"}`,
 		},
 		{
 			slug:        "enterprise-annual",
@@ -289,7 +289,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       990000,
 			highlighted: false,
 			sortOrder:   3,
-			features:    `{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"wahaSync":true,"supportPriority":"vip"}`,
+			features:    `{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true,"supportPriority":"vip"}`,
 		},
 	}
 
@@ -312,19 +312,19 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 			{
 				ID: 1, CatalogID: catalogID, Slug: "starter-monthly", Name: "Starter Bulanan",
 				Tagline: "Cocok untuk UMKM pemula", Period: "monthly", Months: 1, PriceAmount: 49000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"wahaSync":true}`),
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true}`),
 				Highlighted: false, IsActive: true, SortOrder: 1,
 			},
 			{
 				ID: 2, CatalogID: catalogID, Slug: "pro-monthly", Name: "Pro Bulanan",
 				Tagline: "Fitur komprehensif lengkap", Period: "monthly", Months: 1, PriceAmount: 99000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"wahaSync":true}`),
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true}`),
 				Highlighted: true, IsActive: true, SortOrder: 2,
 			},
 			{
 				ID: 3, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise Tahunan",
 				Tagline: "Paket tahunan hemat 17%", Period: "annual", Months: 12, PriceAmount: 990000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"wahaSync":true}`),
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true}`),
 				Highlighted: false, IsActive: true, SortOrder: 3,
 			},
 		}, nil

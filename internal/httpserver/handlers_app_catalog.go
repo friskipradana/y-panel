@@ -3062,7 +3062,11 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 			http.Error(w, "proxy disabled for this custom url app", http.StatusForbidden)
 			return
 		}
-		valid, err := validateTargetURLForRole(app.TargetURL, u.Role, true)
+		role := ""
+		if u != nil {
+			role = u.Role
+		}
+		valid, err := validateTargetURLForRole(app.TargetURL, role, true)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
@@ -3269,6 +3273,15 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 	proxy.ServeHTTP(w, r)
 }
 
+func isPublicReneoCrmPath(rest string) bool {
+	p := strings.TrimSpace(rest)
+	return p == "/csat" ||
+		strings.HasPrefix(p, "/csat/") ||
+		strings.HasPrefix(p, "/api/public/") ||
+		strings.HasPrefix(p, "/assets/") ||
+		p == "/favicon.ico"
+}
+
 func (s *Server) appGatewayProxy() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slug, rest, hasSlash := appGatewaySplitPath(r.URL.Path)
@@ -3292,6 +3305,11 @@ func (s *Server) appGatewayProxy() http.Handler {
 			app, _ := s.database.GetInstalledAppBySlugAnyUser(slug)
 			if app == nil {
 				http.NotFound(w, r)
+				return
+			}
+			// Allow public CSAT rating link for Reneo CRM without panel login
+			if app.CatalogID == "reneo-crm" && isPublicReneoCrmPath(rest) {
+				s.serveAppProxy(w, r, nil, app, "/app/"+slug, rest)
 				return
 			}
 			// Unauthenticated browser navigation: redirect to login with redirect parameter
@@ -3400,8 +3418,9 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			isLocked := lic.IsExpired || isSuspended
 			features := lic.Features
 			if isLocked {
-				features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"maxContacts":0,"wahaSync":false}`)
+				features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"wahaSync":false}`)
 			}
+			publicUrls := s.collectAppPublicUrls(userID, catalogID)
 			s.writeJSON(w, http.StatusOK, jsonResponse{
 				"ok":            true,
 				"catalogId":     lic.CatalogID,
@@ -3416,6 +3435,7 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 				"licenseKey":    lic.LicenseKey,
 				"billingUrl":    "/hosting",
 				"features":      features,
+				"publicUrls":    publicUrls,
 			})
 			return
 		}
@@ -3442,4 +3462,67 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			"wahaSync":           false,
 		},
 	})
+}
+
+func (s *Server) collectAppPublicUrls(userID int64, catalogID string) []string {
+	if s.database == nil || !s.database.IsConnected() {
+		return nil
+	}
+	slug := catalogID
+	ownerID := userID
+	if apps, err := s.database.ListInstalledApps(userID); err == nil {
+		for _, app := range apps {
+			if app.CatalogID == catalogID && strings.TrimSpace(app.Slug) != "" {
+				slug = strings.TrimSpace(app.Slug)
+				ownerID = app.UserID
+				break
+			}
+		}
+	}
+	if ownerID <= 0 {
+		if app, err := s.database.GetInstalledAppBySlugAnyUser(catalogID); err == nil && app != nil {
+			if strings.TrimSpace(app.Slug) != "" {
+				slug = strings.TrimSpace(app.Slug)
+			}
+			if app.UserID > 0 {
+				ownerID = app.UserID
+			}
+		}
+	}
+	seen := map[string]struct{}{}
+	out := []string{}
+	add := func(raw string) {
+		raw = strings.TrimRight(strings.TrimSpace(raw), "/")
+		if raw == "" {
+			return
+		}
+		if _, ok := seen[raw]; ok {
+			return
+		}
+		seen[raw] = struct{}{}
+		out = append(out, raw)
+	}
+	if subs, err := s.database.ListHostingSubdomains(ownerID); err == nil {
+		for _, sub := range subs {
+			host := strings.TrimSpace(sub.Hostname)
+			if host == "" || strings.EqualFold(sub.Status, "suspended") {
+				continue
+			}
+			if sub.Panel {
+				add("https://" + host + "/app/" + slug)
+			} else {
+				add("https://" + host)
+			}
+		}
+	}
+	if customDomains, err := s.database.ListHostingCustomDomains(ownerID); err == nil {
+		for _, dom := range customDomains {
+			host := strings.TrimSpace(dom.Hostname)
+			if host == "" || strings.EqualFold(dom.Status, "suspended") || strings.EqualFold(dom.Status, "disabled") {
+				continue
+			}
+			add("https://" + host + "/app/" + slug)
+		}
+	}
+	return out
 }
