@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.23] - 2026-11-14
+
+Remove redundant default license checks in app_licenses.
+
+### Peningkatan
+- **db:** Remove redundant default license checks in app_licenses ([`c0bea01`](https://github.com/friskipradana/y-panel/commit/c0bea01))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.22...v1.83.23
+
 ## [1.83.22] - 2026-11-14
 
 Add multiSession quota to crm plans and bump crm-services to 1.0.7.
