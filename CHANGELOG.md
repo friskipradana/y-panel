@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.31] - 2026-11-14
+
+Add Official Reneo badge for reneo-crm.
+
+### Fitur baru
+- **app-catalog:** Add Official Reneo badge for reneo-crm ([`3dab40c`](https://github.com/friskipradana/y-panel/commit/3dab40c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.30...v1.83.31
+
 ## [1.83.30] - 2026-11-14
 
 2 perubahan, utamanya implement license suspension functionality.
