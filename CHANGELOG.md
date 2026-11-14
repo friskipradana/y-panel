@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.34] - 2026-11-14
+
+Pass WEBHOOK_URL for reneo-crm container.
+
+### Perbaikan
+- **app-catalog:** Pass WEBHOOK_URL for reneo-crm container ([`1a68d35`](https://github.com/friskipradana/y-panel/commit/1a68d35))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.33...v1.83.34
+
 ## [1.83.33] - 2026-11-14
 
 Fix shutdown race, license invoice domain, and reneo-waha network.
