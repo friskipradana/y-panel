@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.26] - 2026-11-14
+
+Implement app license plan updates.
+
+### Fitur baru
+- **api:** Implement app license plan updates ([`63ad064`](https://github.com/friskipradana/y-panel/commit/63ad064))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.25...v1.83.26
+
 ## [1.83.25] - 2026-11-14
 
 Add license editing and order cancellation.
