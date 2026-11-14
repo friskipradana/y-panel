@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.24] - 2026-11-14
+
+Optimize license deletion and prevent response caching.
+
+### Perbaikan
+- **ui:** Optimize license deletion and prevent response caching ([`5d88356`](https://github.com/friskipradana/y-panel/commit/5d88356))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.23...v1.83.24
+
 ## [1.83.23] - 2026-11-14
 
 Remove redundant default license checks in app_licenses.
