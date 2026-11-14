@@ -380,8 +380,6 @@ func (m *Manager) ListAppLicenses(userID int64, catalogID string) ([]AppLicense,
 		return []AppLicense{}, nil
 	}
 
-	_ = m.EnsureDefaultLicenses(userID)
-
 	query := `SELECT ` + appLicenseCols + ` FROM app_licenses WHERE user_id = $1`
 	args := []any{userID}
 	if catalogID != "" {
@@ -412,8 +410,6 @@ func (m *Manager) GetAppLicense(userID int64, catalogID string) (*AppLicense, er
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
 	}
-
-	_ = m.EnsureDefaultLicenses(userID)
 
 	row := m.db.QueryRow(
 		`SELECT `+appLicenseCols+` FROM app_licenses WHERE user_id = $1 AND catalog_id = $2 ORDER BY id DESC LIMIT 1`,
