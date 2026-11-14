@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.36] - 2026-11-14
+
+Add version info, update check, rollback, and update release notes preview.
+
+### Fitur baru
+- **app-catalog,updater:** Add version info, update check, rollback, and update release notes preview ([`6ce7542`](https://github.com/friskipradana/y-panel/commit/6ce7542))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.35...v1.83.36
+
 ## [1.83.35] - 2026-11-14
 
 Sync reneo-crm GHCR image, force-recreate on upgrade, and clean compose/data on uninstall.
