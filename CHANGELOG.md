@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.22] - 2026-11-14
+
+Add multiSession quota to crm plans and bump crm-services to 1.0.7.
+
+### Fitur baru
+- **licenses:** Add multiSession quota to crm plans and bump crm-services to 1.0.7 ([`8258dd0`](https://github.com/friskipradana/y-panel/commit/8258dd0))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.21...v1.83.22
+
 ## [1.83.21] - 2026-11-13
 
 Allow admins to delete any app license and bump crm-services to 1.0.6.
