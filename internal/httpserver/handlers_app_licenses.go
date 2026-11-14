@@ -831,22 +831,28 @@ func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	valid := !lic.IsExpired && (lic.Status == "ACTIVE" || lic.Status == "TRIAL")
+	isSuspended := strings.EqualFold(lic.Status, "SUSPENDED")
+	valid := !lic.IsExpired && !isSuspended && (lic.Status == "ACTIVE" || lic.Status == "TRIAL")
+	features := lic.Features
+	if !valid {
+		features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"maxContacts":0,"wahaSync":false}`)
+	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
-		"ok":         true,
-		"valid":      valid,
-		"status":     lic.Status,
-		"appName":    lic.AppName,
-		"catalogId":  lic.CatalogID,
-		"licenseKey": lic.LicenseKey,
-		"planName":   lic.PlanName,
-		"period":     lic.Period,
-		"daysLeft":   lic.DaysLeft,
-		"isExpired":  lic.IsExpired,
-		"startedAt":  lic.StartedAt,
-		"expiresAt":  lic.ExpiresAt,
-		"features":   lic.Features,
+		"ok":          true,
+		"valid":       valid,
+		"status":      lic.Status,
+		"appName":     lic.AppName,
+		"catalogId":   lic.CatalogID,
+		"licenseKey":  lic.LicenseKey,
+		"planName":    lic.PlanName,
+		"period":      lic.Period,
+		"daysLeft":    lic.DaysLeft,
+		"isExpired":   lic.IsExpired || isSuspended,
+		"isSuspended": isSuspended,
+		"startedAt":   lic.StartedAt,
+		"expiresAt":   lic.ExpiresAt,
+		"features":    features,
 	})
 }
 

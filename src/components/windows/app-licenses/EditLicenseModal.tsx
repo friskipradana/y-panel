@@ -26,7 +26,7 @@ export function EditLicenseModal({
   onSuccess,
 }: EditLicenseModalProps) {
   const [appName, setAppName] = useState('')
-  const [status, setStatus] = useState<'ACTIVE' | 'TRIAL' | 'EXPIRED'>('ACTIVE')
+  const [status, setStatus] = useState<'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'SUSPENDED'>('ACTIVE')
   const [planName, setPlanName] = useState('')
   const [period, setPeriod] = useState('monthly')
   const [priceAmount, setPriceAmount] = useState<number>(0)
@@ -52,7 +52,11 @@ export function EditLicenseModal({
     if (open && license) {
       setAppName(license.appName || '')
       setStatus(
-        license.status === 'TRIAL' || license.status === 'EXPIRED' ? license.status : 'ACTIVE'
+        license.status === 'TRIAL' ||
+          license.status === 'EXPIRED' ||
+          license.status === 'SUSPENDED'
+          ? license.status
+          : 'ACTIVE'
       )
       setPlanName(license.planName || '')
       setPeriod(license.period || 'monthly')
@@ -183,11 +187,14 @@ export function EditLicenseModal({
             </label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as 'ACTIVE' | 'TRIAL' | 'EXPIRED')}
+              onChange={(e) =>
+                setStatus(e.target.value as 'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'SUSPENDED')
+              }
               className="panel-input w-full text-xs"
             >
               <option value="ACTIVE">ACTIVE (Aktif)</option>
               <option value="TRIAL">TRIAL (Uji Coba)</option>
+              <option value="SUSPENDED">SUSPENDED (Disuspend)</option>
               <option value="EXPIRED">EXPIRED (Kedaluwarsa)</option>
             </select>
           </div>

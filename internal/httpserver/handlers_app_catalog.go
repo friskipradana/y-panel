@@ -1779,6 +1779,12 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	actionName := strings.ToLower(strings.TrimSpace(body.Action))
+	if (actionName == "start" || actionName == "restart") && app.CatalogID != "" && s.database != nil && s.database.IsConnected() {
+		if lic, licErr := s.database.GetAppLicense(app.UserID, app.CatalogID); licErr == nil && lic != nil && strings.EqualFold(lic.Status, "SUSPENDED") {
+			s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Lisensi aplikasi ini sedang disuspend. Aktifkan kembali lisensi sebelum menjalankan aplikasi."})
+			return
+		}
+	}
 	matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor))
 	if matched == nil && (actionName == "start" || actionName == "restart") {
 		_, matched = s.healAndResolveAppTargets(actor, app)
@@ -2931,6 +2937,21 @@ func (s *Server) appCatalogProxy() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
+		if app.CatalogID != "" && s.database != nil && s.database.IsConnected() {
+			if lic, licErr := s.database.GetAppLicense(app.UserID, app.CatalogID); licErr == nil && lic != nil && strings.EqualFold(lic.Status, "SUSPENDED") {
+				if strings.HasPrefix(rest, "/api/") || strings.Contains(r.Header.Get("Accept"), "application/json") {
+					s.writeJSON(w, http.StatusForbidden, jsonResponse{
+						"error": "Lisensi aplikasi ini sedang disuspend oleh administrator.",
+						"code":  "LICENSE_SUSPENDED",
+					})
+					return
+				}
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Lisensi Disuspend</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}main{max-width:440px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;text-align:center}h1{font-size:18px;margin:0 0 8px;color:#be123c}p{font-size:14px;line-height:1.6;color:#475569;margin:0}</style></head><body><main><h1>Lisensi Aplikasi Disuspend</h1><p>Lisensi untuk <strong>` + htmlEscapeMinimal(app.Name) + `</strong> sedang disuspend oleh administrator sehingga aplikasi tidak dapat digunakan. Hubungi administrator untuk mengaktifkan kembali.</p></main></body></html>`))
+				return
+			}
+		}
 		if r.URL.Path == appCatalogProxyPrefix+idStr {
 			http.Redirect(w, r, appCatalogProxyPrefix+idStr+"/", http.StatusPermanentRedirect)
 			return
@@ -2959,6 +2980,12 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 	if s.database != nil && s.database.IsConnected() {
 		lic, err := s.database.GetAppLicense(userID, catalogID)
 		if err == nil && lic != nil {
+			isSuspended := strings.EqualFold(lic.Status, "SUSPENDED")
+			isLocked := lic.IsExpired || isSuspended
+			features := lic.Features
+			if isLocked {
+				features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"maxContacts":0,"wahaSync":false}`)
+			}
 			s.writeJSON(w, http.StatusOK, jsonResponse{
 				"ok":            true,
 				"catalogId":     lic.CatalogID,
@@ -2968,10 +2995,11 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 				"expiresAt":     lic.ExpiresAt,
 				"daysRemaining": lic.DaysLeft,
 				"daysLeft":      lic.DaysLeft,
-				"isExpired":     lic.IsExpired,
+				"isExpired":     isLocked,
+				"isSuspended":   isSuspended,
 				"licenseKey":    lic.LicenseKey,
 				"billingUrl":    "/hosting",
-				"features":      lic.Features,
+				"features":      features,
 			})
 			return
 		}

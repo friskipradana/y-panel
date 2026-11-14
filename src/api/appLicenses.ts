@@ -6,7 +6,7 @@ export interface AppLicense {
   catalogId: string
   appName: string
   licenseKey: string
-  status: 'ACTIVE' | 'TRIAL' | 'EXPIRED'
+  status: 'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'SUSPENDED'
   planName: string
   period: 'monthly' | 'quarterly' | 'annual' | 'trial'
   priceAmount: number
@@ -95,7 +95,7 @@ export interface CreateAppLicensePayload {
   catalogId: string
   appName?: string
   licenseKey?: string
-  status?: 'ACTIVE' | 'TRIAL' | 'EXPIRED'
+  status?: 'ACTIVE' | 'TRIAL' | 'EXPIRED' | 'SUSPENDED'
   planName?: string
   period?: string
   priceAmount?: number

@@ -21,6 +21,8 @@ import {
   Trash2,
   Pencil,
   XCircle,
+  Ban,
+  PlayCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -32,6 +34,7 @@ import {
   payAppLicenseOrder,
   cancelAppLicenseOrder,
   fetchAvailableApps,
+  updateAppLicense,
   deleteAppLicense,
   deleteAppLicensePlan,
   type AppLicense,
@@ -106,7 +109,7 @@ export function AppLicensesWindow() {
   const [activeTab, setActiveTab] = useState<LicenseTab>('licenses')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'EXPIRED'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED'>('ALL')
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   // Modals
@@ -269,6 +272,40 @@ export function AppLicensesWindow() {
     }
   }
 
+  const suspendMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: 'SUSPENDED' | 'ACTIVE' }) =>
+      updateAppLicense(id, { status }),
+    onSuccess: (updated) => {
+      toast.success(
+        updated.status === 'SUSPENDED'
+          ? `Lisensi ${updated.appName} berhasil disuspend. Aplikasi tidak dapat digunakan.`
+          : `Lisensi ${updated.appName} berhasil diaktifkan kembali.`
+      )
+      queryClient.invalidateQueries({ queryKey: ['app-licenses'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Gagal mengubah status lisensi.')
+    },
+  })
+
+  const handleToggleSuspend = async (lic: AppLicense) => {
+    if (lic.status === 'SUSPENDED') {
+      suspendMutation.mutate({ id: lic.id, status: 'ACTIVE' })
+      return
+    }
+    const ok = await alertLib.confirm(
+      'Suspend Lisensi?',
+      `Lisensi ${lic.appName} (${lic.licenseKey}) akan disuspend sehingga aplikasi tidak dapat digunakan sampai diaktifkan kembali.`,
+      'Suspend',
+      'Batal',
+      'warning',
+      'app-licenses'
+    )
+    if (ok) {
+      suspendMutation.mutate({ id: lic.id, status: 'SUSPENDED' })
+    }
+  }
+
   const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key)
     setCopiedKey(key)
@@ -334,8 +371,11 @@ export function AppLicensesWindow() {
   const filteredLicenses = useMemo(() => {
     const q = search.trim().toLowerCase()
     return licenses.filter((lic) => {
-      if (statusFilter === 'ACTIVE' && (lic.isExpired || lic.status === 'EXPIRED')) return false
-      if (statusFilter === 'EXPIRED' && !lic.isExpired && lic.status !== 'EXPIRED') return false
+      const isSuspended = lic.status === 'SUSPENDED'
+      const isExpired = !isSuspended && (lic.isExpired || lic.status === 'EXPIRED')
+      if (statusFilter === 'ACTIVE' && (isSuspended || isExpired)) return false
+      if (statusFilter === 'SUSPENDED' && !isSuspended) return false
+      if (statusFilter === 'EXPIRED' && !isExpired) return false
       if (!q) return true
       return (
         lic.appName.toLowerCase().includes(q) ||
@@ -347,11 +387,15 @@ export function AppLicensesWindow() {
   }, [licenses, search, statusFilter])
 
   const activeCount = useMemo(
-    () => licenses.filter((l) => !l.isExpired && l.status !== 'EXPIRED').length,
+    () => licenses.filter((l) => !l.isExpired && l.status !== 'EXPIRED' && l.status !== 'SUSPENDED').length,
+    [licenses]
+  )
+  const suspendedCount = useMemo(
+    () => licenses.filter((l) => l.status === 'SUSPENDED').length,
     [licenses]
   )
   const expiredCount = useMemo(
-    () => licenses.filter((l) => l.isExpired || l.status === 'EXPIRED').length,
+    () => licenses.filter((l) => l.status !== 'SUSPENDED' && (l.isExpired || l.status === 'EXPIRED')).length,
     [licenses]
   )
   const pendingOrdersCount = useMemo(
@@ -532,6 +576,17 @@ export function AppLicensesWindow() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setStatusFilter('SUSPENDED')}
+                  className={`px-2.5 py-1 rounded-md transition ${
+                    statusFilter === 'SUSPENDED'
+                      ? 'bg-[var(--win-bg)] font-semibold text-amber-600 shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-amber-600'
+                  }`}
+                >
+                  Disuspend ({suspendedCount})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStatusFilter('EXPIRED')}
                   className={`px-2.5 py-1 rounded-md transition ${
                     statusFilter === 'EXPIRED'
@@ -573,14 +628,16 @@ export function AppLicensesWindow() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
                   {filteredLicenses.map((lic) => {
-                    const isExpired = lic.isExpired || lic.status === 'EXPIRED'
+                    const isSuspended = lic.status === 'SUSPENDED'
+                    const isExpired = !isSuspended && (lic.isExpired || lic.status === 'EXPIRED')
+                    const isLocked = isSuspended || isExpired
                     const progressPct = Math.min(100, Math.max(0, (lic.daysLeft / 30) * 100))
 
                     return (
                       <div
                         key={lic.id}
                         className={`rounded-xl border p-4 flex flex-col justify-between transition-all bg-[var(--card-bg)] shadow-sm gap-3 ${
-                          isExpired
+                          isLocked
                             ? 'border-rose-500/30'
                             : 'border-[var(--win-border)] hover:border-[var(--win-border-focus)]'
                         }`}
@@ -591,12 +648,12 @@ export function AppLicensesWindow() {
                             <div className="flex items-center gap-3 min-w-0">
                               <div
                                 className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                                  isExpired
+                                  isLocked
                                     ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
                                     : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
                                 }`}
                               >
-                                {isExpired ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
+                                {isLocked ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
@@ -614,7 +671,11 @@ export function AppLicensesWindow() {
                             </div>
 
                             <div className="shrink-0">
-                              {isExpired ? (
+                              {isSuspended ? (
+                                <Badge tone="danger" dot size="sm">
+                                  Disuspend
+                                </Badge>
+                              ) : isExpired ? (
                                 <Badge tone="danger" dot size="sm">
                                   Kedaluwarsa
                                 </Badge>
@@ -752,6 +813,17 @@ export function AppLicensesWindow() {
                               Buka
                             </Button>
                             <IconButton
+                              label={isSuspended ? 'Aktifkan Lisensi' : 'Suspend Lisensi'}
+                              onClick={() => void handleToggleSuspend(lic)}
+                              className={`h-7 w-7 ${
+                                isSuspended
+                                  ? 'text-emerald-600 hover:bg-emerald-500/10'
+                                  : 'text-amber-600 hover:bg-amber-500/10'
+                              }`}
+                            >
+                              {isSuspended ? <PlayCircle size={12} /> : <Ban size={12} />}
+                            </IconButton>
+                            <IconButton
                               label="Edit Lisensi"
                               onClick={() => {
                                 setEditingLicense(lic)
@@ -859,7 +931,11 @@ export function AppLicensesWindow() {
                             })}
                           </div>
                           <div>
-                            {isExpired ? (
+                            {lic.status === 'SUSPENDED' ? (
+                              <Badge tone="danger" dot size="sm">
+                                Disuspend
+                              </Badge>
+                            ) : isExpired ? (
                               <Badge tone="danger" dot size="sm">
                                 Kedaluwarsa
                               </Badge>
@@ -930,6 +1006,18 @@ export function AppLicensesWindow() {
                             <ExternalLink size={12} />
                             Buka
                           </Button>
+
+                          <IconButton
+                            label={lic.status === 'SUSPENDED' ? 'Aktifkan Lisensi' : 'Suspend Lisensi'}
+                            onClick={() => void handleToggleSuspend(lic)}
+                            className={`h-7 w-7 border-transparent ${
+                              lic.status === 'SUSPENDED'
+                                ? 'text-emerald-600 hover:bg-emerald-500/10'
+                                : 'text-amber-600 hover:bg-amber-500/10'
+                            }`}
+                          >
+                            {lic.status === 'SUSPENDED' ? <PlayCircle size={12} /> : <Ban size={12} />}
+                          </IconButton>
 
                           <IconButton
                             label="Edit Lisensi"
