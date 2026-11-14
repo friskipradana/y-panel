@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { KeyRound, RefreshCw, ShieldCheck, CheckCircle2 } from 'lucide-react'
+import { KeyRound, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createAppLicense, type AvailableApp, type CreateAppLicensePayload } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -154,7 +154,7 @@ export function CreateLicenseModal({
       onClose={onClose}
       title="Buat Lisensi Aplikasi Baru"
       subtitle="Terbitkan lisensi baru untuk aplikasi katalog, proyek server, atau aplikasi kustom."
-      icon={<ShieldCheck className="text-emerald-500" size={20} />}
+      icon={<KeyRound className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -166,7 +166,7 @@ export function CreateLicenseModal({
           <select
             value={isCustom ? '__custom__' : selectedApp}
             onChange={(e) => handleAppChange(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
           >
             <optgroup label="Aplikasi Terdaftar">
               {availableApps.map((app) => (
@@ -199,7 +199,7 @@ export function CreateLicenseModal({
                   }
                 }}
                 placeholder="Contoh: Sistem POS Resto, WA Blast Bot, Inventory ERP"
-                className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+                className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
               />
             </div>
             <div>
@@ -212,7 +212,7 @@ export function CreateLicenseModal({
                 value={customCatalogId}
                 onChange={(e) => setCustomCatalogId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 placeholder="Contoh: pos-resto, wa-blast, inventory-erp"
-                className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+                className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
               />
               <span className="text-[10px] text-[var(--text-secondary)] mt-0.5 block">
                 ID unik ini digunakan aplikasi saat mengecek lisensi ke panel.
@@ -242,7 +242,7 @@ export function CreateLicenseModal({
                 className={`p-2 rounded-lg border text-center transition ${
                   durationMonths === opt.m
                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-bold'
-                    : 'border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
+                    : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                 }`}
               >
                 {opt.label}
@@ -268,7 +268,7 @@ export function CreateLicenseModal({
                 value={licenseKey}
                 onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
                 placeholder="RN-APP-XXXX-XXXX"
-                className="w-full pl-8 pr-3 py-1.5 font-mono font-bold text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-emerald-500"
+                className="w-full pl-8 pr-3 py-1.5 font-mono font-bold text-xs rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-[var(--panel-primary-text)]"
               />
             </div>
             <Button
@@ -295,7 +295,7 @@ export function CreateLicenseModal({
               type="text"
               value={planName}
               onChange={(e) => setPlanName(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
           <div>
@@ -306,7 +306,7 @@ export function CreateLicenseModal({
               type="number"
               value={priceAmount}
               onChange={(e) => setPriceAmount(Number(e.target.value))}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
         </div>

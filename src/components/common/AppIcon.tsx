@@ -22,6 +22,7 @@ import {
   Gauge24Filled,
   BuildingRetail24Filled,
   Shield24Filled,
+  Key24Filled,
   Mail24Filled,
   DesktopKeyboard24Filled,
 } from '@fluentui/react-icons'
@@ -274,7 +275,7 @@ const ICON_MAP: Record<string, { icon: React.ComponentType<{ style?: React.CSSPr
   trash: { icon: Delete24Filled, color: '#ef4444' },
   'app-catalog': { icon: AppStore24Filled, color: 'var(--panel-primary-text)' },
   'installed-app': { icon: AppGeneric24Filled, color: 'var(--panel-primary-text)' },
-  'app-licenses': { icon: Shield24Filled, color: '#10b981' },
+  'app-licenses': { icon: Key24Filled, color: 'var(--panel-primary-text)' },
 }
 
 export function AppIcon({ kind, size = 24, className = '', style = {}, iconKey, iconColor }: AppIconProps) {

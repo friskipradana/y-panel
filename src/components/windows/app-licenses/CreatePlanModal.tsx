@@ -148,7 +148,7 @@ export function CreatePlanModal({
                 setCatalogId(e.target.value)
               }
             }}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
           >
             <optgroup label="Aplikasi Terdaftar">
               {availableApps.map((a) => (
@@ -174,7 +174,7 @@ export function CreatePlanModal({
               value={customCatalogId}
               onChange={(e) => setCustomCatalogId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
               placeholder="contoh: pos-resto, wa-bot, erp-gudang"
-              className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 font-mono rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
         )}
@@ -191,7 +191,7 @@ export function CreatePlanModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Contoh: Pro Bulanan, Enterprise Tahunan"
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
           <div>
@@ -203,7 +203,7 @@ export function CreatePlanModal({
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
               placeholder="Cocok untuk UMKM atau tim operasional"
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
         </div>
@@ -221,7 +221,7 @@ export function CreatePlanModal({
                 className={`flex-1 py-1.5 rounded-lg border text-center transition ${
                   period === 'monthly'
                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-bold'
-                    : 'border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--text-secondary)]'
+                    : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
                 }`}
               >
                 Bulanan
@@ -232,7 +232,7 @@ export function CreatePlanModal({
                 className={`flex-1 py-1.5 rounded-lg border text-center transition ${
                   period === 'annual'
                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-bold'
-                    : 'border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--text-secondary)]'
+                    : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
                 }`}
               >
                 Tahunan
@@ -249,7 +249,7 @@ export function CreatePlanModal({
               min={1}
               value={months}
               onChange={(e) => setMonths(Math.max(1, Number(e.target.value)))}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
         </div>
@@ -266,7 +266,7 @@ export function CreatePlanModal({
               required
               value={priceAmount}
               onChange={(e) => setPriceAmount(Number(e.target.value))}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] text-[var(--win-text)] focus:outline-none focus:border-emerald-500 text-xs"
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
             />
           </div>
 

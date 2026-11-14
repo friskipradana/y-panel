@@ -377,6 +377,7 @@ func (s *Server) routes() {
 	s.mux.Handle("DELETE /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUninstall)))
 	s.mux.Handle("GET /api/v1/app-catalog/license/{catalogId}", http.HandlerFunc(s.handleAppCatalogLicense))
 	s.mux.Handle("GET /api/v1/app-catalog/plans/{catalogId}", http.HandlerFunc(s.handleAppLicensePlans))
+	s.mux.Handle("POST /api/v1/app-catalog/trial", http.HandlerFunc(s.handleAppLicenseStartTrial))
 	s.mux.Handle("POST /api/v1/app-catalog/order", http.HandlerFunc(s.handleAppLicenseCreateOrder))
 	s.mux.Handle("GET /api/v1/app-catalog/orders/{publicId}", http.HandlerFunc(s.handleAppLicenseGetOrder))
 	s.mux.Handle("POST /api/v1/app-catalog/orders/{publicId}/pay", http.HandlerFunc(s.handleAppLicensePayOrder))

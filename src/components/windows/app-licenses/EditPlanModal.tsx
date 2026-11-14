@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Pencil, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Pencil, CheckCircle2, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateAppLicensePlan, type AppLicensePlan } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -253,7 +253,7 @@ export function EditPlanModal({
 
         <div className="pt-2 border-t border-[var(--win-border)] space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--win-text)]">
-            <ShieldCheck size={14} className="text-emerald-500" />
+            <KeyRound size={14} className="text-[var(--panel-primary-text)]" />
             <span>Fitur & Kuota Paket</span>
           </div>
 

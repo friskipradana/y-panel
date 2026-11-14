@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertCircle, CheckCircle2, Loader2, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, KeyRound, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { Button } from '@/components/ui/Button'
@@ -303,7 +303,7 @@ export function AppCatalogWindow() {
       className="panel-btn panel-btn--sm flex items-center gap-1.5 border border-[var(--win-border)] bg-[var(--win-bg)] text-xs text-[var(--win-text)] hover:border-emerald-500/50 hover:text-emerald-600 transition"
       title="Kelola Lisensi & Langganan Aplikasi"
     >
-      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" strokeWidth={1.75} />
+      <KeyRound className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
       <span>{t('appCatalog.manageLicenses') || 'Lisensi'}</span>
     </button>
   ) : null

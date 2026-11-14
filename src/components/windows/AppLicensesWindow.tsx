@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Shield,
-  ShieldCheck,
+  KeyRound,
   AlertTriangle,
   CreditCard,
   ExternalLink,
   Copy,
   Check,
   RefreshCw,
-  Search,
   CheckCircle2,
   Lock,
   ReceiptText,
@@ -43,8 +41,11 @@ import {
 } from '@/api/appLicenses'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
+import { SearchInput } from '@/components/ui/SearchInput'
+import { Tabs } from '@/components/ui/Tabs'
 import { ListTable, ListRowIcon, ListState } from '@/components/ui/ListTable'
 import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
@@ -452,112 +453,79 @@ export function AppLicensesWindow() {
   return (
     <div className="flex flex-col h-full w-full bg-[var(--win-bg)] text-[var(--win-text)] overflow-hidden">
       {/* Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-[var(--win-border)] bg-[var(--card-bg)] shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold leading-none">Pusat Lisensi & Tagihan Aplikasi</h2>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[var(--win-border)] bg-[var(--panel-surface)] shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <IconBadge size="lg" tone="primary">
+            <KeyRound />
+          </IconBadge>
+          <div className="min-w-0">
+            <div className="flex items-center flex-wrap gap-2">
+              <h2 className="text-sm font-semibold leading-none text-[var(--win-text)]">
+                Pusat Lisensi & Tagihan Aplikasi
+              </h2>
+              <Badge tone="success" dot size="sm">
                 {activeCount} Aktif
-              </span>
+              </Badge>
               {pendingOrdersCount > 0 && (
-                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20 animate-pulse">
-                  {pendingOrdersCount} Invoice Menunggu Bayar
-                </span>
+                <Badge tone="warning" dot size="sm">
+                  {pendingOrdersCount} Menunggu Bayar
+                </Badge>
               )}
             </div>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
+            <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
               Kelola lisensi, paket langganan, dan tagihan Reneo CRM Services.
             </p>
           </div>
         </div>
 
-        {/* Tab switcher buttons */}
-        <div className="flex items-center gap-1.5 bg-[var(--win-bg)] border border-[var(--win-border)] p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setActiveTab('licenses')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'licenses'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-            }`}
-          >
-            <Shield size={14} />
-            <span>Lisensi Aktif ({licenses.length})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('plans')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'plans'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-            }`}
-          >
-            <Boxes size={14} />
-            <span>Paket & Tarif ({plans.length})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('invoices')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'invoices'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-            }`}
-          >
-            <ReceiptText size={14} />
-            <span>Riwayat Invoice ({orders.length})</span>
-          </button>
-        </div>
+        <div className="flex items-center flex-wrap gap-2">
+          <Tabs<LicenseTab>
+            label="Navigasi Lisensi Aplikasi"
+            value={activeTab}
+            onChange={setActiveTab}
+            items={[
+              { key: 'licenses', label: 'Lisensi', icon: <KeyRound />, count: licenses.length },
+              { key: 'plans', label: 'Paket & Tarif', icon: <Boxes />, count: plans.length },
+              { key: 'invoices', label: 'Invoice', icon: <ReceiptText />, count: orders.length },
+            ]}
+          />
 
-        {/* Refresh button */}
-        <IconButton
-          label="Segarkan Status"
-          loading={licensesRefetching}
-          onClick={() => {
-            refetchLicenses()
-            refetchApps()
-            refetchPlans()
-            refetchOrders()
-          }}
-          className="border border-[var(--win-border)]"
-        >
-          <RefreshCw size={14} className={licensesRefetching ? 'animate-spin' : ''} />
-        </IconButton>
+          <IconButton
+            label="Segarkan Status"
+            loading={licensesRefetching}
+            onClick={() => {
+              refetchLicenses()
+              refetchApps()
+              refetchPlans()
+              refetchOrders()
+            }}
+            className="border border-[var(--win-border)]"
+          >
+            <RefreshCw size={14} className={licensesRefetching ? 'animate-spin' : ''} />
+          </IconButton>
+        </div>
       </div>
 
       {/* Tab 1: Licenses */}
       {activeTab === 'licenses' && (
-        <div className="flex-1 flex flex-col min-h-0 p-5 space-y-3 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 p-4 space-y-3 overflow-hidden">
           {/* Subheader Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-            <div className="relative">
-              <Search
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
-                size={14}
-              />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari lisensi atau key..."
-                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-[var(--win-border)] bg-[var(--card-bg)] focus:outline-none focus:border-emerald-500 w-52 sm:w-64 transition"
-              />
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Cari lisensi atau key..."
+              className="w-52 sm:w-64"
+            />
 
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center bg-[var(--card-bg)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
+            <div className="flex items-center flex-wrap gap-2 shrink-0">
+              <div className="flex items-center bg-[var(--panel-surface)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
                 <button
                   type="button"
                   onClick={() => setStatusFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-md transition ${
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
                     statusFilter === 'ALL'
-                      ? 'bg-[var(--win-bg)] font-semibold text-[var(--win-text)] shadow-sm'
+                      ? 'bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                   }`}
                 >
@@ -566,10 +534,10 @@ export function AppLicensesWindow() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter('ACTIVE')}
-                  className={`px-2.5 py-1 rounded-md transition ${
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
                     statusFilter === 'ACTIVE'
-                      ? 'bg-[var(--win-bg)] font-semibold text-emerald-600 shadow-sm'
-                      : 'text-[var(--text-secondary)] hover:text-emerald-600'
+                      ? 'bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                   }`}
                 >
                   Aktif ({activeCount})
@@ -577,10 +545,10 @@ export function AppLicensesWindow() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter('SUSPENDED')}
-                  className={`px-2.5 py-1 rounded-md transition ${
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
                     statusFilter === 'SUSPENDED'
-                      ? 'bg-[var(--win-bg)] font-semibold text-amber-600 shadow-sm'
-                      : 'text-[var(--text-secondary)] hover:text-amber-600'
+                      ? 'bg-[var(--panel-warning-bg)] font-semibold text-[var(--panel-warning-text)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                   }`}
                 >
                   Disuspend ({suspendedCount})
@@ -588,10 +556,10 @@ export function AppLicensesWindow() {
                 <button
                   type="button"
                   onClick={() => setStatusFilter('EXPIRED')}
-                  className={`px-2.5 py-1 rounded-md transition ${
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
                     statusFilter === 'EXPIRED'
-                      ? 'bg-[var(--win-bg)] font-semibold text-rose-600 shadow-sm'
-                      : 'text-[var(--text-secondary)] hover:text-rose-600'
+                      ? 'bg-[var(--panel-danger-bg)] font-semibold text-[var(--panel-danger-text)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
                   }`}
                 >
                   Kedaluwarsa ({expiredCount})
@@ -622,11 +590,11 @@ export function AppLicensesWindow() {
                 errorHint="Periksa koneksi database atau coba segarkan kembali."
                 loadingText="Memuat lisensi aplikasi..."
                 empty={filteredLicenses.length === 0}
-                emptyIcon={<Shield size={28} />}
+                emptyIcon={<KeyRound size={28} />}
                 emptyTitle="Belum ada lisensi aplikasi"
                 emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
               >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4">
                   {filteredLicenses.map((lic) => {
                     const isSuspended = lic.status === 'SUSPENDED'
                     const isExpired = !isSuspended && (lic.isExpired || lic.status === 'EXPIRED')
@@ -636,25 +604,19 @@ export function AppLicensesWindow() {
                     return (
                       <div
                         key={lic.id}
-                        className={`rounded-xl border p-4 flex flex-col justify-between transition-all bg-[var(--card-bg)] shadow-sm gap-3 ${
+                        className={`rounded-lg border p-4 flex flex-col justify-between transition-colors bg-[var(--panel-surface)] gap-3 ${
                           isLocked
-                            ? 'border-rose-500/30'
-                            : 'border-[var(--win-border)] hover:border-[var(--win-border-focus)]'
+                            ? 'border-[var(--panel-danger-text)]/35'
+                            : 'border-[var(--win-border)] hover:border-[var(--panel-primary-text)]/40'
                         }`}
                       >
                         <div className="space-y-3">
                           {/* Header Identity */}
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                                  isLocked
-                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
-                                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
-                                }`}
-                              >
-                                {isLocked ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
-                              </div>
+                              <IconBadge size="lg" tone={isLocked ? 'danger' : 'primary'}>
+                                {isLocked ? <AlertTriangle /> : <KeyRound />}
+                              </IconBadge>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <h3 className="text-sm font-bold text-[var(--win-text)] truncate">
@@ -849,7 +811,7 @@ export function AppLicensesWindow() {
               </ListState>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
               <ListTable
                 variant="app-licenses"
                 empty={licensesLoading || licensesError || filteredLicenses.length === 0}
@@ -870,7 +832,7 @@ export function AppLicensesWindow() {
                   errorHint="Periksa koneksi database atau coba segarkan kembali."
                   loadingText="Memuat lisensi aplikasi..."
                   empty={filteredLicenses.length === 0}
-                  emptyIcon={<Shield size={28} />}
+                  emptyIcon={<KeyRound size={28} />}
                   emptyTitle="Belum ada lisensi aplikasi"
                   emptyHint="Pilih paket pada tab 'Paket & Tarif' untuk membuat lisensi Reneo CRM."
                 >
@@ -882,7 +844,7 @@ export function AppLicensesWindow() {
 
                         <div className="docker-row__app">
                           <ListRowIcon>
-                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                            <KeyRound className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
                           </ListRowIcon>
                           <div className="docker-row__text">
                             <span className="docker-app-name" title={lic.appName}>
@@ -1099,10 +1061,10 @@ export function AppLicensesWindow() {
                   {plans.map((p) => (
                     <div
                       key={p.id}
-                      className={`rounded-xl border p-4 flex flex-col justify-between transition-all bg-[var(--card-bg)] shadow-sm ${
+                      className={`rounded-lg border p-4 flex flex-col justify-between transition-colors bg-[var(--panel-surface)] ${
                         p.highlighted
-                          ? 'border-emerald-500 ring-1 ring-emerald-500/30'
-                          : 'border-[var(--win-border)] hover:border-[var(--win-border-focus)]'
+                          ? 'border-[var(--panel-primary-text)]/50 ring-1 ring-[var(--panel-primary-text)]/20'
+                          : 'border-[var(--win-border)] hover:border-[var(--panel-primary-text)]/40'
                       }`}
                     >
                       <div className="space-y-3">
@@ -1115,9 +1077,9 @@ export function AppLicensesWindow() {
                             <h4 className="text-base font-bold text-[var(--win-text)]">{p.name}</h4>
                           </div>
                           {p.highlighted && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0">
+                            <Badge tone="primary" size="sm">
                               Paling Populer
-                            </span>
+                            </Badge>
                           )}
                         </div>
 
@@ -1126,7 +1088,7 @@ export function AppLicensesWindow() {
                         </p>
 
                         <div className="pt-1">
-                          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                          <div className="text-xl font-bold text-[var(--panel-primary-text)] tabular-nums">
                             Rp {p.priceAmount.toLocaleString('id-ID')}
                             <span className="text-xs font-normal text-[var(--text-secondary)]">
                               {' '}
@@ -1143,7 +1105,7 @@ export function AppLicensesWindow() {
                               if (!label) return null
                               return (
                                 <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
-                                  <Check size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                  <Check size={13} className="text-[var(--panel-primary-text)] shrink-0" strokeWidth={2.5} />
                                   <span>{label}</span>
                                 </div>
                               )
@@ -1190,7 +1152,7 @@ export function AppLicensesWindow() {
               </ListState>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
               <ListTable
                 variant="app-plans"
                 empty={plansLoading || plansError || plans.length === 0}
@@ -1354,7 +1316,7 @@ export function AppLicensesWindow() {
                     return (
                       <div
                         key={ord.id}
-                        className="rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] hover:border-[var(--win-border-focus)] transition p-4 flex flex-col justify-between gap-3 shadow-sm"
+                        className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-text)]/40 transition p-4 flex flex-col justify-between gap-3 shadow-sm"
                       >
                         <div className="space-y-2">
                           <div className="flex items-start justify-between gap-2">
@@ -1448,7 +1410,7 @@ export function AppLicensesWindow() {
               </ListState>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-col">
               <ListTable
                 variant="app-orders"
                 empty={ordersLoading || ordersError || orders.length === 0}
@@ -1717,14 +1679,14 @@ export function AppLicensesWindow() {
                   Tujuan Pembayaran (Otomatis Terverifikasi):
                 </h5>
                 <div className="space-y-1.5 text-[11px]">
-                  <div className="p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--win-border)]">
+                  <div className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
                     <span className="font-bold text-[var(--win-text)] block">BCA (Bank Central Asia)</span>
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                       8831-2940-11
                     </span>{' '}
                     · a/n Reneo Payments
                   </div>
-                  <div className="p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--win-border)]">
+                  <div className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
                     <span className="font-bold text-[var(--win-text)] block">
                       QRIS Instan Semua Bank & E-Wallet
                     </span>
@@ -1746,13 +1708,13 @@ export function AppLicensesWindow() {
           onClose={() => setRenewModalOpen(false)}
           title={`Perpanjang Lisensi ${selectedLicense.appName}`}
           subtitle="Pilih durasi paket langganan dan metode pembayaran untuk memperpanjang masa aktif."
-          icon={<ShieldCheck className="text-emerald-500" size={20} />}
+          icon={<KeyRound className="text-[var(--panel-primary-text)]" size={20} />}
           size="md"
           footer={
             <div className="flex items-center justify-between w-full">
               <div className="text-xs">
                 <span className="text-[var(--text-secondary)]">Total Pembayaran:</span>
-                <span className="block font-bold text-base text-emerald-600 dark:text-emerald-400">
+                <span className="block font-bold text-base text-[var(--panel-primary-text)] tabular-nums">
                   Rp {selectedPricing.price.toLocaleString('id-ID')}
                 </span>
               </div>

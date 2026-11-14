@@ -122,7 +122,7 @@ if ($license) {
     >
       <div className="space-y-4 text-xs">
         {/* License summary */}
-        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] flex flex-wrap items-center justify-between gap-3">
+        <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-[11px] text-[var(--text-secondary)] block">Aplikasi & ID:</span>
             <span className="font-bold text-sm text-[var(--win-text)]">
@@ -230,7 +230,7 @@ if ($license) {
           </div>
 
           <div className="relative">
-            <pre className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--card-bg)] font-mono text-[11px] overflow-x-auto leading-relaxed text-[var(--win-text)] max-h-64">
+            <pre className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] font-mono text-[11px] overflow-x-auto leading-relaxed text-[var(--win-text)] max-h-64">
               {codeSnippets[lang]}
             </pre>
             <button

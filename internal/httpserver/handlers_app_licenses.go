@@ -32,6 +32,12 @@ type createAppLicenseOrderRequest struct {
 	BuyerPhone    string `json:"buyerPhone"`
 }
 
+type startAppLicenseTrialRequest struct {
+	CatalogID string `json:"catalogId"`
+	PlanSlug  string `json:"planSlug"`
+	TrialDays int    `json:"trialDays"`
+}
+
 type payAppLicenseOrderRequest struct {
 	PaymentMethod string `json:"paymentMethod"`
 }
@@ -114,6 +120,123 @@ func (s *Server) handleAppLicensePlans(w http.ResponseWriter, r *http.Request) {
 		"catalogId": catalogID,
 		"appName":   appName,
 		"plans":     plans,
+	})
+}
+
+// handleAppLicenseStartTrial activates a 7-day trial license for any plan tier.
+func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Request) {
+	var req startAppLicenseTrialRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
+		return
+	}
+	if req.CatalogID == "" {
+		req.CatalogID = "reneo-crm"
+	}
+	if req.PlanSlug == "" {
+		req.PlanSlug = "pro-monthly"
+	}
+	trialDays := req.TrialDays
+	if trialDays <= 0 || trialDays > 30 {
+		trialDays = 7
+	}
+
+	userID := int64(1)
+	if actor := s.currentUserRecord(r); actor != nil {
+		userID = actor.ID
+	}
+
+	appName := "Reneo CRM Services"
+	if req.CatalogID != "reneo-crm" {
+		appName = req.CatalogID
+	}
+
+	planName := "Pro Bulanan"
+	features := json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true}`)
+
+	if s.database != nil && s.database.IsConnected() {
+		if plan, _ := s.database.GetAppLicensePlan(req.CatalogID, req.PlanSlug); plan != nil {
+			planName = plan.Name
+			if len(plan.Features) > 0 && string(plan.Features) != "{}" {
+				features = plan.Features
+			}
+			if plan.TrialDays > 0 {
+				trialDays = plan.TrialDays
+			}
+		} else if req.PlanSlug == "starter-monthly" {
+			planName = "Starter Bulanan"
+			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true}`)
+		} else if req.PlanSlug == "enterprise-annual" {
+			planName = "Enterprise Tahunan"
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true}`)
+		}
+
+		existing, _ := s.database.ListAppLicenses(userID, req.CatalogID)
+		for _, lic := range existing {
+			if strings.EqualFold(lic.Status, "ACTIVE") && !lic.IsExpired {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{
+					"error": fmt.Sprintf("Anda sudah memiliki lisensi aktif (%s).", lic.PlanName),
+				})
+				return
+			}
+			if strings.EqualFold(lic.Status, "TRIAL") && strings.HasPrefix(lic.PlanName, planName) {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{
+					"error": fmt.Sprintf("Paket trial untuk %s sudah pernah diaktifkan sebelumnya.", planName),
+				})
+				return
+			}
+		}
+	}
+
+	now := time.Now()
+	expiresAt := now.AddDate(0, 0, trialDays)
+	trialPlanName := fmt.Sprintf("%s (Trial %d Hari)", planName, trialDays)
+
+	if s.database == nil || !s.database.IsConnected() {
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      true,
+			"message": fmt.Sprintf("Paket trial %s (%d hari) berhasil diaktifkan", planName, trialDays),
+			"license": database.AppLicense{
+				ID:          1,
+				UserID:      userID,
+				CatalogID:   req.CatalogID,
+				AppName:     appName,
+				LicenseKey:  "RN-TRIAL-DEMO-2026",
+				Status:      "TRIAL",
+				PlanName:    trialPlanName,
+				Period:      "trial",
+				PriceAmount: 0,
+				StartedAt:   now.Format(time.RFC3339),
+				ExpiresAt:   expiresAt.Format(time.RFC3339),
+				DaysLeft:    trialDays,
+				IsExpired:   false,
+				Features:    features,
+			},
+		})
+		return
+	}
+
+	created, err := s.database.CreateAppLicense(database.AppLicense{
+		UserID:      userID,
+		CatalogID:   req.CatalogID,
+		AppName:     appName,
+		Status:      "TRIAL",
+		PlanName:    trialPlanName,
+		Period:      "trial",
+		PriceAmount: 0,
+		StartedAt:   now.Format(time.RFC3339),
+		ExpiresAt:   expiresAt.Format(time.RFC3339),
+		Features:    features,
+	})
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":      true,
+		"message": fmt.Sprintf("Paket trial %s (%d hari) berhasil diaktifkan", planName, trialDays),
+		"license": created,
 	})
 }
 
