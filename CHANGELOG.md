@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.35] - 2026-11-14
+
+Sync reneo-crm GHCR image, force-recreate on upgrade, and clean compose/data on uninstall.
+
+### Perbaikan
+- **app-catalog:** Sync reneo-crm GHCR image, force-recreate on upgrade, and clean compose/data on uninstall ([`67522cc`](https://github.com/friskipradana/y-panel/commit/67522cc))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.34...v1.83.35
+
 ## [1.83.34] - 2026-11-14
 
 Pass WEBHOOK_URL for reneo-crm container.
