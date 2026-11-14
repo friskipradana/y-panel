@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.38] - 2026-11-14
+
+Add update and rollback progress modal with extended pull timeout.
+
+### Perbaikan
+- **app-catalog:** Add update and rollback progress modal with extended pull timeout ([`07338e2`](https://github.com/friskipradana/y-panel/commit/07338e2))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.37...v1.83.38
+
 ## [1.83.37] - 2026-11-14
 
 Add multi-agent license limits, public CSAT proxy bypass, and tunnel publicUrls.
