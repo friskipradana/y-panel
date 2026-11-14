@@ -1432,6 +1432,9 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		if b, ok := envMap["WAHA_BASE_URL"]; !ok || strings.TrimSpace(b) == "" {
 			envMap["WAHA_BASE_URL"] = "http://reneo-waha:3000"
 		}
+		if u, ok := envMap["WEBHOOK_URL"]; !ok || strings.TrimSpace(u) == "" {
+			envMap["WEBHOOK_URL"] = fmt.Sprintf("http://%s/api/waha/webhook", containerProject)
+		}
 		if k, ok := envMap["WAHA_API_KEY"]; !ok || strings.TrimSpace(k) == "" {
 			if s.notify != nil {
 				_ = s.notify.EnableWaha()
