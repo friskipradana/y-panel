@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.29] - 2026-11-14
+
+Add WhatsApp order notifications and align quota grid.
+
+### Fitur baru
+- **app-licenses:** Add WhatsApp order notifications and align quota grid ([`92aff42`](https://github.com/friskipradana/y-panel/commit/92aff42))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.28...v1.83.29
+
 ## [1.83.28] - 2026-11-14
 
 Add notifications and events for app license orders.
