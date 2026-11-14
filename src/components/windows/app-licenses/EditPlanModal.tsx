@@ -319,10 +319,10 @@ export function EditPlanModal({
             </label>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                Maks. Kontak (0 = Unlimited)
+                Maks. Kontak <span className="text-[11px] font-normal text-[var(--text-secondary)]">(0 = Tanpa Batas)</span>
               </label>
               <input
                 type="number"
@@ -335,7 +335,7 @@ export function EditPlanModal({
 
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                Kuota Sesi WA (Multi-Sesi)
+                Kuota Sesi WA <span className="text-[11px] font-normal text-[var(--text-secondary)]">(Multi-Sesi)</span>
               </label>
               <input
                 type="number"
@@ -352,7 +352,7 @@ export function EditPlanModal({
 
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                Kuota Broadcast / Bln
+                Kuota Broadcast / Bulan
               </label>
               <input
                 type="number"
@@ -367,7 +367,7 @@ export function EditPlanModal({
 
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
-                Kuota Template (0 = Unlim)
+                Kuota Template <span className="text-[11px] font-normal text-[var(--text-secondary)]">(0 = Tanpa Batas)</span>
               </label>
               <input
                 type="number"

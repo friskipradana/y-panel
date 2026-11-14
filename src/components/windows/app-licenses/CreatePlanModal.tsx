@@ -291,10 +291,10 @@ export function CreatePlanModal({
             Fitur & Kuota dalam Paket:
           </label>
           <div className="space-y-3 p-3 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)]">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
-                  Maks. Kontak (0 = Unlim)
+                  Maks. Kontak (0 = Tanpa Batas)
                 </label>
                 <input
                   type="number"
@@ -306,7 +306,7 @@ export function CreatePlanModal({
               </div>
               <div>
                 <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
-                  Kuota Sesi WA
+                  Kuota Sesi WA (Multi-Sesi)
                 </label>
                 <input
                   type="number"
@@ -322,7 +322,7 @@ export function CreatePlanModal({
               </div>
               <div>
                 <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
-                  Kuota Broadcast / Bln
+                  Kuota Broadcast / Bulan
                 </label>
                 <input
                   type="number"
@@ -336,7 +336,7 @@ export function CreatePlanModal({
               </div>
               <div>
                 <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
-                  Kuota Template (0 = Unlim)
+                  Kuota Template (0 = Tanpa Batas)
                 </label>
                 <input
                   type="number"
