@@ -13,7 +13,12 @@ import {
   InstalledAppsView,
   type BusyCatalogAction,
 } from '@/components/windows/app-catalog/InstalledAppsView'
-import { openInstalledAppWindow, useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import {
+  openInstalledAppWindow,
+  useAppCatalog,
+  useAppCatalogMutations,
+  useInstalledAppUpdates,
+} from '@/hooks/useAppCatalog'
 import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -37,9 +42,14 @@ export function AppCatalogWindow() {
   const isMobile = useIsMobileLayout()
   const isSuperadmin = useAuthStore((s) => s.user?.role === 'superadmin')
   const { data, isLoading, isError, refetch, isFetching } = useAppCatalog()
-  const { actionMutation, upgradeMutation, uninstallMutation } = useAppCatalogMutations()
+  const { actionMutation, upgradeMutation, rollbackMutation, uninstallMutation } = useAppCatalogMutations()
 
   const [tab, setTab] = useState<CatalogTab>('catalog')
+  const {
+    data: updatesById,
+    refetch: refetchUpdates,
+    isFetching: isCheckingUpdates,
+  } = useInstalledAppUpdates(tab === 'installed')
   const [viewMode, setViewMode] = useState<CatalogViewMode>(readStoredViewMode)
   const [category, setCategory] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -159,6 +169,28 @@ export function AppCatalogWindow() {
     }
   }
 
+  const handleRollbackApp = async (app: InstalledApp) => {
+    const target = app.previousImage || app.previousDigest || app.image
+    const ok = await alertLib.confirm(
+      t('appCatalog.rollbackConfirmTitle'),
+      t('appCatalog.rollbackConfirmBody', { name: app.name, target }),
+      t('appCatalog.rollbackAction'),
+      t('common.cancel'),
+      'question',
+      'app-catalog',
+    )
+    if (!ok) return
+    setBusyAction({ id: app.id, action: 'rollback' })
+    try {
+      const updated = await rollbackMutation.mutateAsync(app.id)
+      toast.success(t('appCatalog.rollbackSuccess', { image: updated.image }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const openUninstallConfirm = async (app: InstalledApp) => {
     if (app.kind === 'custom-url') {
       const ok = await alertLib.confirm(
@@ -271,11 +303,14 @@ export function AppCatalogWindow() {
       className={cls}
       title={t('common.refresh')}
       aria-label={t('common.refresh')}
-      onClick={() => refetch()}
-      disabled={isFetching && !isLoading}
+      onClick={() => {
+        void refetch()
+        if (tab === 'installed') void refetchUpdates()
+      }}
+      disabled={(isFetching && !isLoading) || isCheckingUpdates}
     >
       <RefreshCw
-        className={`h-3.5 w-3.5 ${isFetching && !isLoading ? 'animate-spin' : ''}`}
+        className={`h-3.5 w-3.5 ${(isFetching && !isLoading) || isCheckingUpdates ? 'animate-spin' : ''}`}
         strokeWidth={1.75}
       />
     </button>
@@ -352,8 +387,10 @@ export function AppCatalogWindow() {
           isLoading={isLoading}
           isError={isError}
           busyAction={busyAction}
+          updatesById={updatesById}
           onContainerAction={handleContainerAction}
           onUpgrade={handleUpgradeApp}
+          onRollback={handleRollbackApp}
           onEdit={handleOpenEdit}
           onUninstall={openUninstallConfirm}
         />

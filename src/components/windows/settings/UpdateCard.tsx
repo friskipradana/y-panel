@@ -180,7 +180,23 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
       </div>
 
       {updateInfo?.available && (
-        <div className="space-y-2 pt-1 border-t border-[var(--win-border)]">
+        <div className="space-y-2 pt-2 border-t border-[var(--win-border)]">
+          <div className="rounded-md border border-[var(--win-border)] bg-[var(--panel-surface-hover)] p-2.5 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11.5px] font-semibold text-[var(--win-text)]">
+                {t("settings.update.whatsNew", { version: updateInfo.latest })}
+              </span>
+              {updateInfo.publishedAt ? (
+                <span className="font-mono text-[10px] text-[var(--text-secondary)]">
+                  {new Date(updateInfo.publishedAt).toLocaleDateString()}
+                </span>
+              ) : null}
+            </div>
+            <div className="max-h-36 overflow-y-auto text-[11.5px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap break-words">
+              {updateInfo.notes?.trim() ? updateInfo.notes.trim() : t("settings.update.noNotes")}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md bg-[var(--panel-surface-hover)] border border-[var(--win-border)]">
             <div className="flex items-center gap-2 font-mono text-[11.5px] text-[var(--win-text)] overflow-x-auto">
               <Terminal size={12} className="text-[var(--text-secondary)] shrink-0" />

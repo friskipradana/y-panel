@@ -372,6 +372,8 @@ func (s *Server) routes() {
 	s.mux.Handle("PATCH /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUpdate)))
 	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/action", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogAction)))
 	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/upgrade", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogUpgrade)))
+	s.mux.Handle("POST /api/v1/app-catalog/installed/{id}/rollback", s.requireCapability(auth.CapabilityDockerLifecycle, http.HandlerFunc(s.handleAppCatalogRollback)))
+	s.mux.Handle("GET /api/v1/app-catalog/installed/updates", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogCheckUpdates)))
 	s.mux.Handle("DELETE /api/v1/app-catalog/installed/{id}", s.requireAuthV2(http.HandlerFunc(s.handleAppCatalogUninstall)))
 	s.mux.Handle("GET /api/v1/app-catalog/license/{catalogId}", http.HandlerFunc(s.handleAppCatalogLicense))
 	s.mux.Handle("GET /api/v1/app-catalog/plans/{catalogId}", http.HandlerFunc(s.handleAppLicensePlans))

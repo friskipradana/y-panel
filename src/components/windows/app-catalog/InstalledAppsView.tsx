@@ -1,5 +1,5 @@
-import { ArrowUpCircle, ExternalLink, Pencil, Play, RotateCw, Square, Store, Trash2 } from 'lucide-react'
-import type { InstalledApp } from '@/api/appCatalog'
+import { ArrowUpCircle, ExternalLink, Pencil, Play, RotateCcw, RotateCw, Square, Store, Trash2 } from 'lucide-react'
+import type { AppUpdateStatus, InstalledApp } from '@/api/appCatalog'
 import { InstalledAppBadge } from '@/components/common/AppIcon'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
@@ -8,7 +8,7 @@ import type { CatalogViewMode } from '@/components/windows/app-catalog/CatalogAp
 import { openInstalledAppWindow } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
 
-export type CatalogRowAction = 'start' | 'stop' | 'restart' | 'upgrade' | 'uninstall'
+export type CatalogRowAction = 'start' | 'stop' | 'restart' | 'upgrade' | 'rollback' | 'uninstall'
 
 export interface BusyCatalogAction {
   id: number
@@ -22,8 +22,10 @@ interface InstalledAppsViewProps {
   isError: boolean
   busyAppId?: number | null
   busyAction?: BusyCatalogAction | null
+  updatesById?: Record<number, AppUpdateStatus>
   onContainerAction: (app: InstalledApp, action: 'start' | 'stop' | 'restart') => void
   onUpgrade: (app: InstalledApp) => void
+  onRollback: (app: InstalledApp) => void
   onEdit: (app: InstalledApp) => void
   onUninstall: (app: InstalledApp) => void
 }
@@ -42,8 +44,10 @@ export function InstalledAppsView({
   isError,
   busyAppId,
   busyAction,
+  updatesById,
   onContainerAction,
   onUpgrade,
+  onRollback,
   onEdit,
   onUninstall,
 }: InstalledAppsViewProps) {
@@ -129,6 +133,16 @@ export function InstalledAppsView({
           <ArrowUpCircle className="h-3.5 w-3.5" />
         </IconButton>
       ) : null}
+      {app.kind !== 'custom-url' && app.canRollback ? (
+        <IconButton
+          label={t('appCatalog.rollbackAction')}
+          disabled={rowBusy}
+          loading={isActionBusy(app.id, 'rollback')}
+          onClick={() => onRollback(app)}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </IconButton>
+      ) : null}
 
       <IconButton
         label={t('appCatalog.uninstallAction')}
@@ -164,6 +178,10 @@ export function InstalledAppsView({
                 app.kind === 'custom-url'
                   ? app.targetUrl
                   : `127.0.0.1:${app.hostPort}${app.openPath}`
+              const updateStatus = updatesById?.[app.id]
+              const versionText = app.versionTag
+                ? `${app.versionTag}${app.currentDigest ? ` · ${app.currentDigest}` : ''}`
+                : app.currentDigest
               return (
                 <article key={app.id} className="app-catalog-card">
                   <div className="space-y-2.5 min-w-0">
@@ -176,6 +194,11 @@ export function InstalledAppsView({
                             {app.catalogId === 'reneo-crm' ? (
                               <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
                                 {t('appCatalog.officialBadge')}
+                              </Badge>
+                            ) : null}
+                            {updateStatus?.hasUpdate ? (
+                              <Badge tone="warning" size="sm">
+                                {t('appCatalog.updateAvailableBadge')}
                               </Badge>
                             ) : null}
                           </div>
@@ -191,7 +214,17 @@ export function InstalledAppsView({
                     </div>
 
                     <div className="flex items-center justify-between gap-2 min-w-0">
-                      <Badge tone="neutral" size="sm">{kindLabel(app.kind)}</Badge>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Badge tone="neutral" size="sm">{kindLabel(app.kind)}</Badge>
+                        {versionText ? (
+                          <span
+                            className="panel-mono text-[11px] text-[var(--panel-text-muted)] truncate"
+                            title={t('appCatalog.installedVersionTitle', { version: versionText })}
+                          >
+                            {versionText}
+                          </span>
+                        ) : null}
+                      </div>
                       <span className="panel-mono app-catalog-card__meta" title={endpoint}>
                         {endpoint}
                       </span>
@@ -230,6 +263,10 @@ export function InstalledAppsView({
             app.kind === 'custom-url'
               ? app.targetUrl
               : `127.0.0.1:${app.hostPort}${app.openPath}`
+          const updateStatus = updatesById?.[app.id]
+          const versionText = app.versionTag
+            ? `${app.versionTag}${app.currentDigest ? ` · ${app.currentDigest}` : ''}`
+            : app.currentDigest
           return (
             <div key={app.id} className="docker-row">
               <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
@@ -243,11 +280,19 @@ export function InstalledAppsView({
                         {t('appCatalog.officialBadge')}
                       </Badge>
                     ) : null}
+                    {updateStatus?.hasUpdate ? (
+                      <Badge tone="warning" size="sm">
+                        {t('appCatalog.updateAvailableBadge')}
+                      </Badge>
+                    ) : null}
                   </div>
                   <span
                     className="docker-row__sub truncate"
                     title={app.tagline || app.image || app.targetUrl}
                   >
+                    {versionText ? (
+                      <span className="panel-mono mr-1.5">{versionText} ·</span>
+                    ) : null}
                     {app.tagline || app.image || app.targetUrl}
                   </span>
                 </div>

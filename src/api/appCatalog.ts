@@ -67,8 +67,21 @@ export interface InstalledApp {
   containerId?: string
   containerStatus?: string
   containerState?: string
+  versionTag?: string
+  currentDigest?: string
+  previousImage?: string
+  previousDigest?: string
+  canRollback?: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface AppUpdateStatus {
+  hasUpdate: boolean
+  localDigest?: string
+  remoteDigest?: string
+  targetImage: string
+  error?: string
 }
 
 export interface AppCatalogResponse {
@@ -144,6 +157,20 @@ export async function upgradeInstalledApp(id: number, version?: string): Promise
     trimmed ? { version: trimmed } : {},
   )
   return data.app
+}
+
+export async function rollbackInstalledApp(id: number): Promise<InstalledApp> {
+  const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
+    `/api/v1/app-catalog/installed/${id}/rollback`,
+  )
+  return data.app
+}
+
+export async function checkInstalledAppUpdates(): Promise<Record<number, AppUpdateStatus>> {
+  const { data } = await agentApi.get<{ updates: Record<number, AppUpdateStatus> }>(
+    '/api/v1/app-catalog/installed/updates',
+  )
+  return data.updates ?? {}
 }
 
 export interface UninstallAppResult {

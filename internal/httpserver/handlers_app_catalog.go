@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -767,12 +768,20 @@ type installedAppView struct {
 	ContainerID     string `json:"containerId,omitempty"`
 	ContainerStatus string `json:"containerStatus,omitempty"`
 	ContainerState  string `json:"containerState,omitempty"`
+	VersionTag      string `json:"versionTag,omitempty"`
+	CurrentDigest   string `json:"currentDigest,omitempty"`
+	PreviousImage   string `json:"previousImage,omitempty"`
+	PreviousDigest  string `json:"previousDigest,omitempty"`
+	CanRollback     bool   `json:"canRollback,omitempty"`
 }
 
 type appConfigMeta struct {
-	KeepPrefix bool   `json:"keepPrefix,omitempty"`
-	NotesID    string `json:"notesId,omitempty"`
-	NotesEN    string `json:"notesEn,omitempty"`
+	KeepPrefix     bool   `json:"keepPrefix,omitempty"`
+	NotesID        string `json:"notesId,omitempty"`
+	NotesEN        string `json:"notesEn,omitempty"`
+	PreviousImage  string `json:"previousImage,omitempty"`
+	PreviousDigest string `json:"previousDigest,omitempty"`
+	CurrentDigest  string `json:"currentDigest,omitempty"`
 }
 
 func parseAppConfigMeta(raw string) appConfigMeta {
@@ -1031,9 +1040,14 @@ func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []d
 		}
 	}
 	view := installedAppView{
-		InstalledApp: app,
-		KeepPrefix:   effectiveKeepPrefix(app, meta),
-		ProxyPath:    proxyPath,
+		InstalledApp:   app,
+		KeepPrefix:     effectiveKeepPrefix(app, meta),
+		ProxyPath:      proxyPath,
+		VersionTag:     extractImageTag(app.Image),
+		CurrentDigest:  shortDigest(meta.CurrentDigest),
+		PreviousImage:  meta.PreviousImage,
+		PreviousDigest: shortDigest(meta.PreviousDigest),
+		CanRollback:    strings.TrimSpace(meta.PreviousImage) != "" || strings.TrimSpace(meta.PreviousDigest) != "",
 	}
 	if app.Kind == "docker" || app.Kind == "existing-container" {
 		if matched := matchContainerForApp(app, containers, scope); matched != nil {
@@ -1913,11 +1927,55 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	prevImage := strings.TrimSpace(app.Image)
+	prevDigest, _ := inspectLocalImageDigest(prevImage)
+
 	if err := docker.PullImage(targetImage, nil); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
 
+	if errStatus, deployErr := s.redeployAppWithImage(actor, owner, app, targetImage); deployErr != nil {
+		s.writeError(w, errStatus, deployErr)
+		return
+	}
+
+	nextDigest, _ := inspectLocalImageDigest(targetImage)
+	meta := parseAppConfigMeta(app.ConfigJSON)
+	if prevImage != "" {
+		meta.PreviousImage = prevImage
+	}
+	if prevDigest != "" {
+		meta.PreviousDigest = prevDigest
+	}
+	if nextDigest != "" {
+		meta.CurrentDigest = nextDigest
+	}
+	metaBytes, _ := json.Marshal(meta)
+
+	patch := map[string]any{"config_json": string(metaBytes)}
+	if targetImage != app.Image {
+		patch["image"] = targetImage
+	}
+	updatedApp := app
+	if saved, saveErr := s.database.UpdateInstalledApp(app.ID, patch); saveErr == nil && saved != nil {
+		updatedApp = saved
+	}
+
+	s.auditSensitiveAction(r, actor, "appcatalog.upgrade", "ok", map[string]any{
+		"appId":      app.ID,
+		"name":       app.Name,
+		"prevImage":  app.Image,
+		"nextImage":  targetImage,
+		"prevDigest": shortDigest(prevDigest),
+		"nextDigest": shortDigest(nextDigest),
+	})
+	nextContainers, _ := docker.ListContainers()
+	view := s.buildInstalledAppView(*updatedApp, nextContainers, s.ownerScopeFor(actor))
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
+}
+
+func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerContext, app *database.InstalledApp, targetImage string) (int, error) {
 	composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	existingContainers, _ := docker.ListContainers()
@@ -1932,39 +1990,33 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		sanitized, _ := sanitizeExistingAppCompose(string(rawCompose), app.ContainerName, app.CatalogID)
 		updatedCompose, ok := replaceComposeImageLine(sanitized, targetImage)
 		if !ok {
-			s.writeJSON(w, http.StatusUnprocessableEntity, jsonResponse{"error": "gagal memperbarui baris image di compose.yml aplikasi"})
-			return
+			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
 		if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
 			Name:        app.ContainerName,
 			ComposeYAML: updatedCompose,
 		}); deployErr != nil {
-			s.writeError(w, http.StatusUnprocessableEntity, deployErr)
-			return
+			return http.StatusUnprocessableEntity, deployErr
 		}
 	} else {
 		containers, listErr := docker.ListContainers()
 		if listErr != nil {
-			s.writeError(w, http.StatusBadGateway, listErr)
-			return
+			return http.StatusBadGateway, listErr
 		}
 		matched := matchContainerForApp(*app, containers, s.ownerScopeFor(actor))
 		if matched == nil {
-			s.writeJSON(w, http.StatusNotFound, jsonResponse{"error": "container aplikasi dan compose.yml tidak ditemukan"})
-			return
+			return http.StatusNotFound, errors.New("container aplikasi dan compose.yml tidak ditemukan")
 		}
 		cfg, inspErr := docker.InspectContainerConfig(matched.ID)
 		if inspErr != nil {
-			s.writeError(w, http.StatusBadGateway, inspErr)
-			return
+			return http.StatusBadGateway, inspErr
 		}
 		projectName := strings.TrimSpace(app.ContainerName)
 		if projectName == "" {
 			projectName = cfg.Name
 		}
 		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil {
-			s.writeError(w, http.StatusBadGateway, delErr)
-			return
+			return http.StatusBadGateway, delErr
 		}
 		if _, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
 			Name:    projectName,
@@ -1974,8 +2026,7 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 			Env:     filterNonDefaultEnvVars(cfg.Env),
 			Volumes: cfg.Volumes,
 		}); deployErr != nil {
-			s.writeError(w, http.StatusUnprocessableEntity, deployErr)
-			return
+			return http.StatusUnprocessableEntity, deployErr
 		}
 	}
 
@@ -1986,23 +2037,353 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	if app.HostPort > 0 {
 		waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort))}, 2500*time.Millisecond)
 	}
+	return http.StatusOK, nil
+}
 
-	updatedApp := app
-	if targetImage != app.Image {
-		if saved, saveErr := s.database.UpdateInstalledApp(app.ID, map[string]any{"image": targetImage}); saveErr == nil && saved != nil {
-			updatedApp = saved
+func (s *Server) handleAppCatalogRollback(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	actor, app, code, err := s.loadOwnedInstalledApp(r)
+	if err != nil {
+		s.writeError(w, code, err)
+		return
+	}
+	if app.Kind != "docker" && app.Kind != "existing-container" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "rollback hanya tersedia untuk aplikasi Docker"})
+		return
+	}
+	owner, err := s.resolveDockerOwnerContext(actor, app.UserID)
+	if err != nil {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	meta := parseAppConfigMeta(app.ConfigJSON)
+	rollbackTarget := strings.TrimSpace(meta.PreviousDigest)
+	if rollbackTarget == "" || !strings.Contains(rollbackTarget, "@sha256:") {
+		rollbackTarget = strings.TrimSpace(meta.PreviousImage)
+	}
+	if rollbackTarget == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "tidak ada versi/image sebelumnya untuk rollback"})
+		return
+	}
+
+	currentImage := strings.TrimSpace(app.Image)
+	currentDigest, _ := inspectLocalImageDigest(currentImage)
+
+	if _, localID := inspectLocalImageDigest(rollbackTarget); localID == "" {
+		if pullErr := docker.PullImage(rollbackTarget, nil); pullErr != nil {
+			if meta.PreviousImage != "" && meta.PreviousImage != rollbackTarget {
+				rollbackTarget = meta.PreviousImage
+				if pullErr2 := docker.PullImage(rollbackTarget, nil); pullErr2 != nil {
+					s.writeError(w, http.StatusBadGateway, pullErr2)
+					return
+				}
+			} else {
+				s.writeError(w, http.StatusBadGateway, pullErr)
+				return
+			}
 		}
 	}
 
-	s.auditSensitiveAction(r, actor, "appcatalog.upgrade", "ok", map[string]any{
-		"appId":     app.ID,
-		"name":      app.Name,
-		"prevImage": app.Image,
-		"nextImage": targetImage,
+	if errStatus, deployErr := s.redeployAppWithImage(actor, owner, app, rollbackTarget); deployErr != nil {
+		s.writeError(w, errStatus, deployErr)
+		return
+	}
+
+	nextMeta := meta
+	nextMeta.PreviousImage = currentImage
+	nextMeta.PreviousDigest = currentDigest
+	if nextD, _ := inspectLocalImageDigest(rollbackTarget); nextD != "" {
+		nextMeta.CurrentDigest = nextD
+	} else {
+		nextMeta.CurrentDigest = rollbackTarget
+	}
+	metaBytes, _ := json.Marshal(nextMeta)
+
+	nextImageName := meta.PreviousImage
+	if nextImageName == "" {
+		nextImageName = rollbackTarget
+	}
+	updatedApp := app
+	if saved, saveErr := s.database.UpdateInstalledApp(app.ID, map[string]any{
+		"image":       nextImageName,
+		"config_json": string(metaBytes),
+	}); saveErr == nil && saved != nil {
+		updatedApp = saved
+	}
+
+	s.auditSensitiveAction(r, actor, "appcatalog.rollback", "ok", map[string]any{
+		"appId":       app.ID,
+		"name":        app.Name,
+		"fromImage":   currentImage,
+		"targetImage": rollbackTarget,
 	})
 	nextContainers, _ := docker.ListContainers()
 	view := s.buildInstalledAppView(*updatedApp, nextContainers, s.ownerScopeFor(actor))
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
+}
+
+type appUpdateCheckEntry struct {
+	HasUpdate    bool   `json:"hasUpdate"`
+	LocalDigest  string `json:"localDigest,omitempty"`
+	RemoteDigest string `json:"remoteDigest,omitempty"`
+	TargetImage  string `json:"targetImage"`
+	Error        string `json:"error,omitempty"`
+}
+
+func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+	apps, err := s.database.ListInstalledApps(actor.ID)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+
+	results := make(map[int64]appUpdateCheckEntry)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, app := range apps {
+		if app.Kind != "docker" && app.Kind != "existing-container" {
+			continue
+		}
+		targetImage := strings.TrimSpace(app.Image)
+		if spec, ok := s.findCatalogAppByID(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
+			targetImage = strings.TrimSpace(spec.Image)
+		}
+		if targetImage == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(appID int64, installedImg, targetImg string) {
+			defer wg.Done()
+			localDigest, _ := inspectLocalImageDigest(installedImg)
+			remoteDigest, remErr := fetchRemoteImageDigest(ctx, targetImg)
+			entry := appUpdateCheckEntry{
+				LocalDigest:  shortDigest(localDigest),
+				RemoteDigest: shortDigest(remoteDigest),
+				TargetImage:  targetImg,
+			}
+			if remErr != nil {
+				entry.Error = remErr.Error()
+			} else if remoteDigest != "" {
+				if installedImg != targetImg {
+					entry.HasUpdate = true
+				} else if localDigest != "" && !strings.HasSuffix(localDigest, "@"+remoteDigest) {
+					entry.HasUpdate = true
+				}
+			}
+			mu.Lock()
+			results[appID] = entry
+			mu.Unlock()
+		}(app.ID, strings.TrimSpace(app.Image), targetImage)
+	}
+	wg.Wait()
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{"updates": results})
+}
+
+func extractImageTag(imageRef string) string {
+	ref := strings.TrimSpace(imageRef)
+	if ref == "" {
+		return ""
+	}
+	if idx := strings.Index(ref, "@"); idx != -1 {
+		ref = ref[:idx]
+	}
+	lastSlash := strings.LastIndex(ref, "/")
+	lastColon := strings.LastIndex(ref, ":")
+	if lastColon > lastSlash {
+		return ref[lastColon+1:]
+	}
+	return "latest"
+}
+
+func shortDigest(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if idx := strings.Index(s, "@"); idx != -1 {
+		s = s[idx+1:]
+	}
+	if strings.HasPrefix(s, "sha256:") && len(s) > 19 {
+		return s[:19]
+	}
+	if len(s) > 16 {
+		return s[:16]
+	}
+	return s
+}
+
+func inspectLocalImageDigest(imageRef string) (repoDigest string, imageID string) {
+	ref := strings.TrimSpace(imageRef)
+	if ref == "" {
+		return "", ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{json .RepoDigests}}|{{.Id}}", ref).Output()
+	if err != nil {
+		return "", ""
+	}
+	parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
+	if len(parts) == 2 {
+		imageID = strings.TrimSpace(parts[1])
+	}
+	var digests []string
+	if len(parts) >= 1 && json.Unmarshal([]byte(parts[0]), &digests) == nil && len(digests) > 0 {
+		repoDigest = strings.TrimSpace(digests[0])
+	}
+	return repoDigest, imageID
+}
+
+func parseOCIRef(imageRef string) (registry, repo, tag string) {
+	ref := strings.TrimSpace(imageRef)
+	if idx := strings.Index(ref, "@"); idx != -1 {
+		ref = ref[:idx]
+	}
+	tag = "latest"
+	lastSlash := strings.LastIndex(ref, "/")
+	lastColon := strings.LastIndex(ref, ":")
+	if lastColon > lastSlash {
+		tag = ref[lastColon+1:]
+		ref = ref[:lastColon]
+	}
+	parts := strings.SplitN(ref, "/", 2)
+	if len(parts) == 2 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":") || parts[0] == "localhost") {
+		registry = parts[0]
+		repo = parts[1]
+	} else {
+		registry = "registry-1.docker.io"
+		if !strings.Contains(ref, "/") {
+			repo = "library/" + ref
+		} else {
+			repo = ref
+		}
+	}
+	return registry, repo, tag
+}
+
+func fetchRemoteImageDigest(ctx context.Context, imageRef string) (string, error) {
+	registry, repo, tag := parseOCIRef(imageRef)
+	if repo == "" {
+		return "", errors.New("empty image repo")
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	manifestURL := fmt.Sprintf("https://%s/v2/%s/manifests/%s", registry, repo, tag)
+	accept := "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json"
+
+	doHead := func(token string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, manifestURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", accept)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		return client.Do(req)
+	}
+
+	resp, err := doHead("")
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		authHeader := resp.Header.Get("Www-Authenticate")
+		resp.Body.Close()
+		token, tokErr := fetchOCIBearerToken(ctx, client, authHeader, registry, repo)
+		if tokErr != nil {
+			return "", tokErr
+		}
+		resp, err = doHead(token)
+		if err != nil {
+			return "", err
+		}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("registry HTTP %d", resp.StatusCode)
+	}
+	digest := strings.TrimSpace(resp.Header.Get("Docker-Content-Digest"))
+	if digest == "" {
+		digest = strings.Trim(strings.TrimSpace(resp.Header.Get("ETag")), `"`)
+	}
+	return digest, nil
+}
+
+func fetchOCIBearerToken(ctx context.Context, client *http.Client, wwwAuth, registry, repo string) (string, error) {
+	var realm, service, scope string
+	if strings.HasPrefix(strings.ToLower(wwwAuth), "bearer ") {
+		for _, part := range strings.Split(wwwAuth[7:], ",") {
+			kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+			if len(kv) != 2 {
+				continue
+			}
+			val := strings.Trim(kv[1], `"`)
+			switch strings.ToLower(kv[0]) {
+			case "realm":
+				realm = val
+			case "service":
+				service = val
+			case "scope":
+				scope = val
+			}
+		}
+	}
+	if realm == "" {
+		if registry == "ghcr.io" {
+			realm = "https://ghcr.io/token"
+			scope = fmt.Sprintf("repository:%s:pull", repo)
+		} else {
+			realm = "https://auth.docker.io/token"
+			service = "registry.docker.io"
+			scope = fmt.Sprintf("repository:%s:pull", repo)
+		}
+	}
+	u, err := url.Parse(realm)
+	if err != nil {
+		return "", err
+	}
+	q := u.Query()
+	if service != "" {
+		q.Set("service", service)
+	}
+	if scope != "" {
+		q.Set("scope", scope)
+	}
+	u.RawQuery = q.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("token HTTP %d", resp.StatusCode)
+	}
+	var payload struct {
+		Token       string `json:"token"`
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	if payload.Token != "" {
+		return payload.Token, nil
+	}
+	return payload.AccessToken, nil
 }
 
 func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Request) {

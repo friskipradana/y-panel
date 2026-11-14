@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  checkInstalledAppUpdates,
   getAppCatalog,
   createCustomCatalogApp,
   installCatalogApp,
   installedAppWindowParams,
+  rollbackInstalledApp,
   runInstalledAppAction,
   uninstallCatalogApp,
   updateInstalledApp,
@@ -17,6 +19,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 
 export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const
+export const APP_CATALOG_UPDATES_QUERY_KEY = ['app-catalog-updates'] as const
 
 export function useAppCatalog(enabledOverride?: boolean) {
   const user = useAuthStore((s) => s.user)
@@ -29,6 +32,20 @@ export function useAppCatalog(enabledOverride?: boolean) {
     enabled,
     staleTime: 15_000,
     refetchInterval: enabled ? 30_000 : false,
+  })
+}
+
+export function useInstalledAppUpdates(enabledOverride?: boolean) {
+  const user = useAuthStore((s) => s.user)
+  const isDemo = user?.role?.toLowerCase() === 'demo'
+  const enabled = (enabledOverride ?? true) && Boolean(user) && !isDemo
+
+  return useQuery({
+    queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+    queryFn: checkInstalledAppUpdates,
+    enabled,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -88,10 +105,20 @@ export function useAppCatalogMutations() {
     onSuccess: invalidate,
   })
 
+  const invalidateWithUpdates = () => {
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_UPDATES_QUERY_KEY })
+  }
+
   const upgradeMutation = useMutation({
     mutationFn: ({ id, version }: { id: number; version?: string }) =>
       upgradeInstalledApp(id, version),
-    onSuccess: invalidate,
+    onSuccess: invalidateWithUpdates,
+  })
+
+  const rollbackMutation = useMutation({
+    mutationFn: (id: number) => rollbackInstalledApp(id),
+    onSuccess: invalidateWithUpdates,
   })
 
   const uninstallMutation = useMutation({
@@ -123,6 +150,7 @@ export function useAppCatalogMutations() {
     updateMutation,
     actionMutation,
     upgradeMutation,
+    rollbackMutation,
     uninstallMutation,
   }
 }
