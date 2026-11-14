@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.28] - 2026-11-14
+
+Add notifications and events for app license orders.
+
+### Fitur baru
+- **api:** Add notifications and events for app license orders ([`5fa779b`](https://github.com/friskipradana/y-panel/commit/5fa779b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.27...v1.83.28
+
 ## [1.83.27] - 2026-11-14
 
 Add edit license, edit plan, cancel invoice, and quota limits.
