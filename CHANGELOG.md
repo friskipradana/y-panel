@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.27] - 2026-11-14
+
+Add edit license, edit plan, cancel invoice, and quota limits.
+
+### Fitur baru
+- **app-licenses:** Add edit license, edit plan, cancel invoice, and quota limits ([`4a356fa`](https://github.com/friskipradana/y-panel/commit/4a356fa))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.26...v1.83.27
+
 ## [1.83.26] - 2026-11-14
 
 Implement app license plan updates.
