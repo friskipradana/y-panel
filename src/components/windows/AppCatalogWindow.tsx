@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { Button } from '@/components/ui/Button'
@@ -61,6 +61,13 @@ export function AppCatalogWindow() {
 
   const [uninstallTarget, setUninstallTarget] = useState<InstalledApp | null>(null)
   const [removeVolumes, setRemoveVolumes] = useState(false)
+  const [progressModal, setProgressModal] = useState<{
+    kind: 'upgrade' | 'rollback'
+    phase: 'running' | 'success' | 'error'
+    app: InstalledApp
+    image: string
+    errorMessage?: string
+  } | null>(null)
 
   const catalog = useMemo(() => data?.catalog ?? [], [data?.catalog])
   const installed = useMemo(() => data?.installed ?? [], [data?.installed])
@@ -159,11 +166,15 @@ export function AppCatalogWindow() {
     )
     if (!ok) return
     setBusyAction({ id: app.id, action: 'upgrade' })
+    setProgressModal({ kind: 'upgrade', phase: 'running', app, image: app.image })
     try {
       const updated = await upgradeMutation.mutateAsync({ id: app.id })
+      setProgressModal({ kind: 'upgrade', phase: 'success', app: updated, image: updated.image })
       toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+      const message = err instanceof Error ? err.message : t('appCatalog.actionFailed')
+      setProgressModal({ kind: 'upgrade', phase: 'error', app, image: app.image, errorMessage: message })
+      toast.error(message)
     } finally {
       setBusyAction(null)
     }
@@ -181,11 +192,15 @@ export function AppCatalogWindow() {
     )
     if (!ok) return
     setBusyAction({ id: app.id, action: 'rollback' })
+    setProgressModal({ kind: 'rollback', phase: 'running', app, image: target })
     try {
       const updated = await rollbackMutation.mutateAsync(app.id)
+      setProgressModal({ kind: 'rollback', phase: 'success', app: updated, image: updated.image })
       toast.success(t('appCatalog.rollbackSuccess', { image: updated.image }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('appCatalog.actionFailed'))
+      const message = err instanceof Error ? err.message : t('appCatalog.actionFailed')
+      setProgressModal({ kind: 'rollback', phase: 'error', app, image: target, errorMessage: message })
+      toast.error(message)
     } finally {
       setBusyAction(null)
     }
@@ -450,6 +465,81 @@ export function AppCatalogWindow() {
             </div>
           ) : null}
         </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(progressModal)}
+        onClose={() => {
+          if (progressModal?.phase !== 'running') {
+            setProgressModal(null)
+          }
+        }}
+        title={
+          progressModal?.kind === 'rollback'
+            ? t('appCatalog.progressRollbackTitle')
+            : t('appCatalog.progressUpgradeTitle')
+        }
+        subtitle={progressModal?.app.name}
+        size="sm"
+        footer={
+          progressModal?.phase === 'running' ? null : (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setProgressModal(null)}
+              >
+                {t('common.close')}
+              </Button>
+              {progressModal?.phase === 'success' && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => {
+                    const targetApp = progressModal.app
+                    setProgressModal(null)
+                    openInstalledAppWindow(targetApp)
+                  }}
+                >
+                  {t('appCatalog.openAppAfterUpdate')}
+                </Button>
+              )}
+            </>
+          )
+        }
+      >
+        {progressModal && (
+          <div className="space-y-3 text-[13px]">
+            <div className="flex items-start gap-3">
+              {progressModal.phase === 'running' ? (
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--panel-primary)] mt-0.5" />
+              ) : progressModal.phase === 'success' ? (
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--panel-success)] mt-0.5" />
+              ) : (
+                <AlertCircle className="h-5 w-5 shrink-0 text-[var(--panel-danger)] mt-0.5" />
+              )}
+              <div className="min-w-0 space-y-1">
+                <p className="text-[var(--win-text)] leading-relaxed">
+                  {progressModal.phase === 'running'
+                    ? t('appCatalog.progressRunning')
+                    : progressModal.phase === 'success'
+                    ? progressModal.kind === 'rollback'
+                      ? t('appCatalog.progressRollbackDone')
+                      : t('appCatalog.progressDone')
+                    : progressModal.errorMessage || t('appCatalog.progressFailed')}
+                </p>
+                <p className="panel-mono text-[11px] text-[var(--text-secondary)] break-all">
+                  {progressModal.image}
+                </p>
+              </div>
+            </div>
+            {progressModal.phase === 'running' && (
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--panel-surface-subtle)]">
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-[var(--panel-primary)]" />
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   )

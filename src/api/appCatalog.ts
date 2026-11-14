@@ -155,6 +155,7 @@ export async function upgradeInstalledApp(id: number, version?: string): Promise
   const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
     `/api/v1/app-catalog/installed/${id}/upgrade`,
     trimmed ? { version: trimmed } : {},
+    { timeout: 300000 },
   )
   return data.app
 }
@@ -162,6 +163,8 @@ export async function upgradeInstalledApp(id: number, version?: string): Promise
 export async function rollbackInstalledApp(id: number): Promise<InstalledApp> {
   const { data } = await agentApi.post<{ ok: boolean; app: InstalledApp }>(
     `/api/v1/app-catalog/installed/${id}/rollback`,
+    {},
+    { timeout: 300000 },
   )
   return data.app
 }
