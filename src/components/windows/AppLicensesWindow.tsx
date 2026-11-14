@@ -51,6 +51,7 @@ import { useI18n } from '@/lib/i18n'
 import { CreateLicenseModal } from './app-licenses/CreateLicenseModal'
 import { EditLicenseModal } from './app-licenses/EditLicenseModal'
 import { CreatePlanModal } from './app-licenses/CreatePlanModal'
+import { EditPlanModal } from './app-licenses/EditPlanModal'
 import { LicenseIntegrationModal } from './app-licenses/LicenseIntegrationModal'
 
 type LicenseTab = 'licenses' | 'plans' | 'invoices'
@@ -96,6 +97,8 @@ export function AppLicensesWindow() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingLicense, setEditingLicense] = useState<AppLicense | null>(null)
   const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false)
+  const [editPlanModalOpen, setEditPlanModalOpen] = useState(false)
+  const [editingPlan, setEditingPlan] = useState<AppLicensePlan | null>(null)
   const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
   const [integrationLicense, setIntegrationLicense] = useState<AppLicense | null>(null)
 
@@ -1059,6 +1062,16 @@ export function AppLicensesWindow() {
                           Pesan & Invoice
                         </Button>
                         <IconButton
+                          label="Edit Paket"
+                          onClick={() => {
+                            setEditingPlan(p)
+                            setEditPlanModalOpen(true)
+                          }}
+                          className="h-8 w-8"
+                        >
+                          <Pencil size={13} />
+                        </IconButton>
+                        <IconButton
                           label="Hapus Paket"
                           onClick={() => void handleDeletePlan(p)}
                           className="text-rose-500 hover:bg-rose-500/10 h-8 w-8"
@@ -1171,6 +1184,16 @@ export function AppLicensesWindow() {
                           <ReceiptText size={12} />
                           Pesan & Invoice
                         </Button>
+                        <IconButton
+                          label="Edit Paket"
+                          onClick={() => {
+                            setEditingPlan(p)
+                            setEditPlanModalOpen(true)
+                          }}
+                          className="h-7 w-7 border-transparent"
+                        >
+                          <Pencil size={12} />
+                        </IconButton>
                         <IconButton
                           label="Hapus Paket"
                           onClick={() => void handleDeletePlan(p)}
@@ -1757,6 +1780,20 @@ export function AppLicensesWindow() {
           refetchApps()
           queryClient.invalidateQueries({ queryKey: ['app-license-plans'] })
           queryClient.invalidateQueries({ queryKey: ['app-licenses-available-apps'] })
+        }}
+      />
+
+      {/* Edit Plan Modal */}
+      <EditPlanModal
+        open={editPlanModalOpen}
+        plan={editingPlan}
+        onClose={() => {
+          setEditPlanModalOpen(false)
+          setEditingPlan(null)
+        }}
+        onSuccess={() => {
+          refetchPlans()
+          queryClient.invalidateQueries({ queryKey: ['app-license-plans'] })
         }}
       />
 

@@ -707,6 +707,42 @@ func (m *Manager) CreateAppLicensePlan(p AppLicensePlan) (*AppLicensePlan, error
 	return scanAppLicensePlan(row)
 }
 
+// UpdateAppLicensePlan updates an existing pricing plan by ID.
+func (m *Manager) UpdateAppLicensePlan(id int64, p AppLicensePlan) (*AppLicensePlan, error) {
+	if m == nil || !m.IsConnected() {
+		return nil, errors.New("database not connected")
+	}
+	if p.Months <= 0 {
+		p.Months = 1
+	}
+	featJSON := string(p.Features)
+	if featJSON == "" || featJSON == "null" {
+		featJSON = "{}"
+	}
+	res, err := m.db.Exec(`
+		UPDATE app_license_plans
+		SET name = COALESCE(NULLIF($1, ''), name),
+		    tagline = $2,
+		    period = COALESCE(NULLIF($3, ''), period),
+		    months = $4,
+		    price_amount = CASE WHEN $5 >= 0 THEN $5 ELSE price_amount END,
+		    features = $6::jsonb,
+		    highlighted = $7,
+		    is_active = $8,
+		    updated_at = NOW()
+		WHERE id = $9
+	`, p.Name, p.Tagline, p.Period, p.Months, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, id)
+	if err != nil {
+		return nil, err
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		return nil, errors.New("plan not found")
+	}
+	row := m.db.QueryRow(`SELECT `+appLicensePlanCols+` FROM app_license_plans WHERE id = $1`, id)
+	return scanAppLicensePlan(row)
+}
+
 // DeleteAppLicensePlan deletes a pricing plan by ID.
 func (m *Manager) DeleteAppLicensePlan(id int64) error {
 	if m == nil || !m.IsConnected() {

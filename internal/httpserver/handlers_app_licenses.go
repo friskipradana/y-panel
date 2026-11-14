@@ -871,6 +871,46 @@ func (s *Server) handleAppLicensePlansCreate(w http.ResponseWriter, r *http.Requ
 	})
 }
 
+// handleAppLicensePlansUpdate updates an existing plan tier by ID.
+func (s *Server) handleAppLicensePlansUpdate(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "unauthorized"})
+		return
+	}
+
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid plan ID"})
+		return
+	}
+
+	var plan database.AppLicensePlan
+	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
+		return
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		plan.ID = id
+		s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "plan": plan})
+		return
+	}
+
+	updated, err := s.database.UpdateAppLicensePlan(id, plan)
+	if err != nil {
+		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
+		return
+	}
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":      true,
+		"message": "Paket tarif aplikasi berhasil diperbarui",
+		"plan":    updated,
+	})
+}
+
 // handleAppLicensePlansDelete deletes a plan tier by ID.
 func (s *Server) handleAppLicensePlansDelete(w http.ResponseWriter, r *http.Request) {
 	actor := s.currentUserRecord(r)

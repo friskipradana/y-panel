@@ -158,6 +158,14 @@ export async function createAppLicensePlan(payload: CreateAppPlanPayload): Promi
   return res.data.plan
 }
 
+export async function updateAppLicensePlan(id: number, payload: Partial<CreateAppPlanPayload>): Promise<AppLicensePlan> {
+  const res = await agentApi.put<{ ok: boolean; message: string; plan: AppLicensePlan }>(
+    `/api/v1/app-license-plans/${id}`,
+    payload
+  )
+  return res.data.plan
+}
+
 export async function deleteAppLicensePlan(id: number): Promise<void> {
   await agentApi.delete(`/api/v1/app-license-plans/${id}`)
 }
