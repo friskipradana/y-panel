@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.33] - 2026-11-14
+
+Fix shutdown race, license invoice domain, and reneo-waha network.
+
+### Perbaikan
+- **server,notify,app-licenses:** Fix shutdown race, license invoice domain, and reneo-waha network ([`804cde8`](https://github.com/friskipradana/y-panel/commit/804cde8))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.32...v1.83.33
+
 ## [1.83.32] - 2026-11-14
 
 Isolate per-account wallpaper and add port conflict confirmation.
