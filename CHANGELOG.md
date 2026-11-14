@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.32] - 2026-11-14
+
+Isolate per-account wallpaper and add port conflict confirmation.
+
+### Perbaikan
+- **desktop,app-catalog:** Isolate per-account wallpaper and add port conflict confirmation ([`a549a83`](https://github.com/friskipradana/y-panel/commit/a549a83))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.31...v1.83.32
+
 ## [1.83.31] - 2026-11-14
 
 Add Official Reneo badge for reneo-crm.
