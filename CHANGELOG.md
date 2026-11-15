@@ -2,6 +2,20 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.43] - 2026-11-15
+
+4 perubahan, utamanya bump sw.js CACHE_VERSION to reneo-pwa-v2 to clear stale cached icons.
+
+### Perbaikan
+- **app-catalog:** Allow /logo.svg in isPublicReneoCrmPath ([`3ae58e1`](https://github.com/friskipradana/y-panel/commit/3ae58e1))
+- **icons:** Bust browser cache for updated reneo-crm.svg ([`a57d9f3`](https://github.com/friskipradana/y-panel/commit/a57d9f3))
+- **pwa:** Bump sw.js CACHE_VERSION to reneo-pwa-v2 to clear stale cached icons ([`456bc81`](https://github.com/friskipradana/y-panel/commit/456bc81))
+
+### Peningkatan
+- **icons:** Refine reneo-crm front bubble to soft emerald (#6EE7B7) ([`a9cf13c`](https://github.com/friskipradana/y-panel/commit/a9cf13c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.42...v1.83.43
+
 ## [1.83.42] - 2026-11-15
 
 3 perubahan, utamanya unify reneo-crm icon into dual-bubble omnichannel mark with centered R.
