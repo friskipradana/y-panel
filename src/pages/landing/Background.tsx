@@ -40,7 +40,7 @@ export function Background() {
             <li key={step.id} className="relative">
               <span
                 className={`panel-mono absolute -left-9 top-3 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs transition-colors ${
-                  isOpen || step.accent
+                  isOpen
                     ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                     : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)]'
                 }`}
@@ -62,7 +62,7 @@ export function Background() {
                 >
                   <span
                     className={`text-[0.875rem] font-bold leading-snug tracking-tight ${
-                      isOpen || step.accent ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
+                      isOpen ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
                     }`}
                   >
                     {step.title}
@@ -105,7 +105,7 @@ export function Background() {
                 >
                   <span
                     className={`panel-mono relative z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs transition-colors ${
-                      isOpen || step.accent
+                      isOpen
                         ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                         : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)] group-hover:border-[var(--panel-primary-solid)]'
                     }`}
@@ -122,7 +122,7 @@ export function Background() {
                     <div className="flex items-start justify-between gap-2">
                       <h3
                         className={`text-[0.875rem] font-bold leading-snug tracking-tight ${
-                          isOpen || step.accent ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
+                          isOpen ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
                         }`}
                       >
                         {step.title}
