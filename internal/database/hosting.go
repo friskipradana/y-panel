@@ -40,6 +40,10 @@ type HostingPlan struct {
 	MaxCustomDomains int `json:"maxCustomDomains"`
 	// OwnNotify lets an account on this plan bring its own notification bot
 	OwnNotify bool `json:"ownNotify"`
+	// IncludedCatalogID optionally bundles an app catalog license (e.g. "reneo-crm") with this hosting plan
+	IncludedCatalogID string `json:"includedCatalogId"`
+	// IncludedLicensePlanSlug selects which license tier is issued when IncludedCatalogID is set
+	IncludedLicensePlanSlug string `json:"includedLicensePlanSlug"`
 	// TrialDays is how long a buyer may try the plan for free; 0 offers no trial
 	TrialDays   int       `json:"trialDays"`
 	// DurationDiscounts make longer subscriptions cost less
@@ -67,6 +71,7 @@ const planColumns = `p.id, p.slug, p.name, p.tagline, p.price_amount, p.period, 
 	p.max_projects, p.max_tunnels, p.max_databases, p.max_apps, p.disk_quota_mb, p.cpu_limit_pct, p.memory_limit_mb, p.max_subdomains, p.max_custom_domains, p.trial_days, p.duration_discounts,
 	p.own_notify, p.highlighted, p.visible, p.sort_order, p.created_at, p.updated_at,
 	p.promo_percent, p.promo_ends_at, p.promo_applies_to, p.promo_exclusive,
+	p.included_catalog_id, p.included_license_plan_slug,
 	(SELECT COUNT(*) FROM user_plans up WHERE up.plan_id = p.id)`
 
 func scanPlan(row rowScanner) (*HostingPlan, error) {
@@ -75,7 +80,8 @@ func scanPlan(row rowScanner) (*HostingPlan, error) {
 	if err := row.Scan(&p.ID, &p.Slug, &p.Name, &p.Tagline, &p.PriceAmount, &p.Period, &features,
 		&p.MaxProjects, &p.MaxTunnels, &p.MaxDatabases, &p.MaxApps, &p.DiskQuotaMB, &p.CPULimitPct, &p.MemoryLimitMB, &p.MaxSubdomains, &p.MaxCustomDomains, &p.TrialDays, &discounts,
 		&p.OwnNotify, &p.Highlighted, &p.Visible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt,
-		&p.PromoPercent, &p.PromoEndsAt, &p.PromoAppliesTo, &p.PromoExclusive, &p.Accounts); err != nil {
+		&p.PromoPercent, &p.PromoEndsAt, &p.PromoAppliesTo, &p.PromoExclusive,
+		&p.IncludedCatalogID, &p.IncludedLicensePlanSlug, &p.Accounts); err != nil {
 		return nil, err
 	}
 	p.Features = []string{}
@@ -135,11 +141,11 @@ func (m *Manager) CreateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 	err := m.db.QueryRow(`
 		INSERT INTO hosting_plans (slug, name, tagline, price_amount, period, features, max_projects, max_tunnels, max_databases, max_apps,
 			disk_quota_mb, cpu_limit_pct, memory_limit_mb, max_subdomains, max_custom_domains, trial_days, highlighted, visible, sort_order, duration_discounts, own_notify,
-			promo_percent, promo_ends_at, promo_applies_to, promo_exclusive)
-		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23,COALESCE(NULLIF($24, ''), 'both'),$25) RETURNING id
+			promo_percent, promo_ends_at, promo_applies_to, promo_exclusive, included_catalog_id, included_license_plan_slug)
+		VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23,COALESCE(NULLIF($24, ''), 'both'),$25,$26,$27) RETURNING id
 	`, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases, p.MaxApps,
 		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts), p.OwnNotify,
-		p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive).Scan(&id)
+		p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive, strings.TrimSpace(p.IncludedCatalogID), strings.TrimSpace(p.IncludedLicensePlanSlug)).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -156,11 +162,12 @@ func (m *Manager) UpdateHostingPlan(p HostingPlan) (*HostingPlan, error) {
 		UPDATE hosting_plans SET slug=$2, name=$3, tagline=$4, price_amount=$5, period=$6, features=$7::jsonb,
 			max_projects=$8, max_tunnels=$9, max_databases=$10, max_apps=$11, disk_quota_mb=$12, cpu_limit_pct=$13, memory_limit_mb=$14,
 			max_subdomains=$15, max_custom_domains=$16, trial_days=$17, highlighted=$18, visible=$19, sort_order=$20, duration_discounts=$21::jsonb, own_notify=$22,
-			promo_percent=$23, promo_ends_at=$24, promo_applies_to=COALESCE(NULLIF($25, ''), 'both'), promo_exclusive=$26, updated_at=NOW()
+			promo_percent=$23, promo_ends_at=$24, promo_applies_to=COALESCE(NULLIF($25, ''), 'both'), promo_exclusive=$26,
+			included_catalog_id=$27, included_license_plan_slug=$28, updated_at=NOW()
 		WHERE id=$1
 	`, p.ID, p.Slug, p.Name, p.Tagline, p.PriceAmount, p.Period, string(features), p.MaxProjects, p.MaxTunnels, p.MaxDatabases, p.MaxApps,
 		p.DiskQuotaMB, p.CPULimitPct, p.MemoryLimitMB, p.MaxSubdomains, p.MaxCustomDomains, p.TrialDays, p.Highlighted, p.Visible, p.SortOrder, string(discounts), p.OwnNotify,
-		p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive)
+		p.PromoPercent, p.PromoEndsAt, p.PromoAppliesTo, p.PromoExclusive, strings.TrimSpace(p.IncludedCatalogID), strings.TrimSpace(p.IncludedLicensePlanSlug))
 	if err != nil {
 		return nil, err
 	}

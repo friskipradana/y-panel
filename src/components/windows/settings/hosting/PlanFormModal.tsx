@@ -28,6 +28,8 @@ const EMPTY: PlanInput = {
   maxCustomDomains: 0,
   trialDays: 0,
   ownNotify: false,
+  includedCatalogId: '',
+  includedLicensePlanSlug: '',
   durationDiscounts: [],
   promoPercent: 0,
   promoEndsAt: null,
@@ -157,6 +159,17 @@ function PlanForm({ target, saving, error, onClose, onSave }: PlanFormModalProps
 
         <Field label={t('hosting.plan.trialDays')} hint={t('hosting.plan.trialDaysHint')}>
           <TextInput mono type="number" min={0} max={90} value={form.trialDays} onChange={(e) => patch({ trialDays: Number(e.target.value) })} />
+        </Field>
+
+        <Field label={t('hosting.plan.bundleApp')} hint={t('hosting.plan.bundleAppHint')}>
+          <Select
+            value={form.includedCatalogId || ''}
+            onChange={(value) => patch({ includedCatalogId: value, includedLicensePlanSlug: value ? form.includedLicensePlanSlug || 'pro-monthly' : '' })}
+            options={[
+              { value: '', label: t('hosting.plan.bundleNone') },
+              { value: 'reneo-crm', label: t('hosting.plan.bundleReneoCrm') },
+            ]}
+          />
         </Field>
 
         <section aria-label={t('hosting.plan.limits')}>

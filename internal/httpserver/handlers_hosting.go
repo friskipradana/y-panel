@@ -144,6 +144,8 @@ type publicPlan struct {
 	MaxCustomDomains int   `json:"maxCustomDomains"`
 	// OwnNotify: the plan lets an account bring its own notification bot
 	OwnNotify     bool     `json:"ownNotify"`
+	IncludedCatalogID       string `json:"includedCatalogId,omitempty"`
+	IncludedLicensePlanSlug string `json:"includedLicensePlanSlug,omitempty"`
 	Highlighted   bool     `json:"highlighted"`
 	TrialDays     int      `json:"trialDays"`
 	// DurationDiscounts: a percent off for buying more periods at once
@@ -175,7 +177,8 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 		entry := publicPlan{
 			ID: p.ID, Slug: p.Slug, Name: p.Name, Tagline: p.Tagline, PriceAmount: p.PriceAmount, Period: p.Period, Features: p.Features,
 			MaxProjects: p.MaxProjects, MaxTunnels: p.MaxTunnels, MaxDatabases: p.MaxDatabases, MaxApps: p.MaxApps, DiskQuotaMB: p.DiskQuotaMB,
-			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, OwnNotify: p.OwnNotify, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
+			MemoryLimitMB: p.MemoryLimitMB, MaxSubdomains: p.MaxSubdomains, MaxCustomDomains: p.MaxCustomDomains, OwnNotify: p.OwnNotify,
+			IncludedCatalogID: p.IncludedCatalogID, IncludedLicensePlanSlug: p.IncludedLicensePlanSlug, Highlighted: p.Highlighted, TrialDays: p.TrialDays,
 			DurationDiscounts: p.DurationDiscounts,
 		}
 		if promoActive(&p, database.OrderNew, now) || promoActive(&p, database.OrderRenew, now) {
@@ -339,12 +342,21 @@ func (s *Server) seedExamplePlans() {
 	}
 }
 
-// applyUserPlan gives an account its plan: the quota follows the plan, and the end date is stored
+// applyUserPlan gives an account its plan: the quota follows the plan, and the end date is stored.
+// When the plan bundles an app license (e.g. reneo-crm), it also issues/extends that active license.
 func (s *Server) applyUserPlan(userID int64, plan *database.HostingPlan, expires *time.Time) error {
 	if err := s.database.UpdateUserQuota(planQuota(*plan, userID)); err != nil {
 		return err
 	}
-	return s.database.SetUserPlan(userID, plan.ID, expires)
+	if err := s.database.SetUserPlan(userID, plan.ID, expires); err != nil {
+		return err
+	}
+	if strings.TrimSpace(plan.IncludedCatalogID) != "" {
+		if err := s.database.EnsureBundledAppLicense(userID, plan.IncludedCatalogID, plan.IncludedLicensePlanSlug, expires); err != nil {
+			log.Printf("[hosting] bundled app license user=%d catalog=%s: %v", userID, plan.IncludedCatalogID, err)
+		}
+	}
+	return nil
 }
 
 // userHostingView is the plan of an account as the account list shows it

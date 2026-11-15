@@ -15,6 +15,7 @@ function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string
     t('hosting.landing.projects', { count: plan.maxProjects }),
     t('hosting.landing.databases', { count: plan.maxDatabases }),
     ...(plan.maxApps > 0 ? [t('hosting.landing.apps', { count: plan.maxApps })] : []),
+    ...(plan.includedCatalogId === 'reneo-crm' ? [t('hosting.landing.includedReneoCrm')] : []),
     ...(plan.maxSubdomains > 0 ? [t('hosting.landing.subdomains', { count: plan.maxSubdomains })] : []),
     ...(plan.maxCustomDomains > 0 ? [t('hosting.landing.customDomains', { count: plan.maxCustomDomains })] : []),
     ...(plan.ownNotify ? [t('hosting.landing.ownNotify')] : []),

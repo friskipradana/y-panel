@@ -708,6 +708,70 @@ func (m *Manager) RenewAppLicense(userID int64, catalogID string, months int, pl
 	return m.GetAppLicenseByID(existing.ID)
 }
 
+// EnsureBundledAppLicense issues or extends an active app license bundled with a hosting plan.
+func (m *Manager) EnsureBundledAppLicense(userID int64, catalogID, planSlug string, expires *time.Time) error {
+	if m == nil || !m.IsConnected() {
+		return errors.New("database not connected")
+	}
+	catalogID = strings.TrimSpace(catalogID)
+	if catalogID == "" || userID <= 0 {
+		return nil
+	}
+
+	_ = m.EnsureDefaultAppLicensePlans(catalogID)
+
+	planName := "Bundling Hosting"
+	period := "monthly"
+	var priceAmount int64
+	featuresJSON := `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"maxContacts":10000,"wahaSync":true}`
+	if strings.TrimSpace(planSlug) != "" {
+		if lp, err := m.GetAppLicensePlan(catalogID, strings.TrimSpace(planSlug)); err == nil && lp != nil {
+			planName = lp.Name
+			period = lp.Period
+			priceAmount = lp.PriceAmount
+			if len(lp.Features) > 0 {
+				if raw, mErr := json.Marshal(lp.Features); mErr == nil {
+					featuresJSON = string(raw)
+				}
+			}
+		}
+	}
+
+	now := time.Now()
+	targetExpiry := now.AddDate(10, 0, 0)
+	if expires != nil {
+		targetExpiry = *expires
+	}
+
+	existing, err := m.GetAppLicense(userID, catalogID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		key := generateLicenseKey(catalogID)
+		_, err = m.db.Exec(`
+			INSERT INTO app_licenses (user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features)
+			VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8, $9, $10::jsonb)
+		`, userID, catalogID, "Reneo CRM Services", key, planName, period, priceAmount, now, targetExpiry, featuresJSON)
+		return err
+	}
+
+	if curExpiry, parseErr := time.Parse(time.RFC3339, existing.ExpiresAt); parseErr == nil && curExpiry.After(targetExpiry) {
+		targetExpiry = curExpiry
+	}
+	_, err = m.db.Exec(`
+		UPDATE app_licenses
+		SET status = 'ACTIVE',
+		    plan_name = $1,
+		    period = $2,
+		    expires_at = $3,
+		    features = $4::jsonb,
+		    updated_at = NOW()
+		WHERE id = $5
+	`, planName, period, targetExpiry, featuresJSON, existing.ID)
+	return err
+}
+
 // CreateAppLicensePlan creates or updates an app license plan.
 func (m *Manager) CreateAppLicensePlan(p AppLicensePlan) (*AppLicensePlan, error) {
 	if m == nil || !m.IsConnected() {

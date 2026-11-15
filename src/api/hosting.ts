@@ -33,6 +33,10 @@ export interface HostingPlan {
   trialDays: number
   /** An account on the plan may bring its own notification bot */
   ownNotify: boolean
+  /** Optional catalog app bundled with an active license (e.g. "reneo-crm") */
+  includedCatalogId?: string
+  /** Optional license tier slug issued when includedCatalogId is set */
+  includedLicensePlanSlug?: string
   /** Longer subscriptions cost less */
   durationDiscounts: DurationDiscount[]
   /** A percent off the list price until promoEndsAt; 0 means no promo. After the date the list price applies again. */
