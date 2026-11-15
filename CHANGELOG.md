@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.84.1] - 2026-11-15
+
+Make comparison mobile-responsive and replace background journey with clean numbered grid.
+
+### Peningkatan
+- **landing:** Make comparison mobile-responsive and replace background journey with clean numbered grid ([`f4dbc34`](https://github.com/friskipradana/y-panel/commit/f4dbc34))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.84.0...v1.84.1
+
 ## [1.84.0] - 2026-11-15
 
 Add comparison section and update module descriptions.
