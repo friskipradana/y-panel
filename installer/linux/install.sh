@@ -218,6 +218,7 @@ prebuilt_agent_path() {
   case "$arch" in
     x86_64) name="reneo-agent-linux-amd64" ;;
     aarch64|arm64) name="reneo-agent-linux-arm64" ;;
+    armv7l|armv7|armhf|arm|armv8l) name="reneo-agent-linux-arm" ;;
     *) return 0 ;;
   esac
   if [[ -f "$REPO_ROOT/bin/$name" ]]; then

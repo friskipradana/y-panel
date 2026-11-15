@@ -54,11 +54,12 @@ foreach ($item in @('go.mod', 'go.sum', 'cmd', 'internal', 'main.go')) {
 Require-Command go
 $BinDir = Join-Path $BackendDir 'bin'
 New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
-$oldGoos = $env:GOOS; $oldGoarch = $env:GOARCH; $oldCgo = $env:CGO_ENABLED
+$oldGoos = $env:GOOS; $oldGoarch = $env:GOARCH; $oldGoarm = $env:GOARM; $oldCgo = $env:CGO_ENABLED
 try {
   $env:GOOS = 'linux'; $env:CGO_ENABLED = '0'
-  foreach ($arch in @('amd64', 'arm64')) {
+  foreach ($arch in @('amd64', 'arm64', 'arm')) {
     $env:GOARCH = $arch
+    if ($arch -eq 'arm') { $env:GOARM = '7' } else { Remove-Item Env:GOARM -ErrorAction SilentlyContinue }
     $out = Join-Path $BinDir "reneo-agent-linux-$arch"
     Push-Location $ProjectRoot
     try { & go build -trimpath -ldflags '-s -w' -o $out ./cmd/panel-agent; if ($LASTEXITCODE -ne 0) { throw "go build linux/$arch gagal." } }
@@ -66,7 +67,7 @@ try {
     Write-Host ("Agent linux/{0}: {1} MB" -f $arch, [math]::Round((Get-Item $out).Length / 1MB, 1))
   }
 } finally {
-  $env:GOOS = $oldGoos; $env:GOARCH = $oldGoarch; $env:CGO_ENABLED = $oldCgo
+  $env:GOOS = $oldGoos; $env:GOARCH = $oldGoarch; $env:GOARM = $oldGoarm; $env:CGO_ENABLED = $oldCgo
 }
 
 # Bundle version shown by the installer and stored in /opt/reneo/VERSION
