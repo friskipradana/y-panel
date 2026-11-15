@@ -2,6 +2,24 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.84.2] - 2026-11-15
+
+4 perubahan, utamanya persist last visited route per app window in localStorage.
+
+### Fitur baru
+- **app-catalog:** Persist last visited route per app window in localStorage ([`263c92a`](https://github.com/friskipradana/y-panel/commit/263c92a))
+
+### Perbaikan
+- **app-catalog:** Normalize leading slash in isPublicReneoCrmPath so public assets/APIs load without 401 ([`377f47f`](https://github.com/friskipradana/y-panel/commit/377f47f))
+
+### Peningkatan
+- **landing:** Render background section as a responsive 4-step roadmap ([`7080664`](https://github.com/friskipradana/y-panel/commit/7080664))
+
+### Pemeliharaan
+- **webserver:** Match listen 443 and :443 instead of bare 443 to avoid t.TempDir collision ([`a40ef42`](https://github.com/friskipradana/y-panel/commit/a40ef42))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.84.1...v1.84.2
+
 ## [1.84.1] - 2026-11-15
 
 Make comparison mobile-responsive and replace background journey with clean numbered grid.
