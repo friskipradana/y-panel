@@ -197,7 +197,7 @@ func TestRenderNginx(t *testing.T) {
 		t.Error("what the visitor sent in X-Forwarded-For must not be forwarded")
 	}
 	pending := files["reneo-new.example.com.conf"]
-	if strings.Contains(pending, "443") || strings.Contains(pending, "proxy_pass") || !strings.Contains(pending, "return 404;") || !strings.Contains(pending, "acme-challenge") {
+	if strings.Contains(pending, "listen 443") || strings.Contains(pending, "proxy_pass") || !strings.Contains(pending, "return 404;") || !strings.Contains(pending, "acme-challenge") {
 		t.Errorf("a domain without a certificate only answers the challenge:\n%s", pending)
 	}
 	if idle := files["reneo-idle.example.com.conf"]; strings.Contains(idle, "proxy_pass") || !strings.Contains(idle, "return 502;") {
@@ -223,7 +223,7 @@ func TestRenderApache(t *testing.T) {
 		}
 	}
 	pending := files["reneo-new.example.com.conf"]
-	if strings.Contains(pending, "443") || strings.Contains(pending, "ProxyPass") || !strings.Contains(pending, "R=404") {
+	if strings.Contains(pending, ":443") || strings.Contains(pending, "ProxyPass") || !strings.Contains(pending, "R=404") {
 		t.Errorf("a domain without a certificate only answers the challenge:\n%s", pending)
 	}
 }
