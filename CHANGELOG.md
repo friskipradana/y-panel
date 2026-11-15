@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.8] - 2026-11-15
+
+Preserve image name and version fallback for untagged/dangling images.
+
+### Perbaikan
+- **docker:** Preserve image name and version fallback for untagged/dangling images ([`307dd8f`](https://github.com/friskipradana/y-panel/commit/307dd8f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.7...v1.85.8
+
 ## [1.85.7] - 2026-11-15
 
 Force pull image on catalog install and fallback redeploy.
