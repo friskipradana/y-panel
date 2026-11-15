@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.6] - 2026-11-15
+
+Force compose pull and fail fast on stale container removal during upgrade.
+
+### Perbaikan
+- **appcatalog:** Force compose pull and fail fast on stale container removal during upgrade ([`73b40ec`](https://github.com/friskipradana/y-panel/commit/73b40ec))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.5...v1.85.6
+
 ## [1.85.5] - 2026-11-15
 
 2 perubahan, utamanya default Background roadmap to step 03 (chance) open on load.
