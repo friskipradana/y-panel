@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.9] - 2026-11-15
+
+Scope public /app gateway by panel host owner and prioritize superadmin.
+
+### Perbaikan
+- **appcatalog:** Scope public /app gateway by panel host owner and prioritize superadmin ([`7a61372`](https://github.com/friskipradana/y-panel/commit/7a61372))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.8...v1.85.9
+
 ## [1.85.8] - 2026-11-15
 
 Preserve image name and version fallback for untagged/dangling images.
