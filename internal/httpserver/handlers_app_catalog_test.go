@@ -289,6 +289,32 @@ func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
 	}
 }
 
+func TestAppGatewayPublicReneoCrmPaths(t *testing.T) {
+	publicURLs := []string{
+		"/app/reneo-crm/",
+		"/app/reneo-crm/assets/index-xYEAWOux.css",
+		"/app/reneo-crm/assets/index-abc123.js",
+		"/app/reneo-crm/api/auth/status",
+		"/app/reneo-crm/logo.svg",
+		"/app/reneo-crm/csat/token123",
+		"/app/reneo-crm/connect-channel/token123",
+	}
+	for _, raw := range publicURLs {
+		slug, rest, hasSlash := appGatewaySplitPath(raw)
+		if slug != "reneo-crm" || !hasSlash {
+			t.Fatalf("unexpected split for %q: slug=%q hasSlash=%v", raw, slug, hasSlash)
+		}
+		if !isPublicReneoCrmPath(rest) {
+			t.Errorf("expected %q (rest=%q) to be public", raw, rest)
+		}
+	}
+
+	_, privateRest, _ := appGatewaySplitPath("/app/reneo-crm/internal-secret")
+	if isPublicReneoCrmPath(privateRest) {
+		t.Errorf("expected /app/reneo-crm/internal-secret not to be public")
+	}
+}
+
 
 
 

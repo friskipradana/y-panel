@@ -3274,9 +3274,8 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 }
 
 func isPublicReneoCrmPath(rest string) bool {
-	p := strings.TrimSpace(rest)
-	return p == "" ||
-		p == "/" ||
+	p := "/" + strings.TrimPrefix(strings.TrimSpace(rest), "/")
+	return p == "/" ||
 		p == "/csat" ||
 		strings.HasPrefix(p, "/csat/") ||
 		p == "/connect-channel" ||
