@@ -1437,6 +1437,9 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 			}
 			envMap["RENEO_PANEL_URL"] = "http://host.docker.internal:" + port
 		}
+		if appTok := s.signAppToken(actor.ID, spec.ID, created.ID); appTok != "" {
+			envMap["RENEO_APP_TOKEN"] = appTok
+		}
 		userSession := strings.TrimSpace(actor.Username)
 		if userSession == "" {
 			userSession = "default"
@@ -2006,6 +2009,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if !ok {
 			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
+		if app.CatalogID == "reneo-crm" {
+			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
+				updatedCompose = upsertComposeEnvVar(updatedCompose, "RENEO_APP_TOKEN", appTok)
+			}
+		}
 		if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
 			Name:        app.ContainerName,
 			ComposeYAML: updatedCompose,
@@ -2033,12 +2041,18 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil {
 			return http.StatusBadGateway, delErr
 		}
+		nextEnv := filterNonDefaultEnvVars(cfg.Env)
+		if app.CatalogID == "reneo-crm" {
+			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
+				nextEnv = upsertSliceEnvVar(nextEnv, "RENEO_APP_TOKEN", appTok)
+			}
+		}
 		if _, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
-			Name:    projectName,
-			Image:   targetImage,
-			Network: cfg.Network,
-			Ports:   cfg.Ports,
-			Env:       filterNonDefaultEnvVars(cfg.Env),
+			Name:      projectName,
+			Image:     targetImage,
+			Network:   cfg.Network,
+			Ports:     cfg.Ports,
+			Env:       nextEnv,
 			Volumes:   cfg.Volumes,
 			ForcePull: true,
 		}); deployErr != nil {
@@ -3435,18 +3449,71 @@ func htmlEscapeMinimal(s string) string {
 	return r.Replace(s)
 }
 
+func upsertSliceEnvVar(env []docker.EnvVar, key, val string) []docker.EnvVar {
+	for i := range env {
+		if strings.EqualFold(strings.TrimSpace(env[i].Key), key) {
+			env[i].Value = val
+			return env
+		}
+	}
+	return append(env, docker.EnvVar{Key: key, Value: val})
+}
+
+func upsertComposeEnvVar(composeYAML, key, val string) string {
+	lines := strings.Split(composeYAML, "\n")
+	prefix := "- " + key + "="
+	mapPrefix := key + ":"
+	inEnv := false
+	envIndent := ""
+	insertAt := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+		if trimmed == "environment:" {
+			inEnv = true
+			envIndent = indent
+			insertAt = i + 1
+			continue
+		}
+		if inEnv {
+			if trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) && !strings.HasPrefix(trimmed, "-") {
+				inEnv = false
+				continue
+			}
+			if strings.HasPrefix(trimmed, prefix) {
+				lines[i] = indent + prefix + val
+				return strings.Join(lines, "\n")
+			}
+			if strings.HasPrefix(trimmed, mapPrefix) {
+				lines[i] = indent + mapPrefix + " " + val
+				return strings.Join(lines, "\n")
+			}
+			if strings.HasPrefix(trimmed, "- ") || strings.Contains(trimmed, ":") {
+				insertAt = i + 1
+			}
+		}
+	}
+	if insertAt > 0 && insertAt <= len(lines) {
+		itemIndent := envIndent + "  "
+		newLine := itemIndent + prefix + val
+		updated := make([]string, 0, len(lines)+1)
+		updated = append(updated, lines[:insertAt]...)
+		updated = append(updated, newLine)
+		updated = append(updated, lines[insertAt:]...)
+		return strings.Join(updated, "\n")
+	}
+	return composeYAML
+}
+
 func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request) {
 	catalogID := r.PathValue("catalogId")
 	if catalogID == "" {
 		catalogID = "reneo-crm"
 	}
 
-	userID := int64(1)
-	if actor := s.currentUserRecord(r); actor != nil {
-		userID = actor.ID
-	}
+	userID, appID, authenticated := s.resolveLicenseAppActor(r, catalogID)
 
-	if s.database != nil && s.database.IsConnected() {
+	if authenticated && userID > 0 && s.database != nil && s.database.IsConnected() {
 		lic, err := s.database.GetAppLicense(userID, catalogID)
 		if err == nil && lic != nil {
 			isSuspended := strings.EqualFold(lic.Status, "SUSPENDED")
@@ -3455,7 +3522,7 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			if isLocked {
 				features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"wahaSync":false}`)
 			}
-			publicUrls := s.collectAppPublicUrls(userID, catalogID)
+			publicUrls := s.collectAppPublicUrls(userID, catalogID, appID)
 			s.writeJSON(w, http.StatusOK, jsonResponse{
 				"ok":            true,
 				"catalogId":     lic.CatalogID,
@@ -3493,34 +3560,33 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			"unlimitedBroadcast": false,
 			"birthdayBot":        false,
 			"liveChat":           false,
+			"multiSession":       false,
+			"maxSessions":        0,
+			"multiAgent":         false,
+			"maxAgents":          0,
 			"maxContacts":        0,
 			"wahaSync":           false,
 		},
 	})
 }
 
-func (s *Server) collectAppPublicUrls(userID int64, catalogID string) []string {
-	if s.database == nil || !s.database.IsConnected() {
+func (s *Server) collectAppPublicUrls(userID int64, catalogID string, appID int64) []string {
+	if s.database == nil || !s.database.IsConnected() || userID <= 0 {
 		return nil
 	}
 	slug := catalogID
 	ownerID := userID
 	if apps, err := s.database.ListInstalledApps(userID); err == nil {
 		for _, app := range apps {
-			if app.CatalogID == catalogID && strings.TrimSpace(app.Slug) != "" {
+			if appID > 0 && app.ID == appID && strings.TrimSpace(app.Slug) != "" {
 				slug = strings.TrimSpace(app.Slug)
 				ownerID = app.UserID
 				break
 			}
-		}
-	}
-	if ownerID <= 0 {
-		if app, err := s.database.GetInstalledAppBySlugAnyUser(catalogID); err == nil && app != nil {
-			if strings.TrimSpace(app.Slug) != "" {
+			if appID == 0 && app.CatalogID == catalogID && strings.TrimSpace(app.Slug) != "" {
 				slug = strings.TrimSpace(app.Slug)
-			}
-			if app.UserID > 0 {
 				ownerID = app.UserID
+				break
 			}
 		}
 	}

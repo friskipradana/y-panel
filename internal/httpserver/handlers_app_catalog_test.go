@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
+	"github.com/friskipradana/panel-desktop-ui/internal/config"
 )
 
 func TestAppCatalogSlugAndOpenPathNormalization(t *testing.T) {
@@ -312,6 +313,63 @@ func TestAppGatewayPublicReneoCrmPaths(t *testing.T) {
 	_, privateRest, _ := appGatewaySplitPath("/app/reneo-crm/internal-secret")
 	if isPublicReneoCrmPath(privateRest) {
 		t.Errorf("expected /app/reneo-crm/internal-secret not to be public")
+	}
+}
+
+func TestAppTokenSigningAndActorResolution(t *testing.T) {
+	s := &Server{
+		cfg: config.Config{
+			SessionSecret: "test-session-secret-0123456789",
+		},
+	}
+
+	tok := s.signAppToken(42, "reneo-crm", 7)
+	if tok == "" {
+		t.Fatalf("expected non-empty signed app token")
+	}
+
+	uid, cid, appID, ok := s.parseAppToken(tok)
+	if !ok || uid != 42 || cid != "reneo-crm" || appID != 7 {
+		t.Fatalf("unexpected parsed token: uid=%d cid=%q appID=%d ok=%v", uid, cid, appID, ok)
+	}
+
+	tampered := tok[:len(tok)-1] + "a"
+	if strings.HasSuffix(tok, "a") {
+		tampered = tok[:len(tok)-1] + "b"
+	}
+	if _, _, _, ok := s.parseAppToken(tampered); ok {
+		t.Fatalf("expected tampered token to be rejected")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/license?catalog_id=reneo-crm", nil)
+	req.Header.Set("X-Reneo-App-Token", tok)
+
+	gotUID, gotAppID, authed := s.resolveLicenseAppActor(req, "reneo-crm")
+	if !authed || gotUID != 42 || gotAppID != 7 {
+		t.Fatalf("expected actor (42, 7, true), got (%d, %d, %v)", gotUID, gotAppID, authed)
+	}
+
+	if _, _, crossAuthed := s.resolveLicenseAppActor(req, "other-catalog"); crossAuthed {
+		t.Fatalf("expected cross-catalog app token to be rejected")
+	}
+
+	unauthedReq := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/license?catalog_id=reneo-crm", nil)
+	if _, _, unauthed := s.resolveLicenseAppActor(unauthedReq, "reneo-crm"); unauthed {
+		t.Fatalf("expected unauthenticated license request to be rejected")
+	}
+}
+
+func TestAppLicensePayOrderRequiresAuth(t *testing.T) {
+	s := &Server{
+		cfg: config.Config{
+			SessionSecret: "test-session-secret-0123456789",
+		},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/app-catalog/orders/ord-123/pay", nil)
+	rec := httptest.NewRecorder()
+	s.handleAppLicensePayOrder(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized when paying order without session, got %d (%s)", rec.Code, rec.Body.String())
 	}
 }
 

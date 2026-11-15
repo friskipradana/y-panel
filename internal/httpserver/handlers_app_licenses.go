@@ -1,9 +1,13 @@
 package httpserver
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +18,83 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/notify"
 )
+
+func (s *Server) appTokenSigningKey() []byte {
+	if s == nil {
+		return nil
+	}
+	secret := strings.TrimSpace(s.cfg.SessionSecret)
+	if secret == "" {
+		secret = strings.TrimSpace(s.cfg.EncryptionKey)
+	}
+	if secret == "" {
+		return nil
+	}
+	sum := sha256.Sum256([]byte("reneo.app.token.v1|" + secret))
+	return sum[:]
+}
+
+func (s *Server) signAppToken(userID int64, catalogID string, appID int64) string {
+	key := s.appTokenSigningKey()
+	if len(key) == 0 || userID <= 0 || strings.TrimSpace(catalogID) == "" {
+		return ""
+	}
+	payload := fmt.Sprintf("v1|%d|%s|%d", userID, strings.TrimSpace(catalogID), appID)
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(payload))
+	return payload + "|" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func (s *Server) parseAppToken(raw string) (userID int64, catalogID string, appID int64, ok bool) {
+	key := s.appTokenSigningKey()
+	if len(key) == 0 {
+		return 0, "", 0, false
+	}
+	parts := strings.Split(strings.TrimSpace(raw), "|")
+	if len(parts) != 5 || parts[0] != "v1" {
+		return 0, "", 0, false
+	}
+	uid, err1 := strconv.ParseInt(parts[1], 10, 64)
+	aid, err2 := strconv.ParseInt(parts[3], 10, 64)
+	cat := strings.TrimSpace(parts[2])
+	if err1 != nil || uid <= 0 || err2 != nil || aid < 0 || cat == "" {
+		return 0, "", 0, false
+	}
+	payload := strings.Join(parts[:4], "|")
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(payload))
+	expectedHex := hex.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(expectedHex), []byte(strings.ToLower(parts[4]))) {
+		return 0, "", 0, false
+	}
+	return uid, cat, aid, true
+}
+
+func extractRequestAppToken(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if tok := strings.TrimSpace(r.Header.Get("X-Reneo-App-Token")); tok != "" {
+		return tok
+	}
+	if authz := strings.TrimSpace(r.Header.Get("Authorization")); len(authz) > 7 && strings.EqualFold(authz[:7], "Bearer ") {
+		return strings.TrimSpace(authz[7:])
+	}
+	return ""
+}
+
+func (s *Server) resolveLicenseAppActor(r *http.Request, expectedCatalogID string) (userID int64, appID int64, authenticated bool) {
+	if actor := s.currentUserRecord(r); actor != nil {
+		return actor.ID, 0, true
+	}
+	if tok := extractRequestAppToken(r); tok != "" {
+		uid, cat, aid, ok := s.parseAppToken(tok)
+		if ok && uid > 0 && (expectedCatalogID == "" || strings.EqualFold(cat, expectedCatalogID)) {
+			return uid, aid, true
+		}
+	}
+	return 0, 0, false
+}
 
 type renewLicenseRequest struct {
 	CatalogID     string `json:"catalogId"`
@@ -143,7 +224,14 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 	}
 
 	userID := int64(1)
-	if actor := s.currentUserRecord(r); actor != nil {
+	if s.database != nil && s.database.IsConnected() {
+		resolvedID, _, ok := s.resolveLicenseAppActor(r, req.CatalogID)
+		if !ok || resolvedID <= 0 {
+			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "authentication required"})
+			return
+		}
+		userID = resolvedID
+	} else if actor := s.currentUserRecord(r); actor != nil {
 		userID = actor.ID
 	}
 
@@ -263,6 +351,25 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		}
 		if req.BuyerEmail == "" {
 			req.BuyerEmail = actor.Email
+		}
+	} else if s.database != nil && s.database.IsConnected() {
+		resolvedID, _, ok := s.resolveLicenseAppActor(r, req.CatalogID)
+		if !ok || resolvedID <= 0 {
+			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "authentication required"})
+			return
+		}
+		userID = resolvedID
+		if u, uErr := s.database.GetUserByID(userID); uErr == nil && u != nil {
+			actorUsername = u.Username
+			if req.BuyerName == "" {
+				req.BuyerName = u.DisplayName
+				if req.BuyerName == "" {
+					req.BuyerName = u.Username
+				}
+			}
+			if req.BuyerEmail == "" {
+				req.BuyerEmail = u.Email
+			}
 		}
 	}
 
@@ -411,6 +518,13 @@ func (s *Server) handleAppLicenseGetOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	actor := s.currentUserRecord(r)
+	tokUserID, tokCatalog, _, tokOK := s.parseAppToken(extractRequestAppToken(r))
+	if actor == nil && !tokOK {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "authentication required"})
+		return
+	}
+
 	order, err := s.database.GetAppLicenseOrderByPublicID(publicID)
 	if err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
@@ -421,6 +535,14 @@ func (s *Server) handleAppLicenseGetOrder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	isAdmin := actor != nil && (actor.Role == "superadmin" || actor.Role == "admin")
+	allowedByUser := actor != nil && (isAdmin || order.UserID == actor.ID)
+	allowedByToken := tokOK && order.UserID == tokUserID && (tokCatalog == "" || strings.EqualFold(tokCatalog, order.CatalogID))
+	if !allowedByUser && !allowedByToken {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "forbidden"})
+		return
+	}
+
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":             true,
 		"order":          order,
@@ -428,41 +550,10 @@ func (s *Server) handleAppLicenseGetOrder(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// handleAppLicensePayOrder settles an order and extends the app license.
-func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request) {
-	publicID := r.PathValue("publicId")
-	if publicID == "" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "publicId required"})
+func (s *Server) notifyAppLicenseOrderPaid(order *database.AppLicenseOrder, methodOrNote, publicBase string) {
+	if order == nil {
 		return
 	}
-
-	var req payAppLicenseOrderRequest
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.PaymentMethod == "" {
-		req.PaymentMethod = "saldo"
-	}
-
-	if s.database == nil || !s.database.IsConnected() {
-		now := time.Now()
-		s.writeJSON(w, http.StatusOK, jsonResponse{
-			"ok":      true,
-			"message": "Pembayaran berhasil diverifikasi. Lisensi telah aktif!",
-			"order": database.AppLicenseOrder{
-				PublicID:      publicID,
-				InvoiceNumber: "INV-CRM-DEMO-0001",
-				Status:        "paid",
-				PaidAt:        &now,
-			},
-		})
-		return
-	}
-
-	order, err := s.database.MarkAppLicenseOrderPaid(publicID, req.PaymentMethod)
-	if err != nil {
-		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
-		return
-	}
-
 	s.notifyUserAction(
 		order.UserID,
 		"Pembayaran Lisensi Lunas",
@@ -480,8 +571,102 @@ func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request
 		fmt.Sprintf("%s melunasi invoice %s untuk %s (%s).", username, order.InvoiceNumber, order.AppName, order.PlanName),
 		"success",
 	)
-	s.emitAppLicenseOrderPaid(order, username, req.PaymentMethod)
-	s.buyerAppLicenseOrderPaid(order, username, s.licenseOrderBaseURL(r))
+	s.emitAppLicenseOrderPaid(order, username, methodOrNote)
+	s.buyerAppLicenseOrderPaid(order, username, publicBase)
+}
+
+// matchAppLicenseOrderPayment matches incoming bank notifications to pending app license orders by exact unique total.
+func (s *Server) matchAppLicenseOrderPayment(amountDetected string, notifID int64, receivedAt time.Time) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	total := database.NormalizeAmount(amountDetected)
+	if total <= 0 {
+		return
+	}
+	orders, err := s.database.PendingAppLicenseOrdersForTotal(total, receivedAt)
+	if err != nil {
+		log.Printf("[app-orders] match check failed: %v", err)
+		return
+	}
+	if len(orders) != 1 {
+		if len(orders) > 1 {
+			log.Printf("[app-orders] %d pending license orders share total %d; leaving for admin review", len(orders), total)
+		}
+		return
+	}
+	order := orders[0]
+	if auto, _ := s.database.GetPaymentSettingValue("auto_confirm"); auto != "true" {
+		if changed, _ := s.database.SetAppLicenseOrderStatus(order.PublicID, "review"); changed {
+			s.notifyAllAdmins(
+				"Pembayaran Lisensi Cocok, Perlu Konfirmasi",
+				fmt.Sprintf("Invoice lisensi %s (%s, Rp %d) cocok dengan notifikasi bank #%d. Konfirmasi di jendela Lisensi Aplikasi.", order.InvoiceNumber, order.BuyerName, total, notifID),
+				"info",
+			)
+		}
+		return
+	}
+	changed, paidOrder, err := s.database.MarkAppLicenseOrderPaidAtomic(order.PublicID, "transfer")
+	if err != nil {
+		log.Printf("[app-orders] order %s matched notif #%d but settle failed: %v", order.InvoiceNumber, notifID, err)
+		return
+	}
+	if changed && paidOrder != nil {
+		note := fmt.Sprintf("cocok otomatis dengan notifikasi #%d", notifID)
+		s.notifyAppLicenseOrderPaid(paidOrder, note, s.orderBaseURL(nil))
+	}
+}
+
+// handleAppLicensePayOrder settles an order and extends the app license.
+func (s *Server) handleAppLicensePayOrder(w http.ResponseWriter, r *http.Request) {
+	actor := s.currentUserRecord(r)
+	if actor == nil {
+		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "authentication required"})
+		return
+	}
+	if actor.Role != "superadmin" && actor.Role != "admin" {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "admin role required"})
+		return
+	}
+
+	publicID := r.PathValue("publicId")
+	if publicID == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "publicId required"})
+		return
+	}
+
+	var req payAppLicenseOrderRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.PaymentMethod == "" {
+		req.PaymentMethod = "transfer"
+	}
+
+	if s.database == nil || !s.database.IsConnected() {
+		now := time.Now()
+		s.writeJSON(w, http.StatusOK, jsonResponse{
+			"ok":      true,
+			"message": "Pembayaran berhasil diverifikasi. Lisensi telah aktif!",
+			"order": database.AppLicenseOrder{
+				PublicID:      publicID,
+				InvoiceNumber: "INV-CRM-DEMO-0001",
+				Status:        "paid",
+				PaidAt:        &now,
+			},
+		})
+		return
+	}
+
+	changed, order, err := s.database.MarkAppLicenseOrderPaidAtomic(publicID, req.PaymentMethod)
+	if err != nil {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
+		return
+	}
+	if !changed {
+		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": "invoice ini sudah dilunasi sebelumnya"})
+		return
+	}
+
+	s.notifyAppLicenseOrderPaid(order, req.PaymentMethod, s.licenseOrderBaseURL(r))
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":      true,
@@ -972,9 +1157,15 @@ func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request)
 	if key != "" {
 		lic, err = s.database.GetAppLicenseByKey(key)
 	} else if catalogID != "" {
-		userID := int64(1)
-		if actor := s.currentUserRecord(r); actor != nil {
-			userID = actor.ID
+		userID, _, ok := s.resolveLicenseAppActor(r, catalogID)
+		if !ok || userID <= 0 {
+			s.writeJSON(w, http.StatusUnauthorized, jsonResponse{
+				"ok":      false,
+				"valid":   false,
+				"status":  "UNAUTHORIZED",
+				"message": "Autentikasi panel atau token aplikasi diperlukan.",
+			})
+			return
 		}
 		lic, err = s.database.GetAppLicense(userID, catalogID)
 	}
@@ -1003,7 +1194,7 @@ func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request)
 	valid := !lic.IsExpired && !isSuspended && (lic.Status == "ACTIVE" || lic.Status == "TRIAL")
 	features := lic.Features
 	if !valid {
-		features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"maxContacts":0,"wahaSync":false}`)
+		features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"wahaSync":false}`)
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{

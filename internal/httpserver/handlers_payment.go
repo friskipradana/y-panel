@@ -450,9 +450,10 @@ func (s *Server) handleNotificationWebhook(w http.ResponseWriter, r *http.Reques
 	log.Printf("[notif-listener] captured notification pkg=%q title=%q amount=%q from device=%q",
 		payload.PackageName, payload.Title, payload.AmountDetected, device.DeviceID)
 
-	// A hosting order of exactly this total is paid by this notification
+	// A hosting order or app license order of exactly this total is paid by this notification
 	if payload.AmountDetected != "" {
 		s.matchHostingOrderPayment(payload.AmountDetected, captured.ID, captured.ReceivedAt)
+		s.matchAppLicenseOrderPayment(payload.AmountDetected, captured.ID, captured.ReceivedAt)
 	}
 
 	// Auto-match with pending payment_transactions if amount matches

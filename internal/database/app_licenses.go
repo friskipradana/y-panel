@@ -638,8 +638,21 @@ func (m *Manager) DeleteAppLicense(id int64, userID int64, isAdmin bool) error {
 
 // RenewAppLicense extends the subscription period for an app license.
 func (m *Manager) RenewAppLicense(userID int64, catalogID string, months int, planName string, period string, priceAmount int64) (*AppLicense, error) {
+	return m.renewAppLicenseWithPlanFeatures(userID, catalogID, "", months, planName, period, priceAmount)
+}
+
+func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planSlug string, months int, planName string, period string, priceAmount int64) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
+	}
+
+	_ = m.EnsureDefaultAppLicensePlans(catalogID)
+
+	planFeaturesJSON := ""
+	if strings.TrimSpace(planSlug) != "" {
+		if lp, err := m.GetAppLicensePlan(catalogID, strings.TrimSpace(planSlug)); err == nil && lp != nil && len(lp.Features) > 0 && string(lp.Features) != "{}" {
+			planFeaturesJSON = string(lp.Features)
+		}
 	}
 
 	existing, err := m.GetAppLicense(userID, catalogID)
@@ -662,7 +675,10 @@ func (m *Manager) RenewAppLicense(userID int64, catalogID string, months int, pl
 		if priceAmount <= 0 {
 			priceAmount = 99000
 		}
-		featuresJSON := `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"maxContacts":10000,"wahaSync":true}`
+		featuresJSON := planFeaturesJSON
+		if featuresJSON == "" {
+			featuresJSON = `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"maxContacts":10000,"wahaSync":true}`
+		}
 
 		_, err = m.db.Exec(`
 			INSERT INTO app_licenses (user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features)
@@ -691,16 +707,30 @@ func (m *Manager) RenewAppLicense(userID int64, catalogID string, months int, pl
 		priceAmount = existing.PriceAmount
 	}
 
-	_, err = m.db.Exec(`
-		UPDATE app_licenses
-		SET status = 'ACTIVE',
-		    plan_name = $1,
-		    period = $2,
-		    price_amount = $3,
-		    expires_at = $4,
-		    updated_at = NOW()
-		WHERE id = $5
-	`, planName, period, priceAmount, newExpiresAt, existing.ID)
+	if planFeaturesJSON != "" {
+		_, err = m.db.Exec(`
+			UPDATE app_licenses
+			SET status = 'ACTIVE',
+			    plan_name = $1,
+			    period = $2,
+			    price_amount = $3,
+			    expires_at = $4,
+			    features = $5::jsonb,
+			    updated_at = NOW()
+			WHERE id = $6
+		`, planName, period, priceAmount, newExpiresAt, planFeaturesJSON, existing.ID)
+	} else {
+		_, err = m.db.Exec(`
+			UPDATE app_licenses
+			SET status = 'ACTIVE',
+			    plan_name = $1,
+			    period = $2,
+			    price_amount = $3,
+			    expires_at = $4,
+			    updated_at = NOW()
+			WHERE id = $5
+		`, planName, period, priceAmount, newExpiresAt, existing.ID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -723,7 +753,7 @@ func (m *Manager) EnsureBundledAppLicense(userID int64, catalogID, planSlug stri
 	planName := "Bundling Hosting"
 	period := "monthly"
 	var priceAmount int64
-	featuresJSON := `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"maxContacts":10000,"wahaSync":true}`
+	featuresJSON := `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"maxContacts":10000,"wahaSync":true}`
 	if strings.TrimSpace(planSlug) != "" {
 		if lp, err := m.GetAppLicensePlan(catalogID, strings.TrimSpace(planSlug)); err == nil && lp != nil {
 			planName = lp.Name
@@ -881,10 +911,29 @@ func (m *Manager) CreateAppLicenseOrder(o AppLicenseOrder) (*AppLicenseOrder, er
 
 	publicID := generateAppPublicID()
 
-	// Pick a unique 3-digit code (e.g. 100-999) to make the total uniquely identifiable
-	codeBig, _ := rand.Int(rand.Reader, big.NewInt(899))
-	uniqueCode := int(codeBig.Int64()) + 100
+	// Pick a unique 3-digit code (100-999) that does not collide with active license/hosting orders
+	uniqueCode := 100
 	amountTotal := o.AmountList + int64(uniqueCode)
+	for attempt := 0; attempt < 40; attempt++ {
+		codeBig, _ := rand.Int(rand.Reader, big.NewInt(899))
+		candidateCode := int(codeBig.Int64()) + 100
+		candidateTotal := o.AmountList + int64(candidateCode)
+		var clashCount int
+		_ = m.db.QueryRow(`
+			SELECT (
+				SELECT COUNT(*) FROM app_license_orders
+				WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
+			) + (
+				SELECT COUNT(*) FROM hosting_orders
+				WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
+			)
+		`, candidateTotal).Scan(&clashCount)
+		uniqueCode = candidateCode
+		amountTotal = candidateTotal
+		if clashCount == 0 {
+			break
+		}
+	}
 
 	now := time.Now()
 	expiresAt := now.Add(24 * time.Hour) // 24 hours payment deadline
@@ -969,39 +1018,104 @@ func (m *Manager) ListAppLicenseOrders(userID int64, catalogID string) ([]AppLic
 	return out, rows.Err()
 }
 
-// MarkAppLicenseOrderPaid marks an order as paid and immediately extends/activates the app license.
-func (m *Manager) MarkAppLicenseOrderPaid(publicID string, paymentMethod string) (*AppLicenseOrder, error) {
+// PendingAppLicenseOrdersForTotal returns waiting app license orders with the exact total open at payment time.
+func (m *Manager) PendingAppLicenseOrdersForTotal(total int64, at time.Time) ([]AppLicenseOrder, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
+	}
+	rows, err := m.db.Query(`
+		SELECT `+appLicenseOrderCols+`
+		FROM app_license_orders
+		WHERE status = 'pending' AND amount_total = $1 AND expires_at > $2 AND created_at <= $2
+	`, total, at)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]AppLicenseOrder, 0)
+	for rows.Next() {
+		o, err := scanAppLicenseOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *o)
+	}
+	return out, rows.Err()
+}
+
+// SetAppLicenseOrderStatus moves a pending app license order to review or cancelled.
+func (m *Manager) SetAppLicenseOrderStatus(publicID, status string) (bool, error) {
+	if m == nil || !m.IsConnected() {
+		return false, errors.New("database not connected")
+	}
+	if status != "review" && status != "cancelled" {
+		return false, fmt.Errorf("unsupported app license order status transition: %q", status)
+	}
+	res, err := m.db.Exec(`
+		UPDATE app_license_orders
+		SET status = $2
+		WHERE public_id = $1 AND status IN ('pending', 'review')
+	`, publicID, status)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
+// MarkAppLicenseOrderPaidAtomic settles a pending/review order atomically once and activates/upgrades its license.
+func (m *Manager) MarkAppLicenseOrderPaidAtomic(publicID string, paymentMethod string) (bool, *AppLicenseOrder, error) {
+	if m == nil || !m.IsConnected() {
+		return false, nil, errors.New("database not connected")
 	}
 
 	order, err := m.GetAppLicenseOrderByPublicID(publicID)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	if order == nil {
-		return nil, errors.New("order not found")
+		return false, nil, errors.New("order not found")
+	}
+	if order.Status == "paid" {
+		return false, order, nil
+	}
+	if order.Status != "pending" && order.Status != "review" {
+		return false, order, fmt.Errorf("order cannot be paid because status is %s", order.Status)
 	}
 
 	now := time.Now()
-	_, err = m.db.Exec(`
+	res, err := m.db.Exec(`
 		UPDATE app_license_orders
 		SET status = 'paid',
 		    paid_at = $1,
 		    payment_method = COALESCE(NULLIF($2, ''), payment_method)
-		WHERE public_id = $3
+		WHERE public_id = $3 AND status IN ('pending', 'review')
 	`, now, paymentMethod, publicID)
 	if err != nil {
-		return nil, err
+		return false, nil, err
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		latest, _ := m.GetAppLicenseOrderByPublicID(publicID)
+		if latest != nil && latest.Status == "paid" {
+			return false, latest, nil
+		}
+		return false, latest, errors.New("order was already updated")
 	}
 
-	// Now renew / extend the actual license
-	_, err = m.RenewAppLicense(order.UserID, order.CatalogID, order.Months, order.PlanName, order.Period, order.AmountList)
+	_, err = m.renewAppLicenseWithPlanFeatures(order.UserID, order.CatalogID, order.PlanSlug, order.Months, order.PlanName, order.Period, order.AmountList)
 	if err != nil {
-		return nil, fmt.Errorf("order marked paid but failed to renew license: %w", err)
+		return true, nil, fmt.Errorf("order marked paid but failed to renew license: %w", err)
 	}
 
-	return m.GetAppLicenseOrderByPublicID(publicID)
+	updated, err := m.GetAppLicenseOrderByPublicID(publicID)
+	return true, updated, err
+}
+
+// MarkAppLicenseOrderPaid marks an order as paid and immediately extends/activates the app license.
+func (m *Manager) MarkAppLicenseOrderPaid(publicID string, paymentMethod string) (*AppLicenseOrder, error) {
+	_, order, err := m.MarkAppLicenseOrderPaidAtomic(publicID, paymentMethod)
+	return order, err
 }
 
 // CancelAppLicenseOrder cancels a pending license order.
