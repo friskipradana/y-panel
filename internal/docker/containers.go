@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -116,7 +117,7 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 		containers = append(containers, Container{
 			ID:          shortContainerID(row.ID),
 			Names:       names,
-			Image:       row.Image,
+			Image:       resolveContainerImageRef(row.Image, labels),
 			State:       normalizeState(strings.ToLower(row.State)),
 			Status:      row.Status,
 			Ports:       ports,
@@ -252,7 +253,7 @@ func listContainersCLI(ctx context.Context) ([]Container, error) {
 		containers = append(containers, Container{
 			ID:          row.ID,
 			Names:       []string{"/" + row.Names},
-			Image:       row.Image,
+			Image:       resolveContainerImageRef(row.Image, labels),
 			State:       normalizeState(row.State),
 			Status:      row.Status,
 			Ports:       parsePorts(row.Ports),
@@ -720,4 +721,30 @@ func CountVolumes() int {
 		return 0
 	}
 	return n
+}
+
+func resolveContainerImageRef(rawImage string, labels map[string]string) string {
+	trimmed := strings.TrimSpace(rawImage)
+	if trimmed != "" && !strings.HasPrefix(trimmed, "sha256:") && trimmed != "<none>:<none>" {
+		return trimmed
+	}
+	composePath := strings.TrimSpace(labels[labelComposeDir])
+	if composePath == "" {
+		return trimmed
+	}
+	raw, err := os.ReadFile(composePath)
+	if err != nil {
+		return trimmed
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		lineTrim := strings.TrimSpace(line)
+		if strings.HasPrefix(lineTrim, "image:") {
+			val := strings.TrimSpace(strings.TrimPrefix(lineTrim, "image:"))
+			val = strings.Trim(val, `"'`)
+			if val != "" {
+				return val
+			}
+		}
+	}
+	return trimmed
 }

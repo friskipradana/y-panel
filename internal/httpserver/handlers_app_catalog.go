@@ -1942,6 +1942,11 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	}
 
 	nextDigest, _ := inspectLocalImageDigest(targetImage)
+	if prevDigest != "" && nextDigest != "" && prevDigest != nextDigest {
+		if inUse, _ := docker.IsImageInUse(prevDigest, ""); !inUse {
+			_ = docker.RemoveImage(prevDigest)
+		}
+	}
 	meta := parseAppConfigMeta(app.ConfigJSON)
 	if prevImage != "" {
 		meta.PreviousImage = prevImage

@@ -70,11 +70,12 @@ func ListImages() ([]Image, error) {
 
 func listImagesEngine(ctx context.Context, ownersByImage map[string]map[int64]string) ([]Image, error) {
 	var raw []struct {
-		ID          string   `json:"Id"`
-		RepoTags    []string `json:"RepoTags"`
-		RepoDigests []string `json:"RepoDigests"`
-		Created     int64    `json:"Created"`
-		Size        int64    `json:"Size"`
+		ID          string            `json:"Id"`
+		RepoTags    []string          `json:"RepoTags"`
+		RepoDigests []string          `json:"RepoDigests"`
+		Labels      map[string]string `json:"Labels"`
+		Created     int64             `json:"Created"`
+		Size        int64             `json:"Size"`
 	}
 	if _, _, err := defaultEngine.doRequest(ctx, http.MethodGet, "/images/json", &raw); err != nil {
 		return nil, err
@@ -90,16 +91,7 @@ func listImagesEngine(ctx context.Context, ownersByImage map[string]map[int64]st
 		if row.Created > 0 {
 			createdStr = time.Unix(row.Created, 0).UTC().Format("2006-01-02 15:04:05 -0700 MST")
 		}
-		tags := row.RepoTags
-		if len(tags) == 0 {
-			tags = []string{"<none>:<none>"}
-			if len(row.RepoDigests) > 0 {
-				repo, _, _ := strings.Cut(row.RepoDigests[0], "@")
-				if repo != "" {
-					tags = []string{repo + ":<none>"}
-				}
-			}
-		}
+		tags := resolveImageRepoTags(row.RepoTags, row.RepoDigests, row.Labels)
 		for _, rt := range tags {
 			repo, tag := splitRepoTag(rt)
 			image := Image{
@@ -114,6 +106,39 @@ func listImagesEngine(ctx context.Context, ownersByImage map[string]map[int64]st
 		}
 	}
 	return images, nil
+}
+
+func resolveImageRepoTags(repoTags, repoDigests []string, labels map[string]string) []string {
+	var valid []string
+	for _, rt := range repoTags {
+		trimmed := strings.TrimSpace(rt)
+		if trimmed != "" && trimmed != "<none>:<none>" {
+			valid = append(valid, trimmed)
+		}
+	}
+	if len(valid) > 0 {
+		return valid
+	}
+	repo := ""
+	if len(repoDigests) > 0 {
+		if r, _, ok := strings.Cut(repoDigests[0], "@"); ok {
+			repo = strings.TrimSpace(r)
+		}
+	}
+	if repo == "" {
+		repo = strings.TrimSpace(labels["org.opencontainers.image.title"])
+	}
+	if repo == "" {
+		repo = "<none>"
+	}
+	tag := strings.TrimSpace(labels["org.opencontainers.image.version"])
+	if tag == "" {
+		tag = strings.TrimSpace(labels["org.opencontainers.image.ref.name"])
+	}
+	if tag == "" {
+		tag = "<none>"
+	}
+	return []string{repo + ":" + tag}
 }
 
 func listImagesCLI(ctx context.Context, ownersByImage map[string]map[int64]string) ([]Image, error) {
