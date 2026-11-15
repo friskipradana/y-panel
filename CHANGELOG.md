@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.4] - 2026-11-15
+
+Make Background roadmap click-to-reveal.
+
+### Fitur baru
+- **landing:** Make Background roadmap click-to-reveal ([`6d34c6f`](https://github.com/friskipradana/y-panel/commit/6d34c6f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.3...v1.85.4
+
 ## [1.85.3] - 2026-11-15
 
 Clarify proxy/direct toggle and show Proxy Mode hint in direct mode.
