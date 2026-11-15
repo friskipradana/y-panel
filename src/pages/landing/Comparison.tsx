@@ -23,8 +23,73 @@ export function Comparison() {
         {t('landing.comparison.subtitle')}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-[14px] border border-[var(--win-border)] bg-[var(--panel-surface)]">
-        <table className="w-full min-w-[780px] border-collapse text-left">
+      {/* Mobile: Stacked comparison cards (no horizontal scroll) */}
+      <div className="mt-4 space-y-3 md:hidden">
+        {ROWS.map((row) => (
+          <div
+            key={row.key}
+            className="overflow-hidden rounded-[14px] border border-[var(--win-border)] bg-[var(--panel-surface)]"
+          >
+            <div className="border-b border-[var(--win-border)] bg-[var(--panel-surface-strong)] px-3.5 py-2.5 text-[0.8125rem] font-semibold text-[var(--win-text)]">
+              {t(`landing.comparison.${row.key}.label`)}
+            </div>
+            <dl className="divide-y divide-[var(--win-border)] text-[0.8125rem]">
+              <div className="flex items-start justify-between gap-3 px-3.5 py-2">
+                <dt className="shrink-0 text-[0.75rem] font-medium text-[var(--text-secondary)]">
+                  {t('landing.comparison.col.ssh')}
+                </dt>
+                <dd className="flex items-start gap-1.5 text-right text-[var(--text-secondary)]">
+                  {row.sshOk ? (
+                    <Check size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" />
+                  ) : (
+                    <Minus size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--text-secondary)]" />
+                  )}
+                  <span>{t(`landing.comparison.${row.key}.ssh`)}</span>
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3 px-3.5 py-2">
+                <dt className="shrink-0 text-[0.75rem] font-medium text-[var(--text-secondary)]">
+                  {t('landing.comparison.col.homelab')}
+                </dt>
+                <dd className="flex items-start gap-1.5 text-right text-[var(--text-secondary)]">
+                  {row.homelabOk ? (
+                    <Check size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" />
+                  ) : (
+                    <Minus size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--text-secondary)]" />
+                  )}
+                  <span>{t(`landing.comparison.${row.key}.homelab`)}</span>
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3 px-3.5 py-2">
+                <dt className="shrink-0 text-[0.75rem] font-medium text-[var(--text-secondary)]">
+                  {t('landing.comparison.col.cpanel')}
+                </dt>
+                <dd className="flex items-start gap-1.5 text-right text-[var(--text-secondary)]">
+                  {row.cpanelOk ? (
+                    <Check size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" />
+                  ) : (
+                    <Minus size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--text-secondary)]" />
+                  )}
+                  <span>{t(`landing.comparison.${row.key}.cpanel`)}</span>
+                </dd>
+              </div>
+              <div className="flex items-start justify-between gap-3 bg-[var(--panel-primary-bg)]/45 px-3.5 py-2.5">
+                <dt className="shrink-0 text-[0.75rem] font-semibold text-[var(--panel-primary-text)]">
+                  {t('landing.comparison.col.reneo')}
+                </dt>
+                <dd className="flex items-start gap-1.5 text-right font-medium text-[var(--win-text)]">
+                  <Check size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" />
+                  <span>{t(`landing.comparison.${row.key}.reneo`)}</span>
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: Structured comparison table */}
+      <div className="mt-4 hidden overflow-hidden rounded-[14px] border border-[var(--win-border)] bg-[var(--panel-surface)] md:block">
+        <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-[var(--win-border)] bg-[var(--panel-surface-strong)] text-[0.75rem] font-semibold text-[var(--win-text)]">
               <th className="w-[24%] px-3.5 py-2.5">{t('landing.comparison.col.feature')}</th>
