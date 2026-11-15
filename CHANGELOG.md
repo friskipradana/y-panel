@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.84.0] - 2026-11-15
+
+Add comparison section and update module descriptions.
+
+### Fitur baru
+- **landing:** Add comparison section and update module descriptions ([`361e7fb`](https://github.com/friskipradana/y-panel/commit/361e7fb))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.45...v1.84.0
+
 ## [1.83.45] - 2026-11-15
 
 Restore white front bubble on reneo-crm icon and bump cache.
