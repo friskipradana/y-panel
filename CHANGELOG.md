@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.7] - 2026-11-15
+
+Force pull image on catalog install and fallback redeploy.
+
+### Perbaikan
+- **appcatalog:** Force pull image on catalog install and fallback redeploy ([`1761719`](https://github.com/friskipradana/y-panel/commit/1761719))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.6...v1.85.7
+
 ## [1.85.6] - 2026-11-15
 
 Force compose pull and fail fast on stale container removal during upgrade.
