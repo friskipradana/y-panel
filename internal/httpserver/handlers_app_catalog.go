@@ -313,17 +313,17 @@ var builtinCatalogApps = []CatalogApp{
 	},
 	{
 		ID:              "reneo-crm",
-		Name:            "Reneo CRM WhatsApp",
-		TaglineID:       "CRM WhatsApp, siaran terjadwal, ucapan ultah & live chat lead",
-		TaglineEN:       "WhatsApp CRM with scheduled broadcast, birthday bot & live chat",
-		DescriptionID:   "Kelola database pelanggan, jalankan siaran WhatsApp terjadwal dengan jeda anti-ban, otomatisasi ucapan ulang tahun, serta pantau status pesan terkirim dan dibaca (centang biru) secara real-time.",
-		DescriptionEN:   "Manage customer leads, execute scheduled WhatsApp broadcasts with anti-ban delay, automate birthday greetings, and track real-time delivery and read receipts.",
+		Name:            "Reneo CRM Omnichannel",
+		TaglineID:       "CRM Omnichannel: WhatsApp, Cloud API, IG, FB, Threads, Telegram & AI",
+		TaglineEN:       "Omnichannel CRM: WhatsApp, Cloud API, IG, FB, Threads, Telegram & AI",
+		DescriptionID:   "Kelola percakapan WhatsApp (WAHA & Business Cloud API), Instagram DM/Komentar, Facebook Messenger, Threads, dan Telegram dalam satu inbox. Dilengkapi Agent AI, siaran terjadwal anti-ban, bot ulang tahun, serta survei CSAT & SLA.",
+		DescriptionEN:   "Manage WhatsApp (WAHA & Business Cloud API), Instagram DM/Comments, Facebook Messenger, Threads, and Telegram in one unified inbox with AI Agent, scheduled broadcasts, birthday bot, and CSAT/SLA tracking.",
 		Category:        "automation",
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.0.7", "1.0.6", "1.0.5", "1.0.4", "1.0.3", "1.0.0"},
+		Versions:        []string{"latest", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -3275,10 +3275,16 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 
 func isPublicReneoCrmPath(rest string) bool {
 	p := strings.TrimSpace(rest)
-	return p == "/csat" ||
+	return p == "" ||
+		p == "/" ||
+		p == "/csat" ||
 		strings.HasPrefix(p, "/csat/") ||
-		strings.HasPrefix(p, "/api/public/") ||
+		p == "/connect-channel" ||
+		strings.HasPrefix(p, "/connect-channel/") ||
+		strings.HasPrefix(p, "/api/") ||
 		strings.HasPrefix(p, "/assets/") ||
+		strings.HasPrefix(p, "/icons/") ||
+		p == "/manifest.webmanifest" ||
 		p == "/favicon.ico"
 }
 
