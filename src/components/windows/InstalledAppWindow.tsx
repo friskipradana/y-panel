@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ExternalLink,
   Home,
@@ -25,6 +25,45 @@ interface InstalledAppWindowProps {
   win: WindowState
 }
 
+const APP_URL_STORAGE_PREFIX = 'reneo:app-last-url:'
+
+function getSavedAppUrl(appId: number, baseOpenUrl: string): string {
+  try {
+    const saved = window.localStorage.getItem(`${APP_URL_STORAGE_PREFIX}${appId}`)
+    if (!saved) return baseOpenUrl
+    const base = new URL(baseOpenUrl, window.location.origin)
+    const target = new URL(saved, window.location.origin)
+    if (target.origin !== base.origin) return baseOpenUrl
+    if (!target.pathname.startsWith(base.pathname.replace(/\/$/, ''))) return baseOpenUrl
+    return `${target.pathname}${target.search}${target.hash}`
+  } catch {
+    return baseOpenUrl
+  }
+}
+
+function saveAppUrl(appId: number, baseOpenUrl: string, currentHref: string) {
+  try {
+    const base = new URL(baseOpenUrl, window.location.origin)
+    const target = new URL(currentHref, window.location.origin)
+    if (target.origin !== base.origin) return
+    if (!target.pathname.startsWith(base.pathname.replace(/\/$/, ''))) return
+    window.localStorage.setItem(
+      `${APP_URL_STORAGE_PREFIX}${appId}`,
+      `${target.pathname}${target.search}${target.hash}`,
+    )
+  } catch {
+    // Cross-origin iframes cannot be read from the parent frame
+  }
+}
+
+function clearSavedAppUrl(appId: number) {
+  try {
+    window.localStorage.removeItem(`${APP_URL_STORAGE_PREFIX}${appId}`)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
@@ -32,12 +71,33 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const { data, isLoading, isError, error, refetch, isFetching } = useAppCatalog()
   const { actionMutation, updateMutation } = useAppCatalogMutations()
 
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const [reloadNonce, setReloadNonce] = useState(0)
   const [loadedNonce, setLoadedNonce] = useState(-1)
   const [editOpen, setEditOpen] = useState(false)
   const [pendingAction, setPendingAction] = useState<'start' | 'stop' | 'restart' | null>(null)
+  const [homeOverride, setHomeOverride] = useState(false)
 
   const app = data?.installed.find((item) => item.id === appId)
+  const openUrl = app ? installedAppOpenUrl(app) : ''
+
+  const syncCurrentIframeUrl = useCallback(() => {
+    if (!app || !openUrl) return
+    try {
+      const href = iframeRef.current?.contentWindow?.location?.href
+      if (href && href !== 'about:blank') {
+        saveAppUrl(app.id, openUrl, href)
+      }
+    } catch {
+      // Cross-origin iframes block location access
+    }
+  }, [app, openUrl])
+
+  useEffect(() => {
+    return () => {
+      syncCurrentIframeUrl()
+    }
+  }, [syncCurrentIframeUrl])
 
   if (isLoading && !app) {
     return <LoadingState>{t('appCatalog.loading')}</LoadingState>
@@ -73,8 +133,7 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const isContainer = app.kind === 'docker' || app.kind === 'existing-container'
   const isRunning = !isContainer || app.containerState === 'running' || app.containerState === 'restarting'
   const isMissing = isContainer && app.containerState === 'missing'
-  const openUrl = installedAppOpenUrl(app)
-  const iframeSrc = openUrl
+  const iframeSrc = homeOverride ? openUrl : getSavedAppUrl(app.id, openUrl)
   const endpointLabel =
     app.kind === 'custom-url'
       ? app.targetUrl
@@ -188,7 +247,11 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
 
           <IconButton
             label={t('appCatalog.resetHome')}
-            onClick={() => setReloadNonce((n) => n + 1)}
+            onClick={() => {
+              clearSavedAppUrl(app.id)
+              setHomeOverride(true)
+              setReloadNonce((n) => n + 1)
+            }}
             disabled={!isRunning}
           >
             <Home className="h-3.5 w-3.5" />
@@ -263,10 +326,21 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
               </div>
             ) : null}
             <iframe
+              ref={iframeRef}
               key={`${app.id}-${reloadNonce}`}
               src={iframeSrc}
               title={app.name}
-              onLoad={() => setLoadedNonce(reloadNonce)}
+              onLoad={() => {
+                setLoadedNonce(reloadNonce)
+                setHomeOverride(false)
+                syncCurrentIframeUrl()
+                try {
+                  iframeRef.current?.contentWindow?.addEventListener('hashchange', syncCurrentIframeUrl)
+                  iframeRef.current?.contentWindow?.addEventListener('popstate', syncCurrentIframeUrl)
+                } catch {
+                  // Ignore cross-origin listener restrictions
+                }
+              }}
               className="installed-app-frame"
               allow="clipboard-read; clipboard-write; fullscreen"
             />
