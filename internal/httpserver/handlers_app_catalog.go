@@ -3284,6 +3284,7 @@ func isPublicReneoCrmPath(rest string) bool {
 		strings.HasPrefix(p, "/api/") ||
 		strings.HasPrefix(p, "/assets/") ||
 		strings.HasPrefix(p, "/icons/") ||
+		p == "/logo.svg" ||
 		p == "/manifest.webmanifest" ||
 		p == "/favicon.ico"
 }
