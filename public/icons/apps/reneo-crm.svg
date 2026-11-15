@@ -1,17 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo CRM">
   <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
-  <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#FFFFFF"/>
-  <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#FFFFFF"/>
-  <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#FFFFFF"/>
-  <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#FFFFFF"/>
-  <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#FFFFFF"/>
-  <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#0B2A57"/>
-  <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#0B2A57"/>
-  <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#0B2A57"/>
-  <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#0B2A57"/>
-  <circle cx="396" cy="396" r="88" fill="#0B2A57"/>
-  <path d="M396 324C356.2 324 324 352.4 324 387.5C324 402.8 330.1 416.8 340.3 427.8L332.5 458L364.8 446.8C374.5 449.5 385 451 396 451C435.8 451 468 422.6 468 387.5C468 352.4 435.8 324 396 324Z" fill="#10B981"/>
-  <circle cx="370" cy="388" r="9" fill="#FFFFFF"/>
-  <circle cx="396" cy="388" r="9" fill="#FFFFFF"/>
-  <circle cx="422" cy="388" r="9" fill="#FFFFFF"/>
+  <g transform="translate(18, 14) scale(0.55)">
+    <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#FFFFFF"/>
+    <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#0B2A57"/>
+    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#0B2A57"/>
+    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#0B2A57"/>
+    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#0B2A57"/>
+  </g>
+  <path
+    d="M304 178C237.7 178 184 226.4 184 286C184 311.8 194.1 335.5 211 354L198 416L255.8 394.6C270.8 399 287.1 401.5 304 401.5C370.3 401.5 424 353.1 424 293.5C424 233.9 370.3 178 304 178Z"
+    fill="#10B981"
+    stroke="#0B2A57"
+    stroke-width="20"
+    stroke-linejoin="round"
+  />
+  <circle cx="256" cy="290" r="16" fill="#FFFFFF"/>
+  <circle cx="304" cy="290" r="16" fill="#FFFFFF"/>
+  <circle cx="352" cy="290" r="16" fill="#FFFFFF"/>
 </svg>
