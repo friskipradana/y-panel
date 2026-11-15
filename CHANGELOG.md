@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.0] - 2026-11-15
+
+3 perubahan, utamanya allow selectable +Reneo CRM app & license add-on at checkout.
+
+### Fitur baru
+- **hosting:** Allow selectable +Reneo CRM app & license add-on at checkout ([`11eace5`](https://github.com/friskipradana/y-panel/commit/11eace5))
+- **hosting:** Support bundling app catalog license in hosting plans ([`3d35574`](https://github.com/friskipradana/y-panel/commit/3d35574))
+
+### Perbaikan
+- **db:** Widen installed_apps.icon_key to TEXT for image URLs ([`2bc07e8`](https://github.com/friskipradana/y-panel/commit/2bc07e8))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.84.2...v1.85.0
+
 ## [1.84.2] - 2026-11-15
 
 4 perubahan, utamanya persist last visited route per app window in localStorage.
