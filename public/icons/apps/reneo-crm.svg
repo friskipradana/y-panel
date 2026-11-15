@@ -8,7 +8,7 @@
   <!-- Front primary CRM bubble (white with navy separation stroke) -->
   <path
     d="M168 154H292C327.3 154 356 182.7 356 218V304C356 339.3 327.3 368 292 368H186L114 408L136 359.5C116.7 348.7 104 328 104 304V218C104 182.7 132.7 154 168 154Z"
-    fill="#6EE7B7"
+    fill="#FFFFFF"
     stroke="#0B2A57"
     stroke-width="18"
     stroke-linejoin="round"
@@ -20,9 +20,9 @@
     <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#0B2A57"/>
     <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#0B2A57"/>
     <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#0B2A57"/>
-    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#6EE7B7"/>
-    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#6EE7B7"/>
-    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#6EE7B7"/>
-    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#6EE7B7"/>
+    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#FFFFFF"/>
   </g>
 </svg>
