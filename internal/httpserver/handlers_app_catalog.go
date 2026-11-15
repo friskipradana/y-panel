@@ -3323,8 +3323,13 @@ func (s *Server) appGatewayProxy() http.Handler {
 
 		u := s.currentUserRecord(r)
 		if u == nil {
-			// Check if an app exists with this slug
-			app, _ := s.database.GetInstalledAppBySlugAnyUser(slug)
+			// Resolve tenant panel domain first; on the main panel prioritize superadmin/admin installs.
+			var app *database.InstalledApp
+			if hostOwnerID := s.hostingHostOwner(normalizeHost(r.Host)); hostOwnerID > 0 {
+				app, _ = s.database.GetInstalledAppBySlug(hostOwnerID, slug)
+			} else {
+				app, _ = s.database.GetInstalledAppBySlugAnyUser(slug)
+			}
 			if app == nil {
 				http.NotFound(w, r)
 				return

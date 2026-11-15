@@ -106,8 +106,9 @@ func (m *Manager) GetInstalledAppBySlugAnyUser(slug string) (*InstalledApp, erro
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
 	}
+	const aliasedCols = `a.id, a.user_id, a.slug, a.catalog_id, a.name, a.tagline, a.category, a.icon_key, a.icon_color, a.kind, a.image, a.container_name, a.host_port, a.container_port, a.open_path, a.target_url, a.use_proxy, a.config_json, a.created_at, a.updated_at`
 	row := m.db.QueryRow(
-		`SELECT `+installedAppCols+` FROM installed_apps WHERE slug = $1 ORDER BY id ASC LIMIT 1`,
+		`SELECT `+aliasedCols+` FROM installed_apps a LEFT JOIN users u ON u.id = a.user_id WHERE a.slug = $1 ORDER BY CASE WHEN LOWER(COALESCE(u.role, '')) = 'superadmin' THEN 0 WHEN LOWER(COALESCE(u.role, '')) = 'admin' THEN 1 ELSE 2 END, a.id ASC LIMIT 1`,
 		slug,
 	)
 	item, err := scanInstalledApp(row)
