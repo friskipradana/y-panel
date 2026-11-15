@@ -8,7 +8,7 @@ type StepId = (typeof STEPS)[number]
 // Why Reneo exists, in four interactive roadmap milestones: click a milestone node to reveal its story
 export function Background() {
   const { t } = useI18n()
-  const [activeId, setActiveId] = useState<StepId | null>(null)
+  const [activeId, setActiveId] = useState<StepId | null>('chance')
   const steps = STEPS.map((id, index) => ({
     id,
     num: String(index + 1).padStart(2, '0'),
