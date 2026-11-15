@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.3] - 2026-11-15
+
+Clarify proxy/direct toggle and show Proxy Mode hint in direct mode.
+
+### Perbaikan
+- **apps:** Clarify proxy/direct toggle and show Proxy Mode hint in direct mode ([`211e12d`](https://github.com/friskipradana/y-panel/commit/211e12d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.2...v1.85.3
+
 ## [1.85.2] - 2026-11-15
 
 Refine Background roadmap card tokens and alignment.
