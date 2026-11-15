@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.1] - 2026-11-15
+
+Add -- +goose Up/Down annotations to migrations 000048 and 000049.
+
+### Perbaikan
+- **db:** Add -- +goose Up/Down annotations to migrations 000048 and 000049 ([`512bc19`](https://github.com/friskipradana/y-panel/commit/512bc19))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.0...v1.85.1
+
 ## [1.85.0] - 2026-11-15
 
 3 perubahan, utamanya allow selectable +Reneo CRM app & license add-on at checkout.
