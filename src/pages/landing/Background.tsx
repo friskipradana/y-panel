@@ -23,15 +23,15 @@ export function Background() {
       </p>
 
       {/* Mobile: Vertical Roadmap */}
-      <ol className="relative mt-6 space-y-4 pl-8 md:hidden">
+      <ol className="relative mt-6 space-y-4 pl-9 md:hidden">
         <div
           aria-hidden="true"
-          className="absolute bottom-4 left-[11px] top-3 w-[2px] bg-[var(--win-border)]"
+          className="absolute bottom-5 left-[13px] top-4 w-[2px] bg-[var(--win-border)]"
         />
         {steps.map((step) => (
           <li key={step.id} className="relative">
             <span
-              className={`panel-mono absolute -left-8 top-3.5 flex h-6 w-6 items-center justify-center rounded-full border text-[0.6875rem] font-bold ${
+              className={`panel-mono absolute -left-9 top-3.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs ${
                 step.accent
                   ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                   : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)]'
@@ -40,13 +40,17 @@ export function Background() {
               {step.num}
             </span>
             <div
-              className={`rounded-[14px] border p-4 ${
+              className={`rounded-2xl border p-4 shadow-2xs backdrop-blur-xs transition-colors ${
                 step.accent
-                  ? 'border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)]/50'
-                  : 'border-[var(--win-border)] bg-[var(--panel-surface)]'
+                  ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]'
+                  : 'border-[var(--win-border)] bg-[var(--panel-surface)]/50 hover:bg-[var(--panel-surface)]/80'
               }`}
             >
-              <h3 className="text-[0.9375rem] font-bold tracking-tight text-[var(--win-text)]">
+              <h3
+                className={`text-[0.875rem] font-bold leading-snug tracking-tight ${
+                  step.accent ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
+                }`}
+              >
                 {step.title}
               </h3>
               <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
@@ -67,7 +71,7 @@ export function Background() {
           {steps.map((step) => (
             <li key={step.id} className="flex flex-col items-center">
               <span
-                className={`panel-mono relative z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold ${
+                className={`panel-mono relative z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs ${
                   step.accent
                     ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                     : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)]'
@@ -76,13 +80,17 @@ export function Background() {
                 {step.num}
               </span>
               <div
-                className={`mt-4 w-full flex-1 rounded-[14px] border p-4 ${
+                className={`mt-4 w-full flex-1 rounded-2xl border p-4 shadow-2xs backdrop-blur-xs transition-colors ${
                   step.accent
-                    ? 'border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)]/50'
-                    : 'border-[var(--win-border)] bg-[var(--panel-surface)]'
+                    ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]'
+                    : 'border-[var(--win-border)] bg-[var(--panel-surface)]/50 hover:bg-[var(--panel-surface)]/80'
                 }`}
               >
-                <h3 className="text-[0.9375rem] font-bold leading-snug tracking-tight text-[var(--win-text)]">
+                <h3
+                  className={`text-[0.875rem] font-bold leading-snug tracking-tight ${
+                    step.accent ? 'text-[var(--panel-primary-text)]' : 'text-[var(--win-text)]'
+                  }`}
+                >
                   {step.title}
                 </h3>
                 <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--text-secondary)]">
