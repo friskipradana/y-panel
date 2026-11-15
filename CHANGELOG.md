@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.11] - 2026-11-15
+
+Enforce app token auth, superadmin RBAC, and payment matching on CRM licenses.
+
+### Perbaikan
+- **appcatalog:** Enforce app token auth, superadmin RBAC, and payment matching on CRM licenses ([`3e5487d`](https://github.com/friskipradana/y-panel/commit/3e5487d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.10...v1.85.11
+
 ## [1.85.10] - 2026-11-15
 
 Enforce strict domain isolation on /app/{slug} gateway.
