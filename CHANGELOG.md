@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.45] - 2026-11-15
+
+Restore white front bubble on reneo-crm icon and bump cache.
+
+### Peningkatan
+- **icons:** Restore white front bubble on reneo-crm icon and bump cache ([`ec1cf17`](https://github.com/friskipradana/y-panel/commit/ec1cf17))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.44...v1.83.45
+
 ## [1.83.44] - 2026-11-15
 
 Add prebuilt linux/arm (ARMv7/Armbian 32-bit) agent alongside arm64 and amd64.
