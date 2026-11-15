@@ -2,6 +2,17 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.42] - 2026-11-15
+
+3 perubahan, utamanya unify reneo-crm icon into dual-bubble omnichannel mark with centered R.
+
+### Perbaikan
+- **app-catalog:** Update reneo-crm catalog, icon, and public /app/<slug>/ routing ([`e7246c8`](https://github.com/friskipradana/y-panel/commit/e7246c8))
+- **icons:** Unify reneo-crm icon into dual-bubble omnichannel mark with centered R ([`ac134e5`](https://github.com/friskipradana/y-panel/commit/ac134e5))
+- **icons:** Rebalance reneo-crm icon proportions (smaller R, prominent omnichannel bubble) ([`3fbe34f`](https://github.com/friskipradana/y-panel/commit/3fbe34f))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.41...v1.83.42
+
 ## [1.83.41] - 2026-11-14
 
 Remove duplicate icon in AppLicensesWindow header toolbar.
