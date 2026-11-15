@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.5] - 2026-11-15
+
+2 perubahan, utamanya default Background roadmap to step 03 (chance) open on load.
+
+### Fitur baru
+- **landing:** Default Background roadmap to step 03 (chance) open on load ([`fc2cdfd`](https://github.com/friskipradana/y-panel/commit/fc2cdfd))
+
+### Perbaikan
+- **landing:** Deactivate previous step color when opening another Background milestone ([`ba407a6`](https://github.com/friskipradana/y-panel/commit/ba407a6))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.4...v1.85.5
+
 ## [1.85.4] - 2026-11-15
 
 Make Background roadmap click-to-reveal.
