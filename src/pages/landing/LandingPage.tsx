@@ -9,6 +9,7 @@ import { getDemoInfo } from '@/api/agent'
 import { usePageMeta } from '@/hooks/usePageMeta'
 import { useMcpCatalog } from '@/pages/mcp-guide/useMcpCatalog'
 import { Background } from '@/pages/landing/Background'
+import { Comparison } from '@/pages/landing/Comparison'
 import { Faq } from '@/pages/landing/Faq'
 import { Modules } from '@/pages/landing/Modules'
 import { Philosophy } from '@/pages/landing/Philosophy'
@@ -134,6 +135,8 @@ export function LandingPage({ authenticated, onNavigate }: LandingPageProps) {
         <Philosophy />
 
         <Modules />
+
+        <Comparison />
 
         {/* AI agents */}
         <section className="mt-14" aria-labelledby="landing-agent">

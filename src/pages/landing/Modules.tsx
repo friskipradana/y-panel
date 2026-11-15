@@ -1,5 +1,6 @@
 import {
   Activity,
+  AppWindow,
   Bell,
   BookOpen,
   Bot,
@@ -11,10 +12,14 @@ import {
   Gauge,
   Globe,
   HardDrive,
+  KeyRound,
   LayoutGrid,
   List,
+  Mail,
+  Monitor,
   Network,
   Settings,
+  Shield,
   Store,
   Terminal,
   Users,
@@ -33,10 +38,12 @@ const GROUPS: Array<{ id: string; modules: Array<{ id: string; icon: ModuleIcon 
     id: 'server',
     modules: [
       { id: 'docker', icon: Box },
+      { id: 'app-catalog', icon: AppWindow },
       { id: 'projects', icon: FolderKanban },
       { id: 'terminal', icon: Terminal },
       { id: 'files', icon: HardDrive },
       { id: 'database', icon: Database },
+      { id: 'kvm', icon: Monitor },
     ],
   },
   {
@@ -44,6 +51,7 @@ const GROUPS: Array<{ id: string; modules: Array<{ id: string; icon: ModuleIcon 
     modules: [
       { id: 'cloudflare', icon: Globe },
       { id: 'publicip', icon: Network },
+      { id: 'firewall', icon: Shield },
       { id: 'speedtest', icon: Gauge },
     ],
   },
@@ -52,6 +60,8 @@ const GROUPS: Array<{ id: string; modules: Array<{ id: string; icon: ModuleIcon 
     modules: [
       { id: 'hosting', icon: Store },
       { id: 'users', icon: Users },
+      { id: 'email', icon: Mail },
+      { id: 'app-licenses', icon: KeyRound },
       { id: 'notify', icon: Bell },
     ],
   },
