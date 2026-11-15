@@ -1490,9 +1490,10 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 			ContainerPort: strconv.Itoa(spec.ContainerPort),
 			Protocol:      "tcp",
 		}},
-		Env:     envVars,
-		Volumes: volumes,
-		Network: deployNetwork,
+		Env:       envVars,
+		Volumes:   volumes,
+		Network:   deployNetwork,
+		ForcePull: true,
 	})
 	if deployErr != nil {
 		_ = s.database.DeleteInstalledApp(created.ID)
@@ -2032,8 +2033,9 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			Image:   targetImage,
 			Network: cfg.Network,
 			Ports:   cfg.Ports,
-			Env:     filterNonDefaultEnvVars(cfg.Env),
-			Volumes: cfg.Volumes,
+			Env:       filterNonDefaultEnvVars(cfg.Env),
+			Volumes:   cfg.Volumes,
+			ForcePull: true,
 		}); deployErr != nil {
 			return http.StatusUnprocessableEntity, deployErr
 		}

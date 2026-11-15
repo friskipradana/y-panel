@@ -54,6 +54,11 @@ func DeployFromImage(owner OwnerContext, req DeployImageRequest) (*DeployResult,
 	if err := os.WriteFile(composePath, []byte(composeYAML), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
 	}
+	if req.ForcePull {
+		if err := runComposePull(projectDir, composePath, projectName); err != nil {
+			return nil, err
+		}
+	}
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
 		return nil, err
 	}

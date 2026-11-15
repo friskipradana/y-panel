@@ -100,6 +100,7 @@ type DeployImageRequest struct {
 	EnvRaw       string          `json:"envRaw,omitempty"`
 	RegistryAuth *RegistryAuth   `json:"registryAuth,omitempty"`
 	Volumes      []VolumeBinding `json:"volumes"`
+	ForcePull    bool            `json:"forcePull,omitempty"`
 }
 
 type DeployComposeRequest struct {
