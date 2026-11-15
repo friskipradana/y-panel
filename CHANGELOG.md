@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.10] - 2026-11-15
+
+Enforce strict domain isolation on /app/{slug} gateway.
+
+### Perbaikan
+- **appcatalog:** Enforce strict domain isolation on /app/{slug} gateway ([`ea2857d`](https://github.com/friskipradana/y-panel/commit/ea2857d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.9...v1.85.10
+
 ## [1.85.9] - 2026-11-15
 
 Scope public /app gateway by panel host owner and prioritize superadmin.
