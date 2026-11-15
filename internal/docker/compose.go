@@ -155,6 +155,20 @@ func buildComposeForImage(owner OwnerContext, projectName, image, network string
 	return b.String(), nil
 }
 
+func runComposePull(projectDir, composePath, projectName string) error {
+	args := []string{"compose", "-f", composePath}
+	if strings.TrimSpace(projectName) != "" {
+		args = append(args, "-p", projectName)
+	}
+	args = append(args, "pull")
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("pull compose: %s", formatComposeError(string(output)))
+	}
+	return nil
+}
+
 func runComposeUp(projectDir, composePath, projectName string) error {
 	args := []string{"compose", "-f", composePath}
 	if strings.TrimSpace(projectName) != "" {

@@ -106,6 +106,7 @@ type DeployComposeRequest struct {
 	Name         string        `json:"name"`
 	ComposeYAML  string        `json:"composeYaml"`
 	RegistryAuth *RegistryAuth `json:"registryAuth,omitempty"`
+	ForcePull    bool          `json:"forcePull,omitempty"`
 }
 
 type DeployResult struct {

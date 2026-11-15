@@ -1980,7 +1980,15 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	existingContainers, _ := docker.ListContainers()
 	if matched := matchContainerForApp(*app, existingContainers, s.ownerScopeFor(actor)); matched != nil {
-		_ = docker.DeleteContainer(matched.ID, false, false)
+		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil && !strings.Contains(strings.ToLower(delErr.Error()), "no such container") {
+			return http.StatusConflict, fmt.Errorf("gagal menghentikan container lama %s: %w", matched.ID, delErr)
+		}
+		for _, rawName := range matched.Names {
+			cleanName := strings.TrimPrefix(rawName, "/")
+			if cleanName != "" && cleanName != app.ContainerName {
+				_ = docker.DeleteContainer(cleanName, false, false)
+			}
+		}
 	}
 	if app.ContainerName != "" {
 		_ = docker.DeleteContainer(app.ContainerName, false, false)
@@ -1995,6 +2003,7 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
 			Name:        app.ContainerName,
 			ComposeYAML: updatedCompose,
+			ForcePull:   true,
 		}); deployErr != nil {
 			return http.StatusUnprocessableEntity, deployErr
 		}

@@ -139,6 +139,11 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 		defer logout()
 	}
 
+	if req.ForcePull {
+		if err := runComposePull(projectDir, composePath, projectName); err != nil {
+			return nil, err
+		}
+	}
 	if err := runComposeUp(projectDir, composePath, projectName); err != nil {
 		return nil, err
 	}
