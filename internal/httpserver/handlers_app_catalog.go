@@ -3321,14 +3321,16 @@ func (s *Server) appGatewayProxy() http.Handler {
 			return
 		}
 
+		hostOwnerID := s.hostingHostOwner(normalizeHost(r.Host))
 		u := s.currentUserRecord(r)
 		if u == nil {
-			// Resolve tenant panel domain first; on the main panel prioritize superadmin/admin installs.
+			// Strict domain scoping: tenant domains only serve that tenant's apps;
+			// the main panel only serves superadmin/admin apps.
 			var app *database.InstalledApp
-			if hostOwnerID := s.hostingHostOwner(normalizeHost(r.Host)); hostOwnerID > 0 {
+			if hostOwnerID > 0 {
 				app, _ = s.database.GetInstalledAppBySlug(hostOwnerID, slug)
 			} else {
-				app, _ = s.database.GetInstalledAppBySlugAnyUser(slug)
+				app, _ = s.database.GetInstalledAppBySlugForAdmin(slug)
 			}
 			if app == nil {
 				http.NotFound(w, r)
@@ -3355,9 +3357,15 @@ func (s *Server) appGatewayProxy() http.Handler {
 			return
 		}
 
-		app, err := s.database.GetInstalledAppBySlug(u.ID, slug)
-		if (app == nil || err != nil) && (auth.IsSuperAdmin(u.Role) || auth.IsAdmin(u.Role)) {
-			app, _ = s.database.GetInstalledAppBySlugAnyUser(slug)
+		var app *database.InstalledApp
+		var err error
+		if hostOwnerID > 0 {
+			app, err = s.database.GetInstalledAppBySlug(hostOwnerID, slug)
+		} else {
+			app, err = s.database.GetInstalledAppBySlug(u.ID, slug)
+			if (app == nil || err != nil) && (auth.IsSuperAdmin(u.Role) || auth.IsAdmin(u.Role)) {
+				app, _ = s.database.GetInstalledAppBySlugForAdmin(slug)
+			}
 		}
 		if app == nil {
 			http.NotFound(w, r)
