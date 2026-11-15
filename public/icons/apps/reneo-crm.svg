@@ -1,24 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Reneo CRM">
   <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
-  <g transform="translate(18, 14) scale(0.55)">
-    <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#FFFFFF"/>
-    <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#FFFFFF"/>
-    <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#FFFFFF"/>
-    <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#FFFFFF"/>
-    <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#FFFFFF"/>
-    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#0B2A57"/>
-    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#0B2A57"/>
-    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#0B2A57"/>
-    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#0B2A57"/>
-  </g>
+  <!-- Back omnichannel bubble (emerald) -->
   <path
-    d="M304 178C237.7 178 184 226.4 184 286C184 311.8 194.1 335.5 211 354L198 416L255.8 394.6C270.8 399 287.1 401.5 304 401.5C370.3 401.5 424 353.1 424 293.5C424 233.9 370.3 178 304 178Z"
+    d="M270 106H354C383.8 106 408 130.2 408 160V212C408 228.5 400.6 243.3 389 253.2L404 286L364.5 266H270C240.2 266 216 241.8 216 212V160C216 130.2 240.2 106 270 106Z"
     fill="#10B981"
+  />
+  <!-- Front primary CRM bubble (white with navy separation stroke) -->
+  <path
+    d="M168 154H292C327.3 154 356 182.7 356 218V304C356 339.3 327.3 368 292 368H186L114 408L136 359.5C116.7 348.7 104 328 104 304V218C104 182.7 132.7 154 168 154Z"
+    fill="#FFFFFF"
     stroke="#0B2A57"
-    stroke-width="20"
+    stroke-width="18"
     stroke-linejoin="round"
   />
-  <circle cx="256" cy="290" r="16" fill="#FFFFFF"/>
-  <circle cx="304" cy="290" r="16" fill="#FFFFFF"/>
-  <circle cx="352" cy="290" r="16" fill="#FFFFFF"/>
+  <!-- Centered Reneo R monogram inside front bubble -->
+  <g transform="translate(83.3, 116.5) scale(0.56)">
+    <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#0B2A57"/>
+    <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#0B2A57"/>
+    <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#0B2A57"/>
+    <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#0B2A57"/>
+    <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#0B2A57"/>
+    <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+    <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+    <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#FFFFFF"/>
+  </g>
 </svg>
