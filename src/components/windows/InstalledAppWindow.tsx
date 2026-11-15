@@ -280,6 +280,20 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
         </div>
       </div>
 
+      {!isContainer && !app.useProxy ? (
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--win-border)] bg-[var(--win-bg-soft)] px-3 py-1.5 text-[0.75rem] text-[var(--text-secondary)]">
+          <span>{t('appCatalog.directModeHint')}</span>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={handleToggleProxy}
+            loading={updateMutation.isPending}
+          >
+            {t('appCatalog.switchProxy')}
+          </Button>
+        </div>
+      ) : null}
+
       <div className="installed-app-viewport">
         {isMissing ? (
           <ErrorState
