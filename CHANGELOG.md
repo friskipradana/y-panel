@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.2] - 2026-11-15
+
+Refine Background roadmap card tokens and alignment.
+
+### Peningkatan
+- **landing:** Refine Background roadmap card tokens and alignment ([`aa13d5d`](https://github.com/friskipradana/y-panel/commit/aa13d5d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.1...v1.85.2
+
 ## [1.85.1] - 2026-11-15
 
 Add -- +goose Up/Down annotations to migrations 000048 and 000049.
