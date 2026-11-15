@@ -11,6 +11,7 @@ export interface OrderDraft {
   label: string
   zoneId: string
   voucher: string
+  addonCatalogId: string
 }
 
 const KEY = 'reneo-order-draft'
@@ -38,6 +39,7 @@ export function readOrderDraft(): OrderDraft | null {
       label: text(d.label),
       zoneId: text(d.zoneId),
       voucher: text(d.voucher),
+      addonCatalogId: text(d.addonCatalogId),
     }
   } catch {
     return null
@@ -47,7 +49,7 @@ export function readOrderDraft(): OrderDraft | null {
 // An empty form is not worth keeping, and leaves no trace of an order the buyer never started
 export function writeOrderDraft(draft: OrderDraft) {
   try {
-    const started = draft.username || draft.email || draft.whatsapp || draft.displayName || draft.label || draft.voucher
+    const started = draft.username || draft.email || draft.whatsapp || draft.displayName || draft.label || draft.voucher || draft.addonCatalogId
     if (!started) window.localStorage.removeItem(KEY)
     else window.localStorage.setItem(KEY, JSON.stringify({ savedAt: Date.now(), draft }))
   } catch {
@@ -64,4 +66,4 @@ export function clearOrderDraft() {
 }
 
 export const orderDraftIsEmpty = (draft: OrderDraft | null) =>
-  !draft || !(draft.username || draft.email || draft.whatsapp || draft.displayName || draft.label || draft.voucher)
+  !draft || !(draft.username || draft.email || draft.whatsapp || draft.displayName || draft.label || draft.voucher || draft.addonCatalogId)

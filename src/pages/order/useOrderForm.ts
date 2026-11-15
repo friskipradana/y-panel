@@ -42,29 +42,38 @@ export function useOrderForm() {
   const [step, setStep] = useState<OrderStep>('plan')
   const [voucherText, setVoucherText] = useState(draft?.voucher ?? '')
   const [voucherApplied, setVoucherApplied] = useState('')
+  const [addonCatalogId, setAddonCatalogId] = useState(params.get('addon') ?? draft?.addonCatalogId ?? '')
 
   const plans = query.data?.plans ?? []
   const plan = plans.find((p) => p.slug === slug) ?? plans[0]
   const domains = query.data?.domains ?? []
+  const appAddon = query.data?.appAddon ?? null
   const trialOffered = !!plan && plan.trialDays > 0
   const isTrial = trial && trialOffered
+  const planIncludesApp = !!plan && !!appAddon && plan.includedCatalogId === appAddon.catalogId
+  const addonSelected = !isTrial && !planIncludesApp && !!appAddon && addonCatalogId === appAddon.catalogId
   // the panel address comes with every plan, on the main domain: picked here, created when the order is paid
   const needsAddress = !!plan && domains.length > 0
   const whatsappRequired = !!query.data?.whatsapp
   const choices = plan ? periodChoices(plan.period) : [1]
   const maxPeriods = Math.max(...choices)
   const count = choices.includes(Number(periods)) ? Number(periods) : 1
+  const addonMonths = plan?.period === 'yearly' ? count * 12 : count
+  const addonAmount = addonSelected && appAddon ? appAddon.priceAmount * addonMonths : 0
   // the price: worked out here until a voucher is used, then asked of the agent, which says if the code works and what it takes off
   const quoteQuery = useQuery({
-    queryKey: ['order-quote', plan?.id, count, voucherApplied],
-    queryFn: () => quotePublicOrder({ planId: plan!.id, periods: count, voucher: voucherApplied }),
+    queryKey: ['order-quote', plan?.id, count, voucherApplied, addonSelected ? appAddon?.catalogId : ''],
+    queryFn: () => quotePublicOrder({ planId: plan!.id, periods: count, voucher: voucherApplied, addonCatalogId: addonSelected ? appAddon?.catalogId : undefined }),
     enabled: !!plan && !isTrial && voucherApplied !== '',
     staleTime: 10_000,
     retry: 0,
   })
   const voucherAnswer = quoteQuery.data?.voucher
   const voucherValid = voucherApplied !== '' && voucherAnswer?.valid === true
-  const price = plan ? (voucherApplied && quoteQuery.data ? quoteQuery.data.quote : priceFor(plan, count)) : priceFor({ priceAmount: 0 }, 1)
+  const basePrice = plan ? priceFor(plan, count) : priceFor({ priceAmount: 0 }, 1)
+  const price = voucherApplied && quoteQuery.data
+    ? quoteQuery.data.quote
+    : { ...basePrice, list: basePrice.list + addonAmount, subtotal: basePrice.subtotal + addonAmount }
   const total = isTrial ? 0 : price.subtotal
 
   // another plan may count in another period (months or years): start from the first choice
@@ -103,9 +112,9 @@ export function useOrderForm() {
   useEffect(() => {
     writeOrderDraft({
       slug: plan?.slug ?? slug, trial, periods, username: form.username, email: form.email, whatsapp: form.whatsapp, displayName: form.displayName,
-      label: address.label, zoneId: address.zoneId, voucher: voucherText,
+      label: address.label, zoneId: address.zoneId, voucher: voucherText, addonCatalogId,
     })
-  }, [plan?.slug, slug, trial, periods, form.username, form.email, form.whatsapp, form.displayName, address.label, address.zoneId, voucherText])
+  }, [plan?.slug, slug, trial, periods, form.username, form.email, form.whatsapp, form.displayName, address.label, address.zoneId, voucherText, addonCatalogId])
 
   const submit = useMutation({
     mutationFn: () =>
@@ -119,6 +128,7 @@ export function useOrderForm() {
         password: form.password,
         whatsapp: phone || undefined,
         voucher: voucherValid ? voucherApplied : undefined,
+        addonCatalogId: addonSelected && appAddon ? appAddon.catalogId : undefined,
         ...(needsAddress ? { subLabel: address.label, subZoneId: address.zoneId } : {}),
       }),
     onSuccess: (order) => {
@@ -151,6 +161,7 @@ export function useOrderForm() {
 
   return {
     query, plans, plan, domains, slug, setSlug, trial, setTrial, trialOffered, isTrial, periods, setPeriods, maxPeriods, count, total,
+    appAddon, planIncludesApp, addonSelected, addonAmount, setAddonSelected: (checked: boolean) => setAddonCatalogId(checked && appAddon ? appAddon.catalogId : ''),
     price, voucherText, setVoucherText, voucherApplied, voucherAnswer, voucherValid, voucherChecking: quoteQuery.isFetching, voucherFailed: quoteQuery.isError,
     applyVoucher: () => setVoucherApplied(voucherText.trim().toUpperCase()),
     removeVoucher: () => {

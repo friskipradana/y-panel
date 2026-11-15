@@ -345,10 +345,11 @@ func (s *Server) handleDeleteVoucher(w http.ResponseWriter, r *http.Request) {
 // ─── The price a buyer sees before ordering ─────────────────────────────────
 
 type quoteRequest struct {
-	PlanID  int64  `json:"planId"`
-	Periods int    `json:"periods"`
-	Kind    string `json:"kind"`
-	Voucher string `json:"voucher"`
+	PlanID         int64  `json:"planId"`
+	Periods        int    `json:"periods"`
+	Kind           string `json:"kind"`
+	Voucher        string `json:"voucher"`
+	AddonCatalogID string `json:"addonCatalogId"`
 }
 
 type voucherAnswer struct {
@@ -394,7 +395,12 @@ func (s *Server) quoteFor(w http.ResponseWriter, r *http.Request, kind string, u
 			answer["voucher"] = voucherAnswer{Code: strings.ToUpper(code), Valid: false, Reason: reason}
 		}
 	}
-	answer["quote"] = priceFor(plan, req.Periods, voucher, kind, time.Now())
+	q := priceFor(plan, req.Periods, voucher, kind, time.Now())
+	if _, addonAmount, err := s.computeOrderAddon(plan, req.Periods, kind, req.AddonCatalogID); err == nil && addonAmount > 0 {
+		q.List += addonAmount
+		q.Subtotal += addonAmount
+	}
+	answer["quote"] = q
 	s.writeJSON(w, http.StatusOK, answer)
 }
 

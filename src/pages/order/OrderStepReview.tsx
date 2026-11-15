@@ -60,12 +60,13 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
   const {
     plan, isTrial, count, total, price, voucherText, setVoucherText, voucherApplied, voucherAnswer, voucherValid, voucherChecking, voucherFailed,
     applyVoucher, removeVoucher, address, domains, needsAddress, form, phone, setStep,
+    planIncludesApp, addonSelected, addonAmount,
   } = order
   const durationLabel = useDurationLabel(plan?.period ?? 'monthly')
   if (!plan) return null
   const edit = (step: OrderStep) => () => setStep(step)
   const domain = domains.find((d) => d.zoneId === address.zoneId)?.name ?? domains[0]?.name ?? ''
-  const free = isTrial || plan.priceAmount === 0
+  const free = isTrial || (plan.priceAmount === 0 && addonAmount === 0)
 
   return (
     <div className="space-y-3">
@@ -77,6 +78,9 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
             { label: t('order.plan'), value: plan.name },
             { label: t('order.review.period'), value: isTrial ? t('order.trialNote', { days: plan.trialDays }) : durationLabel(count) },
             { label: t('order.review.until'), value: <Validity end={validUntil(plan, count, isTrial)} /> },
+            ...(!isTrial && (planIncludesApp || addonSelected)
+              ? [{ label: t('order.addon.reviewLabel'), value: planIncludesApp ? t('order.addon.includedBadge') : t('order.addon.reviewValue') }]
+              : []),
           ]}
         />
         {needsAddress ? (

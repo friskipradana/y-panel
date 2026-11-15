@@ -68,6 +68,8 @@ type orderView struct {
 	DiscountPromo    int64  `json:"discountPromo"`
 	DiscountVoucher  int64  `json:"discountVoucher"`
 	VoucherCode      string `json:"voucherCode,omitempty"`
+	AddonCatalogID   string `json:"addonCatalogId,omitempty"`
+	AddonAmount      int64  `json:"addonAmount,omitempty"`
 	AmountTotal int64                `json:"amountTotal"`
 	// Difference: an upgrade paid as the price difference for the time left
 	Difference bool `json:"difference,omitempty"`
@@ -85,6 +87,7 @@ func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	view := orderView{
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
 		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AddonCatalogID: o.AddonCatalogID, AddonAmount: o.AddonAmount,
 		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
 	}
 	if o.PlanID != nil && s.database != nil {
@@ -137,11 +140,49 @@ type createOrderRequest struct {
 	Password    string `json:"password"`
 	// Voucher is a code that takes something off the price
 	Voucher string `json:"voucher"`
+	// AddonCatalogID is an optional app+license add-on (e.g. "reneo-crm") chosen at checkout
+	AddonCatalogID string `json:"addonCatalogId"`
 	// the panel address: a name under one of the domains the superadmin offers
 	SubLabel  string `json:"subLabel"`
 	SubZoneID string `json:"subZoneId"`
 	// the WhatsApp number that gets the notices about the order; required while WhatsApp can deliver them
 	WhatsApp string `json:"whatsapp"`
+}
+
+const (
+	defaultAppAddonCatalogID = "reneo-crm"
+	defaultAppAddonPlanSlug  = "pro-monthly"
+)
+
+func (s *Server) appAddonOption() (catalogID, planSlug string, pricePerMonth int64, ok bool) {
+	if s.database == nil {
+		return "", "", 0, false
+	}
+	_ = s.database.EnsureDefaultAppLicensePlans(defaultAppAddonCatalogID)
+	lp, err := s.database.GetAppLicensePlan(defaultAppAddonCatalogID, defaultAppAddonPlanSlug)
+	if err != nil || lp == nil || lp.PriceAmount <= 0 {
+		return "", "", 0, false
+	}
+	return defaultAppAddonCatalogID, lp.Slug, lp.PriceAmount, true
+}
+
+func (s *Server) computeOrderAddon(plan *database.HostingPlan, periods int, kind, requestedCatalogID string) (string, int64, error) {
+	cat := strings.TrimSpace(requestedCatalogID)
+	if cat == "" || kind == database.OrderTrial || plan.IncludedCatalogID == cat {
+		return "", 0, nil
+	}
+	if cat != defaultAppAddonCatalogID {
+		return "", 0, errors.New("unsupported app add-on")
+	}
+	_, _, pricePerMonth, ok := s.appAddonOption()
+	if !ok {
+		return "", 0, errors.New("app add-on is not available")
+	}
+	months := orderMonths(plan, periods)
+	if months <= 0 {
+		months = periods
+	}
+	return cat, pricePerMonth * int64(months), nil
 }
 
 // handlePublicCreateOrder signs a buyer up for a plan: the account waits for its payment (or for the trial to be approved)
@@ -210,6 +251,11 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		voucher = v
 	}
 	quote := priceFor(plan, req.Periods, voucher, req.Kind, time.Now())
+	addonCat, addonAmount, err := s.computeOrderAddon(plan, req.Periods, req.Kind, req.AddonCatalogID)
+	if err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+		return
+	}
 
 	// the number for the notices about the order
 	phone := ""
@@ -286,9 +332,13 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	planID := plan.ID
 	order := database.HostingOrder{
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
-		AmountList: quote.List, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
-		AmountBase: quote.Subtotal, Status: database.OrderPending,
+		AmountList: quote.List + addonAmount, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal + addonAmount, AddonCatalogID: addonCat, AddonAmount: addonAmount,
+		Status: database.OrderPending,
 		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
+	}
+	if addonCat != "" {
+		order.Note = fmt.Sprintf("+ %s (%s)", addonCat, defaultAppAddonPlanSlug)
 	}
 	if voucher != nil {
 		order.VoucherCode = voucher.Code
@@ -303,7 +353,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		if settings.TrialApproval {
 			order.Status = database.OrderReview
 		}
-	case plan.PriceAmount <= 0 || quote.Subtotal <= 0:
+	case (plan.PriceAmount <= 0 && addonAmount <= 0) || (quote.Subtotal+addonAmount) <= 0:
 		// a free plan, or a price a voucher took to nothing, is the superadmin's to grant
 		order.AmountBase = 0
 		order.Status = database.OrderReview
@@ -745,6 +795,11 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	if err := s.applyUserPlan(user.ID, plan, ends); err != nil {
 		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the plan %s could not be applied to %s.", order.ID, plan.Name, user.Username)}, "warning")
 		return err
+	}
+	if order.AddonCatalogID != "" && plan.IncludedCatalogID != order.AddonCatalogID {
+		if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, ends); err != nil {
+			log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+		}
 	}
 	if user.Status == "pending" {
 		if err := s.database.UpdateUser(user.ID, map[string]any{"status": "active"}); err != nil {

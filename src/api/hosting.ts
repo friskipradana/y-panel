@@ -106,6 +106,8 @@ export interface PublicHosting {
   whatsapp?: boolean
   /** The domains a buyer may pick a panel address under */
   domains?: { zoneId: string; name: string }[]
+  /** Optional app+license add-on available at checkout */
+  appAddon?: { catalogId: string; planSlug: string; priceAmount: number } | null
   plans: PublicPlan[]
 }
 
@@ -127,6 +129,8 @@ export interface OrderView {
   discountDuration: number
   discountVoucher: number
   voucherCode?: string
+  addonCatalogId?: string
+  addonAmount?: number
   amountTotal: number
   createdAt: string
   expiresAt: string
@@ -156,6 +160,8 @@ export interface CreateOrderInput {
   whatsapp?: string
   /** A voucher code that takes something off the price */
   voucher?: string
+  /** Optional app+license add-on catalog ID */
+  addonCatalogId?: string
 }
 
 export const createPublicOrder = (input: CreateOrderInput) => agentApi.post<OrderView>('/api/v1/public/hosting/orders', input).then((r) => r.data)
@@ -261,6 +267,7 @@ export interface QuoteInput {
   planId: number
   periods: number
   voucher?: string
+  addonCatalogId?: string
 }
 
 // A buyer who has no account yet asks the public one; an account that renews asks for itself
