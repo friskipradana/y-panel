@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.83.44] - 2026-11-15
+
+Add prebuilt linux/arm (ARMv7/Armbian 32-bit) agent alongside arm64 and amd64.
+
+### Pemeliharaan
+- **installer:** Add prebuilt linux/arm (ARMv7/Armbian 32-bit) agent alongside arm64 and amd64 ([`bd97e73`](https://github.com/friskipradana/y-panel/commit/bd97e73))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.83.43...v1.83.44
+
 ## [1.83.43] - 2026-11-15
 
 4 perubahan, utamanya bump sw.js CACHE_VERSION to reneo-pwa-v2 to clear stale cached icons.
