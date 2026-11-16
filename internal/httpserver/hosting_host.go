@@ -53,6 +53,34 @@ func forgetHostingHosts() {
 	})
 }
 
+// hostingHostAccess returns the account owning host and whether gateway access via this host is blocked
+// (suspended subdomain, unverified/disabled/suspended custom domain, or suspended owner account).
+func (s *Server) hostingHostAccess(host string) (int64, bool, string) {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" || s.database == nil || !s.database.IsConnected() {
+		return 0, false, ""
+	}
+	if row, err := s.database.GetHostingSubdomainByHostname(host); err == nil && row != nil {
+		if strings.EqualFold(row.Status, "suspended") {
+			return row.UserID, true, "subdomain is suspended"
+		}
+		if owner, uErr := s.database.GetUserByID(row.UserID); uErr == nil && (owner == nil || strings.EqualFold(owner.Status, "suspended")) {
+			return row.UserID, true, "owner account is suspended"
+		}
+		return row.UserID, false, ""
+	}
+	if custom, err := s.database.GetHostingCustomDomainByHostname(host); err == nil && custom != nil {
+		if !strings.EqualFold(custom.Status, "active") {
+			return custom.UserID, true, "custom domain is not active"
+		}
+		if owner, uErr := s.database.GetUserByID(custom.UserID); uErr == nil && (owner == nil || strings.EqualFold(owner.Status, "suspended")) {
+			return custom.UserID, true, "owner account is suspended"
+		}
+		return custom.UserID, false, ""
+	}
+	return 0, false, ""
+}
+
 // userMayUseHost is false when the request arrives on the subdomain of another account
 func (s *Server) userMayUseHost(r *http.Request, userID int64) bool {
 	owner := s.hostingHostOwner(normalizeHost(r.Host))

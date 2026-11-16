@@ -249,9 +249,13 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 			if len(plan.Features) > 0 && string(plan.Features) != "{}" {
 				features = plan.Features
 			}
-			if plan.TrialDays > 0 {
-				trialDays = plan.TrialDays
+			if plan.TrialDays <= 0 {
+				s.writeJSON(w, http.StatusBadRequest, jsonResponse{
+					"error": "Paket ini tidak menyediakan uji coba gratis.",
+				})
+				return
 			}
+			trialDays = plan.TrialDays
 		} else if req.PlanSlug == "starter-monthly" {
 			planName = "Starter Bulanan"
 			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true}`)
@@ -262,9 +266,21 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 
 		existing, _ := s.database.ListAppLicenses(userID, req.CatalogID)
 		for _, lic := range existing {
+			if strings.EqualFold(lic.Status, "SUSPENDED") {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{
+					"error": "Lisensi aplikasi Anda sedang disuspend oleh administrator.",
+				})
+				return
+			}
 			if (strings.EqualFold(lic.Status, "ACTIVE") || strings.EqualFold(lic.Status, "TRIAL")) && !lic.IsExpired {
 				s.writeJSON(w, http.StatusConflict, jsonResponse{
 					"error": fmt.Sprintf("Aplikasi ini sudah memiliki 1 sesi lisensi aktif (%s). Hanya 1 lisensi aktif yang diizinkan per aplikasi.", lic.PlanName),
+				})
+				return
+			}
+			if strings.EqualFold(lic.Period, "trial") || strings.EqualFold(lic.Status, "TRIAL") || strings.Contains(strings.ToLower(lic.PlanName), "trial") {
+				s.writeJSON(w, http.StatusConflict, jsonResponse{
+					"error": "Masa uji coba gratis aplikasi ini sudah pernah digunakan. Silakan pilih paket berbayar untuk melanjutkan.",
 				})
 				return
 			}
@@ -940,6 +956,7 @@ func (s *Server) handlePublicAppLicenseInvoice(w http.ResponseWriter, r *http.Re
 }
 
 type createAppLicensePayload struct {
+	UserID      int64           `json:"userId"`
 	CatalogID   string          `json:"catalogId"`
 	AppName     string          `json:"appName"`
 	LicenseKey  string          `json:"licenseKey"`
@@ -970,8 +987,23 @@ func (s *Server) handleAppLicensesCreate(w http.ResponseWriter, r *http.Request)
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "catalogId required"})
 		return
 	}
+	targetUserID := actor.ID
+	if req.UserID > 0 {
+		if s.database != nil && s.database.IsConnected() {
+			u, err := s.database.GetUserByID(req.UserID)
+			if err != nil || u == nil {
+				s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "target user not found"})
+				return
+			}
+		}
+		targetUserID = req.UserID
+	}
 	if req.AppName == "" {
-		req.AppName = req.CatalogID
+		if req.CatalogID == "reneo-crm" {
+			req.AppName = "Reneo CRM Services"
+		} else {
+			req.AppName = req.CatalogID
+		}
 	}
 	if req.PlanName == "" {
 		req.PlanName = "Bulanan (Pro)"
@@ -1011,7 +1043,7 @@ func (s *Server) handleAppLicensesCreate(w http.ResponseWriter, r *http.Request)
 	}
 
 	licData := database.AppLicense{
-		UserID:      actor.ID,
+		UserID:      targetUserID,
 		CatalogID:   req.CatalogID,
 		AppName:     req.AppName,
 		LicenseKey:  req.LicenseKey,
@@ -1239,6 +1271,11 @@ func (s *Server) handleAppLicensesAvailableApps(w http.ResponseWriter, r *http.R
 	})
 }
 
+type appLicensePlanInput struct {
+	database.AppLicensePlan
+	TrialDays *int `json:"trialDays"`
+}
+
 // handleAppLicensePlansCreate creates or updates a plan tier for an application.
 func (s *Server) handleAppLicensePlansCreate(w http.ResponseWriter, r *http.Request) {
 	actor := s.currentUserRecord(r)
@@ -1247,10 +1284,22 @@ func (s *Server) handleAppLicensePlansCreate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var plan database.AppLicensePlan
-	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+	var input appLicensePlanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
 		return
+	}
+	plan := input.AppLicensePlan
+	if input.TrialDays != nil {
+		d := *input.TrialDays
+		if d < 0 {
+			d = 0
+		} else if d > planMaxTrialDays {
+			d = planMaxTrialDays
+		}
+		plan.TrialDays = d
+	} else {
+		plan.TrialDays = 7
 	}
 
 	if plan.CatalogID == "" || plan.Name == "" {
@@ -1292,10 +1341,22 @@ func (s *Server) handleAppLicensePlansUpdate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var plan database.AppLicensePlan
-	if err := json.NewDecoder(r.Body).Decode(&plan); err != nil {
+	var input appLicensePlanInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "invalid payload: " + err.Error()})
 		return
+	}
+	plan := input.AppLicensePlan
+	if input.TrialDays != nil {
+		d := *input.TrialDays
+		if d < 0 {
+			d = 0
+		} else if d > planMaxTrialDays {
+			d = planMaxTrialDays
+		}
+		plan.TrialDays = d
+	} else {
+		plan.TrialDays = -1 // keep existing trial_days when omitted from payload
 	}
 
 	if s.database == nil || !s.database.IsConnected() {

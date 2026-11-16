@@ -140,6 +140,10 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 				return nil, err
 			}
 			total = o.AmountBase + int64(code)
+			var appClash int
+			if cErr := m.db.QueryRow(`SELECT COUNT(*) FROM app_license_orders WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1`, total).Scan(&appClash); cErr == nil && appClash > 0 {
+				continue
+			}
 		}
 		var id int64
 		err = m.db.QueryRow(`
@@ -293,7 +297,8 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 		RETURNING o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESCE(o.user_id, 0), o.username, o.periods,
 			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 			o.created_at, o.expires_at, o.paid_at, o.notif_id,
-			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo`, now)
+			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo,
+			o.addon_catalog_id, o.addon_amount`, now)
 	if err != nil {
 		return nil, err
 	}

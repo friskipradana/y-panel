@@ -2611,7 +2611,7 @@ func isInsideBaseTag(buf []byte, attrOffset int) bool {
 	return strings.HasPrefix(tagStart, "base ") || strings.HasPrefix(tagStart, "base\t") || strings.HasPrefix(tagStart, "base\n") || tagStart == "base"
 }
 
-const proxyShimTemplate = `<script>(function(){var P=__PREFIX__;var ORI=location.origin;function hasP(p){return p===P||p.indexOf(P+"/")===0}function rw(u){if(typeof u!=="string"||!u)return u;var c=u.charAt(0);if(c==="#"||c==="?")return u;if(/^(?:data|blob|mailto|tel|javascript):/i.test(u))return u;if(u.indexOf("//")===0)return u;if(c==="/"){return hasP(u)?u:P+u}if(/^(?:https?|wss?):\/\//i.test(u)){try{var parsed=new URL(u);if(parsed.host===location.host&&!hasP(parsed.pathname)){parsed.pathname=P+(parsed.pathname.charAt(0)==="/"?parsed.pathname:"/"+parsed.pathname);return parsed.href}}catch(e){}return u}try{var base=document.baseURI||location.href;var rel=new URL(u,base);if(rel.origin===ORI&&!hasP(rel.pathname)){rel.pathname=P+(rel.pathname.charAt(0)==="/"?rel.pathname:"/"+rel.pathname)}return rel.href}catch(e){return u}}if(window.history&&window.history.pushState){var oPush=window.history.pushState;var oRep=window.history.replaceState;window.history.pushState=function(s,t,u){if(typeof u==="string")u=rw(u);return oPush.call(this,s,t,u)};window.history.replaceState=function(s,t,u){if(typeof u==="string")u=rw(u);return oRep.call(this,s,t,u)}}if(window.fetch){var oFetch=window.fetch;window.fetch=function(i,o){if(typeof i==="string"){i=rw(i)}else if(i&&typeof i.url==="string"){var nu=rw(i.url);if(nu!==i.url){try{i=new Request(nu,i)}catch(e){}}}return oFetch.call(this,i,o)}}if(window.XMLHttpRequest){var oOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"){arguments[1]=rw(u)}return oOpen.apply(this,arguments)}}if(window.WebSocket){var OWS=window.WebSocket;window.WebSocket=function(u,pr){if(typeof u==="string")u=rw(u);return arguments.length>1?new OWS(u,pr):new OWS(u)};window.WebSocket.prototype=OWS.prototype;window.WebSocket.CONNECTING=OWS.CONNECTING;window.WebSocket.OPEN=OWS.OPEN;window.WebSocket.CLOSING=OWS.CLOSING;window.WebSocket.CLOSED=OWS.CLOSED}if(window.EventSource){var OES=window.EventSource;window.EventSource=function(u,cfg){if(typeof u==="string")u=rw(u);return cfg?new OES(u,cfg):new OES(u)};window.EventSource.prototype=OES.prototype}if(navigator.sendBeacon){var oSB=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return oSB(typeof u==="string"?rw(u):u,d)}}if(window.Worker){var OWK=window.Worker;window.Worker=function(u,opts){if(typeof u==="string")u=rw(u);return opts?new OWK(u,opts):new OWK(u)};window.Worker.prototype=OWK.prototype}if(navigator.serviceWorker&&navigator.serviceWorker.register){var oSWR=navigator.serviceWorker.register.bind(navigator.serviceWorker);navigator.serviceWorker.register=function(u,opts){try{if(window.self!==window.top){return Promise.reject(new DOMException("ServiceWorker disabled in container frame","SecurityError")).catch(function(){})}if(typeof u==="string")u=rw(u);opts=opts||{};if(typeof opts.scope==="string")opts.scope=rw(opts.scope);return oSWR(u,opts)}catch(e){return Promise.reject(e)}}}var oSA=Element.prototype.setAttribute;var ATTRS={src:1,href:1,data:1,action:1,poster:1,"data-src":1,formaction:1};var TAGS={IMG:1,SCRIPT:1,LINK:1,OBJECT:1,IFRAME:1,SOURCE:1,VIDEO:1,AUDIO:1,FORM:1};Element.prototype.setAttribute=function(k,v){if(typeof k==="string"&&typeof v==="string"&&ATTRS[k.toLowerCase()]&&TAGS[this.tagName]){v=rw(v)}return oSA.call(this,k,v)};function hookProp(Proto,prop){if(!Proto)return;var desc=Object.getOwnPropertyDescriptor(Proto,prop);if(desc&&desc.set&&desc.configurable){Object.defineProperty(Proto,prop,{get:desc.get,set:function(v){return desc.set.call(this,typeof v==="string"?rw(v):v)},enumerable:desc.enumerable,configurable:true})}}hookProp(HTMLImageElement.prototype,"src");hookProp(HTMLScriptElement.prototype,"src");hookProp(HTMLLinkElement.prototype,"href");hookProp(HTMLObjectElement.prototype,"data");document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a||a.target||a.hasAttribute("download"))return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var dest=new URL(href,document.baseURI||location.href);if(dest.origin===ORI&&!hasP(dest.pathname)){e.preventDefault();location.href=ORI+P+(dest.pathname.charAt(0)==="/"?dest.pathname:"/"+dest.pathname)+dest.search+dest.hash}}catch(err){}},false)})();</script>`
+const proxyShimTemplate = `<script>(function(){var P=__PREFIX__;var ORI=location.origin;function hasP(p){return p===P||p.indexOf(P+"/")===0}function isURLObj(v){return typeof URL!=="undefined"&&v instanceof URL}function rw(u){if(isURLObj(u))u=u.href;if(typeof u!=="string"||!u)return u;var c=u.charAt(0);if(c==="#"||c==="?")return u;if(/^(?:data|blob|mailto|tel|javascript):/i.test(u))return u;if(u.indexOf("//")===0)return u;if(c==="/"){return hasP(u)?u:P+u}if(/^(?:https?|wss?):\/\//i.test(u)){try{var parsed=new URL(u);if(parsed.host===location.host&&!hasP(parsed.pathname)){parsed.pathname=P+(parsed.pathname.charAt(0)==="/"?parsed.pathname:"/"+parsed.pathname);return parsed.href}}catch(e){}return u}try{var base=document.baseURI||location.href;var rel=new URL(u,base);if(rel.origin===ORI&&!hasP(rel.pathname)){rel.pathname=P+(rel.pathname.charAt(0)==="/"?rel.pathname:"/"+rel.pathname)}return rel.href}catch(e){return u}}if(window.history&&window.history.pushState){var oPush=window.history.pushState;var oRep=window.history.replaceState;window.history.pushState=function(s,t,u){if(typeof u==="string"||isURLObj(u))u=rw(u);return oPush.call(this,s,t,u)};window.history.replaceState=function(s,t,u){if(typeof u==="string"||isURLObj(u))u=rw(u);return oRep.call(this,s,t,u)}}if(window.fetch){var oFetch=window.fetch;window.fetch=function(i,o){if(typeof i==="string"||isURLObj(i)){i=rw(i)}else if(i&&typeof i.url==="string"){var nu=rw(i.url);if(nu!==i.url){try{i=new Request(nu,i)}catch(e){}}}return oFetch.call(this,i,o)}}if(window.XMLHttpRequest){var oOpen=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){if(typeof u==="string"||isURLObj(u)){arguments[1]=rw(u)}return oOpen.apply(this,arguments)}}if(window.WebSocket){var OWS=window.WebSocket;window.WebSocket=function(u,pr){if(typeof u==="string"||isURLObj(u))u=rw(u);return arguments.length>1?new OWS(u,pr):new OWS(u)};window.WebSocket.prototype=OWS.prototype;window.WebSocket.CONNECTING=OWS.CONNECTING;window.WebSocket.OPEN=OWS.OPEN;window.WebSocket.CLOSING=OWS.CLOSING;window.WebSocket.CLOSED=OWS.CLOSED}if(window.EventSource){var OES=window.EventSource;window.EventSource=function(u,cfg){if(typeof u==="string"||isURLObj(u))u=rw(u);return cfg?new OES(u,cfg):new OES(u)};window.EventSource.prototype=OES.prototype}if(navigator.sendBeacon){var oSB=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){return oSB((typeof u==="string"||isURLObj(u))?rw(u):u,d)}}if(window.Worker){var OWK=window.Worker;window.Worker=function(u,opts){if(typeof u==="string"||isURLObj(u))u=rw(u);return opts?new OWK(u,opts):new OWK(u)};window.Worker.prototype=OWK.prototype}if(navigator.serviceWorker&&navigator.serviceWorker.register){var oSWR=navigator.serviceWorker.register.bind(navigator.serviceWorker);navigator.serviceWorker.register=function(u,opts){try{if(window.self!==window.top){return Promise.reject(new DOMException("ServiceWorker disabled in container frame","SecurityError")).catch(function(){})}if(typeof u==="string"||isURLObj(u))u=rw(u);opts=opts||{};if(typeof opts.scope==="string"||isURLObj(opts.scope))opts.scope=rw(opts.scope);return oSWR(u,opts)}catch(e){return Promise.reject(e)}}}var oSA=Element.prototype.setAttribute;var ATTRS={src:1,href:1,data:1,action:1,poster:1,"data-src":1,formaction:1};var TAGS={IMG:1,SCRIPT:1,LINK:1,OBJECT:1,IFRAME:1,SOURCE:1,VIDEO:1,AUDIO:1,FORM:1};Element.prototype.setAttribute=function(k,v){if(typeof k==="string"&&typeof v==="string"&&ATTRS[k.toLowerCase()]&&TAGS[this.tagName]){v=rw(v)}return oSA.call(this,k,v)};function hookProp(Proto,prop){if(!Proto)return;var desc=Object.getOwnPropertyDescriptor(Proto,prop);if(desc&&desc.set&&desc.configurable){Object.defineProperty(Proto,prop,{get:desc.get,set:function(v){return desc.set.call(this,(typeof v==="string"||isURLObj(v))?rw(v):v)},enumerable:desc.enumerable,configurable:true})}}hookProp(HTMLImageElement.prototype,"src");hookProp(HTMLScriptElement.prototype,"src");hookProp(HTMLLinkElement.prototype,"href");hookProp(HTMLObjectElement.prototype,"data");document.addEventListener("click",function(e){if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a||a.target||a.hasAttribute("download"))return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var dest=new URL(href,document.baseURI||location.href);if(dest.origin===ORI&&!hasP(dest.pathname)){e.preventDefault();location.href=ORI+P+(dest.pathname.charAt(0)==="/"?dest.pathname:"/"+dest.pathname)+dest.search+dest.hash}}catch(err){}},false)})();</script>`
 
 func rewriteProxyHTML(body []byte, prefix string) []byte {
 	matches := htmlRootAttrRe.FindAllSubmatchIndex(body, -1)
@@ -2692,19 +2692,39 @@ func rewriteProxyHTML(body []byte, prefix string) []byte {
 	return append([]byte(shim), rewritten...)
 }
 
-func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPrefix bool) string {
+func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPrefix bool, externalHosts ...string) string {
 	trimmed := strings.TrimSpace(loc)
 	if trimmed == "" {
 		return loc
 	}
 	cleanPrefix := strings.TrimSuffix(prefix, "/")
-	// Strip upstream internal loopback host (e.g. http://127.0.0.1:18001/setup -> /setup) so redirects stay on the panel origin.
+	// Strip upstream internal loopback host or echoed external host (when upstream honored X-Forwarded-Host without prefix) so redirects stay inside the proxy prefix.
 	if strings.HasPrefix(strings.ToLower(trimmed), "http://") || strings.HasPrefix(strings.ToLower(trimmed), "https://") {
-		if parsed, err := url.Parse(trimmed); err == nil && targetURL != nil {
-			hostMatch := strings.EqualFold(parsed.Host, targetURL.Host)
-			if !hostMatch && targetURL.Port() != "" {
-				hostMatch = strings.EqualFold(parsed.Host, net.JoinHostPort("localhost", targetURL.Port())) ||
-					strings.EqualFold(parsed.Host, net.JoinHostPort("127.0.0.1", targetURL.Port()))
+		if parsed, err := url.Parse(trimmed); err == nil {
+			hostMatch := false
+			if targetURL != nil {
+				hostMatch = strings.EqualFold(parsed.Host, targetURL.Host)
+				if !hostMatch && targetURL.Port() != "" {
+					hostMatch = strings.EqualFold(parsed.Host, net.JoinHostPort("localhost", targetURL.Port())) ||
+						strings.EqualFold(parsed.Host, net.JoinHostPort("127.0.0.1", targetURL.Port()))
+				}
+			}
+			if !hostMatch {
+				for _, ext := range externalHosts {
+					for _, candidate := range strings.Split(ext, ",") {
+						cleanExt := strings.TrimSpace(candidate)
+						if cleanExt != "" && strings.EqualFold(parsed.Host, cleanExt) &&
+							(cleanPrefix == "" || !strings.HasPrefix(parsed.Path, cleanPrefix)) &&
+							!strings.HasPrefix(parsed.Path, "/app/") &&
+							!strings.HasPrefix(parsed.Path, appCatalogProxyPrefix) {
+							hostMatch = true
+							break
+						}
+					}
+					if hostMatch {
+						break
+					}
+				}
 			}
 			if hostMatch {
 				rel := parsed.Path
@@ -2761,28 +2781,77 @@ func rewriteProxyLocation(loc string, targetURL *url.URL, prefix string, keepPre
 	return trimmed
 }
 
-func rewriteCookiePath(cookieHeader, prefix string) string {
+func reqIsHTTPS(r *http.Request) bool {
+	if r == nil {
+		return true
+	}
+	if r.TLS != nil {
+		return true
+	}
+	proto := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0])
+	return strings.EqualFold(proto, "https")
+}
+
+func sanitizeCookieAttrs(cookieHeader string, allowSecure bool) string {
 	parts := strings.Split(cookieHeader, ";")
-	hasPath := false
-	for i, part := range parts {
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
 		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "domain=") {
+			continue
+		}
+		if !allowSecure && lower == "secure" {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	return strings.Join(out, "; ")
+}
+
+func rewriteCookiePath(cookieHeader, prefix string, isHTTPS ...bool) string {
+	allowSecure := true
+	if len(isHTTPS) > 0 {
+		allowSecure = isHTTPS[0]
+	}
+	parts := strings.Split(cookieHeader, ";")
+	out := make([]string, 0, len(parts)+1)
+	hasPath := false
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "domain=") {
+			continue
+		}
+		if !allowSecure && lower == "secure" {
+			continue
+		}
 		if strings.HasPrefix(lower, "path=/") {
 			hasPath = true
 			if lower == "path=/" {
-				parts[i] = " Path=" + prefix + "/"
+				out = append(out, "Path="+prefix+"/")
 			} else {
 				origPath := trimmed[5:]
 				if !strings.HasPrefix(origPath, prefix) {
-					parts[i] = " Path=" + prefix + origPath
+					out = append(out, "Path="+prefix+origPath)
+				} else {
+					out = append(out, trimmed)
 				}
 			}
+			continue
 		}
+		out = append(out, trimmed)
 	}
 	if !hasPath {
-		parts = append(parts, " Path="+prefix+"/")
+		out = append(out, "Path="+prefix+"/")
 	}
-	return strings.Join(parts, ";")
+	return strings.Join(out, "; ")
 }
 
 var zeroMemoryDeployRe = regexp.MustCompile(`(?m)\n[ \t]*deploy:\r?\n[ \t]*resources:\r?\n[ \t]*limits:\r?\n(?:[ \t]*cpus:[ \t]*"[^"]*"\r?\n)?[ \t]*memory:[ \t]*"0M"`)
@@ -3123,6 +3192,7 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 	internalProxyPrefix := fmt.Sprintf("%s%d", appCatalogProxyPrefix, app.ID)
 
 	proxy := &httputil.ReverseProxy{
+		FlushInterval: -1,
 		Transport: &appCatalogRoundTripper{
 			base:       http.DefaultTransport,
 			server:     s,
@@ -3189,7 +3259,20 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 					pr.Out.Header.Del("If-Modified-Since")
 				}
 			}
+			inProto := strings.TrimSpace(strings.Split(pr.In.Header.Get("X-Forwarded-Proto"), ",")[0])
+			inHost := strings.TrimSpace(strings.Split(pr.In.Header.Get("X-Forwarded-Host"), ",")[0])
 			pr.SetXForwarded()
+			if inProto != "" {
+				pr.Out.Header.Set("X-Forwarded-Proto", inProto)
+			}
+			if inHost != "" {
+				pr.Out.Header.Set("X-Forwarded-Host", inHost)
+			} else if pr.In.Host != "" {
+				pr.Out.Header.Set("X-Forwarded-Host", pr.In.Host)
+			}
+			if !keepPrefix && cleanPrefix != "" {
+				pr.Out.Header.Set("X-Forwarded-Prefix", cleanPrefix)
+			}
 		},
 		ModifyResponse: func(resp *http.Response) error {
 			if resp.StatusCode == http.StatusSwitchingProtocols {
@@ -3202,18 +3285,19 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 			resp.Header.Del("Content-Security-Policy-Report-Only")
 
 			if loc := resp.Header.Get("Location"); loc != "" {
-				rewritten := rewriteProxyLocation(loc, targetURL, cleanPrefix, keepPrefix)
+				rewritten := rewriteProxyLocation(loc, targetURL, cleanPrefix, keepPrefix, r.Host, r.Header.Get("X-Forwarded-Host"))
 				if rewritten == r.URL.RequestURI() || rewritten == r.URL.Path {
 					rewritten = cleanPrefix + "/"
 				}
 				resp.Header.Set("Location", rewritten)
 			}
 
+			httpsClient := reqIsHTTPS(r)
 			if keepPrefix && cleanPrefix != internalProxyPrefix {
 				if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
 					resp.Header.Del("Set-Cookie")
 					for _, c := range cookies {
-						resp.Header.Add("Set-Cookie", strings.ReplaceAll(c, internalProxyPrefix, cleanPrefix))
+						resp.Header.Add("Set-Cookie", sanitizeCookieAttrs(strings.ReplaceAll(c, internalProxyPrefix, cleanPrefix), httpsClient))
 					}
 				}
 				ct := strings.ToLower(resp.Header.Get("Content-Type"))
@@ -3237,7 +3321,7 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 				if cookies := resp.Header.Values("Set-Cookie"); len(cookies) > 0 {
 					resp.Header.Del("Set-Cookie")
 					for _, c := range cookies {
-						resp.Header.Add("Set-Cookie", rewriteCookiePath(c, cleanPrefix))
+						resp.Header.Add("Set-Cookie", rewriteCookiePath(c, cleanPrefix, httpsClient))
 					}
 				}
 				ct := strings.ToLower(resp.Header.Get("Content-Type"))
@@ -3277,7 +3361,7 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 				portLabel = app.TargetURL
 			}
 			diagHTML := ""
-			if app.Kind != "custom-url" {
+			if u != nil && app.Kind != "custom-url" {
 				if _, matched := s.collectAppCandidateHosts(u, app); matched != nil {
 					statusLine := strings.TrimSpace(matched.Status)
 					if statusLine == "" {
@@ -3318,6 +3402,43 @@ func isPublicReneoCrmPath(rest string) bool {
 		p == "/favicon.ico"
 }
 
+func (s *Server) enforceAppLicenseNotSuspended(w http.ResponseWriter, r *http.Request, app *database.InstalledApp, rest string) bool {
+	if app == nil || s.database == nil || !s.database.IsConnected() {
+		return true
+	}
+	if app.UserID > 0 {
+		if owner, err := s.database.GetUserByID(app.UserID); err == nil && (owner == nil || strings.EqualFold(owner.Status, "suspended")) {
+			if strings.HasPrefix(rest, "/api/") || strings.HasPrefix(rest, "api/") || strings.Contains(r.Header.Get("Accept"), "application/json") {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{
+					"error": "Akun pemilik aplikasi sedang disuspend.",
+					"code":  "ACCOUNT_SUSPENDED",
+				})
+				return false
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Akses Disuspend</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}main{max-width:440px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;text-align:center}h1{font-size:18px;margin:0 0 8px;color:#be123c}p{font-size:14px;line-height:1.6;color:#475569;margin:0}</style></head><body><main><h1>Akses Aplikasi Disuspend</h1><p>Akun pemilik untuk <strong>` + htmlEscapeMinimal(app.Name) + `</strong> sedang disuspend sehingga aplikasi tidak dapat digunakan.</p></main></body></html>`))
+			return false
+		}
+	}
+	if app.CatalogID != "" {
+		if lic, licErr := s.database.GetAppLicense(app.UserID, app.CatalogID); licErr == nil && lic != nil && strings.EqualFold(lic.Status, "SUSPENDED") {
+			if strings.HasPrefix(rest, "/api/") || strings.HasPrefix(rest, "api/") || strings.Contains(r.Header.Get("Accept"), "application/json") {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{
+					"error": "Lisensi aplikasi ini sedang disuspend oleh administrator.",
+					"code":  "LICENSE_SUSPENDED",
+				})
+				return false
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Lisensi Disuspend</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}main{max-width:440px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;text-align:center}h1{font-size:18px;margin:0 0 8px;color:#be123c}p{font-size:14px;line-height:1.6;color:#475569;margin:0}</style></head><body><main><h1>Lisensi Aplikasi Disuspend</h1><p>Lisensi untuk <strong>` + htmlEscapeMinimal(app.Name) + `</strong> sedang disuspend oleh administrator sehingga aplikasi tidak dapat digunakan. Hubungi administrator untuk mengaktifkan kembali.</p></main></body></html>`))
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) appGatewayProxy() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slug, rest, hasSlash := appGatewaySplitPath(r.URL.Path)
@@ -3335,7 +3456,15 @@ func (s *Server) appGatewayProxy() http.Handler {
 			return
 		}
 
-		hostOwnerID := s.hostingHostOwner(normalizeHost(r.Host))
+		hostOwnerID, hostBlocked, _ := s.hostingHostAccess(normalizeHost(r.Host))
+		if hostBlocked {
+			if strings.HasPrefix(rest, "api/") || strings.HasPrefix(rest, "/api/") || strings.Contains(r.Header.Get("Accept"), "application/json") {
+				s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "domain akses tidak aktif atau disuspend"})
+				return
+			}
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		u := s.currentUserRecord(r)
 		if u == nil {
 			// Strict domain scoping: tenant domains only serve that tenant's apps;
@@ -3350,7 +3479,10 @@ func (s *Server) appGatewayProxy() http.Handler {
 				http.NotFound(w, r)
 				return
 			}
-			// Allow public CSAT rating link for Reneo CRM without panel login
+			if !s.enforceAppLicenseNotSuspended(w, r, app, rest) {
+				return
+			}
+			// Allow public CSAT rating link and public CRM landing/auth endpoints for Reneo CRM without panel login
 			if app.CatalogID == "reneo-crm" && isPublicReneoCrmPath(rest) {
 				s.serveAppProxy(w, r, nil, app, "/app/"+slug, rest)
 				return
@@ -3389,6 +3521,9 @@ func (s *Server) appGatewayProxy() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
+		if !s.enforceAppLicenseNotSuspended(w, r, app, rest) {
+			return
+		}
 
 		s.serveAppProxy(w, r, u, app, "/app/"+slug, rest)
 	})
@@ -3420,20 +3555,8 @@ func (s *Server) appCatalogProxy() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		if app.CatalogID != "" && s.database != nil && s.database.IsConnected() {
-			if lic, licErr := s.database.GetAppLicense(app.UserID, app.CatalogID); licErr == nil && lic != nil && strings.EqualFold(lic.Status, "SUSPENDED") {
-				if strings.HasPrefix(rest, "/api/") || strings.Contains(r.Header.Get("Accept"), "application/json") {
-					s.writeJSON(w, http.StatusForbidden, jsonResponse{
-						"error": "Lisensi aplikasi ini sedang disuspend oleh administrator.",
-						"code":  "LICENSE_SUSPENDED",
-					})
-					return
-				}
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				w.WriteHeader(http.StatusForbidden)
-				_, _ = w.Write([]byte(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Lisensi Disuspend</title><style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px}main{max-width:440px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;text-align:center}h1{font-size:18px;margin:0 0 8px;color:#be123c}p{font-size:14px;line-height:1.6;color:#475569;margin:0}</style></head><body><main><h1>Lisensi Aplikasi Disuspend</h1><p>Lisensi untuk <strong>` + htmlEscapeMinimal(app.Name) + `</strong> sedang disuspend oleh administrator sehingga aplikasi tidak dapat digunakan. Hubungi administrator untuk mengaktifkan kembali.</p></main></body></html>`))
-				return
-			}
+		if !s.enforceAppLicenseNotSuspended(w, r, app, rest) {
+			return
 		}
 		if r.URL.Path == appCatalogProxyPrefix+idStr {
 			http.Redirect(w, r, appCatalogProxyPrefix+idStr+"/", http.StatusPermanentRedirect)
@@ -3609,11 +3732,7 @@ func (s *Server) collectAppPublicUrls(userID int64, catalogID string, appID int6
 			if host == "" || strings.EqualFold(sub.Status, "suspended") {
 				continue
 			}
-			if sub.Panel {
-				add("https://" + host + "/app/" + slug)
-			} else {
-				add("https://" + host)
-			}
+			add("https://" + host + "/app/" + slug)
 		}
 	}
 	if customDomains, err := s.database.ListHostingCustomDomains(ownerID); err == nil {

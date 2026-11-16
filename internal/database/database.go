@@ -597,6 +597,7 @@ func (m *Manager) ensureSchema() error {
 		`CREATE INDEX IF NOT EXISTS idx_app_license_orders_catalog ON app_license_orders(catalog_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_app_license_orders_status ON app_license_orders(status)`,
 		`ALTER TABLE app_licenses DROP CONSTRAINT IF EXISTS app_licenses_user_id_catalog_id_key`,
+		`ALTER TABLE app_license_plans ADD COLUMN IF NOT EXISTS trial_days INT NOT NULL DEFAULT 7`,
 	}
 
 	for _, stmt := range stmts {

@@ -441,7 +441,7 @@ func (s *Server) rateLimitRuleForRequest(r *http.Request) (rateLimitRule, string
 	case isSpeedtestPath(path):
 		// a test opens a few dozen short requests in seconds
 		return rateLimitRule{Window: time.Minute, Limit: 600}, "speedtest:" + remote, true
-	case strings.HasPrefix(path, appCatalogProxyPrefix):
+	case strings.HasPrefix(path, appCatalogProxyPrefix) || strings.HasPrefix(path, "/app/"):
 		// embedded web apps load assets and API calls through the proxy
 		return rateLimitRule{Window: time.Minute, Limit: 1200}, "appproxy:" + remote, true
 	case path == "/api/v1/auth/login" || path == "/api/v1/setup/initialize":

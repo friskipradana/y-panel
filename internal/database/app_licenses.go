@@ -82,8 +82,35 @@ type AppLicenseOrder struct {
 }
 
 const appLicenseCols = `id, user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features, created_at, updated_at`
-const appLicensePlanCols = `id, catalog_id, slug, name, tagline, period, months, price_amount, features, highlighted, is_active, sort_order, created_at, updated_at`
+const appLicensePlanCols = `id, catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order, created_at, updated_at`
 const appLicenseOrderCols = `id, public_id, invoice_number, user_id, catalog_id, app_name, plan_slug, plan_name, period, months, amount_list, unique_code, amount_total, status, payment_method, buyer_name, buyer_email, buyer_phone, created_at, expires_at, paid_at, created_ip`
+
+type sqlExecutor interface {
+	QueryRow(query string, args ...any) *sql.Row
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+func resolveCatalogAppName(q sqlExecutor, userID int64, catalogID string) string {
+	cleanID := strings.TrimSpace(catalogID)
+	if cleanID == "reneo-crm" {
+		return "Reneo CRM Services"
+	}
+	if q != nil && cleanID != "" {
+		var name string
+		if userID > 0 {
+			if err := q.QueryRow(`SELECT name FROM installed_apps WHERE user_id = $1 AND catalog_id = $2 ORDER BY id DESC LIMIT 1`, userID, cleanID).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
+				return strings.TrimSpace(name)
+			}
+		}
+		if err := q.QueryRow(`SELECT name FROM installed_apps WHERE catalog_id = $1 ORDER BY id DESC LIMIT 1`, cleanID).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
+			return strings.TrimSpace(name)
+		}
+	}
+	if cleanID != "" {
+		return cleanID
+	}
+	return "Reneo App"
+}
 
 func generateLicenseKey(catalogID string) string {
 	b := make([]byte, 8)
@@ -137,7 +164,7 @@ func scanAppLicense(row interface{ Scan(dest ...any) error }) (*AppLicense, erro
 	if now.After(expiresAt) {
 		item.IsExpired = true
 		item.DaysLeft = 0
-		if item.Status == "ACTIVE" {
+		if item.Status == "ACTIVE" || item.Status == "TRIAL" {
 			item.Status = "EXPIRED"
 		}
 	} else {
@@ -158,7 +185,7 @@ func scanAppLicensePlan(row interface{ Scan(dest ...any) error }) (*AppLicensePl
 	var createdAt, updatedAt time.Time
 
 	err := row.Scan(
-		&p.ID, &p.CatalogID, &p.Slug, &p.Name, &p.Tagline, &p.Period, &p.Months,
+		&p.ID, &p.CatalogID, &p.Slug, &p.Name, &p.Tagline, &p.Period, &p.Months, &p.TrialDays,
 		&p.PriceAmount, &featuresBytes, &p.Highlighted, &p.IsActive, &p.SortOrder,
 		&createdAt, &updatedAt,
 	)
@@ -168,8 +195,8 @@ func scanAppLicensePlan(row interface{ Scan(dest ...any) error }) (*AppLicensePl
 
 	p.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	p.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
-	if !strings.EqualFold(p.Period, "trial") {
-		p.TrialDays = 7
+	if p.TrialDays < 0 {
+		p.TrialDays = 0
 	}
 
 	if len(featuresBytes) > 0 {
@@ -239,11 +266,6 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		return nil
 	}
 
-	// Purge any accidental non-reneo-crm plans or licenses from testing
-	_, _ = m.db.Exec(`DELETE FROM app_license_plans WHERE catalog_id != 'reneo-crm'`)
-	_, _ = m.db.Exec(`DELETE FROM app_licenses WHERE catalog_id != 'reneo-crm'`)
-	_, _ = m.db.Exec(`DELETE FROM app_license_orders WHERE catalog_id != 'reneo-crm'`)
-
 	if catalogID != "reneo-crm" {
 		return nil
 	}
@@ -302,8 +324,8 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 
 	for _, p := range defaultPlans {
 		_, _ = m.db.Exec(`
-			INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, price_amount, features, highlighted, is_active, sort_order)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, true, $10)
+			INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order)
+			VALUES ($1, $2, $3, $4, $5, $6, 7, $7, $8::jsonb, $9, true, $10)
 			ON CONFLICT (catalog_id, slug) DO NOTHING
 		`, catalogID, p.slug, p.name, p.tagline, p.period, p.months, p.price, p.features, p.highlighted, p.sortOrder)
 	}
@@ -641,6 +663,47 @@ func (m *Manager) RenewAppLicense(userID int64, catalogID string, months int, pl
 	return m.renewAppLicenseWithPlanFeatures(userID, catalogID, "", months, planName, period, priceAmount)
 }
 
+// RenewAppLicensePlan extends or activates a license using the named pricing plan slug for features and pricing.
+func (m *Manager) RenewAppLicensePlan(userID int64, catalogID, planSlug string, months int) (*AppLicense, error) {
+	if m == nil || !m.IsConnected() {
+		return nil, errors.New("database not connected")
+	}
+	if months <= 0 {
+		months = 1
+	}
+	_ = m.EnsureDefaultAppLicensePlans(catalogID)
+	planName, period, priceAmount := "", "", int64(0)
+	if strings.TrimSpace(planSlug) != "" {
+		if lp, err := m.GetAppLicensePlan(catalogID, strings.TrimSpace(planSlug)); err == nil && lp != nil {
+			planName = lp.Name
+			period = lp.Period
+			priceAmount = lp.PriceAmount
+		}
+	}
+	return m.renewAppLicenseWithPlanFeatures(userID, catalogID, planSlug, months, planName, period, priceAmount)
+}
+
+func getAppLicenseByIDQ(q sqlExecutor, id int64) (*AppLicense, error) {
+	row := q.QueryRow(`SELECT `+appLicenseCols+` FROM app_licenses WHERE id = $1`, id)
+	item, err := scanAppLicense(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return item, err
+}
+
+func getLatestAppLicenseForUpdateQ(q sqlExecutor, userID int64, catalogID string) (*AppLicense, error) {
+	row := q.QueryRow(
+		`SELECT `+appLicenseCols+` FROM app_licenses WHERE user_id = $1 AND catalog_id = $2 ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+		userID, catalogID,
+	)
+	item, err := scanAppLicense(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return item, err
+}
+
 func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planSlug string, months int, planName string, period string, priceAmount int64) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {
 		return nil, errors.New("database not connected")
@@ -648,16 +711,39 @@ func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planS
 
 	_ = m.EnsureDefaultAppLicensePlans(catalogID)
 
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	lic, err := m.renewAppLicenseTx(tx, userID, catalogID, planSlug, "", months, planName, period, priceAmount)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return lic, nil
+}
+
+func (m *Manager) renewAppLicenseTx(q sqlExecutor, userID int64, catalogID, planSlug, appName string, months int, planName, period string, priceAmount int64) (*AppLicense, error) {
 	planFeaturesJSON := ""
 	if strings.TrimSpace(planSlug) != "" {
-		if lp, err := m.GetAppLicensePlan(catalogID, strings.TrimSpace(planSlug)); err == nil && lp != nil && len(lp.Features) > 0 && string(lp.Features) != "{}" {
+		row := q.QueryRow(`SELECT `+appLicensePlanCols+` FROM app_license_plans WHERE catalog_id = $1 AND slug = $2`, catalogID, strings.TrimSpace(planSlug))
+		if lp, err := scanAppLicensePlan(row); err == nil && lp != nil && len(lp.Features) > 0 && string(lp.Features) != "{}" {
 			planFeaturesJSON = string(lp.Features)
 		}
 	}
 
-	existing, err := m.GetAppLicense(userID, catalogID)
+	existing, err := getLatestAppLicenseForUpdateQ(q, userID, catalogID)
 	if err != nil {
 		return nil, err
+	}
+
+	resolvedAppName := strings.TrimSpace(appName)
+	if resolvedAppName == "" {
+		resolvedAppName = resolveCatalogAppName(q, userID, catalogID)
 	}
 
 	now := time.Now()
@@ -680,14 +766,20 @@ func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planS
 			featuresJSON = `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"maxContacts":10000,"wahaSync":true}`
 		}
 
-		_, err = m.db.Exec(`
+		var newID int64
+		err = q.QueryRow(`
 			INSERT INTO app_licenses (user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features)
 			VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8, $9, $10::jsonb)
-		`, userID, catalogID, catalogID, key, planName, period, priceAmount, now, newExpiresAt, featuresJSON)
+			RETURNING id
+		`, userID, catalogID, resolvedAppName, key, planName, period, priceAmount, now, newExpiresAt, featuresJSON).Scan(&newID)
 		if err != nil {
 			return nil, err
 		}
-		return m.GetAppLicense(userID, catalogID)
+		return getAppLicenseByIDQ(q, newID)
+	}
+
+	if strings.EqualFold(existing.Status, "SUSPENDED") {
+		return nil, errors.New("app license is suspended")
 	}
 
 	curExpiry, err := time.Parse(time.RFC3339, existing.ExpiresAt)
@@ -708,7 +800,7 @@ func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planS
 	}
 
 	if planFeaturesJSON != "" {
-		_, err = m.db.Exec(`
+		_, err = q.Exec(`
 			UPDATE app_licenses
 			SET status = 'ACTIVE',
 			    plan_name = $1,
@@ -720,7 +812,7 @@ func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planS
 			WHERE id = $6
 		`, planName, period, priceAmount, newExpiresAt, planFeaturesJSON, existing.ID)
 	} else {
-		_, err = m.db.Exec(`
+		_, err = q.Exec(`
 			UPDATE app_licenses
 			SET status = 'ACTIVE',
 			    plan_name = $1,
@@ -735,7 +827,7 @@ func (m *Manager) renewAppLicenseWithPlanFeatures(userID int64, catalogID, planS
 		return nil, err
 	}
 
-	return m.GetAppLicenseByID(existing.ID)
+	return getAppLicenseByIDQ(q, existing.ID)
 }
 
 // EnsureBundledAppLicense issues or extends an active app license bundled with a hosting plan.
@@ -767,39 +859,70 @@ func (m *Manager) EnsureBundledAppLicense(userID int64, catalogID, planSlug stri
 		}
 	}
 
+	tx, err := m.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	now := time.Now()
 	targetExpiry := now.AddDate(10, 0, 0)
 	if expires != nil {
 		targetExpiry = *expires
 	}
 
-	existing, err := m.GetAppLicense(userID, catalogID)
+	existing, err := getLatestAppLicenseForUpdateQ(tx, userID, catalogID)
 	if err != nil {
 		return err
 	}
 	if existing == nil {
 		key := generateLicenseKey(catalogID)
-		_, err = m.db.Exec(`
+		appName := resolveCatalogAppName(tx, userID, catalogID)
+		_, err = tx.Exec(`
 			INSERT INTO app_licenses (user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features)
 			VALUES ($1, $2, $3, $4, 'ACTIVE', $5, $6, $7, $8, $9, $10::jsonb)
-		`, userID, catalogID, "Reneo CRM Services", key, planName, period, priceAmount, now, targetExpiry, featuresJSON)
-		return err
+		`, userID, catalogID, appName, key, planName, period, priceAmount, now, targetExpiry, featuresJSON)
+		if err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+
+	if strings.EqualFold(existing.Status, "SUSPENDED") {
+		return errors.New("app license is suspended")
 	}
 
 	if curExpiry, parseErr := time.Parse(time.RFC3339, existing.ExpiresAt); parseErr == nil && curExpiry.After(targetExpiry) {
 		targetExpiry = curExpiry
 	}
-	_, err = m.db.Exec(`
-		UPDATE app_licenses
-		SET status = 'ACTIVE',
-		    plan_name = $1,
-		    period = $2,
-		    expires_at = $3,
-		    features = $4::jsonb,
-		    updated_at = NOW()
-		WHERE id = $5
-	`, planName, period, targetExpiry, featuresJSON, existing.ID)
-	return err
+
+	keepHigherTier := strings.EqualFold(existing.Status, "ACTIVE") && !existing.IsExpired &&
+		(existing.PriceAmount > priceAmount || (strings.EqualFold(existing.Period, "annual") && !strings.EqualFold(period, "annual")))
+
+	if keepHigherTier {
+		_, err = tx.Exec(`
+			UPDATE app_licenses
+			SET expires_at = $1,
+			    updated_at = NOW()
+			WHERE id = $2
+		`, targetExpiry, existing.ID)
+	} else {
+		_, err = tx.Exec(`
+			UPDATE app_licenses
+			SET status = 'ACTIVE',
+			    plan_name = $1,
+			    period = $2,
+			    price_amount = $3,
+			    expires_at = $4,
+			    features = $5::jsonb,
+			    updated_at = NOW()
+			WHERE id = $6
+		`, planName, period, priceAmount, targetExpiry, featuresJSON, existing.ID)
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // CreateAppLicensePlan creates or updates an app license plan.
@@ -816,26 +939,30 @@ func (m *Manager) CreateAppLicensePlan(p AppLicensePlan) (*AppLicensePlan, error
 	if p.Months <= 0 {
 		p.Months = 1
 	}
+	if p.TrialDays < 0 {
+		p.TrialDays = 0
+	}
 	featJSON := string(p.Features)
 	if featJSON == "" || featJSON == "null" {
 		featJSON = "{}"
 	}
 	var id int64
 	err := m.db.QueryRow(`
-		INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, price_amount, features, highlighted, is_active, sort_order)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
+		INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
 		ON CONFLICT (catalog_id, slug) DO UPDATE
 		SET name = EXCLUDED.name,
 		    tagline = EXCLUDED.tagline,
 		    period = EXCLUDED.period,
 		    months = EXCLUDED.months,
+		    trial_days = EXCLUDED.trial_days,
 		    price_amount = EXCLUDED.price_amount,
 		    features = EXCLUDED.features,
 		    highlighted = EXCLUDED.highlighted,
 		    is_active = EXCLUDED.is_active,
 		    updated_at = NOW()
 		RETURNING id
-	`, p.CatalogID, p.Slug, p.Name, p.Tagline, p.Period, p.Months, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, p.SortOrder).Scan(&id)
+	`, p.CatalogID, p.Slug, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, p.SortOrder).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -861,13 +988,14 @@ func (m *Manager) UpdateAppLicensePlan(id int64, p AppLicensePlan) (*AppLicenseP
 		    tagline = $2,
 		    period = COALESCE(NULLIF($3, ''), period),
 		    months = $4,
-		    price_amount = CASE WHEN $5 >= 0 THEN $5 ELSE price_amount END,
-		    features = $6::jsonb,
-		    highlighted = $7,
-		    is_active = $8,
+		    trial_days = CASE WHEN $5 >= 0 THEN $5 ELSE trial_days END,
+		    price_amount = CASE WHEN $6 >= 0 THEN $6 ELSE price_amount END,
+		    features = $7::jsonb,
+		    highlighted = $8,
+		    is_active = $9,
 		    updated_at = NOW()
-		WHERE id = $9
-	`, p.Name, p.Tagline, p.Period, p.Months, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, id)
+		WHERE id = $10
+	`, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, id)
 	if err != nil {
 		return nil, err
 	}
@@ -890,7 +1018,34 @@ func (m *Manager) DeleteAppLicensePlan(id int64) error {
 
 // ListDistinctAppCatalogIDs returns a slice of all distinct catalog IDs with licenses or plans.
 func (m *Manager) ListDistinctAppCatalogIDs() ([]string, error) {
-	return []string{"reneo-crm"}, nil
+	if m == nil || !m.IsConnected() {
+		return []string{"reneo-crm"}, nil
+	}
+	rows, err := m.db.Query(`
+		SELECT DISTINCT catalog_id
+		FROM (
+			SELECT catalog_id FROM app_license_plans
+			UNION
+			SELECT catalog_id FROM app_licenses
+			UNION
+			SELECT 'reneo-crm' AS catalog_id
+		) AS c
+		WHERE catalog_id <> ''
+		ORDER BY catalog_id ASC
+	`)
+	if err != nil {
+		return []string{"reneo-crm"}, err
+	}
+	defer rows.Close()
+	out := make([]string, 0, 4)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return out, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }
 
 // CreateAppLicenseOrder creates an order and issues an invoice with unique payment code.
@@ -909,29 +1064,50 @@ func (m *Manager) CreateAppLicenseOrder(o AppLicenseOrder) (*AppLicenseOrder, er
 		return &o, nil
 	}
 
+	tx, err := m.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`SELECT pg_advisory_xact_lock(7832101)`); err != nil {
+		return nil, err
+	}
+
 	publicID := generateAppPublicID()
 
-	// Pick a unique 3-digit code (100-999) that does not collide with active license/hosting orders
-	uniqueCode := 100
-	amountTotal := o.AmountList + int64(uniqueCode)
-	for attempt := 0; attempt < 40; attempt++ {
-		codeBig, _ := rand.Int(rand.Reader, big.NewInt(899))
-		candidateCode := int(codeBig.Int64()) + 100
-		candidateTotal := o.AmountList + int64(candidateCode)
-		var clashCount int
-		_ = m.db.QueryRow(`
-			SELECT (
-				SELECT COUNT(*) FROM app_license_orders
-				WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
-			) + (
-				SELECT COUNT(*) FROM hosting_orders
-				WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
-			)
-		`, candidateTotal).Scan(&clashCount)
-		uniqueCode = candidateCode
-		amountTotal = candidateTotal
-		if clashCount == 0 {
-			break
+	uniqueCode := 0
+	amountTotal := int64(0)
+	if o.AmountList > 0 {
+		found := false
+		for attempt := 0; attempt < 60; attempt++ {
+			codeBig, rErr := rand.Int(rand.Reader, big.NewInt(899))
+			if rErr != nil {
+				return nil, rErr
+			}
+			candidateCode := int(codeBig.Int64()) + 100
+			candidateTotal := o.AmountList + int64(candidateCode)
+			var clashCount int
+			if cErr := tx.QueryRow(`
+				SELECT (
+					SELECT COUNT(*) FROM app_license_orders
+					WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
+				) + (
+					SELECT COUNT(*) FROM hosting_orders
+					WHERE status IN ('pending', 'review') AND expires_at > NOW() AND amount_total = $1
+				)
+			`, candidateTotal).Scan(&clashCount); cErr != nil {
+				return nil, cErr
+			}
+			if clashCount == 0 {
+				uniqueCode = candidateCode
+				amountTotal = candidateTotal
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, ErrNoFreeTotal
 		}
 	}
 
@@ -939,15 +1115,32 @@ func (m *Manager) CreateAppLicenseOrder(o AppLicenseOrder) (*AppLicenseOrder, er
 	expiresAt := now.Add(24 * time.Hour) // 24 hours payment deadline
 
 	var nextID int64
-	err := m.db.QueryRow(`SELECT COALESCE(MAX(id), 0) + 1 FROM app_license_orders`).Scan(&nextID)
-	if err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(id), 0) + 1 FROM app_license_orders`).Scan(&nextID); err != nil {
 		nextID = 1
 	}
 
-	invoiceNum := fmt.Sprintf("INV-%s-%s-%05d", strings.ToUpper(strings.TrimPrefix(o.CatalogID, "reneo-")), now.Format("200601"), nextID)
+	prefix := strings.ToUpper(strings.TrimPrefix(o.CatalogID, "reneo-"))
+	if prefix == "" {
+		prefix = "APP"
+	}
+	invoiceNum := ""
+	for bump := int64(0); bump < 50; bump++ {
+		candidateInv := fmt.Sprintf("INV-%s-%s-%05d", prefix, now.Format("200601"), nextID+bump)
+		var exists bool
+		if err := tx.QueryRow(`SELECT EXISTS (SELECT 1 FROM app_license_orders WHERE invoice_number = $1)`, candidateInv).Scan(&exists); err != nil {
+			return nil, err
+		}
+		if !exists {
+			invoiceNum = candidateInv
+			break
+		}
+	}
+	if invoiceNum == "" {
+		invoiceNum = fmt.Sprintf("INV-%s-%s-%s", prefix, now.Format("200601"), strings.ToUpper(publicID[:6]))
+	}
 
 	var id int64
-	err = m.db.QueryRow(`
+	err = tx.QueryRow(`
 		INSERT INTO app_license_orders (
 			public_id, invoice_number, user_id, catalog_id, app_name, plan_slug, plan_name,
 			period, months, amount_list, unique_code, amount_total, status, payment_method,
@@ -960,6 +1153,9 @@ func (m *Manager) CreateAppLicenseOrder(o AppLicenseOrder) (*AppLicenseOrder, er
 		o.BuyerName, o.BuyerEmail, o.BuyerPhone, now, expiresAt, o.CreatedIP).Scan(&id)
 
 	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
@@ -1069,12 +1265,19 @@ func (m *Manager) MarkAppLicenseOrderPaidAtomic(publicID string, paymentMethod s
 		return false, nil, errors.New("database not connected")
 	}
 
-	order, err := m.GetAppLicenseOrderByPublicID(publicID)
+	tx, err := m.db.Begin()
 	if err != nil {
 		return false, nil, err
 	}
-	if order == nil {
+	defer tx.Rollback()
+
+	row := tx.QueryRow(`SELECT `+appLicenseOrderCols+` FROM app_license_orders WHERE public_id = $1 FOR UPDATE`, publicID)
+	order, err := scanAppLicenseOrder(row)
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil, errors.New("order not found")
+	}
+	if err != nil {
+		return false, nil, err
 	}
 	if order.Status == "paid" {
 		return false, order, nil
@@ -1084,7 +1287,7 @@ func (m *Manager) MarkAppLicenseOrderPaidAtomic(publicID string, paymentMethod s
 	}
 
 	now := time.Now()
-	res, err := m.db.Exec(`
+	res, err := tx.Exec(`
 		UPDATE app_license_orders
 		SET status = 'paid',
 		    paid_at = $1,
@@ -1096,20 +1299,22 @@ func (m *Manager) MarkAppLicenseOrderPaidAtomic(publicID string, paymentMethod s
 	}
 	rowsAffected, _ := res.RowsAffected()
 	if rowsAffected == 0 {
-		latest, _ := m.GetAppLicenseOrderByPublicID(publicID)
-		if latest != nil && latest.Status == "paid" {
-			return false, latest, nil
-		}
-		return false, latest, errors.New("order was already updated")
+		return false, order, errors.New("order was already updated")
 	}
 
-	_, err = m.renewAppLicenseWithPlanFeatures(order.UserID, order.CatalogID, order.PlanSlug, order.Months, order.PlanName, order.Period, order.AmountList)
+	if _, err = m.renewAppLicenseTx(tx, order.UserID, order.CatalogID, order.PlanSlug, order.AppName, order.Months, order.PlanName, order.Period, order.AmountList); err != nil {
+		return false, nil, fmt.Errorf("failed to activate app license: %w", err)
+	}
+
+	updatedRow := tx.QueryRow(`SELECT `+appLicenseOrderCols+` FROM app_license_orders WHERE public_id = $1`, publicID)
+	updated, err := scanAppLicenseOrder(updatedRow)
 	if err != nil {
-		return true, nil, fmt.Errorf("order marked paid but failed to renew license: %w", err)
+		return false, nil, err
 	}
-
-	updated, err := m.GetAppLicenseOrderByPublicID(publicID)
-	return true, updated, err
+	if err := tx.Commit(); err != nil {
+		return false, nil, err
+	}
+	return true, updated, nil
 }
 
 // MarkAppLicenseOrderPaid marks an order as paid and immediately extends/activates the app license.

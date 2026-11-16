@@ -350,6 +350,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	case req.Kind == database.OrderTrial:
 		// a trial costs nothing: it is switched on at once, or waits for the superadmin when approval is required
 		order.Periods, order.AmountBase, order.AmountList, order.DiscountDuration, order.DiscountVoucher, order.VoucherCode = 1, 0, 0, 0, 0, ""
+		order.AddonCatalogID, order.AddonAmount, order.Note = "", 0, ""
 		if settings.TrialApproval {
 			order.Status = database.OrderReview
 		}
@@ -796,9 +797,27 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 		s.alertSellerOrder(order.ID, notify.Localized{"id": fmt.Sprintf("Pesanan #%d dibayar, tetapi paket %s gagal dipasang ke %s.", order.ID, plan.Name, user.Username), "en": fmt.Sprintf("Order #%d is paid, but the plan %s could not be applied to %s.", order.ID, plan.Name, user.Username)}, "warning")
 		return err
 	}
-	if order.AddonCatalogID != "" && plan.IncludedCatalogID != order.AddonCatalogID {
-		if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, ends); err != nil {
-			log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+	if order.Kind != database.OrderTrial && order.AddonCatalogID != "" && plan.IncludedCatalogID != order.AddonCatalogID {
+		addonMonths := orderMonths(plan, order.Periods)
+		if addonMonths <= 0 {
+			addonMonths = order.Periods
+			if addonMonths < 1 {
+				addonMonths = 1
+			}
+		}
+		if order.AddonAmount > 0 {
+			if _, err := s.database.RenewAppLicensePlan(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, addonMonths); err != nil {
+				log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+			}
+		} else {
+			addonEnds := ends
+			if addonEnds == nil {
+				t := now.AddDate(0, addonMonths, 0)
+				addonEnds = &t
+			}
+			if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, addonEnds); err != nil {
+				log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+			}
 		}
 	}
 	if user.Status == "pending" {

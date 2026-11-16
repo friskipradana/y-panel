@@ -68,6 +68,12 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	if got := rewriteCookiePath("sid=abc; Path=/; HttpOnly", "/api/v1/app-catalog/proxy/7"); !strings.Contains(got, "Path=/api/v1/app-catalog/proxy/7/") {
 		t.Fatalf("rewriteCookiePath failed: %q", got)
 	}
+	if got := rewriteCookiePath("sid=abc; Domain=127.0.0.1; Path=/; Secure; HttpOnly", "/app/crm", false); strings.Contains(strings.ToLower(got), "domain=") || strings.Contains(strings.ToLower(got), "; secure") || !strings.Contains(got, "Path=/app/crm/") {
+		t.Fatalf("expected Domain= and HTTP Secure stripped, got %q", got)
+	}
+	if got := rewriteCookiePath("sid=abc; Domain=panel.reneo.my.id; Path=/; Secure; HttpOnly", "/app/crm", true); strings.Contains(strings.ToLower(got), "domain=") || !strings.Contains(strings.ToLower(got), "secure") {
+		t.Fatalf("expected Domain= stripped and HTTPS Secure kept, got %q", got)
+	}
 	html := []byte(`<html><head><base href="/"><link rel="stylesheet" href="/assets/app.css"></head><body><script src="/app.js"></script><object data="/icon.svg"></object><a href="/">Home</a><img src="/logo.png" srcset="/a.png 1x, /b.png 2x"><img src="//cdn.example.com/logo.png"></body></html>`)
 	out := string(rewriteProxyHTML(html, "/api/v1/app-catalog/proxy/7"))
 	if !strings.Contains(out, `<base href="/">`) {
@@ -91,8 +97,8 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	if !strings.Contains(out, `src="//cdn.example.com/logo.png"`) {
 		t.Fatalf("expected protocol-relative URL preserved, got %s", out)
 	}
-	if !strings.Contains(out, `history.replaceState`) || !strings.Contains(out, `window.WebSocket`) {
-		t.Fatalf("expected SPA router and WebSocket shim injected, got %s", out)
+	if !strings.Contains(out, `history.replaceState`) || !strings.Contains(out, `window.WebSocket`) || !strings.Contains(out, `isURLObj`) {
+		t.Fatalf("expected SPA router, WebSocket shim and URL-object handling injected, got %s", out)
 	}
 
 	css := []byte(`@font-face{src:url('/fonts/inter.woff2');background:url(/img/bg.png);image:url("//cdn.example.com/a.png")}`)
@@ -122,6 +128,9 @@ func TestAppCatalogProxyRewrites(t *testing.T) {
 	}
 	if got := rewriteProxyLocation("/app/grafana/app/grafana/", nil, "/app/grafana", true); got != "/app/grafana/" {
 		t.Fatalf("expected duplicate slug stripped, got %q", got)
+	}
+	if got := rewriteProxyLocation("https://panel.reneo.my.id/dashboard", target, "/app/crm", false, "panel.reneo.my.id"); got != "/app/crm/dashboard" {
+		t.Fatalf("expected echoed external host redirect kept under /app/crm, got %q", got)
 	}
 }
 
