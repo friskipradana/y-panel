@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.13] - 2026-11-16
+
+Fix YAML mapping env insertion, self-heal mixed compose env, and validate before delete.
+
+### Perbaikan
+- **appcatalog:** Fix YAML mapping env insertion, self-heal mixed compose env, and validate before delete ([`fb1b239`](https://github.com/friskipradana/y-panel/commit/fb1b239))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.12...v1.85.13
+
 ## [1.85.12] - 2026-11-16
 
 2 perubahan, utamanya repair CSS theme tokens, real invoice payment methods, order addon visibility, and landing accessibility.
