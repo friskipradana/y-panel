@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { Box, CircleArrowUp, Play, Trash2 } from 'lucide-react'
+import { Box, CircleArrowUp, LoaderCircle, Play, Trash2 } from 'lucide-react'
 import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -127,6 +127,7 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
             const label = `${img.Repository}:${img.Tag}`
             const inUse = !!img.inUse
             const untagged = img.Repository === '<none>' || img.Tag === '<none>'
+            const deleting = deleteImageMut.isPending && deleteImageMut.variables === img.Id
             return (
               <div key={img.Id} className="docker-row">
                 <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
@@ -135,6 +136,7 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
                   <div className="docker-row__text">
                     <span className="docker-app-name" title={label}>{img.Repository}</span>
                     <span className="docker-row__sub">{img.Tag} · {img.Id.replace('sha256:', '').slice(0, 12)}</span>
+                    <span className="docker-row__meta">{img.Tag} · {img.Size}</span>
                   </div>
                 </div>
                 <div className="docker-cell docker-cell--keep">
@@ -157,10 +159,15 @@ export function ImagesTab({ docker }: { docker: DockerWindowState }) {
                     className="docker-act-btn docker-act-btn--danger"
                     title={inUse ? t('docker.imageInUseHint') : t('docker.deleteImage')}
                     aria-label={t('docker.deleteImage')}
+                    aria-busy={deleting || undefined}
                     disabled={deleteImageMut.isPending || inUse}
                     onClick={() => void remove(img.Id, label)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    {deleting ? (
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    )}
                   </button>
                 </div>
               </div>

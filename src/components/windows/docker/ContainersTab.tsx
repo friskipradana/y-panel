@@ -4,18 +4,14 @@ import { alertLib } from '@/lib/alert'
 import { localizeServerMessage } from '@/lib/serverMessages'
 import {
   Boxes,
-  CircleArrowUp,
   Container as ContainerIcon,
-  SquarePen,
   Play,
   Square,
-  RotateCcw,
-  Globe2,
   LoaderCircle,
   ScrollText,
-  Trash2,
   RefreshCw,
 } from 'lucide-react'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import {
   EMPTY_ENV_ROW,
   DEFAULT_COMPOSE_YAML,
@@ -170,21 +166,70 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
     const isWhatsApp = isWaha(container)
     const isManaged = isDatabase || isControl || isWhatsApp
 
+    const moreItems: ActionMenuItem[] = [
+      {
+        key: 'edit',
+        label: t('docker.editRedeploy'),
+        disabled: editLoading,
+        onSelect: () => void handleEditRedeploy(container),
+      },
+      ...(isRunning
+        ? [
+            {
+              key: 'restart',
+              label: t('docker.restartContainer'),
+              disabled: busy,
+              onSelect: () => run(restartMutation, container.Id),
+            },
+          ]
+        : []),
+      ...(isDatabase || container.Image.startsWith('sha256:')
+        ? []
+        : [
+            {
+              key: 'update',
+              label: t('docker.update.action'),
+              onSelect: () =>
+                setUpdateTarget(
+                  isWhatsApp
+                    ? { kind: 'waha', name, image: container.Image }
+                    : { kind: 'container', id: container.Id, name, image: container.Image },
+                ),
+            },
+          ]),
+      ...(isManaged || !hasPort
+        ? []
+        : [
+            {
+              key: 'domain',
+              label: isRunning ? t('docker.domain.title') : t('docker.domain.needsRunning'),
+              disabled: !isRunning,
+              onSelect: () => setDomainContainer(container),
+            },
+          ]),
+      ...(isManaged
+        ? []
+        : [
+            {
+              key: 'delete',
+              label: t('docker.deleteContainer'),
+              tone: 'danger' as const,
+              dividerBefore: true,
+              disabled: deleteMutation.isPending,
+              onSelect: () => {
+                setDeleteOpts({ removeVolumes: false, removeImage: false })
+                setDeleteConfirm({
+                  id: container.Id,
+                  name,
+                  image: container.Image,
+                })
+              },
+            },
+          ]),
+    ]
+
     return (
       <div className="docker-action-btns">
-        {/* Edit and redeploy */}
-        <button
-          type="button"
-          className="docker-act-btn"
-          title={t('docker.editRedeploy')}
-          aria-label={t('docker.editRedeploy')}
-          disabled={editLoading}
-          onClick={() => void handleEditRedeploy(container)}
-        >
-          <SquarePen className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-
-        {/* Start, or Restart and Stop */}
         {busy ? (
           <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('docker.working')} aria-label={t('docker.working')}>
             <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
@@ -200,58 +245,17 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
             <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
           </button>
         ) : (
-          <>
-            {isRunning ? (
-              <button
-                type="button"
-                className="docker-act-btn docker-act-btn--restart"
-                title={t('docker.restartContainer')}
-                aria-label={t('docker.restartContainer')}
-                onClick={() => run(restartMutation, container.Id)}
-              >
-                <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="docker-act-btn docker-act-btn--stop"
-              title={t('common.stop')}
-              aria-label={t('common.stop')}
-              onClick={() => run(stopMutation, container.Id)}
-            >
-              <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
-            </button>
-          </>
-        )}
-
-        {/* Download newest image */}
-        {isDatabase || container.Image.startsWith('sha256:') ? null : (
           <button
             type="button"
-            className="docker-act-btn"
-            title={t('docker.update.action')}
-            aria-label={t('docker.update.action')}
-            onClick={() => setUpdateTarget(isWhatsApp ? { kind: 'waha', name, image: container.Image } : { kind: 'container', id: container.Id, name, image: container.Image })}
+            className="docker-act-btn docker-act-btn--stop"
+            title={t('common.stop')}
+            aria-label={t('common.stop')}
+            onClick={() => run(stopMutation, container.Id)}
           >
-            <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <Square className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
           </button>
         )}
 
-        {/* Cloudflare tunnel domain */}
-        {isManaged || !hasPort ? null : (
-          <button
-            type="button"
-            className="docker-act-btn"
-            title={isRunning ? t('docker.domain.title') : t('docker.domain.needsRunning')}
-            aria-label={t('docker.domain.title')}
-            disabled={!isRunning}
-            onClick={() => setDomainContainer(container)}
-          >
-            <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        )}
-
-        {/* Realtime Logs */}
         <button
           type="button"
           className="docker-act-btn"
@@ -264,26 +268,7 @@ export function ContainersTab({ docker }: { docker: DockerWindowState }) {
           <ScrollText className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
 
-        {/* Delete */}
-        {isManaged ? null : (
-          <button
-            type="button"
-            className="docker-act-btn docker-act-btn--danger"
-            title={t('docker.deleteContainer')}
-            aria-label={t('docker.deleteContainer')}
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              setDeleteOpts({ removeVolumes: false, removeImage: false })
-              setDeleteConfirm({
-                id: container.Id,
-                name,
-                image: container.Image,
-              })
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        )}
+        <ActionMenu label={t('common.moreActions')} items={moreItems} compact />
       </div>
     )
   }

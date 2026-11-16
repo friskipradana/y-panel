@@ -1,6 +1,5 @@
 import {
   Activity,
-  ExternalLink,
   Film,
   Folder,
   Layers,
@@ -140,6 +139,8 @@ export function CatalogAppsView({
                     {existing ? (
                       <>
                         <IconButton
+                          size="sm"
+                          variant="outline"
                           label={t('appCatalog.installAnother')}
                           onClick={() => onInstallCatalog(app)}
                         >
@@ -148,7 +149,6 @@ export function CatalogAppsView({
                         <Button
                           variant="primary-soft"
                           size="sm"
-                          icon={<ExternalLink className="h-3.5 w-3.5" />}
                           onClick={() => openInstalledAppWindow(existing)}
                         >
                           {t('appCatalog.openWindow')}
@@ -204,6 +204,9 @@ export function CatalogAppsView({
                     ) : null}
                   </div>
                   <span className="docker-row__sub panel-mono" title={app.image}>{app.image}</span>
+                  <span className="docker-row__meta font-sans" title={tagline}>
+                    {tagline}
+                  </span>
                 </div>
               </div>
               <div className="docker-cell min-w-0">
@@ -222,12 +225,13 @@ export function CatalogAppsView({
                     <Button
                       variant="primary-soft"
                       size="sm"
-                      icon={<ExternalLink className="h-3.5 w-3.5" />}
                       onClick={() => openInstalledAppWindow(existing)}
                     >
                       {t('appCatalog.openWindow')}
                     </Button>
                     <IconButton
+                      size="sm"
+                      variant="outline"
                       label={t('appCatalog.installAnother')}
                       onClick={() => onInstallCatalog(app)}
                     >

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Copy, Download, Pause, Play, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { Copy, Download, Pause, Play, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
@@ -159,17 +159,17 @@ function LogViewer({ target }: { target: LogTarget }) {
         </div>
         <div className="docker-log-toolbar__right">
           <SearchInput className="docker-log-search" value={query} onChange={setQuery} placeholder={t('docker.logs.filter')} />
-          <IconButton label={paused ? t('docker.logs.resume') : t('docker.logs.pause')} onClick={() => setPaused(!paused)}>
+          <IconButton size="md" label={paused ? t('docker.logs.resume') : t('docker.logs.pause')} onClick={() => setPaused(!paused)}>
             {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
           </IconButton>
-          <IconButton label={t('docker.logs.copy')} onClick={copy} disabled={visible.length === 0}>
+          <IconButton size="md" label={t('docker.logs.copy')} onClick={copy} disabled={visible.length === 0}>
             <Copy className="h-4 w-4" />
           </IconButton>
-          <IconButton label={t('docker.logs.download')} onClick={download} disabled={visible.length === 0}>
+          <IconButton size="md" label={t('docker.logs.download')} onClick={download} disabled={visible.length === 0}>
             <Download className="h-4 w-4" />
           </IconButton>
           <div className="docker-log-menu" ref={menuRef}>
-            <IconButton label={t('docker.logs.view')} onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-haspopup="menu">
+            <IconButton size="md" label={t('docker.logs.view')} onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-haspopup="menu">
               <SlidersHorizontal className="h-4 w-4" />
             </IconButton>
             {menuOpen ? (
@@ -200,7 +200,7 @@ function LogViewer({ target }: { target: LogTarget }) {
           <div className="docker-log-empty">
             <p>{finished ? (status === 'ended' ? t('docker.logs.endedHint') : t('docker.logs.errorHint')) : status === 'connecting' ? t('docker.loadingLogs') : term ? t('docker.noResults') : t('docker.noLogs')}</p>
             {finished ? (
-              <Button variant="outline" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={reconnect}>
+              <Button variant="outline" size="sm" onClick={reconnect}>
                 {t('docker.logs.reconnect')}
               </Button>
             ) : null}
@@ -211,7 +211,7 @@ function LogViewer({ target }: { target: LogTarget }) {
         {finished && visible.length > 0 ? (
           <div className="docker-log-end">
             <span>{status === 'ended' ? t('docker.logs.endedHint') : t('docker.logs.errorHint')}{detail ? ` (${detail})` : ''}</span>
-            <Button variant="ghost" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={reconnect}>
+            <Button variant="ghost" size="sm" onClick={reconnect}>
               {t('docker.logs.reconnect')}
             </Button>
           </div>

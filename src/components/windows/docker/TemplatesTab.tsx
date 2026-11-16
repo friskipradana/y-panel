@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { FileCode, Play, Trash2 } from 'lucide-react'
+import { FileCode, LoaderCircle, Play, Trash2 } from 'lucide-react'
 import { alertLib } from '@/lib/alert'
 import { formatDateTimeID } from '@/lib/datetime'
 import { Button } from '@/components/ui/Button'
@@ -98,6 +98,7 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
                 <div className="docker-row__text">
                   <span className="docker-app-name" title={tmpl.name}>{tmpl.name}</span>
                   {tmpl.description ? <span className="docker-row__sub">{tmpl.description}</span> : null}
+                  <span className="docker-row__meta">{tmpl.description || formatDateTimeID(tmpl.createdAt)}</span>
                 </div>
               </div>
               <div className="docker-cell">{formatDateTimeID(tmpl.createdAt)}</div>
@@ -120,10 +121,15 @@ export function TemplatesTab({ docker }: { docker: DockerWindowState }) {
                   className="docker-act-btn docker-act-btn--danger"
                   title={t('docker.deleteTemplate')}
                   aria-label={t('docker.deleteTemplate')}
+                  aria-busy={(deleteTemplateMut.isPending && deleteTemplateMut.variables === tmpl.id) || undefined}
                   disabled={deleteTemplateMut.isPending}
                   onClick={() => void remove(tmpl.id, tmpl.name)}
                 >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  {deleteTemplateMut.isPending && deleteTemplateMut.variables === tmpl.id ? (
+                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  )}
                 </button>
               </div>
             </div>

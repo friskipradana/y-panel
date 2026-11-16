@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  ExternalLink,
-  Home,
-  Pencil,
-  Play,
-  RefreshCw,
-  RotateCw,
-  Square,
-} from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { installedAppOpenUrl } from '@/api/appCatalog'
 import { InstalledAppBadge } from '@/components/common/AppIcon'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -187,6 +180,66 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
           ? t('appCatalog.statusProxy')
           : t('appCatalog.statusDirect')
 
+  const overflowActions: ActionMenuItem[] = (() => {
+    const items: ActionMenuItem[] = []
+    if (isContainer) {
+      if (isRunning) {
+        items.push(
+          {
+            key: 'restart',
+            label: t('appCatalog.restartContainer'),
+            loading: actionMutation.isPending && pendingAction === 'restart',
+            disabled: actionMutation.isPending,
+            onSelect: () => void handleAction('restart'),
+          },
+          {
+            key: 'stop',
+            label: t('appCatalog.stopContainer'),
+            tone: 'warning',
+            loading: actionMutation.isPending && pendingAction === 'stop',
+            disabled: actionMutation.isPending,
+            onSelect: () => void handleAction('stop'),
+          },
+        )
+      } else {
+        items.push({
+          key: 'start',
+          label: t('appCatalog.startContainer'),
+          tone: 'primary',
+          loading: actionMutation.isPending && pendingAction === 'start',
+          disabled: actionMutation.isPending || isMissing,
+          onSelect: () => void handleAction('start'),
+        })
+      }
+    } else {
+      items.push({
+        key: 'proxy',
+        label: app.useProxy ? t('appCatalog.switchDirect') : t('appCatalog.switchProxy'),
+        loading: updateMutation.isPending,
+        onSelect: () => void handleToggleProxy(),
+      })
+    }
+    items.push(
+      {
+        key: 'home',
+        label: t('appCatalog.resetHome'),
+        dividerBefore: true,
+        disabled: !isRunning,
+        onSelect: () => {
+          clearSavedAppUrl(app.id)
+          setHomeOverride(true)
+          setReloadNonce((n) => n + 1)
+        },
+      },
+      {
+        key: 'edit',
+        label: t('common.edit'),
+        onSelect: () => setEditOpen(true),
+      },
+    )
+    return items
+  })()
+
   return (
     <div className="installed-app-shell">
       <div className={`installed-app-toolbar ${isMobile ? 'installed-app-toolbar--mobile' : ''}`}>
@@ -200,63 +253,6 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
         </div>
 
         <div className="installed-app-toolbar__actions">
-          {isContainer ? (
-            isRunning ? (
-              <>
-                <IconButton
-                  label={t('appCatalog.restartContainer')}
-                  onClick={() => handleAction('restart')}
-                  loading={actionMutation.isPending && pendingAction === 'restart'}
-                  disabled={actionMutation.isPending}
-                >
-                  <RotateCw className="h-3.5 w-3.5" />
-                </IconButton>
-                <IconButton
-                  label={t('appCatalog.stopContainer')}
-                  tone="warning"
-                  onClick={() => handleAction('stop')}
-                  loading={actionMutation.isPending && pendingAction === 'stop'}
-                  disabled={actionMutation.isPending}
-                >
-                  <Square className="h-3.5 w-3.5" />
-                </IconButton>
-              </>
-            ) : (
-              <IconButton
-                label={t('appCatalog.startContainer')}
-                tone="success"
-                onClick={() => handleAction('start')}
-                loading={actionMutation.isPending && pendingAction === 'start'}
-                disabled={actionMutation.isPending || isMissing}
-              >
-                <Play className="h-3.5 w-3.5" />
-              </IconButton>
-            )
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleToggleProxy}
-              loading={updateMutation.isPending}
-            >
-              {app.useProxy ? t('appCatalog.switchDirect') : t('appCatalog.switchProxy')}
-            </Button>
-          )}
-
-          <span className="installed-app-toolbar__sep" aria-hidden="true" />
-
-          <IconButton
-            label={t('appCatalog.resetHome')}
-            onClick={() => {
-              clearSavedAppUrl(app.id)
-              setHomeOverride(true)
-              setReloadNonce((n) => n + 1)
-            }}
-            disabled={!isRunning}
-          >
-            <Home className="h-3.5 w-3.5" />
-          </IconButton>
-
           <IconButton
             label={t('common.refresh')}
             onClick={() => {
@@ -264,19 +260,21 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
               setReloadNonce((n) => n + 1)
             }}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </IconButton>
 
           <IconButton
             label={t('appCatalog.openNewTab')}
             onClick={() => window.open(openUrl, '_blank', 'noopener,noreferrer')}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
           </IconButton>
 
-          <IconButton label={t('common.edit')} onClick={() => setEditOpen(true)}>
-            <Pencil className="h-3.5 w-3.5" />
-          </IconButton>
+          <ActionMenu
+            label={t('common.moreActions')}
+            items={overflowActions}
+            loading={actionMutation.isPending || updateMutation.isPending}
+          />
         </div>
       </div>
 
@@ -303,7 +301,6 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
                 <Button
                   size="sm"
                   variant="primary"
-                  icon={<Play className="h-3.5 w-3.5" />}
                   loading={actionMutation.isPending}
                   onClick={() => handleAction('start')}
                 >
@@ -325,7 +322,6 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
             </span>
             <Button
               variant="primary"
-              icon={<Play className="h-3.5 w-3.5" />}
               loading={actionMutation.isPending}
               onClick={() => handleAction('start')}
             >

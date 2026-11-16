@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { Network, Trash2 } from 'lucide-react'
+import { LoaderCircle, Network, Trash2 } from 'lucide-react'
 import { alertLib } from '@/lib/alert'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -99,6 +99,7 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
             const builtin = BUILTIN_NETWORKS.includes(net.Name)
             const used = net.containers ?? 0
             const lockHint = builtin ? t('docker.networkBuiltinHint') : used > 0 ? t('docker.networkInUseHint') : t('docker.deleteNetwork')
+            const deleting = deleteNetworkMut.isPending && deleteNetworkMut.variables === net.Id
             return (
               <div key={net.Id} className="docker-row">
                 <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
@@ -107,6 +108,7 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
                   <div className="docker-row__text">
                     <span className="docker-app-name" title={net.Name}>{net.Name}</span>
                     <span className="docker-row__sub">{net.Scope} · {net.Id.slice(0, 12)}</span>
+                    <span className="docker-row__meta">{net.Subnet || net.Scope} · {t('docker.networkContainers', { count: used })}</span>
                   </div>
                 </div>
                 <div className="docker-cell docker-cell--keep">
@@ -126,10 +128,15 @@ export function NetworksTab({ docker }: { docker: DockerWindowState }) {
                     className="docker-act-btn docker-act-btn--danger"
                     title={lockHint}
                     aria-label={t('docker.deleteNetwork')}
+                    aria-busy={deleting || undefined}
                     disabled={deleteNetworkMut.isPending || builtin || used > 0}
                     onClick={() => void remove(net.Id, net.Name)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    {deleting ? (
+                      <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    )}
                   </button>
                 </div>
               </div>

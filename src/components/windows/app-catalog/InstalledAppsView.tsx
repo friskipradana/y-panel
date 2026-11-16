@@ -1,6 +1,7 @@
-import { ArrowUpCircle, ExternalLink, Pencil, Play, RotateCcw, RotateCw, Square, Store, Trash2 } from 'lucide-react'
+import { ExternalLink, Play, Square, Store } from 'lucide-react'
 import type { AppUpdateStatus, InstalledApp } from '@/api/appCatalog'
 import { InstalledAppBadge } from '@/components/common/AppIcon'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListState, ListTable } from '@/components/ui/ListTable'
@@ -74,28 +75,66 @@ export function InstalledAppsView({
     return t('appCatalog.kindCustomUrl')
   }
 
-  const renderActions = (app: InstalledApp, rowBusy: boolean) => (
-    <>
-      <IconButton
-        label={t('appCatalog.openWindow')}
-        tone="primary"
-        disabled={rowBusy}
-        onClick={() => openInstalledAppWindow(app)}
-      >
-        <ExternalLink className="h-3.5 w-3.5" />
-      </IconButton>
+  const renderActions = (app: InstalledApp, rowBusy: boolean) => {
+    const moreItems: ActionMenuItem[] = []
+    if (app.kind !== 'custom-url') {
+      if (app.containerState === 'running') {
+        moreItems.push({
+          key: 'restart',
+          label: t('appCatalog.restartContainer'),
+          loading: isActionBusy(app.id, 'restart'),
+          disabled: rowBusy,
+          onSelect: () => onContainerAction(app, 'restart'),
+        })
+      }
+      moreItems.push({
+        key: 'upgrade',
+        label: t('appCatalog.upgradeAction'),
+        loading: isActionBusy(app.id, 'upgrade'),
+        disabled: rowBusy,
+        onSelect: () => onUpgrade(app),
+      })
+      if (app.canRollback) {
+        moreItems.push({
+          key: 'rollback',
+          label: t('appCatalog.rollbackAction'),
+          loading: isActionBusy(app.id, 'rollback'),
+          disabled: rowBusy,
+          onSelect: () => onRollback(app),
+        })
+      }
+    }
+    moreItems.push(
+      {
+        key: 'edit',
+        label: t('common.edit'),
+        dividerBefore: moreItems.length > 0,
+        disabled: rowBusy,
+        onSelect: () => onEdit(app),
+      },
+      {
+        key: 'uninstall',
+        label: t('appCatalog.uninstallAction'),
+        tone: 'danger',
+        loading: isActionBusy(app.id, 'uninstall'),
+        disabled: rowBusy,
+        onSelect: () => onUninstall(app),
+      },
+    )
 
-      {app.kind !== 'custom-url' ? (
-        app.containerState === 'running' ? (
-          <>
-            <IconButton
-              label={t('appCatalog.restartContainer')}
-              disabled={rowBusy}
-              loading={isActionBusy(app.id, 'restart')}
-              onClick={() => onContainerAction(app, 'restart')}
-            >
-              <RotateCw className="h-3.5 w-3.5" />
-            </IconButton>
+    return (
+      <>
+        <IconButton
+          label={t('appCatalog.openWindow')}
+          tone="primary"
+          disabled={rowBusy}
+          onClick={() => openInstalledAppWindow(app)}
+        >
+          <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </IconButton>
+
+        {app.kind !== 'custom-url' ? (
+          app.containerState === 'running' ? (
             <IconButton
               label={t('appCatalog.stopContainer')}
               tone="warning"
@@ -103,58 +142,25 @@ export function InstalledAppsView({
               loading={isActionBusy(app.id, 'stop')}
               onClick={() => onContainerAction(app, 'stop')}
             >
-              <Square className="h-3.5 w-3.5" />
+              <Square className="h-3.5 w-3.5" strokeWidth={1.75} />
             </IconButton>
-          </>
-        ) : (
-          <IconButton
-            label={t('appCatalog.startContainer')}
-            tone="success"
-            disabled={rowBusy || app.containerState === 'missing'}
-            loading={isActionBusy(app.id, 'start')}
-            onClick={() => onContainerAction(app, 'start')}
-          >
-            <Play className="h-3.5 w-3.5" />
-          </IconButton>
-        )
-      ) : null}
+          ) : (
+            <IconButton
+              label={t('appCatalog.startContainer')}
+              tone="success"
+              disabled={rowBusy || app.containerState === 'missing'}
+              loading={isActionBusy(app.id, 'start')}
+              onClick={() => onContainerAction(app, 'start')}
+            >
+              <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </IconButton>
+          )
+        ) : null}
 
-      <IconButton label={t('common.edit')} disabled={rowBusy} onClick={() => onEdit(app)}>
-        <Pencil className="h-3.5 w-3.5" />
-      </IconButton>
-
-      {app.kind !== 'custom-url' ? (
-        <IconButton
-          label={t('appCatalog.upgradeAction')}
-          disabled={rowBusy}
-          loading={isActionBusy(app.id, 'upgrade')}
-          onClick={() => onUpgrade(app)}
-        >
-          <ArrowUpCircle className="h-3.5 w-3.5" />
-        </IconButton>
-      ) : null}
-      {app.kind !== 'custom-url' && app.canRollback ? (
-        <IconButton
-          label={t('appCatalog.rollbackAction')}
-          disabled={rowBusy}
-          loading={isActionBusy(app.id, 'rollback')}
-          onClick={() => onRollback(app)}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-        </IconButton>
-      ) : null}
-
-      <IconButton
-        label={t('appCatalog.uninstallAction')}
-        tone="danger"
-        disabled={rowBusy}
-        loading={isActionBusy(app.id, 'uninstall')}
-        onClick={() => onUninstall(app)}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </IconButton>
-    </>
-  )
+        <ActionMenu label={t('common.moreActions')} items={moreItems} disabled={rowBusy} />
+      </>
+    )
+  }
 
   const stateProps = {
     loading: isLoading,
@@ -294,6 +300,10 @@ export function InstalledAppsView({
                       <span className="panel-mono mr-1.5">{versionText} ·</span>
                     ) : null}
                     {app.tagline || app.image || app.targetUrl}
+                  </span>
+                  <span className="docker-row__meta" title={endpoint}>
+                    {endpoint}
+                    {versionText ? ` · ${versionText}` : ''}
                   </span>
                 </div>
               </div>

@@ -184,12 +184,12 @@ export function DockerUpdateModal({
             </Button>
           )}
           {phase === 'ready' ? (
-            <Button type="button" variant="primary" icon={<CircleArrowUp size={14} />} onClick={() => void start(target)}>
+            <Button type="button" variant="primary" onClick={() => void start(target)}>
               {t('docker.update.start')}
             </Button>
           ) : null}
           {phase === 'failed' || phase === 'cancelled' ? (
-            <Button type="button" variant="primary" icon={<CircleArrowUp size={14} />} onClick={() => void start(target)}>
+            <Button type="button" variant="primary" onClick={() => void start(target)}>
               {t('docker.update.retry')}
             </Button>
           ) : null}
@@ -258,7 +258,7 @@ export function DockerUpdateModal({
                     </div>
                     <StatusPill state={c.state} />
                     {!isContainer && phase === 'done' && result?.changed && c.compose ? (
-                      <Button type="button" size="sm" variant="outline" icon={<CircleArrowUp size={12} />} onClick={() => { startedFor.current = null; onApplyToContainer(c) }}>
+                      <Button type="button" size="sm" variant="outline" onClick={() => { startedFor.current = null; onApplyToContainer(c) }}>
                         {t('docker.update.apply')}
                       </Button>
                     ) : null}
