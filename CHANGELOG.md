@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.86.0] - 2026-11-16
+
+Improve boot resilience and app stability.
+
+### Fitur baru
+- **ui:** Improve boot resilience and app stability ([`e135cef`](https://github.com/friskipradana/y-panel/commit/e135cef))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.14...v1.86.0
+
 ## [1.85.14] - 2026-11-16
 
 4 perubahan, utamanya unify control sizing, search field layout, segmented tabs, and reduce redundant icons.
