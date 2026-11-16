@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.14] - 2026-11-16
+
+4 perubahan, utamanya unify control sizing, search field layout, segmented tabs, and reduce redundant icons.
+
+### Perbaikan
+- **docker:** Improve mobile topbar wrapping, log toolbar parity, and image/network/template delete spinners ([`13bc093`](https://github.com/friskipradana/y-panel/commit/13bc093))
+- **metrics:** Stabilize 1s bandwidth sampling, filter virtual NICs, and sync live history ([`6064bc7`](https://github.com/friskipradana/y-panel/commit/6064bc7))
+- **speedtest:** Abort browser streams cleanly and add stop endpoint for server tests ([`78cfbe9`](https://github.com/friskipradana/y-panel/commit/78cfbe9))
+- **ui:** Unify control sizing, search field layout, segmented tabs, and reduce redundant icons ([`d146cdd`](https://github.com/friskipradana/y-panel/commit/d146cdd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.13...v1.85.14
+
 ## [1.85.13] - 2026-11-16
 
 Fix YAML mapping env insertion, self-heal mixed compose env, and validate before delete.
