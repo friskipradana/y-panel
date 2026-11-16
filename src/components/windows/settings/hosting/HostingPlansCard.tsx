@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Boxes, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Boxes, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createHostingPlan, deleteHostingPlan, formatRupiah, updateHostingPlan, type HostingPlan, type PlanInput } from '@/api/hosting'
 import { getSiteSettings } from '@/api/system'
@@ -65,14 +65,11 @@ export function HostingPlansCard() {
   return (
     <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5 min-w-0">
-          <Boxes className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-          <div>
-            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.plans.title')}</h2>
-            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.plans.subtitle')}</p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.plans.title')}</h2>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.plans.subtitle')}</p>
         </div>
-        <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setTarget('new')} className="!h-8 shrink-0">
+        <Button variant="primary" size="sm" onClick={() => setTarget('new')} className="!h-8 shrink-0">
           {t('hosting.plans.add')}
         </Button>
       </div>

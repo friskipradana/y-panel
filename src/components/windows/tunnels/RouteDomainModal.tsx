@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Globe2, Plus } from 'lucide-react'
+import { ExternalLink, Globe2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createTunnel, getCFConfig, getCFZones, listCloudflareTunnelProfiles, listTunnels } from '@/api/agent'
 import { alertLib } from '@/lib/alert'
@@ -198,7 +198,7 @@ function DomainForm({ subject, onClose, onConnected }: RouteDomainModalProps) {
           {linkedList}
 
           {!showForm ? (
-            <Button variant="outline" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setAdding(true)}>
+            <Button variant="outline" onClick={() => setAdding(true)}>
               {t('docker.domain.addAnother')}
             </Button>
           ) : (

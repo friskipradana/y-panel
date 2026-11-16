@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, PlugZap, RotateCw, Unplug } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { connectWhatsApp, disconnectWhatsApp, getMyWhatsApp, getWhatsAppQR, restartWhatsApp, setWhatsAppDestination, setWhatsAppMuted, testWhatsApp, type MyWhatsApp } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
@@ -135,10 +135,10 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
               <Button variant="outline" size="sm" loading={test.isPending} onClick={() => test.mutate()}>
                 {t('notify.telegram.test')}
               </Button>
-              <Button variant="outline" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} onClick={() => restart.mutate()}>
+              <Button variant="outline" size="sm" loading={restart.isPending} onClick={() => restart.mutate()}>
                 {t('notify.wa.restart')}
               </Button>
-              <Button variant="danger-soft" size="sm" icon={<Unplug className="h-3.5 w-3.5" />} loading={disconnect.isPending} onClick={() => void confirmDisconnect()}>
+              <Button variant="danger-soft" size="sm" loading={disconnect.isPending} onClick={() => void confirmDisconnect()}>
                 {t('notify.wa.disconnect')}
               </Button>
             </div>
@@ -236,7 +236,6 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
               <Button
                 variant="outline"
                 size="sm"
-                icon={<RotateCw className="h-3.5 w-3.5" />}
                 loading={restart.isPending}
                 onClick={() => restart.mutate()}
               >
@@ -276,11 +275,11 @@ export function MyWhatsAppCard({ groups, ownerHint = false, bare }: { groups: re
             <p className="text-[12px] text-[var(--text-secondary)]">{t('notify.wa.notConnected')}</p>
           </div>
           {data.status === 'FAILED' || data.status === 'EXPIRED' ? (
-            <Button variant="primary" size="sm" icon={<RotateCw className="h-3.5 w-3.5" />} loading={restart.isPending} onClick={() => restart.mutate()}>
+            <Button variant="primary" size="sm" loading={restart.isPending} onClick={() => restart.mutate()}>
               {t('notify.wa.restart')}
             </Button>
           ) : (
-            <Button variant="primary" size="sm" icon={<PlugZap className="h-3.5 w-3.5" />} loading={connect.isPending} onClick={() => connect.mutate()}>
+            <Button variant="primary" size="sm" loading={connect.isPending} onClick={() => connect.mutate()}>
               {t('notify.wa.connect')}
             </Button>
           )}

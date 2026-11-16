@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Globe2, Plus, X } from 'lucide-react'
+import { Globe2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { listHostingDomains, setHostingDomain, setMainHostingDomain, type HostingDomain } from '@/api/hosting'
 import { Button } from '@/components/ui/Button'
@@ -52,14 +52,9 @@ export function HostingDomainsCard() {
 
   return (
     <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5 min-w-0">
-          <Globe2 className="h-4 w-4 text-[var(--panel-primary-text)] shrink-0 mt-0.5" strokeWidth={1.75} />
-          <div>
-            <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.domains.title')}</h2>
-            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.domains.subtitle')}</p>
-          </div>
-        </div>
+      <div className="min-w-0">
+        <h2 className="text-[13px] font-semibold text-[var(--win-text)] leading-tight">{t('hosting.domains.title')}</h2>
+        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{t('hosting.domains.subtitle')}</p>
       </div>
 
       {domains.isLoading ? (
@@ -83,7 +78,7 @@ export function HostingDomainsCard() {
                   options={addable.map((domain) => ({ value: domain.zoneId, label: domain.name, description: domain.status && domain.status !== 'active' ? domainStatus(domain.status) : undefined }))}
                 />
               </div>
-              <Button variant="primary" icon={<Plus className="h-4 w-4" />} disabled={pick === ''} loading={toggle.isPending} onClick={() => toggle.mutate({ zoneId: pick, enabled: true })}>
+              <Button variant="primary" disabled={pick === ''} loading={toggle.isPending} onClick={() => toggle.mutate({ zoneId: pick, enabled: true })}>
                 {t('hosting.domains.offer')}
               </Button>
             </div>

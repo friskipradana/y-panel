@@ -1,12 +1,17 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { LoaderCircle } from 'lucide-react'
 
 export type IconButtonTone = 'default' | 'primary' | 'success' | 'warning' | 'danger'
+export type IconButtonSize = 'sm' | 'md'
+export type IconButtonVariant = 'ghost' | 'outline'
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+  ref?: Ref<HTMLButtonElement>
   /** Wajib: dipakai sebagai aria-label dan tooltip */
   label: string
   tone?: IconButtonTone
+  size?: IconButtonSize
+  variant?: IconButtonVariant
   loading?: boolean
   children: ReactNode
 }
@@ -15,6 +20,8 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
 export function IconButton({
   label,
   tone = 'default',
+  size,
+  variant = 'ghost',
   loading = false,
   disabled = false,
   className = '',
@@ -22,7 +29,15 @@ export function IconButton({
   children,
   ...rest
 }: IconButtonProps) {
-  const cls = ['panel-icon-btn', tone !== 'default' ? `panel-icon-btn--${tone}` : '', className].filter(Boolean).join(' ')
+  const cls = [
+    'panel-icon-btn',
+    size ? `panel-icon-btn--${size}` : '',
+    variant === 'outline' ? 'panel-icon-btn--outline' : '',
+    tone !== 'default' ? `panel-icon-btn--${tone}` : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
     <button
       {...rest}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Phone, Unlink } from 'lucide-react'
+import { Phone } from 'lucide-react'
 import { toast } from 'sonner'
 import { removeCloudNumber, setCloudMuted, setCloudNumber, testCloud, type NotifyChannel, type NotifyOverview, type NotifyRecipient } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
@@ -83,7 +83,7 @@ export function MyCloudNumber({ channel, recipient, bare }: { channel: NotifyCha
               <Button variant="outline" size="sm" disabled={!ready} loading={test.isPending} onClick={() => test.mutate()}>
                 {t('notify.telegram.test')}
               </Button>
-              <Button variant="danger-soft" size="sm" icon={<Unlink className="h-3.5 w-3.5" />} loading={remove.isPending} onClick={() => void confirmRemove()}>
+              <Button variant="danger-soft" size="sm" loading={remove.isPending} onClick={() => void confirmRemove()}>
                 {t('notify.cloud.remove')}
               </Button>
             </div>

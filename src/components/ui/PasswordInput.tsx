@@ -13,6 +13,7 @@ export function PasswordInput({ className = '', disabled, ...rest }: Omit<TextIn
       <TextInput {...rest} disabled={disabled} type={shown ? 'text' : 'password'} className={`!pr-10 ${className}`} />
       <IconButton
         label={shown ? t('ui.hidePassword') : t('ui.showPassword')}
+        size="sm"
         onClick={() => setShown((value) => !value)}
         disabled={disabled}
         className="absolute right-1 top-1/2 -translate-y-1/2"

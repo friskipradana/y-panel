@@ -68,7 +68,7 @@ export function HostingChecklist({ onGo, bare }: { onGo: (section: HostingSectio
                 {!step.done ? <span className="block text-[11px] text-[var(--text-secondary)]">{t(`hosting.check.${step.key}.hint`)}</span> : null}
               </span>
               {!step.done && step.go ? (
-                <Button variant="ghost" size="sm" onClick={() => onGo(step.go as HostingSection)} className="!h-7 text-xs px-2.5">
+                <Button variant="ghost" size="sm" onClick={() => onGo(step.go as HostingSection)}>
                   {t('hosting.check.open')}
                 </Button>
               ) : null}

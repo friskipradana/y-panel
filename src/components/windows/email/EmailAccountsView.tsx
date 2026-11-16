@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Forward, Inbox, Mail, Pencil, Power, Trash2 } from 'lucide-react'
+import { Check, Copy, Forward, Inbox, Mail } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { deleteEmailAccount, updateEmailAccount, type EmailAccount } from '@/api/email'
 import { DateTimeText } from '@/components/common/DateTimeText'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -167,37 +168,31 @@ export function EmailAccountsView({
                   )}
                 </button>
                 {!isDemo && (
-                  <>
-                    <button
-                      type="button"
-                      className="docker-act-btn"
-                      title={row.enabled ? t('publicip.route.switchOff') : t('publicip.route.switchOn')}
-                      aria-label={row.enabled ? t('publicip.route.switchOff') : t('publicip.route.switchOn')}
-                      disabled={toggleMut.isPending}
-                      onClick={() => toggleMut.mutate(row)}
-                    >
-                      <Power className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                    <button
-                      type="button"
-                      className="docker-act-btn"
-                      title={t('common.edit')}
-                      aria-label={t('common.edit')}
-                      onClick={() => onEdit(row)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                    <button
-                      type="button"
-                      className="docker-act-btn docker-act-btn--danger"
-                      title={t('common.delete')}
-                      aria-label={t('common.delete')}
-                      disabled={deleteMut.isPending}
-                      onClick={() => void handleDelete(row)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    </button>
-                  </>
+                  <ActionMenu
+                    compact
+                    label={t('common.moreActions')}
+                    items={[
+                      {
+                        key: 'toggle',
+                        label: row.enabled ? t('publicip.route.switchOff') : t('publicip.route.switchOn'),
+                        disabled: toggleMut.isPending,
+                        onSelect: () => toggleMut.mutate(row),
+                      },
+                      {
+                        key: 'edit',
+                        label: t('common.edit'),
+                        onSelect: () => onEdit(row),
+                      },
+                      {
+                        key: 'delete',
+                        label: t('common.delete'),
+                        tone: 'danger',
+                        dividerBefore: true,
+                        disabled: deleteMut.isPending,
+                        onSelect: () => void handleDelete(row),
+                      },
+                    ]}
+                  />
                 )}
               </div>
             </div>

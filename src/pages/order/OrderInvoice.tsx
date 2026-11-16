@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { formatRupiah } from '@/api/hosting'
 import { getOrderInvoice, type InvoiceView } from '@/api/invoice'
 import { Button } from '@/components/ui/Button'
@@ -124,7 +124,7 @@ export function OrderInvoice({ publicId }: { publicId: string }) {
           {t('invoice.back')}
         </Button>
         {query.data ? (
-          <Button variant="primary" icon={<Printer className="h-4 w-4" />} onClick={() => window.print()}>
+          <Button variant="primary" onClick={() => window.print()}>
             {t('invoice.print')}
           </Button>
         ) : null}

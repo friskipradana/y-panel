@@ -1,20 +1,12 @@
 import { alertLib } from '@/lib/alert'
 import {
-  Code,
   FileText,
   FolderCode,
-  FolderOpen,
-  Globe2,
-  Hammer,
   LoaderCircle,
-  Pencil,
   Play,
-  RefreshCw,
   Square,
-  Terminal,
-  Trash2,
-  Upload,
 } from 'lucide-react'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -86,27 +78,27 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
               </p>
             </div>
             <div className="projects-focus__actions">
-              <Button size="sm" variant="ghost" icon={<RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />} disabled={isFetching} onClick={() => void refetch()}>
+              <Button size="sm" variant="ghost" loading={isFetching} onClick={() => void refetch()}>
                 {t('projects.refreshReconcile')}
               </Button>
-              <Button size="sm" variant="ghost" icon={<FolderCode className="h-3.5 w-3.5" />} disabled={!highlightedProject.workingDir} onClick={() => void openHighlightedProjectFiles()}>
+              <Button size="sm" variant="ghost" disabled={!highlightedProject.workingDir} onClick={() => void openHighlightedProjectFiles()}>
                 {t('projects.openFiles')}
               </Button>
-              <Button size="sm" variant="ghost" icon={<Terminal className="h-3.5 w-3.5" />} onClick={() => openHighlightedProjectLogs()}>
+              <Button size="sm" variant="ghost" onClick={() => openHighlightedProjectLogs()}>
                 {t('projects.openLogs')}
               </Button>
-              <Button size="sm" variant="ghost" icon={<Code className="h-3.5 w-3.5" />} onClick={() => void copyHighlightedInspectCommand()}>
+              <Button size="sm" variant="ghost" onClick={() => void copyHighlightedInspectCommand()}>
                 {t('projects.copyInspectCmd')}
               </Button>
-              <Button size="sm" variant="ghost" icon={<Code className="h-3.5 w-3.5" />} disabled={!highlightedProject.workingDir} onClick={() => void copyHighlightedProjectPath()}>
+              <Button size="sm" variant="ghost" disabled={!highlightedProject.workingDir} onClick={() => void copyHighlightedProjectPath()}>
                 {t('projects.copyPath')}
               </Button>
               {shouldShowProjectStop(highlightedProject) ? (
-                <Button size="sm" variant="ghost" icon={<Square className="h-3.5 w-3.5" />} loading={!!stopping} onClick={() => stopMut.mutate(highlightedProject.id)}>
+                <Button size="sm" variant="ghost" loading={!!stopping} onClick={() => stopMut.mutate(highlightedProject.id)}>
                   {t('projects.stopProject')}
                 </Button>
               ) : isRunnableProject(highlightedProject) ? (
-                <Button size="sm" variant="primary-soft" icon={<Play className="h-3.5 w-3.5" />} loading={!!starting} onClick={() => startMut.mutate(highlightedProject.id)}>
+                <Button size="sm" variant="primary-soft" loading={!!starting} onClick={() => startMut.mutate(highlightedProject.id)}>
                   {t('projects.startProject')}
                 </Button>
               ) : null}
@@ -185,61 +177,11 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
 
                     <div className="app-catalog-card__footer">
                       <div className="docker-action-btns">
-                        <button
-                          type="button"
-                          className="docker-act-btn"
-                          title={p.workingDir ? t('projects.openFilesAt', { path: p.workingDir }) : t('projects.openFilesUnavailable')}
-                          aria-label={t('projects.openFiles')}
-                          disabled={!p.workingDir}
-                          onClick={() => openProjectFiles(p)}
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </button>
-                        {p.projectType === 'static' ? (
-                          <button type="button" className="docker-act-btn" title={t('projects.uploadBuild')} aria-label={t('projects.uploadBuild')} disabled={busy} onClick={() => openStaticUpload(p)}>
-                            <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="docker-act-btn"
-                          title={p.assignedPort ? t('projects.connectTunnel') : t('projects.tunnelNeedsPort')}
-                          aria-label={t('projects.connectTunnel')}
-                          disabled={!p.assignedPort}
-                          onClick={() => openTunnelForProject(p)}
-                        >
-                          <Globe2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </button>
-                        {p.projectType === 'stack' || p.run?.startCommand ? (
-                          <button
-                            type="button"
-                            className="docker-act-btn"
-                            title={t('projects.rebuild')}
-                            aria-label={t('projects.rebuild')}
-                            disabled={busy}
-                            onClick={async () => {
-                              const confirmed = await alertLib.confirm(
-                                t('projects.rebuildConfirmTitle'),
-                                t('projects.rebuildConfirmMessage', { name: p.name }),
-                                t('projects.rebuildConfirmAction'),
-                                t('common.cancel'),
-                                'warning',
-                                'projects',
-                              )
-                              if (confirmed) rebuildMut.mutate(p.id)
-                            }}
-                          >
-                            <Hammer className="h-3.5 w-3.5" strokeWidth={1.75} />
-                          </button>
-                        ) : null}
                         {isRunnableProject(p) ? (
                           <button type="button" className="docker-act-btn" title={t('projects.logs')} aria-label={t('projects.logs')} onClick={() => setLogProject(p)}>
                             <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
                           </button>
                         ) : null}
-                        <button type="button" className="docker-act-btn" title={t('projects.editTitle')} aria-label={t('projects.editTitle')} onClick={() => openEditProject(p)}>
-                          <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </button>
                         {busy ? (
                           <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('projects.working')} aria-label={t('projects.working')}>
                             <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
@@ -253,26 +195,77 @@ export function ProjectsBody({ pw }: { pw: ProjectsWindowState }) {
                             <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
                           </button>
                         ) : null}
-                        <button
-                          type="button"
-                          className="docker-act-btn docker-act-btn--danger"
-                          title={t('common.delete')}
-                          aria-label={t('common.delete')}
-                          disabled={deleting}
-                          onClick={async () => {
-                            const confirmed = await alertLib.confirm(
-                              t('projects.deleteConfirmTitle'),
-                              t('projects.deleteConfirmMessage', { name: p.name }),
-                              t('projects.deleteConfirmAction'),
-                              t('common.cancel'),
-                              'warning',
-                              'projects',
-                            )
-                            if (confirmed) deleteMut.mutate(p.id)
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </button>
+                        <ActionMenu
+                          label={t('common.moreActions')}
+                          compact
+                          items={[
+                            {
+                              key: 'files',
+                              label: t('projects.openFiles'),
+                              disabled: !p.workingDir,
+                              onSelect: () => openProjectFiles(p),
+                            },
+                            ...(p.projectType === 'static'
+                              ? [
+                                  {
+                                    key: 'upload',
+                                    label: t('projects.uploadBuild'),
+                                    disabled: busy,
+                                    onSelect: () => openStaticUpload(p),
+                                  },
+                                ]
+                              : []),
+                            {
+                              key: 'tunnel',
+                              label: t('projects.connectTunnel'),
+                              disabled: !p.assignedPort,
+                              onSelect: () => openTunnelForProject(p),
+                            },
+                            ...(p.projectType === 'stack' || p.run?.startCommand
+                              ? [
+                                  {
+                                    key: 'rebuild',
+                                    label: t('projects.rebuild'),
+                                    disabled: busy,
+                                    onSelect: async () => {
+                                      const confirmed = await alertLib.confirm(
+                                        t('projects.rebuildConfirmTitle'),
+                                        t('projects.rebuildConfirmMessage', { name: p.name }),
+                                        t('projects.rebuildConfirmAction'),
+                                        t('common.cancel'),
+                                        'warning',
+                                        'projects',
+                                      )
+                                      if (confirmed) rebuildMut.mutate(p.id)
+                                    },
+                                  },
+                                ]
+                              : []),
+                            {
+                              key: 'edit',
+                              label: t('projects.editTitle'),
+                              dividerBefore: true,
+                              onSelect: () => openEditProject(p),
+                            },
+                            {
+                              key: 'delete',
+                              label: t('common.delete'),
+                              tone: 'danger',
+                              disabled: deleting,
+                              onSelect: async () => {
+                                const confirmed = await alertLib.confirm(
+                                  t('projects.deleteConfirmTitle'),
+                                  t('projects.deleteConfirmMessage', { name: p.name }),
+                                  t('projects.deleteConfirmAction'),
+                                  t('common.cancel'),
+                                  'warning',
+                                  'projects',
+                                )
+                                if (confirmed) deleteMut.mutate(p.id)
+                              },
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   </article>

@@ -7,13 +7,13 @@ import {
   Play,
   RefreshCcw,
   ScrollText,
-  Search,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { getEmailLogs, type EmailLogServiceOption } from '@/api/email'
 import { IconButton } from '@/components/ui/IconButton'
+import { SearchInput } from '@/components/ui/SearchInput'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { Tabs } from '@/components/ui/Tabs'
@@ -169,8 +169,8 @@ export function EmailLogsView() {
             value={service}
             onChange={setService}
             options={services}
-            className="min-w-[160px] max-w-[210px]"
-            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            className="min-w-[160px] max-w-[210px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
           />
           <Select
             id="email-logs-limit"
@@ -180,24 +180,22 @@ export function EmailLogsView() {
               value: String(val),
               label: `${val} baris`,
             }))}
-            className="w-[105px]"
-            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            className="w-[105px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
           />
         </div>
 
         <div className="flex items-center gap-1.5">
-          <label className="panel-search h-[30px] min-w-[130px] max-w-[240px] px-2.5">
-            <Search className="h-3.5 w-3.5 shrink-0" />
-            <input
-              id="email-logs-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="panel-search__input !text-[11.5px] !font-normal"
-              placeholder={t('systemLogs.searchShort')}
-            />
-          </label>
+          <SearchInput
+            id="email-logs-search"
+            value={search}
+            onChange={setSearch}
+            placeholder={t('systemLogs.searchShort')}
+            className="flex-1 min-w-[130px] max-w-[240px]"
+          />
 
           <IconButton
+            size="md"
             label={live ? t('systemLogs.pause') : t('systemLogs.resume')}
             onClick={() => setLive((v) => !v)}
             tone={live ? 'success' : 'warning'}
@@ -206,6 +204,7 @@ export function EmailLogsView() {
           </IconButton>
 
           <IconButton
+            size="md"
             label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')}
             onClick={() => setAutoScroll((v) => !v)}
             tone={autoScroll ? 'primary' : undefined}
@@ -214,6 +213,7 @@ export function EmailLogsView() {
           </IconButton>
 
           <IconButton
+            size="md"
             label={t('systemLogs.copy')}
             onClick={() => void copyVisible()}
             disabled={visible.length === 0}
@@ -222,6 +222,7 @@ export function EmailLogsView() {
           </IconButton>
 
           <IconButton
+            size="md"
             label={t('systemLogs.download')}
             onClick={download}
             disabled={visible.length === 0}
@@ -230,6 +231,7 @@ export function EmailLogsView() {
           </IconButton>
 
           <IconButton
+            size="md"
             label={t('common.refresh')}
             onClick={() => void query.refetch()}
             disabled={query.isFetching}

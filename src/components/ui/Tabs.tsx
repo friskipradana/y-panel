@@ -8,27 +8,31 @@ export interface TabItem<K extends string> {
   count?: number
 }
 
+export type TabsVariant = 'pills' | 'segmented'
+
 export interface TabsProps<K extends string> {
   items: TabItem<K>[]
   value: K
   onChange: (key: K) => void
   /** Wajib: nama daftar tab untuk pembaca layar */
   label: string
+  variant?: TabsVariant
   className?: string
 }
 
 // Tab horizontal: role="tablist", panah kiri/kanan berpindah tab
-export function Tabs<K extends string>({ items, value, onChange, label, className = '' }: TabsProps<K>) {
+export function Tabs<K extends string>({ items, value, onChange, label, variant = 'pills', className = '' }: TabsProps<K>) {
   const move = (dir: 1 | -1) => {
     const i = items.findIndex((x) => x.key === value)
     const next = items[(i + dir + items.length) % items.length]
     onChange(next.key)
   }
+  const listCls = ['panel-tabs', variant === 'segmented' ? 'panel-tabs--segmented' : '', className].filter(Boolean).join(' ')
   return (
     <div
       role="tablist"
       aria-label={label}
-      className={`flex items-center gap-1 ${className}`}
+      className={listCls}
       onKeyDown={(e) => {
         if (e.key === 'ArrowRight') move(1)
         if (e.key === 'ArrowLeft') move(-1)
@@ -44,15 +48,11 @@ export function Tabs<K extends string>({ items, value, onChange, label, classNam
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(item.key)}
-            className={`inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] ${
-              active
-                ? 'border-[var(--panel-primary-text)]/25 bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--panel-surface-hover)] hover:text-[var(--win-text)]'
-            }`}
+            className={`panel-tab ${active ? 'panel-tab--active' : ''}`.trim()}
           >
-            {item.icon ? <span className="[&_svg]:h-3.5 [&_svg]:w-3.5">{item.icon}</span> : null}
+            {item.icon ? item.icon : null}
             {item.label}
-            {item.count !== undefined ? <span className="panel-mono text-[10.5px] opacity-70">{item.count}</span> : null}
+            {item.count !== undefined ? <span className="panel-tab__count">{item.count}</span> : null}
           </button>
         )
       })}

@@ -7,6 +7,7 @@ import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 import { IconButton } from '@/components/ui/IconButton'
+import { SearchInput } from '@/components/ui/SearchInput'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
@@ -139,7 +140,7 @@ export function ReneoDatabaseTab({ authenticated, active = true }: { authenticat
             <Badge tone={status.connected ? 'success' : status.enabled ? 'danger' : 'neutral'} dot>
               {status.connected ? t('database.connected') : status.enabled ? t('database.unavailable') : t('database.disabled')}
             </Badge>
-            <IconButton id="database-refresh" type="button" onClick={() => void query.refetch()} label={t('database.refreshStatus')} className="!h-7 !w-7">
+            <IconButton id="database-refresh" type="button" size="sm" variant="outline" onClick={() => void query.refetch()} label={t('database.refreshStatus')}>
               <RefreshCcw size={13} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
             </IconButton>
           </div>
@@ -261,24 +262,20 @@ export function ReneoDatabaseTab({ authenticated, active = true }: { authenticat
           description={t('database.latestRows', { shown: filteredRuntimeLogs.length, total: runtimeLogs.length })}
         >
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <div className="docker-search-wrap flex-1 min-w-[180px]">
-              <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
-              <input
-                id="database-log-search"
-                type="text"
-                value={logQuery}
-                onChange={(e) => setLogQuery(e.target.value)}
-                placeholder={t('database.logSearchPlaceholder')}
-                className="docker-search-input !w-full !h-8 text-[12px]"
-              />
-            </div>
+            <SearchInput
+              id="database-log-search"
+              value={logQuery}
+              onChange={setLogQuery}
+              placeholder={t('database.logSearchPlaceholder')}
+              className="flex-1 min-w-[180px]"
+            />
             <Select
               id="database-log-limit"
               value={String(logLimit)}
               onChange={(value) => setLogLimit(Number(value))}
               options={LOG_ROW_OPTIONS.map((option) => ({ value: String(option), label: t('database.rowsOption', { count: option }) }))}
-              className="max-w-[110px]"
-              buttonClassName="!h-8 px-2.5 text-[12px] panel-input--mono"
+              className="max-w-[110px] panel-toolbar-select"
+              buttonClassName="panel-input--mono"
               dropdownClassName="min-w-[110px]"
               searchable
               searchPlaceholder={t('database.limitSearchPlaceholder')}

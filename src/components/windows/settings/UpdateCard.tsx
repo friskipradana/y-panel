@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpCircle, Check, Copy, ExternalLink, LoaderCircle, RefreshCw, Server, Terminal } from "lucide-react";
+import { ArrowUpCircle, Check, Copy, ExternalLink, LoaderCircle, Server, Terminal } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
 import { Badge } from "@/components/ui/Badge";
@@ -135,10 +135,10 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
         <Button
           type="button"
           variant="outline"
+          size="sm"
           onClick={handleCheckUpdate}
-          icon={<RefreshCw size={12} />}
           loading={isRefreshing}
-          className="!h-7 px-2.5 text-[11.5px] shrink-0 self-start sm:self-auto"
+          className="shrink-0 self-start sm:self-auto"
         >
           {isRefreshing ? t("settings.update.checking") : t("settings.update.checkNow")}
         </Button>
@@ -218,10 +218,9 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
               <Button
                 type="button"
                 variant="primary"
+                size="sm"
                 onClick={handleApplyUpdate}
-                icon={<ArrowUpCircle size={12} />}
                 loading={applyMutation.isPending || statusQuery.data?.state === "running"}
-                className="!h-7 px-3 text-[11.5px]"
               >
                 {applyMutation.isPending || statusQuery.data?.state === "running"
                   ? t("settings.update.applying")
@@ -253,8 +252,9 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={showUpdateProgress}
-            className="!h-6 !px-2.5 text-[10.5px] shrink-0"
+            className="shrink-0"
           >
             {t("settings.update.viewProgress")}
           </Button>

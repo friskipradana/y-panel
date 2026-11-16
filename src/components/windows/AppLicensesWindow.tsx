@@ -1,27 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  KeyRound,
   AlertTriangle,
-  CreditCard,
-  ExternalLink,
-  Copy,
-  Check,
-  RefreshCw,
-  CheckCircle2,
-  Lock,
-  ReceiptText,
   Boxes,
-  FileText,
-  Printer,
-  Plus,
-  Code2,
-  Trash2,
-  Pencil,
+  Check,
+  CheckCircle2,
+  Copy,
+  KeyRound,
+  ReceiptText,
+  RefreshCw,
   XCircle,
-  Ban,
-  PlayCircle,
 } from 'lucide-react'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { toast } from 'sonner'
 import {
   fetchAppLicenses,
@@ -43,7 +33,6 @@ import {
 import { installedAppWindowParams } from '@/api/appCatalog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { IconBadge } from '@/components/ui/IconBadge'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { SearchInput } from '@/components/ui/SearchInput'
@@ -51,6 +40,7 @@ import { Tabs } from '@/components/ui/Tabs'
 import { ListTable, ListRowIcon, ListState } from '@/components/ui/ListTable'
 import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useAppCatalog } from '@/hooks/useAppCatalog'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useWindowStore } from '@/store/windowStore'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -105,6 +95,7 @@ function formatFeatureBadge(key: string, value: unknown): string | null {
 
 export function AppLicensesWindow() {
   const { t } = useI18n()
+  const isMobile = useIsMobileLayout()
   const queryClient = useQueryClient()
   const openWindow = useWindowStore((s) => s.openWindow)
   const { data: catalogData } = useAppCatalog()
@@ -469,7 +460,7 @@ export function AppLicensesWindow() {
   return (
     <div className="flex flex-col h-full w-full bg-[var(--win-bg)] text-[var(--win-text)] overflow-hidden">
       {/* Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-[var(--win-border)] bg-[var(--panel-surface)] shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-[var(--win-border)] bg-[var(--panel-surface)] shrink-0">
         <div className="min-w-0">
           <div className="flex items-center flex-wrap gap-2">
             <h2 className="text-sm font-semibold leading-none text-[var(--win-text)]">
@@ -484,25 +475,27 @@ export function AppLicensesWindow() {
               </Badge>
             )}
           </div>
-          <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+          <p className="text-xs text-[var(--text-secondary)] mt-1 leading-snug">
             Kelola lisensi, paket langganan, dan tagihan Reneo CRM Services.
           </p>
         </div>
 
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center justify-between sm:justify-end flex-wrap gap-2 w-full sm:w-auto">
           <Tabs<LicenseTab>
             label="Navigasi Lisensi Aplikasi"
             value={activeTab}
             onChange={setActiveTab}
             items={[
-              { key: 'licenses', label: 'Lisensi', icon: <KeyRound />, count: licenses.length },
-              { key: 'plans', label: 'Paket & Tarif', icon: <Boxes />, count: plans.length },
-              { key: 'invoices', label: 'Invoice', icon: <ReceiptText />, count: orders.length },
+              { key: 'licenses', label: 'Lisensi', count: licenses.length },
+              { key: 'plans', label: 'Paket & Tarif', count: plans.length },
+              { key: 'invoices', label: 'Invoice', count: orders.length },
             ]}
           />
 
           <IconButton
             label="Segarkan Status"
+            size="md"
+            variant="outline"
             loading={licensesRefetching}
             onClick={() => {
               refetchLicenses()
@@ -510,7 +503,6 @@ export function AppLicensesWindow() {
               refetchPlans()
               refetchOrders()
             }}
-            className="border border-[var(--win-border)]"
           >
             <RefreshCw size={14} className={licensesRefetching ? 'animate-spin' : ''} />
           </IconButton>
@@ -519,75 +511,40 @@ export function AppLicensesWindow() {
 
       {/* Tab 1: Licenses */}
       {activeTab === 'licenses' && (
-        <div className="flex-1 flex flex-col min-h-0 p-4 space-y-3 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
           {/* Subheader Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2.5 shrink-0">
             <SearchInput
               value={search}
               onChange={setSearch}
               placeholder="Cari lisensi atau key..."
-              className="w-52 sm:w-64"
+              className="w-full sm:w-64"
             />
 
-            <div className="flex items-center flex-wrap gap-2 shrink-0">
-              <div className="flex items-center bg-[var(--panel-surface)] border border-[var(--win-border)] rounded-lg p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
-                    statusFilter === 'ALL'
-                      ? 'bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                  }`}
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full sm:w-auto min-w-0">
+              <Tabs
+                variant="segmented"
+                label="Filter Status Lisensi"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                items={[
+                  { key: 'ALL', label: `Semua (${licenses.length})` },
+                  { key: 'ACTIVE', label: `Aktif (${activeCount})` },
+                  { key: 'SUSPENDED', label: `Disuspend (${suspendedCount})` },
+                  { key: 'EXPIRED', label: `Kedaluwarsa (${expiredCount})` },
+                ]}
+              />
+
+              <div className="flex items-center gap-2 ml-auto shrink-0">
+                <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
+
+                <Button
+                  variant="primary"
+                  onClick={() => setCreateLicenseModalOpen(true)}
                 >
-                  Semua ({licenses.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('ACTIVE')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
-                    statusFilter === 'ACTIVE'
-                      ? 'bg-[var(--panel-primary-bg)] font-semibold text-[var(--panel-primary-text)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                  }`}
-                >
-                  Aktif ({activeCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('SUSPENDED')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
-                    statusFilter === 'SUSPENDED'
-                      ? 'bg-[var(--panel-warning-bg)] font-semibold text-[var(--panel-warning-text)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                  }`}
-                >
-                  Disuspend ({suspendedCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter('EXPIRED')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${
-                    statusFilter === 'EXPIRED'
-                      ? 'bg-[var(--panel-danger-bg)] font-semibold text-[var(--panel-danger-text)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-                  }`}
-                >
-                  Kedaluwarsa ({expiredCount})
-                </button>
+                  Buat Lisensi
+                </Button>
               </div>
-
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setCreateLicenseModalOpen(true)}
-                className="gap-1.5 shadow-sm"
-              >
-                <Plus size={14} />
-                Buat Lisensi
-              </Button>
             </div>
           </div>
 
@@ -624,22 +581,19 @@ export function AppLicensesWindow() {
                         <div className="space-y-3">
                           {/* Header Identity */}
                           <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <IconBadge size="lg" tone={isLocked ? 'danger' : 'primary'}>
-                                {isLocked ? <AlertTriangle /> : <KeyRound />}
-                              </IconBadge>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="text-sm font-bold text-[var(--win-text)] truncate">
-                                    {lic.appName}
-                                  </h3>
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--text-secondary)] shrink-0">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <h3 className="text-sm font-bold text-[var(--win-text)] truncate">
+                                  {lic.appName}
+                                </h3>
+                                {lic.catalogId && lic.catalogId !== lic.appName ? (
+                                  <span className="text-[10px] font-mono text-[var(--text-secondary)] shrink-0">
                                     {lic.catalogId}
                                   </span>
-                                </div>
-                                <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-                                  Paket: <span className="font-medium text-[var(--win-text)]">{lic.planName}</span>
-                                </div>
+                                ) : null}
+                              </div>
+                              <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                                Paket: <span className="font-medium text-[var(--win-text)]">{lic.planName}</span>
                               </div>
                             </div>
 
@@ -665,35 +619,34 @@ export function AppLicensesWindow() {
                           </div>
 
                           {/* Key Bar */}
-                          <div className="p-2.5 rounded-lg bg-[var(--win-bg)] border border-[var(--win-border)] flex items-center justify-between gap-2">
+                          <div className="px-2.5 py-2 rounded-lg bg-[var(--win-bg)] border border-[var(--win-border)] flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <Lock size={12} className="text-[var(--text-secondary)] shrink-0" />
                               <span className="text-[11px] text-[var(--text-secondary)] shrink-0">
-                                License Key:
+                                Key:
                               </span>
-                              <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 truncate">
+                              <span className="font-mono text-xs font-semibold text-[var(--panel-primary-text)] truncate">
                                 {lic.licenseKey}
                               </span>
                             </div>
-                            <button
-                              type="button"
+                            <IconButton
+                              label="Salin Key"
+                              size="sm"
                               onClick={() => handleCopyKey(lic.licenseKey)}
-                              className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition shrink-0"
-                              title="Salin Key"
+                              className="shrink-0"
                             >
                               {copiedKey === lic.licenseKey ? (
-                                <Check size={13} className="text-emerald-500" />
+                                <Check size={13} className="text-[var(--panel-success-text)]" />
                               ) : (
                                 <Copy size={13} />
                               )}
-                            </button>
+                            </IconButton>
                           </div>
 
                           {/* Meta Details */}
-                          <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+                          <div className="grid grid-cols-2 gap-3 text-xs pt-0.5">
                             <div className="space-y-0.5">
-                              <span className="text-[11px] text-[var(--text-secondary)]">Tarif Langganan:</span>
-                              <div className="font-semibold text-sm text-[var(--win-text)]">
+                              <span className="text-[11px] text-[var(--text-secondary)]">Tarif Langganan</span>
+                              <div className="font-semibold text-sm text-[var(--win-text)] tabular-nums">
                                 Rp {lic.priceAmount?.toLocaleString('id-ID')}
                                 <span className="text-[11px] font-normal text-[var(--text-secondary)]">
                                   {' '}
@@ -702,7 +655,7 @@ export function AppLicensesWindow() {
                               </div>
                             </div>
                             <div className="space-y-0.5">
-                              <span className="text-[11px] text-[var(--text-secondary)]">Masa Berlaku:</span>
+                              <span className="text-[11px] text-[var(--text-secondary)]">Masa Berlaku</span>
                               <div className="font-medium text-xs text-[var(--win-text)]">
                                 Hingga{' '}
                                 {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
@@ -715,10 +668,10 @@ export function AppLicensesWindow() {
                                 <div
                                   className={`h-full ${
                                     isExpired
-                                      ? 'bg-rose-500'
+                                      ? 'bg-[var(--panel-danger-text)]'
                                       : lic.daysLeft < 7
-                                      ? 'bg-amber-500'
-                                      : 'bg-emerald-500'
+                                        ? 'bg-[var(--panel-warning-text)]'
+                                        : 'bg-[var(--panel-success-text)]'
                                   }`}
                                   style={{ width: `${progressPct}%` }}
                                 />
@@ -727,27 +680,18 @@ export function AppLicensesWindow() {
                           </div>
 
                           {/* Features */}
-                          <div className="space-y-1 pt-1">
-                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Terkoneksi:</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {lic.features && Object.keys(lic.features).length > 0 ? (
-                                Object.entries(lic.features).map(([k, v]) => {
-                                  const label = formatFeatureBadge(k, v)
-                                  if (!label) return null
-                                  return (
-                                    <span
-                                      key={k}
-                                      className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1 font-medium"
-                                    >
-                                      <Check size={9} strokeWidth={2.5} />
-                                      {label}
-                                    </span>
-                                  )
-                                })
-                              ) : (
-                                <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
-                              )}
-                            </div>
+                          <div className="space-y-0.5 pt-0.5">
+                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Terkoneksi</span>
+                            <p className="text-[11.5px] leading-relaxed text-[var(--win-text)]">
+                              {(() => {
+                                const labels = lic.features
+                                  ? Object.entries(lic.features)
+                                      .map(([k, v]) => formatFeatureBadge(k, v))
+                                      .filter((x): x is string => Boolean(x))
+                                  : []
+                                return labels.length > 0 ? labels.join(' · ') : 'Fitur Standar'
+                              })()}
+                            </p>
                           </div>
                         </div>
 
@@ -757,9 +701,7 @@ export function AppLicensesWindow() {
                             size="sm"
                             variant="primary"
                             onClick={() => handleOpenRenew(lic)}
-                            className="text-xs h-7 px-2.5 gap-1.5 shadow-sm"
                           >
-                            <CreditCard size={12} />
                             Perpanjang
                           </Button>
 
@@ -767,52 +709,46 @@ export function AppLicensesWindow() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => {
-                                setIntegrationLicense(lic)
-                                setIntegrationModalOpen(true)
-                              }}
-                              className="text-xs h-7 px-2.5 gap-1"
-                            >
-                              <Code2 size={12} />
-                              API
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
                               onClick={() => handleOpenApp(lic)}
-                              className="text-xs h-7 px-2.5 gap-1"
                             >
-                              <ExternalLink size={12} />
                               Buka
                             </Button>
-                            <IconButton
-                              label={isSuspended ? 'Aktifkan Lisensi' : 'Suspend Lisensi'}
-                              onClick={() => void handleToggleSuspend(lic)}
-                              className={`h-7 w-7 ${
-                                isSuspended
-                                  ? 'text-emerald-600 hover:bg-emerald-500/10'
-                                  : 'text-amber-600 hover:bg-amber-500/10'
-                              }`}
-                            >
-                              {isSuspended ? <PlayCircle size={12} /> : <Ban size={12} />}
-                            </IconButton>
-                            <IconButton
-                              label="Edit Lisensi"
-                              onClick={() => {
-                                setEditingLicense(lic)
-                                setEditModalOpen(true)
-                              }}
-                              className="h-7 w-7"
-                            >
-                              <Pencil size={12} />
-                            </IconButton>
-                            <IconButton
-                              label="Hapus Lisensi"
-                              onClick={() => void handleDeleteLicense(lic)}
-                              className="text-rose-500 hover:bg-rose-500/10 h-7 w-7"
-                            >
-                              <Trash2 size={12} />
-                            </IconButton>
+                            <ActionMenu
+                              label={t('common.moreActions')}
+                              size="sm"
+                              variant="outline"
+                              items={[
+                                {
+                                  key: 'api',
+                                  label: 'Integrasi API',
+                                  onSelect: () => {
+                                    setIntegrationLicense(lic)
+                                    setIntegrationModalOpen(true)
+                                  },
+                                },
+                                {
+                                  key: 'toggle-suspend',
+                                  label: isSuspended ? 'Aktifkan Lisensi' : 'Suspend Lisensi',
+                                  tone: isSuspended ? 'primary' : 'warning',
+                                  onSelect: () => void handleToggleSuspend(lic),
+                                },
+                                {
+                                  key: 'edit',
+                                  label: 'Edit Lisensi',
+                                  dividerBefore: true,
+                                  onSelect: () => {
+                                    setEditingLicense(lic)
+                                    setEditModalOpen(true)
+                                  },
+                                },
+                                {
+                                  key: 'delete',
+                                  label: 'Hapus Lisensi',
+                                  tone: 'danger',
+                                  onSelect: () => void handleDeleteLicense(lic),
+                                },
+                              ]}
+                            />
                           </div>
                         </div>
                       </div>
@@ -864,26 +800,28 @@ export function AppLicensesWindow() {
                             <span className="docker-row__sub">
                               {lic.planName} · <span className="font-mono">{lic.catalogId}</span>
                             </span>
+                            <span className="docker-row__meta">
+                              {`${lic.licenseKey} · Rp ${lic.priceAmount?.toLocaleString('id-ID')}/${lic.period === 'annual' ? 'thn' : 'bln'}`}
+                            </span>
                           </div>
                         </div>
 
                         <div className="docker-cell docker-cell--mono">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="font-semibold text-[var(--panel-primary-text)]">
                               {lic.licenseKey}
                             </span>
-                            <button
-                              type="button"
+                            <IconButton
+                              label="Salin License Key"
+                              size="sm"
                               onClick={() => handleCopyKey(lic.licenseKey)}
-                              className="p-1 text-[var(--text-secondary)] hover:text-emerald-500 rounded transition"
-                              title="Salin License Key"
                             >
                               {copiedKey === lic.licenseKey ? (
-                                <Check size={12} className="text-emerald-500" />
+                                <Check size={12} className="text-[var(--panel-success-text)]" />
                               ) : (
                                 <Copy size={12} />
                               )}
-                            </button>
+                            </IconButton>
                           </div>
                         </div>
 
@@ -895,8 +833,8 @@ export function AppLicensesWindow() {
                           </span>
                         </div>
 
-                        <div className="docker-cell space-y-1">
-                          <div className="text-[11px] font-medium text-[var(--win-text)]">
+                        <div className="docker-cell docker-cell--keep space-y-1">
+                          <div className="text-[11px] font-medium text-[var(--win-text)] hidden sm:block">
                             {new Date(lic.expiresAt).toLocaleDateString('id-ID', {
                               day: 'numeric',
                               month: 'short',
@@ -925,25 +863,16 @@ export function AppLicensesWindow() {
                         </div>
 
                         <div className="docker-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {lic.features && Object.keys(lic.features).length > 0 ? (
-                              Object.entries(lic.features).map(([k, v]) => {
-                                const label = formatFeatureBadge(k, v)
-                                if (!label) return null
-                                return (
-                                  <span
-                                    key={k}
-                                    className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-0.5"
-                                  >
-                                    <Check size={9} strokeWidth={2.5} />
-                                    {label}
-                                  </span>
-                                )
-                              })
-                            ) : (
-                              <span className="text-[11px] text-[var(--text-secondary)]">-</span>
-                            )}
-                          </div>
+                          <span className="text-[11.5px] text-[var(--text-secondary)] truncate">
+                            {(() => {
+                              const labels = lic.features
+                                ? Object.entries(lic.features)
+                                    .map(([k, v]) => formatFeatureBadge(k, v))
+                                    .filter((x): x is string => Boolean(x))
+                                : []
+                              return labels.length > 0 ? labels.join(' · ') : '-'
+                            })()}
+                          </span>
                         </div>
 
                         <div className="docker-action-btns">
@@ -951,65 +880,50 @@ export function AppLicensesWindow() {
                             size="sm"
                             variant="primary"
                             onClick={() => handleOpenRenew(lic)}
-                            className="text-[11px] h-7 px-2 gap-1 shadow-sm"
                           >
-                            <CreditCard size={12} />
                             Perpanjang
                           </Button>
-
-                          <Button
+                          <ActionMenu
+                            label={t('common.moreActions')}
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                              setIntegrationLicense(lic)
-                              setIntegrationModalOpen(true)
-                            }}
-                            className="text-[11px] h-7 px-2 gap-1"
-                          >
-                            <Code2 size={12} />
-                            API
-                          </Button>
-
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenApp(lic)}
-                            className="text-[11px] h-7 px-2 gap-1"
-                          >
-                            <ExternalLink size={12} />
-                            Buka
-                          </Button>
-
-                          <IconButton
-                            label={lic.status === 'SUSPENDED' ? 'Aktifkan Lisensi' : 'Suspend Lisensi'}
-                            onClick={() => void handleToggleSuspend(lic)}
-                            className={`h-7 w-7 border-transparent ${
-                              lic.status === 'SUSPENDED'
-                                ? 'text-emerald-600 hover:bg-emerald-500/10'
-                                : 'text-amber-600 hover:bg-amber-500/10'
-                            }`}
-                          >
-                            {lic.status === 'SUSPENDED' ? <PlayCircle size={12} /> : <Ban size={12} />}
-                          </IconButton>
-
-                          <IconButton
-                            label="Edit Lisensi"
-                            onClick={() => {
-                              setEditingLicense(lic)
-                              setEditModalOpen(true)
-                            }}
-                            className="h-7 w-7 border-transparent"
-                          >
-                            <Pencil size={12} />
-                          </IconButton>
-
-                          <IconButton
-                            label="Hapus Lisensi"
-                            onClick={() => void handleDeleteLicense(lic)}
-                            className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
-                          >
-                            <Trash2 size={12} />
-                          </IconButton>
+                            items={[
+                              {
+                                key: 'open',
+                                label: 'Buka Aplikasi',
+                                onSelect: () => handleOpenApp(lic),
+                              },
+                              {
+                                key: 'api',
+                                label: 'Integrasi API',
+                                onSelect: () => {
+                                  setIntegrationLicense(lic)
+                                  setIntegrationModalOpen(true)
+                                },
+                              },
+                              {
+                                key: 'toggle-suspend',
+                                label: lic.status === 'SUSPENDED' ? 'Aktifkan Lisensi' : 'Suspend Lisensi',
+                                tone: lic.status === 'SUSPENDED' ? 'primary' : 'warning',
+                                onSelect: () => void handleToggleSuspend(lic),
+                              },
+                              {
+                                key: 'edit',
+                                label: 'Edit Lisensi',
+                                dividerBefore: true,
+                                onSelect: () => {
+                                  setEditingLicense(lic)
+                                  setEditModalOpen(true)
+                                },
+                              },
+                              {
+                                key: 'delete',
+                                label: 'Hapus Lisensi',
+                                tone: 'danger',
+                                onSelect: () => void handleDeleteLicense(lic),
+                              },
+                            ]}
+                          />
                         </div>
                       </div>
                     )
@@ -1023,15 +937,15 @@ export function AppLicensesWindow() {
 
       {/* Tab 2: Plans & Pricing (Reneo CRM Services) */}
       {activeTab === 'plans' && (
-        <div className="flex-1 flex flex-col min-h-0 p-5 space-y-3 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
           {/* Subheader bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+            <div className="min-w-0">
+              <div className="flex items-center flex-wrap gap-2">
                 <h3 className="text-sm font-semibold text-[var(--win-text)]">
                   Paket Langganan Reneo CRM Services
                 </h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--text-secondary)]">
+                <span className="text-[10px] font-mono text-[var(--text-secondary)]">
                   reneo-crm
                 </span>
               </div>
@@ -1040,15 +954,12 @@ export function AppLicensesWindow() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <div className="flex items-center justify-end gap-2 ml-auto shrink-0">
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
               <Button
-                size="sm"
                 variant="primary"
                 onClick={() => setCreatePlanModalOpen(true)}
-                className="gap-1.5 shadow-sm"
               >
-                <Plus size={14} />
                 Tambah Paket Tarif
               </Button>
             </div>
@@ -1108,54 +1019,56 @@ export function AppLicensesWindow() {
                           </div>
                         </div>
 
-                        {/* Feature check-list */}
-                        <div className="border-t border-[var(--win-border)] pt-3 space-y-2 text-xs">
+                        {/* Feature list */}
+                        <ul className="border-t border-[var(--win-border)] pt-3 space-y-1.5 text-xs">
                           {p.features && Object.keys(p.features).length > 0 ? (
                             Object.entries(p.features).map(([k, v]) => {
                               const label = formatFeatureBadge(k, v)
                               if (!label) return null
                               return (
-                                <div key={k} className="flex items-center gap-2 text-[var(--win-text)]">
-                                  <Check size={13} className="text-[var(--panel-primary-text)] shrink-0" strokeWidth={2.5} />
-                                  <span>{label}</span>
-                                </div>
+                                <li key={k} className="text-[var(--win-text)]">
+                                  · {label}
+                                </li>
                               )
                             })
                           ) : (
-                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
+                            <li className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</li>
                           )}
-                        </div>
+                        </ul>
                       </div>
 
-                      <div className="pt-4 mt-3 border-t border-[var(--win-border)] flex items-center gap-2">
+                      <div className="pt-4 mt-3 border-t border-[var(--win-border)] flex items-center justify-between gap-2">
                         <Button
                           size="sm"
                           variant={p.highlighted ? 'primary' : 'outline'}
                           block
                           loading={orderMutation.isPending}
                           onClick={() => handleOrderPlan(p)}
-                          className="text-xs h-8 gap-1.5 flex-1"
+                          className="flex-1"
                         >
-                          <ReceiptText size={13} />
-                          Pesan & Invoice
+                          Pesan &amp; Invoice
                         </Button>
-                        <IconButton
-                          label="Edit Paket"
-                          onClick={() => {
-                            setEditingPlan(p)
-                            setEditPlanModalOpen(true)
-                          }}
-                          className="h-8 w-8"
-                        >
-                          <Pencil size={13} />
-                        </IconButton>
-                        <IconButton
-                          label="Hapus Paket"
-                          onClick={() => void handleDeletePlan(p)}
-                          className="text-rose-500 hover:bg-rose-500/10 h-8 w-8"
-                        >
-                          <Trash2 size={13} />
-                        </IconButton>
+                        <ActionMenu
+                          label={t('common.moreActions')}
+                          size="sm"
+                          variant="outline"
+                          items={[
+                            {
+                              key: 'edit',
+                              label: 'Edit Paket',
+                              onSelect: () => {
+                                setEditingPlan(p)
+                                setEditPlanModalOpen(true)
+                              },
+                            },
+                            {
+                              key: 'delete',
+                              label: 'Hapus Paket',
+                              tone: 'danger',
+                              onSelect: () => void handleDeletePlan(p),
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1194,19 +1107,22 @@ export function AppLicensesWindow() {
 
                       <div className="docker-row__app">
                         <ListRowIcon>
-                          <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                          <Boxes className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
                         </ListRowIcon>
                         <div className="docker-row__text">
                           <span className="docker-app-name" title={p.name}>
                             {p.name}
                             {p.highlighted && (
-                              <span className="ml-1.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white">
+                              <Badge tone="primary" size="sm" className="ml-1.5">
                                 Paling Populer
-                              </span>
+                              </Badge>
                             )}
                           </span>
                           <span className="docker-row__sub" title={p.tagline}>
                             {p.tagline || p.slug}
+                          </span>
+                          <span className="docker-row__meta">
+                            {`Rp ${p.priceAmount.toLocaleString('id-ID')} / ${p.period === 'annual' ? 'thn' : 'bln'} · ${p.period === 'annual' ? '12 Bln' : `${p.months || 1} Bln`}`}
                           </span>
                         </div>
                       </div>
@@ -1224,25 +1140,16 @@ export function AppLicensesWindow() {
                       </div>
 
                       <div className="docker-cell">
-                        <div className="flex flex-wrap gap-1">
-                          {p.features && Object.keys(p.features).length > 0 ? (
-                            Object.entries(p.features).map(([k, v]) => {
-                              const label = formatFeatureBadge(k, v)
-                              if (!label) return null
-                              return (
-                                <span
-                                  key={k}
-                                  className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--win-bg)] border border-[var(--win-border)] text-[var(--win-text)] inline-flex items-center gap-0.5"
-                                >
-                                  <Check size={9} className="text-emerald-500" strokeWidth={2.5} />
-                                  {label}
-                                </span>
-                              )
-                            })
-                          ) : (
-                            <span className="text-[11px] text-[var(--text-secondary)]">Fitur Standar</span>
-                          )}
-                        </div>
+                        <span className="text-[11.5px] text-[var(--text-secondary)] truncate">
+                          {(() => {
+                            const labels = p.features
+                              ? Object.entries(p.features)
+                                  .map(([k, v]) => formatFeatureBadge(k, v))
+                                  .filter((x): x is string => Boolean(x))
+                              : []
+                            return labels.length > 0 ? labels.join(' · ') : 'Fitur Standar'
+                          })()}
+                        </span>
                       </div>
 
                       <div className="docker-cell--keep">
@@ -1257,28 +1164,30 @@ export function AppLicensesWindow() {
                           variant={p.highlighted ? 'primary' : 'outline'}
                           loading={orderMutation.isPending}
                           onClick={() => handleOrderPlan(p)}
-                          className="text-[11px] h-7 px-2.5 gap-1"
                         >
-                          <ReceiptText size={12} />
-                          Pesan & Invoice
+                          Pesan &amp; Invoice
                         </Button>
-                        <IconButton
-                          label="Edit Paket"
-                          onClick={() => {
-                            setEditingPlan(p)
-                            setEditPlanModalOpen(true)
-                          }}
-                          className="h-7 w-7 border-transparent"
-                        >
-                          <Pencil size={12} />
-                        </IconButton>
-                        <IconButton
-                          label="Hapus Paket"
-                          onClick={() => void handleDeletePlan(p)}
-                          className="text-rose-500 hover:bg-rose-500/10 h-7 w-7 border-transparent"
-                        >
-                          <Trash2 size={12} />
-                        </IconButton>
+                        <ActionMenu
+                          label={t('common.moreActions')}
+                          size="sm"
+                          variant="outline"
+                          items={[
+                            {
+                              key: 'edit',
+                              label: 'Edit Paket',
+                              onSelect: () => {
+                                setEditingPlan(p)
+                                setEditPlanModalOpen(true)
+                              },
+                            },
+                            {
+                              key: 'delete',
+                              label: 'Hapus Paket',
+                              tone: 'danger',
+                              onSelect: () => void handleDeletePlan(p),
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1291,8 +1200,8 @@ export function AppLicensesWindow() {
 
       {/* Tab 3: Riwayat Invoice */}
       {activeTab === 'invoices' && (
-        <div className="flex-1 flex flex-col min-h-0 p-5 space-y-3 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex-1 flex flex-col min-h-0 p-3 sm:p-4 space-y-3 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 shrink-0">
             <div>
               <h3 className="text-sm font-semibold text-[var(--win-text)]">
                 Daftar Tagihan & Invoice Lisensi
@@ -1302,7 +1211,9 @@ export function AppLicensesWindow() {
               </p>
             </div>
 
-            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <div className="ml-auto shrink-0">
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
+            </div>
           </div>
 
           {/* Invoices Content (Card vs List) */}
@@ -1327,7 +1238,7 @@ export function AppLicensesWindow() {
                     return (
                       <div
                         key={ord.id}
-                        className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-text)]/40 transition p-4 flex flex-col justify-between gap-3 shadow-sm"
+                        className="rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-text)]/40 transition-colors p-4 flex flex-col justify-between gap-3"
                       >
                         <div className="space-y-2">
                           <div className="flex items-start justify-between gap-2">
@@ -1360,7 +1271,7 @@ export function AppLicensesWindow() {
 
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[11px] text-[var(--text-secondary)]">Total Tagihan:</span>
-                            <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="font-mono text-sm font-bold text-[var(--win-text)]">
                               Rp {ord.amountTotal.toLocaleString('id-ID')}
                             </span>
                           </div>
@@ -1376,29 +1287,16 @@ export function AppLicensesWindow() {
                           </span>
                           <div className="flex items-center gap-1.5">
                             {isPending && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="primary"
-                                  onClick={() => {
-                                    setSelectedOrder(ord)
-                                    setInvoiceModalOpen(true)
-                                  }}
-                                  className="text-xs h-7 px-2 gap-1"
-                                >
-                                  <CreditCard size={12} />
-                                  Bayar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => void handleCancelOrder(ord)}
-                                  className="text-xs h-7 px-2 gap-1 text-rose-500 hover:bg-rose-500/10"
-                                >
-                                  <XCircle size={12} />
-                                  Batalkan
-                                </Button>
-                              </>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={() => {
+                                  setSelectedOrder(ord)
+                                  setInvoiceModalOpen(true)
+                                }}
+                              >
+                                Bayar
+                              </Button>
                             )}
                             <Button
                               size="sm"
@@ -1407,11 +1305,24 @@ export function AppLicensesWindow() {
                                 setSelectedOrder(ord)
                                 setInvoiceModalOpen(true)
                               }}
-                              className="text-xs h-7 px-2 gap-1"
                             >
-                              <FileText size={12} />
                               Invoice
                             </Button>
+                            {isPending && (
+                              <ActionMenu
+                                label={t('common.moreActions')}
+                                size="sm"
+                                variant="outline"
+                                items={[
+                                  {
+                                    key: 'cancel',
+                                    label: 'Batalkan Invoice',
+                                    tone: 'danger',
+                                    onSelect: () => void handleCancelOrder(ord),
+                                  },
+                                ]}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1456,7 +1367,7 @@ export function AppLicensesWindow() {
 
                         <div className="docker-row__app">
                           <ListRowIcon>
-                            <ReceiptText className="h-3.5 w-3.5 text-emerald-500" />
+                            <ReceiptText className="h-3.5 w-3.5 text-[var(--panel-primary-text)]" />
                           </ListRowIcon>
                           <div className="docker-row__text">
                             <span className="docker-app-name docker-app-name--mono">
@@ -1464,6 +1375,9 @@ export function AppLicensesWindow() {
                             </span>
                             <span className="docker-row__sub">
                               {ord.buyerName || 'Pelanggan'} · {ord.paymentMethod?.toUpperCase()}
+                            </span>
+                            <span className="docker-row__meta">
+                              {`${ord.planName} (${ord.months} Bln) · Rp ${ord.amountTotal.toLocaleString('id-ID')}`}
                             </span>
                           </div>
                         </div>
@@ -1475,7 +1389,7 @@ export function AppLicensesWindow() {
                           </span>
                         </div>
 
-                        <div className="docker-cell docker-cell--mono font-semibold text-emerald-600 dark:text-emerald-400">
+                        <div className="docker-cell docker-cell--mono font-semibold text-[var(--win-text)]">
                           Rp {ord.amountTotal.toLocaleString('id-ID')}
                         </div>
 
@@ -1507,29 +1421,16 @@ export function AppLicensesWindow() {
 
                         <div className="docker-action-btns">
                           {isPending && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => {
-                                  setSelectedOrder(ord)
-                                  setInvoiceModalOpen(true)
-                                }}
-                                className="text-[11px] h-7 px-2 gap-1"
-                              >
-                                <CreditCard size={12} />
-                                Bayar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void handleCancelOrder(ord)}
-                                className="text-[11px] h-7 px-2 gap-1 text-rose-500 hover:bg-rose-500/10"
-                              >
-                                <XCircle size={12} />
-                                Batalkan
-                              </Button>
-                            </>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => {
+                                setSelectedOrder(ord)
+                                setInvoiceModalOpen(true)
+                              }}
+                            >
+                              Bayar
+                            </Button>
                           )}
                           <Button
                             size="sm"
@@ -1538,11 +1439,24 @@ export function AppLicensesWindow() {
                               setSelectedOrder(ord)
                               setInvoiceModalOpen(true)
                             }}
-                            className="text-[11px] h-7 px-2 gap-1"
                           >
-                            <FileText size={12} />
                             Invoice
                           </Button>
+                          {isPending && (
+                            <ActionMenu
+                              label={t('common.moreActions')}
+                              size="sm"
+                              variant="outline"
+                              items={[
+                                {
+                                  key: 'cancel',
+                                  label: 'Batalkan Invoice',
+                                  tone: 'danger',
+                                  onSelect: () => void handleCancelOrder(ord),
+                                },
+                              ]}
+                            />
+                          )}
                         </div>
                       </div>
                     )
@@ -1572,8 +1486,7 @@ export function AppLicensesWindow() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1">
-                  <Printer size={13} />
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
                   Cetak
                 </Button>
                 {selectedOrder.status === 'pending' ? (
@@ -1583,9 +1496,8 @@ export function AppLicensesWindow() {
                       size="sm"
                       loading={cancelOrderMutation.isPending}
                       onClick={() => void handleCancelOrder(selectedOrder)}
-                      className="gap-1 text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]"
+                      className="text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]"
                     >
-                      <XCircle size={13} />
                       Batalkan
                     </Button>
                     <Button
@@ -1598,9 +1510,7 @@ export function AppLicensesWindow() {
                           method: selectedOrder.paymentMethod || activePaymentMethods[0]?.id || 'transfer',
                         })
                       }}
-                      className="gap-1.5"
                     >
-                      <CheckCircle2 size={14} />
                       Konfirmasi Lunas
                     </Button>
                   </>
@@ -1685,8 +1595,7 @@ export function AppLicensesWindow() {
             {/* Metode Pembayaran Aktif */}
             {selectedOrder.status === 'pending' && (
               <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2">
-                <h5 className="font-bold text-[var(--win-text)] flex items-center gap-1.5">
-                  <CreditCard size={14} className="text-[var(--panel-primary-text)]" />
+                <h5 className="font-bold text-[var(--win-text)]">
                   Tujuan Pembayaran Aktif:
                 </h5>
                 {orderDetailLoading ? (
@@ -1764,10 +1673,8 @@ export function AppLicensesWindow() {
                       paymentMethod,
                     })
                   }}
-                  className="gap-1.5"
                 >
-                  <CheckCircle2 size={14} />
-                  Konfirmasi & Bayar
+                  Konfirmasi &amp; Bayar
                 </Button>
               </div>
             </div>
@@ -1786,21 +1693,21 @@ export function AppLicensesWindow() {
                       key={opt.months}
                       type="button"
                       onClick={() => setMonths(opt.months)}
-                      className={`text-left p-3 rounded-xl border transition-all ${
+                      className={`text-left p-3 rounded-lg border transition-colors ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-500/10 shadow-sm ring-1 ring-emerald-500'
-                          : 'border-[var(--win-border)] bg-[var(--win-bg)] hover:border-emerald-500/40'
+                          ? 'border-[var(--panel-primary-border)] bg-[var(--panel-primary-bg)] ring-1 ring-[var(--panel-primary-border)]'
+                          : 'border-[var(--win-border)] bg-[var(--win-bg)] hover:border-[var(--win-border-focus)]'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-xs text-[var(--win-text)]">{opt.label}</span>
                         {opt.savings && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500 text-white">
+                          <Badge tone="primary" size="sm">
                             {opt.savings}
-                          </span>
+                          </Badge>
                         )}
                       </div>
-                      <div className="font-bold text-sm text-emerald-600 dark:text-emerald-400 mt-2">
+                      <div className="font-bold text-sm text-[var(--panel-primary-text)] mt-2 tabular-nums">
                         Rp {opt.price.toLocaleString('id-ID')}
                       </div>
                       <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">{opt.desc}</div>
@@ -1820,7 +1727,7 @@ export function AppLicensesWindow() {
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[var(--text-secondary)]">Masa Aktif Baru:</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="font-semibold text-[var(--panel-success-text)]">
                   s/d {calculatedNewExpiry}
                 </span>
               </div>

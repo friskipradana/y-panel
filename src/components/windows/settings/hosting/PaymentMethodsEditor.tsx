@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import type { OrderMethod } from '@/api/system'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -26,7 +26,7 @@ export function PaymentMethodsEditor({ methods, onChange }: { methods: OrderMeth
           <h3 className="text-[12.5px] font-semibold text-[var(--win-text)]">{t('hosting.payment.methods')}</h3>
           <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t('hosting.payment.methodsHint')}</p>
         </div>
-        <Button variant="outline" size="sm" className="mobile:w-full" icon={<Plus className="h-3.5 w-3.5" />} disabled={methods.length >= MAX_METHODS} onClick={() => onChange([...methods, blankMethod()])}>
+        <Button variant="outline" size="sm" className="mobile:w-full" disabled={methods.length >= MAX_METHODS} onClick={() => onChange([...methods, blankMethod()])}>
           {t('hosting.payment.addMethod')}
         </Button>
       </div>

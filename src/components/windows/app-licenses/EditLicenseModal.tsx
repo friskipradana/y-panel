@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Pencil, KeyRound, CheckCircle2 } from 'lucide-react'
+import { Pencil, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateAppLicense, type AppLicense } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -157,9 +157,7 @@ export function EditLicenseModal({
             variant="primary"
             size="sm"
             loading={loading}
-            className="gap-1.5"
           >
-            <CheckCircle2 size={14} />
             Simpan Perubahan
           </Button>
         </div>

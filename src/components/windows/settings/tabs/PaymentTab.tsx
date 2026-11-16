@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/Button";
 import { Stepper } from "@/components/ui/Stepper";
@@ -53,13 +52,12 @@ export function PaymentTab({
           </div>
 
           <div className="flex items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
-            <Button variant="ghost" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} disabled={step === 1} onClick={() => setStep((step - 1) as Step)}>
+            <Button variant="ghost" size="sm" disabled={step === 1} onClick={() => setStep((step - 1) as Step)}>
               {t("common.previous")}
             </Button>
             {step < 3 ? (
               <Button variant="primary" size="sm" onClick={() => setStep((step + 1) as Step)}>
                 {t("common.next")}
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             ) : null}
           </div>

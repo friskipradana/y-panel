@@ -1,5 +1,6 @@
-import { CircleArrowUp, Database, ExternalLink, KeyRound, LoaderCircle, Play, Plus, RefreshCw, Search, Settings2, Square, Trash2 } from 'lucide-react'
+import { Database, ExternalLink, LoaderCircle, Play, Plus, RefreshCw, Search, Square } from 'lucide-react'
 import type { UserDatabase } from '@/api/agent'
+import { ActionMenu } from '@/components/ui/ActionMenu'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
 import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -45,22 +46,6 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
         >
           <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
-        <button type="button" className="docker-act-btn" title={t('databases.admin.manage')} aria-label={t('databases.admin.manage')} disabled={pending || broken || !running} onClick={() => setManageTarget(item)}>
-          <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-        <button type="button" className="docker-act-btn" title={t('databases.showConnection')} aria-label={t('databases.showConnection')} disabled={pending || broken} onClick={() => setConnectionTarget(item)}>
-          <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          className="docker-act-btn"
-          title={t('databases.upgradeTitle')}
-          aria-label={t('databases.upgradeTitle')}
-          disabled={pending || broken || upgradeMut.isPending}
-          onClick={() => setUpgradeTarget(item)}
-        >
-          <CircleArrowUp className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
         {starting || stopping ? (
           <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('databases.working')} aria-label={t('databases.working')}>
             <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
@@ -74,9 +59,39 @@ export function DatabaseWindow({ win }: { win?: WindowState; authenticated?: boo
             <Play className="h-3.5 w-3.5 fill-current" strokeWidth={1.75} />
           </button>
         )}
-        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={pending || deleteBusy(item.id)} onClick={() => void confirmDelete(item)}>
-          {deleteBusy(item.id) ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
-        </button>
+        <ActionMenu
+          label={t('common.moreActions')}
+          compact
+          loading={deleteBusy(item.id)}
+          items={[
+            {
+              key: 'manage',
+              label: t('databases.admin.manage'),
+              disabled: pending || broken || !running,
+              onSelect: () => setManageTarget(item),
+            },
+            {
+              key: 'connection',
+              label: t('databases.showConnection'),
+              disabled: pending || broken,
+              onSelect: () => setConnectionTarget(item),
+            },
+            {
+              key: 'upgrade',
+              label: t('databases.upgradeTitle'),
+              disabled: pending || broken || upgradeMut.isPending,
+              onSelect: () => setUpgradeTarget(item),
+            },
+            {
+              key: 'delete',
+              label: t('common.delete'),
+              tone: 'danger',
+              dividerBefore: true,
+              disabled: pending || deleteBusy(item.id),
+              onSelect: () => void confirmDelete(item),
+            },
+          ]}
+        />
       </div>
     )
   }

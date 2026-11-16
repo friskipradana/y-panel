@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Cloud, Globe, Plus, Power, ShieldCheck, Trash2 } from 'lucide-react'
+import { Globe, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { checkPublicRoute, createRouteDns, deletePublicRoute, getPublicProxy, updatePublicRoute, type PublicRoute, type PublicRouteState } from '@/api/publicProxy'
 import { DateTimeText } from '@/components/common/DateTimeText'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Button } from '@/components/ui/Button'
 import type { UiTone } from '@/components/ui/IconBadge'
 import { ListRowIcon, ListState, ListTable } from '@/components/ui/ListTable'
@@ -68,12 +69,9 @@ export function PublicRoutesCard() {
   const running = status.data?.running === true
   return (
     <div className="panel-shell-card flex flex-col settings-card !p-3.5 !gap-3">
-      <div className="flex items-start gap-2.5 min-w-0">
-        <Globe className="mt-0.5 h-4 w-4 shrink-0 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-        <div>
-          <h2 className="text-[13px] font-semibold leading-tight text-[var(--win-text)]">{t('publicip.routes.title')}</h2>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t('publicip.routes.subtitle')}</p>
-        </div>
+      <div className="min-w-0">
+        <h2 className="text-[13px] font-semibold leading-tight text-[var(--win-text)]">{t('publicip.routes.title')}</h2>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t('publicip.routes.subtitle')}</p>
       </div>
       {status.data && !running ? <p className="panel-muted-block px-3 py-2 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">{t('publicip.routes.proxyOff')}</p> : null}
 
@@ -86,7 +84,7 @@ export function PublicRoutesCard() {
         fetching={table.query.isFetching && !table.query.isLoading}
         onRefresh={() => void table.query.refetch()}
         extra={
-          <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setAdding(true)}>
+          <Button variant="primary" size="sm" onClick={() => setAdding(true)}>
             {t('publicip.route.add')}
           </Button>
         }
@@ -116,6 +114,13 @@ export function PublicRoutesCard() {
         >
           {table.items.map((row, index) => {
             const working = busyId === row.id
+            const menuItems: ActionMenuItem[] = [
+              ...(status.data?.cloudflare
+                ? [{ key: 'dns', label: t('publicip.route.makeDns'), disabled: working, onSelect: () => dns.mutate(row) }]
+                : []),
+              { key: 'toggle', label: row.enabled ? t('publicip.route.switchOff') : t('publicip.route.switchOn'), disabled: toggle.isPending, onSelect: () => toggle.mutate(row) },
+              { key: 'delete', label: t('common.delete'), tone: 'danger', dividerBefore: true, disabled: remove.isPending, onSelect: () => void askDelete(row) },
+            ]
             return (
               <div className="docker-row" key={row.id}>
                 <div className="docker-row__num">{indexLabel(index)}</div>
@@ -133,20 +138,10 @@ export function PublicRoutesCard() {
                 </div>
                 <div className="docker-cell">{row.certExpires ? <DateTimeText value={row.certExpires} /> : '-'}</div>
                 <div className="docker-action-btns">
-                  {status.data?.cloudflare ? (
-                    <RowAction label={t('publicip.route.makeDns')} disabled={working} onClick={() => dns.mutate(row)}>
-                      <Cloud className={`h-3.5 w-3.5 ${working && dns.isPending ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
-                    </RowAction>
-                  ) : null}
                   <RowAction label={t('publicip.route.check')} disabled={working || !running || !row.enabled} onClick={() => check.mutate(row)}>
                     <ShieldCheck className={`h-3.5 w-3.5 ${working ? 'animate-pulse' : ''}`} strokeWidth={1.75} />
                   </RowAction>
-                  <RowAction label={row.enabled ? t('publicip.route.switchOff') : t('publicip.route.switchOn')} disabled={toggle.isPending} onClick={() => toggle.mutate(row)}>
-                    <Power className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </RowAction>
-                  <RowAction label={t('common.delete')} danger disabled={remove.isPending} onClick={() => void askDelete(row)}>
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  </RowAction>
+                  <ActionMenu compact label={t('common.moreActions')} items={menuItems} />
                 </div>
               </div>
             )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Globe2, LocateFixed, ShieldCheck } from 'lucide-react'
+import { Globe2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { detectPublicIp, getPublicProxy, openWebPorts, setPublicProxy, type DetectedIp } from '@/api/publicProxy'
 import { Badge } from '@/components/ui/Badge'
@@ -129,7 +129,7 @@ export function PublicIpStatusCard() {
                 <p className="text-[0.8125rem] font-medium text-[var(--win-text)]">{t('publicip.addresses')}</p>
                 <p className="text-[0.75rem] text-[var(--text-secondary)]">{publicAddresses.length > 0 ? t('publicip.addressesPublic') : t('publicip.addressesNone')}</p>
               </div>
-              <Button variant="outline" icon={<LocateFixed className="h-3.5 w-3.5" />} loading={detect.isPending} onClick={() => detect.mutate()}>
+              <Button variant="outline" loading={detect.isPending} onClick={() => detect.mutate()}>
                 {t('publicip.detect')}
               </Button>
             </div>

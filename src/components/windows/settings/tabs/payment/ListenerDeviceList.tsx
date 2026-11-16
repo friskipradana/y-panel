@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, LoaderCircle, Pencil, Plus, Smartphone, Trash2 } from "lucide-react";
+import { KeyRound, LoaderCircle, Pencil, Smartphone, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { alertLib } from "@/lib/alert";
 import { formatDateTimeID } from "@/lib/datetime";
@@ -78,14 +78,11 @@ export function ListenerDeviceList({ listener, setActiveTab }: { listener: Notif
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-2.5">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-[var(--panel-primary-text)]" strokeWidth={1.75} />
-          <div>
-            <h3 className="text-[13px] font-semibold leading-tight text-[var(--win-text)]">{t("settings.listener.manageTitle")}</h3>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t("settings.listener.manageSubtitle")}</p>
-          </div>
+        <div className="min-w-0">
+          <h3 className="text-[13px] font-semibold leading-tight text-[var(--win-text)]">{t("settings.listener.manageTitle")}</h3>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--text-secondary)]">{t("settings.listener.manageSubtitle")}</p>
         </div>
-        <Button variant="primary" size="sm" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setForm({ device: null })}>
+        <Button variant="primary" size="sm" onClick={() => setForm({ device: null })}>
           {t("settings.listener.addDevice")}
         </Button>
       </div>

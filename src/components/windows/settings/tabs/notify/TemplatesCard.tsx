@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageSquareText, RotateCcw } from 'lucide-react'
+import { MessageSquareText } from 'lucide-react'
 import { toast } from 'sonner'
 import { listNotifyTemplates, resetNotifyTemplate, saveNotifyTemplate, type NotifyTemplate } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
@@ -174,7 +174,7 @@ function Editor({ item, maxLength }: { item: NotifyTemplate; maxLength: number }
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--win-border)] pt-3.5">
         {isCustom ? (
-          <Button variant="ghost" icon={<RotateCcw className="h-3.5 w-3.5" />} loading={reset.isPending} onClick={() => void askReset()}>
+          <Button variant="ghost" loading={reset.isPending} onClick={() => void askReset()}>
             {t('notify.templates.reset')}
           </Button>
         ) : null}

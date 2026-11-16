@@ -23,7 +23,7 @@ export function SearchInput({ value, onChange, onSubmit, placeholder, id, action
         onSubmit?.()
       }}
     >
-      <Search className="h-4 w-4" aria-hidden="true" />
+      <Search className="h-3.5 w-3.5 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
       <input
         id={id}
         type="search"

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, Unplug } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { confirmWhatsAppVerify, disconnectWhatsApp, getMyWhatsApp, getNotifyMode, setWhatsAppMuted, startWhatsAppVerify, testWhatsApp } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
@@ -114,7 +114,7 @@ export function WhatsAppVerifyCard({ groups }: { groups: readonly string[] }) {
                 <Button variant="outline" size="sm" onClick={() => setChanging(true)}>
                   {t('notify.wa.verify.change')}
                 </Button>
-                <Button variant="danger-soft" size="sm" icon={<Unplug className="h-3.5 w-3.5" />} loading={disconnect.isPending} onClick={() => void askDisconnect()}>
+                <Button variant="danger-soft" size="sm" loading={disconnect.isPending} onClick={() => void askDisconnect()}>
                   {t('notify.wa.disconnect')}
                 </Button>
               </div>

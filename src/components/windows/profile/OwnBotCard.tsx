@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, Trash2 } from 'lucide-react'
+import { Bot } from 'lucide-react'
 import { toast } from 'sonner'
 import { getOwnBot, removeOwnBot, saveOwnBot } from '@/api/notify'
 import { Badge } from '@/components/ui/Badge'
@@ -117,7 +117,7 @@ export function OwnBotCard() {
 
       <div className="flex flex-wrap items-center justify-between gap-2 notice-foot">
         {state.configured ? (
-          <Button variant="danger-soft" icon={<Trash2 className="h-3.5 w-3.5" />} loading={remove.isPending} onClick={() => void askRemove()}>
+          <Button variant="danger-soft" loading={remove.isPending} onClick={() => void askRemove()}>
             {t('notify.own.remove')}
           </Button>
         ) : (

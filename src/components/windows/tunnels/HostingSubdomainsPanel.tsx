@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Globe2, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, Globe2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createMySubdomain, deleteMySubdomain, getMySubdomains, type Subdomain, type SubdomainStatus } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
@@ -67,7 +67,7 @@ export function HostingSubdomainsPanel() {
           subtitle={data.limit > 0 ? t('hosting.sub.quota', { used: data.used, limit: data.limit }) : t('hosting.sub.panelOnly')}
           actions={
             data.limit > 0 ? (
-              <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} disabled={!canAdd} onClick={() => setOpen(true)}>
+              <Button variant="primary" disabled={!canAdd} onClick={() => setOpen(true)}>
                 {t('hosting.sub.add')}
               </Button>
             ) : undefined

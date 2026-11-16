@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dices, Ticket } from 'lucide-react'
+import { Ticket } from 'lucide-react'
 import type { HostingPlan, HostingVoucher, VoucherAppliesTo, VoucherInput, VoucherKind } from '@/api/hosting'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
@@ -103,7 +103,7 @@ function VoucherForm({ target, plans, saving, error, onClose, onSave }: VoucherF
         <Field label={t('hosting.voucher.code')} htmlFor="voucher-code" hint={t('hosting.voucher.codeHint')} error={codeInvalid ? t('hosting.voucher.codeInvalid') : undefined}>
           <div className="flex gap-2">
             <TextInput id="voucher-code" mono maxLength={32} autoComplete="off" value={code} invalid={codeInvalid} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))} />
-            <Button type="button" variant="outline" icon={<Dices className="h-3.5 w-3.5" />} onClick={() => setCode(randomCode())}>
+            <Button type="button" variant="outline" onClick={() => setCode(randomCode())}>
               {t('hosting.voucher.random')}
             </Button>
           </div>

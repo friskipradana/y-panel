@@ -4,11 +4,8 @@ import {
   Clock,
   Gauge,
   GripVertical,
-  LayoutGrid,
-  List as ListIcon,
   Lock,
   Network,
-  Plus,
   Radar,
   RotateCcw,
   StickyNote,
@@ -27,6 +24,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import type { PlacedWidget, WidgetType } from '@/types'
 import { ListRowIcon } from '@/components/ui/ListTable'
+import { ViewModeToggle, type ViewMode } from '@/components/ui/ViewModeToggle'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -66,7 +64,7 @@ export function WidgetsWindow() {
   const removeWidget = useWidgetStore((s) => s.removeWidget)
   const resetLayout = useWidgetStore((s) => s.resetLayout)
   const [draggedType, setDraggedType] = useState<WidgetType | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   // the host card on the phone home already shows CPU, RAM and disk
   const role = useAuthStore((s) => s.user?.role)
@@ -105,35 +103,7 @@ export function WidgetsWindow() {
         </div>
 
         <div className="docker-topbar__right flex items-center gap-2">
-          {/* Grid / List Mode Switcher */}
-          <div className="flex items-center rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] p-0.5">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-              }`}
-              title={t('widgets.viewGrid')}
-              aria-label={t('widgets.viewGrid')}
-            >
-              <LayoutGrid size={13} strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-[var(--tb-hover)] text-[var(--win-text)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-              }`}
-              title={t('widgets.viewList')}
-              aria-label={t('widgets.viewList')}
-            >
-              <ListIcon size={13} strokeWidth={1.75} />
-            </button>
-          </div>
+          <ViewModeToggle mode={viewMode} onChange={setViewMode} isMobile={isMobile} />
 
           <button
             type="button"
@@ -271,12 +241,11 @@ export function WidgetsWindow() {
                       ) : (
                         <button
                           type="button"
-                          className="docker-secondary-btn w-full justify-center !h-7.5"
+                          className="docker-secondary-btn w-full justify-center"
                           title={t('widgets.installTitle')}
                           aria-label={`${t('widgets.install')} ${t(`widget.catalog.${item.type}.title`)}`}
                           onClick={() => install(item.type)}
                         >
-                          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                           <span>{t('widgets.install')}</span>
                         </button>
                       )}
@@ -343,12 +312,11 @@ export function WidgetsWindow() {
                       ) : (
                         <button
                           type="button"
-                          className="docker-secondary-btn !h-7.5"
+                          className="docker-secondary-btn"
                           title={t('widgets.installTitle')}
                           aria-label={`${t('widgets.install')} ${t(`widget.catalog.${item.type}.title`)}`}
                           onClick={() => install(item.type)}
                         >
-                          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                           <span>{t('widgets.install')}</span>
                         </button>
                       )}

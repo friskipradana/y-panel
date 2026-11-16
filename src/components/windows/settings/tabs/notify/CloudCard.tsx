@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Copy, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { createCloudTemplates, getCloudTemplates, saveCloudChannel, type NotifyChannel, type TemplateStatus } from '@/api/notify'
@@ -166,7 +166,7 @@ export function CloudCard({ channel, webhook, bare }: { channel: NotifyChannel |
         <div className="flex flex-col gap-2 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-[12px]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium text-[var(--win-text)]">{t('notify.cloud.templates')}</p>
-            <Button variant="outline" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} loading={templates.isFetching && !make.isPending} onClick={() => void templates.refetch()}>
+            <Button variant="outline" size="sm" loading={templates.isFetching && !make.isPending} onClick={() => void templates.refetch()}>
               {t('common.refresh')}
             </Button>
           </div>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Server } from 'lucide-react'
+import { Server } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPublicEngines, getPublicProxy, setPublicProxy, type EngineReport, type PublicEngineName } from '@/api/publicProxy'
 import { Button } from '@/components/ui/Button'
@@ -69,7 +69,7 @@ export function PublicEngineCard() {
         tone="primary"
         className="mb-0"
         actions={
-          <Button variant="outline" size="sm" icon={<RefreshCw className={`h-3.5 w-3.5 ${engines.isFetching ? 'animate-spin' : ''}`} />} onClick={() => void engines.refetch()}>
+          <Button variant="outline" size="sm" loading={engines.isFetching} onClick={() => void engines.refetch()}>
             {t('publicip.engine.recheck')}
           </Button>
         }

@@ -1232,3 +1232,25 @@
 [data-sonner-toast][data-type='info'] [data-icon] {
   color: var(--panel-primary-text);
 }
+
+.docker-image-combobox__item--primary {
+  color: var(--panel-primary-text);
+}
+
+.docker-image-combobox__item--warning {
+  color: var(--panel-warning-text);
+}
+
+.docker-image-combobox__item--danger {
+  color: var(--panel-danger-text);
+}
+
+.docker-image-combobox__item--danger:hover {
+  background: var(--panel-danger-bg);
+}
+
+.panel-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--win-border);
+}

@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { TerminalKeyBar } from '@/components/windows/terminal/TerminalKeyBar'
 import { TerminalCopyModal } from '@/components/windows/terminal/TerminalCopyModal'
 import { TerminalTabPane } from '@/components/windows/terminal/TerminalTabPane'
-import { ChevronLeft, ChevronRight, Keyboard, MoreVertical, Plus, RefreshCcw, RotateCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Keyboard, MoreVertical, Plus, RefreshCcw, SquareTerminal, Trash2, X, Zap } from 'lucide-react'
 import 'xterm/css/xterm.css'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useWindowStore, selectGlobalContentZoom, selectGlobalFontIndex, selectGlobalTerminalFontSize, TERMINAL_FONT_DEFAULT } from '@/store/windowStore'
@@ -867,7 +867,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
                 <Field label={t('hostTerminal.shortcutCommand')}>
                   <TextInput mono placeholder={t('hostTerminal.commandExample')} value={newCommand} onChange={(e) => setNewCommand(e.target.value)} />
                 </Field>
-                <Button type="submit" variant="primary" size="sm" block icon={<Plus className="h-3.5 w-3.5" />} loading={addingPreset} disabled={!newCommand.trim()}>
+                <Button type="submit" variant="primary" size="sm" block loading={addingPreset} disabled={!newCommand.trim()}>
                   {t('hostTerminal.add')}
                 </Button>
               </form>
@@ -893,7 +893,7 @@ export function HostTerminalWindow({ win, authenticated }: { win?: WindowState; 
             </div>
 
             <div className="ht-side__footer">
-              <Button variant="ghost" size="sm" icon={<RotateCcw className="h-3.5 w-3.5" />} loading={resetting} onClick={() => void confirmResetPresets()}>
+              <Button variant="ghost" size="sm" loading={resetting} onClick={() => void confirmResetPresets()}>
                 {t('hostTerminal.resetDefault')}
               </Button>
             </div>

@@ -240,6 +240,7 @@ select optgroup,
   font-size: var(--control-font);
   font-weight: 600;
   line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 140ms ease, background 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
@@ -355,6 +356,12 @@ button:focus-visible,
   opacity: 0.4;
 }
 
+.panel-icon-btn--outline {
+  border-color: var(--win-border);
+  background: var(--panel-surface-strong);
+  color: var(--win-text);
+}
+
 .panel-icon-btn--primary:hover:not(:disabled) {
   background: var(--panel-info-bg);
   color: var(--panel-info-text);
@@ -373,6 +380,124 @@ button:focus-visible,
 .panel-icon-btn--danger:hover:not(:disabled) {
   background: var(--panel-danger-bg);
   color: var(--panel-danger-text);
+}
+
+.panel-icon-btn--sm {
+  min-width: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+}
+
+.panel-icon-btn--md {
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  width: var(--control-h);
+  height: var(--control-h);
+}
+
+.panel-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.panel-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: var(--control-h);
+  padding: 0 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border-radius: var(--control-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--control-font);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: var(--panel-surface-hover);
+    color: var(--win-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  &--active {
+    border-color: color-mix(in srgb, var(--panel-primary-text) 24%, transparent);
+    background: var(--panel-primary-bg);
+    color: var(--panel-primary-text);
+    font-weight: 600;
+
+    &:hover {
+      background: var(--panel-primary-bg);
+      color: var(--panel-primary-text);
+    }
+  }
+}
+
+.panel-tab__count {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.panel-tabs--segmented {
+  box-sizing: border-box;
+  height: var(--control-h);
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--win-border);
+  background: var(--panel-surface-strong);
+
+  .panel-tab {
+    height: calc(var(--control-h) - 6px);
+    padding: 0 10px;
+    border-radius: 6px;
+    border-color: transparent;
+  }
+
+  .panel-tab--active {
+    border-color: transparent;
+    background: var(--panel-primary-bg);
+    color: var(--panel-primary-text);
+  }
+}
+
+.panel-toolbar-select {
+  .docker-image-combobox__button {
+    height: var(--control-h);
+    min-height: var(--control-h);
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: var(--control-font);
+  }
 }
 
 .panel-badge {
@@ -915,18 +1040,20 @@ button:focus-visible,
 
 .panel-search {
   display: flex;
-  flex: 1;
   box-sizing: border-box;
-  min-width: min(100%, 340px);
+  width: 100%;
+  min-width: 0;
   height: var(--control-h);
+  min-height: var(--control-h);
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: var(--control-radius);
   border: 1px solid var(--win-border);
   background: var(--panel-surface-strong);
-  color: color-mix(in srgb, var(--win-text) 76%, var(--text-secondary));
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+  color: var(--text-secondary);
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
 }
 
 .panel-search:focus-within {
@@ -942,20 +1069,17 @@ button:focus-visible,
   background: transparent;
   color: var(--win-text);
   font-size: var(--control-font);
-  font-weight: 520;
-  line-height: 1.5;
+  font-weight: 400;
+  line-height: 1.25;
   outline: none;
-  &:focus,
-  &:focus-visible {
-    background: var(--panel-field-focus);
-    border-color: var(--focus-ring);
-  }
   caret-color: var(--panel-primary-text);
 }
 
 .panel-search__input::placeholder {
-  color: color-mix(in srgb, var(--text-secondary) 70%, transparent);
-  opacity: 1;
+  color: var(--text-secondary);
+  font-size: var(--control-font);
+  font-weight: 400;
+  opacity: 0.8;
 }
 
 .panel-search__input::selection {
@@ -1316,9 +1440,9 @@ button:focus-visible,
 }
 
 .settings-nav__search {
-  min-width: 0 !important;
   width: 100%;
   height: 32px;
+  min-height: 32px;
   padding: 0 8px;
   border-radius: 8px;
   background: var(--panel-surface-strong);
@@ -2208,7 +2332,8 @@ button:focus-visible,
   }
 
   .panel-search {
-    height: var(--control-h-lg);
+    height: 36px;
+    min-height: 36px;
   }
 
   .panel-btn {
@@ -2225,6 +2350,30 @@ button:focus-visible,
     min-width: 36px;
     min-height: 36px;
   }
+
+  .panel-icon-btn--sm {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .panel-tab {
+    height: 36px;
+  }
+
+  .panel-tabs--segmented {
+    height: 36px;
+
+    .panel-tab {
+      height: 30px;
+    }
+  }
+
+  .panel-toolbar-select .docker-image-combobox__button {
+    height: 36px;
+    min-height: 36px;
+  }
 }
 
 // Phones: any text field is 16px, so iOS does not zoom the page when it takes focus (the code editors keep their own size)
@@ -2233,6 +2382,12 @@ button:focus-visible,
   select,
   textarea:not(.monaco-editor *, .xterm *) {
     font-size: 1rem;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 0.8125rem;
+    font-weight: 400;
   }
 }
 

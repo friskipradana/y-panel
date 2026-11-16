@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Boxes, LockKeyhole, Mail, Settings, User, UserRound, Users, Wrench } from 'lucide-react'
+import { Bell, Boxes, LockKeyhole, Mail, UserRound, Wrench } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { getMeV2 } from '@/api/agent'
 import { getMyPlan } from '@/api/hosting'
@@ -104,9 +104,7 @@ export default function ProfileWindow() {
                         </div>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-secondary)]">
                           {me?.username ? (
-                            <span className="panel-mono inline-flex items-center gap-1">
-                              <User size={12} aria-hidden="true" />@{me.username}
-                            </span>
+                            <span className="panel-mono">@{me.username}</span>
                           ) : null}
                           {me?.email ? (
                             <span className="inline-flex min-w-0 items-center gap-1">
@@ -121,7 +119,6 @@ export default function ProfileWindow() {
                       <Button
                         size="sm"
                         variant="outline"
-                        icon={<Settings className="h-3.5 w-3.5" />}
                         onClick={() => {
                           requestSettingsTab('security')
                           openWindow('settings')
@@ -130,7 +127,7 @@ export default function ProfileWindow() {
                         {t('profile.securityTitle')}
                       </Button>
                       {managesUsers ? (
-                        <Button size="sm" variant="outline" icon={<Users className="h-3.5 w-3.5" />} onClick={() => openWindow('users')}>
+                        <Button size="sm" variant="outline" onClick={() => openWindow('users')}>
                           {t('profile.usersTitle')}
                         </Button>
                       ) : null}

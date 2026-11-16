@@ -56,12 +56,12 @@ export function FileToolbar({ fm, upload }: { fm: FileManagerState; upload: File
         </div>
 
         {/* Row 2: Search full width */}
-        <div className="docker-search-wrap relative flex w-full items-center !max-w-none">
+        <div className="docker-search-wrap docker-search-wrap--mobile">
           <Search className="docker-search-icon h-3.5 w-3.5" strokeWidth={1.75} />
           <input
             id="file-manager-search-input"
             type="search"
-            className="docker-search-input !w-full"
+            className="docker-search-input docker-search-input--mobile"
             aria-label={t('fileManager.searchFiles')}
             placeholder={t('fileManager.searchFiles')}
             value={activeTab.searchText}

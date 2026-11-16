@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { KeyRound, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { KeyRound, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { createAppLicense, type AvailableApp, type CreateAppLicensePayload } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -366,9 +366,8 @@ export function CreateLicenseModal({
             variant="primary"
             size="sm"
             loading={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            className="gap-1.5"
           >
-            <CheckCircle2 size={14} />
             Terbitkan Lisensi
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownAZ, Check, ChevronLeft, ChevronRight, LayoutGrid, Move, RotateCcw, Rows3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react'
 import { AppIcon } from '@/components/common/AppIcon'
 import { CATEGORIES, MENU_ITEMS } from '@/components/taskbar/appCatalog'
 import { Button } from '@/components/ui/Button'
@@ -65,11 +65,11 @@ export function MobileAppsGrid({ apps, onLaunch }: { apps: WindowKind[]; onLaunc
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">{t('mobile.apps')}</h2>
         {editing ? (
-          <Button size="sm" variant="primary" icon={<Check className="h-3.5 w-3.5" />} onClick={() => setEditing(false)}>
+          <Button size="sm" variant="primary" onClick={() => setEditing(false)}>
             {t('desktop.view.done')}
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" icon={<LayoutGrid className="h-3.5 w-3.5" />} onClick={() => setViewOpen(true)} aria-haspopup="dialog">
+          <Button size="sm" variant="ghost" onClick={() => setViewOpen(true)} aria-haspopup="dialog">
             {t('desktop.view.title')}
           </Button>
         )}
@@ -133,17 +133,17 @@ export function MobileAppsGrid({ apps, onLaunch }: { apps: WindowKind[]; onLaunc
           <div>
             <p className="mb-1.5 text-[0.75rem] font-medium text-[var(--text-secondary)]">{t('desktop.view.sortBy')}</p>
             <div className="grid grid-cols-3 gap-2">
-              <Button icon={<ArrowDownAZ className="h-3.5 w-3.5" />} onClick={() => sortBy('name')}>{t('desktop.view.sortName')}</Button>
-              <Button icon={<Rows3 className="h-3.5 w-3.5" />} onClick={() => sortBy('type')}>{t('desktop.view.sortType')}</Button>
-              <Button icon={<RotateCcw className="h-3.5 w-3.5" />} onClick={() => sortBy('default')}>{t('desktop.view.sortDefault')}</Button>
+              <Button onClick={() => sortBy('name')}>{t('desktop.view.sortName')}</Button>
+              <Button onClick={() => sortBy('type')}>{t('desktop.view.sortType')}</Button>
+              <Button onClick={() => sortBy('default')}>{t('desktop.view.sortDefault')}</Button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Button block icon={<Move className="h-3.5 w-3.5" />} onClick={() => { setViewOpen(false); setEditing(true) }}>
+            <Button block onClick={() => { setViewOpen(false); setEditing(true) }}>
               {t('mobile.view.editMode')}
             </Button>
-            <Button block variant="ghost" icon={<RotateCcw className="h-3.5 w-3.5" />} onClick={resetMobile}>
+            <Button block variant="ghost" onClick={resetMobile}>
               {t('mobile.view.reset')}
             </Button>
           </div>

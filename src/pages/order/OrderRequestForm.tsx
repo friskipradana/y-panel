@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Check, Copy, Send } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { checkPublicSubdomain, formatRupiah, getPublicHosting } from '@/api/hosting'
@@ -106,13 +106,13 @@ export function OrderRequestForm() {
             {data.orderUrl ? t('order.requestSent') : t('order.requestCopied')}
           </p>
           <pre className="panel-mono whitespace-pre-wrap break-words text-[0.75rem] text-[var(--win-text)]">{sent}</pre>
-          <Button type="button" variant="outline" size="sm" icon={<Copy className="h-3.5 w-3.5" />} onClick={() => void copyTextToClipboard(sent).then(() => toast.success(t('common.copied')))}>
+          <Button type="button" variant="outline" size="sm" onClick={() => void copyTextToClipboard(sent).then(() => toast.success(t('common.copied')))}>
             {t('hosting.order.copy')}
           </Button>
         </section>
       ) : null}
 
-      <Button type="submit" variant="primary" size="lg" block icon={<Send className="h-4 w-4" />} disabled={!!main && !address.available && !address.checkFailed}>
+      <Button type="submit" variant="primary" size="lg" block disabled={!!main && !address.available && !address.checkFailed}>
         {data.orderUrl ? t('order.requestSend') : t('order.requestCopy')}
       </Button>
     </form>

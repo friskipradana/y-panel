@@ -92,7 +92,7 @@ export function ChangelogWindow() {
             </Badge>
           ) : null}
         </div>
-        <IconButton id="changelog-refresh" type="button" onClick={() => void query.refetch()} label={t('changelog.refresh')} disabled={query.isFetching}>
+        <IconButton id="changelog-refresh" type="button" size="md" variant="outline" onClick={() => void query.refetch()} label={t('changelog.refresh')} disabled={query.isFetching}>
           <RefreshCcw className={`h-3.5 w-3.5 ${(query.isFetching && !query.isLoading) ? 'animate-spin' : ''}`} />
         </IconButton>
       </div>

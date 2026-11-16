@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, ExternalLink, Globe, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, Globe, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { deleteMyCustomDomain, getMyCustomDomains, refreshMyCustomDomain, type CustomDomain, type SubdomainStatus } from '@/api/hosting'
@@ -59,7 +59,7 @@ export function HostingCustomDomainsPanel() {
           title={t('hosting.custom.title')}
           subtitle={t('hosting.custom.quota', { used: data.used, limit: data.limit })}
           actions={
-            <Button variant="primary" icon={<Plus className="h-3.5 w-3.5" />} disabled={data.used >= data.limit} onClick={() => setOpen(true)}>
+            <Button variant="primary" disabled={data.used >= data.limit} onClick={() => setOpen(true)}>
               {t('hosting.custom.add')}
             </Button>
           }

@@ -2,22 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import RFB from '@novnc/novnc'
 import {
-  ArrowLeft,
   Check,
   Copy,
-  Download,
   ExternalLink,
   Maximize2,
   Minimize2,
   Monitor,
   MonitorOff,
-  Play,
   Power,
   RefreshCw,
   Scale,
-  Settings,
   ShieldAlert,
-  Terminal,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createKvmToken, getKvmStatus, installKvm, resolveKvmWsUrl, setKvmResolution, startKvm, type KvmQualityMode } from '@/api/kvm'
@@ -339,7 +334,7 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
         <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.tokenInvalidTitle')}</h3>
         <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.tokenInvalidDesc')}</p>
         {onBack ? (
-          <Button variant="primary" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onBack}>
+          <Button variant="primary" size="sm" onClick={onBack}>
             {t('kvm.backToPanel')}
           </Button>
         ) : null}
@@ -358,11 +353,11 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
         <h3 className="text-sm font-semibold text-[var(--win-text)] mb-1">{t('kvm.disabledTitle')}</h3>
         <p className="text-xs text-[var(--text-secondary)] max-w-md mb-4">{t('kvm.disabledDesc')}</p>
         {standalone && onBack ? (
-          <Button variant="primary" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onBack}>
+          <Button variant="primary" size="sm" onClick={onBack}>
             {t('kvm.backToPanel')}
           </Button>
         ) : (
-          <Button variant="primary" size="sm" icon={<Settings className="h-3.5 w-3.5" />} onClick={() => openWindow('settings')}>
+          <Button variant="primary" size="sm" onClick={() => openWindow('settings')}>
             {t('kvm.openSettings')}
           </Button>
         )}
@@ -385,7 +380,6 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
           <Button
             variant="primary"
             size="sm"
-            icon={<Download className="h-3.5 w-3.5" />}
             loading={installMutation.isPending}
             disabled={installMutation.isPending}
             onClick={() => installMutation.mutate()}
@@ -393,11 +387,11 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
             {installMutation.isPending ? t('kvm.installing') : t('kvm.installBtn')}
           </Button>
           {standalone && onBack ? (
-            <Button variant="outline" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onBack}>
+            <Button variant="outline" size="sm" onClick={onBack}>
               {t('kvm.backToPanel')}
             </Button>
           ) : (
-            <Button variant="outline" size="sm" icon={<Settings className="h-3.5 w-3.5" />} onClick={() => openWindow('settings')}>
+            <Button variant="outline" size="sm" onClick={() => openWindow('settings')}>
               {t('kvm.openSettings')}
             </Button>
           )}
@@ -433,22 +427,21 @@ export function KvmWindow({ win, authenticated, standalone, accessToken, onBack 
           <Button
             variant="primary"
             size="sm"
-            icon={<Play className="h-3.5 w-3.5" />}
             loading={startMutation.isPending}
             disabled={startMutation.isPending}
             onClick={() => startMutation.mutate()}
           >
             {startMutation.isPending ? t('kvm.startingService') : t('kvm.startService')}
           </Button>
-          <Button variant="outline" size="sm" icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => void refetch()}>
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>
             {t('kvm.retry')}
           </Button>
           {standalone && onBack ? (
-            <Button variant="outline" size="sm" icon={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onBack}>
+            <Button variant="outline" size="sm" onClick={onBack}>
               {t('kvm.backToPanel')}
             </Button>
           ) : (
-            <Button variant="outline" size="sm" icon={<Terminal className="h-3.5 w-3.5" />} onClick={() => openWindow('host-terminal')}>
+            <Button variant="outline" size="sm" onClick={() => openWindow('host-terminal')}>
               {t('kvm.openTerminal')}
             </Button>
           )}

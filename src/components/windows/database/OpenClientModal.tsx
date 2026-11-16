@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Database, ExternalLink, Layers, Settings2, Table2 } from 'lucide-react'
+import { Database } from 'lucide-react'
 import { getDatabaseCredentials } from '@/api/agent'
 import { CopyBlock } from '@/components/public/CopyBlock'
 import { Button } from '@/components/ui/Button'
-import { IconBadge } from '@/components/ui/IconBadge'
 import { Modal } from '@/components/ui/Modal'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import type { DatabasesWindowState } from './useDatabasesWindow'
@@ -54,8 +53,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <Button variant="ghost" size="sm" onClick={handleOpenManager}>
-            <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{t('databases.openReneoManager')}</span>
+            {t('databases.openReneoManager')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenClientTarget(null)}>
             {t('common.cancel')}
@@ -79,12 +77,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <IconBadge size="md" tone="primary">
-                    <Table2 />
-                  </IconBadge>
-                  <span className="text-[0.875rem] font-semibold">Adminer</span>
-                </div>
+                <span className="text-[0.875rem] font-semibold">Adminer</span>
                 <span className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium bg-[var(--panel-surface-strong)] text-[var(--text-secondary)]">
                   {t('databases.clientAdminerTag')}
                 </span>
@@ -101,8 +94,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
                 disabled={!isSql}
                 onClick={handleOpenAdminer}
               >
-                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                <span>{t('databases.openAdminer')}</span>
+                {t('databases.openAdminer')}
               </Button>
             </div>
           </div>
@@ -111,12 +103,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
           <div className="flex flex-col justify-between rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 transition-colors hover:border-[var(--panel-primary-solid)]/40 hover:bg-[var(--panel-surface-hover)]">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <IconBadge size="md" tone="info">
-                    <Layers />
-                  </IconBadge>
-                  <span className="text-[0.875rem] font-semibold">DBX</span>
-                </div>
+                <span className="text-[0.875rem] font-semibold">DBX</span>
                 <span className="rounded px-1.5 py-0.5 text-[0.6875rem] font-medium bg-[var(--panel-surface-strong)] text-[var(--text-secondary)]">
                   {t('databases.clientDbxTag')}
                 </span>
@@ -132,8 +119,7 @@ export function OpenClientModal({ dbw }: { dbw: DatabasesWindowState }) {
                 className="w-full"
                 onClick={handleOpenDbx}
               >
-                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                <span>{t('databases.openDbx')}</span>
+                {t('databases.openDbx')}
               </Button>
             </div>
           </div>

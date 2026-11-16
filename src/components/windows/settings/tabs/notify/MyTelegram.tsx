@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, ExternalLink, Link2, Unlink } from 'lucide-react'
+import { Copy, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { checkTelegramLink, setTelegramMuted, startTelegramLink, testTelegram, unlinkTelegram, type NotifyChannel, type NotifyLink, type NotifyOverview, type NotifyRecipient } from '@/api/notify'
@@ -120,7 +120,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { chan
               <Button variant="outline" size="sm" disabled={!ready || !!recipient.blocked} loading={test.isPending} onClick={() => test.mutate()}>
                 {t('notify.telegram.test')}
               </Button>
-              <Button variant="danger-soft" size="sm" icon={<Unlink className="h-3.5 w-3.5" />} loading={unlink.isPending} onClick={() => void confirmUnlink()}>
+              <Button variant="danger-soft" size="sm" loading={unlink.isPending} onClick={() => void confirmUnlink()}>
                 {t('notify.me.disconnect')}
               </Button>
             </div>
@@ -150,7 +150,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { chan
         <div className="flex flex-col gap-3 notice-row text-[12.5px]">
           <p className="font-medium">{t('notify.me.linkTitle')}</p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" icon={<ExternalLink className="h-3.5 w-3.5" />} onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}>
+            <Button variant="primary" onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}>
               {t('notify.me.openTelegram')}
             </Button>
             <span className="text-[var(--text-secondary)]">{t('notify.me.code')}</span>
@@ -172,7 +172,7 @@ export function MyTelegram({ channel, recipient, groups = GROUPS, bare }: { chan
       ) : (
         <div className="flex flex-col items-start gap-2">
           <p className="text-[12.5px] text-[var(--text-secondary)]">{ready ? t('notify.me.notLinked') : t('notify.me.needsBot')}</p>
-          <Button variant="primary" disabled={!ready} loading={start.isPending} icon={<Link2 className="h-3.5 w-3.5" />} onClick={() => start.mutate()}>
+          <Button variant="primary" disabled={!ready} loading={start.isPending} onClick={() => start.mutate()}>
             {t('notify.me.connect')}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Copy, LoaderCircle, RefreshCcw } from 'lucide-react'
+import { Copy, LoaderCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { formatRupiah, type OrderView } from '@/api/hosting'
@@ -67,7 +67,7 @@ export function OrderChecking({ order, checkedAt, refreshing, onRefresh, onBack,
           {ago < 5 ? t('order.checking.justNow') : t('order.checking.lastChecked', { seconds: ago })}
           {waitedMinutes >= 5 ? ` ${t('order.checking.slow')}` : ''}
         </p>
-        <Button type="button" variant="outline" size="sm" loading={refreshing} icon={<RefreshCcw className="h-3.5 w-3.5" />} onClick={onRefresh} className="shrink-0">
+        <Button type="button" variant="outline" size="sm" loading={refreshing} onClick={onRefresh} className="shrink-0">
           {t('order.checking.refresh')}
         </Button>
       </div>

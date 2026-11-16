@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Pencil, CheckCircle2, KeyRound } from 'lucide-react'
+import { Pencil, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateAppLicensePlan, type AppLicensePlan } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -155,9 +155,7 @@ export function EditPlanModal({
             variant="primary"
             size="sm"
             loading={loading}
-            className="gap-1.5"
           >
-            <CheckCircle2 size={14} />
             Simpan Paket
           </Button>
         </div>

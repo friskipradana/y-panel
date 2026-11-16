@@ -443,6 +443,8 @@
 
   &::placeholder {
     color: var(--text-secondary);
+    font-size: var(--control-font);
+    font-weight: 400;
     opacity: 0.8;
   }
 }
@@ -844,6 +846,8 @@
   border: 1px solid color-mix(in srgb, var(--panel-primary-text) 28%, transparent);
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   color: var(--panel-primary-text);
   background: var(--panel-primary-bg);
@@ -929,6 +933,11 @@
   cursor: not-allowed;
 }
 
+.docker-act-btn:disabled[aria-busy="true"] {
+  opacity: 0.85;
+  cursor: wait;
+}
+
 // A table folds when it is narrow: no header, the secondary columns go into the meta line under the name. It happens on a phone
 // (the whole screen is one app) and in a window or a column that is narrow, by the width of the table itself.
 @mixin docker-table-folded {
@@ -958,6 +967,7 @@
       width: 100%;
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       flex-wrap: wrap;
       gap: 5px;
       padding-top: 6px;
@@ -1156,6 +1166,8 @@
   color: var(--win-text);
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 
@@ -1520,8 +1532,52 @@
 
 // Phones: the bar of every list window wraps instead of running off the screen, and touch targets are easy to hit
 .layout-mobile {
+  .docker-topbar,
+  .hosting-table-bar {
+    --docker-control-h: 36px;
+  }
+
+  .docker-search-wrap--mobile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .docker-search-input,
+  .docker-search-input--mobile {
+    height: 36px;
+    border-radius: 8px;
+    padding-left: 32px;
+    padding-right: 12px;
+    box-sizing: border-box;
+    // 16px keeps iOS from zooming into the field
+    font-size: 1rem;
+
+    &::placeholder {
+      font-size: 0.8125rem;
+      font-weight: 400;
+    }
+  }
+
+  .docker-search-input--mobile {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .docker-icon-btn,
+  .docker-icon-btn--mobile {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
   .docker-topbar--mobile {
-    --docker-control-h: 34px;
+    --docker-control-h: 36px;
 
     display: flex;
     flex-direction: column;
@@ -1532,13 +1588,14 @@
     .docker-topbar__mobile-row {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
       width: 100%;
       overflow: visible;
     }
 
     .docker-dropdown-btn {
-      height: 34px;
+      height: 36px;
       padding: 0 10px;
       font-size: 0.75rem;
       font-weight: 600;
@@ -1547,8 +1604,9 @@
       flex-shrink: 0;
     }
 
-    .docker-primary-btn {
-      height: 34px;
+    .docker-primary-btn,
+    .docker-secondary-btn {
+      height: 36px;
       padding: 0 10px;
       font-size: 0.75rem;
       font-weight: 600;
@@ -1560,7 +1618,7 @@
     .docker-badge-running--mobile {
       margin-left: auto;
       flex-shrink: 0;
-      height: 34px;
+      height: 36px;
       padding: 0 8px;
       border-radius: 8px;
       font-family: var(--font-sans);
@@ -1575,35 +1633,6 @@
       align-items: center;
       gap: 6px;
       width: 100%;
-    }
-
-    .docker-search-wrap--mobile {
-      position: relative;
-      display: flex;
-      align-items: center;
-      flex: 1 1 auto;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .docker-search-input--mobile {
-      width: 100%;
-      flex: 1 1 auto;
-      min-width: 0;
-      // 16px keeps iOS from zooming into the field
-      font-size: 1rem;
-      height: 36px;
-      border-radius: 8px;
-      padding-left: 32px;
-      padding-right: 12px;
-      box-sizing: border-box;
-    }
-
-    .docker-icon-btn--mobile {
-      flex-shrink: 0;
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
     }
   }
 
@@ -1801,7 +1830,7 @@
   .docker-action-btns {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 5px;
     width: 100%;
@@ -2034,7 +2063,8 @@
   background: var(--panel-surface-strong);
   flex-shrink: 0;
 
-  &--mobile {
+  &--mobile,
+  .layout-mobile & {
     height: 36px;
   }
 
@@ -2051,7 +2081,8 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
 
-    .app-catalog-view-toggle--mobile & {
+    .app-catalog-view-toggle--mobile &,
+    .layout-mobile .app-catalog-view-toggle & {
       width: 30px;
       height: 30px;
     }

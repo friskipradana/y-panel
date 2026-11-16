@@ -1,12 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft,
   Mail,
-  MailCheck,
   RefreshCw,
-  Reply,
   Send,
-  Trash2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -20,7 +16,9 @@ import {
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { DateTimeText } from '@/components/common/DateTimeText'
+import { IconButton } from '@/components/ui/IconButton'
 import { SearchInput } from '@/components/ui/SearchInput'
+import { Tabs } from '@/components/ui/Tabs'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useI18n } from '@/lib/i18n'
@@ -132,14 +130,14 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
     return (
       <div className="flex flex-col h-full overflow-hidden bg-[var(--win-bg)] p-3">
         <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--win-border)] shrink-0">
-          <Button type="button" variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />} onClick={() => setSelectedId(null)}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedId(null)}>
             {t('common.back')}
           </Button>
           <div className="flex items-center gap-1.5">
-            <Button type="button" variant="primary" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
+            <Button type="button" variant="primary" size="sm" onClick={() => handleReplyClick(selectedMessage)}>
               {t('email.inbox.reply')}
             </Button>
-            <Button type="button" variant="outline" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} onClick={() => deleteMut.mutate(selectedMessage.id)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => deleteMut.mutate(selectedMessage.id)}>
               {t('email.inbox.delete')}
             </Button>
           </div>
@@ -173,58 +171,29 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
             <div className="flex-1 min-w-0">
               <SearchInput value={search} onChange={setSearch} placeholder={t('email.inbox.search')} />
             </div>
-            <button
-              type="button"
-              className="docker-icon-btn shrink-0"
-              title={t('email.inbox.sync')}
-              aria-label={t('email.inbox.sync')}
-              disabled={syncMut.isPending || inboxQuery.isFetching}
+            <IconButton
+              size="md"
+              variant="outline"
+              label={t('email.inbox.sync')}
+              loading={syncMut.isPending || inboxQuery.isFetching}
               onClick={() => syncMut.mutate()}
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${syncMut.isPending || inboxQuery.isFetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-            </button>
+              <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </IconButton>
           </div>
 
-          <div className="flex items-center p-0.5 rounded-md bg-[var(--win-bg)] border border-[var(--win-border)] text-xs">
-            <button
-              type="button"
-              onClick={() => setFilterMode('all')}
-              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors ${
-                filterMode === 'all'
-                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-              }`}
-            >
-              {t('email.inbox.filterAll')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterMode('unread')}
-              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors flex items-center justify-center gap-1.5 ${
-                filterMode === 'unread'
-                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-              }`}
-            >
-              <span>{t('email.inbox.filterUnread')}</span>
-              {unreadCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[var(--panel-primary-bg)] text-white">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterMode('sent')}
-              className={`flex-1 py-1 px-2 text-center rounded text-[11.5px] font-medium transition-colors ${
-                filterMode === 'sent'
-                  ? 'bg-[var(--panel-surface-hover)] text-[var(--win-text)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--win-text)]'
-              }`}
-            >
-              {t('email.inbox.filterSent')}
-            </button>
-          </div>
+          <Tabs
+            variant="segmented"
+            label={t('email.inbox.filterAll')}
+            value={filterMode}
+            onChange={setFilterMode}
+            items={[
+              { key: 'all', label: t('email.inbox.filterAll') },
+              { key: 'unread', label: t('email.inbox.filterUnread'), count: unreadCount > 0 ? unreadCount : undefined },
+              { key: 'sent', label: t('email.inbox.filterSent') },
+            ]}
+            className="w-full [&>.panel-tab]:flex-1"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-[var(--win-border)]">
@@ -298,19 +267,18 @@ export function EmailInboxView({ onReply }: EmailInboxViewProps) {
                   {selectedMessage.subject || t('common.noContent')}
                 </h1>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Button type="button" variant="primary" size="sm" icon={<Reply className="h-3.5 w-3.5" />} onClick={() => handleReplyClick(selectedMessage)}>
+                  <Button type="button" variant="primary" size="sm" onClick={() => handleReplyClick(selectedMessage)}>
                     {t('email.inbox.reply')}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    icon={selectedMessage.isRead ? <Mail className="h-3.5 w-3.5" /> : <MailCheck className="h-3.5 w-3.5" />}
                     onClick={() => markReadMut.mutate({ id: selectedMessage.id, isRead: !selectedMessage.isRead })}
                   >
                     {selectedMessage.isRead ? t('email.inbox.markUnread') : t('email.inbox.markRead')}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" icon={<Trash2 className="h-3.5 w-3.5" />} className="hover:text-[var(--panel-danger-text)]" onClick={() => deleteMut.mutate(selectedMessage.id)}>
+                  <Button type="button" variant="outline" size="sm" className="hover:text-[var(--panel-danger-text)]" onClick={() => deleteMut.mutate(selectedMessage.id)}>
                     {t('email.inbox.delete')}
                   </Button>
                 </div>

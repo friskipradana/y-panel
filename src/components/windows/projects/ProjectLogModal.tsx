@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, RefreshCw } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { getProjectLogs } from '@/api/agent'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -34,7 +34,7 @@ export function ProjectLogModal({ pw }: { pw: ProjectsWindowState }) {
       width={1040}
       footer={
         <>
-          <Button variant="ghost" icon={<RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />} onClick={() => void refetch()}>
+          <Button variant="ghost" loading={isFetching} onClick={() => void refetch()}>
             {t('projects.refresh')}
           </Button>
           <Button variant="primary" onClick={() => setLogProject(null)}>{t('common.close')}</Button>

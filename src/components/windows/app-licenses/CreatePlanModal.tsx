@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Boxes, CheckCircle2 } from 'lucide-react'
+import { Boxes } from 'lucide-react'
 import { toast } from 'sonner'
 import { createAppLicensePlan, type AvailableApp, type CreateAppPlanPayload } from '@/api/appLicenses'
 import { Button } from '@/components/ui/Button'
@@ -457,9 +457,7 @@ export function CreatePlanModal({
             variant="primary"
             size="sm"
             loading={loading}
-            className="gap-1.5"
           >
-            <CheckCircle2 size={14} />
             Simpan Paket
           </Button>
         </div>

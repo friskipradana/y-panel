@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check } from 'lucide-react'
 import { DesktopIcon } from '@/components/desktop/DesktopIcon'
 import { Button } from '@/components/ui/Button'
 import { useI18n } from '@/lib/i18n'
@@ -175,7 +174,7 @@ export function DesktopIconLayer({ apps }: { apps: AppShortcut[] }) {
         <div className="pointer-events-none absolute left-1/2 top-14 z-[60] -translate-x-1/2" role="status">
           <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-[var(--menu-border)] bg-[var(--menu-bg)] px-3.5 py-2 text-[12px] text-[var(--win-text)] shadow-[var(--menu-shadow)] backdrop-blur-2xl">
             <span>{autoArrange ? t('desktop.view.editHintAuto') : t('desktop.view.editHintFree')}</span>
-            <Button variant="primary" size="sm" icon={<Check className="h-3.5 w-3.5" />} onClick={() => setEditing(false)}>
+            <Button variant="primary" size="sm" onClick={() => setEditing(false)}>
               {t('desktop.view.done')}
             </Button>
           </div>

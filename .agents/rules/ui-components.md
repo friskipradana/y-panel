@@ -25,6 +25,7 @@ Aturan umum: [design-system.md](design-system.md). Validasi otomatis: `bun run c
 | `SettingRow` | `SettingRow.tsx` | Baris pengaturan | `title`, `description?`, `control`, `icon?`, `children?` |
 | `Button` | `Button.tsx` | Tombol teks | `variant` default/primary/primary-soft/ghost/outline/danger/danger-soft, `size` sm/md/lg, `block`, `loading`, `icon` |
 | `IconButton` | `IconButton.tsx` | Tombol hanya ikon | `label` (wajib), `tone` |
+| `ActionMenu` | `ActionMenu.tsx` | Menu aksi overflow (`⋯`) untuk merangkum aksi sekunder toolbar/baris tabel | `label`, `items`, `compact?`, `loading?` |
 | `Badge` | `Badge.tsx` | Status singkat | `tone`, `dot` |
 | `ToggleSwitch` | `ToggleSwitch.tsx` | Saklar on/off | `checked`, `onChange`, `label?`, `disabled?` |
 | `Checkbox` | `Checkbox.tsx` | Kotak centang (opsi form, pilih baris) | `checked`, `onChange(checked)`, `label?`, `description?`, `tone?`, `indeterminate?` |

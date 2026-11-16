@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownToLine, Copy, Download, Pause, Play, RefreshCcw, ScrollText, Search } from 'lucide-react'
+import { ArrowDownToLine, Copy, Download, Pause, Play, RefreshCcw, ScrollText } from 'lucide-react'
 import { copyTextToClipboard, getSystemLogs } from '@/api/agent'
 import { useI18n } from '@/lib/i18n'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -8,6 +8,7 @@ import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import type { WindowState } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
+import { SearchInput } from '@/components/ui/SearchInput'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { Tabs } from '@/components/ui/Tabs'
@@ -153,44 +154,41 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
               value={service}
               onChange={setService}
               options={SERVICE_OPTIONS}
-              className="min-w-0 flex-1"
-              buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+              className="min-w-0 flex-1 panel-toolbar-select"
+              buttonClassName="panel-input--mono"
             />
             <Select
               id="system-logs-limit"
               value={String(limit)}
               onChange={(value) => setLimit(Number(value))}
               options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
-              className="w-[84px] shrink-0"
-              buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+              className="w-[84px] shrink-0 panel-toolbar-select"
+              buttonClassName="panel-input--mono"
             />
-            <IconButton label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+            <IconButton size="md" label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
               {live ? <Pause size={14} /> : <Play size={14} />}
             </IconButton>
-            <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+            <IconButton size="md" id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
               <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
             </IconButton>
           </div>
 
           {/* Row 2: Search & Utility actions */}
           <div className="flex items-center gap-1.5">
-            <label className="panel-search h-[30px] min-w-0 flex-1 px-2.5">
-              <Search className="h-3.5 w-3.5 shrink-0" />
-              <input
-                id="system-logs-search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="panel-search__input !text-[11px] !font-normal"
-                placeholder={t('systemLogs.searchShort')}
-              />
-            </label>
-            <IconButton label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+            <SearchInput
+              id="system-logs-search"
+              value={search}
+              onChange={setSearch}
+              placeholder={t('systemLogs.searchShort')}
+              className="min-w-0 flex-1"
+            />
+            <IconButton size="md" label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
               <ArrowDownToLine size={14} />
             </IconButton>
-            <IconButton label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+            <IconButton size="md" label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
               <Copy size={14} />
             </IconButton>
-            <IconButton label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+            <IconButton size="md" label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
               <Download size={14} />
             </IconButton>
           </div>
@@ -202,35 +200,38 @@ export function SystemLogsWindow({ win, authenticated }: { win?: WindowState; au
             value={service}
             onChange={setService}
             options={SERVICE_OPTIONS}
-            className="min-w-[150px] max-w-[190px]"
-            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            className="min-w-[150px] max-w-[190px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
           />
           <Select
             id="system-logs-limit"
             value={String(limit)}
             onChange={(value) => setLimit(Number(value))}
             options={LIMIT_OPTIONS.map((value) => ({ value: String(value), label: t('systemLogs.linesOption', { count: value }) }))}
-            className="min-w-[110px] max-w-[140px]"
-            buttonClassName="h-[30px] py-0 text-xs panel-input--mono"
+            className="min-w-[110px] max-w-[140px] panel-toolbar-select"
+            buttonClassName="panel-input--mono"
           />
-          <label className="panel-search h-[30px] min-w-[10rem] max-w-[320px] flex-1 system-logs__search">
-            <Search className="h-3.5 w-3.5" />
-            <input id="system-logs-search" value={search} onChange={(e) => setSearch(e.target.value)} className="panel-search__input text-xs" placeholder={t('systemLogs.searchPlaceholder')} />
-          </label>
+          <SearchInput
+            id="system-logs-search"
+            value={search}
+            onChange={setSearch}
+            placeholder={t('systemLogs.searchPlaceholder')}
+            className="min-w-[10rem] max-w-[320px] flex-1 system-logs__search"
+          />
           <div className="ml-auto flex items-center gap-1">
-            <IconButton label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
+            <IconButton size="md" label={live ? t('systemLogs.pause') : t('systemLogs.resume')} onClick={() => setLive((v) => !v)} tone={live ? 'success' : 'warning'}>
               {live ? <Pause size={14} /> : <Play size={14} />}
             </IconButton>
-            <IconButton label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
+            <IconButton size="md" label={autoScroll ? t('systemLogs.autoScrollOn') : t('systemLogs.autoScrollOff')} onClick={() => setAutoScroll((v) => !v)} tone={autoScroll ? 'primary' : undefined}>
               <ArrowDownToLine size={14} />
             </IconButton>
-            <IconButton label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
+            <IconButton size="md" label={t('systemLogs.copy')} onClick={() => void copyVisible()} disabled={visible.length === 0}>
               <Copy size={14} />
             </IconButton>
-            <IconButton label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
+            <IconButton size="md" label={t('systemLogs.download')} onClick={download} disabled={visible.length === 0}>
               <Download size={14} />
             </IconButton>
-            <IconButton id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
+            <IconButton size="md" id="system-logs-refresh" label={t('systemLogs.refreshAria')} onClick={() => void query.refetch()} disabled={query.isFetching}>
               <RefreshCcw size={14} className={(query.isFetching && !query.isLoading) ? 'animate-spin' : ''} />
             </IconButton>
           </div>

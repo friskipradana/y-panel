@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import type { ProjectService } from '@/api/projects'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -79,7 +79,7 @@ export function ProjectServicesEditor({ services, onChange }: { services: Projec
         </div>
       ))}
 
-      <Button type="button" variant="outline" size="sm" icon={<Plus className="h-3.5 w-3.5" />} disabled={services.length >= MAX_SERVICES} onClick={() => onChange([...services, { ...EMPTY_SERVICE, path: services.length === 0 ? '/' : '/api' }])}>
+      <Button type="button" variant="outline" size="sm" disabled={services.length >= MAX_SERVICES} onClick={() => onChange([...services, { ...EMPTY_SERVICE, path: services.length === 0 ? '/' : '/api' }])}>
         {t('projects.services.add')}
       </Button>
       {services.length >= MAX_SERVICES ? <p className="text-[11.5px] text-[var(--text-secondary)]">{t('projects.services.limit', { max: MAX_SERVICES })}</p> : null}

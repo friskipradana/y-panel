@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Copy, Mail, MessageCircle, Send } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { copyTextToClipboard } from '@/api/agent'
 import { listAllSubdomains } from '@/api/hosting'
@@ -56,7 +56,6 @@ export function AccessShareModal({ info, onClose }: { info: AccessInfo | null; o
           <Button variant="ghost" onClick={onClose}>{t('common.close')}</Button>
           <Button
             variant="outline"
-            icon={<MessageCircle className="h-3.5 w-3.5" />}
             onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')}
           >
             {t('users.access.whatsapp')}
@@ -64,7 +63,6 @@ export function AccessShareModal({ info, onClose }: { info: AccessInfo | null; o
           {info?.email ? (
             <Button
               variant="outline"
-              icon={<Mail className="h-3.5 w-3.5" />}
               onClick={() => {
                 window.location.href = `mailto:${encodeURIComponent(info.email)}?subject=${encodeURIComponent(t('users.access.subject'))}&body=${encodeURIComponent(message)}`
               }}
@@ -72,7 +70,7 @@ export function AccessShareModal({ info, onClose }: { info: AccessInfo | null; o
               {t('users.access.email')}
             </Button>
           ) : null}
-          <Button variant="primary" icon={<Copy className="h-3.5 w-3.5" />} onClick={copy}>
+          <Button variant="primary" onClick={copy}>
             {t('users.access.copy')}
           </Button>
         </>

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface SettingsSaveBarProps {
@@ -31,7 +30,7 @@ export function SettingsSaveBar({ id, title, hint, dirty, pending, invalid = fal
       </div>
       <div className="settings-savebar__actions flex shrink-0 items-center gap-2">
         {extra}
-        <Button id={id} type="button" variant="primary" icon={<Save className="h-3.5 w-3.5" />} loading={pending} disabled={!dirty || invalid} onClick={onSave}>
+        <Button id={id} type="button" variant="primary" loading={pending} disabled={!dirty || invalid} onClick={onSave}>
           {pending ? pendingLabel : saveLabel}
         </Button>
       </div>

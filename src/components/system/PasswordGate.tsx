@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { KeyRound, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import { changeMyPassword } from '@/api/users'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
-import { IconBadge } from '@/components/ui/IconBadge'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
 
@@ -48,14 +46,9 @@ export function PasswordGate() {
           if (ready && !mutation.isPending) mutation.mutate()
         }}
       >
-        <div className="flex items-start gap-3">
-          <IconBadge tone="primary">
-            <KeyRound />
-          </IconBadge>
-          <div className="min-w-0">
-            <h1 className="text-[0.9375rem] font-bold">{t('gate.password.title')}</h1>
-            <p className="mt-0.5 text-[0.8125rem] text-[var(--text-secondary)]">{t('gate.password.subtitle', { username })}</p>
-          </div>
+        <div className="min-w-0">
+          <h1 className="text-[0.9375rem] font-bold">{t('gate.password.title')}</h1>
+          <p className="mt-0.5 text-[0.8125rem] text-[var(--text-secondary)]">{t('gate.password.subtitle', { username })}</p>
         </div>
 
         <Field label={t('gate.password.current')}>
@@ -69,7 +62,7 @@ export function PasswordGate() {
         </Field>
 
         <div className="flex items-center justify-between gap-2 border-t border-[var(--win-border)] pt-3.5">
-          <Button variant="ghost" icon={<LogOut className="h-3.5 w-3.5" />} onClick={() => void logout()}>
+          <Button variant="ghost" onClick={() => void logout()}>
             {t('gate.password.logout')}
           </Button>
           <Button variant="primary" type="submit" disabled={!ready} loading={mutation.isPending}>

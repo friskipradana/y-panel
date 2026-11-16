@@ -1,9 +1,9 @@
 import { apiError } from '@/components/windows/users/apiError'
-import type { ReactElement } from 'react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarPlus, Check, CircleUser, Crown, KeyRound, LoaderCircle, Network, Pencil, Settings2, Shield, ShieldOff, Trash2, UserCog, X } from 'lucide-react'
+import { Check, LoaderCircle, Pencil, Settings2, X } from 'lucide-react'
 import { updateUser, getUserQuota, updateUserQuota, type PanelUser, type UserHosting, type UserPlanState, type UserQuota } from '@/api/agent'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
@@ -18,12 +18,6 @@ import { usePublicSite } from '@/hooks/usePublicSite'
 import { useI18n } from '@/lib/i18n'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { ROLE_SELECT_OPTIONS, ROLE_TONES } from '@/components/windows/users/constants'
-
-const ROLE_ICON: Record<string, ReactElement> = {
-  superadmin: <Crown className="h-3 w-3" />,
-  admin: <Shield className="h-3 w-3" />,
-  user: <CircleUser className="h-3 w-3" />,
-}
 
 // The pill of each state: the classes the list windows share
 const STATUS_PILL: Record<string, string> = { active: 'running', suspended: 'dead', pending: 'paused' }
@@ -169,7 +163,7 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
               onClick={roleEditable ? () => { setEditingRole(true); setSelectedRole(user.role) } : undefined}
               title={roleEditable ? t('users.clickChangeRole') : undefined}
             >
-              {ROLE_ICON[user.role]} {t(`users.role.${user.role}`)}
+              {t(`users.role.${user.role}`)}
               {roleEditable ? <Pencil className="h-2.5 w-2.5 opacity-60" /> : null}
             </Badge>
           )}
@@ -204,49 +198,75 @@ export function UserRow({ user, index, hostingColumns, onSuspend, onActivate, on
         )}
 
         <div className="docker-action-btns">
-          {plan?.planId && !plan.trialEndsAt ? (
-            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('hosting.users.renewOne')} aria-label={t('hosting.users.renewOne')} onClick={() => setRenewing(true)}>
-              <CalendarPlus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
           <button type="button" className="docker-act-btn" title={plan ? t('hosting.users.planAndQuota') : t('users.manageQuota')} aria-label={plan ? t('hosting.users.planAndQuota') : t('users.manageQuota')} aria-expanded={showQuota} onClick={onQuota}>
             <Settings2 className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
-          {isMobile && roleEditable && onEditRole ? (
-            <button
-              type="button"
-              className="docker-act-btn"
-              title={t('users.clickChangeRole')}
-              aria-label={t('users.clickChangeRole')}
-              onClick={onEditRole}
-            >
-              <UserCog className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
-          {canManage ? (
-            <button type="button" className="docker-act-btn" title={t('users.resetPassword')} aria-label={t('users.resetPassword')} onClick={onResetPassword}>
-              <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
-          {onMove ? (
-            <button type="button" className="docker-act-btn" title={t('users.moveTitle')} aria-label={t('users.moveTitle')} onClick={onMove}>
-              <Network className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
-          {!canManage ? null : user.status === 'active' ? (
-            <button type="button" className="docker-act-btn docker-act-btn--stop" title={t('users.suspend')} aria-label={t('users.suspend')} disabled={busy} aria-busy={busy || undefined} onClick={onSuspend}>
-              {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <ShieldOff className="h-3.5 w-3.5" strokeWidth={1.75} />}
+          {busy ? (
+            <button type="button" className="docker-act-btn" disabled aria-busy="true" title={t('users.working')} aria-label={t('users.working')}>
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
             </button>
           ) : (
-            <button type="button" className="docker-act-btn docker-act-btn--start" title={t('users.activate')} aria-label={t('users.activate')} disabled={busy} aria-busy={busy || undefined} onClick={onActivate}>
-              {busy ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Shield className="h-3.5 w-3.5" strokeWidth={1.75} />}
-            </button>
+            <ActionMenu
+              label={t('common.moreActions')}
+              compact
+              items={[
+                ...(plan?.planId && !plan.trialEndsAt
+                  ? [{
+                      key: 'renew',
+                      label: t('hosting.users.renewOne'),
+                      tone: 'primary' as const,
+                      onSelect: () => setRenewing(true),
+                    } satisfies ActionMenuItem]
+                  : []),
+                ...(isMobile && roleEditable && onEditRole
+                  ? [{
+                      key: 'role',
+                      label: t('users.clickChangeRole'),
+                      onSelect: onEditRole,
+                    } satisfies ActionMenuItem]
+                  : []),
+                ...(canManage
+                  ? [{
+                      key: 'reset-password',
+                      label: t('users.resetPassword'),
+                      onSelect: onResetPassword,
+                    } satisfies ActionMenuItem]
+                  : []),
+                ...(onMove
+                  ? [{
+                      key: 'move',
+                      label: t('users.moveTitle'),
+                      onSelect: onMove,
+                    } satisfies ActionMenuItem]
+                  : []),
+                ...(canManage
+                  ? [
+                      user.status === 'active'
+                        ? {
+                            key: 'suspend',
+                            label: t('users.suspend'),
+                            tone: 'warning' as const,
+                            dividerBefore: true,
+                            onSelect: onSuspend,
+                          }
+                        : {
+                            key: 'activate',
+                            label: t('users.activate'),
+                            tone: 'primary' as const,
+                            dividerBefore: true,
+                            onSelect: onActivate,
+                          },
+                      {
+                        key: 'delete',
+                        label: t('common.delete'),
+                        tone: 'danger' as const,
+                        onSelect: onDelete,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           )}
-          {canManage ? (
-            <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={busy} onClick={onDelete}>
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          ) : null}
         </div>
       </div>
       {showQuota && quota ? (

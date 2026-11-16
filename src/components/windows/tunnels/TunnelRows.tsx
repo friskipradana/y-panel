@@ -1,7 +1,8 @@
 import { type CloudflareDNSRecord, type Tunnel } from '@/api/agent'
 import { toast } from 'sonner'
-import { Copy, ExternalLink, Globe2, LoaderCircle, Network, Pencil, RefreshCcw, Trash2 } from 'lucide-react'
+import { ExternalLink, Globe2, LoaderCircle, Network, Pencil, Trash2 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { ActionMenu, type ActionMenuItem } from '@/components/ui/ActionMenu'
 import { ListRowIcon } from '@/components/ui/ListTable'
 import type { UiTone } from '@/components/ui/IconBadge'
 import { STATUS_CONFIG } from './tunnelForms'
@@ -88,27 +89,46 @@ export function RouteRow({ route, index, onEdit, onDelete, onSync, syncing, dele
         </span>
       </div>
       <div className="docker-action-btns">
-        {route.status === 'active' ? (
-          <button type="button" className="docker-act-btn" title={t('common.sync')} aria-label={t('common.sync')} disabled={syncing} onClick={onSync}>
-            <RefreshCcw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} strokeWidth={1.75} />
-          </button>
-        ) : null}
         {route.cfHostname ? (
-          <>
-            <button type="button" className="docker-act-btn" title={t('tunnels.copy')} aria-label={t('tunnels.copy')} onClick={() => void copyAddress()}>
-              <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-            <a className="docker-act-btn" href={`https://${route.cfHostname}`} target="_blank" rel="noopener noreferrer" title={t('tunnels.openSite')} aria-label={t('tunnels.openSite')}>
-              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </a>
-          </>
+          <a className="docker-act-btn" href={`https://${route.cfHostname}`} target="_blank" rel="noopener noreferrer" title={t('tunnels.openSite')} aria-label={t('tunnels.openSite')}>
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </a>
         ) : null}
-        <button type="button" className="docker-act-btn" title={t('common.edit')} aria-label={t('common.edit')} onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
-        <button type="button" className="docker-act-btn docker-act-btn--danger" title={t('common.delete')} aria-label={t('common.delete')} disabled={deleting} onClick={onDelete}>
-          {deleting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} /> : <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
-        </button>
+        <ActionMenu
+          label={t('common.moreActions')}
+          compact
+          loading={syncing || deleting}
+          items={[
+            ...(route.status === 'active'
+              ? [{
+                key: 'sync',
+                label: t('common.sync'),
+                disabled: syncing,
+                onSelect: onSync,
+              } satisfies ActionMenuItem]
+              : []),
+            ...(route.cfHostname
+              ? [{
+                key: 'copy',
+                label: t('tunnels.copy'),
+                onSelect: () => void copyAddress(),
+              } satisfies ActionMenuItem]
+              : []),
+            {
+              key: 'edit',
+              label: t('common.edit'),
+              onSelect: onEdit,
+            },
+            {
+              key: 'delete',
+              label: t('common.delete'),
+              tone: 'danger',
+              dividerBefore: true,
+              disabled: deleting,
+              onSelect: onDelete,
+            },
+          ]}
+        />
       </div>
     </div>
   )
