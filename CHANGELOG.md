@@ -2,6 +2,16 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.85.12] - 2026-11-16
+
+2 perubahan, utamanya repair CSS theme tokens, real invoice payment methods, order addon visibility, and landing accessibility.
+
+### Perbaikan
+- **appcatalog:** Harden proxy isolation, atomic license tx, trialDays, and invoice addon accounting ([`82dbc8f`](https://github.com/friskipradana/y-panel/commit/82dbc8f))
+- **ui:** Repair CSS theme tokens, real invoice payment methods, order addon visibility, and landing accessibility ([`c9c9783`](https://github.com/friskipradana/y-panel/commit/c9c9783))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.85.11...v1.85.12
+
 ## [1.85.11] - 2026-11-15
 
 Enforce app token auth, superadmin RBAC, and payment matching on CRM licenses.
