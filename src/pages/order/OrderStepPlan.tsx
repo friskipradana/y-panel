@@ -46,7 +46,7 @@ export function OrderStepPlan({ order }: { order: OrderFormState }) {
           <PeriodPicker plan={plan} value={count} maxPeriods={maxPeriods} onChange={(n) => setPeriods(String(n))} />
         </Field>
       ) : null}
-      {!isTrial && appAddon ? (
+      {!isTrial && (planIncludesApp || appAddon) ? (
         planIncludesApp ? (
           <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--panel-success-border)] bg-[var(--panel-success-bg)] px-3 py-2 text-[0.8125rem]">
             <div>
@@ -55,7 +55,7 @@ export function OrderStepPlan({ order }: { order: OrderFormState }) {
             </div>
             <span className="panel-badge panel-badge--success shrink-0">{t('order.addon.includedBadge')}</span>
           </div>
-        ) : (
+        ) : appAddon ? (
           <label
             className={`flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2.5 transition-colors ${
               addonSelected
@@ -83,7 +83,7 @@ export function OrderStepPlan({ order }: { order: OrderFormState }) {
               </p>
             </div>
           </label>
-        )
+        ) : null
       ) : null}
       {isTrial ? (
         <p className="flex items-baseline justify-between text-[0.875rem]">

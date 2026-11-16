@@ -22,6 +22,7 @@ export function EditPlanModal({
   const [tagline, setTagline] = useState('')
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
   const [months, setMonths] = useState<number>(1)
+  const [trialDays, setTrialDays] = useState<number>(7)
   const [priceAmount, setPriceAmount] = useState<number>(99000)
   const [highlighted, setHighlighted] = useState(false)
   const [isActive, setIsActive] = useState(true)
@@ -48,6 +49,7 @@ export function EditPlanModal({
       setTagline(plan.tagline || '')
       setPeriod(plan.period === 'annual' ? 'annual' : 'monthly')
       setMonths(plan.months || (plan.period === 'annual' ? 12 : 1))
+      setTrialDays(plan.trialDays ?? 7)
       setPriceAmount(plan.priceAmount ?? 0)
       setHighlighted(Boolean(plan.highlighted))
       setIsActive(plan.isActive !== false)
@@ -112,6 +114,7 @@ export function EditPlanModal({
         tagline: tagline.trim() || undefined,
         period,
         months: Math.max(1, months),
+        trialDays: Math.max(0, trialDays),
         priceAmount: Math.max(0, priceAmount),
         highlighted,
         isActive,
@@ -139,7 +142,7 @@ export function EditPlanModal({
       onClose={onClose}
       title="Edit Paket & Tarif"
       subtitle={`${plan.catalogId} · ${plan.slug}`}
-      icon={<Pencil className="text-emerald-500" size={20} />}
+      icon={<Pencil className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
       footer={
         <div className="flex items-center justify-end gap-2 w-full">
@@ -225,6 +228,19 @@ export function EditPlanModal({
               min={1}
               value={months}
               onChange={(e) => setMonths(Number(e.target.value))}
+              className="panel-input panel-input--mono w-full text-xs"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+              Durasi Trial (Hari, 0 = tanpa trial)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={trialDays}
+              onChange={(e) => setTrialDays(Math.max(0, Number(e.target.value)))}
               className="panel-input panel-input--mono w-full text-xs"
             />
           </div>

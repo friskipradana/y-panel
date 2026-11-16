@@ -50,7 +50,7 @@ export function useOrderForm() {
   const appAddon = query.data?.appAddon ?? null
   const trialOffered = !!plan && plan.trialDays > 0
   const isTrial = trial && trialOffered
-  const planIncludesApp = !!plan && !!appAddon && plan.includedCatalogId === appAddon.catalogId
+  const planIncludesApp = !!plan && !!plan.includedCatalogId && (!appAddon || plan.includedCatalogId === appAddon.catalogId)
   const addonSelected = !isTrial && !planIncludesApp && !!appAddon && addonCatalogId === appAddon.catalogId
   // the panel address comes with every plan, on the main domain: picked here, created when the order is paid
   const needsAddress = !!plan && domains.length > 0

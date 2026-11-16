@@ -75,8 +75,15 @@ function Sheet({ invoice }: { invoice: InvoiceView }) {
         <Line
           label={t('invoice.plan', { plan: invoice.planName })}
           hint={`${t(`hosting.orders.kind.${invoice.kind}`)} · ${period}${invoice.hostname ? ` · ${invoice.hostname}` : ''}`}
-          amount={free && invoice.amountList <= 0 ? t('hosting.landing.free') : formatRupiah(invoice.amountList)}
+          amount={free && invoice.amountList <= 0 ? t('hosting.landing.free') : formatRupiah(Math.max(0, invoice.amountList - (invoice.addonAmount ?? 0)))}
         />
+        {(invoice.addonAmount ?? 0) > 0 ? (
+          <Line
+            label={t('invoice.addon', { app: invoice.addonCatalogId === 'reneo-crm' ? 'Reneo CRM Services' : (invoice.addonCatalogId ?? 'App Add-on') })}
+            hint={period}
+            amount={formatRupiah(invoice.addonAmount ?? 0)}
+          />
+        ) : null}
         {(invoice.discountPromo ?? 0) > 0 ? <Line label={t('invoice.promo')} amount={`- ${formatRupiah(invoice.discountPromo ?? 0)}`} /> : null}
         {invoice.discountDuration > 0 ? <Line label={t('invoice.durationDiscount')} amount={`- ${formatRupiah(invoice.discountDuration)}`} /> : null}
         {invoice.discountVoucher > 0 ? <Line label={t('invoice.voucher', { code: invoice.voucherCode ?? '' })} amount={`- ${formatRupiah(invoice.discountVoucher)}`} /> : null}

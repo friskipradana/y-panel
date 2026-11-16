@@ -28,6 +28,7 @@ import {
   renewAppLicense,
   fetchAppLicensePlans,
   fetchAppLicenseOrders,
+  fetchAppLicenseOrderDetail,
   createAppLicenseOrder,
   payAppLicenseOrder,
   cancelAppLicenseOrder,
@@ -39,6 +40,7 @@ import {
   type AppLicensePlan,
   type AppLicenseOrder,
 } from '@/api/appLicenses'
+import { installedAppWindowParams } from '@/api/appCatalog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { IconBadge } from '@/components/ui/IconBadge'
@@ -176,6 +178,18 @@ export function AppLicensesWindow() {
     staleTime: 15_000,
   })
 
+  const { data: orderDetail, isLoading: orderDetailLoading } = useQuery({
+    queryKey: ['app-license-order-detail', selectedOrder?.publicId],
+    queryFn: () => fetchAppLicenseOrderDetail(selectedOrder!.publicId),
+    enabled: invoiceModalOpen && !!selectedOrder?.publicId && selectedOrder.status === 'pending',
+    staleTime: 30_000,
+  })
+
+  const activePaymentMethods = useMemo(
+    () => (orderDetail?.paymentMethods ?? []).filter((m) => m.enabled !== false),
+    [orderDetail]
+  )
+
   // Mutations
   const deleteLicenseMutation = useMutation({
     mutationFn: deleteAppLicense,
@@ -222,6 +236,12 @@ export function AppLicensesWindow() {
     mutationFn: createAppLicenseOrder,
     onSuccess: (data) => {
       toast.success('Invoice pesanan baru berhasil diterbitkan!')
+      if (data.paymentMethods?.length) {
+        queryClient.setQueryData(['app-license-order-detail', data.order.publicId], {
+          order: data.order,
+          paymentMethods: data.paymentMethods,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: ['app-license-orders'] })
       setSelectedOrder(data.order)
       setInvoiceModalOpen(true)
@@ -351,21 +371,17 @@ export function AppLicensesWindow() {
   const handleOpenApp = (lic: AppLicense) => {
     const installed = catalogData?.installed?.find((app) => app.catalogId === lic.catalogId)
     if (installed) {
-      openWindow('installed-app', { appId: installed.id })
-    } else {
-      if (lic.catalogId === 'reneo-crm') {
-        window.open('http://localhost:18011', '_blank')
-      } else {
-        openWindow('app-catalog')
-      }
+      openWindow('installed-app', installedAppWindowParams(installed))
+      return
     }
+    openWindow('app-catalog')
   }
 
   const handleOrderPlan = (plan: AppLicensePlan) => {
     orderMutation.mutate({
       catalogId: plan.catalogId,
       planSlug: plan.slug,
-      paymentMethod: 'saldo',
+      paymentMethod: 'transfer',
     })
   }
 
@@ -1545,13 +1561,13 @@ export function AppLicensesWindow() {
           onClose={() => setInvoiceModalOpen(false)}
           title={`Invoice ${selectedOrder.invoiceNumber}`}
           subtitle={`${selectedOrder.appName} · ${selectedOrder.planName}`}
-          icon={<ReceiptText className="text-emerald-500" size={20} />}
+          icon={<ReceiptText className="text-[var(--panel-primary-text)]" size={20} />}
           size="md"
           footer={
             <div className="flex items-center justify-between w-full">
               <div className="text-xs">
                 <span className="text-[var(--text-secondary)]">Total Tagihan:</span>
-                <span className="block font-bold text-base text-emerald-600 dark:text-emerald-400">
+                <span className="panel-mono block font-bold text-base text-[var(--panel-primary-text)]">
                   Rp {selectedOrder.amountTotal.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -1567,7 +1583,7 @@ export function AppLicensesWindow() {
                       size="sm"
                       loading={cancelOrderMutation.isPending}
                       onClick={() => void handleCancelOrder(selectedOrder)}
-                      className="gap-1 text-rose-500 hover:bg-rose-500/10"
+                      className="gap-1 text-[var(--panel-danger-text)] hover:bg-[var(--panel-danger-bg)]"
                     >
                       <XCircle size={13} />
                       Batalkan
@@ -1579,7 +1595,7 @@ export function AppLicensesWindow() {
                       onClick={() => {
                         payMutation.mutate({
                           publicId: selectedOrder.publicId,
-                          method: selectedOrder.paymentMethod || 'transfer',
+                          method: selectedOrder.paymentMethod || activePaymentMethods[0]?.id || 'transfer',
                         })
                       }}
                       className="gap-1.5"
@@ -1602,10 +1618,10 @@ export function AppLicensesWindow() {
             <div
               className={`p-3.5 rounded-xl border flex items-center justify-between ${
                 selectedOrder.status === 'paid'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+                  ? 'bg-[var(--panel-success-bg)] border-[var(--panel-success-border)] text-[var(--panel-success-text)]'
                   : selectedOrder.status === 'cancelled'
                     ? 'bg-[var(--win-bg)] border-[var(--win-border)] text-[var(--text-secondary)]'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                    : 'bg-[var(--panel-warning-bg)] border-[var(--win-border)] text-[var(--panel-warning-text)]'
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -1647,49 +1663,58 @@ export function AppLicensesWindow() {
                 <span>
                   {selectedOrder.appName} - {selectedOrder.planName} ({selectedOrder.months} Bulan)
                 </span>
-                <span className="font-semibold">
+                <span className="panel-mono font-semibold">
                   Rp {selectedOrder.amountList.toLocaleString('id-ID')}
                 </span>
               </div>
               {selectedOrder.uniqueCode > 0 && (
                 <div className="flex items-center justify-between text-[var(--text-secondary)]">
                   <span>Kode Unik Pembayaran:</span>
-                  <span className="font-mono">Rp {selectedOrder.uniqueCode}</span>
+                  <span className="panel-mono">Rp {selectedOrder.uniqueCode}</span>
                 </div>
               )}
               <div className="h-px bg-[var(--win-border)]" />
               <div className="flex items-center justify-between font-bold text-sm text-[var(--win-text)]">
                 <span>Total Jumlah Bayar:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="panel-mono text-[var(--panel-primary-text)]">
                   Rp {selectedOrder.amountTotal.toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
 
-            {/* Metode Pembayaran Bank / QRIS */}
+            {/* Metode Pembayaran Aktif */}
             {selectedOrder.status === 'pending' && (
               <div className="p-3.5 rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] space-y-2">
                 <h5 className="font-bold text-[var(--win-text)] flex items-center gap-1.5">
-                  <CreditCard size={14} className="text-emerald-500" />
-                  Tujuan Pembayaran (Otomatis Terverifikasi):
+                  <CreditCard size={14} className="text-[var(--panel-primary-text)]" />
+                  Tujuan Pembayaran Aktif:
                 </h5>
-                <div className="space-y-1.5 text-[11px]">
-                  <div className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
-                    <span className="font-bold text-[var(--win-text)] block">BCA (Bank Central Asia)</span>
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                      8831-2940-11
-                    </span>{' '}
-                    · a/n Reneo Payments
+                {orderDetailLoading ? (
+                  <p className="text-[11px] text-[var(--text-secondary)]">Memuat metode pembayaran...</p>
+                ) : activePaymentMethods.length > 0 ? (
+                  <div className="space-y-1.5 text-[11px]">
+                    {activePaymentMethods.map((method) => (
+                      <div key={method.id} className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
+                        <span className="font-bold text-[var(--win-text)] block">{method.name}</span>
+                        {method.account && (
+                          <span className="panel-mono font-semibold text-[var(--panel-primary-text)]">
+                            {method.account}
+                          </span>
+                        )}
+                        {method.holder && (
+                          <span className="text-[var(--text-secondary)]">
+                            {method.account ? ' · a/n ' : ''}
+                            {method.holder}
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-2 rounded-lg bg-[var(--panel-surface)] border border-[var(--win-border)]">
-                    <span className="font-bold text-[var(--win-text)] block">
-                      QRIS Instan Semua Bank & E-Wallet
-                    </span>
-                    <span className="text-[var(--text-secondary)]">
-                      Scan QRIS melalui Reneo Panel Gateway
-                    </span>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-[11px] text-[var(--text-secondary)]">
+                    Belum ada metode pembayaran aktif yang dikonfigurasi di pengaturan billing panel.
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -28,6 +28,7 @@ export function CreatePlanModal({
   const [tagline, setTagline] = useState('')
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
   const [months, setMonths] = useState<number>(1)
+  const [trialDays, setTrialDays] = useState<number>(7)
   const [priceAmount, setPriceAmount] = useState<number>(99000)
   const [highlighted, setHighlighted] = useState(false)
 
@@ -90,6 +91,7 @@ export function CreatePlanModal({
         tagline: tagline.trim() || undefined,
         period,
         months,
+        trialDays: Math.max(0, trialDays),
         priceAmount,
         highlighted,
         isActive: true,
@@ -129,7 +131,7 @@ export function CreatePlanModal({
       onClose={onClose}
       title="Tambah Paket & Tarif Lisensi"
       subtitle="Definisikan tier harga, durasi langganan, dan fitur aplikasi untuk pelanggan."
-      icon={<Boxes className="text-emerald-500" size={20} />}
+      icon={<Boxes className="text-[var(--panel-primary-text)]" size={20} />}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -220,7 +222,7 @@ export function CreatePlanModal({
                 onClick={() => handlePeriodChange('monthly')}
                 className={`flex-1 py-1.5 rounded-lg border text-center transition ${
                   period === 'monthly'
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-bold'
+                    ? 'border-[var(--panel-primary)] bg-[var(--panel-primary-soft)] text-[var(--panel-primary-text)] font-bold'
                     : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
                 }`}
               >
@@ -231,7 +233,7 @@ export function CreatePlanModal({
                 onClick={() => handlePeriodChange('annual')}
                 className={`flex-1 py-1.5 rounded-lg border text-center transition ${
                   period === 'annual'
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 font-bold'
+                    ? 'border-[var(--panel-primary)] bg-[var(--panel-primary-soft)] text-[var(--panel-primary-text)] font-bold'
                     : 'border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--text-secondary)]'
                 }`}
               >
@@ -249,13 +251,13 @@ export function CreatePlanModal({
               min={1}
               value={months}
               onChange={(e) => setMonths(Math.max(1, Number(e.target.value)))}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
+              className="panel-input panel-input--mono w-full text-xs"
             />
           </div>
         </div>
 
-        {/* Price & Highlight */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+        {/* Trial & Price & Highlight */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
           <div>
             <label className="block font-medium text-[var(--win-text)] mb-1">
               Harga Paket (Rp):
@@ -266,7 +268,20 @@ export function CreatePlanModal({
               required
               value={priceAmount}
               onChange={(e) => setPriceAmount(Number(e.target.value))}
-              className="w-full px-3 py-1.5 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] text-[var(--win-text)] focus:outline-none focus:border-[var(--panel-primary-text)] text-xs"
+              className="panel-input panel-input--mono w-full text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-[var(--win-text)] mb-1">
+              Durasi Trial (Hari):
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={trialDays}
+              onChange={(e) => setTrialDays(Math.max(0, Number(e.target.value)))}
+              className="panel-input panel-input--mono w-full text-xs"
             />
           </div>
 
@@ -276,10 +291,10 @@ export function CreatePlanModal({
                 type="checkbox"
                 checked={highlighted}
                 onChange={(e) => setHighlighted(e.target.checked)}
-                className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                className="rounded border-[var(--win-border)] accent-[var(--panel-primary)]"
               />
               <span className="font-medium text-[var(--win-text)]">
-                Tandai sebagai "Paling Populer"
+                Tandai "Populer"
               </span>
             </label>
           </div>
@@ -442,7 +457,7 @@ export function CreatePlanModal({
             variant="primary"
             size="sm"
             loading={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            className="gap-1.5"
           >
             <CheckCircle2 size={14} />
             Simpan Paket

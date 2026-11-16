@@ -39,7 +39,7 @@ export function Background() {
           return (
             <li key={step.id} className="relative">
               <span
-                className={`panel-mono absolute -left-9 top-3 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs transition-colors ${
+                className={`panel-mono absolute -left-9 top-3 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold transition-colors ${
                   isOpen
                     ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                     : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)]'
@@ -48,17 +48,17 @@ export function Background() {
                 {step.num}
               </span>
               <div
-                className={`rounded-2xl border shadow-2xs backdrop-blur-xs transition-colors ${
+                className={`rounded-[14px] border transition-colors ${
                   isOpen
                     ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]'
-                    : 'border-[var(--win-border)] bg-[var(--panel-surface)]/50 hover:bg-[var(--panel-surface)]/80'
+                    : 'border-[var(--win-border)] bg-[var(--panel-surface)] hover:border-[var(--panel-primary-solid)]'
                 }`}
               >
                 <button
                   type="button"
                   aria-expanded={isOpen}
                   onClick={() => toggle(step.id)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 rounded-[13px] px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-inset"
                 >
                   <span
                     className={`text-[0.875rem] font-bold leading-snug tracking-tight ${
@@ -101,10 +101,10 @@ export function Background() {
                   type="button"
                   aria-expanded={isOpen}
                   onClick={() => toggle(step.id)}
-                  className="group flex w-full flex-col items-center focus:outline-none"
+                  className="group flex w-full flex-col items-center rounded-[14px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--focus-ring-offset)]"
                 >
                   <span
-                    className={`panel-mono relative z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold shadow-2xs transition-colors ${
+                    className={`panel-mono relative z-10 inline-flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[0.75rem] font-bold transition-colors ${
                       isOpen
                         ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-solid)] text-white'
                         : 'border-[var(--win-border)] bg-[var(--win-content-bg)] text-[var(--win-text)] group-hover:border-[var(--panel-primary-solid)]'
@@ -113,10 +113,10 @@ export function Background() {
                     {step.num}
                   </span>
                   <div
-                    className={`mt-3 w-full rounded-2xl border px-3.5 py-3 text-left shadow-2xs backdrop-blur-xs transition-colors ${
+                    className={`mt-3 w-full rounded-[14px] border px-3.5 py-3 text-left transition-colors ${
                       isOpen
                         ? 'border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)]'
-                        : 'border-[var(--win-border)] bg-[var(--panel-surface)]/50 group-hover:border-[var(--panel-primary-solid)] group-hover:bg-[var(--panel-surface)]/80'
+                        : 'border-[var(--win-border)] bg-[var(--panel-surface)] group-hover:border-[var(--panel-primary-solid)]'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -143,16 +143,11 @@ export function Background() {
         </ol>
 
         {activeStep ? (
-          <div className="mt-3.5 rounded-2xl border border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] p-4 shadow-2xs backdrop-blur-xs">
-            <div className="flex items-center gap-2.5">
-              <span className="panel-mono inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--panel-primary-solid)] px-2 text-[0.75rem] font-bold text-white">
-                {activeStep.num}
-              </span>
-              <h3 className="text-[0.875rem] font-bold tracking-tight text-[var(--panel-primary-text)]">
-                {activeStep.title}
-              </h3>
-            </div>
-            <p className="mt-2 text-[0.8125rem] leading-relaxed text-[var(--win-text)]">
+          <div className="mt-3.5 rounded-[14px] border border-[var(--panel-primary-solid)] bg-[var(--panel-primary-bg)] px-4 py-3.5">
+            <span className="panel-mono text-[0.75rem] font-semibold text-[var(--panel-primary-text)]">
+              {activeStep.num} · {activeStep.title}
+            </span>
+            <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[var(--win-text)]">
               {activeStep.desc}
             </p>
           </div>

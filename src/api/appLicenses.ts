@@ -27,6 +27,7 @@ export interface AppLicensePlan {
   tagline: string
   period: string
   months: number
+  trialDays?: number
   priceAmount: number
   features: Record<string, boolean | number | string>
   highlighted: boolean
@@ -111,6 +112,7 @@ export interface CreateAppPlanPayload {
   tagline?: string
   period?: string
   months?: number
+  trialDays?: number
   priceAmount: number
   features?: Record<string, boolean | number | string>
   highlighted?: boolean
@@ -207,7 +209,22 @@ export async function fetchAppLicenseOrders(catalogId?: string): Promise<AppLice
   return res.data.orders || []
 }
 
-export async function payAppLicenseOrder(publicId: string, paymentMethod = 'saldo'): Promise<AppLicenseOrder> {
+export async function fetchAppLicenseOrderDetail(publicId: string): Promise<{
+  order: AppLicenseOrder
+  paymentMethods: PaymentMethodItem[]
+}> {
+  const res = await agentApi.get<{
+    ok: boolean
+    order: AppLicenseOrder
+    paymentMethods: PaymentMethodItem[]
+  }>(`/api/v1/app-catalog/orders/${publicId}`)
+  return {
+    order: res.data.order,
+    paymentMethods: res.data.paymentMethods || [],
+  }
+}
+
+export async function payAppLicenseOrder(publicId: string, paymentMethod = 'transfer'): Promise<AppLicenseOrder> {
   const res = await agentApi.post<{ ok: boolean; order: AppLicenseOrder }>(
     `/api/v1/app-catalog/orders/${publicId}/pay`,
     { paymentMethod }
