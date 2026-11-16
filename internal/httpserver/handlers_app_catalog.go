@@ -1987,22 +1987,27 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerContext, app *database.InstalledApp, targetImage string) (int, error) {
 	composePath := filepath.Join(owner.DockerRootDir, app.ContainerName, "compose.yml")
 	ensureAppVolumePermissions(owner, app.ContainerName)
-	existingContainers, _ := docker.ListContainers()
-	if matched := matchContainerForApp(*app, existingContainers, s.ownerScopeFor(actor)); matched != nil {
-		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil && !strings.Contains(strings.ToLower(delErr.Error()), "no such container") {
-			return http.StatusConflict, fmt.Errorf("gagal menghentikan container lama %s: %w", matched.ID, delErr)
-		}
-		for _, rawName := range matched.Names {
-			cleanName := strings.TrimPrefix(rawName, "/")
-			if cleanName != "" && cleanName != app.ContainerName {
-				_ = docker.DeleteContainer(cleanName, false, false)
+
+	removeExistingContainers := func() (int, error) {
+		existingContainers, _ := docker.ListContainers()
+		if matched := matchContainerForApp(*app, existingContainers, s.ownerScopeFor(actor)); matched != nil {
+			if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil && !strings.Contains(strings.ToLower(delErr.Error()), "no such container") {
+				return http.StatusConflict, fmt.Errorf("gagal menghentikan container lama %s: %w", matched.ID, delErr)
+			}
+			for _, rawName := range matched.Names {
+				cleanName := strings.TrimPrefix(rawName, "/")
+				if cleanName != "" && cleanName != app.ContainerName {
+					_ = docker.DeleteContainer(cleanName, false, false)
+				}
 			}
 		}
+		if app.ContainerName != "" {
+			_ = docker.DeleteContainer(app.ContainerName, false, false)
+			_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, false, false)
+		}
+		return 0, nil
 	}
-	if app.ContainerName != "" {
-		_ = docker.DeleteContainer(app.ContainerName, false, false)
-		_ = docker.DeleteContainer(app.ContainerName+"-"+app.ContainerName, false, false)
-	}
+
 	if rawCompose, readErr := os.ReadFile(composePath); readErr == nil && len(rawCompose) > 0 {
 		sanitized, _ := sanitizeExistingAppCompose(string(rawCompose), app.ContainerName, app.CatalogID)
 		updatedCompose, ok := replaceComposeImageLine(sanitized, targetImage)
@@ -2013,6 +2018,12 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				updatedCompose = upsertComposeEnvVar(updatedCompose, "RENEO_APP_TOKEN", appTok)
 			}
+		}
+		if valErr := docker.ValidateCompose(owner, app.ContainerName, updatedCompose); valErr != nil {
+			return http.StatusUnprocessableEntity, valErr
+		}
+		if delCode, delErr := removeExistingContainers(); delErr != nil {
+			return delCode, delErr
 		}
 		if _, deployErr := docker.DeployFromCompose(owner, docker.DeployComposeRequest{
 			Name:        app.ContainerName,
@@ -2040,6 +2051,9 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		}
 		if delErr := docker.DeleteContainer(matched.ID, false, false); delErr != nil {
 			return http.StatusBadGateway, delErr
+		}
+		if delCode, delErr := removeExistingContainers(); delErr != nil {
+			return delCode, delErr
 		}
 		nextEnv := filterNonDefaultEnvVars(cfg.Env)
 		if app.CatalogID == "reneo-crm" {
@@ -2884,6 +2898,11 @@ func sanitizeExistingAppCompose(composeYAML, projectName, catalogID string) (str
 	updated := composeYAML
 	changed := false
 
+	if normalized, normChanged := normalizeComposeEnvBlocks(updated); normChanged {
+		updated = normalized
+		changed = true
+	}
+
 	if projectName != "" {
 		doubled := projectName + "-" + projectName
 		if strings.Contains(updated, doubled) {
@@ -3582,50 +3601,197 @@ func upsertSliceEnvVar(env []docker.EnvVar, key, val string) []docker.EnvVar {
 	return append(env, docker.EnvVar{Key: key, Value: val})
 }
 
-func upsertComposeEnvVar(composeYAML, key, val string) string {
-	lines := strings.Split(composeYAML, "\n")
-	prefix := "- " + key + "="
-	mapPrefix := key + ":"
-	inEnv := false
-	envIndent := ""
-	insertAt := -1
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-		if trimmed == "environment:" {
-			inEnv = true
-			envIndent = indent
-			insertAt = i + 1
+var composeEnvHeaderRe = regexp.MustCompile(`^([ \t]*)environment[ \t]*:[ \t]*(\{\}|\[\])?[ \t]*(?:#.*)?$`)
+
+func yamlComposeScalar(value string) string {
+	escaped := strings.ReplaceAll(value, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+	escaped = strings.ReplaceAll(escaped, "\r\n", `\n`)
+	escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+	return `"` + escaped + `"`
+}
+
+func formatListComposeEnvEntry(key, val string) string {
+	if val != "" && !strings.ContainsAny(val, " \t\r\n#\"'{}[]&*!|>%@`") {
+		return key + "=" + val
+	}
+	return yamlComposeScalar(key + "=" + val)
+}
+
+func parseComposeEnvListEntry(trimmed string) (key, val string, ok bool) {
+	if trimmed != "-" && !strings.HasPrefix(trimmed, "- ") && !strings.HasPrefix(trimmed, "-\t") {
+		return "", "", false
+	}
+	raw := strings.TrimSpace(trimmed[1:])
+	if len(raw) >= 2 && ((raw[0] == '"' && raw[len(raw)-1] == '"') || (raw[0] == '\'' && raw[len(raw)-1] == '\'')) {
+		raw = raw[1 : len(raw)-1]
+	}
+	eq := strings.IndexByte(raw, '=')
+	if eq <= 0 {
+		return "", "", false
+	}
+	k := strings.TrimSpace(raw[:eq])
+	if k == "" || strings.ContainsAny(k, " \t") {
+		return "", "", false
+	}
+	v := strings.TrimSpace(raw[eq+1:])
+	if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'')) {
+		v = v[1 : len(v)-1]
+	}
+	return k, v, true
+}
+
+func parseComposeEnvMapEntry(trimmed string) (key string, ok bool) {
+	if strings.HasPrefix(trimmed, "-") {
+		return "", false
+	}
+	colon := strings.IndexByte(trimmed, ':')
+	if colon <= 0 {
+		return "", false
+	}
+	k := strings.Trim(strings.TrimSpace(trimmed[:colon]), `"'`)
+	if k == "" || strings.ContainsAny(k, " \t") {
+		return "", false
+	}
+	return k, true
+}
+
+func findComposeEnvBlockBounds(lines []string, start int, envIndent string) (end int, mapCount, listCount int, childIndent string) {
+	end = start + 1
+	for j := start + 1; j < len(lines); j++ {
+		t := strings.TrimSpace(lines[j])
+		if t == "" || strings.HasPrefix(t, "#") {
 			continue
 		}
-		if inEnv {
-			if trimmed != "" && !strings.HasPrefix(trimmed, "#") && len(indent) <= len(envIndent) && !strings.HasPrefix(trimmed, "-") {
-				inEnv = false
-				continue
+		ind := lines[j][:len(lines[j])-len(strings.TrimLeft(lines[j], " \t"))]
+		isList := t == "-" || strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "-\t")
+		if len(ind) > len(envIndent) || (len(ind) == len(envIndent) && isList) {
+			end = j + 1
+			if childIndent == "" {
+				childIndent = ind
 			}
-			if strings.HasPrefix(trimmed, prefix) {
-				lines[i] = indent + prefix + val
-				return strings.Join(lines, "\n")
+			if isList {
+				listCount++
+			} else if _, isMap := parseComposeEnvMapEntry(t); isMap {
+				mapCount++
+				if mapCount == 1 {
+					childIndent = ind
+				}
 			}
-			if strings.HasPrefix(trimmed, mapPrefix) {
-				lines[i] = indent + mapPrefix + " " + val
-				return strings.Join(lines, "\n")
-			}
-			if strings.HasPrefix(trimmed, "- ") || strings.Contains(trimmed, ":") {
-				insertAt = i + 1
+			continue
+		}
+		break
+	}
+	if childIndent == "" {
+		childIndent = envIndent + "  "
+	}
+	return end, mapCount, listCount, childIndent
+}
+
+// normalizeComposeEnvBlocks repairs mixed YAML mapping + sequence entries inside any `environment:`
+// block (such as `- KEY=VAL` lines previously injected into a `KEY: "val"` map block).
+func normalizeComposeEnvBlocks(composeYAML string) (string, bool) {
+	normalized := strings.ReplaceAll(composeYAML, "\r\n", "\n")
+	lines := strings.Split(normalized, "\n")
+	changed := false
+
+	for i := 0; i < len(lines); i++ {
+		m := composeEnvHeaderRe.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		envIndent := m[1]
+		end, mapCount, listCount, mapIndent := findComposeEnvBlockBounds(lines, i, envIndent)
+		if mapCount > 0 && listCount > 0 {
+			for j := i + 1; j < end; j++ {
+				t := strings.TrimSpace(lines[j])
+				if k, v, ok := parseComposeEnvListEntry(t); ok {
+					lines[j] = mapIndent + k + ": " + yamlComposeScalar(v)
+					changed = true
+				}
 			}
 		}
+		i = end - 1
 	}
-	if insertAt > 0 && insertAt <= len(lines) {
-		itemIndent := envIndent + "  "
-		newLine := itemIndent + prefix + val
+
+	if !changed {
+		return composeYAML, false
+	}
+	return strings.Join(lines, "\n"), true
+}
+
+func upsertComposeEnvVar(composeYAML, key, val string) string {
+	normalized := strings.ReplaceAll(composeYAML, "\r\n", "\n")
+	if healed, changed := normalizeComposeEnvBlocks(normalized); changed {
+		normalized = healed
+	}
+	lines := strings.Split(normalized, "\n")
+
+	for i := 0; i < len(lines); i++ {
+		m := composeEnvHeaderRe.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		envIndent := m[1]
+		inlineVal := strings.TrimSpace(m[2])
+		end, mapCount, listCount, itemIndent := findComposeEnvBlockBounds(lines, i, envIndent)
+		useList := inlineVal == "[]" || (mapCount == 0 && listCount > 0)
+
+		if inlineVal == "{}" || inlineVal == "[]" {
+			lines[i] = envIndent + "environment:"
+		}
+
+		for j := i + 1; j < end; j++ {
+			t := strings.TrimSpace(lines[j])
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
+			}
+			lineInd := lines[j][:len(lines[j])-len(strings.TrimLeft(lines[j], " \t"))]
+			if k, _, ok := parseComposeEnvListEntry(t); ok && k == key {
+				if useList {
+					lines[j] = lineInd + "- " + formatListComposeEnvEntry(key, val)
+				} else {
+					lines[j] = itemIndent + key + ": " + yamlComposeScalar(val)
+				}
+				return strings.Join(lines, "\n")
+			}
+			if k, ok := parseComposeEnvMapEntry(t); ok && k == key {
+				if useList {
+					lines[j] = itemIndent + "- " + formatListComposeEnvEntry(key, val)
+				} else {
+					lines[j] = lineInd + key + ": " + yamlComposeScalar(val)
+				}
+				return strings.Join(lines, "\n")
+			}
+		}
+
+		newLine := itemIndent + key + ": " + yamlComposeScalar(val)
+		if useList {
+			newLine = itemIndent + "- " + formatListComposeEnvEntry(key, val)
+		}
 		updated := make([]string, 0, len(lines)+1)
-		updated = append(updated, lines[:insertAt]...)
+		updated = append(updated, lines[:end]...)
 		updated = append(updated, newLine)
-		updated = append(updated, lines[insertAt:]...)
+		updated = append(updated, lines[end:]...)
 		return strings.Join(updated, "\n")
 	}
-	return composeYAML
+
+	// No environment section exists; inject a mapping block right after the first service image line.
+	for i, line := range lines {
+		if sub := composeImageLineRe.FindStringSubmatch(line); len(sub) == 3 {
+			svcIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			envBlock := []string{
+				svcIndent + "environment:",
+				svcIndent + "  " + key + ": " + yamlComposeScalar(val),
+			}
+			updated := make([]string, 0, len(lines)+2)
+			updated = append(updated, lines[:i+1]...)
+			updated = append(updated, envBlock...)
+			updated = append(updated, lines[i+1:]...)
+			return strings.Join(updated, "\n")
+		}
+	}
+	return normalized
 }
 
 func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request) {

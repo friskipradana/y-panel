@@ -110,6 +110,45 @@ func PullImage(image string, auth *RegistryAuth) error {
 	return nil
 }
 
+func ValidateCompose(owner OwnerContext, rawName, composeYAML string) error {
+	projectName, projectDir, _, err := prepareProject(owner, rawName)
+	if err != nil {
+		return err
+	}
+	content := strings.TrimSpace(composeYAML)
+	if content == "" {
+		return errors.New("compose yaml is required")
+	}
+	if err := ensureComposeWithinOwnerRoot(content, owner.HomeDir); err != nil {
+		return err
+	}
+	if !IsPolicyExempt(owner.Role) {
+		if err := CheckComposePolicy(content, owner.HomeDir); err != nil {
+			return err
+		}
+	}
+	content = normalizeBuiltinNetworks(namespaceComposeContainerNames(content, projectName))
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		return fmt.Errorf("prepare project dir: %w", err)
+	}
+	return runComposeValidate(projectDir, content, projectName)
+}
+
+func runComposeValidate(projectDir, composeYAML, projectName string) error {
+	args := []string{"compose", "-f", "-"}
+	if strings.TrimSpace(projectName) != "" {
+		args = append(args, "-p", projectName)
+	}
+	args = append(args, "config", "-q")
+	cmd := exec.Command("docker", args...)
+	cmd.Dir = projectDir
+	cmd.Stdin = strings.NewReader(composeYAML)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("validate compose: %s", formatComposeError(string(output)))
+	}
+	return nil
+}
+
 func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployResult, error) {
 	defer InvalidateAll()
 	projectName, projectDir, composePath, err := prepareProject(owner, req.Name)
@@ -131,6 +170,9 @@ func DeployFromCompose(owner OwnerContext, req DeployComposeRequest) (*DeployRes
 	content = normalizeBuiltinNetworks(namespaceComposeContainerNames(content, projectName))
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return nil, fmt.Errorf("prepare project dir: %w", err)
+	}
+	if err := runComposeValidate(projectDir, content, projectName); err != nil {
+		return nil, err
 	}
 	if err := os.WriteFile(composePath, []byte(content), 0644); err != nil {
 		return nil, fmt.Errorf("write compose file: %w", err)
