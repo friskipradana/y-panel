@@ -59,23 +59,21 @@ export function SpeedtestWindow() {
             <Button
               type="button"
               variant="danger"
-              size="sm"
               onClick={run.stop}
-              className="!h-8 !px-3 font-medium shrink-0"
+              className="shrink-0"
             >
-              <Square className="h-3 w-3 fill-current mr-1.5" strokeWidth={1.75} />
+              <Square className="h-3 w-3 fill-current" strokeWidth={1.75} />
               <span>{t('speedtest.stop')}</span>
             </Button>
           ) : (
             <Button
               type="button"
               variant="primary"
-              size="sm"
               disabled={startDisabled}
               onClick={run.start}
-              className="!h-8 !px-3 font-medium shrink-0"
+              className="shrink-0"
             >
-              <Play className="h-3 w-3 fill-current mr-1.5" strokeWidth={1.75} />
+              <Play className="h-3 w-3 fill-current" strokeWidth={1.75} />
               <span>{run.result ? t('speedtest.again') : t('speedtest.start')}</span>
             </Button>
           )}

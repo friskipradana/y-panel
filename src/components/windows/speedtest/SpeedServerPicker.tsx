@@ -18,8 +18,7 @@ export function SpeedServerPicker({ servers, value, onChange, disabled }: SpeedS
     <div className="flex min-w-0 items-center gap-2 w-full sm:w-auto">
       <Select
         id="speedtest-server"
-        className="w-full sm:w-60 max-w-full sm:max-w-[18rem]"
-        size="sm"
+        className="w-full sm:w-60 max-w-full sm:max-w-[18rem] panel-toolbar-select"
         value={selected?.id ?? ''}
         onChange={onChange}
         disabled={disabled}

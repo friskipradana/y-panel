@@ -112,17 +112,16 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, errors.New("unknown speed test server"))
 		return
 	}
-	if !speedInternetMu.TryLock() {
+	ctx, finishRun, ok := beginSpeedRun(r.Context(), 90*time.Second)
+	if !ok {
 		s.writeError(w, http.StatusConflict, errors.New("a speed test is already running on this server"))
 		return
 	}
-	defer speedInternetMu.Unlock()
+	defer finishRun()
 
 	out := newSpeedStream(w)
 
 	started := time.Now()
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-	defer cancel()
 	client := newSpeedClient()
 	defer client.CloseIdleConnections()
 
@@ -131,7 +130,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 	var notes []string
 	var peer *speedServer
 	var latency, jitter float64
-	for i := range candidates {
+	for i := 0; i < len(candidates) && ctx.Err() == nil; i++ {
 		candidate := candidates[i]
 		l, j, err := measureSpeedLatency(ctx, client, candidate, func(ms float64) {
 			out.send(speedEvent{Type: "ping", LatencyMs: fptr(ms)})
@@ -142,6 +141,9 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 		}
 		peer, latency, jitter = &candidate, l, j
 		break
+	}
+	if ctx.Err() != nil {
+		return
 	}
 	if peer == nil {
 		out.send(speedEvent{Type: "error", Error: "cannot reach the speed test server from this server: " + strings.Join(notes, "; ")})
@@ -162,7 +164,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 	}
 	var source *speedSource
 	down := 0.0
-	for remaining := sources; len(remaining) > 0 && down == 0; {
+	for remaining := sources; len(remaining) > 0 && down == 0 && ctx.Err() == nil; {
 		picked, failures := pickSpeedSource(ctx, client, remaining)
 		notes = append(notes, failures...)
 		if picked == nil {
@@ -189,9 +191,12 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 		}
 		remaining = next
 	}
+	if ctx.Err() != nil {
+		return
+	}
 
 	up := 0.0
-	if peer.canUpload() {
+	if peer.canUpload() && ctx.Err() == nil {
 		out.send(speedEvent{Type: "phase", Phase: "upload"})
 		var upNote string
 		up, upNote = measureSpeedUpload(ctx, client, *peer, func(mbps, fraction float64) {
@@ -201,7 +206,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 			notes = append(notes, upNote)
 		}
 	}
-	if ctx.Err() != nil && r.Context().Err() != nil {
+	if ctx.Err() != nil {
 		return
 	}
 	if down == 0 && up == 0 {
@@ -231,7 +236,7 @@ func (s *Server) handleSpeedtestServer(w http.ResponseWriter, r *http.Request) {
 
 func measureSpeedLatency(ctx context.Context, client *http.Client, target speedServer, onSample func(float64)) (float64, float64, error) {
 	var samples []float64
-	for i := 0; i < speedPingSamples; i++ {
+	for i := 0; i < speedPingSamples && ctx.Err() == nil; i++ {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.ping, nil)
 		if err != nil {
 			return 0, 0, err
@@ -351,6 +356,8 @@ func pickSpeedSource(ctx context.Context, client *http.Client, sources []speedSo
 func measureSpeedDownload(ctx context.Context, client *http.Client, src speedSource, onTick func(mbps, fraction float64)) (float64, string) {
 	runCtx, cancel := context.WithTimeout(ctx, speedDownloadFor)
 	defer cancel()
+	stopClient := context.AfterFunc(runCtx, client.CloseIdleConnections)
+	defer stopClient()
 	var total atomic.Int64
 	var lastErr atomic.Value
 	var wg sync.WaitGroup
@@ -444,11 +451,15 @@ func sleepCtx(ctx context.Context, d time.Duration) bool {
 
 // A reader that serves random bytes up to a limit and counts what the transport consumed
 type countingSource struct {
+	ctx   context.Context
 	left  int64
 	total *atomic.Int64
 }
 
 func (c *countingSource) Read(p []byte) (int, error) {
+	if c.ctx != nil && c.ctx.Err() != nil {
+		return 0, c.ctx.Err()
+	}
 	if c.left <= 0 {
 		return 0, io.EOF
 	}
@@ -469,6 +480,8 @@ func (c *countingSource) Read(p []byte) (int, error) {
 func measureSpeedUpload(ctx context.Context, client *http.Client, target speedServer, onTick func(mbps, fraction float64)) (float64, string) {
 	runCtx, cancel := context.WithTimeout(ctx, speedUploadFor)
 	defer cancel()
+	stopClient := context.AfterFunc(runCtx, client.CloseIdleConnections)
+	defer stopClient()
 	var total atomic.Int64
 	var refused, accepted atomic.Int64
 	var wg sync.WaitGroup
@@ -483,7 +496,7 @@ func measureSpeedUpload(ctx context.Context, client *http.Client, target speedSe
 		go func() {
 			defer wg.Done()
 			for runCtx.Err() == nil {
-				body := &countingSource{left: speedUploadBytes, total: &total}
+				body := &countingSource{ctx: runCtx, left: speedUploadBytes, total: &total}
 				req, err := http.NewRequestWithContext(runCtx, http.MethodPost, target.up, body)
 				if err != nil {
 					return

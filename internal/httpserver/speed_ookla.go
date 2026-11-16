@@ -283,6 +283,8 @@ func runOokla(ctx context.Context, out *speedStream, bin string, serverID int) (
 		args = append(args, "-s", strconv.Itoa(serverID))
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
+	prepareOoklaCmd(cmd)
+	cmd.WaitDelay = 1500 * time.Millisecond
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()

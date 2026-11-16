@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Download, Info, TriangleAlert } from 'lucide-react'
+import { Info, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { installSpeedtestCli, type SpeedServer } from '@/api/speedtest'
 import { setSiteSettings } from '@/api/system'
@@ -48,7 +48,6 @@ export function SpeedServerNotice({ server }: { server: SpeedServer }) {
             <Button
               variant="primary"
               size="sm"
-              icon={<Download className="h-3.5 w-3.5" />}
               loading={install.isPending}
               onClick={() => install.mutate()}
             >

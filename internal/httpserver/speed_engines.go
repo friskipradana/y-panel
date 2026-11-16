@@ -102,16 +102,18 @@ func (s *Server) handleSpeedtestEngine(w http.ResponseWriter, r *http.Request, i
 			return runOokla(ctx, out, bin, serverID)
 		}
 	}
-	if !speedInternetMu.TryLock() {
+	ctx, finishRun, ok := beginSpeedRun(r.Context(), 150*time.Second)
+	if !ok {
 		s.writeError(w, http.StatusConflict, errors.New("a speed test is already running on this server"))
 		return
 	}
-	defer speedInternetMu.Unlock()
+	defer finishRun()
 
 	out := newSpeedStream(w)
-	ctx, cancel := context.WithTimeout(r.Context(), 150*time.Second)
-	defer cancel()
 	result, err := run(ctx, out)
+	if ctx.Err() != nil {
+		return
+	}
 	if err != nil {
 		out.send(speedEvent{Type: "error", Error: err.Error()})
 		return

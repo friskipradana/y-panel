@@ -185,6 +185,8 @@ func ndt7Download(ctx context.Context, rawURL string, onTick func(mbps, fraction
 	defer conn.Close()
 	runCtx, cancel := context.WithTimeout(ctx, ndt7Duration+3*time.Second)
 	defer cancel()
+	stopConn := context.AfterFunc(runCtx, func() { _ = conn.Close() })
+	defer stopConn()
 	var total atomic.Int64
 	reported := make(chan struct{})
 	go func() {
@@ -225,6 +227,8 @@ func ndt7Upload(ctx context.Context, rawURL string, onTick func(mbps, fraction f
 	defer conn.Close()
 	runCtx, cancel := context.WithTimeout(ctx, ndt7Duration+3*time.Second)
 	defer cancel()
+	stopConn := context.AfterFunc(runCtx, func() { _ = conn.Close() })
+	defer stopConn()
 
 	// the server counts what arrived; its figure is the honest one, ours only counts what was handed to the socket
 	var serverBytes, serverElapsedUs, sentBytes atomic.Int64
@@ -317,12 +321,18 @@ func runNDT7(ctx context.Context, out *speedStream) (*speedInternetResult, error
 		return nil, fmt.Errorf("cannot reach %s: %w", server.Hostname, err)
 	}
 	out.send(speedEvent{Type: "latency", LatencyMs: fptr(latency), JitterMs: fptr(jitter)})
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	var notes []string
 	out.send(speedEvent{Type: "phase", Phase: "download"})
 	down, downErr := ndt7Download(ctx, server.Download, func(mbps, fraction float64) {
 		out.send(speedEvent{Type: "download", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
 	})
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if downErr != nil {
 		notes = append(notes, "download from "+server.Hostname+": "+downErr.Error())
 	}
@@ -330,6 +340,9 @@ func runNDT7(ctx context.Context, out *speedStream) (*speedInternetResult, error
 	up, upErr := ndt7Upload(ctx, server.Upload, func(mbps, fraction float64) {
 		out.send(speedEvent{Type: "upload", Mbps: fptr(round1(mbps)), Fraction: fptr(fraction)})
 	})
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if upErr != nil {
 		notes = append(notes, "upload to "+server.Hostname+": "+upErr.Error())
 	}

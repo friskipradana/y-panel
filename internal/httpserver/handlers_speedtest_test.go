@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestSpeedtestDownloadSizeAndCap(t *testing.T) {
@@ -127,5 +128,57 @@ func TestMeasureSpeedDownloadExplainsAnUnreachableHost(t *testing.T) {
 	mbps, note := measureSpeedDownload(context.Background(), http.DefaultClient, speedSource{"gone.example", url}, func(float64, float64) {})
 	if mbps != 0 || !strings.Contains(note, "gone.example") {
 		t.Fatalf("an unreachable host must report 0 and say why, got %v %q", mbps, note)
+	}
+}
+
+func TestBeginAndStopActiveSpeedRun(t *testing.T) {
+	ctx, finish, ok := beginSpeedRun(context.Background(), 10*time.Second)
+	if !ok {
+		t.Fatal("expected first beginSpeedRun to succeed")
+	}
+
+	if _, _, secondOk := beginSpeedRun(context.Background(), time.Second); secondOk {
+		finish()
+		t.Fatal("concurrent beginSpeedRun must be refused while active")
+	}
+
+	released := make(chan struct{})
+	go func() {
+		<-ctx.Done()
+		finish()
+		close(released)
+	}()
+
+	s := &Server{}
+	rec := httptest.NewRecorder()
+	s.handleSpeedtestStop(rec, httptest.NewRequest(http.MethodPost, "/api/v1/speedtest/server/stop", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"stopped":true`) {
+		t.Fatalf("unexpected stop reply: %d %s", rec.Code, rec.Body.String())
+	}
+
+	<-released
+	ctx2, finish2, ok2 := beginSpeedRun(context.Background(), time.Second)
+	if !ok2 || ctx2.Err() != nil {
+		t.Fatal("expected beginSpeedRun to succeed immediately after handleSpeedtestStop")
+	}
+	finish2()
+}
+
+func TestMeasureSpeedDownloadCancelsImmediately(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	_, _ = measureSpeedDownload(ctx, srv.Client(), speedSource{"slow.example", srv.URL}, func(float64, float64) {})
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("download took too long to abort after cancel: %v", elapsed)
 	}
 }

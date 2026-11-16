@@ -1,4 +1,4 @@
-import { Globe, Laptop, Trash2 } from 'lucide-react'
+import { Globe, Laptop } from 'lucide-react'
 import { ListTable } from '@/components/ui/ListTable'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { Button } from '@/components/ui/Button'
@@ -50,8 +50,7 @@ export function SpeedHistory({ items, onClear }: { items: HistoryItem[]; onClear
           className="!h-7 !px-2 text-[11px] font-medium text-[var(--panel-danger-text)] hover:text-[var(--panel-danger-text)]"
           title={t('speedtest.clearAction')}
         >
-          <Trash2 className="h-3 w-3 mr-1" strokeWidth={1.75} />
-          <span>{t('speedtest.clearAction')}</span>
+          {t('speedtest.clearAction')}
         </Button>
       </div>
 

@@ -37,7 +37,66 @@ var (
 	speedPayload     []byte
 	speedPayloadOnce sync.Once
 	speedInternetMu  sync.Mutex
+
+	speedRunStateMu sync.Mutex
+	speedRunCancel  context.CancelFunc
+	speedRunDone    chan struct{}
 )
+
+func beginSpeedRun(parent context.Context, timeout time.Duration) (context.Context, func(), bool) {
+	if !speedInternetMu.TryLock() {
+		return nil, nil, false
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	done := make(chan struct{})
+	speedRunStateMu.Lock()
+	speedRunCancel = cancel
+	speedRunDone = done
+	speedRunStateMu.Unlock()
+
+	var once sync.Once
+	finish := func() {
+		once.Do(func() {
+			cancel()
+			speedRunStateMu.Lock()
+			if speedRunDone == done {
+				speedRunCancel = nil
+				speedRunDone = nil
+			}
+			speedRunStateMu.Unlock()
+			speedInternetMu.Unlock()
+			close(done)
+		})
+	}
+	return ctx, finish, true
+}
+
+func stopActiveSpeedRun(wait time.Duration) (hadRun bool, settled bool) {
+	speedRunStateMu.Lock()
+	cancel := speedRunCancel
+	done := speedRunDone
+	speedRunStateMu.Unlock()
+	if cancel == nil {
+		return false, true
+	}
+	cancel()
+	if wait <= 0 || done == nil {
+		return true, false
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true, true
+	case <-timer.C:
+		return true, false
+	}
+}
+
+func (s *Server) handleSpeedtestStop(w http.ResponseWriter, _ *http.Request) {
+	stopped, settled := stopActiveSpeedRun(2 * time.Second)
+	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "stopped": stopped, "settled": settled})
+}
 
 // An incompressible buffer, so a compressing proxy cannot inflate the result
 func speedBuffer() []byte {

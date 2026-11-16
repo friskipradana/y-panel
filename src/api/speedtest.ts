@@ -63,6 +63,15 @@ const MAX_SAMPLES = 80
 const now = () => performance.now()
 const round1 = (n: number) => Math.round(n * 10) / 10
 
+function abortError(signal?: AbortSignal) {
+  if (signal?.reason instanceof Error) return signal.reason
+  return new DOMException('Aborted', 'AbortError')
+}
+
+export function isSpeedtestAborted(error: unknown) {
+  return axios.isCancel(error) || (error instanceof Error && error.name === 'AbortError')
+}
+
 // Bytes moved in the most recent window up to now, so the number follows the speed right now
 // (and falls when the transfer stalls instead of freezing on the last good value)
 class RateMeter {
@@ -111,8 +120,10 @@ export function applyLive(state: SpeedLive, event: Partial<SpeedLive> & { sample
 async function measureLatency(signal: AbortSignal, onSample: (ms: number) => void) {
   const times: number[] = []
   for (let i = 0; i < PING_SAMPLES; i++) {
+    if (signal.aborted) throw abortError(signal)
     const t0 = now()
     await agentApi.get('/api/v1/speedtest/ping', { params: { t: Math.random() }, signal })
+    if (signal.aborted) throw abortError(signal)
     // the first request pays for the connection
     if (i > 0) {
       const ms = now() - t0
@@ -129,11 +140,13 @@ async function measureLatency(signal: AbortSignal, onSample: (ms: number) => voi
 
 // Runs the streams until the time is up; each stream restarts its transfer when one ends
 async function runStreams(durationMs: number, signal: AbortSignal, onTick: (fraction: number) => void, work: (stop: AbortSignal) => Promise<void>) {
+  if (signal.aborted) throw abortError(signal)
   const stop = new AbortController()
   const forward = () => stop.abort()
   signal.addEventListener('abort', forward)
   const started = now()
   const timer = window.setInterval(() => {
+    if (signal.aborted) return
     const fraction = Math.min(1, (now() - started) / durationMs)
     onTick(fraction)
     if (fraction >= 1) stop.abort()
@@ -151,6 +164,7 @@ async function runStreams(durationMs: number, signal: AbortSignal, onTick: (frac
         }
       }),
     )
+    if (signal.aborted) throw abortError(signal)
   } finally {
     window.clearInterval(timer)
     signal.removeEventListener('abort', forward)
@@ -165,14 +179,17 @@ function randomBlob(size: number) {
 
 // Browser <-> panel: the link between this device and the server
 export async function runBrowserSpeedtest(onLive: (live: SpeedLive) => void, signal: AbortSignal): Promise<SpeedResult> {
+  if (signal.aborted) throw abortError(signal)
   let live: SpeedLive = { ...IDLE_LIVE, phase: 'ping' }
   const emit = (event: Parameters<typeof applyLive>[1]) => {
+    if (signal.aborted) return
     live = applyLive(live, event)
     onLive(live)
   }
   emit({})
 
   const { latencyMs, jitterMs } = await measureLatency(signal, (ms) => emit({ latencyMs: ms }))
+  if (signal.aborted) throw abortError(signal)
   emit({ latencyMs, jitterMs, phase: 'download' })
 
   const down = new RateMeter()
@@ -190,12 +207,14 @@ export async function runBrowserSpeedtest(onLive: (live: SpeedLive) => void, sig
         responseType: 'arraybuffer',
         signal: stop,
         onDownloadProgress: (e) => {
+          if (stop.aborted || signal.aborted) return
           down.add(e.loaded - last)
           last = e.loaded
         },
       })
     },
   )
+  if (signal.aborted) throw abortError(signal)
   const downloadMbps = round1(down.average())
   emit({ downloadMbps, phase: 'upload', mbps: 0, fraction: 0 })
 
@@ -214,12 +233,14 @@ export async function runBrowserSpeedtest(onLive: (live: SpeedLive) => void, sig
         headers: { 'Content-Type': 'application/octet-stream' },
         signal: stop,
         onUploadProgress: (e) => {
+          if (stop.aborted || signal.aborted) return
           up.add(e.loaded - last)
           last = e.loaded
         },
       })
     },
   )
+  if (signal.aborted) throw abortError(signal)
   const uploadMbps = round1(up.average())
   emit({ uploadMbps, phase: 'done', mbps: 0, fraction: 1 })
   return { downloadMbps, uploadMbps, latencyMs, jitterMs, at: Date.now() }
@@ -236,10 +257,34 @@ interface ServerEvent {
   error?: string
 }
 
+let pendingServerStop: Promise<void> | null = null
+
+export function stopServerSpeedtest(): Promise<void> {
+  const base = (import.meta.env.VITE_AGENT_BASE as string | undefined) ?? ''
+  const req = fetch(`${base}/api/v1/speedtest/server/stop`, {
+    method: 'POST',
+    credentials: 'include',
+    keepalive: true,
+  })
+    .then(() => undefined)
+    .catch(() => undefined)
+    .finally(() => {
+      if (pendingServerStop === req) pendingServerStop = null
+    })
+  pendingServerStop = req
+  return req
+}
+
 // Panel <-> internet: the agent measures and streams one JSON line per update (superadmin only)
 export async function runServerSpeedtest(serverId: string, onLive: (live: SpeedLive) => void, signal: AbortSignal): Promise<SpeedResult> {
+  if (pendingServerStop) {
+    await pendingServerStop
+  }
+  if (signal.aborted) throw abortError(signal)
+
   let live: SpeedLive = { ...IDLE_LIVE, phase: 'ping' }
   const emit = (event: Parameters<typeof applyLive>[1]) => {
+    if (signal.aborted) return
     live = applyLive(live, event)
     onLive(live)
   }
@@ -253,11 +298,16 @@ export async function runServerSpeedtest(serverId: string, onLive: (live: SpeedL
   }
 
   const reader = response.body.getReader()
+  const abortRead = () => {
+    void reader.cancel().catch(() => undefined)
+  }
+  signal.addEventListener('abort', abortRead)
   const decoder = new TextDecoder()
   let buffer = ''
   let result = null as SpeedResult | null
 
   const handle = (event: ServerEvent) => {
+    if (signal.aborted) throw abortError(signal)
     switch (event.type) {
       case 'phase':
         // the previous phase ends at its final figure
@@ -284,17 +334,28 @@ export async function runServerSpeedtest(serverId: string, onLive: (live: SpeedL
     }
   }
 
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    let newline = buffer.indexOf('\n')
-    while (newline >= 0) {
-      const line = buffer.slice(0, newline).trim()
-      buffer = buffer.slice(newline + 1)
-      if (line) handle(JSON.parse(line) as ServerEvent)
-      newline = buffer.indexOf('\n')
+  try {
+    for (;;) {
+      if (signal.aborted) throw abortError(signal)
+      const { done, value } = await reader.read()
+      if (signal.aborted) throw abortError(signal)
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let newline = buffer.indexOf('\n')
+      while (newline >= 0) {
+        if (signal.aborted) throw abortError(signal)
+        const line = buffer.slice(0, newline).trim()
+        buffer = buffer.slice(newline + 1)
+        if (line) handle(JSON.parse(line) as ServerEvent)
+        newline = buffer.indexOf('\n')
+      }
     }
+    if (signal.aborted) throw abortError(signal)
+    const tail = buffer.trim()
+    if (tail) handle(JSON.parse(tail) as ServerEvent)
+  } finally {
+    signal.removeEventListener('abort', abortRead)
+    await reader.cancel().catch(() => undefined)
   }
   if (!result) throw new Error('the speed test ended without a result')
   return result

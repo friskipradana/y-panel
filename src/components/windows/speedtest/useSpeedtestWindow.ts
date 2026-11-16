@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getSpeedServers, IDLE_LIVE, runBrowserSpeedtest, runServerSpeedtest, type SpeedLive, type SpeedResult } from '@/api/speedtest'
+import {
+  getSpeedServers,
+  IDLE_LIVE,
+  isSpeedtestAborted,
+  runBrowserSpeedtest,
+  runServerSpeedtest,
+  stopServerSpeedtest,
+  type SpeedLive,
+  type SpeedResult,
+} from '@/api/speedtest'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
@@ -55,30 +64,55 @@ function useRunner(
   run: (onLive: (live: SpeedLive) => void, signal: AbortSignal) => Promise<SpeedResult>,
   remember: (item: HistoryItem) => void,
   failure: string,
+  onStop?: () => void,
 ): SpeedRunState {
   const { t } = useI18n()
   const [live, setLive] = useState<SpeedLive>(IDLE_LIVE)
   const [result, setResult] = useState<SpeedResult | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const onStopRef = useRef(onStop)
+
+  useEffect(() => {
+    onStopRef.current = onStop
+  }, [onStop])
 
   // a test must not keep running after the window is closed
-  useEffect(() => () => abortRef.current?.abort(), [])
+  useEffect(() => () => {
+    const current = abortRef.current
+    abortRef.current = null
+    if (current && !current.signal.aborted) {
+      current.abort()
+      onStopRef.current?.()
+    }
+  }, [])
 
   const running = live.phase !== 'idle' && live.phase !== 'done'
 
   const start = useCallback(() => {
-    abortRef.current?.abort()
+    if (abortRef.current && !abortRef.current.signal.aborted) return
     const controller = new AbortController()
     abortRef.current = controller
     setResult(null)
     setLive({ ...IDLE_LIVE, phase: 'ping' })
-    run(setLive, controller.signal)
+    run(
+      (next) => {
+        if (abortRef.current !== controller || controller.signal.aborted) return
+        setLive(next)
+      },
+      controller.signal,
+    )
       .then((done) => {
+        if (abortRef.current !== controller || controller.signal.aborted) return
+        abortRef.current = null
         setResult(done)
         remember({ kind, ...done })
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return
+        if (abortRef.current !== controller || controller.signal.aborted || isSpeedtestAborted(error)) {
+          if (abortRef.current === controller) abortRef.current = null
+          return
+        }
+        abortRef.current = null
         setLive(IDLE_LIVE)
         const message = error instanceof Error && error.message && !/^(Network|HTTP|Failed)/i.test(error.message) ? error.message : failure
         alertLib.fire(t('speedtest.failedTitle'), message, 'error')
@@ -86,7 +120,12 @@ function useRunner(
   }, [failure, kind, remember, run, t])
 
   const stop = useCallback(() => {
-    abortRef.current?.abort()
+    const current = abortRef.current
+    abortRef.current = null
+    if (current && !current.signal.aborted) {
+      current.abort()
+      onStopRef.current?.()
+    }
     setLive(IDLE_LIVE)
   }, [])
 
@@ -127,7 +166,7 @@ export function useSpeedtestWindow() {
 
   const browser = useRunner('browser', runBrowserSpeedtest, remember, t('speedtest.failedBrowser'))
   const runServer = useCallback((onLive: (live: SpeedLive) => void, signal: AbortSignal) => runServerSpeedtest(selected?.id ?? serverId, onLive, signal), [selected?.id, serverId])
-  const server = useRunner('server', runServer, remember, t('speedtest.failedServer'))
+  const server = useRunner('server', runServer, remember, t('speedtest.failedServer'), stopServerSpeedtest)
 
   return { isSuperadmin, tab, setTab, browser, server, history, clearHistory, servers, selected, setServerId }
 }
