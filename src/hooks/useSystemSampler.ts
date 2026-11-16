@@ -70,7 +70,10 @@ export function useSystemSampler() {
     const rx = data.networkIO?.bytesRecv ?? 0
     const tx = data.networkIO?.bytesSent ?? 0
     const prev = prevNet.current
-    if (prev && (rx > 0 || tx > 0)) {
+    if (typeof data.networkIO?.rxBps === 'number' && typeof data.networkIO?.txBps === 'number') {
+      entries.push(['net-rx', Math.max(0, data.networkIO.rxBps)])
+      entries.push(['net-tx', Math.max(0, data.networkIO.txBps)])
+    } else if (prev && (rx > 0 || tx > 0)) {
       const elapsed = (t - prev.t) / 1000
       if (elapsed > 0.5) {
         entries.push(['net-rx', Math.max(0, (rx - prev.rx) / elapsed)])

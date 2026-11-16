@@ -9,6 +9,7 @@ const EMPTY: MetricPoint[] = []
 interface LiveSample {
   t: number
   values: Record<string, number>
+  netTotals?: { rx: number; tx: number }
 }
 
 interface LiveState {
@@ -20,6 +21,8 @@ interface LiveState {
   // the revision of the installed panel, as the agent last pushed it
   revision: { revision: string; version: string } | null
   series: Record<string, MetricPoint[]>
+  netTotals: { rx: number; tx: number; t: number } | null
+  clockOffsetMs: number
   setConnected: (connected: boolean) => void
   setRevision: (revision: { revision: string; version: string }) => void
   pushSample: (sample: LiveSample) => void
@@ -31,9 +34,11 @@ export const useLiveStore = create<LiveState>((set) => ({
   markStatePush: () => set((state) => (state.statePush ? state : { statePush: true })),
   revision: null,
   series: {},
+  netTotals: null,
+  clockOffsetMs: 0,
   setConnected: (connected) => set(connected ? { connected } : { connected, statePush: false }),
   setRevision: (revision) => set({ revision }),
-  pushSample: ({ t, values }) =>
+  pushSample: ({ t, values, netTotals }) =>
     set((state) => {
       const next = { ...state.series }
       for (const [key, value] of Object.entries(values)) {
@@ -43,21 +48,45 @@ export const useLiveStore = create<LiveState>((set) => ({
         const grown = [...prev, { t, v: value }]
         next[key] = grown.length > LIVE_POINTS ? grown.slice(grown.length - LIVE_POINTS) : grown
       }
-      return { series: next }
+      const nextTotals = netTotals
+        ? { rx: netTotals.rx, tx: netTotals.tx, t }
+        : state.netTotals
+      return {
+        series: next,
+        netTotals: nextTotals,
+        clockOffsetMs: t - Date.now(),
+      }
     }),
 }))
 
-// Series for a chart. The 5 minute view is the live one-second series; longer views keep the
-// recorded history and end on the newest live value, so the current number is never stale.
+// Series for a chart: stitches stored 5s history with the live 1s stream so short windows never lose context.
 export function useRangeSeries(key: string, range: MetricRange): MetricPoint[] {
   const stored = useMetricsStore((s) => s.series[key] ?? EMPTY)
   const live = useLiveStore((s) => s.series[key] ?? EMPTY)
   return useMemo(() => {
     if (live.length === 0) return stored
-    if (range === '5m' && live.length >= 3) return live
-    const newest = live[live.length - 1]
-    const lastStored = stored[stored.length - 1]
-    if (lastStored && lastStored.t >= newest.t) return stored
-    return [...stored, newest]
+    if (range === '5m') {
+      const firstLiveT = live[0].t
+      const lastLiveT = live[live.length - 1].t
+      const prefix = stored.filter((p) => p.t < firstLiveT - 500)
+      const suffix = stored.filter((p) => p.t > lastLiveT)
+      return [...prefix, ...live, ...suffix]
+    }
+    const lastStoredT = stored.length ? stored[stored.length - 1].t : 0
+    const tail = live.filter((p) => p.t > lastStoredT)
+    if (tail.length === 0) return stored
+    return [...stored, ...tail]
   }, [stored, live, range])
+}
+
+export function useLatestMetric(key: string): number | null {
+  const stored = useMetricsStore((s) => s.series[key] ?? EMPTY)
+  const live = useLiveStore((s) => s.series[key] ?? EMPTY)
+  return useMemo(() => {
+    const lastLive = live[live.length - 1]
+    const lastStored = stored[stored.length - 1]
+    if (!lastLive && !lastStored) return null
+    if (lastLive && (!lastStored || lastLive.t >= lastStored.t)) return lastLive.v
+    return lastStored.v
+  }, [stored, live])
 }

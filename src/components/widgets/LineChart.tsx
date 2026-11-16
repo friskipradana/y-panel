@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLiveStore } from '@/store/liveStore'
 import { FAIL_VALUE, RANGE_MS, type MetricPoint, type MetricRange } from '@/store/metricsStore'
 
 export interface ChartSeries {
@@ -69,6 +70,7 @@ export function LineChart({ series, range, height = 70, yMax, format, gapMs = 20
     return () => ro.disconnect()
   }, [])
 
+  const clockOffsetMs = useLiveStore((s) => s.clockOffsetMs)
   const windowMs = RANGE_MS[range]
   const tEnd = useMemo(() => {
     let latest = 0
@@ -76,9 +78,9 @@ export function LineChart({ series, range, height = 70, yMax, format, gapMs = 20
       const last = s.points[s.points.length - 1]
       if (last && last.t > latest) latest = last.t
     }
-    return Math.max(latest, Date.now() - 1_000)
+    return Math.max(latest, Date.now() + clockOffsetMs - 1_000)
     // recompute whenever data changes
-  }, [series])
+  }, [series, clockOffsetMs])
   const tStart = tEnd - windowMs
 
   const visible = useMemo(

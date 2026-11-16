@@ -12,8 +12,14 @@ veth1a2b: 3000 10 0 0 0 0 0 0 3000 10 0 0 0 0 0 0
 `
 
 func TestParseNetDevSkipsVirtualInterfaces(t *testing.T) {
-	got := parseNetDev([]byte(sampleNetDev))
-	if got.BytesRecv != 123457789 || got.BytesSent != 989654 {
+	sample := sampleNetDev + "wg0: 9999 10 0 0 0 0 0 0 9999 10 0 0 0 0 0 0\n" +
+		"tun0: 8888 10 0 0 0 0 0 0 8888 10 0 0 0 0 0 0\n" +
+		"tailscale0: 7777 10 0 0 0 0 0 0 7777 10 0 0 0 0 0 0\n" +
+		"vnet0: 6666 10 0 0 0 0 0 0 6666 10 0 0 0 0 0 0\n" +
+		"lxdbr0: 5555 10 0 0 0 0 0 0 5555 10 0 0 0 0 0 0\n" +
+		"venet0: 1000 5 0 0 0 0 0 0 2000 5 0 0 0 0 0 0\n"
+	got := parseNetDev([]byte(sample))
+	if got.BytesRecv != 123458789 || got.BytesSent != 991654 {
 		t.Fatalf("got rx=%d tx=%d", got.BytesRecv, got.BytesSent)
 	}
 }

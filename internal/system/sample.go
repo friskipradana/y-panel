@@ -9,6 +9,9 @@ type Sample struct {
 	CPUTemp     float64
 	BytesRecv   uint64
 	BytesSent   uint64
+	NetRxBps    float64
+	NetTxBps    float64
+	HasNetRate  bool
 }
 
 func percent(stat UsageStat) float64 {
@@ -23,13 +26,17 @@ func percent(stat UsageStat) float64 {
 }
 
 func TakeSample(stateDir string) Sample {
-	snap := DefaultCollector(stateDir).GetSnapshot().Summary
+	snap := DefaultCollector(stateDir).GetSnapshot()
+	sum := snap.Summary
 	return Sample{
-		CPUPercent:  snap.CPUUsagePercent,
-		RAMPercent:  percent(snap.Memory),
-		DiskPercent: percent(snap.Storage),
-		CPUTemp:     snap.CPUTemp,
-		BytesRecv:   snap.NetworkIO.BytesRecv,
-		BytesSent:   snap.NetworkIO.BytesSent,
+		CPUPercent:  sum.CPUUsagePercent,
+		RAMPercent:  percent(sum.Memory),
+		DiskPercent: percent(sum.Storage),
+		CPUTemp:     sum.CPUTemp,
+		BytesRecv:   sum.NetworkIO.BytesRecv,
+		BytesSent:   sum.NetworkIO.BytesSent,
+		NetRxBps:    snap.NetRxBps,
+		NetTxBps:    snap.NetTxBps,
+		HasNetRate:  snap.HasNetRate,
 	}
 }

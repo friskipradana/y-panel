@@ -41,8 +41,8 @@ type liveStatsMessage struct {
 	RAM   float64  `json:"ram"`
 	Disk  float64  `json:"disk"`
 	Temp  *float64 `json:"temp,omitempty"`
-	NetRx float64  `json:"netRx"`
-	NetTx float64  `json:"netTx"`
+	NetRx *float64 `json:"netRx,omitempty"`
+	NetTx *float64 `json:"netTx,omitempty"`
 	RxSum uint64   `json:"rxTotal"`
 	TxSum uint64   `json:"txTotal"`
 }
@@ -91,12 +91,10 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		return conn.WriteJSON(payload)
 	}
 
-	// samples every second; the network rate comes from the counter difference
+	// samples every second from the collector so WebSocket ticks never alias against snapshot cadence
 	go func() {
 		ticker := time.NewTicker(liveStatsEvery)
 		defer ticker.Stop()
-		var prevRx, prevTx uint64
-		var prevAt time.Time
 		for {
 			now := time.Now()
 			var msg liveStatsMessage
@@ -107,13 +105,10 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 					temp := sm.CPUTemp
 					msg.Temp = &temp
 				}
-				if !prevAt.IsZero() && sm.BytesRecv >= prevRx && sm.BytesSent >= prevTx {
-					if secs := now.Sub(prevAt).Seconds(); secs > 0.2 {
-						msg.NetRx = float64(sm.BytesRecv-prevRx) / secs
-						msg.NetTx = float64(sm.BytesSent-prevTx) / secs
-					}
+				if sm.HasNetRate {
+					msg.NetRx = fptr(sm.NetRxBps)
+					msg.NetTx = fptr(sm.NetTxBps)
 				}
-				prevRx, prevTx, prevAt = sm.BytesRecv, sm.BytesSent, now
 			} else {
 				// the account's own share: processes of its OS account plus its containers
 				res := s.accountResources(user, true)

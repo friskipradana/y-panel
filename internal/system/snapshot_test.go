@@ -25,6 +25,25 @@ func TestSnapshotCollector(t *testing.T) {
 		t.Fatalf("expected 50%% cpu usage, got %f", val)
 	}
 
+	// Verify network rate delta helper including independent counter reset handling
+	rx, tx := computeNetworkRates(NetworkIO{BytesRecv: 1000, BytesSent: 5000}, NetworkIO{BytesRecv: 5000, BytesSent: 2000}, 2.0)
+	if rx != 2000 || tx != 0 {
+		t.Fatalf("expected rx=2000 tx=0 on tx counter reset, got rx=%f tx=%f", rx, tx)
+	}
+
+	c2 := &Collector{}
+	t0 := time.Now()
+	if _, _, ready := c2.sampleNetworkRate(NetworkIO{BytesRecv: 1000, BytesSent: 1000}, t0); ready {
+		t.Fatal("first network sample should only establish baseline")
+	}
+	if _, _, ready := c2.sampleNetworkRate(NetworkIO{BytesRecv: 2000, BytesSent: 2000}, t0.Add(50*time.Millisecond)); ready {
+		t.Fatal("sub-200ms duplicate sample should not compute rate")
+	}
+	rx2, tx2, ready := c2.sampleNetworkRate(NetworkIO{BytesRecv: 4000, BytesSent: 2500}, t0.Add(time.Second))
+	if !ready || rx2 != 3000 || tx2 != 1500 {
+		t.Fatalf("expected ready=true rx=3000 tx=1500, got ready=%v rx=%f tx=%f", ready, rx2, tx2)
+	}
+
 	// Ensure refresh is non-blocking with context
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

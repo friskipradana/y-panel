@@ -174,11 +174,17 @@ func New(cfg config.Config) *Server {
 			return nil, nil
 		}
 		sm := system.TakeSample(cfg.StateDir)
+		// Read kernel net counters at the exact sample timestamp to prevent collector phase jitter
+		netIO := system.ReadNetworkIO()
+		if netIO.BytesRecv == 0 && netIO.BytesSent == 0 {
+			netIO.BytesRecv = sm.BytesRecv
+			netIO.BytesSent = sm.BytesSent
+		}
 		values := map[string]float64{"cpu": sm.CPUPercent, "ram": sm.RAMPercent, "disk": sm.DiskPercent}
 		if sm.CPUTemp > 0 {
 			values["temp"] = sm.CPUTemp
 		}
-		return values, map[string]uint64{"net-rx": sm.BytesRecv, "net-tx": sm.BytesSent}
+		return values, map[string]uint64{"net-rx": netIO.BytesRecv, "net-tx": netIO.BytesSent}
 	})
 	go s.metrics.Run()
 	s.updates = updater.New()

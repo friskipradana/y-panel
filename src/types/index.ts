@@ -76,7 +76,7 @@ export interface SystemSummary {
   cpuTemp: number
   memory: { total: number; used: number }
   storage: { total: number; used: number }
-  networkIO?: { bytesRecv: number; bytesSent: number }
+  networkIO?: { bytesRecv: number; bytesSent: number; rxBps?: number; txBps?: number }
   stateDir: string
   dockerInstalled: boolean
   dockerReachable: boolean

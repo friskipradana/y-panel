@@ -23,8 +23,10 @@ type UsageStat struct {
 }
 
 type NetworkIO struct {
-	BytesRecv uint64 `json:"bytesRecv"`
-	BytesSent uint64 `json:"bytesSent"`
+	BytesRecv uint64  `json:"bytesRecv"`
+	BytesSent uint64  `json:"bytesSent"`
+	RxBps     float64 `json:"rxBps,omitempty"`
+	TxBps     float64 `json:"txBps,omitempty"`
 }
 
 type Summary struct {
@@ -57,7 +59,7 @@ func DefaultCollector(stateDir string) *Collector {
 	defaultCollectorMu.Lock()
 	defer defaultCollectorMu.Unlock()
 	if defaultCollector == nil {
-		defaultCollector = NewCollector(stateDir, 2*time.Second, 15*time.Second)
+		defaultCollector = NewCollector(stateDir, time.Second, 15*time.Second)
 		defaultCollector.Start()
 	}
 	return defaultCollector
@@ -275,7 +277,8 @@ func readIPAddresses() []string {
 	return result
 }
 
-func readNetworkIO() NetworkIO {
+// ReadNetworkIO returns cumulative bytes received and transmitted across physical/primary host NICs.
+func ReadNetworkIO() NetworkIO {
 	data, err := os.ReadFile("/proc/net/dev")
 	if err != nil {
 		return NetworkIO{}
@@ -283,13 +286,22 @@ func readNetworkIO() NetworkIO {
 	return parseNetDev(data)
 }
 
+func readNetworkIO() NetworkIO {
+	return ReadNetworkIO()
+}
+
 // isVirtualInterface reports interfaces whose traffic is already counted on a
-// physical NIC (container bridges, veth pairs) or never leaves the host (lo).
+// physical NIC (container bridges, veth pairs, VM taps, VPN tunnels) or never leaves the host (lo).
 func isVirtualInterface(name string) bool {
 	if name == "lo" {
 		return true
 	}
-	for _, prefix := range []string{"docker", "veth", "br-", "virbr", "cni", "flannel", "cali"} {
+	for _, prefix := range []string{
+		"docker", "veth", "br-", "virbr", "cni", "flannel", "cali",
+		"cilium", "kube-", "weave", "podman", "vnet", "tun", "tap",
+		"wg", "tailscale", "zt", "lxdbr", "incusbr", "dummy", "sit",
+		"gre", "ip6tnl", "macvtap",
+	} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}

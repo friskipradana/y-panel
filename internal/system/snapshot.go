@@ -25,6 +25,9 @@ type SystemSnapshot struct {
 	DockerState  DockerHealthState
 	UpdatedAt    time.Time
 	DockerSeenAt time.Time
+	NetRxBps     float64
+	NetTxBps     float64
+	HasNetRate   bool
 }
 
 // SnapshotService provides non-blocking concurrent access to cached host telemetry.
@@ -50,6 +53,15 @@ type Collector struct {
 	hasPrevCPU bool
 	lastCPUVal float64
 
+	// Network rate delta state (protected by netMu)
+	netMu      sync.Mutex
+	prevNet    NetworkIO
+	prevNetAt  time.Time
+	hasPrevNet bool
+	lastNetRx  float64
+	lastNetTx  float64
+	hasNetRate bool
+
 	// Cached static OS info
 	staticOnce sync.Once
 	hostname   string
@@ -69,7 +81,7 @@ type Collector struct {
 // NewCollector creates a telemetry collector with configurable intervals.
 func NewCollector(stateDir string, metricInterval, dockerInterval time.Duration) *Collector {
 	if metricInterval <= 0 {
-		metricInterval = 2 * time.Second
+		metricInterval = time.Second
 	}
 	if dockerInterval <= 0 {
 		dockerInterval = 15 * time.Second
@@ -235,6 +247,42 @@ func computeCPUUsage(prev, curr cpuTimes) float64 {
 	return pct
 }
 
+func computeNetworkRates(prev, curr NetworkIO, elapsedSec float64) (rxBps, txBps float64) {
+	if elapsedSec <= 0 {
+		return 0, 0
+	}
+	if curr.BytesRecv >= prev.BytesRecv {
+		rxBps = float64(curr.BytesRecv-prev.BytesRecv) / elapsedSec
+	}
+	if curr.BytesSent >= prev.BytesSent {
+		txBps = float64(curr.BytesSent-prev.BytesSent) / elapsedSec
+	}
+	return rxBps, txBps
+}
+
+func (c *Collector) sampleNetworkRate(curr NetworkIO, sampledAt time.Time) (rxBps, txBps float64, ready bool) {
+	c.netMu.Lock()
+	defer c.netMu.Unlock()
+
+	if !c.hasPrevNet {
+		c.prevNet = curr
+		c.prevNetAt = sampledAt
+		c.hasPrevNet = true
+		return 0, 0, false
+	}
+
+	secs := sampledAt.Sub(c.prevNetAt).Seconds()
+	if secs >= 0.2 {
+		rx, tx := computeNetworkRates(c.prevNet, curr, secs)
+		c.prevNet = curr
+		c.prevNetAt = sampledAt
+		c.lastNetRx = rx
+		c.lastNetTx = tx
+		c.hasNetRate = true
+	}
+	return c.lastNetRx, c.lastNetTx, c.hasNetRate
+}
+
 func (c *Collector) refreshHostFast() SystemSnapshot {
 	c.initStatic()
 
@@ -242,7 +290,13 @@ func (c *Collector) refreshHostFast() SystemSnapshot {
 	temp := readCPUTemp()
 	mem := readMemoryUsage()
 	disk := readStorageUsage(c.stateDir)
+	sampledAt := time.Now()
 	netIO := readNetworkIO()
+	rxBps, txBps, hasNetRate := c.sampleNetworkRate(netIO, sampledAt)
+	if hasNetRate {
+		netIO.RxBps = rxBps
+		netIO.TxBps = txBps
+	}
 	uptime := readUptimeSeconds()
 	ips := readIPAddresses()
 
@@ -271,7 +325,10 @@ func (c *Collector) refreshHostFast() SystemSnapshot {
 		DockerStatus:    snap.Summary.DockerStatus,
 		IPAddresses:     ips,
 	}
-	snap.UpdatedAt = time.Now()
+	snap.NetRxBps = rxBps
+	snap.NetTxBps = txBps
+	snap.HasNetRate = hasNetRate
+	snap.UpdatedAt = sampledAt
 	c.snapshot = snap
 	return snap
 }

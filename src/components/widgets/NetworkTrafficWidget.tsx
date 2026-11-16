@@ -2,14 +2,14 @@ import { useMemo } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { asRange } from '@/store/metricsStore'
-import { useRangeSeries } from '@/store/liveStore'
+import { useLatestMetric, useLiveStore, useRangeSeries } from '@/store/liveStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
 import type { WidgetProps } from './types'
 
 function formatSpeed(bytesPerSec: number): string {
-  if (!bytesPerSec || bytesPerSec <= 0) return '0 B/s'
+  if (!Number.isFinite(bytesPerSec) || bytesPerSec <= 0) return '0 B/s'
   if (bytesPerSec < 1024) return `${bytesPerSec.toFixed(0)} B/s`
   if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`
   if (bytesPerSec < 1024 * 1024 * 1024) return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`
@@ -17,23 +17,26 @@ function formatSpeed(bytesPerSec: number): string {
 }
 
 function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return '0 B'
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)))
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
 export function NetworkTrafficWidget({ widget }: WidgetProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
+  const netTotals = useLiveStore((s) => s.netTotals)
   const updateConfig = useWidgetStore((s) => s.updateWidgetConfig)
   const range = asRange(widget.config?.range)
 
   const rx = useRangeSeries('net-rx', range)
   const tx = useRangeSeries('net-tx', range)
-  const rxNow = rx[rx.length - 1]?.v ?? 0
-  const txNow = tx[tx.length - 1]?.v ?? 0
+  const rxNow = useLatestMetric('net-rx') ?? 0
+  const txNow = useLatestMetric('net-tx') ?? 0
+  const rxTotal = netTotals?.rx ?? summary?.networkIO?.bytesRecv
+  const txTotal = netTotals?.tx ?? summary?.networkIO?.bytesSent
 
   const series = useMemo(
     () => [
@@ -55,7 +58,7 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
                 <ArrowDown size={11} />
                 DL
               </span>
-              <span className="font-mono text-[9px]">{summary?.networkIO?.bytesRecv ? formatBytes(summary.networkIO.bytesRecv) : '-'}</span>
+              <span className="font-mono text-[9px]">{rxTotal ? formatBytes(rxTotal) : '-'}</span>
             </div>
             <div className="mt-0.5 truncate font-mono text-[13px] font-bold text-[var(--panel-success-text)]">{formatSpeed(rxNow)}</div>
           </div>
@@ -65,7 +68,7 @@ export function NetworkTrafficWidget({ widget }: WidgetProps) {
                 <ArrowUp size={11} />
                 UP
               </span>
-              <span className="font-mono text-[9px]">{summary?.networkIO?.bytesSent ? formatBytes(summary.networkIO.bytesSent) : '-'}</span>
+              <span className="font-mono text-[9px]">{txTotal ? formatBytes(txTotal) : '-'}</span>
             </div>
             <div className="mt-0.5 truncate font-mono text-[13px] font-bold text-[var(--panel-info-text)]">{formatSpeed(txNow)}</div>
           </div>

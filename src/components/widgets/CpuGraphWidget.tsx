@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Flame, History } from 'lucide-react'
 import { useSystemSummary } from '@/hooks/useSystemSampler'
 import { asRange } from '@/store/metricsStore'
-import { useRangeSeries } from '@/store/liveStore'
+import { useRangeSeries, useLatestMetric } from '@/store/liveStore'
 import { useWidgetStore } from '@/store/widgetStore'
 import { useI18n } from '@/lib/i18n'
 import { LineChart, RangeSwitch } from './LineChart'
@@ -15,11 +15,12 @@ export function CpuGraphWidget({ widget }: WidgetProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
   const points = useRangeSeries('cpu', asRange(widget.config?.range))
+  const liveCpu = useLatestMetric('cpu')
   const updateConfig = useWidgetStore((s) => s.updateWidgetConfig)
   const range = asRange(widget.config?.range)
 
   const stats = useMemo(() => summarize(points, range), [points, range])
-  const current = summary?.cpuUsagePercent ?? points[points.length - 1]?.v ?? 0
+  const current = liveCpu ?? summary?.cpuUsagePercent ?? 0
 
   return (
     <div className="flex flex-1 select-none flex-col justify-between gap-2 p-3">

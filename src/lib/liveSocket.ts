@@ -81,11 +81,23 @@ function handleMessage(raw: string) {
       cpu: Number(message.cpu),
       ram: Number(message.ram),
       disk: Number(message.disk),
-      'net-rx': Number(message.netRx),
-      'net-tx': Number(message.netTx),
+    }
+    if (typeof message.netRx === 'number' && Number.isFinite(message.netRx) && message.netRx >= 0) {
+      values['net-rx'] = message.netRx
+    }
+    if (typeof message.netTx === 'number' && Number.isFinite(message.netTx) && message.netTx >= 0) {
+      values['net-tx'] = message.netTx
     }
     if (typeof message.temp === 'number') values.temp = message.temp
-    useLiveStore.getState().pushSample({ t: Number(message.t) || Date.now(), values })
+    const netTotals =
+      typeof message.rxTotal === 'number' &&
+      typeof message.txTotal === 'number' &&
+      Number.isFinite(message.rxTotal) &&
+      Number.isFinite(message.txTotal) &&
+      (message.rxTotal > 0 || message.txTotal > 0)
+        ? { rx: message.rxTotal, tx: message.txTotal }
+        : undefined
+    useLiveStore.getState().pushSample({ t: Number(message.t) || Date.now(), values, netTotals })
   } else if (message.type === 'summary' || message.type === 'history' || message.type === 'revision') {
     useLiveStore.getState().markStatePush()
     handleState(message)
