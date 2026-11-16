@@ -27,12 +27,39 @@
       #boot-splash strong{display:block;font-size:18px;letter-spacing:-.01em}
       #boot-splash .t{position:relative;height:3px;width:min(10rem,50vw);overflow:hidden;border-radius:9999px;background:rgba(255,255,255,.18)}
       #boot-splash .t::after{content:"";position:absolute;inset:0 auto 0 0;width:32%;border-radius:inherit;background:#fff;animation:bs 1.15s ease-in-out infinite}
+      #boot-splash .r{display:none;margin-top:4px;padding:7px 14px;border:1px solid rgba(255,255,255,.32);border-radius:8px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+      #boot-splash .r.v{display:inline-flex}
       @keyframes bs{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
       @media (prefers-reduced-motion:reduce){#boot-splash .t::after{animation:none;width:100%;opacity:.55}}
     </style>
   </head>
   <body>
-    <div id="boot-splash" aria-hidden="true"><div class="b"><img src="/favicon.svg" alt="" width="64" height="64" /><strong>Reneo</strong><div class="t"></div></div></div>
+    <div id="boot-splash" aria-hidden="true"><div class="b"><img src="/favicon.svg" alt="" width="64" height="64" /><strong>Reneo</strong><div class="t"></div><button id="boot-reload" class="r" type="button">Muat ulang halaman</button></div></div>
+    <script>
+      (function(){
+        var k='reneo-boot-recover';
+        function recover(){
+          try{
+            var prev=sessionStorage.getItem(k);
+            if(prev===location.pathname){return false;}
+            sessionStorage.setItem(k,location.pathname);
+          }catch(e){return false;}
+          if('caches'in window){caches.keys().then(function(n){return Promise.all(n.map(function(c){return caches.delete(c);}));}).catch(function(){}).finally(function(){location.reload();});}
+          else{location.reload();}
+          return true;
+        }
+        window.addEventListener('error',function(ev){
+          if(window.__REN_BOOT_STARTED__)return;
+          var t=ev&&ev.target;
+          if(t&&t.tagName==='SCRIPT'&&t.src&&t.src.indexOf('/assets/')!==-1){recover();}
+        },true);
+        setTimeout(function(){
+          if(window.__REN_BOOT_STARTED__)return;
+          var b=document.getElementById('boot-reload');
+          if(b){b.classList.add('v');b.onclick=function(){location.reload();};}
+        },8000);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

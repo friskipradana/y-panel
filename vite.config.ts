@@ -107,7 +107,13 @@ export default defineConfig(({ mode }) => {
         name: 'reneo-async-css',
         apply: 'build',
         transformIndexHtml(html) {
-          return html.replace(/<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g, '<link rel="stylesheet" crossorigin href="$1" media="print" data-app-css onload="this.media=&quot;all&quot;">')
+          return html.replace(
+            /<link rel="stylesheet"([^>]*href="\/assets\/[^"]+\.css"[^>]*)>/g,
+            (match, attrs: string) => {
+              if (attrs.includes('data-app-css')) return match
+              return `<link rel="stylesheet"${attrs} media="print" data-app-css onload="this.media=&quot;all&quot;;this.dataset.cssState=&quot;loaded&quot;" onerror="this.media=&quot;all&quot;;this.dataset.cssState=&quot;error&quot;">`
+            },
+          )
         },
       },
     ],

@@ -108,6 +108,7 @@ type renewLicenseRequest struct {
 type createAppLicenseOrderRequest struct {
 	CatalogID     string `json:"catalogId"`
 	PlanSlug      string `json:"planSlug"`
+	Quantity      int    `json:"quantity"`
 	PaymentMethod string `json:"paymentMethod"`
 	BuyerName     string `json:"buyerName"`
 	BuyerEmail    string `json:"buyerEmail"`
@@ -429,6 +430,16 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		req.PaymentMethod = "transfer"
 	}
 
+	qty := req.Quantity
+	if qty < 1 {
+		qty = 1
+	}
+	if qty > 24 {
+		qty = 24
+	}
+	totalMonths := months * qty
+	totalAmountList := priceAmount * int64(qty)
+
 	orderData := database.AppLicenseOrder{
 		UserID:        userID,
 		CatalogID:     req.CatalogID,
@@ -436,8 +447,8 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		PlanSlug:      req.PlanSlug,
 		PlanName:      planName,
 		Period:        period,
-		Months:        months,
-		AmountList:    priceAmount,
+		Months:        totalMonths,
+		AmountList:    totalAmountList,
 		Status:        "pending",
 		PaymentMethod: req.PaymentMethod,
 		BuyerName:     req.BuyerName,

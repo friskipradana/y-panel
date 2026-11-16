@@ -3818,6 +3818,8 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 				"status":        lic.Status,
 				"plan":          lic.PlanName,
 				"period":        lic.Period,
+				"priceAmount":   lic.PriceAmount,
+				"startedAt":     lic.StartedAt,
 				"expiresAt":     lic.ExpiresAt,
 				"daysRemaining": lic.DaysLeft,
 				"daysLeft":      lic.DaysLeft,

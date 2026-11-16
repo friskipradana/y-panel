@@ -578,6 +578,7 @@ func newFrontendHandler(frontendDir string) http.Handler {
 
 		cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
 		if cleanPath == "." || cleanPath == "" {
+			w.Header().Set("Cache-Control", "no-cache")
 			http.ServeFile(w, r, indexPath)
 			return
 		}
@@ -587,6 +588,10 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			// files in /assets/ carry a hash of their content in the name, so a browser can keep them for good
 			if strings.HasPrefix(r.URL.Path, "/assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else if r.URL.Path == "/sw.js" {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			} else if r.URL.Path == "/index.html" || r.URL.Path == "/manifest.webmanifest" {
+				w.Header().Set("Cache-Control", "no-cache")
 			} else if isStaticPicture(r.URL.Path) {
 				// pictures without a hash in the name are kept for a day; the page, the service worker and the manifest are not
 				w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -608,6 +613,7 @@ func newFrontendHandler(frontendDir string) http.Handler {
 			return
 		}
 
+		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFile(w, r, indexPath)
 	})
 }

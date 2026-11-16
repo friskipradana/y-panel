@@ -47,7 +47,7 @@ export function AppShell() {
   // somebody at the login form is about to open the desktop: its text is fetched meanwhile
   const atLogin = location.pathname === LOGIN_PATH
   useEffect(() => {
-    if (atLogin) void loadLanguage(language, 'all')
+    if (atLogin) void loadLanguage(language, 'all').catch(() => undefined)
   }, [atLogin, language])
 
   // Session expired event listener
@@ -69,12 +69,12 @@ export function AppShell() {
   useGlobalShortcuts(authenticated)
   useRevisionSync(authenticated)
 
-  // a public page does not wait for the answer: it shows at once and the check goes on beside it
-  // the desktop and an account need the whole language; a visitor of a public page does not
-  const languageComplete = useLanguageComplete(authenticated || !isPublicRoute(location.pathname))
-  const needsFullLanguage = authenticated || !isPublicRoute(location.pathname)
+  // Public pages show at once without waiting for session checks or the desktop locale bundle
+  const publicRoute = isPublicRoute(location.pathname)
+  const languageComplete = useLanguageComplete(authenticated || atLogin || !publicRoute)
+  const needsDesktopLanguage = !publicRoute
 
-  if ((checkingSession && !isPublicRoute(location.pathname)) || (needsFullLanguage && !languageComplete)) {
+  if ((checkingSession && !publicRoute) || (needsDesktopLanguage && !languageComplete)) {
     return <BootSplash message={t('app.checkingSession')} />
   }
 

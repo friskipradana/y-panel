@@ -51,7 +51,7 @@ export const getMeV2 = () =>
 
 // probe: without a session the agent answers with no username instead of a 401 in the console
 export const probeMe = () =>
-  agentApi.get<AuthMeV2>('/api/v1/me', { params: { probe: 1 } }).then((r) => r.data)
+  agentApi.get<AuthMeV2>('/api/v1/me', { params: { probe: 1 }, timeout: 10_000 }).then((r) => r.data)
 
 export interface FrontendRevisionResponse {
   revision: string

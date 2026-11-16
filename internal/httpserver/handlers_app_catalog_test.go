@@ -297,6 +297,19 @@ func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
 	if !strings.Contains(orderBody, "INV-") {
 		t.Fatalf("expected order response to contain invoice number INV-, got %s", orderBody)
 	}
+
+	// Test POST order with multi-qty duration
+	multiPayload := `{"catalogId":"reneo-crm","planSlug":"pro-monthly","quantity":3,"buyerName":"Budi Santoso","paymentMethod":"transfer"}`
+	reqMulti := httptest.NewRequest(http.MethodPost, "/api/v1/app-catalog/order", strings.NewReader(multiPayload))
+	wMulti := httptest.NewRecorder()
+	srv.handleAppLicenseCreateOrder(wMulti, reqMulti)
+	if wMulti.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for multi-qty order, got %d", wMulti.Code)
+	}
+	multiBody := wMulti.Body.String()
+	if !strings.Contains(multiBody, `"months":3`) || !strings.Contains(multiBody, `"amountList":297000`) {
+		t.Fatalf("expected 3 months & 297000 amountList in multi-qty order, got %s", multiBody)
+	}
 }
 
 func TestAppGatewayPublicReneoCrmPaths(t *testing.T) {

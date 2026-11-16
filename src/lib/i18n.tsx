@@ -10,7 +10,8 @@ const STORAGE_KEY = 'reneo-language'
 // Each language is served in two parts (vite.config.ts, localeSplit): the text of the public pages, which is all a visitor
 // needs before logging in, and the rest, for the desktop and its windows. A first visit loads one part of one language.
 const dictionaries: Partial<Record<Language, TranslationDictionary>> = {}
-const parts: Partial<Record<Language, { public?: boolean; rest?: boolean }>> = {}
+const parts: Partial<Record<Language, { public?: boolean; rest?: boolean; restFailed?: boolean }>> = {}
+const inflightLoads = new Map<string, Promise<void>>()
 
 const loaders: Record<Language, Record<'public' | 'rest', () => Promise<{ default: TranslationDictionary }>>> = {
   id: { public: () => import('virtual:locale/id/public'), rest: () => import('virtual:locale/id/rest') },
@@ -31,11 +32,32 @@ const getVersion = () => version
 async function loadPart(language: Language, part: 'public' | 'rest') {
   const state = (parts[language] ??= {})
   if (state[part]) return
-  const module = await loaders[language][part]()
-  dictionaries[language] = { ...dictionaries[language], ...module.default }
-  state[part] = true
-  version += 1
-  listeners.forEach((listener) => listener())
+  const key = `${language}:${part}`
+  const existing = inflightLoads.get(key)
+  if (existing) return existing
+
+  const promise = loaders[language][part]()
+    .then((module) => {
+      dictionaries[language] = { ...dictionaries[language], ...module.default }
+      state[part] = true
+      if (part === 'rest') state.restFailed = false
+      version += 1
+      listeners.forEach((listener) => listener())
+    })
+    .catch((err) => {
+      if (part === 'rest') {
+        state.restFailed = true
+        version += 1
+        listeners.forEach((listener) => listener())
+      }
+      throw err
+    })
+    .finally(() => {
+      inflightLoads.delete(key)
+    })
+
+  inflightLoads.set(key, promise)
+  return promise
 }
 
 // 'public' is enough for the public pages; 'all' is the whole language, for the desktop
@@ -46,6 +68,10 @@ export async function loadLanguage(language: Language, scope: 'public' | 'all' =
 
 export function isLanguageComplete(language: Language) {
   return !!parts[language]?.rest
+}
+
+function isLanguageReadyOrFailed(language: Language) {
+  return !!(parts[language]?.rest || parts[language]?.restFailed)
 }
 
 export function getInitialLanguage(): Language {
@@ -96,10 +122,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     language,
     // a switch made on the desktop waits for the whole language, one made on a public page only for its text
     setLanguage: (next) => {
-      void loadLanguage(next, isLanguageComplete(language) ? 'all' : 'public').then(() => {
-        setLanguageState(next)
-        void loadLanguage(next, 'all')
-      })
+      void loadLanguage(next, isLanguageComplete(language) ? 'all' : 'public')
+        .catch(() => undefined)
+        .then(() => {
+          setLanguageState(next)
+          void loadLanguage(next, 'all').catch(() => undefined)
+        })
     },
     t: (key, params) => translate(language, key, params),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,14 +136,14 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
 
-// true once the whole language is in; asks for it while `needed` (the desktop, a signed-in account)
+// true once the whole language is in (or failed cleanly so screens never lock forever)
 export function useLanguageComplete(needed: boolean) {
   const { language } = useI18n()
   useSyncExternalStore(subscribe, getVersion)
   useEffect(() => {
-    if (needed) void loadLanguage(language, 'all')
+    if (needed) void loadLanguage(language, 'all').catch(() => undefined)
   }, [needed, language])
-  return isLanguageComplete(language)
+  return isLanguageReadyOrFailed(language)
 }
 
 export function useI18n() {
