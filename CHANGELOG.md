@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.87.0] - 2026-11-17
+
+Show hosting plan benefits and add license add-on stepper.
+
+### Fitur baru
+- **order:** Show hosting plan benefits and add license add-on stepper ([`1a2881c`](https://github.com/friskipradana/y-panel/commit/1a2881c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.86.0...v1.87.0
+
 ## [1.86.0] - 2026-11-16
 
 Improve boot resilience and app stability.
