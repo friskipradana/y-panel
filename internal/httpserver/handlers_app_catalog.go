@@ -323,7 +323,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"latest", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -933,35 +933,33 @@ func (s *Server) ensureManagedDependencyDB(actor *database.User, engineID, defau
 	}
 	existing, err := s.database.ListManagedDatabases(actor.ID, false)
 	if err == nil {
-		var fallback *database.ManagedDatabase
+		var matched *database.ManagedDatabase
 		for i := range existing {
 			item := &existing[i]
 			if item.Engine != engineID || item.Status == "error" {
 				continue
 			}
+			// Only reuse the dedicated dependency DB matching defaultName to avoid colliding with another app's schema
 			if item.Name == defaultName {
-				fallback = item
+				matched = item
 				break
 			}
-			if fallback == nil {
-				fallback = item
-			}
 		}
-		if fallback != nil {
-			if fallback.Status == "stopped" {
-				_ = userdb.Start(fallback.ID)
-				_ = s.database.SetManagedDatabaseStatus(fallback.ID, "ready", "")
+		if matched != nil {
+			if matched.Status == "stopped" {
+				_ = userdb.Start(matched.ID)
+				_ = s.database.SetManagedDatabaseStatus(matched.ID, "ready", "")
 			}
-			password, decErr := crypto.Decrypt(s.cfg.EncryptionKey, fallback.PasswordEncrypted)
+			password, decErr := crypto.Decrypt(s.cfg.EncryptionKey, matched.PasswordEncrypted)
 			if decErr == nil && password != "" {
-				cName := strings.TrimSpace(fallback.ContainerName)
+				cName := strings.TrimSpace(matched.ContainerName)
 				if cName == "" {
-					cName = fmt.Sprintf("reneo-db-%d", fallback.ID)
+					cName = fmt.Sprintf("reneo-db-%d", matched.ID)
 				}
 				if netErr := docker.EnsureContainerOnNetwork("reneo-internal", cName); netErr == nil {
-					return userdb.ConnectionURL(engine, cName, engine.InternalPort, fallback.DatabaseName, fallback.Username, password), nil
+					return userdb.ConnectionURL(engine, cName, engine.InternalPort, matched.DatabaseName, matched.Username, password), nil
 				}
-				return userdb.ConnectionURL(engine, "host.docker.internal", fallback.HostPort, fallback.DatabaseName, fallback.Username, password), nil
+				return userdb.ConnectionURL(engine, "host.docker.internal", matched.HostPort, matched.DatabaseName, matched.Username, password), nil
 			}
 		}
 	}
