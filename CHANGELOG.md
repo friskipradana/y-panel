@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.87.2] - 2026-11-17
+
+Add reneo-crm v1.6.3, v1.6.2, v1.6.1, v1.6.0, v1.5.6 versions to catalog spec.
+
+### Fitur baru
+- **app-catalog:** Add reneo-crm v1.6.3, v1.6.2, v1.6.1, v1.6.0, v1.5.6 versions to catalog spec ([`cd0b946`](https://github.com/friskipradana/y-panel/commit/cd0b946))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.87.1...v1.87.2
+
 ## [1.87.1] - 2026-11-17
 
 Expand license feature set and update pricing tiers.
