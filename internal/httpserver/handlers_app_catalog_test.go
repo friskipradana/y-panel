@@ -280,8 +280,8 @@ func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
 		t.Fatalf("expected 200 OK for plans, got %d", wPlans.Code)
 	}
 	plansBody := wPlans.Body.String()
-	if !strings.Contains(plansBody, "Pro Bulanan") {
-		t.Fatalf("expected plans response to contain Pro Bulanan, got %s", plansBody)
+	if !strings.Contains(plansBody, "Growth Pro Bulanan") {
+		t.Fatalf("expected plans response to contain Growth Pro Bulanan, got %s", plansBody)
 	}
 
 	// Test POST order
@@ -307,8 +307,8 @@ func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
 		t.Fatalf("expected 200 OK for multi-qty order, got %d", wMulti.Code)
 	}
 	multiBody := wMulti.Body.String()
-	if !strings.Contains(multiBody, `"months":3`) || !strings.Contains(multiBody, `"amountList":297000`) {
-		t.Fatalf("expected 3 months & 297000 amountList in multi-qty order, got %s", multiBody)
+	if !strings.Contains(multiBody, `"months":3`) || !strings.Contains(multiBody, `"amountList":537000`) {
+		t.Fatalf("expected 3 months & 537000 amountList in multi-qty order, got %s", multiBody)
 	}
 }
 

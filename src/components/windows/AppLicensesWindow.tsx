@@ -60,10 +60,24 @@ function formatFeatureBadge(key: string, value: unknown): string | null {
   if (value === false || value === null || value === undefined) return null
   const k = key.toLowerCase()
   if (k === 'wahasync') return 'Integrasi WAHA'
-  if (k === 'birthdaybot' || k === 'botbirthday') return 'Bot Ulang Tahun'
+  if (k === 'birthdaybot' || k === 'botbirthday' || k === 'birthdayautomation') return 'Bot Ulang Tahun'
   if (k === 'livechat' || k === 'livechatcrm') return 'Live Chat CRM'
   if (k === 'multisession') return 'Multi-Sesi WA'
   if (k === 'maxsessions') return `${Number(value).toLocaleString('id-ID')} Sesi WA`
+  if (k === 'multiagent') return 'Multi-Agent'
+  if (k === 'maxagents') return `${Number(value).toLocaleString('id-ID')} Agen CS`
+  if (k === 'customroles') return 'Role Kustom Granular'
+  if (k === 'omnichannel') return 'Omnichannel Sosial'
+  if (k === 'maxchannels') {
+    const n = Number(value)
+    return n === 0 ? null : `${n.toLocaleString('id-ID')} Kanal Sosial`
+  }
+  if (k === 'scheduledposts') return 'Jadwal Post & Story WA'
+  if (k === 'autoreply') return 'Auto-Reply & Jam Kerja'
+  if (k === 'aiagent') return 'Agent AI Multi-Model'
+  if (k === 'mcptools') return 'MCP Tool Servers'
+  if (k === 'exportreports') return 'Ekspor CSV'
+  if (k === 'unlimitedcontacts') return value === true ? 'Kontak Tanpa Batas' : null
   if (k === 'broadcast' || k === 'unlimitedbroadcast') {
     return value === true ? 'Broadcast WA Tanpa Batas' : 'Broadcast WA Terjadwal'
   }

@@ -245,11 +245,11 @@ func (m *Manager) EnsureDefaultLicenses(userID int64) error {
 		now := time.Now()
 		expiresAt := now.AddDate(0, 1, 0) // 1 month initial active license
 		key := generateLicenseKey("reneo-crm")
-		featuresJSON := `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"maxContacts":10000,"wahaSync":true}`
+		featuresJSON := `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`
 
 		_, err = m.db.Exec(`
 			INSERT INTO app_licenses (user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features)
-			VALUES ($1, 'reneo-crm', 'Reneo CRM Services', $2, 'ACTIVE', 'Bulanan (Pro)', 'monthly', 99000, $3, $4, $5::jsonb)
+			VALUES ($1, 'reneo-crm', 'Reneo CRM Services', $2, 'ACTIVE', 'Growth Pro Bulanan', 'monthly', 179000, $3, $4, $5::jsonb)
 			ON CONFLICT (license_key) DO NOTHING
 		`, userID, key, now, expiresAt, featuresJSON)
 		if err != nil {
@@ -272,7 +272,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 
 	var count int
 	_ = m.db.QueryRow(`SELECT COUNT(*) FROM app_license_plans WHERE catalog_id = 'reneo-crm'`).Scan(&count)
-	if count > 0 {
+	if count >= 4 {
 		return nil
 	}
 
@@ -290,35 +290,46 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		{
 			slug:        "starter-monthly",
 			name:        "Starter Bulanan",
-			tagline:     "Cocok untuk UMKM pemula yang mulai mengelola kontak & broadcast WhatsApp.",
+			tagline:     "Untuk UMKM pemula: broadcast terjadwal, kontak terpusat, & auto-reply dasar.",
 			period:      "monthly",
 			months:      1,
-			price:       49000,
+			price:       79000,
 			highlighted: false,
 			sortOrder:   1,
-			features:    `{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true,"supportPriority":"standard"}`,
+			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard"}`,
 		},
 		{
 			slug:        "pro-monthly",
-			name:        "Pro Bulanan",
-			tagline:     "Fitur komprehensif lengkap: broadcast tanpa batas, bot ultah, multi-sesi, dan Live Chat CRM.",
+			name:        "Growth Pro Bulanan",
+			tagline:     "Terlaris untuk tim CS: Live Chat CRM, Multi-Sesi WA, Omnichannel, Story WA & CSAT.",
 			period:      "monthly",
 			months:      1,
-			price:       99000,
+			price:       179000,
 			highlighted: true,
 			sortOrder:   2,
-			features:    `{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true,"supportPriority":"fast"}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`,
+		},
+		{
+			slug:        "business-monthly",
+			name:        "Business AI Bulanan",
+			tagline:     "Skala bisnis penuh: Agent AI Multi-Model, Knowledge Book, MCP Tools & akses API.",
+			period:      "monthly",
+			months:      1,
+			price:       349000,
+			highlighted: false,
+			sortOrder:   3,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority"}`,
 		},
 		{
 			slug:        "enterprise-annual",
 			name:        "Enterprise Tahunan",
-			tagline:     "Paket tahunan hemat 17%: kapasitas kontak masif, multi-sesi hingga 25 akun, & support prioritas.",
+			tagline:     "Paket tahunan hemat 17% (gratis 2 bln): kontak & kanal tanpa batas, 25 sesi WA & support VIP.",
 			period:      "annual",
 			months:      12,
-			price:       990000,
+			price:       3490000,
 			highlighted: false,
-			sortOrder:   3,
-			features:    `{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true,"supportPriority":"vip"}`,
+			sortOrder:   4,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip"}`,
 		},
 	}
 
@@ -340,21 +351,27 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 		return []AppLicensePlan{
 			{
 				ID: 1, CatalogID: catalogID, Slug: "starter-monthly", Name: "Starter Bulanan",
-				Tagline: "Cocok untuk UMKM pemula", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 49000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true}`),
+				Tagline: "Untuk UMKM pemula: broadcast terjadwal, kontak terpusat, & auto-reply dasar.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 79000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard"}`),
 				Highlighted: false, IsActive: true, SortOrder: 1,
 			},
 			{
-				ID: 2, CatalogID: catalogID, Slug: "pro-monthly", Name: "Pro Bulanan",
-				Tagline: "Fitur komprehensif lengkap", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 99000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true}`),
+				ID: 2, CatalogID: catalogID, Slug: "pro-monthly", Name: "Growth Pro Bulanan",
+				Tagline: "Terlaris untuk tim CS: Live Chat CRM, Multi-Sesi WA, Omnichannel, Story WA & CSAT.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 179000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`),
 				Highlighted: true, IsActive: true, SortOrder: 2,
 			},
 			{
-				ID: 3, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise Tahunan",
-				Tagline: "Paket tahunan hemat 17%", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 990000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true}`),
+				ID: 3, CatalogID: catalogID, Slug: "business-monthly", Name: "Business AI Bulanan",
+				Tagline: "Skala bisnis penuh: Agent AI Multi-Model, Knowledge Book, MCP Tools & akses API.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 349000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority"}`),
 				Highlighted: false, IsActive: true, SortOrder: 3,
+			},
+			{
+				ID: 4, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise Tahunan",
+				Tagline: "Paket tahunan hemat 17% (gratis 2 bln): kontak & kanal tanpa batas, 25 sesi WA & support VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3490000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip"}`),
+				Highlighted: false, IsActive: true, SortOrder: 4,
 			},
 		}, nil
 	}
@@ -753,17 +770,17 @@ func (m *Manager) renewAppLicenseTx(q sqlExecutor, userID int64, catalogID, plan
 		newExpiresAt = now.AddDate(0, months, 0)
 		key := generateLicenseKey(catalogID)
 		if planName == "" {
-			planName = "Bulanan (Pro)"
+			planName = "Growth Pro Bulanan"
 		}
 		if period == "" {
 			period = "monthly"
 		}
 		if priceAmount <= 0 {
-			priceAmount = 99000
+			priceAmount = 179000
 		}
 		featuresJSON := planFeaturesJSON
 		if featuresJSON == "" {
-			featuresJSON = `{"unlimitedBroadcast":true,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"maxContacts":10000,"wahaSync":true}`
+			featuresJSON = `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`
 		}
 
 		var newID int64

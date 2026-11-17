@@ -3809,7 +3809,7 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			isLocked := lic.IsExpired || isSuspended
 			features := lic.Features
 			if isLocked {
-				features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"wahaSync":false}`)
+				features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":0,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"maxTemplates":0,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":false,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":false,"apiAccess":false}`)
 			}
 			publicUrls := s.collectAppPublicUrls(userID, catalogID, appID)
 			s.writeJSON(w, http.StatusOK, jsonResponse{
@@ -3848,15 +3848,26 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 		"licenseKey":    "",
 		"billingUrl":    "/hosting",
 		"features": map[string]any{
-			"unlimitedBroadcast": false,
-			"birthdayBot":        false,
-			"liveChat":           false,
-			"multiSession":       false,
-			"maxSessions":        0,
-			"multiAgent":         false,
-			"maxAgents":          0,
-			"maxContacts":        0,
-			"wahaSync":           false,
+			"unlimitedBroadcast":   false,
+			"maxBroadcastPerMonth": 0,
+			"birthdayBot":          false,
+			"liveChat":             false,
+			"multiSession":         false,
+			"maxSessions":          0,
+			"multiAgent":           false,
+			"maxAgents":            0,
+			"maxContacts":          0,
+			"maxTemplates":         0,
+			"customRoles":          false,
+			"omnichannel":          false,
+			"maxChannels":          0,
+			"scheduledPosts":       false,
+			"autoReply":            false,
+			"aiAgent":              false,
+			"mcpTools":             false,
+			"exportReports":        false,
+			"wahaSync":             false,
+			"apiAccess":            false,
 		},
 	})
 }

@@ -380,7 +380,7 @@ func TestIntegrationAddonLicenseTiersAndCustomMonths(t *testing.T) {
 		t.Fatalf("expected reneo-crm license tiers in appAddons, got %+v", pub.AppAddons)
 	}
 
-	// Buy 1 month hosting + independent 3 months of starter-monthly (Rp 49.000 * 3 = Rp 147.000)
+	// Buy 1 month hosting + independent 3 months of starter-monthly (Rp 79.000 * 3 = Rp 237.000)
 	recOrder, view := f.postOrder(t, "203.0.113.55", map[string]any{
 		"planId":         plan.ID,
 		"kind":           "new",
@@ -395,16 +395,16 @@ func TestIntegrationAddonLicenseTiersAndCustomMonths(t *testing.T) {
 	if recOrder.Code != http.StatusCreated {
 		t.Fatalf("create addon order: %d %s", recOrder.Code, recOrder.Body.String())
 	}
-	if view.AddonPlanSlug != "starter-monthly" || view.AddonMonths != 3 || view.AddonAmount != 147000 {
+	if view.AddonPlanSlug != "starter-monthly" || view.AddonMonths != 3 || view.AddonAmount != 237000 {
 		t.Fatalf("unexpected addon view fields: %+v", view)
 	}
-	if view.AmountTotal <= 197000 || view.AmountTotal > 197999 {
-		t.Fatalf("expected hosting 50000 + addon 147000 + unique code, got %d", view.AmountTotal)
+	if view.AmountTotal <= 287000 || view.AmountTotal > 287999 {
+		t.Fatalf("expected hosting 50000 + addon 237000 + unique code, got %d", view.AmountTotal)
 	}
 
 	order, _ := f.db.GetHostingOrderByPublicID(view.PublicID)
 	inv := f.s.invoiceFor(order)
-	if inv.AddonPlanName == "" || inv.AddonMonths != 3 || inv.AddonAmount != 147000 {
+	if inv.AddonPlanName == "" || inv.AddonMonths != 3 || inv.AddonAmount != 237000 {
 		t.Fatalf("unexpected invoice addon fields: %+v", inv)
 	}
 	if err := f.s.fulfillOrder(order, nil, "lunas addon"); err != nil {

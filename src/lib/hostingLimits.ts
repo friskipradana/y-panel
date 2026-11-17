@@ -25,7 +25,7 @@ export function describeLicenseFeatures(features: Record<string, boolean | numbe
   if (!features) return []
   const items: string[] = []
   const maxContacts = Number(features.maxContacts ?? 0)
-  if (features.unlimitedContacts === true) {
+  if (features.unlimitedContacts === true || (features.maxContacts !== undefined && maxContacts === 0)) {
     items.push(t('order.addon.featUnlimitedContacts'))
   } else if (maxContacts > 0) {
     items.push(t('order.addon.featContacts', { count: maxContacts.toLocaleString('id-ID') }))
@@ -40,7 +40,7 @@ export function describeLicenseFeatures(features: Record<string, boolean | numbe
     }
   }
 
-  if (features.liveChat === true) {
+  if (features.liveChat === true || features.liveChatCrm === true) {
     items.push(t('order.addon.featLiveChat'))
   }
 
@@ -58,11 +58,34 @@ export function describeLicenseFeatures(features: Record<string, boolean | numbe
     items.push(t('order.addon.featSingleAgent'))
   }
 
-  if (features.birthdayBot === true) {
+  if (features.customRoles === true) {
+    items.push(t('order.addon.featCustomRoles'))
+  }
+  if (features.omnichannel === true) {
+    const chLimit = Number(features.maxChannels ?? 0)
+    items.push(
+      chLimit > 0
+        ? t('order.addon.featOmnichannelLimit', { count: chLimit })
+        : t('order.addon.featOmnichannelUnlimited')
+    )
+  }
+  if (features.scheduledPosts === true) {
+    items.push(t('order.addon.featScheduledPosts'))
+  }
+  if (features.aiAgent === true) {
+    items.push(t('order.addon.featAiAgent'))
+  }
+  if (features.mcpTools === true) {
+    items.push(t('order.addon.featMcpTools'))
+  }
+  if (features.birthdayBot === true || features.birthdayAutomation === true) {
     items.push(t('order.addon.featBirthdayBot'))
   }
   if (features.wahaSync === true) {
     items.push(t('order.addon.featWahaSync'))
+  }
+  if (features.exportReports === true) {
+    items.push(t('order.addon.featExportReports'))
   }
   if (features.apiAccess === true) {
     items.push(t('order.addon.featApiAccess'))
@@ -70,6 +93,7 @@ export function describeLicenseFeatures(features: Record<string, boolean | numbe
 
   const priority = typeof features.supportPriority === 'string' ? features.supportPriority.toLowerCase() : ''
   if (priority === 'vip') items.push(t('order.addon.featSupportVip'))
+  else if (priority === 'priority') items.push(t('order.addon.featSupportPriority'))
   else if (priority === 'fast') items.push(t('order.addon.featSupportFast'))
 
   return items

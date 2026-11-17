@@ -241,8 +241,8 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 		appName = req.CatalogID
 	}
 
-	planName := "Pro Bulanan"
-	features := json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"multiAgent":true,"maxAgents":5,"wahaSync":true}`)
+	planName := "Growth Pro Bulanan"
+	features := json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`)
 
 	if s.database != nil && s.database.IsConnected() {
 		if plan, _ := s.database.GetAppLicensePlan(req.CatalogID, req.PlanSlug); plan != nil {
@@ -259,10 +259,13 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 			trialDays = plan.TrialDays
 		} else if req.PlanSlug == "starter-monthly" {
 			planName = "Starter Bulanan"
-			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxContacts":1000,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"wahaSync":true}`)
+			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard"}`)
+		} else if req.PlanSlug == "business-monthly" {
+			planName = "Business AI Bulanan"
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority"}`)
 		} else if req.PlanSlug == "enterprise-annual" {
 			planName = "Enterprise Tahunan"
-			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":25,"wahaSync":true}`)
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip"}`)
 		}
 
 		existing, _ := s.database.ListAppLicenses(userID, req.CatalogID)
@@ -404,10 +407,10 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		plan, _ = s.database.GetAppLicensePlan(req.CatalogID, req.PlanSlug)
 	}
 
-	planName := "Pro Bulanan"
+	planName := "Growth Pro Bulanan"
 	period := "monthly"
 	months := 1
-	priceAmount := int64(99000)
+	priceAmount := int64(179000)
 
 	if plan != nil {
 		planName = plan.Name
@@ -418,12 +421,17 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		planName = "Starter Bulanan"
 		period = "monthly"
 		months = 1
-		priceAmount = 49000
+		priceAmount = 79000
+	} else if req.PlanSlug == "business-monthly" {
+		planName = "Business AI Bulanan"
+		period = "monthly"
+		months = 1
+		priceAmount = 349000
 	} else if req.PlanSlug == "enterprise-annual" {
 		planName = "Enterprise Tahunan"
 		period = "annual"
 		months = 12
-		priceAmount = 990000
+		priceAmount = 3490000
 	}
 
 	if req.PaymentMethod == "" {
@@ -1237,7 +1245,7 @@ func (s *Server) handleAppLicensesVerify(w http.ResponseWriter, r *http.Request)
 	valid := !lic.IsExpired && !isSuspended && (lic.Status == "ACTIVE" || lic.Status == "TRIAL")
 	features := lic.Features
 	if !valid {
-		features = json.RawMessage(`{"unlimitedBroadcast":false,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"wahaSync":false}`)
+		features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":0,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"maxTemplates":0,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":false,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":false,"apiAccess":false}`)
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{

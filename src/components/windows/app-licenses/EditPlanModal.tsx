@@ -36,6 +36,14 @@ export function EditPlanModal({
   const [maxSessions, setMaxSessions] = useState<number>(1)
   const [maxTemplates, setMaxTemplates] = useState<number>(0)
   const [maxUsers, setMaxUsers] = useState<number>(1)
+  const [customRoles, setCustomRoles] = useState(false)
+  const [omnichannel, setOmnichannel] = useState(false)
+  const [maxChannels, setMaxChannels] = useState<number>(0)
+  const [scheduledPosts, setScheduledPosts] = useState(false)
+  const [autoReply, setAutoReply] = useState(true)
+  const [aiAgent, setAiAgent] = useState(false)
+  const [mcpTools, setMcpTools] = useState(false)
+  const [exportReports, setExportReports] = useState(false)
   const [birthdayBot, setBirthdayBot] = useState(true)
   const [wahaSync, setWahaSync] = useState(true)
   const [apiAccess, setApiAccess] = useState(false)
@@ -58,13 +66,21 @@ export function EditPlanModal({
       setMaxContacts(Number(feats.maxContacts ?? 10000) || 0)
       const isUnlim = Boolean(feats.unlimitedBroadcast ?? feats.broadcast)
       setUnlimitedBroadcast(isUnlim)
-      setMaxBroadcastPerMonth(Number(feats.maxBroadcastPerMonth ?? (isUnlim ? 0 : 500)) || 0)
+      setMaxBroadcastPerMonth(Number(feats.maxBroadcastPerMonth ?? (isUnlim ? 0 : 1500)) || 0)
       setLiveChat(Boolean(feats.liveChat ?? feats.liveChatCrm))
       const isMulti = Boolean(feats.multiSession ?? feats.multiUser)
       setMultiSession(isMulti)
-      setMaxSessions(Number(feats.maxSessions ?? (isMulti ? 5 : 1)) || 1)
+      setMaxSessions(Number(feats.maxSessions ?? (isMulti ? 3 : 1)) || 1)
       setMaxTemplates(Number(feats.maxTemplates ?? 0) || 0)
-      setMaxUsers(Number(feats.maxUsers ?? 1) || 1)
+      setMaxUsers(Number(feats.maxUsers ?? feats.maxAgents ?? 1) || 1)
+      setCustomRoles(Boolean(feats.customRoles))
+      setOmnichannel(Boolean(feats.omnichannel))
+      setMaxChannels(Number(feats.maxChannels ?? 0) || 0)
+      setScheduledPosts(Boolean(feats.scheduledPosts))
+      setAutoReply(feats.autoReply !== undefined ? Boolean(feats.autoReply) : true)
+      setAiAgent(Boolean(feats.aiAgent))
+      setMcpTools(Boolean(feats.mcpTools))
+      setExportReports(Boolean(feats.exportReports))
       setBirthdayBot(Boolean(feats.birthdayBot ?? feats.botBirthday))
       setWahaSync(Boolean(feats.wahaSync))
       setApiAccess(Boolean(feats.apiAccess))
@@ -94,6 +110,7 @@ export function EditPlanModal({
       const mergedFeatures: Record<string, string | number | boolean> = {
         ...(plan.features || {}),
         maxContacts: Math.max(0, maxContacts),
+        unlimitedContacts: maxContacts === 0,
         unlimitedBroadcast,
         maxBroadcastPerMonth: unlimitedBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
         liveChat,
@@ -101,6 +118,16 @@ export function EditPlanModal({
         maxSessions: Math.max(1, maxSessions),
         maxTemplates: Math.max(0, maxTemplates),
         maxUsers: Math.max(1, maxUsers),
+        maxAgents: Math.max(1, maxUsers),
+        multiAgent: maxUsers > 1,
+        customRoles,
+        omnichannel,
+        maxChannels: Math.max(0, maxChannels),
+        scheduledPosts,
+        autoReply,
+        aiAgent,
+        mcpTools,
+        exportReports,
         birthdayBot,
         wahaSync,
         apiAccess,
@@ -325,11 +352,81 @@ export function EditPlanModal({
             <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
               <input
                 type="checkbox"
+                checked={customRoles}
+                onChange={(e) => setCustomRoles(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Role CS Kustom Granular</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={omnichannel}
+                onChange={(e) => setOmnichannel(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Omnichannel Sosial</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={scheduledPosts}
+                onChange={(e) => setScheduledPosts(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Jadwal Post &amp; Story WA</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={autoReply}
+                onChange={(e) => setAutoReply(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Auto-Reply &amp; Jam Kerja</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={aiAgent}
+                onChange={(e) => setAiAgent(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Agent AI Multi-Model</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={mcpTools}
+                onChange={(e) => setMcpTools(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>MCP Tool Servers</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
+                checked={exportReports}
+                onChange={(e) => setExportReports(e.target.checked)}
+                className="rounded border-[var(--win-border)]"
+              />
+              <span>Ekspor Laporan CSV</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2 rounded-lg border border-[var(--win-border)] cursor-pointer hover:bg-[var(--card-hover-bg)]">
+              <input
+                type="checkbox"
                 checked={apiAccess}
                 onChange={(e) => setApiAccess(e.target.checked)}
                 className="rounded border-[var(--win-border)]"
               />
-              <span>Akses API & Webhook</span>
+              <span>Akses API &amp; Webhook</span>
             </label>
           </div>
 
@@ -407,6 +504,19 @@ export function EditPlanModal({
 
             <div>
               <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Kuota Akun Kanal <span className="text-[11px] font-normal text-[var(--text-secondary)]">(0 = Unlimited)</span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={maxChannels}
+                onChange={(e) => setMaxChannels(Math.max(0, Number(e.target.value)))}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
                 Prioritas Support
               </label>
               <select
@@ -416,6 +526,7 @@ export function EditPlanModal({
               >
                 <option value="standard">Standard</option>
                 <option value="fast">Fast</option>
+                <option value="priority">Priority</option>
                 <option value="vip">VIP</option>
               </select>
             </div>

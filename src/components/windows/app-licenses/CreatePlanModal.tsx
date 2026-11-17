@@ -29,7 +29,7 @@ export function CreatePlanModal({
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
   const [months, setMonths] = useState<number>(1)
   const [trialDays, setTrialDays] = useState<number>(7)
-  const [priceAmount, setPriceAmount] = useState<number>(99000)
+  const [priceAmount, setPriceAmount] = useState<number>(179000)
   const [highlighted, setHighlighted] = useState(false)
 
   // Custom features & quotas
@@ -37,14 +37,22 @@ export function CreatePlanModal({
   const [featBroadcast, setFeatBroadcast] = useState(true)
   const [maxBroadcastPerMonth, setMaxBroadcastPerMonth] = useState(0)
   const [featLiveChat, setFeatLiveChat] = useState(true)
-  const [featMultiSession, setFeatMultiSession] = useState(false)
-  const [maxSessions, setMaxSessions] = useState(1)
-  const [maxTemplates, setMaxTemplates] = useState(0)
-  const [maxUsers, setMaxUsers] = useState(1)
+  const [featMultiSession, setFeatMultiSession] = useState(true)
+  const [maxSessions, setMaxSessions] = useState(3)
+  const [maxTemplates, setMaxTemplates] = useState(50)
+  const [maxUsers, setMaxUsers] = useState(5)
+  const [featCustomRoles, setFeatCustomRoles] = useState(true)
+  const [featOmnichannel, setFeatOmnichannel] = useState(true)
+  const [maxChannels, setMaxChannels] = useState(4)
+  const [featScheduledPosts, setFeatScheduledPosts] = useState(true)
+  const [featAutoReply, setFeatAutoReply] = useState(true)
+  const [featAiAgent, setFeatAiAgent] = useState(false)
+  const [featMcpTools, setFeatMcpTools] = useState(false)
+  const [featExportReports, setFeatExportReports] = useState(true)
   const [featBotUltah, setFeatBotUltah] = useState(true)
   const [featWahaSync, setFeatWahaSync] = useState(true)
   const [featApiAccess, setFeatApiAccess] = useState(false)
-  const [supportPriority, setSupportPriority] = useState('standard')
+  const [supportPriority, setSupportPriority] = useState('fast')
 
   const [loading, setLoading] = useState(false)
 
@@ -52,13 +60,13 @@ export function CreatePlanModal({
     setPeriod(p)
     if (p === 'annual') {
       setMonths(12)
-      if (priceAmount < 200000) {
-        setPriceAmount(990000)
+      if (priceAmount < 500000) {
+        setPriceAmount(3490000)
       }
     } else {
       setMonths(1)
-      if (priceAmount > 500000) {
-        setPriceAmount(99000)
+      if (priceAmount > 1000000) {
+        setPriceAmount(179000)
       }
     }
   }
@@ -97,6 +105,7 @@ export function CreatePlanModal({
         isActive: true,
         features: {
           maxContacts: Math.max(0, maxContacts),
+          unlimitedContacts: maxContacts === 0,
           unlimitedBroadcast: featBroadcast,
           maxBroadcastPerMonth: featBroadcast ? 0 : Math.max(0, maxBroadcastPerMonth),
           liveChat: featLiveChat,
@@ -104,6 +113,16 @@ export function CreatePlanModal({
           maxSessions: Math.max(1, maxSessions),
           maxTemplates: Math.max(0, maxTemplates),
           maxUsers: Math.max(1, maxUsers),
+          maxAgents: Math.max(1, maxUsers),
+          multiAgent: maxUsers > 1,
+          customRoles: featCustomRoles,
+          omnichannel: featOmnichannel,
+          maxChannels: Math.max(0, maxChannels),
+          scheduledPosts: featScheduledPosts,
+          autoReply: featAutoReply,
+          aiAgent: featAiAgent,
+          mcpTools: featMcpTools,
+          exportReports: featExportReports,
           birthdayBot: featBotUltah,
           wahaSync: featWahaSync,
           apiAccess: featApiAccess,
@@ -375,6 +394,18 @@ export function CreatePlanModal({
               </div>
               <div>
                 <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Kuota Akun Kanal (0 = Unlimited)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxChannels}
+                  onChange={(e) => setMaxChannels(Math.max(0, Number(e.target.value)))}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
                   Prioritas Support
                 </label>
                 <select
@@ -384,6 +415,7 @@ export function CreatePlanModal({
                 >
                   <option value="standard">Standard</option>
                   <option value="fast">Fast</option>
+                  <option value="priority">Priority</option>
                   <option value="vip">VIP</option>
                 </select>
               </div>
@@ -405,7 +437,7 @@ export function CreatePlanModal({
                   onChange={(e) => setFeatLiveChat(e.target.checked)}
                   className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
                 />
-                <span>Live Chat & CRM Inbox</span>
+                <span>Live Chat &amp; CRM Inbox</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -415,6 +447,69 @@ export function CreatePlanModal({
                   className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
                 />
                 <span>Multi-Sesi WhatsApp</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featCustomRoles}
+                  onChange={(e) => setFeatCustomRoles(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Role CS Kustom</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featOmnichannel}
+                  onChange={(e) => setFeatOmnichannel(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Omnichannel Sosial</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featScheduledPosts}
+                  onChange={(e) => setFeatScheduledPosts(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Jadwal Post &amp; Story WA</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featAutoReply}
+                  onChange={(e) => setFeatAutoReply(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Auto-Reply &amp; Jam Kerja</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featAiAgent}
+                  onChange={(e) => setFeatAiAgent(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Agent AI Multi-Model</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featMcpTools}
+                  onChange={(e) => setFeatMcpTools(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>MCP Tool Servers</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featExportReports}
+                  onChange={(e) => setFeatExportReports(e.target.checked)}
+                  className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
+                />
+                <span>Ekspor Laporan CSV</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -441,7 +536,7 @@ export function CreatePlanModal({
                   onChange={(e) => setFeatApiAccess(e.target.checked)}
                   className="rounded border-[var(--win-border)] text-emerald-600 focus:ring-0"
                 />
-                <span>Akses API & Webhook</span>
+                <span>Akses API &amp; Webhook</span>
               </label>
             </div>
           </div>
