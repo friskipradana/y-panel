@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.87.1] - 2026-11-17
+
+Expand license feature set and update pricing tiers.
+
+### Fitur baru
+- **order:** Expand license feature set and update pricing tiers ([`2f32927`](https://github.com/friskipradana/y-panel/commit/2f32927))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.87.0...v1.87.1
+
 ## [1.87.0] - 2026-11-17
 
 Show hosting plan benefits and add license add-on stepper.
