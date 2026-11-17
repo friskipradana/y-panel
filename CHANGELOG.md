@@ -2,6 +2,34 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.0] - 2026-11-17
+
+16 perubahan, utamanya register crm-services v1.6.18 in app catalog.
+
+### Fitur baru
+- **app-catalog:** Add reneo-crm v1.6.5 to catalog spec ([`f070a84`](https://github.com/friskipradana/y-panel/commit/f070a84))
+- **app-catalog:** Add reneo-crm v1.6.4 to catalog spec ([`ea3bce2`](https://github.com/friskipradana/y-panel/commit/ea3bce2))
+- **catalog:** Register crm-services v1.6.18 in app catalog ([`970f45d`](https://github.com/friskipradana/y-panel/commit/970f45d))
+- **catalog:** Register crm-services v1.6.17 in app catalog ([`82f3d9f`](https://github.com/friskipradana/y-panel/commit/82f3d9f))
+- **catalog:** Register reneo-crm v1.6.16 with audit message retention ([`57115b0`](https://github.com/friskipradana/y-panel/commit/57115b0))
+- **catalog:** Register reneo-crm v1.6.11 in catalog versions ([`8991b3d`](https://github.com/friskipradana/y-panel/commit/8991b3d))
+- **catalog:** Register reneo-crm v1.6.10 in catalog versions ([`ba103d5`](https://github.com/friskipradana/y-panel/commit/ba103d5))
+- **catalog:** Register reneo-crm v1.6.8 in catalog versions ([`47ba8e1`](https://github.com/friskipradana/y-panel/commit/47ba8e1))
+- **catalog:** Register reneo-crm v1.6.7 in catalog versions ([`a21d664`](https://github.com/friskipradana/y-panel/commit/a21d664))
+
+### Perbaikan
+- **app-catalog:** Stop ensureManagedDependencyDB from reusing unrelated app Postgres DBs and register reneo-crm v1.6.9 ([`257d000`](https://github.com/friskipradana/y-panel/commit/257d000))
+- **app-catalog:** Ensure reneo-internal compose networks & dependencies for reneo-crm v1.6.6 ([`e5fd186`](https://github.com/friskipradana/y-panel/commit/e5fd186))
+- **docker:** Accurately detect in-use images by ImageID and prevent deletion conflicts ([`a9d5101`](https://github.com/friskipradana/y-panel/commit/a9d5101))
+
+### Pemeliharaan
+- **catalog:** Add crm-services 1.6.15 ([`ecc7eec`](https://github.com/friskipradana/y-panel/commit/ecc7eec))
+- **catalog:** Add crm-services 1.6.14 ([`8ab98b0`](https://github.com/friskipradana/y-panel/commit/8ab98b0))
+- **catalog:** Add crm-services 1.6.13 ([`52ce5b7`](https://github.com/friskipradana/y-panel/commit/52ce5b7))
+- **catalog:** Add crm-services 1.6.12 ([`66e7512`](https://github.com/friskipradana/y-panel/commit/66e7512))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.87.2...v1.88.0
+
 ## [1.87.2] - 2026-11-17
 
 Add reneo-crm v1.6.3, v1.6.2, v1.6.1, v1.6.0, v1.5.6 versions to catalog spec.
