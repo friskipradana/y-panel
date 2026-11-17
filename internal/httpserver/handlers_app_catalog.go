@@ -323,7 +323,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"latest", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
