@@ -323,7 +323,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"latest", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -2077,6 +2077,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	if app.CatalogID == "reneo-crm" {
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
+		if nextContainers, listErr := docker.ListContainers(); listErr == nil {
+			if matched := matchContainerForApp(*app, nextContainers, s.ownerScopeFor(actor)); matched != nil {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", matched.ID)
+			}
+		}
 	}
 	if app.HostPort > 0 {
 		waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(app.HostPort))}, 2500*time.Millisecond)
