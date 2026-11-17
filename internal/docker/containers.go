@@ -53,6 +53,7 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 		ID      string `json:"Id"`
 		Names   []string
 		Image   string
+		ImageID string `json:"ImageID"`
 		State   string
 		Status  string
 		Created int64
@@ -118,6 +119,7 @@ func listContainersEngine(ctx context.Context) ([]Container, error) {
 			ID:          shortContainerID(row.ID),
 			Names:       names,
 			Image:       resolveContainerImageRef(row.Image, labels),
+			ImageID:     row.ImageID,
 			State:       normalizeState(strings.ToLower(row.State)),
 			Status:      row.Status,
 			Ports:       ports,
@@ -227,6 +229,7 @@ func listContainersCLI(ctx context.Context) ([]Container, error) {
 			ID       string `json:"ID"`
 			Names    string `json:"Names"`
 			Image    string `json:"Image"`
+			ImageID  string `json:"ImageID"`
 			State    string `json:"State"`
 			Status   string `json:"Status"`
 			Ports    string `json:"Ports"`
@@ -254,6 +257,7 @@ func listContainersCLI(ctx context.Context) ([]Container, error) {
 			ID:          row.ID,
 			Names:       []string{"/" + row.Names},
 			Image:       resolveContainerImageRef(row.Image, labels),
+			ImageID:     row.ImageID,
 			State:       normalizeState(row.State),
 			Status:      row.Status,
 			Ports:       parsePorts(row.Ports),
@@ -593,11 +597,12 @@ func IsImageInUse(imageRef, excludeID string) (bool, error) {
 			continue
 		}
 		cImg := strings.TrimSpace(c.Image)
-		if cImg == "" {
-			continue
-		}
+		cImgID := strings.TrimSpace(c.ImageID)
 		for _, alias := range aliases {
-			if imageRefsMatch(alias, cImg) {
+			if cImg != "" && imageRefsMatch(alias, cImg) {
+				return true, nil
+			}
+			if cImgID != "" && imageRefsMatch(alias, cImgID) {
 				return true, nil
 			}
 		}

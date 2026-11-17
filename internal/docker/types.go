@@ -12,6 +12,7 @@ type Container struct {
 	ID           string                 `json:"Id"`
 	Names        []string               `json:"Names"`
 	Image        string                 `json:"Image"`
+	ImageID      string                 `json:"ImageId,omitempty"`
 	State        string                 `json:"State"`
 	Status       string                 `json:"Status"`
 	Ports        []ContainerPort        `json:"Ports"`

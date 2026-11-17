@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
@@ -111,7 +112,17 @@ func (s *Server) handleDockerImagesList(w http.ResponseWriter, r *http.Request) 
 	used := map[string]bool{}
 	if containers, listErr := docker.ListContainers(); listErr == nil {
 		for _, c := range containers {
-			used[c.Image] = true
+			if c.Image != "" {
+				used[c.Image] = true
+			}
+			if c.ImageID != "" {
+				used[c.ImageID] = true
+				cleanID := strings.TrimPrefix(c.ImageID, "sha256:")
+				used[cleanID] = true
+				if len(cleanID) >= 12 {
+					used[cleanID[:12]] = true
+				}
+			}
 		}
 	}
 	rows := make([]imageRow, len(images))

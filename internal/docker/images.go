@@ -254,7 +254,11 @@ func RemoveImage(id string) error {
 		performance.DefaultRegistry.RecordDockerOp("remove_image", time.Since(started), nil)
 		return nil
 	} else if !errors.Is(engErr, errEngineUnavailable) {
-		err = fmt.Errorf("remove image: %w", engErr)
+		if strings.Contains(engErr.Error(), "image is being used by running container") {
+			err = fmt.Errorf("gagal menghapus image: image sedang digunakan oleh container yang sedang berjalan. Hentikan container terlebih dahulu (%w)", engErr)
+		} else {
+			err = fmt.Errorf("remove image: %w", engErr)
+		}
 		performance.DefaultRegistry.RecordDockerOp("remove_image", time.Since(started), err)
 		return err
 	}
