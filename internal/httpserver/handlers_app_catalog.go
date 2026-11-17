@@ -323,7 +323,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"latest", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -1824,6 +1824,8 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if (actionName == "start" || actionName == "restart") && app.CatalogID == "reneo-crm" {
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", matched.ID)
 	}
@@ -2015,6 +2017,9 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
 		if app.CatalogID == "reneo-crm" {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				updatedCompose = upsertComposeEnvVar(updatedCompose, "RENEO_APP_TOKEN", appTok)
 			}
@@ -2061,10 +2066,17 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 				nextEnv = upsertSliceEnvVar(nextEnv, "RENEO_APP_TOKEN", appTok)
 			}
 		}
+		deployNet := cfg.Network
+		if app.CatalogID == "reneo-crm" {
+			deployNet = "reneo-internal"
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
+		}
 		if _, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
 			Name:      projectName,
 			Image:     targetImage,
-			Network:   cfg.Network,
+			Network:   deployNet,
 			Ports:     cfg.Ports,
 			Env:       nextEnv,
 			Volumes:   cfg.Volumes,
@@ -2076,6 +2088,9 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	if app.CatalogID == "reneo-crm" {
+		docker.InvalidateAll()
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 		if nextContainers, listErr := docker.ListContainers(); listErr == nil {
 			if matched := matchContainerForApp(*app, nextContainers, s.ownerScopeFor(actor)); matched != nil {
@@ -2938,6 +2953,20 @@ func sanitizeExistingAppCompose(composeYAML, projectName, catalogID string) (str
 		re := regexp.MustCompile(`(?m)^[ \t]*SERVER_SERVLET_CONTEXT_PATH:.*\r?\n`)
 		updated = re.ReplaceAllString(updated, "")
 		changed = true
+	}
+
+	if catalogID == "reneo-crm" && !strings.Contains(updated, "reneo-internal") {
+		if strings.Contains(updated, "    extra_hosts:\n") {
+			updated = strings.Replace(updated, "    extra_hosts:\n", "    networks:\n      - reneo-internal\n    extra_hosts:\n", 1)
+			changed = true
+		} else if strings.Contains(updated, "    ports:\n") {
+			updated = strings.Replace(updated, "    ports:\n", "    networks:\n      - reneo-internal\n    ports:\n", 1)
+			changed = true
+		}
+		if !strings.Contains(updated, "networks:\n  reneo-internal:") {
+			updated = strings.TrimRight(updated, "\r\n") + "\n\nnetworks:\n  reneo-internal:\n    external: true\n"
+			changed = true
+		}
 	}
 
 	return updated, changed
