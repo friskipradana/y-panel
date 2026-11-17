@@ -11,6 +11,7 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { useI18n } from '@/lib/i18n'
 import { buildOrderLink, fillRequestMessage } from '@/lib/orderMessage'
+import { OrderPlanDetails } from './OrderPlanDetails'
 
 // The order form of an owner who takes orders by message (WhatsApp, email, or any chat): the buyer picks the plan, the
 // panel address and says who they are, and that becomes the message to the owner. No account is made until the owner does.
@@ -75,6 +76,7 @@ export function OrderRequestForm() {
             }))}
           />
         </Field>
+        <OrderPlanDetails plan={plan} mainDomain={main?.name} />
       </section>
 
       {main ? (

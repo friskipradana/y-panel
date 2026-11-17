@@ -39,6 +39,9 @@ type invoiceView struct {
 	Hostname         string `json:"hostname,omitempty"`
 	AmountList       int64  `json:"amountList"`
 	AddonCatalogID   string `json:"addonCatalogId,omitempty"`
+	AddonPlanSlug    string `json:"addonPlanSlug,omitempty"`
+	AddonPlanName    string `json:"addonPlanName,omitempty"`
+	AddonMonths      int    `json:"addonMonths,omitempty"`
 	AddonAmount      int64  `json:"addonAmount,omitempty"`
 	DiscountPromo    int64  `json:"discountPromo"`
 	DiscountDuration int64  `json:"discountDuration"`
@@ -88,11 +91,30 @@ func (s *Server) invoiceFor(o *database.HostingOrder) invoiceView {
 			months = orderMonths(plan, o.Periods)
 		}
 	}
+	addonPlanName := ""
+	addonMonths := o.AddonMonths
+	if o.AddonCatalogID != "" {
+		slug := strings.TrimSpace(o.AddonPlanSlug)
+		if slug == "" {
+			slug = defaultAppAddonPlanSlug
+		}
+		if s.database != nil {
+			if lp, err := s.database.GetAppLicensePlan(o.AddonCatalogID, slug); err == nil && lp != nil {
+				addonPlanName = lp.Name
+			}
+		}
+		if addonPlanName == "" {
+			addonPlanName = slug
+		}
+		if addonMonths <= 0 {
+			addonMonths = months
+		}
+	}
 	view := invoiceView{
 		Number: invoiceNumber(o), Status: o.Status, IssuedAt: o.CreatedAt, DueAt: o.ExpiresAt, PaidAt: o.PaidAt,
 		Seller: seller, Buyer: buyer, Note: settings.InvoiceNote,
 		Kind: o.Kind, Difference: o.Difference, PlanName: o.PlanName, Periods: o.Periods, Months: months, Hostname: o.SubHostname,
-		AmountList: o.AmountList, AddonCatalogID: o.AddonCatalogID, AddonAmount: o.AddonAmount, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
+		AmountList: o.AmountList, AddonCatalogID: o.AddonCatalogID, AddonPlanSlug: o.AddonPlanSlug, AddonPlanName: addonPlanName, AddonMonths: addonMonths, AddonAmount: o.AddonAmount, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
 		AmountBase: o.AmountBase, UniqueCode: o.UniqueCode, AmountTotal: o.AmountTotal,
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {

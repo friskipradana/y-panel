@@ -12,6 +12,9 @@ export interface OrderDraft {
   zoneId: string
   voucher: string
   addonCatalogId: string
+  addonPlanSlug: string
+  addonDurationMode: 'follow' | 'custom'
+  addonUnits: string
 }
 
 const KEY = 'reneo-order-draft'
@@ -40,6 +43,9 @@ export function readOrderDraft(): OrderDraft | null {
       zoneId: text(d.zoneId),
       voucher: text(d.voucher),
       addonCatalogId: text(d.addonCatalogId),
+      addonPlanSlug: text(d.addonPlanSlug),
+      addonDurationMode: d.addonDurationMode === 'custom' ? 'custom' : 'follow',
+      addonUnits: text(d.addonUnits) || '1',
     }
   } catch {
     return null

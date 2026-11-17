@@ -196,7 +196,8 @@ func (s *Server) handlePublicHosting(w http.ResponseWriter, _ *http.Request) {
 	if catID, planSlug, priceAmount, ok := s.appAddonOption(); ok {
 		appAddon = map[string]any{"catalogId": catID, "planSlug": planSlug, "priceAmount": priceAmount}
 	}
-	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "whatsapp": s.notify.BuyerChannel() != "", "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out, "appAddon": appAddon})
+	appAddons := s.publicAppAddons()
+	s.writeJSON(w, http.StatusOK, jsonResponse{"enabled": true, "currency": "IDR", "selfSignup": settings.SelfSignup && len(offered) > 0, "whatsapp": s.notify.BuyerChannel() != "", "domains": offered, "orderUrl": settings.OrderURL, "orderMessage": settings.OrderMessage, "plans": out, "appAddon": appAddon, "appAddons": appAddons})
 }
 
 // ─── Accounts on a plan ───────────────────────────────────────────────────────

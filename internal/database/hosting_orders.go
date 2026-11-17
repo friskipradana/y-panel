@@ -54,8 +54,10 @@ type HostingOrder struct {
 	AmountBase  int64      `json:"amountBase"`
 	UniqueCode  int        `json:"uniqueCode"`
 	AmountTotal int64      `json:"amountTotal"`
-	// AddonCatalogID and AddonAmount store an optional app+license add-on (e.g. "reneo-crm") chosen at checkout
+	// AddonCatalogID, AddonPlanSlug, AddonMonths and AddonAmount store an optional app+license add-on chosen at checkout
 	AddonCatalogID string  `json:"addonCatalogId,omitempty"`
+	AddonPlanSlug  string  `json:"addonPlanSlug,omitempty"`
+	AddonMonths    int     `json:"addonMonths,omitempty"`
 	AddonAmount    int64   `json:"addonAmount,omitempty"`
 	Status      string     `json:"status"`
 	Note        string     `json:"note"`
@@ -77,14 +79,14 @@ const orderColumns = `o.id, o.public_id, o.kind, o.plan_id, o.plan_name, COALESC
 	o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 	o.created_at, o.expires_at, o.paid_at, o.notif_id,
 	o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo,
-	o.addon_catalog_id, o.addon_amount`
+	o.addon_catalog_id, o.addon_plan_slug, o.addon_months, o.addon_amount`
 
 func scanOrder(row rowScanner) (*HostingOrder, error) {
 	var o HostingOrder
 	if err := row.Scan(&o.ID, &o.PublicID, &o.Kind, &o.PlanID, &o.PlanName, &o.UserID, &o.Username, &o.Periods,
 		&o.AmountBase, &o.UniqueCode, &o.AmountTotal, &o.Status, &o.Note, &o.CreatedIP, &o.SubLabel, &o.SubZoneID, &o.SubDomain, &o.SubHostname, &o.PublicBase, &o.CreatedAt, &o.ExpiresAt, &o.PaidAt, &o.NotifID,
 		&o.AmountList, &o.DiscountDuration, &o.DiscountVoucher, &o.VoucherCode, &o.Difference, &o.DiscountPromo,
-		&o.AddonCatalogID, &o.AddonAmount); err != nil {
+		&o.AddonCatalogID, &o.AddonPlanSlug, &o.AddonMonths, &o.AddonAmount); err != nil {
 		return nil, err
 	}
 	return &o, nil
@@ -148,11 +150,11 @@ func (m *Manager) CreateHostingOrder(o HostingOrder, uniqueMax int) (*HostingOrd
 		var id int64
 		err = m.db.QueryRow(`
 			INSERT INTO hosting_orders (public_id, kind, plan_id, plan_name, user_id, periods, amount_base, unique_code, amount_total, status, note, created_ip, expires_at,
-				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code, username, upgrade_difference, discount_promo, addon_catalog_id, addon_amount)
+				sub_label, sub_zone_id, sub_domain, sub_hostname, public_base, amount_list, discount_duration, discount_voucher, voucher_code, username, upgrade_difference, discount_promo, addon_catalog_id, addon_plan_slug, addon_months, addon_amount)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-				COALESCE(NULLIF($23, ''), (SELECT username FROM users WHERE id = $5), ''), $24, $25, $26, $27) RETURNING id
+				COALESCE(NULLIF($23, ''), (SELECT username FROM users WHERE id = $5), ''), $24, $25, $26, $27, $28, $29) RETURNING id
 		`, publicID, o.Kind, o.PlanID, o.PlanName, o.UserID, o.Periods, o.AmountBase, code, total, o.Status, o.Note, o.CreatedIP, o.ExpiresAt,
-				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode, o.Username, o.Difference, o.DiscountPromo, o.AddonCatalogID, o.AddonAmount).Scan(&id)
+				o.SubLabel, o.SubZoneID, o.SubDomain, o.SubHostname, o.PublicBase, o.AmountList, o.DiscountDuration, o.DiscountVoucher, o.VoucherCode, o.Username, o.Difference, o.DiscountPromo, o.AddonCatalogID, o.AddonPlanSlug, o.AddonMonths, o.AddonAmount).Scan(&id)
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "idx_hosting_orders_sub_reserved" {
 			return nil, ErrSubdomainReserved
@@ -298,7 +300,7 @@ func (m *Manager) ExpireHostingOrders(now time.Time) ([]HostingOrder, error) {
 			o.amount_base, o.unique_code, o.amount_total, o.status, o.note, o.created_ip, o.sub_label, o.sub_zone_id, o.sub_domain, o.sub_hostname, o.public_base,
 			o.created_at, o.expires_at, o.paid_at, o.notif_id,
 			o.amount_list, o.discount_duration, o.discount_voucher, o.voucher_code, o.upgrade_difference, o.discount_promo,
-			o.addon_catalog_id, o.addon_amount`, now)
+			o.addon_catalog_id, o.addon_plan_slug, o.addon_months, o.addon_amount`, now)
 	if err != nil {
 		return nil, err
 	}

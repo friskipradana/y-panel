@@ -21,6 +21,9 @@ export interface InvoiceView {
   hostname?: string
   amountList: number
   addonCatalogId?: string
+  addonPlanSlug?: string
+  addonPlanName?: string
+  addonMonths?: number
   addonAmount?: number
   discountPromo?: number
   discountDuration: number

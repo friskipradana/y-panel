@@ -80,7 +80,10 @@ function Sheet({ invoice }: { invoice: InvoiceView }) {
         {(invoice.addonAmount ?? 0) > 0 ? (
           <Line
             label={t('invoice.addon', { app: invoice.addonCatalogId === 'reneo-crm' ? 'Reneo CRM Services' : (invoice.addonCatalogId ?? 'App Add-on') })}
-            hint={period}
+            hint={[
+              invoice.addonPlanName,
+              invoice.addonMonths && invoice.addonMonths > 0 ? monthsLabel(t, invoice.addonMonths) : period,
+            ].filter(Boolean).join(' · ')}
             amount={formatRupiah(invoice.addonAmount ?? 0)}
           />
         ) : null}

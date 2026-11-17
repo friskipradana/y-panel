@@ -69,6 +69,9 @@ type orderView struct {
 	DiscountVoucher  int64  `json:"discountVoucher"`
 	VoucherCode      string `json:"voucherCode,omitempty"`
 	AddonCatalogID   string `json:"addonCatalogId,omitempty"`
+	AddonPlanSlug    string `json:"addonPlanSlug,omitempty"`
+	AddonPlanName    string `json:"addonPlanName,omitempty"`
+	AddonMonths      int    `json:"addonMonths,omitempty"`
 	AddonAmount      int64  `json:"addonAmount,omitempty"`
 	AmountTotal int64                `json:"amountTotal"`
 	// Difference: an upgrade paid as the price difference for the time left
@@ -87,12 +90,26 @@ func (s *Server) orderViewFor(o database.HostingOrder) orderView {
 	view := orderView{
 		PublicID: o.PublicID, Kind: o.Kind, Status: o.Status, PlanName: o.PlanName, Periods: o.Periods,
 		AmountBase: o.AmountBase, AmountList: o.AmountList, DiscountPromo: o.DiscountPromo, DiscountDuration: o.DiscountDuration, DiscountVoucher: o.DiscountVoucher, VoucherCode: o.VoucherCode,
-		AddonCatalogID: o.AddonCatalogID, AddonAmount: o.AddonAmount,
+		AddonCatalogID: o.AddonCatalogID, AddonPlanSlug: o.AddonPlanSlug, AddonMonths: o.AddonMonths, AddonAmount: o.AddonAmount,
 		AmountTotal: o.AmountTotal, Difference: o.Difference, CreatedAt: o.CreatedAt, ExpiresAt: o.ExpiresAt, PaidAt: o.PaidAt, Hostname: o.SubHostname,
+	}
+	if o.AddonCatalogID != "" && s.database != nil {
+		slug := strings.TrimSpace(o.AddonPlanSlug)
+		if slug == "" {
+			slug = defaultAppAddonPlanSlug
+		}
+		if lp, err := s.database.GetAppLicensePlan(o.AddonCatalogID, slug); err == nil && lp != nil {
+			view.AddonPlanName = lp.Name
+		} else {
+			view.AddonPlanName = slug
+		}
 	}
 	if o.PlanID != nil && s.database != nil {
 		if plan, _ := s.database.GetHostingPlan(*o.PlanID); plan != nil {
 			view.Months = orderMonths(plan, o.Periods)
+			if view.AddonCatalogID != "" && view.AddonMonths <= 0 {
+				view.AddonMonths = view.Months
+			}
 		}
 	}
 	if o.Status == database.OrderPending && o.AmountTotal > 0 {
@@ -140,8 +157,10 @@ type createOrderRequest struct {
 	Password    string `json:"password"`
 	// Voucher is a code that takes something off the price
 	Voucher string `json:"voucher"`
-	// AddonCatalogID is an optional app+license add-on (e.g. "reneo-crm") chosen at checkout
+	// AddonCatalogID, AddonPlanSlug, AddonMonths describe an optional app+license add-on chosen at checkout
 	AddonCatalogID string `json:"addonCatalogId"`
+	AddonPlanSlug  string `json:"addonPlanSlug"`
+	AddonMonths    int    `json:"addonMonths"`
 	// the panel address: a name under one of the domains the superadmin offers
 	SubLabel  string `json:"subLabel"`
 	SubZoneID string `json:"subZoneId"`
@@ -152,7 +171,107 @@ type createOrderRequest struct {
 const (
 	defaultAppAddonCatalogID = "reneo-crm"
 	defaultAppAddonPlanSlug  = "pro-monthly"
+	maxAddonMonths           = 60
 )
+
+type publicAppAddonLicense struct {
+	ID          int64          `json:"id"`
+	Slug        string         `json:"slug"`
+	Name        string         `json:"name"`
+	Tagline     string         `json:"tagline"`
+	Period      string         `json:"period"`
+	Months      int            `json:"months"`
+	PriceAmount int64          `json:"priceAmount"`
+	Features    map[string]any `json:"features"`
+	Highlighted bool           `json:"highlighted"`
+}
+
+type publicAppAddon struct {
+	CatalogID     string                  `json:"catalogId"`
+	Name          string                  `json:"name"`
+	TaglineID     string                  `json:"taglineId"`
+	TaglineEN     string                  `json:"taglineEn"`
+	DescriptionID string                  `json:"descriptionId"`
+	DescriptionEN string                  `json:"descriptionEn"`
+	NotesID       string                  `json:"notesId,omitempty"`
+	NotesEN       string                  `json:"notesEn,omitempty"`
+	LicensePlans  []publicAppAddonLicense `json:"licensePlans"`
+}
+
+type resolvedOrderAddon struct {
+	catalogID string
+	appName   string
+	planSlug  string
+	planName  string
+	months    int
+	amount    int64
+}
+
+func findCatalogAppSpec(catalogID string) *CatalogApp {
+	clean := strings.TrimSpace(catalogID)
+	for i := range builtinCatalogApps {
+		if builtinCatalogApps[i].ID == clean {
+			return &builtinCatalogApps[i]
+		}
+	}
+	return nil
+}
+
+func (s *Server) publicAppAddons() []publicAppAddon {
+	if s.database == nil {
+		return nil
+	}
+	catalogIDs, err := s.database.ListDistinctAppCatalogIDs()
+	if err != nil || len(catalogIDs) == 0 {
+		catalogIDs = []string{defaultAppAddonCatalogID}
+	}
+	out := make([]publicAppAddon, 0, len(catalogIDs))
+	for _, catID := range catalogIDs {
+		_ = s.database.EnsureDefaultAppLicensePlans(catID)
+		plans, err := s.database.ListAppLicensePlans(catID)
+		if err != nil {
+			continue
+		}
+		paidPlans := make([]publicAppAddonLicense, 0, len(plans))
+		for _, lp := range plans {
+			if !lp.IsActive || lp.PriceAmount <= 0 || strings.EqualFold(lp.Period, "trial") {
+				continue
+			}
+			unitMonths := lp.Months
+			if unitMonths <= 0 {
+				if strings.EqualFold(lp.Period, "annual") {
+					unitMonths = 12
+				} else if strings.EqualFold(lp.Period, "quarterly") {
+					unitMonths = 3
+				} else {
+					unitMonths = 1
+				}
+			}
+			feats := map[string]any{}
+			if len(lp.Features) > 0 {
+				_ = json.Unmarshal(lp.Features, &feats)
+			}
+			paidPlans = append(paidPlans, publicAppAddonLicense{
+				ID: lp.ID, Slug: lp.Slug, Name: lp.Name, Tagline: lp.Tagline, Period: lp.Period,
+				Months: unitMonths, PriceAmount: lp.PriceAmount, Features: feats, Highlighted: lp.Highlighted,
+			})
+		}
+		if len(paidPlans) == 0 {
+			continue
+		}
+		entry := publicAppAddon{CatalogID: catID, Name: catID, LicensePlans: paidPlans}
+		if spec := findCatalogAppSpec(catID); spec != nil {
+			entry.Name = spec.Name
+			entry.TaglineID, entry.TaglineEN = spec.TaglineID, spec.TaglineEN
+			entry.DescriptionID, entry.DescriptionEN = spec.DescriptionID, spec.DescriptionEN
+			entry.NotesID, entry.NotesEN = spec.NotesID, spec.NotesEN
+		} else if catID == defaultAppAddonCatalogID {
+			entry.Name = "Reneo CRM Omnichannel"
+		}
+		out = append(out, entry)
+	}
+	return out
+}
 
 func (s *Server) appAddonOption() (catalogID, planSlug string, pricePerMonth int64, ok bool) {
 	if s.database == nil {
@@ -166,23 +285,83 @@ func (s *Server) appAddonOption() (catalogID, planSlug string, pricePerMonth int
 	return defaultAppAddonCatalogID, lp.Slug, lp.PriceAmount, true
 }
 
-func (s *Server) computeOrderAddon(plan *database.HostingPlan, periods int, kind, requestedCatalogID string) (string, int64, error) {
+func (s *Server) resolveOrderAddon(plan *database.HostingPlan, periods int, kind, requestedCatalogID, requestedPlanSlug string, requestedMonths int) (resolvedOrderAddon, error) {
 	cat := strings.TrimSpace(requestedCatalogID)
 	if cat == "" || kind == database.OrderTrial || plan.IncludedCatalogID == cat {
-		return "", 0, nil
+		return resolvedOrderAddon{}, nil
 	}
-	if cat != defaultAppAddonCatalogID {
-		return "", 0, errors.New("unsupported app add-on")
+	if s.database == nil {
+		return resolvedOrderAddon{}, errors.New("app add-on is not available")
 	}
-	_, _, pricePerMonth, ok := s.appAddonOption()
-	if !ok {
-		return "", 0, errors.New("app add-on is not available")
+	catalogIDs, err := s.database.ListDistinctAppCatalogIDs()
+	allowed := cat == defaultAppAddonCatalogID
+	if err == nil {
+		for _, id := range catalogIDs {
+			if id == cat {
+				allowed = true
+				break
+			}
+		}
 	}
-	months := orderMonths(plan, periods)
-	if months <= 0 {
-		months = periods
+	if !allowed {
+		return resolvedOrderAddon{}, errors.New("unsupported app add-on")
 	}
-	return cat, pricePerMonth * int64(months), nil
+	_ = s.database.EnsureDefaultAppLicensePlans(cat)
+	slug := strings.TrimSpace(requestedPlanSlug)
+	if slug == "" {
+		slug = defaultAppAddonPlanSlug
+	}
+	lp, err := s.database.GetAppLicensePlan(cat, slug)
+	if err != nil || lp == nil || !lp.IsActive || lp.PriceAmount <= 0 {
+		return resolvedOrderAddon{}, errors.New("selected app license plan is not available")
+	}
+	unitMonths := lp.Months
+	if unitMonths <= 0 {
+		if strings.EqualFold(lp.Period, "annual") {
+			unitMonths = 12
+		} else if strings.EqualFold(lp.Period, "quarterly") {
+			unitMonths = 3
+		} else {
+			unitMonths = 1
+		}
+	}
+	months := requestedMonths
+	if months > 0 {
+		if months > maxAddonMonths || months < unitMonths || months%unitMonths != 0 {
+			return resolvedOrderAddon{}, fmt.Errorf("add-on duration must be between %d and %d months in steps of %d", unitMonths, maxAddonMonths, unitMonths)
+		}
+	} else {
+		hm := orderMonths(plan, periods)
+		if hm <= 0 {
+			months = unitMonths
+		} else if hm%unitMonths == 0 {
+			months = hm
+		} else {
+			units := (hm + unitMonths - 1) / unitMonths
+			months = units * unitMonths
+		}
+		if months > maxAddonMonths {
+			months = (maxAddonMonths / unitMonths) * unitMonths
+		}
+	}
+	units := months / unitMonths
+	if units < 1 {
+		units = 1
+	}
+	appName := cat
+	if spec := findCatalogAppSpec(cat); spec != nil {
+		appName = spec.Name
+	} else if cat == defaultAppAddonCatalogID {
+		appName = "Reneo CRM Services"
+	}
+	return resolvedOrderAddon{
+		catalogID: cat,
+		appName:   appName,
+		planSlug:  lp.Slug,
+		planName:  lp.Name,
+		months:    months,
+		amount:    lp.PriceAmount * int64(units),
+	}, nil
 }
 
 // handlePublicCreateOrder signs a buyer up for a plan: the account waits for its payment (or for the trial to be approved)
@@ -251,7 +430,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 		voucher = v
 	}
 	quote := priceFor(plan, req.Periods, voucher, req.Kind, time.Now())
-	addonCat, addonAmount, err := s.computeOrderAddon(plan, req.Periods, req.Kind, req.AddonCatalogID)
+	addon, err := s.resolveOrderAddon(plan, req.Periods, req.Kind, req.AddonCatalogID, req.AddonPlanSlug, req.AddonMonths)
 	if err != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
@@ -332,13 +511,13 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	planID := plan.ID
 	order := database.HostingOrder{
 		Kind: req.Kind, PlanID: &planID, PlanName: plan.Name, UserID: u.ID, Periods: req.Periods,
-		AmountList: quote.List + addonAmount, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
-		AmountBase: quote.Subtotal + addonAmount, AddonCatalogID: addonCat, AddonAmount: addonAmount,
+		AmountList: quote.List + addon.amount, DiscountPromo: quote.PromoDiscount, DiscountDuration: quote.DurationDiscount, DiscountVoucher: quote.VoucherDiscount,
+		AmountBase: quote.Subtotal + addon.amount, AddonCatalogID: addon.catalogID, AddonPlanSlug: addon.planSlug, AddonMonths: addon.months, AddonAmount: addon.amount,
 		Status: database.OrderPending,
 		CreatedIP: ip, ExpiresAt: now.Add(settings.orderExpiry()), PublicBase: s.orderBaseURL(r),
 	}
-	if addonCat != "" {
-		order.Note = fmt.Sprintf("+ %s (%s)", addonCat, defaultAppAddonPlanSlug)
+	if addon.catalogID != "" {
+		order.Note = fmt.Sprintf("+ %s (%s • %d bln)", addon.appName, addon.planName, addon.months)
 	}
 	if voucher != nil {
 		order.VoucherCode = voucher.Code
@@ -350,11 +529,11 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	case req.Kind == database.OrderTrial:
 		// a trial costs nothing: it is switched on at once, or waits for the superadmin when approval is required
 		order.Periods, order.AmountBase, order.AmountList, order.DiscountDuration, order.DiscountVoucher, order.VoucherCode = 1, 0, 0, 0, 0, ""
-		order.AddonCatalogID, order.AddonAmount, order.Note = "", 0, ""
+		order.AddonCatalogID, order.AddonPlanSlug, order.AddonMonths, order.AddonAmount, order.Note = "", "", 0, 0, ""
 		if settings.TrialApproval {
 			order.Status = database.OrderReview
 		}
-	case (plan.PriceAmount <= 0 && addonAmount <= 0) || (quote.Subtotal+addonAmount) <= 0:
+	case (plan.PriceAmount <= 0 && addon.amount <= 0) || (quote.Subtotal+addon.amount) <= 0:
 		// a free plan, or a price a voucher took to nothing, is the superadmin's to grant
 		order.AmountBase = 0
 		order.Status = database.OrderReview
@@ -798,25 +977,32 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 		return err
 	}
 	if order.Kind != database.OrderTrial && order.AddonCatalogID != "" && plan.IncludedCatalogID != order.AddonCatalogID {
-		addonMonths := orderMonths(plan, order.Periods)
+		addonSlug := strings.TrimSpace(order.AddonPlanSlug)
+		if addonSlug == "" {
+			addonSlug = defaultAppAddonPlanSlug
+		}
+		addonMonths := order.AddonMonths
 		if addonMonths <= 0 {
-			addonMonths = order.Periods
-			if addonMonths < 1 {
-				addonMonths = 1
+			addonMonths = orderMonths(plan, order.Periods)
+			if addonMonths <= 0 {
+				addonMonths = order.Periods
+				if addonMonths < 1 {
+					addonMonths = 1
+				}
 			}
 		}
 		if order.AddonAmount > 0 {
-			if _, err := s.database.RenewAppLicensePlan(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, addonMonths); err != nil {
-				log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+			if _, err := s.database.RenewAppLicensePlan(user.ID, order.AddonCatalogID, addonSlug, addonMonths); err != nil {
+				log.Printf("[orders] addon license %s (%s) for %s: %v", order.AddonCatalogID, addonSlug, user.Username, err)
 			}
 		} else {
 			addonEnds := ends
-			if addonEnds == nil {
+			if addonEnds == nil || order.AddonMonths > 0 {
 				t := now.AddDate(0, addonMonths, 0)
 				addonEnds = &t
 			}
-			if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, defaultAppAddonPlanSlug, addonEnds); err != nil {
-				log.Printf("[orders] addon license %s for %s: %v", order.AddonCatalogID, user.Username, err)
+			if err := s.database.EnsureBundledAppLicense(user.ID, order.AddonCatalogID, addonSlug, addonEnds); err != nil {
+				log.Printf("[orders] addon license %s (%s) for %s: %v", order.AddonCatalogID, addonSlug, user.Username, err)
 			}
 		}
 	}

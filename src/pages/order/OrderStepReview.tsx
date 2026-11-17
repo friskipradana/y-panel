@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { Eye, EyeOff, Pencil } from 'lucide-react'
+import { formatRupiah } from '@/api/hosting'
 import { useDurationLabel } from '@/components/hosting/PeriodPicker'
 import { PriceLines } from '@/components/hosting/PriceLines'
 import { VoucherField } from '@/components/hosting/VoucherField'
 import { IconButton } from '@/components/ui/IconButton'
+import { monthsLabel } from '@/lib/duration'
 import { useI18n } from '@/lib/i18n'
 import { formatDate, validUntil } from './orderValidity'
 import { LegalLinks } from '@/pages/legal/LegalLinks'
@@ -58,15 +60,16 @@ function Validity({ end }: { end: Date | null }) {
 export function OrderStepReview({ order }: { order: OrderFormState }) {
   const { t } = useI18n()
   const {
-    plan, isTrial, count, total, price, voucherText, setVoucherText, voucherApplied, voucherAnswer, voucherValid, voucherChecking, voucherFailed,
-    applyVoucher, removeVoucher, address, domains, needsAddress, form, phone, setStep,
-    planIncludesApp, addonSelected, addonAmount,
+    plan, isTrial, count, total, price, basePrice, voucherText, setVoucherText, voucherApplied, voucherAnswer, voucherValid, voucherChecking, voucherFailed,
+    applyVoucher, removeVoucher, address, domains, needsAddress, form, phone, setStep, steps,
+    planIncludesApp, bundledApp, bundledLicense, addonSelected, selectedAddonApp, selectedAddonLicense, addonMonths, addonAmount,
   } = order
   const durationLabel = useDurationLabel(plan?.period ?? 'monthly')
   if (!plan) return null
   const edit = (step: OrderStep) => () => setStep(step)
   const domain = domains.find((d) => d.zoneId === address.zoneId)?.name ?? domains[0]?.name ?? ''
   const free = isTrial || (plan.priceAmount === 0 && addonAmount === 0)
+  const hasAddonStep = steps.includes('addon')
 
   return (
     <div className="space-y-3">
@@ -78,11 +81,27 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
             { label: t('order.plan'), value: plan.name },
             { label: t('order.review.period'), value: isTrial ? t('order.trialNote', { days: plan.trialDays }) : durationLabel(count) },
             { label: t('order.review.until'), value: <Validity end={validUntil(plan, count, isTrial)} /> },
-            ...(!isTrial && (planIncludesApp || addonSelected)
-              ? [{ label: t('order.addon.reviewLabel'), value: planIncludesApp ? t('order.addon.includedBadge') : t('order.addon.reviewValue') }]
-              : []),
           ]}
         />
+        {hasAddonStep ? (
+          <Group
+            onEdit={edit('addon')}
+            editLabel={`${t('order.review.edit')}: ${t('order.step.addon')}`}
+            rows={
+              planIncludesApp
+                ? [{
+                    label: t('order.addon.reviewLabel'),
+                    value: `${bundledApp?.name ?? t('order.addon.includedTitle')}${bundledLicense ? ` — ${bundledLicense.name}` : ''} (${t('order.addon.includedBadge')})`,
+                  }]
+                : addonSelected && selectedAddonApp && selectedAddonLicense
+                  ? [
+                      { label: t('order.addon.reviewLabel'), value: `${selectedAddonApp.name} — ${selectedAddonLicense.name}` },
+                      { label: t('order.review.period'), value: monthsLabel(t, addonMonths) },
+                    ]
+                  : [{ label: t('order.addon.reviewLabel'), value: t('order.addon.noneValue') }]
+            }
+          />
+        ) : null}
         {needsAddress ? (
           <Group onEdit={edit('address')} editLabel={`${t('order.review.edit')}: ${t('order.step.address')}`} rows={[{ label: t('order.review.address'), value: `https://${address.label}.${domain}`, mono: true }]} />
         ) : null}
@@ -121,16 +140,30 @@ export function OrderStepReview({ order }: { order: OrderFormState }) {
               <span className="panel-mono font-semibold text-[var(--win-text)]">{t('hosting.landing.free')}</span>
             </div>
           ) : (
-            <PriceLines
-              list={price.list}
-              promoPercent={price.promoPercent}
-              promoDiscount={price.promoDiscount}
-              durationPercent={price.durationPercent}
-              durationDiscount={price.durationDiscount}
-              voucherCode={voucherValid ? voucherApplied : undefined}
-              voucherDiscount={voucherValid ? price.voucherDiscount : 0}
-              subtotal={price.subtotal}
-            />
+            <div className="space-y-2">
+              {addonSelected && selectedAddonLicense ? (
+                <div className="space-y-1 border-b border-[var(--win-border)] pb-2 text-[0.75rem] text-[var(--text-secondary)]">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{t('order.addon.hostingLine', { plan: plan.name })}</span>
+                    <span className="panel-mono text-[var(--win-text)]">{formatRupiah(basePrice.list)}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{t('order.addon.lineItem', { tier: selectedAddonLicense.name, duration: monthsLabel(t, addonMonths) })}</span>
+                    <span className="panel-mono text-[var(--win-text)]">{formatRupiah(addonAmount)}</span>
+                  </div>
+                </div>
+              ) : null}
+              <PriceLines
+                list={price.list}
+                promoPercent={price.promoPercent}
+                promoDiscount={price.promoDiscount}
+                durationPercent={price.durationPercent}
+                durationDiscount={price.durationDiscount}
+                voucherCode={voucherValid ? voucherApplied : undefined}
+                voucherDiscount={voucherValid ? price.voucherDiscount : 0}
+                subtotal={price.subtotal}
+              />
+            </div>
           )}
         </div>
       </section>

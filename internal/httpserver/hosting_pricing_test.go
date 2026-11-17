@@ -485,3 +485,13 @@ func TestPlanPromoRules(t *testing.T) {
 		t.Fatalf("without a percent nothing of a promo is kept: %+v", off)
 	}
 }
+
+func TestFindCatalogAppSpecReturnsReneoCrmMetadata(t *testing.T) {
+	spec := findCatalogAppSpec("reneo-crm")
+	if spec == nil {
+		t.Fatal("expected reneo-crm spec in builtinCatalogApps")
+	}
+	if spec.Name == "" || spec.TaglineID == "" || spec.DescriptionID == "" {
+		t.Fatalf("expected non-empty catalog metadata, got %+v", spec)
+	}
+}

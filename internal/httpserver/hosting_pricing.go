@@ -350,6 +350,8 @@ type quoteRequest struct {
 	Kind           string `json:"kind"`
 	Voucher        string `json:"voucher"`
 	AddonCatalogID string `json:"addonCatalogId"`
+	AddonPlanSlug  string `json:"addonPlanSlug"`
+	AddonMonths    int    `json:"addonMonths"`
 }
 
 type voucherAnswer struct {
@@ -396,9 +398,25 @@ func (s *Server) quoteFor(w http.ResponseWriter, r *http.Request, kind string, u
 		}
 	}
 	q := priceFor(plan, req.Periods, voucher, kind, time.Now())
-	if _, addonAmount, err := s.computeOrderAddon(plan, req.Periods, kind, req.AddonCatalogID); err == nil && addonAmount > 0 {
-		q.List += addonAmount
-		q.Subtotal += addonAmount
+	if strings.TrimSpace(req.AddonCatalogID) != "" {
+		addon, err := s.resolveOrderAddon(plan, req.Periods, kind, req.AddonCatalogID, req.AddonPlanSlug, req.AddonMonths)
+		if err != nil {
+			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
+			return
+		}
+		if addon.amount > 0 {
+			q.List += addon.amount
+			q.Subtotal += addon.amount
+		}
+		if addon.catalogID != "" {
+			answer["addon"] = map[string]any{
+				"catalogId": addon.catalogID,
+				"planSlug":  addon.planSlug,
+				"planName":  addon.planName,
+				"months":    addon.months,
+				"amount":    addon.amount,
+			}
+		}
 	}
 	answer["quote"] = q
 	s.writeJSON(w, http.StatusOK, answer)

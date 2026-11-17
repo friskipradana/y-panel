@@ -7,6 +7,7 @@ import { Stepper } from '@/components/ui/Stepper'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { useI18n } from '@/lib/i18n'
 import { OrderStepAccount } from './OrderStepAccount'
+import { OrderStepAddon } from './OrderStepAddon'
 import { OrderStepPlan } from './OrderStepPlan'
 import { OrderStepReview } from './OrderStepReview'
 import { useConfirmOrder } from './useConfirmOrder'
@@ -51,6 +52,7 @@ export function OrderForm() {
       />
 
       {step === 'plan' ? <OrderStepPlan order={order} /> : null}
+      {step === 'addon' ? <OrderStepAddon order={order} /> : null}
       {step === 'address' ? (
         <section className="space-y-3">
           <div>

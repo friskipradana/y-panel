@@ -361,6 +361,66 @@ func TestIntegrationCustomDomainRules(t *testing.T) {
 	}
 }
 
+func TestIntegrationAddonLicenseTiersAndCustomMonths(t *testing.T) {
+	f := newHostingFixture(t)
+	plan := f.plan(t, "starter", 50000, 0, 0)
+
+	recPub := httptest.NewRecorder()
+	f.s.handlePublicHosting(recPub, httptest.NewRequest(http.MethodGet, "/api/v1/public/hosting", nil))
+	if recPub.Code != http.StatusOK {
+		t.Fatalf("public hosting: %d %s", recPub.Code, recPub.Body.String())
+	}
+	var pub struct {
+		AppAddons []publicAppAddon `json:"appAddons"`
+	}
+	if err := json.Unmarshal(recPub.Body.Bytes(), &pub); err != nil {
+		t.Fatal(err)
+	}
+	if len(pub.AppAddons) == 0 || len(pub.AppAddons[0].LicensePlans) < 3 {
+		t.Fatalf("expected reneo-crm license tiers in appAddons, got %+v", pub.AppAddons)
+	}
+
+	// Buy 1 month hosting + independent 3 months of starter-monthly (Rp 49.000 * 3 = Rp 147.000)
+	recOrder, view := f.postOrder(t, "203.0.113.55", map[string]any{
+		"planId":         plan.ID,
+		"kind":           "new",
+		"periods":        1,
+		"username":       "sari",
+		"email":          "sari@example.com",
+		"password":       "Sup3r-secret-pass",
+		"addonCatalogId": "reneo-crm",
+		"addonPlanSlug":  "starter-monthly",
+		"addonMonths":    3,
+	})
+	if recOrder.Code != http.StatusCreated {
+		t.Fatalf("create addon order: %d %s", recOrder.Code, recOrder.Body.String())
+	}
+	if view.AddonPlanSlug != "starter-monthly" || view.AddonMonths != 3 || view.AddonAmount != 147000 {
+		t.Fatalf("unexpected addon view fields: %+v", view)
+	}
+	if view.AmountTotal <= 197000 || view.AmountTotal > 197999 {
+		t.Fatalf("expected hosting 50000 + addon 147000 + unique code, got %d", view.AmountTotal)
+	}
+
+	order, _ := f.db.GetHostingOrderByPublicID(view.PublicID)
+	inv := f.s.invoiceFor(order)
+	if inv.AddonPlanName == "" || inv.AddonMonths != 3 || inv.AddonAmount != 147000 {
+		t.Fatalf("unexpected invoice addon fields: %+v", inv)
+	}
+	if err := f.s.fulfillOrder(order, nil, "lunas addon"); err != nil {
+		t.Fatal(err)
+	}
+	user, _ := f.db.GetUserByUsername("sari")
+	lics, err := f.db.ListAppLicenses(user.ID, "reneo-crm")
+	if err != nil || len(lics) != 1 {
+		t.Fatalf("expected 1 active addon license, got %+v err=%v", lics, err)
+	}
+	exp, err := time.Parse(time.RFC3339, lics[0].ExpiresAt)
+	if err != nil || exp.Before(time.Now().AddDate(0, 2, 20)) {
+		t.Fatalf("expected ~3 month license expiry, got %q (%v)", lics[0].ExpiresAt, err)
+	}
+}
+
 func formatAmount(n int64) string {
 	digits := itoa(n)
 	var out []byte

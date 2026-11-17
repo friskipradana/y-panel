@@ -95,6 +95,30 @@ type PromoKeys = 'promoPercent' | 'promoEndsAt' | 'promoAppliesTo' | 'promoExclu
 // The promo comes only while it runs
 export type PublicPlan = Omit<HostingPlan, 'accounts' | 'cpuLimitPct' | 'visible' | 'sortOrder' | PromoKeys> & Partial<Pick<HostingPlan, PromoKeys>>
 
+export interface PublicAppAddonLicense {
+  id: number
+  slug: string
+  name: string
+  tagline: string
+  period: string
+  months: number
+  priceAmount: number
+  features: Record<string, boolean | number | string>
+  highlighted: boolean
+}
+
+export interface PublicAppAddon {
+  catalogId: string
+  name: string
+  taglineId: string
+  taglineEn: string
+  descriptionId: string
+  descriptionEn: string
+  notesId?: string
+  notesEn?: string
+  licensePlans: PublicAppAddonLicense[]
+}
+
 export interface PublicHosting {
   enabled: boolean
   currency?: string
@@ -108,6 +132,8 @@ export interface PublicHosting {
   domains?: { zoneId: string; name: string }[]
   /** Optional app+license add-on available at checkout */
   appAddon?: { catalogId: string; planSlug: string; priceAmount: number } | null
+  /** Full list of catalog apps and license tiers offered as add-ons */
+  appAddons?: PublicAppAddon[]
   plans: PublicPlan[]
 }
 
@@ -130,6 +156,9 @@ export interface OrderView {
   discountVoucher: number
   voucherCode?: string
   addonCatalogId?: string
+  addonPlanSlug?: string
+  addonPlanName?: string
+  addonMonths?: number
   addonAmount?: number
   amountTotal: number
   createdAt: string
@@ -162,6 +191,8 @@ export interface CreateOrderInput {
   voucher?: string
   /** Optional app+license add-on catalog ID */
   addonCatalogId?: string
+  addonPlanSlug?: string
+  addonMonths?: number
 }
 
 export const createPublicOrder = (input: CreateOrderInput) => agentApi.post<OrderView>('/api/v1/public/hosting/orders', input).then((r) => r.data)
@@ -261,6 +292,7 @@ export type VoucherReason = 'unknown' | 'disabled' | 'notStarted' | 'expired' | 
 export interface QuoteAnswer {
   quote: PriceQuote
   voucher?: { code: string; valid: boolean; reason?: VoucherReason; kind?: VoucherKind; value?: number }
+  addon?: { catalogId: string; planSlug: string; planName: string; months: number; amount: number }
 }
 
 export interface QuoteInput {
@@ -268,6 +300,8 @@ export interface QuoteInput {
   periods: number
   voucher?: string
   addonCatalogId?: string
+  addonPlanSlug?: string
+  addonMonths?: number
 }
 
 // A buyer who has no account yet asks the public one; an account that renews asks for itself

@@ -1,28 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Check } from 'lucide-react'
-import { formatRupiah, getPublicHosting, type PublicPlan } from '@/api/hosting'
+import { formatRupiah, getPublicHosting } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { useI18n } from '@/lib/i18n'
 import { formatDateID } from '@/lib/datetime'
+import { getPlanLimits } from '@/lib/hostingLimits'
 import { maxDurationPercent, priceFor, promoActive } from '@/lib/planPricing'
-
-function getPlanLimits(plan: PublicPlan, t: (key: string, params?: Record<string, string | number>) => string, mainDomain?: string) {
-  const disk = plan.diskQuotaMb >= 1024 ? `${Math.round((plan.diskQuotaMb / 1024) * 10) / 10} GB` : `${plan.diskQuotaMb} MB`
-  const ram = plan.memoryLimitMb >= 1024 ? `${Math.round((plan.memoryLimitMb / 1024) * 10) / 10} GB` : `${plan.memoryLimitMb} MB`
-  return [
-    ...(mainDomain ? [t('hosting.landing.panelAddress', { domain: mainDomain })] : []),
-    t('hosting.landing.projects', { count: plan.maxProjects }),
-    t('hosting.landing.databases', { count: plan.maxDatabases }),
-    ...(plan.maxApps > 0 ? [t('hosting.landing.apps', { count: plan.maxApps })] : []),
-    ...(plan.includedCatalogId === 'reneo-crm' ? [t('hosting.landing.includedReneoCrm')] : []),
-    ...(plan.maxSubdomains > 0 ? [t('hosting.landing.subdomains', { count: plan.maxSubdomains })] : []),
-    ...(plan.maxCustomDomains > 0 ? [t('hosting.landing.customDomains', { count: plan.maxCustomDomains })] : []),
-    ...(plan.ownNotify ? [t('hosting.landing.ownNotify')] : []),
-    t('hosting.landing.disk', { amount: disk }),
-    t('hosting.landing.ram', { amount: ram }),
-  ]
-}
 
 // Plans the server owner sells; shown only while hosting mode is on and at least one plan is visible
 export function Pricing() {
