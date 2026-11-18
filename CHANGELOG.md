@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.6] - 2026-11-18
+
+Add crm-services v1.6.24 with desktop UX polish and media library labels.
+
+### Fitur baru
+- **catalog:** Add crm-services v1.6.24 with desktop UX polish and media library labels ([`f06c704`](https://github.com/friskipradana/y-panel/commit/f06c704))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.5...v1.88.6
+
 ## [1.88.5] - 2026-11-18
 
 Add crm-services v1.6.23 with enhanced label filters and visual badges.
