@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.4] - 2026-11-18
+
+Register crm-services v1.6.22 with WAHA unpin and pin fix.
+
+### Fitur baru
+- **catalog:** Register crm-services v1.6.22 with WAHA unpin and pin fix ([`05dd046`](https://github.com/friskipradana/y-panel/commit/05dd046))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.3...v1.88.4
+
 ## [1.88.3] - 2026-11-18
 
 Register crm-services v1.6.21 in app catalog.
