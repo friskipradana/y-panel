@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.9] - 2026-11-18
+
+Detect remote OCI image versions, show upgrade version info, and register CRM v1.6.27.
+
+### Fitur baru
+- **catalog:** Detect remote OCI image versions, show upgrade version info, and register CRM v1.6.27 ([`9ed9aee`](https://github.com/friskipradana/y-panel/commit/9ed9aee))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.8...v1.88.9
+
 ## [1.88.8] - 2026-11-18
 
 Register CRM Services v1.6.26 in app catalog.
