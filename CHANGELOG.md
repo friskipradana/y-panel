@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.1] - 2026-11-18
+
+Register crm-services v1.6.19 in app catalog.
+
+### Fitur baru
+- **catalog:** Register crm-services v1.6.19 in app catalog ([`01cb505`](https://github.com/friskipradana/y-panel/commit/01cb505))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.0...v1.88.1
+
 ## [1.88.0] - 2026-11-17
 
 16 perubahan, utamanya register crm-services v1.6.18 in app catalog.
