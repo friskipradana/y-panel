@@ -77,6 +77,7 @@ export function InstalledAppsView({
 
   const renderActions = (app: InstalledApp, rowBusy: boolean) => {
     const moreItems: ActionMenuItem[] = []
+    const updateStatus = updatesById?.[app.id]
     if (app.kind !== 'custom-url') {
       if (app.containerState === 'running') {
         moreItems.push({
@@ -89,7 +90,10 @@ export function InstalledAppsView({
       }
       moreItems.push({
         key: 'upgrade',
-        label: t('appCatalog.upgradeAction'),
+        label:
+          updateStatus?.hasUpdate && updateStatus?.latestVersion
+            ? t('appCatalog.updateAvailableVersionBadge', { version: updateStatus.latestVersion })
+            : t('appCatalog.upgradeAction'),
         loading: isActionBusy(app.id, 'upgrade'),
         disabled: rowBusy,
         onSelect: () => onUpgrade(app),
@@ -203,8 +207,18 @@ export function InstalledAppsView({
                               </Badge>
                             ) : null}
                             {updateStatus?.hasUpdate ? (
-                              <Badge tone="warning" size="sm">
-                                {t('appCatalog.updateAvailableBadge')}
+                              <Badge
+                                tone="warning"
+                                size="sm"
+                                title={
+                                  updateStatus.latestVersion
+                                    ? `${t('appCatalog.currentVersionLabel')}: ${updateStatus.currentVersion || app.versionTag || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${updateStatus.latestVersion}`
+                                    : undefined
+                                }
+                              >
+                                {updateStatus.latestVersion
+                                  ? t('appCatalog.updateAvailableVersionBadge', { version: updateStatus.latestVersion })
+                                  : t('appCatalog.updateAvailableBadge')}
                               </Badge>
                             ) : null}
                           </div>
@@ -287,8 +301,18 @@ export function InstalledAppsView({
                       </Badge>
                     ) : null}
                     {updateStatus?.hasUpdate ? (
-                      <Badge tone="warning" size="sm">
-                        {t('appCatalog.updateAvailableBadge')}
+                      <Badge
+                        tone="warning"
+                        size="sm"
+                        title={
+                          updateStatus.latestVersion
+                            ? `${t('appCatalog.currentVersionLabel')}: ${updateStatus.currentVersion || app.versionTag || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${updateStatus.latestVersion}`
+                            : undefined
+                        }
+                      >
+                        {updateStatus.latestVersion
+                          ? t('appCatalog.updateAvailableVersionBadge', { version: updateStatus.latestVersion })
+                          : t('appCatalog.updateAvailableBadge')}
                       </Badge>
                     ) : null}
                   </div>

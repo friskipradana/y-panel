@@ -4,8 +4,10 @@ import { toast } from 'sonner'
 import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
+import { Field } from '@/components/ui/Field'
 import { FilterMenu } from '@/components/ui/FilterMenu'
 import { Modal } from '@/components/ui/Modal'
+import { Select } from '@/components/ui/Select'
 import { ViewModeToggle } from '@/components/ui/ViewModeToggle'
 import { CatalogAppsView, type CatalogViewMode } from '@/components/windows/app-catalog/CatalogAppsView'
 import { InstallAppModal } from '@/components/windows/app-catalog/InstallAppModal'
@@ -37,6 +39,25 @@ function readStoredViewMode(): CatalogViewMode {
   }
 }
 
+interface UpgradeTargetModalState {
+  app: InstalledApp
+  currentVersion: string
+  targetVersion: string
+  availableVersions: string[]
+}
+
+function extractTagFromRef(ref: string): string {
+  const trimmed = ref.trim()
+  if (!trimmed) return 'latest'
+  const noDigest = trimmed.split('@')[0]
+  const lastSlash = noDigest.lastIndexOf('/')
+  const lastColon = noDigest.lastIndexOf(':')
+  if (lastColon > lastSlash) {
+    return noDigest.substring(lastColon + 1)
+  }
+  return 'latest'
+}
+
 export function AppCatalogWindow() {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
@@ -61,6 +82,7 @@ export function AppCatalogWindow() {
 
   const [uninstallTarget, setUninstallTarget] = useState<InstalledApp | null>(null)
   const [removeVolumes, setRemoveVolumes] = useState(false)
+  const [upgradeTarget, setUpgradeTarget] = useState<UpgradeTargetModalState | null>(null)
   const [progressModal, setProgressModal] = useState<{
     kind: 'upgrade' | 'rollback'
     phase: 'running' | 'success' | 'error'
@@ -155,20 +177,54 @@ export function AppCatalogWindow() {
     }
   }
 
-  const handleUpgradeApp = async (app: InstalledApp) => {
-    const ok = await alertLib.confirm(
-      t('appCatalog.upgradeConfirmTitle'),
-      t('appCatalog.upgradeConfirmBody', { image: app.image }),
-      t('appCatalog.upgradeButton'),
-      t('common.cancel'),
-      'question',
-      'app-catalog',
-    )
-    if (!ok) return
+  const handleUpgradeApp = (app: InstalledApp) => {
+    const updateStatus = updatesById?.[app.id]
+    const currentVersion =
+      updateStatus?.currentVersion || app.versionTag || extractTagFromRef(app.image) || 'latest'
+
+    const spec = catalog.find((c) => c.id === app.catalogId)
+    const versionsFromSpec = spec?.versions ?? []
+    const versionsFromUpdate = updateStatus?.availableVersions ?? []
+
+    const seen = new Set<string>()
+    const mergedVersions: string[] = []
+
+    for (const v of [...versionsFromUpdate, ...versionsFromSpec]) {
+      const trimmed = v.trim()
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed)
+        mergedVersions.push(trimmed)
+      }
+    }
+
+    if (updateStatus?.latestVersion && !seen.has(updateStatus.latestVersion)) {
+      mergedVersions.unshift(updateStatus.latestVersion)
+      seen.add(updateStatus.latestVersion)
+    }
+
+    const defaultTarget =
+      updateStatus?.latestVersion ||
+      mergedVersions.find((v) => v !== 'latest' && v !== currentVersion) ||
+      mergedVersions[0] ||
+      'latest'
+
+    setUpgradeTarget({
+      app,
+      currentVersion,
+      targetVersion: defaultTarget,
+      availableVersions: mergedVersions.length > 0 ? mergedVersions : [defaultTarget],
+    })
+  }
+
+  const handleConfirmUpgrade = async () => {
+    if (!upgradeTarget) return
+    const { app, targetVersion } = upgradeTarget
+    setUpgradeTarget(null)
     setBusyAction({ id: app.id, action: 'upgrade' })
-    setProgressModal({ kind: 'upgrade', phase: 'running', app, image: app.image })
+    const targetDesc = `${app.name} (${targetVersion})`
+    setProgressModal({ kind: 'upgrade', phase: 'running', app, image: targetDesc })
     try {
-      const updated = await upgradeMutation.mutateAsync({ id: app.id })
+      const updated = await upgradeMutation.mutateAsync({ id: app.id, version: targetVersion })
       setProgressModal({ kind: 'upgrade', phase: 'success', app: updated, image: updated.image })
       toast.success(t('appCatalog.upgradeSuccess', { image: updated.image }))
     } catch (err) {
@@ -536,6 +592,79 @@ export function AppCatalogWindow() {
                 <div className="h-full w-1/2 animate-pulse rounded-full bg-[var(--panel-primary)]" />
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(upgradeTarget)}
+        onClose={() => setUpgradeTarget(null)}
+        title={t('appCatalog.upgradeModalTitle')}
+        subtitle={upgradeTarget?.app.name}
+        size="sm"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setUpgradeTarget(null)}
+              disabled={upgradeMutation.isPending}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={upgradeMutation.isPending}
+              onClick={handleConfirmUpgrade}
+            >
+              {t('appCatalog.upgradeSubmitBtn')}
+            </Button>
+          </>
+        }
+      >
+        {upgradeTarget && (
+          <div className="space-y-4 text-[13px]">
+            <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[var(--panel-surface-subtle)] border border-[var(--panel-border)]">
+              <div>
+                <span className="text-[11px] font-medium text-[var(--text-secondary)] block mb-1">
+                  {t('appCatalog.currentVersionLabel')}
+                </span>
+                <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">
+                  {upgradeTarget.currentVersion === 'latest'
+                    ? 'latest'
+                    : `v${upgradeTarget.currentVersion.replace(/^v/, '')}`}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] font-medium text-[var(--text-secondary)] block mb-1">
+                  {t('appCatalog.targetVersionLabel')}
+                </span>
+                <span className="panel-mono text-[13px] font-semibold text-[var(--panel-primary)]">
+                  {upgradeTarget.targetVersion === 'latest'
+                    ? 'latest'
+                    : `v${upgradeTarget.targetVersion.replace(/^v/, '')}`}
+                </span>
+              </div>
+            </div>
+
+            <Field label={t('appCatalog.targetVersionLabel')}>
+              <Select
+                value={upgradeTarget.targetVersion}
+                onChange={(val) =>
+                  setUpgradeTarget((prev) => (prev ? { ...prev, targetVersion: val } : null))
+                }
+                options={upgradeTarget.availableVersions.map((v) => ({
+                  value: v,
+                  label: v === 'latest' ? 'latest (Terbaru)' : `v${v.replace(/^v/, '')}`,
+                }))}
+              />
+            </Field>
+
+            <div className="p-2.5 rounded text-[12px] text-[var(--text-secondary)] bg-[var(--panel-surface-subtle)] border border-[var(--panel-border)] flex items-start gap-2">
+              <CheckCircle2 className="h-4 w-4 text-[var(--panel-success)] shrink-0 mt-0.5" />
+              <span>{t('appCatalog.upgradeDataSafeNotice')}</span>
+            </div>
           </div>
         )}
       </Modal>

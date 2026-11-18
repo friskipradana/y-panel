@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -323,7 +324,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.26", "1.6.25", "1.6.24", "1.6.23", "1.6.22", "1.6.21", "1.6.20", "1.6.19", "1.6.18", "1.6.17", "1.6.16", "1.6.15", "1.6.14", "1.6.13", "1.6.12", "1.6.11", "1.6.10", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"latest", "1.6.27", "1.6.26", "1.6.25", "1.6.24", "1.6.23", "1.6.22", "1.6.21", "1.6.20", "1.6.19", "1.6.18", "1.6.17", "1.6.16", "1.6.15", "1.6.14", "1.6.13", "1.6.12", "1.6.11", "1.6.10", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -1085,6 +1086,26 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 		catalog = append(catalog, item)
 	}
 
+	// Dynamically augment versions from container registry if available
+	for i := range catalog {
+		if strings.HasPrefix(catalog[i].Image, "ghcr.io/") || strings.Contains(catalog[i].Image, "/") {
+			if dynTags, err := s.fetchRemoteImageTags(r.Context(), catalog[i].Image); err == nil && len(dynTags) > 1 {
+				merged := append([]string{}, dynTags...)
+				seenV := make(map[string]bool)
+				for _, v := range merged {
+					seenV[v] = true
+				}
+				for _, v := range catalog[i].Versions {
+					if !seenV[v] {
+						merged = append(merged, v)
+						seenV[v] = true
+					}
+				}
+				catalog[i].Versions = merged
+			}
+		}
+	}
+
 	installed, err := s.database.ListInstalledApps(actor.ID)
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -1136,21 +1157,21 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 }
 
 type installCatalogAppRequest struct {
-	Mode          string            `json:"mode"` // "catalog" | "existing-container" | "custom-url"
-	CatalogID     string            `json:"catalogId"`
-	Version       string            `json:"version"`
-	Slug          string            `json:"slug"`
-	ContainerID   string            `json:"containerId"`
-	Name          string            `json:"name"`
-	Tagline       string            `json:"tagline"`
-	Category      string            `json:"category"`
-	IconKey       string            `json:"iconKey"`
-	IconColor     string            `json:"iconColor"`
-	HostPort      int               `json:"hostPort"`
-	OpenPath      string            `json:"openPath"`
-	TargetURL     string            `json:"targetUrl"`
-	UseProxy      *bool             `json:"useProxy"`
-	Env           map[string]string `json:"env"`
+	Mode        string            `json:"mode"` // "catalog" | "existing-container" | "custom-url"
+	CatalogID   string            `json:"catalogId"`
+	Version     string            `json:"version"`
+	Slug        string            `json:"slug"`
+	ContainerID string            `json:"containerId"`
+	Name        string            `json:"name"`
+	Tagline     string            `json:"tagline"`
+	Category    string            `json:"category"`
+	IconKey     string            `json:"iconKey"`
+	IconColor   string            `json:"iconColor"`
+	HostPort    int               `json:"hostPort"`
+	OpenPath    string            `json:"openPath"`
+	TargetURL   string            `json:"targetUrl"`
+	UseProxy    *bool             `json:"useProxy"`
+	Env         map[string]string `json:"env"`
 }
 
 var dockerTagRe = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
@@ -2186,11 +2207,14 @@ func (s *Server) handleAppCatalogRollback(w http.ResponseWriter, r *http.Request
 }
 
 type appUpdateCheckEntry struct {
-	HasUpdate    bool   `json:"hasUpdate"`
-	LocalDigest  string `json:"localDigest,omitempty"`
-	RemoteDigest string `json:"remoteDigest,omitempty"`
-	TargetImage  string `json:"targetImage"`
-	Error        string `json:"error,omitempty"`
+	HasUpdate         bool     `json:"hasUpdate"`
+	CurrentVersion    string   `json:"currentVersion,omitempty"`
+	LatestVersion     string   `json:"latestVersion,omitempty"`
+	AvailableVersions []string `json:"availableVersions,omitempty"`
+	LocalDigest       string   `json:"localDigest,omitempty"`
+	RemoteDigest      string   `json:"remoteDigest,omitempty"`
+	TargetImage       string   `json:"targetImage"`
+	Error             string   `json:"error,omitempty"`
 }
 
 func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Request) {
@@ -2205,7 +2229,7 @@ func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
 	results := make(map[int64]appUpdateCheckEntry)
@@ -2224,14 +2248,28 @@ func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Req
 			continue
 		}
 		wg.Add(1)
-		go func(appID int64, installedImg, targetImg string) {
+		go func(installedApp database.InstalledApp, installedImg, targetImg string) {
 			defer wg.Done()
 			localDigest, _ := inspectLocalImageDigest(installedImg)
 			remoteDigest, remErr := fetchRemoteImageDigest(ctx, targetImg)
+
+			currentVer := extractImageTag(installedImg)
+			dynTags, _ := s.fetchRemoteImageTags(ctx, targetImg)
+			latestVer := ""
+			for _, t := range dynTags {
+				if t != "latest" && !strings.HasPrefix(t, "sha-") && !strings.HasPrefix(t, "sha256-") {
+					latestVer = t
+					break
+				}
+			}
+
 			entry := appUpdateCheckEntry{
-				LocalDigest:  shortDigest(localDigest),
-				RemoteDigest: shortDigest(remoteDigest),
-				TargetImage:  targetImg,
+				CurrentVersion:    currentVer,
+				LatestVersion:     latestVer,
+				AvailableVersions: dynTags,
+				LocalDigest:       shortDigest(localDigest),
+				RemoteDigest:      shortDigest(remoteDigest),
+				TargetImage:       targetImg,
 			}
 			if remErr != nil {
 				entry.Error = remErr.Error()
@@ -2240,12 +2278,16 @@ func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Req
 					entry.HasUpdate = true
 				} else if localDigest != "" && !strings.HasSuffix(localDigest, "@"+remoteDigest) {
 					entry.HasUpdate = true
+				} else if latestVer != "" && currentVer != "" && currentVer != "latest" && compareVersionsDesc(latestVer, currentVer) {
+					entry.HasUpdate = true
 				}
+			} else if latestVer != "" && currentVer != "" && currentVer != "latest" && compareVersionsDesc(latestVer, currentVer) {
+				entry.HasUpdate = true
 			}
 			mu.Lock()
-			results[appID] = entry
+			results[installedApp.ID] = entry
 			mu.Unlock()
-		}(app.ID, strings.TrimSpace(app.Image), targetImage)
+		}(app, strings.TrimSpace(app.Image), targetImage)
 	}
 	wg.Wait()
 
@@ -2446,6 +2488,162 @@ func fetchOCIBearerToken(ctx context.Context, client *http.Client, wwwAuth, regi
 		return payload.Token, nil
 	}
 	return payload.AccessToken, nil
+}
+
+var (
+	remoteTagsCache   = make(map[string]cachedTagsEntry)
+	remoteTagsCacheMu sync.RWMutex
+)
+
+type cachedTagsEntry struct {
+	tags      []string
+	fetchedAt time.Time
+}
+
+func parseSemverNumbers(v string) []int {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	parts := strings.Split(v, ".")
+	nums := make([]int, 0, len(parts))
+	for _, p := range parts {
+		numStr := p
+		if idx := strings.IndexAny(p, "-+"); idx >= 0 {
+			numStr = p[:idx]
+		}
+		n, err := strconv.Atoi(numStr)
+		if err != nil {
+			return nil
+		}
+		nums = append(nums, n)
+	}
+	return nums
+}
+
+func compareVersionsDesc(a, b string) bool {
+	if a == b {
+		return false
+	}
+	numsA := parseSemverNumbers(a)
+	numsB := parseSemverNumbers(b)
+	if numsA != nil && numsB != nil {
+		maxLen := len(numsA)
+		if len(numsB) > maxLen {
+			maxLen = len(numsB)
+		}
+		for i := 0; i < maxLen; i++ {
+			valA := 0
+			if i < len(numsA) {
+				valA = numsA[i]
+			}
+			valB := 0
+			if i < len(numsB) {
+				valB = numsB[i]
+			}
+			if valA != valB {
+				return valA > valB
+			}
+		}
+		return a > b
+	}
+	if numsA != nil {
+		return true
+	}
+	if numsB != nil {
+		return false
+	}
+	return a > b
+}
+
+func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string) ([]string, error) {
+	registry, repo, _ := parseOCIRef(imageRef)
+	if repo == "" {
+		return nil, errors.New("empty repo")
+	}
+
+	cacheKey := registry + "/" + repo
+	remoteTagsCacheMu.RLock()
+	cached, ok := remoteTagsCache[cacheKey]
+	remoteTagsCacheMu.RUnlock()
+	if ok && time.Since(cached.fetchedAt) < 5*time.Minute && len(cached.tags) > 0 {
+		return cached.tags, nil
+	}
+
+	client := &http.Client{Timeout: 8 * time.Second}
+	tagsURL := fmt.Sprintf("https://%s/v2/%s/tags/list?n=1000", registry, repo)
+
+	doGet := func(token string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		return client.Do(req)
+	}
+
+	resp, err := doGet("")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		authHeader := resp.Header.Get("Www-Authenticate")
+		resp.Body.Close()
+		token, tokErr := fetchOCIBearerToken(ctx, client, authHeader, registry, repo)
+		if tokErr != nil {
+			return nil, tokErr
+		}
+		resp, err = doGet(token)
+		if err != nil {
+			return nil, err
+		}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("registry HTTP %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	var semverTags []string
+	hasLatest := false
+	for _, t := range payload.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || strings.HasPrefix(t, "sha-") || strings.HasPrefix(t, "sha256-") {
+			continue
+		}
+		if t == "latest" {
+			hasLatest = true
+			continue
+		}
+		semverTags = append(semverTags, t)
+	}
+
+	sort.Slice(semverTags, func(i, j int) bool {
+		return compareVersionsDesc(semverTags[i], semverTags[j])
+	})
+
+	result := make([]string, 0, len(semverTags)+1)
+	if hasLatest {
+		result = append(result, "latest")
+	}
+	result = append(result, semverTags...)
+
+	if len(result) > 0 {
+		remoteTagsCacheMu.Lock()
+		remoteTagsCache[cacheKey] = cachedTagsEntry{
+			tags:      result,
+			fetchedAt: time.Now(),
+		}
+		remoteTagsCacheMu.Unlock()
+	}
+
+	return result, nil
 }
 
 func (s *Server) handleAppCatalogUninstall(w http.ResponseWriter, r *http.Request) {

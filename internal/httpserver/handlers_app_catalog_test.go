@@ -452,6 +452,28 @@ func TestUpsertAndSelfHealComposeEnvVar(t *testing.T) {
 	}
 }
 
+func TestCompareVersionsDesc(t *testing.T) {
+	cases := []struct {
+		a    string
+		b    string
+		want bool
+	}{
+		{"1.6.26", "1.6.25", true},
+		{"1.6.25", "1.6.26", false},
+		{"1.6.26", "1.6.26", false},
+		{"1.10.0", "1.9.9", true},
+		{"v2.0.0", "1.99.99", true},
+		{"1.6.10", "1.6.2", true},
+		{"1.6.2", "1.6.10", false},
+	}
+	for _, tc := range cases {
+		if got := compareVersionsDesc(tc.a, tc.b); got != tc.want {
+			t.Fatalf("compareVersionsDesc(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+}
+
+
 
 
 

@@ -78,6 +78,9 @@ export interface InstalledApp {
 
 export interface AppUpdateStatus {
   hasUpdate: boolean
+  currentVersion?: string
+  latestVersion?: string
+  availableVersions?: string[]
   localDigest?: string
   remoteDigest?: string
   targetImage: string
