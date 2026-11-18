@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.5] - 2026-11-18
+
+Add crm-services v1.6.23 with enhanced label filters and visual badges.
+
+### Fitur baru
+- **catalog:** Add crm-services v1.6.23 with enhanced label filters and visual badges ([`5ef3ba9`](https://github.com/friskipradana/y-panel/commit/5ef3ba9))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.4...v1.88.5
+
 ## [1.88.4] - 2026-11-18
 
 Register crm-services v1.6.22 with WAHA unpin and pin fix.
