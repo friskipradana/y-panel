@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -17,10 +18,13 @@ type recorded struct {
 // fakeCloudflare answers like the API does and remembers what it was asked
 func fakeCloudflare(t *testing.T, reply func(r *http.Request) (int, string)) (*Client, *[]recorded) {
 	t.Helper()
+	var mu sync.Mutex
 	var seen []recorded
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
 		seen = append(seen, recorded{r.Method, r.URL.Path, r.Header.Get("Authorization"), string(body)})
+		mu.Unlock()
 		status, payload := reply(r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
