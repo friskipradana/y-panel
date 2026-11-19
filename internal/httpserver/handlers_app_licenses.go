@@ -122,6 +122,15 @@ type startAppLicenseTrialRequest struct {
 	BuyerPhone string `json:"buyerPhone"`
 }
 
+type appCatalogInquiryRequest struct {
+	CatalogID    string `json:"catalogId"`
+	Name         string `json:"name"`
+	Phone        string `json:"phone"`
+	BusinessName string `json:"businessName"`
+	InquiryType  string `json:"inquiryType"`
+	Message      string `json:"message"`
+}
+
 type payAppLicenseOrderRequest struct {
 	PaymentMethod string `json:"paymentMethod"`
 }
@@ -358,6 +367,69 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 		"ok":      true,
 		"message": fmt.Sprintf("Paket trial %s (%d hari) berhasil diaktifkan", planName, trialDays),
 		"license": created,
+	})
+}
+
+// handleAppCatalogInquiry accepts public feature-request / source-code purchase inquiries
+// from an application's landing page, notifies Reneo Panel superadmins via their configured
+// notification channels, and sends a WhatsApp confirmation to the buyer.
+func (s *Server) handleAppCatalogInquiry(w http.ResponseWriter, r *http.Request) {
+	var req appCatalogInquiryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "format permintaan tidak valid"})
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	rawPhone := strings.TrimSpace(req.Phone)
+	msg := strings.TrimSpace(req.Message)
+	if name == "" || rawPhone == "" || msg == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "nama, nomor WhatsApp, dan pesan wajib diisi"})
+		return
+	}
+	if len(name) > 120 {
+		name = name[:120]
+	}
+	if len(msg) > 2000 {
+		msg = msg[:2000]
+	}
+	phone, err := notify.NormalizePhone(rawPhone)
+	if err != nil || phone == "" {
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "nomor WhatsApp tidak valid"})
+		return
+	}
+
+	appName := "Reneo CRM"
+	if cid := strings.TrimSpace(req.CatalogID); cid != "" && cid != "reneo-crm" {
+		appName = cid
+	}
+	topic := strings.TrimSpace(req.InquiryType)
+	if topic == "" {
+		topic = "Tambah Fitur / Beli Aset Program"
+	}
+
+	adminNotified := 0
+	buyerNotified := false
+	if s.notify != nil {
+		adminNotified, buyerNotified = s.notify.SendPublicInquiry(r.Context(), notify.PublicInquiryNotice{
+			AppName:      appName,
+			Name:         name,
+			BuyerPhone:   phone,
+			BusinessName: strings.TrimSpace(req.BusinessName),
+			InquiryType:  topic,
+			Message:      msg,
+		})
+	}
+	s.notifyAllAdmins(
+		fmt.Sprintf("Permintaan %s: %s", appName, topic),
+		fmt.Sprintf("%s (%s) — %s", name, phone, msg),
+		"info",
+	)
+
+	s.writeJSON(w, http.StatusOK, jsonResponse{
+		"ok":            true,
+		"adminNotified": adminNotified,
+		"buyerNotified": buyerNotified,
+		"message":       "Permintaan Anda sudah kami terima. Anda akan segera mendapat balasan oleh tim kami.",
 	})
 }
 

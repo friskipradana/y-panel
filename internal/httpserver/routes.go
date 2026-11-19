@@ -384,6 +384,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/v1/app-catalog/license/{catalogId}", http.HandlerFunc(s.handleAppCatalogLicense))
 	s.mux.Handle("GET /api/v1/app-catalog/plans/{catalogId}", http.HandlerFunc(s.handleAppLicensePlans))
 	s.mux.Handle("POST /api/v1/app-catalog/trial", http.HandlerFunc(s.handleAppLicenseStartTrial))
+	s.mux.Handle("POST /api/v1/app-catalog/inquiry", http.HandlerFunc(s.handleAppCatalogInquiry))
 	s.mux.Handle("POST /api/v1/app-catalog/order", http.HandlerFunc(s.handleAppLicenseCreateOrder))
 	s.mux.Handle("GET /api/v1/app-catalog/orders/{publicId}", http.HandlerFunc(s.handleAppLicenseGetOrder))
 	s.mux.Handle("POST /api/v1/app-catalog/orders/{publicId}/pay", s.requireRole(auth.SuperadminRole, http.HandlerFunc(s.handleAppLicensePayOrder)))
