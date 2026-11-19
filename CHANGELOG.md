@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.15] - 2026-11-19
+
+Add Bot Management, AI crawler skip preset, and custom WAF controls.
+
+### Fitur baru
+- **cloudflare:** Add Bot Management, AI crawler skip preset, and custom WAF controls ([`7d3309e`](https://github.com/friskipradana/y-panel/commit/7d3309e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.14...v1.88.15
+
 ## [1.88.14] - 2026-11-19
 
 Include installed Reneo CRM landing and llms links in root sitemap and llms.txt.
