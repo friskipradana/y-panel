@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.13] - 2026-11-19
+
+Enforce allowed hostname/domain guard and verified Reneo env on reneo-crm deploy.
+
+### Fitur baru
+- **catalog:** Enforce allowed hostname/domain guard and verified Reneo env on reneo-crm deploy ([`8dce74d`](https://github.com/friskipradana/y-panel/commit/8dce74d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.12...v1.88.13
+
 ## [1.88.12] - 2026-11-19
 
 Render update release notes with markdown formatter.
