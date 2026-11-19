@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.18] - 2026-11-19
+
+Protect fakeCloudflare recorded slice with mutex for concurrent probes.
+
+### Pemeliharaan
+- **cloudflare:** Protect fakeCloudflare recorded slice with mutex for concurrent probes ([`3903e6d`](https://github.com/friskipradana/y-panel/commit/3903e6d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.17...v1.88.18
+
 ## [1.88.17] - 2026-11-19
 
 Resolve unusedparams, unusedfunc, and staticcheck S1017 diagnostics.
