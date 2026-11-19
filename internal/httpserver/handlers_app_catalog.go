@@ -1108,13 +1108,10 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 
 	bypassCache := r.URL.Query().Get("refresh") == "1" || strings.EqualFold(r.URL.Query().Get("refresh"), "true")
 
-	// Dynamically augment versions from container registry if available
-	for i := range catalog {
-		if strings.HasPrefix(catalog[i].Image, "ghcr.io/") || strings.Contains(catalog[i].Image, "/") {
-			if dynTags, err := s.fetchRemoteImageTags(r.Context(), catalog[i].Image, bypassCache); err == nil && len(dynTags) > 0 {
-				catalog[i].Versions = mergeOrderedImageTags(dynTags, catalog[i].Versions)
-			}
-		}
+	if bypassCache {
+		s.refreshCatalogTagsConcurrent(r.Context(), catalog)
+	} else {
+		s.applyCachedCatalogTagsAndWarmup(catalog)
 	}
 
 	installed, err := s.database.ListInstalledApps(actor.ID)
@@ -2934,13 +2931,21 @@ func fetchOCIBearerToken(ctx context.Context, client *http.Client, wwwAuth, regi
 }
 
 var (
-	remoteTagsCache   = make(map[string]cachedTagsEntry)
-	remoteTagsCacheMu sync.RWMutex
+	remoteTagsCache        = make(map[string]cachedTagsEntry)
+	remoteTagsCacheMu      sync.RWMutex
+	remoteTagsWarmupMu     sync.Mutex
+	remoteTagsWarmupActive bool
+)
+
+const (
+	remoteTagsPositiveTTL = 5 * time.Minute
+	remoteTagsNegativeTTL = 2 * time.Minute
 )
 
 type cachedTagsEntry struct {
 	tags      []string
 	fetchedAt time.Time
+	negative  bool
 }
 
 func parseSemverNumbers(v string) []int {
@@ -3335,6 +3340,126 @@ func parseNextRegistryLink(linkHeader, registry string) string {
 	return ""
 }
 
+func isRemoteCatalogImage(imageRef string) bool {
+	return strings.HasPrefix(imageRef, "ghcr.io/") || strings.Contains(imageRef, "/")
+}
+
+func (s *Server) applyCachedCatalogTagsAndWarmup(catalog []CatalogApp) {
+	var toWarm []string
+	now := time.Now()
+	remoteTagsCacheMu.RLock()
+	for i := range catalog {
+		if !isRemoteCatalogImage(catalog[i].Image) {
+			continue
+		}
+		registry, repo, _ := parseOCIRef(catalog[i].Image)
+		if repo == "" {
+			continue
+		}
+		cacheKey := registry + "/" + repo
+		cached, ok := remoteTagsCache[cacheKey]
+		if ok && len(cached.tags) > 0 {
+			catalog[i].Versions = mergeOrderedImageTags(cached.tags, catalog[i].Versions)
+		}
+		ttl := remoteTagsPositiveTTL
+		if ok && cached.negative {
+			ttl = remoteTagsNegativeTTL
+		}
+		if !ok || now.Sub(cached.fetchedAt) >= ttl {
+			toWarm = append(toWarm, catalog[i].Image)
+		}
+	}
+	remoteTagsCacheMu.RUnlock()
+
+	if len(toWarm) > 0 {
+		s.triggerCatalogTagsWarmup(toWarm)
+	}
+}
+
+func (s *Server) triggerCatalogTagsWarmup(images []string) {
+	if len(images) == 0 {
+		return
+	}
+	remoteTagsWarmupMu.Lock()
+	if remoteTagsWarmupActive {
+		remoteTagsWarmupMu.Unlock()
+		return
+	}
+	remoteTagsWarmupActive = true
+	remoteTagsWarmupMu.Unlock()
+
+	unique := make([]string, 0, len(images))
+	seen := make(map[string]struct{}, len(images))
+	for _, img := range images {
+		if _, ok := seen[img]; !ok {
+			seen[img] = struct{}{}
+			unique = append(unique, img)
+		}
+	}
+
+	go func() {
+		defer func() {
+			remoteTagsWarmupMu.Lock()
+			remoteTagsWarmupActive = false
+			remoteTagsWarmupMu.Unlock()
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		s.fetchRemoteImageTagsBatch(ctx, unique, false)
+	}()
+}
+
+func (s *Server) refreshCatalogTagsConcurrent(ctx context.Context, catalog []CatalogApp) {
+	images := make([]string, 0, len(catalog))
+	for i := range catalog {
+		if isRemoteCatalogImage(catalog[i].Image) {
+			images = append(images, catalog[i].Image)
+		}
+	}
+	if len(images) == 0 {
+		return
+	}
+	results := s.fetchRemoteImageTagsBatch(ctx, images, true)
+	for i := range catalog {
+		if tags := results[catalog[i].Image]; len(tags) > 0 {
+			catalog[i].Versions = mergeOrderedImageTags(tags, catalog[i].Versions)
+		}
+	}
+}
+
+func (s *Server) fetchRemoteImageTagsBatch(ctx context.Context, images []string, bypassCache bool) map[string][]string {
+	out := make(map[string][]string, len(images))
+	var outMu sync.Mutex
+	const maxWorkers = 6
+	sem := make(chan struct{}, maxWorkers)
+	var wg sync.WaitGroup
+
+	for _, img := range images {
+		if ctx.Err() != nil {
+			break
+		}
+		wg.Add(1)
+		go func(imageRef string) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				return
+			}
+			perCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+			defer cancel()
+			if tags, err := s.fetchRemoteImageTags(perCtx, imageRef, bypassCache); err == nil && len(tags) > 0 {
+				outMu.Lock()
+				out[imageRef] = tags
+				outMu.Unlock()
+			}
+		}(img)
+	}
+	wg.Wait()
+	return out
+}
+
 func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypassCache bool) ([]string, error) {
 	registry, repo, _ := parseOCIRef(imageRef)
 	if repo == "" {
@@ -3346,19 +3471,40 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 		remoteTagsCacheMu.RLock()
 		cached, ok := remoteTagsCache[cacheKey]
 		remoteTagsCacheMu.RUnlock()
-		if ok && time.Since(cached.fetchedAt) < 5*time.Minute && len(cached.tags) > 0 {
-			cp := make([]string, len(cached.tags))
-			copy(cp, cached.tags)
-			return cp, nil
+		if ok {
+			if cached.negative && time.Since(cached.fetchedAt) < remoteTagsNegativeTTL {
+				return nil, errors.New("registry tags temporarily unavailable")
+			}
+			if !cached.negative && time.Since(cached.fetchedAt) < remoteTagsPositiveTTL && len(cached.tags) > 0 {
+				cp := make([]string, len(cached.tags))
+				copy(cp, cached.tags)
+				return cp, nil
+			}
 		}
 	}
 
-	client := &http.Client{Timeout: 8 * time.Second}
+	storeNegative := func() {
+		remoteTagsCacheMu.Lock()
+		prev, hasPrev := remoteTagsCache[cacheKey]
+		if hasPrev && !prev.negative && len(prev.tags) > 0 {
+			// Keep stale positive tags so UI still has versions while delaying next retry
+			prev.fetchedAt = time.Now().Add(-(remoteTagsPositiveTTL - remoteTagsNegativeTTL))
+			remoteTagsCache[cacheKey] = prev
+		} else {
+			remoteTagsCache[cacheKey] = cachedTagsEntry{
+				fetchedAt: time.Now(),
+				negative:  true,
+			}
+		}
+		remoteTagsCacheMu.Unlock()
+	}
+
+	client := &http.Client{Timeout: 4 * time.Second}
 	nextURL := fmt.Sprintf("https://%s/v2/%s/tags/list?n=1000", registry, repo)
 	token := ""
 	var allTags []string
 
-	for page := 0; page < 5 && nextURL != ""; page++ {
+	for page := 0; page < 3 && nextURL != ""; page++ {
 		doGet := func(tok string) (*http.Response, error) {
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, nextURL, nil)
 			if err != nil {
@@ -3376,6 +3522,7 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 			if len(allTags) > 0 {
 				break
 			}
+			storeNegative()
 			return nil, err
 		}
 		if resp.StatusCode == http.StatusUnauthorized {
@@ -3386,6 +3533,7 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 				if len(allTags) > 0 {
 					break
 				}
+				storeNegative()
 				return nil, tokErr
 			}
 			token = tok
@@ -3394,6 +3542,7 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 				if len(allTags) > 0 {
 					break
 				}
+				storeNegative()
 				return nil, err
 			}
 		}
@@ -3403,6 +3552,7 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 			if len(allTags) > 0 {
 				break
 			}
+			storeNegative()
 			return nil, fmt.Errorf("registry HTTP %d", code)
 		}
 
@@ -3416,6 +3566,7 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 			if len(allTags) > 0 {
 				break
 			}
+			storeNegative()
 			return nil, decErr
 		}
 		allTags = append(allTags, payload.Tags...)
@@ -3432,6 +3583,8 @@ func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypa
 			fetchedAt: time.Now(),
 		}
 		remoteTagsCacheMu.Unlock()
+	} else {
+		storeNegative()
 	}
 
 	return result, nil

@@ -1,12 +1,14 @@
 package httpserver
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/friskipradana/panel-desktop-ui/internal/auth"
 	"github.com/friskipradana/panel-desktop-ui/internal/config"
@@ -714,6 +716,51 @@ func TestCollectAllowedAppHostsAndLicenseAuthFlags(t *testing.T) {
 	hostsRaw, ok := authBody["allowedHosts"].([]any)
 	if !ok || len(hostsRaw) == 0 {
 		t.Fatalf("expected allowedHosts array in verified response, got %#v", authBody["allowedHosts"])
+	}
+}
+
+func TestAppCatalogCachedTagsDoNotBlockAndRespectNegativeCache(t *testing.T) {
+	srv := &Server{}
+	imageRef := "ghcr.io/example/fast-test:latest"
+	registry, repo, _ := parseOCIRef(imageRef)
+	cacheKey := registry + "/" + repo
+
+	remoteTagsCacheMu.Lock()
+	remoteTagsCache[cacheKey] = cachedTagsEntry{
+		tags:      []string{"v2.0.0", "v1.9.0"},
+		fetchedAt: time.Now(),
+	}
+	remoteTagsCache["ghcr.io/example/neg-test"] = cachedTagsEntry{
+		fetchedAt: time.Now(),
+		negative:  true,
+	}
+	remoteTagsCacheMu.Unlock()
+	t.Cleanup(func() {
+		remoteTagsCacheMu.Lock()
+		delete(remoteTagsCache, cacheKey)
+		delete(remoteTagsCache, "ghcr.io/example/neg-test")
+		remoteTagsCacheMu.Unlock()
+	})
+
+	catalog := []CatalogApp{
+		{
+			ID:       "fast-test",
+			Image:    imageRef,
+			Versions: []string{"latest", "v1.9.0"},
+		},
+	}
+
+	start := time.Now()
+	srv.applyCachedCatalogTagsAndWarmup(catalog)
+	if elapsed := time.Since(start); elapsed > 200*time.Millisecond {
+		t.Fatalf("expected applyCachedCatalogTagsAndWarmup to be non-blocking, took %v", elapsed)
+	}
+	if len(catalog[0].Versions) < 3 || catalog[0].Versions[0] != "v2.0.0" {
+		t.Fatalf("expected cached tags merged immediately, got %#v", catalog[0].Versions)
+	}
+
+	if _, err := srv.fetchRemoteImageTags(context.Background(), "ghcr.io/example/neg-test:latest", false); err == nil {
+		t.Fatalf("expected negative cache to return error immediately without network call")
 	}
 }
 
