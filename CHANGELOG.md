@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.11] - 2026-11-19
+
+Allow public SEO, llms.txt, and landing paths through CRM app gateway.
+
+### Perbaikan
+- **catalog:** Allow public SEO, llms.txt, and landing paths through CRM app gateway ([`11645a6`](https://github.com/friskipradana/y-panel/commit/11645a6))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.10...v1.88.11
+
 ## [1.88.10] - 2026-11-19
 
 Resolve running version on floating tags, eliminate false updates, and prefer semver releases.
