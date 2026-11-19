@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.10] - 2026-11-19
+
+Resolve running version on floating tags, eliminate false updates, and prefer semver releases.
+
+### Perbaikan
+- **catalog:** Resolve running version on floating tags, eliminate false updates, and prefer semver releases ([`5fd65e5`](https://github.com/friskipradana/y-panel/commit/5fd65e5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.9...v1.88.10
+
 ## [1.88.9] - 2026-11-18
 
 Detect remote OCI image versions, show upgrade version info, and register CRM v1.6.27.
