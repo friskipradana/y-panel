@@ -9,6 +9,7 @@ import { copyTextToClipboard } from "@/api/agent";
 import { alertLib } from "@/lib/alert";
 import { toast } from "sonner";
 import { useUpdateProgress } from "@/store/updateStore";
+import { Markdown } from "@/lib/markdown";
 
 interface UpdateCardProps {
   systemSettings?: {
@@ -192,8 +193,14 @@ export function UpdateCard({ systemSettings, bare = false }: UpdateCardProps = {
                 </span>
               ) : null}
             </div>
-            <div className="max-h-36 overflow-y-auto text-[11.5px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap break-words">
-              {updateInfo.notes?.trim() ? updateInfo.notes.trim() : t("settings.update.noNotes")}
+            <div className="max-h-44 overflow-y-auto pr-1">
+              {updateInfo.notes?.trim() ? (
+                <Markdown source={updateInfo.notes.trim()} compact />
+              ) : (
+                <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+                  {t("settings.update.noNotes")}
+                </p>
+              )}
             </div>
           </div>
 

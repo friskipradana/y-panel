@@ -16,9 +16,9 @@ export function resolveImageSrc(raw: string): string | null {
   return relative ? OFFICIAL_IMAGE_BASE + relative[1] : null
 }
 
-const INLINE = /(!\[[^\]\n]*\]\([^)\s]+\)|`[^`\n]+`|\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\([^)\s]+\))/g
+const INLINE = /(!\[[^\]\n]*\]\([^)\s]+\)|\[[^\]\n]+\]\([^)\s]+\)|`[^`\n]+`|\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|_[^_\n]+_|https?:\/\/[^\s<>)\]]+)/g
 
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
+function renderInline(text: string, keyPrefix: string, allowLinks = true): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
   let index = 0
@@ -47,27 +47,42 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       )
     } else if (token.startsWith('`')) {
       out.push(
-        <code key={key} className="panel-mono rounded bg-[var(--panel-surface-strong)] px-1 py-0.5 text-[0.85em]">
+        <code key={key} className="panel-mono rounded bg-[var(--panel-surface-strong)] px-1 py-0.5 text-[0.85em] text-[var(--win-text)]">
           {token.slice(1, -1)}
         </code>,
       )
     } else if (token.startsWith('**') || token.startsWith('__')) {
-      out.push(<strong key={key}>{renderInline(token.slice(2, -2), key)}</strong>)
+      out.push(<strong key={key} className="font-semibold text-[var(--win-text)]">{renderInline(token.slice(2, -2), key, allowLinks)}</strong>)
     } else if (token.startsWith('[')) {
       const close = token.indexOf('](')
       const label = token.slice(1, close)
       const href = token.slice(close + 2, -1)
       out.push(
-        SAFE_LINK.test(href) ? (
-          <a key={key} href={href} target="_blank" rel="noreferrer noopener" className="text-[var(--panel-primary-text)] underline underline-offset-2">
-            {label}
+        allowLinks && SAFE_LINK.test(href) ? (
+          <a key={key} href={href} target="_blank" rel="noreferrer noopener" className="text-[var(--panel-primary-text)] underline underline-offset-2 break-all">
+            {renderInline(label, key, false)}
           </a>
         ) : (
-          <Fragment key={key}>{label}</Fragment>
+          <Fragment key={key}>{renderInline(label, key, false)}</Fragment>
+        ),
+      )
+    } else if (token.startsWith('http://') || token.startsWith('https://')) {
+      const cleanHref = token.replace(/[.,;:!?]+$/, '')
+      const trailing = token.slice(cleanHref.length)
+      out.push(
+        allowLinks && SAFE_LINK.test(cleanHref) ? (
+          <Fragment key={key}>
+            <a href={cleanHref} target="_blank" rel="noreferrer noopener" className="text-[var(--panel-primary-text)] underline underline-offset-2 break-all">
+              {cleanHref}
+            </a>
+            {trailing}
+          </Fragment>
+        ) : (
+          <Fragment key={key}>{token}</Fragment>
         ),
       )
     } else {
-      out.push(<em key={key}>{renderInline(token.slice(1, -1), key)}</em>)
+      out.push(<em key={key}>{renderInline(token.slice(1, -1), key, allowLinks)}</em>)
     }
     last = start + token.length
   }
@@ -134,6 +149,7 @@ function parseBlocks(source: string): Block[] {
       lines[i].trim() !== '' &&
       !lines[i].startsWith('```') &&
       !/^(#{1,4})\s+/.test(lines[i]) &&
+      !/^(-{3,}|\*{3,})\s*$/.test(lines[i]) &&
       !/^>\s?/.test(lines[i]) &&
       !bullet.test(lines[i]) &&
       !numbered.test(lines[i])
@@ -152,24 +168,51 @@ const HEADING_CLASS: Record<number, string> = {
   4: 'mt-4 text-[0.875rem] font-semibold',
 }
 
-export function Markdown({ source, className = '' }: { source: string; className?: string }) {
+const COMPACT_HEADING_CLASS: Record<number, string> = {
+  1: 'mt-2 first:mt-0 text-[0.875rem] font-semibold text-[var(--win-text)]',
+  2: 'mt-2 first:mt-0 text-[0.8125rem] font-semibold text-[var(--win-text)]',
+  3: 'mt-1.5 first:mt-0 text-[0.75rem] font-semibold text-[var(--win-text)]',
+  4: 'mt-1.5 first:mt-0 text-[0.75rem] font-medium text-[var(--win-text)]',
+}
+
+export function Markdown({
+  source,
+  className = '',
+  compact = false,
+}: {
+  source: string
+  className?: string
+  compact?: boolean
+}) {
   const blocks = parseBlocks(source)
+  const headingMap = compact ? COMPACT_HEADING_CLASS : HEADING_CLASS
+  const rootClass = compact
+    ? `space-y-2 text-[0.75rem] leading-relaxed text-[var(--text-secondary)] break-words ${className}`.trim()
+    : `space-y-3 text-[0.875rem] leading-relaxed text-[var(--win-text)] ${className}`.trim()
+
   return (
-    <div className={`space-y-3 text-[0.875rem] leading-relaxed text-[var(--win-text)] ${className}`.trim()}>
+    <div className={rootClass}>
       {blocks.map((block, index) => {
         const key = `b${index}`
         switch (block.type) {
           case 'heading': {
             const Tag = `h${Math.min(block.level + 1, 6)}` as 'h2'
             return (
-              <Tag key={key} className={HEADING_CLASS[block.level]}>
+              <Tag key={key} className={headingMap[block.level]}>
                 {renderInline(block.text, key)}
               </Tag>
             )
           }
           case 'code':
             return (
-              <pre key={key} className="panel-mono overflow-x-auto rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3 text-[0.8125rem] leading-relaxed">
+              <pre
+                key={key}
+                className={
+                  compact
+                    ? 'panel-mono overflow-x-auto rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-2 text-[0.75rem] leading-relaxed text-[var(--win-text)]'
+                    : 'panel-mono overflow-x-auto rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface-strong)] p-3 text-[0.8125rem] leading-relaxed'
+                }
+              >
                 {block.text}
               </pre>
             )
@@ -182,7 +225,10 @@ export function Markdown({ source, className = '' }: { source: string; className
           case 'list': {
             const Tag = block.ordered ? 'ol' : 'ul'
             return (
-              <Tag key={key} className={`space-y-1 pl-5 ${block.ordered ? 'list-decimal' : 'list-disc'}`}>
+              <Tag
+                key={key}
+                className={`${compact ? 'space-y-0.5 pl-4' : 'space-y-1 pl-5'} ${block.ordered ? 'list-decimal' : 'list-disc'}`}
+              >
                 {block.items.map((item, n) => (
                   <li key={`${key}-${n}`}>{renderInline(item, `${key}-${n}`)}</li>
                 ))}
