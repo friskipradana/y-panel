@@ -29,13 +29,14 @@ Slop adalah output yang terlihat "sudah jadi" tetapi tidak membawa informasi ata
 3. **Lencana kepercayaan palsu**: perisai, centang dalam lingkaran, "Enterprise-grade", "Bank-level security", sertifikasi yang tidak ada.
 4. **Gradient dekoratif** multi-warna pada teks, tombol, avatar, atau latar kartu. Gradient hanya untuk data (grafik, progress), wallpaper pilihan user, atau transisi tonal satu warna dari token.
 5. **Glow & blur berlebihan**: `box-shadow` berwarna besar, `blur` di luar taskbar/modal/window.
-6. **Emoji sebagai ikon UI** atau penghias judul. Termasuk ikon lucide `Sparkles`, `Sparkle`, `WandSparkles`: dilarang total, tanpa pengecualian (check:ui = error).
+6. **Emoji sebagai ikon UI** atau penghias judul. Termasuk ikon lucide `Sparkles`, `Sparkle`, `WandSparkles`: **dilarang total tanpa pengecualian** (`check:ui` = error). Hindari juga ikon dekoratif tanpa fungsi (bintang/perisai/centang-lingkaran penghias eyebrow atau tombol).
 7. **Kartu bersarang** (card di dalam card di dalam card) dan grid tiga kartu identik berisi ikon + judul + kalimat.
 8. **Angka fiktif**: uptime, jumlah user, statistik "10x lebih cepat" tanpa sumber. Pakai data nyata atau jangan tampilkan.
 
 ## 3. Copy Slop
 
-- Dilarang kata kosong: "seamless", "powerful", "next-generation", "revolutionize", "cutting-edge", "all-in-one solution", "unleash".
+- Dilarang kata kosong: "seamless", "dengan mulus", "powerful", "next-generation", "revolutionize", "cutting-edge", "all-in-one solution", "unleash".
+- **Landing page / halaman calon pembeli**: dilarang menaruh istilah/kode teknis internal (`PostgreSQL`, `Redis`, `Docker`, `WAHA`, `@g.us`, `self-hosted`, `SSE`, `HttpOnly`, `RBAC`, `MCP`, `endpoint API`) di copy jualan — gunakan bahasa manfaat nyata yang dipahami pemilik usaha.
 - Tombol dan label memakai kata kerja konkret: "Restart container", "Buat tunnel", bukan "Mulai perjalanan".
 - Pesan error menyebut apa yang gagal, objeknya, dan langkah berikutnya. Bukan "Terjadi kesalahan".
 - Empty state menjelaskan cara mengisi, bukan "Tidak ada data".

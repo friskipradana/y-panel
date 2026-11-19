@@ -98,11 +98,13 @@ Dokumen referensi visual utama: [DESIGN.md](../DESIGN.md) dan inventaris [compon
    - Dilarang kartu melayang yang menumpuk di atas screenshot/hero tanpa fungsi.
    - Dilarang ilustrasi AI generik (orb, mesh abstrak, 3D blob, karakter kartun). Gunakan UI nyata.
    - Dilarang lencana kepercayaan palsu ("Enterprise-grade", centang perisai, sertifikasi fiktif).
+   - **Dilarang total ikon `Sparkles`, `Sparkle`, dan `WandSparkles`** (dan ikon dekoratif tanpa fungsi seperti bintang/perisai/centang-lingkaran penghias judul).
    - Dilarang gradient dekoratif multi-warna pada teks, tombol, atau kartu. Gradient hanya untuk visualisasi data/grafik atau wallpaper pilihan user.
    - Dilarang glow/blur berlebihan di luar batas window/taskbar.
    - Dilarang kartu bersarang (card di dalam card di dalam card).
 3. **Anti-Copy Slop**:
-   - Dilarang kata-kata marketing kosong ("seamless", "cutting-edge", "revolutionary", "all-in-one").
+   - Dilarang kata-kata marketing kosong ("seamless", "dengan mulus", "cutting-edge", "revolutionary", "all-in-one").
+   - Pada halaman landing / calon pembeli, hindari istilah atau kode teknis internal (`PostgreSQL`, `Redis`, `Docker`, `WAHA`, `@g.us`, `self-hosted`, `SSE`, `HttpOnly`, `RBAC`, `MCP`, `endpoint API`); gunakan bahasa manfaat bisnis yang konkret.
    - Gunakan kata kerja konkret pada tombol dan label ("Restart container", "Buat rute tunnel").
    - Pesan error wajib menjelaskan objek yang gagal dan solusi perbaikan konkret.
 4. **Anti-Code Slop**:
