@@ -445,4 +445,30 @@
   .cloudflare-scope__meta {
     display: none;
   }
+
+  .cloudflare-security__table {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+
+    .docker-table {
+      padding: 0;
+    }
+  }
+}
+
+// Security & WAF custom rules table embedded inside the scrollable Security tab
+.cloudflare-security__table {
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  background: var(--panel-surface);
+  overflow: hidden;
+
+  .docker-table {
+    flex: none;
+  }
+
+  .docker-table-scroll {
+    overflow: visible;
+  }
 }

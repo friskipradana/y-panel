@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { IconBadge } from '@/components/ui/IconBadge'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import { DnsRow, RouteRow } from './TunnelRows'
+import { CloudflareSecurityPanel } from './CloudflareSecurityPanel'
 import { TunnelsScope } from './TunnelsScope'
 import { STATUS_CONFIG } from './tunnelForms'
 import { openCloudflareSettings } from './openCloudflareSettings'
@@ -64,6 +65,10 @@ export function TunnelsBody({ tw }: { tw: TunnelsWindowState }) {
         </div>
       </div>
     )
+  }
+
+  if (tab === 'security') {
+    return <CloudflareSecurityPanel tw={tw} />
   }
 
   if (tab === 'domains') {

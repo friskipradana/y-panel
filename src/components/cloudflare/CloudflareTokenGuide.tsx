@@ -20,6 +20,8 @@ const PERMISSIONS: Permission[] = [
   { key: 'zone', path: 'Zone · Zone · Read', level: 'required', granted: (d) => d.canReadZones },
   { key: 'dns', path: 'Zone · DNS · Edit', level: 'required', granted: (d) => d.canManageDNS },
   { key: 'redirect', path: 'Zone · Single Redirect · Edit', level: 'optional', granted: (d) => d.canManageRedirects },
+  { key: 'bot', path: 'Zone · Bot Management · Edit', level: 'optional', granted: (d) => d.canManageBotManagement },
+  { key: 'waf', path: 'Zone · Zone WAF · Edit', level: 'optional', granted: (d) => d.canManageWAF },
   { key: 'ssl', path: 'Zone · SSL and Certificates · Edit', level: 'hosting', granted: (d) => d.canManageCustomHostnames },
 ]
 

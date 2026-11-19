@@ -65,6 +65,10 @@ type TokenPermissions struct {
 	CanEditTunnels bool   `json:"canEditTunnels"`
 	// CanManageRedirects reports access to Single Redirect rules (Rulesets) on the first zone
 	CanManageRedirects bool `json:"canManageRedirects"`
+	// CanManageBotManagement reports access to zone Bot Management & AI Bot controls.
+	CanManageBotManagement bool `json:"canManageBotManagement"`
+	// CanManageWAF reports access to zone custom WAF rules (http_request_firewall_custom).
+	CanManageWAF bool `json:"canManageWAF"`
 	// CanManageCustomHostnames reports that the zone answers for custom hostnames: the SSL and Certificates permission
 	// is on the token and Custom Hostnames (Cloudflare for SaaS) is switched on. Only the seller of hosting needs it.
 	CanManageCustomHostnames bool `json:"canManageCustomHostnames"`
@@ -110,6 +114,25 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 			// Redirect rules are optional: report them separately instead of failing the token
 			if _, redirErr := c.ListRedirectRules(zones[0].ID); redirErr == nil {
 				perm.CanManageRedirects = true
+			}
+			// Security controls (Bot Management & Zone WAF) are optional capabilities probed across accessible zones.
+			for i, zone := range zones {
+				if i >= 10 {
+					break
+				}
+				if !perm.CanManageBotManagement {
+					if _, botErr := c.GetBotManagement(zone.ID); botErr == nil {
+						perm.CanManageBotManagement = true
+					}
+				}
+				if !perm.CanManageWAF {
+					if _, wafErr := c.ListFirewallCustomRules(zone.ID); wafErr == nil {
+						perm.CanManageWAF = true
+					}
+				}
+				if perm.CanManageBotManagement && perm.CanManageWAF {
+					break
+				}
 			}
 			// so are custom hostnames: they matter only to the seller of hosting. The permission can be given to some zones only,
 			// and the feature is switched on per zone, so any zone that answers is enough to know the token can do it.

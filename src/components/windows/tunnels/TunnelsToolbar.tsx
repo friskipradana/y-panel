@@ -25,12 +25,31 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
     domainsFetching,
     refetchProfiles,
     profilesFetching,
+    securityQuery,
+    securitySearch,
+    setSecuritySearch,
+    setShowWafRuleModal,
   } = tw
 
   const canOpenSettings = useCanOpenCloudflareSettings()
   const onDomains = tab === 'domains'
+  const onSecurity = tab === 'security'
+  const tabItems = [
+    { key: 'domains', label: t('tunnels.domainTab'), count: safeDomains.length },
+    { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: safeProfiles.length },
+    { key: 'security', label: t('tunnels.securityTab') },
+  ]
   const current = onDomains ? lists.dns : lists.routes
-  const fetching = onDomains ? domainsFetching : profilesFetching
+  const searchValue = onSecurity ? securitySearch : current.text
+  const setSearchValue = onSecurity ? setSecuritySearch : current.setText
+  const searchPlaceholder = onSecurity ? t('tunnels.searchWaf') : onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')
+  const fetching = onSecurity ? securityQuery.isFetching : onDomains ? domainsFetching : profilesFetching
+  const wafLocked = !!securityQuery.data?.wafPermissionError
+  const onRefresh = () => {
+    if (onSecurity) void securityQuery.refetch()
+    else if (onDomains) void refetchDomains()
+    else void refetchProfiles()
+  }
 
   if (isMobile) {
     return (
@@ -39,30 +58,32 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
           <FilterMenu
             label={t('tunnels.tabs')}
             value={tab}
-            onChange={(key) => setTab(key as 'domains' | 'tunnels')}
-            items={[
-              { key: 'domains', label: t('tunnels.domainTab'), count: safeDomains.length },
-              { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: safeProfiles.length },
-            ]}
+            onChange={(key) => setTab(key as 'domains' | 'tunnels' | 'security')}
+            items={tabItems}
           />
-          <button
-            type="button"
-            className="docker-dropdown-btn"
-            disabled={cfNotConfigured}
-            onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
-          >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
-          </button>
+          {!onSecurity ? (
+            <button
+              type="button"
+              className="docker-dropdown-btn"
+              disabled={cfNotConfigured}
+              onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+              <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
+            </button>
+          ) : null}
 
           <button
             type="button"
             className="docker-primary-btn"
-            disabled={cfNotConfigured || (onDomains ? !selectedDomainId : !selectedProfileId)}
-            onClick={() => (onDomains ? openDnsModal() : openTunnelModal())}
+            disabled={
+              cfNotConfigured ||
+              (onSecurity ? !selectedDomainId || wafLocked : onDomains ? !selectedDomainId : !selectedProfileId)
+            }
+            onClick={() => (onSecurity ? setShowWafRuleModal(true) : onDomains ? openDnsModal() : openTunnelModal())}
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>{onDomains ? t('tunnels.createDns') : t('tunnels.createRoute')}</span>
+            <span>{onSecurity ? t('tunnels.createWafRule') : onDomains ? t('tunnels.createDns') : t('tunnels.createRoute')}</span>
           </button>
         </div>
 
@@ -73,10 +94,10 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
               id="cloudflare-search-input"
               type="search"
               className="docker-search-input docker-search-input--mobile"
-              aria-label={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
-              placeholder={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
-              value={current.text}
-              onChange={(e) => current.setText(e.target.value)}
+              aria-label={searchPlaceholder}
+              placeholder={searchPlaceholder}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
             />
           </div>
 
@@ -86,7 +107,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
             title={t('tunnels.refresh')}
             aria-label={t('tunnels.refresh')}
             disabled={cfNotConfigured}
-            onClick={() => void (onDomains ? refetchDomains() : refetchProfiles())}
+            onClick={onRefresh}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
           </button>
@@ -112,30 +133,32 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
         <FilterMenu
           label={t('tunnels.tabs')}
           value={tab}
-          onChange={(key) => setTab(key as 'domains' | 'tunnels')}
-          items={[
-            { key: 'domains', label: t('tunnels.domainTab'), count: safeDomains.length },
-            { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: safeProfiles.length },
-          ]}
+          onChange={(key) => setTab(key as 'domains' | 'tunnels' | 'security')}
+          items={tabItems}
         />
-        <button
-          type="button"
-          className="docker-dropdown-btn"
-          disabled={cfNotConfigured}
-          onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
-        </button>
+        {!onSecurity ? (
+          <button
+            type="button"
+            className="docker-dropdown-btn"
+            disabled={cfNotConfigured}
+            onClick={() => (onDomains ? setShowDomainModal(true) : setShowProfileModal(true))}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span>{onDomains ? t('tunnels.addDomain') : t('tunnels.createProfile')}</span>
+          </button>
+        ) : null}
 
         <button
           type="button"
           className="docker-primary-btn"
-          disabled={cfNotConfigured || (onDomains ? !selectedDomainId : !selectedProfileId)}
-          onClick={() => (onDomains ? openDnsModal() : openTunnelModal())}
+          disabled={
+            cfNotConfigured ||
+            (onSecurity ? !selectedDomainId || wafLocked : onDomains ? !selectedDomainId : !selectedProfileId)
+          }
+          onClick={() => (onSecurity ? setShowWafRuleModal(true) : onDomains ? openDnsModal() : openTunnelModal())}
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-          <span>{onDomains ? t('tunnels.createDns') : t('tunnels.createRoute')}</span>
+          <span>{onSecurity ? t('tunnels.createWafRule') : onDomains ? t('tunnels.createDns') : t('tunnels.createRoute')}</span>
         </button>
       </div>
 
@@ -146,10 +169,10 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
             id="cloudflare-search-input"
             type="search"
             className="docker-search-input"
-            aria-label={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
-            placeholder={onDomains ? t('tunnels.searchDns') : t('tunnels.searchRoute')}
-            value={current.text}
-            onChange={(e) => current.setText(e.target.value)}
+            aria-label={searchPlaceholder}
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
           />
         </div>
 
@@ -159,7 +182,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
           title={t('tunnels.refresh')}
           aria-label={t('tunnels.refresh')}
           disabled={cfNotConfigured}
-          onClick={() => void (onDomains ? refetchDomains() : refetchProfiles())}
+          onClick={onRefresh}
         >
           <RefreshCw className={`h-3.5 w-3.5 ${fetching ? 'animate-spin' : ''}`} strokeWidth={1.75} />
         </button>

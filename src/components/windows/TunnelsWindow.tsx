@@ -15,6 +15,7 @@ import { HostingSubdomainsPanel } from './tunnels/HostingSubdomainsPanel'
 import { TunnelsBody } from './tunnels/TunnelsBody'
 import { TunnelModalHost } from './tunnels/TunnelModalHost'
 import { ProfileModalHost } from './tunnels/ProfileModalHost'
+import { WafRuleModal } from './tunnels/WafRuleModal'
 import { openCloudflareSettings } from './tunnels/openCloudflareSettings'
 
 export default function TunnelsWindow({ win }: { win?: WindowState }) {
@@ -24,7 +25,7 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
   const role = useAuthStore((s) => s.user?.role)
   const isSuperadmin = role === 'superadmin'
   const hasPersonalCf = !tw.cfNotConfigured
-  const [nonAdminTab, setNonAdminTab] = useState<'hosting' | 'domains' | 'tunnels'>('hosting')
+  const [nonAdminTab, setNonAdminTab] = useState<'hosting' | 'domains' | 'tunnels' | 'security'>('hosting')
 
   const {
     showDnsModal,
@@ -83,6 +84,13 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
         )}
         <TunnelModalHost tw={tw} />
         <ProfileModalHost tw={tw} />
+        {tw.showWafRuleModal && tw.selectedDomainId ? (
+          <WafRuleModal
+            zoneId={tw.selectedDomainId}
+            zoneName={tw.selectedDomain?.name}
+            onClose={() => tw.setShowWafRuleModal(false)}
+          />
+        ) : null}
       </div>
     )
   }
@@ -95,12 +103,17 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
           <div className="docker-topbar__left">
             <FilterMenu
               label={t('tunnels.tabs')}
-              value={nonAdminTab}
-              onChange={(key) => setNonAdminTab(key as 'hosting' | 'domains' | 'tunnels')}
+              value={nonAdminTab === 'hosting' ? 'hosting' : tw.tab}
+              onChange={(key) => {
+                const next = key as 'hosting' | 'domains' | 'tunnels' | 'security'
+                setNonAdminTab(next)
+                if (next !== 'hosting') tw.setTab(next)
+              }}
               items={[
                 { key: 'hosting', label: t('tunnels.hostingTab') },
                 { key: 'domains', label: t('tunnels.domainTab'), count: tw.safeDomains.length },
                 { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: tw.safeProfiles.length },
+                { key: 'security', label: t('tunnels.securityTab') },
               ]}
             />
           </div>
@@ -217,6 +230,13 @@ export default function TunnelsWindow({ win }: { win?: WindowState }) {
       )}
       <TunnelModalHost tw={tw} />
       <ProfileModalHost tw={tw} />
+      {tw.showWafRuleModal && tw.selectedDomainId ? (
+        <WafRuleModal
+          zoneId={tw.selectedDomainId}
+          zoneName={tw.selectedDomain?.name}
+          onClose={() => tw.setShowWafRuleModal(false)}
+        />
+      ) : null}
     </div>
   )
 }

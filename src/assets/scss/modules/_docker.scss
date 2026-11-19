@@ -773,6 +773,10 @@
     --docker-cols: 48px minmax(0, 2fr) minmax(128px, 0.9fr) minmax(0, 1.2fr) 56px;
   }
 
+  &--waf-rules {
+    --docker-cols: 48px minmax(0, 1.5fr) minmax(112px, 0.75fr) minmax(0, 2.2fr) minmax(92px, 0.65fr) 88px;
+  }
+
   &--firewall-ports {
     --docker-cols: 48px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(124px, 1fr) 56px;
   }

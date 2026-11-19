@@ -31,7 +31,7 @@ export function TunnelsScope({ tw }: { tw: TunnelsWindowState }) {
     deleteProfileMut,
   } = tw;
 
-  if (tab === "domains") {
+  if (tab === "domains" || tab === "security") {
     if (safeDomains.length === 0) return null;
     const askDeleteDomain = async () => {
       if (!selectedDomain) return;

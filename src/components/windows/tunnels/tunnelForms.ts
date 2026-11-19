@@ -89,3 +89,15 @@ export function tunnelPayload(form: TunnelForm): Parameters<typeof createTunnel>
     projectId: form.projectId ? Number(form.projectId) : null,
   }
 }
+
+export function cfErrDesc(e: unknown) {
+  const ax = e as { response?: { data?: { error?: string } }; message?: string }
+  return ax?.response?.data?.error ?? ax?.message
+}
+
+export function splitCommaList(raw: string) {
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}

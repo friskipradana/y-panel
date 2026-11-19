@@ -13,6 +13,7 @@ import {
   getCFConfig,
   getCFZones,
   getCloudflareDomain,
+  getCloudflareZoneSecurity,
   listProjects,
   listCloudflareDNSRecords,
   listCloudflareDomains,
@@ -55,9 +56,11 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
   const pollingActive = useWindowPollingActive(win)
   const { t } = useI18n()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'domains' | 'tunnels'>('domains')
+  const [tab, setTab] = useState<'domains' | 'tunnels' | 'security'>('domains')
   const [selectedDomainId, setSelectedDomainId] = useState('')
   const [selectedProfileId, setSelectedProfileId] = useState('')
+  const [securitySearch, setSecuritySearch] = useState('')
+  const [showWafRuleModal, setShowWafRuleModal] = useState(false)
   const lists = { dns: useListQuery(), routes: useListQuery() }
   const [showDnsModal, setShowDnsModal] = useState(false)
   const [showDomainModal, setShowDomainModal] = useState(false)
@@ -91,6 +94,11 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedProfileId ? previous : undefined),
   })
   const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured })
+  const securityQuery = useQuery({
+    queryKey: ['cloudflare-zone-security', selectedDomainId],
+    queryFn: () => getCloudflareZoneSecurity(selectedDomainId),
+    enabled: !cfNotConfigured && tab === 'security' && !!selectedDomainId,
+  })
 
   const safeCfZones = useMemo(() => (Array.isArray(cfZones) ? cfZones : []), [cfZones])
   const safeDomains = useMemo(() => (Array.isArray(domains) ? domains : []), [domains])
@@ -99,7 +107,7 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
 
   useEffect(() => {
     if (!win?.params) return
-    if (win.params.tab === 'tunnels') setTab('tunnels')
+    if (win.params.tab === 'tunnels' || win.params.tab === 'security') setTab(win.params.tab)
     if (win.params.action === 'createTunnel') {
       setEditingTunnelId(null)
       const projectId = Number(win.params.projectId ?? 0) || 0
@@ -366,6 +374,7 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     checkCreatedDomainMut, createDnsMut, updateDnsMut, deleteDnsMut, deleteDomainMut, createProfileMut,
     deleteProfileMut, createTunnelMut, updateTunnelMut, deleteTunnelMut, syncMut, openDnsModal,
     closeTunnelModal, closeDomainModal, openTunnelModal, handleSync,
+    securityQuery, securitySearch, setSecuritySearch, showWafRuleModal, setShowWafRuleModal,
   }
 }
 
