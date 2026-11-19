@@ -30,9 +30,12 @@ func TestSitemapListsPublicArticles(t *testing.T) {
 }
 
 func TestLlmsTxtPointsToMarkdown(t *testing.T) {
-	out := llmsTxt("https://p.example", []database.Doc{{Title: "Panduan awal", Slug: "panduan-awal", Excerpt: "Langkah pertama"}})
+	out := llmsTxt("https://p.example", []database.Doc{{Title: "Panduan awal", Slug: "panduan-awal", Excerpt: "Langkah pertama"}}, "/app/reneo-crm")
 	if !strings.HasPrefix(out, "# Reneo") || !strings.Contains(out, "(https://p.example/articles/panduan-awal.md): Langkah pertama") {
 		t.Fatalf("unexpected llms.txt:\n%s", out)
+	}
+	if !strings.Contains(out, "https://p.example/app/reneo-crm/landing") || !strings.Contains(out, "https://p.example/app/reneo-crm/llms-full.txt") {
+		t.Fatalf("expected CRM links in llms.txt:\n%s", out)
 	}
 }
 

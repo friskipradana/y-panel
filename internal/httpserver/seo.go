@@ -86,7 +86,7 @@ func robotsTxt(base string) string {
 	return b.String()
 }
 
-func sitemapXML(base string, docs []database.Doc, now time.Time) string {
+func sitemapXML(base string, docs []database.Doc, now time.Time, extraPaths ...string) string {
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
 	b.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
@@ -99,6 +99,11 @@ func sitemapXML(base string, docs []database.Doc, now time.Time) string {
 	add("/articles", now, "daily")
 	add("/terms", now, "yearly")
 	add("/privacy", now, "yearly")
+	for _, p := range extraPaths {
+		if strings.TrimSpace(p) != "" {
+			add(p, now, "weekly")
+		}
+	}
 	for _, d := range docs {
 		add("/articles/"+d.Slug, d.UpdatedAt, "monthly")
 	}
@@ -106,7 +111,7 @@ func sitemapXML(base string, docs []database.Doc, now time.Time) string {
 	return b.String()
 }
 
-func llmsTxt(base string, docs []database.Doc) string {
+func llmsTxt(base string, docs []database.Doc, crmPrefixes ...string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n> %s\n\n", siteName, siteDescription)
 	b.WriteString("Reneo is a self-hosted server control panel (Go agent + React desktop UI). It manages Docker, projects, databases, files, terminals, Cloudflare tunnels and users, and exposes the same operations to AI agents through the Model Context Protocol (MCP).\n\n")
@@ -114,6 +119,14 @@ func llmsTxt(base string, docs []database.Doc) string {
 	b.WriteString("## Product\n\n")
 	fmt.Fprintf(&b, "- [Home](%s/): overview, install command and demo account\n", base)
 	fmt.Fprintf(&b, "- [MCP guide](%s/docs/mcp): connect Hermes, Claude Desktop, Cursor or cURL to the panel\n", base)
+	for _, pref := range crmPrefixes {
+		clean := strings.TrimRight(strings.TrimSpace(pref), "/")
+		if clean == "" {
+			continue
+		}
+		fmt.Fprintf(&b, "- [Reneo CRM Landing](%s%s/landing): omnichannel customer inbox (WhatsApp, IG, FB, Threads, Telegram), SLA/CSAT & AI Agent\n", base, clean)
+		fmt.Fprintf(&b, "- [Reneo CRM Full AI Briefing](%s%s/llms-full.txt): detailed capabilities, section layout, comparison & FAQ\n", base, clean)
+	}
 	fmt.Fprintf(&b, "- [Articles](%s/articles): guides and notes\n", base)
 	fmt.Fprintf(&b, "- [Terms and Conditions](%s/terms): the rules for using a panel\n", base)
 	fmt.Fprintf(&b, "- [Privacy Policy](%s/privacy): what a panel stores and where it is sent\n", base)
@@ -309,6 +322,26 @@ func (s *Server) seoPageFor(r *http.Request, base string, boot map[string]json.R
 	return seoPage{}, false
 }
 
+func (s *Server) publicCrmPrefixForHost(r *http.Request) string {
+	if s.database == nil || !s.database.IsConnected() {
+		return ""
+	}
+	hostOwnerID, hostBlocked, _ := s.hostingHostAccess(normalizeHost(r.Host))
+	if hostBlocked {
+		return ""
+	}
+	var app *database.InstalledApp
+	if hostOwnerID > 0 {
+		app, _ = s.database.GetInstalledAppBySlug(hostOwnerID, "reneo-crm")
+	} else {
+		app, _ = s.database.GetInstalledAppBySlugForAdmin("reneo-crm")
+	}
+	if app == nil || app.CatalogID != "reneo-crm" || !app.UseProxy || strings.TrimSpace(app.Slug) == "" {
+		return ""
+	}
+	return "/app/" + strings.TrimSpace(app.Slug)
+}
+
 // seoFrontend wraps the frontend file server with the crawler-facing routes.
 func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler {
 	indexPath := filepath.Join(frontendDir, "index.html")
@@ -340,12 +373,20 @@ func (s *Server) seoFrontend(next http.Handler, frontendDir string) http.Handler
 			_, _ = w.Write([]byte(robotsTxt(base)))
 			return
 		case path == "/sitemap.xml":
+			var extraPaths []string
+			if pref := s.publicCrmPrefixForHost(r); pref != "" {
+				extraPaths = append(extraPaths, pref+"/", pref+"/landing")
+			}
 			w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-			_, _ = w.Write([]byte(sitemapXML(base, s.publicArticles(), time.Now())))
+			_, _ = w.Write([]byte(sitemapXML(base, s.publicArticles(), time.Now(), extraPaths...)))
 			return
 		case path == "/llms.txt":
+			var crmPrefixes []string
+			if pref := s.publicCrmPrefixForHost(r); pref != "" {
+				crmPrefixes = append(crmPrefixes, pref)
+			}
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			_, _ = w.Write([]byte(llmsTxt(base, s.publicArticles())))
+			_, _ = w.Write([]byte(llmsTxt(base, s.publicArticles(), crmPrefixes...)))
 			return
 		case strings.HasPrefix(path, "/articles/") && strings.HasSuffix(path, ".md"):
 			slug := strings.TrimSuffix(strings.TrimPrefix(path, "/articles/"), ".md")
