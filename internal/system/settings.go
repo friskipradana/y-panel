@@ -620,9 +620,7 @@ func readManagedOriginsBlock(data string) string {
 
 		if strings.HasPrefix(trimmedLeft, "#") {
 			trimmedLeft = strings.TrimPrefix(trimmedLeft, "#")
-			if strings.HasPrefix(trimmedLeft, " ") {
-				trimmedLeft = strings.TrimPrefix(trimmedLeft, " ")
-			}
+			trimmedLeft = strings.TrimPrefix(trimmedLeft, " ")
 			result = append(result, trimmedLeft)
 			continue
 		}

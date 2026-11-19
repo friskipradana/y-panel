@@ -2782,14 +2782,6 @@ func parseOCIRef(imageRef string) (registry, repo, tag string) {
 	return registry, repo, tag
 }
 
-func fetchRemoteImageDigest(ctx context.Context, imageRef string) (string, error) {
-	digests, err := fetchRemoteImageDigests(ctx, imageRef)
-	if err != nil || len(digests) == 0 {
-		return "", err
-	}
-	return digests[0], nil
-}
-
 func fetchRemoteImageDigests(ctx context.Context, imageRef string) ([]string, error) {
 	registry, repo, tag := parseOCIRef(imageRef)
 	if repo == "" {
