@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.20] - 2026-11-19
+
+Detect Docker & App Catalog tunnel targets and accept buyerPhone on CRM trial.
+
+### Fitur baru
+- **tunnels,app-licenses:** Detect Docker & App Catalog tunnel targets and accept buyerPhone on CRM trial ([`d1a9d6c`](https://github.com/friskipradana/y-panel/commit/d1a9d6c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.19...v1.88.20
+
 ## [1.88.19] - 2026-11-19
 
 Serve cached remote tags non-blocking with background warmup and negative cache.
