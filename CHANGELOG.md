@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.12] - 2026-11-19
+
+Render update release notes with markdown formatter.
+
+### Perbaikan
+- **settings:** Render update release notes with markdown formatter ([`903830a`](https://github.com/friskipradana/y-panel/commit/903830a))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.11...v1.88.12
+
 ## [1.88.11] - 2026-11-19
 
 Allow public SEO, llms.txt, and landing paths through CRM app gateway.
