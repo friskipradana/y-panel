@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.14] - 2026-11-19
+
+Include installed Reneo CRM landing and llms links in root sitemap and llms.txt.
+
+### Fitur baru
+- **seo:** Include installed Reneo CRM landing and llms links in root sitemap and llms.txt ([`e26a8c4`](https://github.com/friskipradana/y-panel/commit/e26a8c4))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.13...v1.88.14
+
 ## [1.88.13] - 2026-11-19
 
 Enforce allowed hostname/domain guard and verified Reneo env on reneo-crm deploy.
