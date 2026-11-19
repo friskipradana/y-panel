@@ -134,8 +134,8 @@ export function WafRuleModal({ zoneId, zoneName, onClose }: WafRuleModalProps) {
           />
         </Field>
 
-        <div className="grid gap-3 sm:grid-cols-[11rem_minmax(0,1fr)]">
-          <Field label={t('tunnels.security.filterPath')}>
+        <Field label={t('tunnels.security.filterPath')}>
+          <div className="grid gap-2 sm:grid-cols-[11rem_minmax(0,1fr)] mobile:grid-cols-1">
             <Select
               value={pathMatchMode}
               onChange={(v) => setPathMatchMode(v as 'starts_with' | 'eq' | 'contains')}
@@ -145,8 +145,6 @@ export function WafRuleModal({ zoneId, zoneName, onClose }: WafRuleModalProps) {
                 { value: 'contains', label: t('tunnels.security.pathMode.contains') },
               ]}
             />
-          </Field>
-          <Field label="&nbsp;">
             <TextInput
               mono
               value={pathValue}
@@ -154,8 +152,8 @@ export function WafRuleModal({ zoneId, zoneName, onClose }: WafRuleModalProps) {
               onChange={(e) => setPathValue(e.target.value)}
               placeholder={t('tunnels.security.filterPathPlaceholder')}
             />
-          </Field>
-        </div>
+          </div>
+        </Field>
 
         <Field label={t('tunnels.security.filterAgents')}>
           <TextInput

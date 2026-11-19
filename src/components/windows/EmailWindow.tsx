@@ -40,19 +40,19 @@ export function EmailWindow({ win }: { win?: WindowState }) {
   const inboxQuery = useQuery({
     queryKey: ['email-inbox'],
     queryFn: () => listInboxMessages({ limit: 1 }),
-    refetchInterval: pollingActive ? 15_000 : false,
+    refetchInterval: pollingActive && tab === 'inbox' ? 15_000 : false,
   })
 
   const overviewQuery = useQuery({
     queryKey: ['email-overview'],
     queryFn: getEmailOverview,
-    refetchInterval: pollingActive ? 30_000 : false,
+    refetchInterval: pollingActive && tab === 'connection' ? 30_000 : false,
   })
 
   const accountsQuery = useQuery({
     queryKey: ['email-accounts'],
     queryFn: listEmailAccounts,
-    refetchInterval: pollingActive ? 20_000 : false,
+    refetchInterval: pollingActive && tab === 'accounts' ? 20_000 : false,
   })
 
   const overview = overviewQuery.data

@@ -305,6 +305,21 @@ func StartEventWatcher(ctx context.Context) {
 	}()
 }
 
+func shouldInvalidateOnContainerEvent(action string) bool {
+	if action == "" {
+		return true
+	}
+	if strings.HasPrefix(action, "exec_") || strings.HasPrefix(action, "health_status") {
+		return false
+	}
+	switch action {
+	case "attach", "detach", "top", "resize":
+		return false
+	default:
+		return true
+	}
+}
+
 func watchEventsOnce(ctx context.Context) error {
 	cli, baseURL, err := defaultEngine.client()
 	if err != nil {
@@ -339,7 +354,9 @@ func watchEventsOnce(ctx context.Context) error {
 		}
 		switch ev.Type {
 		case "container":
-			InvalidateContainers()
+			if shouldInvalidateOnContainerEvent(ev.Action) {
+				InvalidateContainers()
+			}
 		case "image":
 			imagesCache.Invalidate()
 			notifyInvalidators()

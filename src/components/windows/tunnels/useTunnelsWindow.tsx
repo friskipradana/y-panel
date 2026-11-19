@@ -11,7 +11,6 @@ import {
   deleteCloudflareTunnelProfile,
   deleteTunnel,
   getCFConfig,
-  getCFZones,
   getCloudflareDomain,
   getCloudflareZoneSecurity,
   listProjects,
@@ -76,32 +75,37 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
 
   const { data: cfConfig } = useQuery({ queryKey: ['cf-config'], queryFn: getCFConfig })
   const cfNotConfigured = !cfConfig?.configured || cfConfig?.status !== 'active'
-  const { data: cfZones = [] } = useQuery({ queryKey: ['cf-zones'], queryFn: getCFZones, enabled: !cfNotConfigured })
   const { data: domains = [], isLoading: domainsLoading, isError: domainsError, refetch: refetchDomains, isFetching: domainsFetching } = useQuery({ queryKey: ['cloudflare-domains'], queryFn: listCloudflareDomains, enabled: !cfNotConfigured })
-  const { data: selectedDomainDetail } = useQuery({ queryKey: ['cloudflare-domain', selectedDomainId], queryFn: () => getCloudflareDomain(selectedDomainId), enabled: !cfNotConfigured && !!selectedDomainId })
+  const { data: selectedDomainDetail } = useQuery({ queryKey: ['cloudflare-domain', selectedDomainId], queryFn: () => getCloudflareDomain(selectedDomainId), enabled: !cfNotConfigured && tab === 'domains' && !!selectedDomainId })
   const { data: dnsData, isLoading: dnsLoading, isError: dnsError } = useQuery({
     queryKey: ['cloudflare-dns', selectedDomainId, listQueryKey(lists.dns.query)],
     queryFn: () => listCloudflareDNSRecords(selectedDomainId, lists.dns.query),
-    enabled: !cfNotConfigured && !!selectedDomainId,
+    enabled: !cfNotConfigured && tab === 'domains' && !!selectedDomainId,
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedDomainId ? previous : undefined),
   })
-  const { data: profiles = [], isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({ queryKey: ['cloudflare-tunnel-profiles'], queryFn: listCloudflareTunnelProfiles, enabled: !cfNotConfigured, refetchInterval: pollingActive ? 8_000 : false })
+  const { data: profiles = [], isLoading: profilesLoading, isError: profilesError, refetch: refetchProfiles, isFetching: profilesFetching } = useQuery({
+    queryKey: ['cloudflare-tunnel-profiles'],
+    queryFn: listCloudflareTunnelProfiles,
+    enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal),
+    refetchInterval: pollingActive && tab === 'tunnels' ? 8_000 : false,
+  })
   const { data: routesData, isLoading: routesLoading, isError: routesError } = useQuery({
     queryKey: ['cloudflare-profile-routes', selectedProfileId, listQueryKey(lists.routes.query)],
     queryFn: () => listCloudflareTunnelProfileRoutes(selectedProfileId, lists.routes.query),
-    enabled: !cfNotConfigured && !!selectedProfileId,
-    refetchInterval: pollingActive ? 8_000 : false,
+    enabled: !cfNotConfigured && tab === 'tunnels' && !!selectedProfileId,
+    refetchInterval: pollingActive && tab === 'tunnels' ? 8_000 : false,
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedProfileId ? previous : undefined),
   })
-  const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured })
+  const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
   const securityQuery = useQuery({
     queryKey: ['cloudflare-zone-security', selectedDomainId],
     queryFn: () => getCloudflareZoneSecurity(selectedDomainId),
     enabled: !cfNotConfigured && tab === 'security' && !!selectedDomainId,
   })
 
-  const safeCfZones = useMemo(() => (Array.isArray(cfZones) ? cfZones : []), [cfZones])
   const safeDomains = useMemo(() => (Array.isArray(domains) ? domains : []), [domains])
+  const cfZones = safeDomains
+  const safeCfZones = safeDomains
   const safeProfiles = useMemo(() => (Array.isArray(profiles) ? profiles : []), [profiles])
   const safeProjects = useMemo(() => (Array.isArray(projectData?.items) ? projectData.items : []), [projectData?.items])
 

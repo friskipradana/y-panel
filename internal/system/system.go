@@ -135,39 +135,79 @@ func readUptimeSeconds() float64 {
 	return value
 }
 
+const cpuTempSensorRescanInterval = 5 * time.Minute
+
+var cpuTempCache struct {
+	mu      sync.Mutex
+	hwmons  []string
+	zones   []string
+	scanned time.Time
+}
+
+func cpuTempSensorPaths(forceRescan bool) (hwmons, zones []string) {
+	cpuTempCache.mu.Lock()
+	defer cpuTempCache.mu.Unlock()
+	if !forceRescan && !cpuTempCache.scanned.IsZero() && time.Since(cpuTempCache.scanned) < cpuTempSensorRescanInterval {
+		return cpuTempCache.hwmons, cpuTempCache.zones
+	}
+	if h, err := filepath.Glob("/sys/class/hwmon/hwmon*/temp*_input"); err == nil {
+		hwmons = h
+	}
+	if z, err := filepath.Glob("/sys/class/thermal/thermal_zone*/temp"); err == nil {
+		zones = z
+	}
+	cpuTempCache.hwmons = hwmons
+	cpuTempCache.zones = zones
+	cpuTempCache.scanned = time.Now()
+	return hwmons, zones
+}
+
+func readValidCPUTempFile(path string) (float64, bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, false, err
+	}
+	tempStr := strings.TrimSpace(string(data))
+	tempInt, parseErr := strconv.ParseFloat(tempStr, 64)
+	// Validasi: Suhu komputer biasanya antara 10C sampai 110C (10000-110000)
+	if parseErr == nil && tempInt > 5000 && tempInt < 150000 {
+		return tempInt / 1000.0, true, nil
+	}
+	return 0, false, nil
+}
+
 func readCPUTemp() float64 {
-	// 1. Scan seluruh hardware monitor (Intel/AMD/SuperIO)
-	// Mencari file temp*_input di semua subfolder hwmon
-	hwmons, err := filepath.Glob("/sys/class/hwmon/hwmon*/temp*_input")
-	if err == nil {
-		for _, path := range hwmons {
-			data, err := os.ReadFile(path)
-			if err == nil {
-				tempStr := strings.TrimSpace(string(data))
-				tempInt, err := strconv.ParseFloat(tempStr, 64)
-				// Validasi: Suhu komputer biasanya antara 10C sampai 110C (10000-110000)
-				if err == nil && tempInt > 5000 && tempInt < 150000 {
-					return tempInt / 1000.0
-				}
+	hwmons, zones := cpuTempSensorPaths(false)
+	readFrom := func(paths []string) (float64, bool, bool) {
+		var missing bool
+		for _, path := range paths {
+			val, ok, err := readValidCPUTempFile(path)
+			if ok {
+				return val, true, false
+			}
+			if os.IsNotExist(err) {
+				missing = true
 			}
 		}
+		return 0, false, missing
 	}
 
-	// 2. Scan thermal zones (ARM/Mobile/ACPI Generic)
-	zones, err := filepath.Glob("/sys/class/thermal/thermal_zone*/temp")
-	if err == nil {
-		for _, path := range zones {
-			data, err := os.ReadFile(path)
-			if err == nil {
-				tempStr := strings.TrimSpace(string(data))
-				tempInt, err := strconv.ParseFloat(tempStr, 64)
-				if err == nil && tempInt > 5000 && tempInt < 150000 {
-					return tempInt / 1000.0
-				}
-			}
+	if v, ok, missing := readFrom(hwmons); ok {
+		return v
+	} else if missing {
+		hwmons, zones = cpuTempSensorPaths(true)
+		if v, ok, _ := readFrom(hwmons); ok {
+			return v
 		}
 	}
-
+	if v, ok, missing := readFrom(zones); ok {
+		return v
+	} else if missing {
+		_, zones = cpuTempSensorPaths(true)
+		if v, ok, _ := readFrom(zones); ok {
+			return v
+		}
+	}
 	return 0
 }
 

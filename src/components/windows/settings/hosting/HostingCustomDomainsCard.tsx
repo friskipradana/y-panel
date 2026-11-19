@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 import { HostingTableBar, indexLabel, RowAction, StatusPill, useHostingTable } from './HostingTableKit'
 
@@ -24,7 +25,8 @@ const apiError = (error: unknown, fallback: string) =>
 export function HostingCustomDomainsCard() {
   const { t } = useI18n()
   const qc = useQueryClient()
-  const setup = useQuery({ queryKey: ['hosting', 'custom-domains'], queryFn: getCustomDomainSetup, retry: 0, refetchInterval: 30_000 })
+  const pollingActive = useWindowPollingActive()
+  const setup = useQuery({ queryKey: ['hosting', 'custom-domains'], queryFn: getCustomDomainSetup, retry: 0, refetchInterval: pollingActive ? 30_000 : false })
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0 })
   const table = useHostingTable<CustomDomain>('custom-domains', 30_000)
   const [pick, setPick] = useState('')

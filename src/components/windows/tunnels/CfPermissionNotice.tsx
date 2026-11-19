@@ -9,22 +9,23 @@ interface CfPermissionNoticeProps {
   rawError?: string
 }
 
-// Non-fatal warning notice shown when a token lacks an optional Bot Management or WAF scope.
+// Inset warning strip shown when a token lacks an optional Bot Management or WAF scope.
 export function CfPermissionNotice({ title, hint, rawError }: CfPermissionNoticeProps) {
   const { t } = useI18n()
   const canOpenSettings = useCanOpenCloudflareSettings()
 
   return (
-    <div
-      role="alert"
-      className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[var(--panel-warning-border)] bg-[var(--panel-warning-bg)] p-3.5 text-[var(--panel-warning-text)]"
-    >
-      <div className="flex items-start gap-2.5 min-w-0">
+    <div role="alert" className="cloudflare-perm-notice">
+      <div className="flex items-start gap-2.5 min-w-0 flex-1 basis-[14rem]">
         <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
-        <div className="min-w-0 space-y-1">
-          <p className="text-[12.5px] font-semibold">{title}</p>
-          <p className="text-[11.5px] opacity-90 leading-relaxed">{hint}</p>
-          {rawError ? <p className="panel-mono text-[11px] opacity-80 break-all">{rawError}</p> : null}
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-[12px] font-semibold leading-snug">{title}</p>
+          <p className="text-[11.5px] opacity-90 leading-snug">{hint}</p>
+          {rawError ? (
+            <p className="panel-mono text-[10.5px] opacity-75 truncate" title={rawError}>
+              {rawError}
+            </p>
+          ) : null}
         </div>
       </div>
       {canOpenSettings ? (
@@ -33,7 +34,7 @@ export function CfPermissionNotice({ title, hint, rawError }: CfPermissionNotice
           variant="outline"
           icon={<KeyRound className="h-3.5 w-3.5" />}
           onClick={openCloudflareSettings}
-          className="shrink-0 self-start sm:self-center"
+          className="shrink-0 mobile:w-full"
         >
           {t('tunnels.security.openSettings')}
         </Button>

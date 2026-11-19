@@ -12,6 +12,7 @@ import { SettingRow } from '@/components/ui/SettingRow'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { alertLib } from '@/lib/alert'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 
 const apiError = (error: unknown, fallback: string) =>
@@ -29,11 +30,12 @@ const STATE_TONE: Record<WahaState, 'success' | 'warning' | 'danger' | 'neutral'
 export function WahaCard({ bare }: { bare?: boolean } = {}) {
   const { t } = useI18n()
   const qc = useQueryClient()
+  const pollingActive = useWindowPollingActive()
   const status = useQuery({
     queryKey: ['notify', 'waha'],
     queryFn: getWahaStatus,
     retry: 0,
-    refetchInterval: (query) => (query.state.data?.state === 'starting' ? 3000 : 15000),
+    refetchInterval: (query) => (pollingActive ? (query.state.data?.state === 'starting' ? 3000 : 15000) : false),
   })
   const set = (data: WahaStatus) => qc.setQueryData(['notify', 'waha'], data)
 

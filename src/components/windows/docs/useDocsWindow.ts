@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { copyTextToClipboard, createDoc, deleteDoc, listDocsTable, updateDoc, type DocPayload, type DocRecord } from '@/api/agent'
 import { useListQuery } from '@/hooks/useListQuery'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { listQueryKey } from '@/lib/listQuery'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
@@ -26,6 +27,7 @@ export function publicLink(slug: string): string {
 export function useDocsWindow() {
   const { t } = useI18n()
   const qc = useQueryClient()
+  const pollingActive = useWindowPollingActive()
   const role = useAuthStore((s) => s.user?.role)
   const isAdmin = role === 'admin' || role === 'superadmin'
 
@@ -40,7 +42,7 @@ export function useDocsWindow() {
     queryKey: ['docs', listQueryKey(list.query), page, isAdmin],
     queryFn: () => listDocsTable(list.query, { limit: DOCS_PAGE_SIZE, offset: (page - 1) * DOCS_PAGE_SIZE }),
     placeholderData: keepPreviousData,
-    refetchInterval: 30_000,
+    refetchInterval: pollingActive ? 60_000 : false,
   })
   const docs = docsQuery.data?.items ?? []
   const total = docsQuery.data?.total ?? 0

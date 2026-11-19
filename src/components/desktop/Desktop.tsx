@@ -15,6 +15,7 @@ import type { AppShortcut, WidgetType } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { installedAppWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
+import { WindowPollingProvider } from '@/hooks/useWindowPollingActive'
 
 import { DesktopWidgetLayer } from '@/components/widgets/DesktopWidgetLayer'
 import { WIDGET_TOP, useWidgetStore, widgetsAreFree } from '@/store/widgetStore'
@@ -212,7 +213,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
                     <WindowErrorBoundary>
                       <Suspense fallback={<WindowFallback />}>
                         {renderContent ? (
-                          renderContent(win, authenticated)
+                          <WindowPollingProvider win={win}>{renderContent(win, authenticated)}</WindowPollingProvider>
                         ) : (
                           <p className="text-sm" style={{ color: 'var(--sand-400)' }}>
                             {t('common.noContent')}

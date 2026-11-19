@@ -11,6 +11,7 @@ import { SettingRow } from '@/components/ui/SettingRow'
 import { DateTimeText } from '@/components/common/DateTimeText'
 import { ErrorState, LoadingState } from '@/components/ui/states'
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 import { PublicIpConfirmModal } from './PublicIpConfirmModal'
 import { localizeServerMessage } from '@/lib/serverMessages'
@@ -23,7 +24,8 @@ const apiError = (error: unknown, fallback: string) =>
 export function PublicIpStatusCard() {
   const { t } = useI18n()
   const qc = useQueryClient()
-  const status = useQuery({ queryKey: ['public-proxy'], queryFn: getPublicProxy, retry: 0, refetchInterval: 15_000 })
+  const pollingActive = useWindowPollingActive()
+  const status = useQuery({ queryKey: ['public-proxy'], queryFn: getPublicProxy, retry: 0, refetchInterval: pollingActive ? 15_000 : false })
   const [email, setEmail] = useState<string | null>(null)
   const [detected, setDetected] = useState<DetectedIp | null>(null)
   const [confirming, setConfirming] = useState(false)

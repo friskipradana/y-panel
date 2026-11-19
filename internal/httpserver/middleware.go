@@ -288,21 +288,19 @@ func (s *Server) isOriginAllowed(origin string) bool {
 		return false
 	}
 	// Always allow loopback, private LAN, and Tailscale origins
+	var originHost string
 	if parsed, err := url.Parse(normalizedOrigin); err == nil {
-		h := normalizeHost(parsed.Host)
-		if h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0" {
+		originHost = normalizeHost(parsed.Host)
+		if originHost == "localhost" || originHost == "127.0.0.1" || originHost == "::1" || originHost == "0.0.0.0" {
 			return true
 		}
-		if ip := net.ParseIP(h); ip != nil {
+		if ip := net.ParseIP(originHost); ip != nil {
 			if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() {
 				return true
 			}
 			if ip4 := ip.To4(); ip4 != nil && ip4[0] == 100 && (ip4[1]&0xc0) == 64 {
 				return true
 			}
-		}
-		if s.isKnownWorkloadHost(h) {
-			return true
 		}
 	}
 
@@ -320,7 +318,46 @@ func (s *Server) isOriginAllowed(origin string) bool {
 			return true
 		}
 	}
+	if originHost != "" && s.isKnownWorkloadHost(originHost) {
+		return true
+	}
 	return false
+}
+
+const workloadHostCacheTTL = 15 * time.Second
+
+func (s *Server) invalidateWorkloadHosts() {
+	s.workloadHostsMu.Lock()
+	s.workloadHostsAt = time.Time{}
+	s.workloadHosts = nil
+	s.workloadHostsMu.Unlock()
+}
+
+func (s *Server) tunnelWorkloadHostSet() map[string]struct{} {
+	now := time.Now()
+	s.workloadHostsMu.RLock()
+	if s.workloadHosts != nil && now.Sub(s.workloadHostsAt) < workloadHostCacheTTL {
+		hosts := s.workloadHosts
+		s.workloadHostsMu.RUnlock()
+		return hosts
+	}
+	s.workloadHostsMu.RUnlock()
+
+	tunnels, _, err := s.database.ListTunnelsFiltered(0, "", 500, 0)
+	if err != nil {
+		return nil
+	}
+	hosts := make(map[string]struct{}, len(tunnels))
+	for _, t := range tunnels {
+		if h := strings.ToLower(normalizeHost(t.CFHostname)); h != "" {
+			hosts[h] = struct{}{}
+		}
+	}
+	s.workloadHostsMu.Lock()
+	s.workloadHosts = hosts
+	s.workloadHostsAt = now
+	s.workloadHostsMu.Unlock()
+	return hosts
 }
 
 // isKnownWorkloadHost dynamically checks if a host matches any active Cloudflare tunnel ingress or project domain.
@@ -336,7 +373,7 @@ func (s *Server) isKnownWorkloadHost(host string) bool {
 	if s.isPublicPanelHost(host) {
 		return true
 	}
-	// Check base domain & its subdomains
+	// Check base domain & its subdomains (covers slug.BaseDomain projects too)
 	if s.cfg.BaseDomain != "" {
 		bd := strings.ToLower(s.cfg.BaseDomain)
 		hl := strings.ToLower(host)
@@ -345,24 +382,9 @@ func (s *Server) isKnownWorkloadHost(host string) bool {
 		}
 	}
 	// Check configured Cloudflare tunnels (ingress hostnames like antrian.aknalre.my.id)
-	tunnels, _, err := s.database.ListTunnelsFiltered(0, "", 500, 0)
-	if err == nil {
-		for _, t := range tunnels {
-			if strings.EqualFold(host, normalizeHost(t.CFHostname)) {
-				return true
-			}
-		}
-	}
-	// Check configured projects
-	if s.cfg.BaseDomain != "" {
-		projects, _, err := s.database.ListProjectsFiltered(0, true, "", 500, 0)
-		if err == nil {
-			for _, p := range projects {
-				projectHost := strings.ToLower(p.Slug + "." + s.cfg.BaseDomain)
-				if strings.EqualFold(host, projectHost) {
-					return true
-				}
-			}
+	if hosts := s.tunnelWorkloadHostSet(); len(hosts) > 0 {
+		if _, ok := hosts[strings.ToLower(normalizeHost(host))]; ok {
+			return true
 		}
 	}
 	return false
@@ -460,10 +482,16 @@ func (s *Server) allowRateLimit(key string, rule rateLimitRule) (bool, time.Dura
 	s.rateLimitMu.Lock()
 	defer s.rateLimitMu.Unlock()
 
-	for candidate, entry := range s.rateLimits {
-		if now.Sub(entry.LastSeenAt) > 10*time.Minute {
-			delete(s.rateLimits, candidate)
+	if s.rateLimits == nil {
+		s.rateLimits = make(map[string]*rateLimitEntry)
+	}
+	if s.rateLimitsLastSweep.IsZero() || now.Sub(s.rateLimitsLastSweep) >= time.Minute {
+		for candidate, entry := range s.rateLimits {
+			if now.Sub(entry.LastSeenAt) > 10*time.Minute {
+				delete(s.rateLimits, candidate)
+			}
 		}
+		s.rateLimitsLastSweep = now
 	}
 
 	entry := s.rateLimits[key]
@@ -494,9 +522,19 @@ func (s *Server) withAccessLog(next http.Handler) http.Handler {
 			// each test is dozens of requests; they would flood the runtime log
 			return
 		}
-		durationRounded := duration.Round(time.Millisecond)
-		log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
-		s.recordRuntimeLog("info", "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": durationRounded.String(), "remote": remoteAddr(r)})
+		// Skip PostgreSQL runtime_logs writes for routine healthy requests; log errors and slow requests only.
+		if recorder.status >= http.StatusInternalServerError || duration >= 2*time.Second {
+			durationRounded := duration.Round(time.Millisecond)
+			log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
+			level := "warn"
+			if recorder.status >= http.StatusInternalServerError {
+				level = "error"
+			}
+			s.recordRuntimeLog(level, "http request served", map[string]any{"type": requestKind(r), "method": r.Method, "path": r.URL.Path, "status": recorder.status, "duration": durationRounded.String(), "remote": remoteAddr(r)})
+		} else if recorder.status >= http.StatusBadRequest || duration >= time.Second {
+			durationRounded := duration.Round(time.Millisecond)
+			log.Printf("[http] type=%s method=%s path=%s status=%d duration=%s remote=%s", requestKind(r), r.Method, r.URL.Path, recorder.status, durationRounded, remoteAddr(r))
+		}
 	})
 }
 

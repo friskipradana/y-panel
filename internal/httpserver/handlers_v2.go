@@ -863,6 +863,7 @@ func (s *Server) handleSetCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(u.ID)
 	s.notifyUserAction(u.ID, "Konfigurasi Cloudflare disimpan", "Token Cloudflare disimpan. Verifikasi dulu sebelum dipakai.", "info")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "message": "Cloudflare config saved. Use /verify to validate."})
 }
@@ -881,6 +882,7 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, cfg.ZoneID)
 	perm := client.VerifyTokenPermissions()
+	s.invalidateCloudflareZonesCache(u.ID)
 	status := "active"
 	if !perm.Valid {
 		status = "invalid"
@@ -906,18 +908,15 @@ func (s *Server) handleVerifyCFConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGetCFZones(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	cfg, _ := s.database.GetCFConfig(u.ID)
-	if cfg == nil || cfg.Status != "active" {
-		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "Cloudflare config not active"})
-		return
-	}
-	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
-		s.writeCloudflareDecryptError(w, u.Username, err)
+		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": err.Error()})
 		return
 	}
-	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
-	zones, err := client.ListZones()
+	if r.URL.Query().Get("refresh") == "1" {
+		s.invalidateCloudflareZonesCache(u.ID)
+	}
+	zones, err := s.cachedCloudflareZones(u.ID, client)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -931,22 +930,73 @@ func (s *Server) handleDeleteCFConfig(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(u.ID)
 	s.notifyUserAction(u.ID, "Konfigurasi Cloudflare dihapus", "Token Cloudflare dihapus dari akun Anda. Tunnel yang sudah ada tidak terpengaruh.", "warning")
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
-func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client, []cloudflareapi.ZoneInfo, error) {
+const cfZonesCacheTTL = 15 * time.Second
+
+type cfZonesCacheEntry struct {
+	zones    []cloudflareapi.ZoneInfo
+	cachedAt time.Time
+}
+
+func (s *Server) invalidateCloudflareZonesCache(userID int64) {
+	s.cfZonesMu.Lock()
+	delete(s.cfZonesCache, userID)
+	s.cfZonesMu.Unlock()
+}
+
+func (s *Server) cachedCloudflareZones(userID int64, client *cloudflareapi.Client) ([]cloudflareapi.ZoneInfo, error) {
+	now := time.Now()
+	s.cfZonesMu.Lock()
+	if entry, ok := s.cfZonesCache[userID]; ok && now.Sub(entry.cachedAt) < cfZonesCacheTTL {
+		out := make([]cloudflareapi.ZoneInfo, len(entry.zones))
+		copy(out, entry.zones)
+		s.cfZonesMu.Unlock()
+		return out, nil
+	}
+	s.cfZonesMu.Unlock()
+
+	zones, err := client.ListZones()
+	if err != nil {
+		return nil, err
+	}
+
+	copied := make([]cloudflareapi.ZoneInfo, len(zones))
+	copy(copied, zones)
+	s.cfZonesMu.Lock()
+	if s.cfZonesCache == nil {
+		s.cfZonesCache = make(map[int64]cfZonesCacheEntry)
+	}
+	s.cfZonesCache[userID] = cfZonesCacheEntry{zones: copied, cachedAt: now}
+	s.cfZonesMu.Unlock()
+
+	out := make([]cloudflareapi.ZoneInfo, len(copied))
+	copy(out, copied)
+	return out, nil
+}
+
+func (s *Server) activeCloudflareClientOnly(r *http.Request) (*cloudflareapi.Client, int64, error) {
 	u := userFromCtx(r)
 	cfg, _ := s.database.GetCFConfig(u.ID)
 	if cfg == nil || cfg.Status != "active" {
-		return nil, nil, errors.New("Cloudflare config not active")
+		return nil, 0, errors.New("Cloudflare config not active")
 	}
 	apiToken, err := crypto.Decrypt(s.cfg.EncryptionKey, cfg.APITokenEncrypted)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config: %w", err)
+		return nil, 0, fmt.Errorf("failed to decrypt stored Cloudflare token — encryption key may have changed; re-save your CF config: %w", err)
 	}
-	client := cloudflareapi.NewClient(apiToken, cfg.AccountID, "")
-	zones, err := client.ListZones()
+	return cloudflareapi.NewClient(apiToken, cfg.AccountID, ""), u.ID, nil
+}
+
+func (s *Server) activeCloudflareClient(r *http.Request) (*cloudflareapi.Client, []cloudflareapi.ZoneInfo, error) {
+	client, uid, err := s.activeCloudflareClientOnly(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	zones, err := s.cachedCloudflareZones(uid, client)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -963,6 +1013,10 @@ func zoneAllowed(zones []cloudflareapi.ZoneInfo, zoneID string) bool {
 }
 
 func (s *Server) handleCloudflareDomains(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("refresh") == "1" {
+		u := userFromCtx(r)
+		s.invalidateCloudflareZonesCache(u.ID)
+	}
 	_, zones, err := s.activeCloudflareClient(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
@@ -977,7 +1031,7 @@ type createCloudflareDomainRequest struct {
 
 func (s *Server) handleCreateCloudflareDomain(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	client, _, err := s.activeCloudflareClient(r)
+	client, uid, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -997,6 +1051,7 @@ func (s *Server) handleCreateCloudflareDomain(w http.ResponseWriter, r *http.Req
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(uid)
 	s.writeJSON(w, http.StatusCreated, zone)
 }
 
@@ -1034,6 +1089,7 @@ func (s *Server) handleDeleteCloudflareDomain(w http.ResponseWriter, r *http.Req
 		s.writeError(w, http.StatusBadGateway, err)
 		return
 	}
+	s.invalidateCloudflareZonesCache(userFromCtx(r).ID)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true})
 }
 
@@ -1157,7 +1213,7 @@ type createCloudflareTunnelProfileRequest struct {
 func (s *Server) handleCreateCloudflareTunnelProfile(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	u := userFromCtx(r)
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -1208,7 +1264,7 @@ func (s *Server) handleCreateCloudflareTunnelProfile(w http.ResponseWriter, r *h
 
 func (s *Server) handleCloudflareTunnelProfiles(w http.ResponseWriter, r *http.Request) {
 	u := userFromCtx(r)
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -1268,7 +1324,7 @@ func (s *Server) handleDeleteCloudflareTunnelProfile(w http.ResponseWriter, r *h
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": "profile tunnel tidak valid"})
 		return
 	}
-	client, _, err := s.activeCloudflareClient(r)
+	client, _, err := s.activeCloudflareClientOnly(r)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
 		return
@@ -2284,6 +2340,7 @@ func (s *Server) handleCreateTunnel(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_ = s.database.UpdateTunnelCF(tunnelDBID, mainTunnelID, hostname, reqZoneID, "active")
+		s.invalidateWorkloadHosts()
 		log.Printf("[tunnels] tunnel active db_id=%d cf_id=%s hostname=%s", tunnelDBID, mainTunnelID, hostname)
 		s.notifyUserAction(userID, "Rute tunnel dibuat", "Rute '"+name+"' dibuat.", "success")
 	}(t.ID, u.ID, req.Name, req.Subdomain, req.Domain, req.ZoneID, cfCfg, apiToken)
@@ -2351,6 +2408,7 @@ func (s *Server) handleUpdateTunnel(w http.ResponseWriter, r *http.Request) {
 	targetURL := fmt.Sprintf("%s://%s:%s%s", req.Protocol, req.IP, req.Port, req.Path)
 
 	_ = s.database.UpdateTunnel(id, u.ID, req.Name, targetURL, hostname, req.ZoneID)
+	s.invalidateWorkloadHosts()
 
 	// Async CF update
 	go func(tunnelDBID int64, userID int64, cfTunnelID string, oldHostname, oldZoneID, newHostname, reqZoneID string, cfCopy *database.CloudflareConfig, token string) {
@@ -2428,6 +2486,7 @@ func (s *Server) handleDeleteTunnel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = s.database.DeleteTunnel(id, u.ID)
+	s.invalidateWorkloadHosts()
 	log.Printf("[tunnels] deleted route id=%d user=%q", id, u.Username)
 
 	allRoutes, _ := s.database.ListTunnels(u.ID)

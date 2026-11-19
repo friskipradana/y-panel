@@ -37,6 +37,7 @@ type Manager struct {
 	connected bool
 	lastError string
 	stats     statsCache
+	auth      authCache
 }
 
 // New creates and initialises a Manager.
@@ -825,6 +826,9 @@ func (m *Manager) UpdateUser(id int64, fields map[string]any) error {
 	args = append(args, id)
 	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setParts, ", "), i)
 	_, err := m.db.Exec(query, args...)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -833,6 +837,9 @@ func (m *Manager) UpdateUserPasswordHash(id int64, hash string) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", hash, id)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -846,6 +853,9 @@ func (m *Manager) DeleteUser(id int64) error {
 		return err
 	}
 	_, err := m.db.Exec("DELETE FROM users WHERE id = $1", id)
+	if err == nil {
+		m.auth.invalidateUser(id)
+	}
 	return err
 }
 
@@ -894,6 +904,13 @@ func (m *Manager) GetSessionUser(token string) (*User, bool) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, false
 	}
+	now := time.Now()
+	if u, ok := m.auth.getSession(token, now); ok {
+		if m.auth.shouldSlideSession(token, u.ID, now) {
+			go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+		}
+		return u, true
+	}
 	row := m.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.role, u.status,
 			COALESCE(u.display_name,''), COALESCE(u.avatar_url,''),
@@ -906,8 +923,11 @@ func (m *Manager) GetSessionUser(token string) (*User, bool) {
 	if err != nil {
 		return nil, false
 	}
-	// Slide expiry
-	go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+	m.auth.setSession(token, *u, now)
+	// Slide expiry at most once per slide interval to avoid row-lock churn on busy polling
+	if m.auth.shouldSlideSession(token, u.ID, now) {
+		go m.db.Exec("UPDATE user_sessions SET expires_at = NOW() + INTERVAL '12 hours' WHERE token = $1", token)
+	}
 	return u, true
 }
 
@@ -916,15 +936,17 @@ func (m *Manager) DeleteUserSessions(userID int64) error {
 	if !m.IsConnected() || m.db == nil {
 		return fmt.Errorf("database not connected")
 	}
+	m.auth.invalidateUserSessions(userID)
 	_, err := m.db.Exec("DELETE FROM user_sessions WHERE user_id = $1", userID)
 	return err
 }
 
 func (m *Manager) DeleteSession(token string) {
+	m.auth.invalidateSession(token)
 	if !m.IsConnected() || m.db == nil {
 		return
 	}
-	go m.db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
+	_, _ = m.db.Exec("DELETE FROM user_sessions WHERE token = $1", token)
 }
 
 func (m *Manager) CleanExpiredSessions() {
@@ -974,6 +996,13 @@ func (m *Manager) GetAPITokenUser(tokenHash string) (*User, *APIToken, bool) {
 	if !m.IsConnected() || m.db == nil {
 		return nil, nil, false
 	}
+	now := time.Now()
+	if u, t, ok := m.auth.getAPIToken(tokenHash, now); ok {
+		if m.auth.shouldTouchAPIToken(t.ID, now) {
+			go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+		}
+		return u, t, true
+	}
 	var t APIToken
 	row := m.db.QueryRow(`
 		SELECT t.id, t.user_id, t.name, t.token_prefix, t.last_used_at, t.expires_at, t.created_at,
@@ -994,7 +1023,10 @@ func (m *Manager) GetAPITokenUser(tokenHash string) (*User, *APIToken, bool) {
 	); err != nil {
 		return nil, nil, false
 	}
-	go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+	m.auth.setAPIToken(tokenHash, u, t, now)
+	if m.auth.shouldTouchAPIToken(t.ID, now) {
+		go m.db.Exec("UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1", t.ID)
+	}
 	return &u, &t, true
 }
 
@@ -1036,6 +1068,7 @@ func (m *Manager) DeleteAPIToken(id, userID int64) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return fmt.Errorf("token not found")
 	}
+	m.auth.invalidateAPITokenByID(id)
 	return nil
 }
 
@@ -1060,10 +1093,16 @@ func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	if !m.IsConnected() {
 		return nil, fmt.Errorf("database not connected")
 	}
+	now := time.Now()
+	if cached, ok := m.auth.getQuota(userID, now); ok {
+		return cached, nil
+	}
 	// the superadmin runs the server: a quota is for the accounts it gives out
 	var role string
 	if err := m.db.QueryRow(`SELECT role FROM users WHERE id = $1`, userID).Scan(&role); err == nil && role == "superadmin" {
-		return &UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited, MaxApps: QuotaUnlimited}, nil
+		q := UserQuota{UserID: userID, MaxProjects: QuotaUnlimited, MaxTunnels: QuotaUnlimited, MaxDatabases: QuotaUnlimited, MaxApps: QuotaUnlimited}
+		m.auth.setQuota(userID, q, now)
+		return &q, nil
 	}
 	var q UserQuota
 	err := m.db.QueryRow(`
@@ -1072,7 +1111,12 @@ func (m *Manager) GetUserQuota(userID int64) (*UserQuota, error) {
 	`, userID).Scan(&q.UserID, &q.MaxProjects, &q.MaxTunnels, &q.MaxDatabases, &q.MaxApps, &q.DiskQuotaMB, &q.CPULimitPct, &q.MemoryLimitMB)
 	if err == sql.ErrNoRows {
 		// Return defaults
-		return &UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, MaxApps: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}, nil
+		q = UserQuota{UserID: userID, MaxProjects: 5, MaxTunnels: 5, MaxDatabases: 3, MaxApps: 3, DiskQuotaMB: 5120, CPULimitPct: 100, MemoryLimitMB: 512}
+		m.auth.setQuota(userID, q, now)
+		return &q, nil
+	}
+	if err == nil {
+		m.auth.setQuota(userID, q, now)
 	}
 	return &q, err
 }
@@ -1094,6 +1138,9 @@ func (m *Manager) UpdateUserQuota(q UserQuota) error {
 			memory_limit_mb = EXCLUDED.memory_limit_mb,
 			updated_at = NOW()
 	`, q.UserID, q.MaxProjects, q.MaxTunnels, q.MaxDatabases, q.MaxApps, q.DiskQuotaMB, q.CPULimitPct, q.MemoryLimitMB)
+	if err == nil {
+		m.auth.invalidateQuota(q.UserID)
+	}
 	return err
 }
 

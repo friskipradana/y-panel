@@ -98,6 +98,7 @@ export function WafRulesSection({
             icon={<Plus className="h-3.5 w-3.5" />}
             disabled={!!wafPermissionError}
             onClick={onOpenAddModal}
+            className="mobile:hidden"
           >
             {t('tunnels.createWafRule')}
           </Button>
@@ -162,7 +163,7 @@ export function WafRulesSection({
                         </span>
                       </div>
                     </div>
-                    <div>
+                    <div className="docker-cell">
                       <Badge size="sm" tone={ACTION_TONE[rule.action] ?? 'neutral'}>
                         {actionLabel(rule.action)}
                       </Badge>

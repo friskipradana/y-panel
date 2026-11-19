@@ -1130,6 +1130,12 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 		if item.Kind != "docker" || strings.TrimSpace(item.ContainerName) == "" {
 			continue
 		}
+		if !bypassCache {
+			checkKey := fmt.Sprintf("%d:%s", item.ID, item.ContainerName)
+			if _, loaded := s.appCatalogChecked.LoadOrStore(checkKey, struct{}{}); loaded {
+				continue
+			}
+		}
 		matched := matchContainerForApp(item, containers, scope)
 		owner, ownerErr := s.resolveDockerOwnerContext(actor, item.UserID)
 		if ownerErr != nil {

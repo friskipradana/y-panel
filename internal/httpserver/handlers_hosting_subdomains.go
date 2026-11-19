@@ -331,11 +331,11 @@ func (s *Server) handleListHostingDomains(w http.ResponseWriter, _ *http.Request
 
 // hostingDomainViews is the zones of the Cloudflare account with the choice made for each; the status is the one to answer with on an error
 func (s *Server) hostingDomainViews() ([]hostingDomainView, int, error) {
-	client, _, err := s.hostingCloudflare()
+	client, superID, err := s.hostingCloudflare()
 	if err != nil {
 		return nil, http.StatusConflict, err
 	}
-	zones, err := client.ListZones()
+	zones, err := s.cachedCloudflareZones(superID, client)
 	if err != nil {
 		return nil, http.StatusBadGateway, errors.New("Cloudflare did not answer: " + err.Error())
 	}
@@ -368,13 +368,13 @@ func (s *Server) handleSetHostingDomain(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	zoneID := r.PathValue("zoneId")
-	client, _, err := s.hostingCloudflare()
+	client, superID, err := s.hostingCloudflare()
 	if err != nil {
 		s.writeJSON(w, http.StatusConflict, jsonResponse{"error": err.Error()})
 		return
 	}
 	// only a zone that really belongs to the superadmin's account can be offered; its name comes from Cloudflare
-	zones, err := client.ListZones()
+	zones, err := s.cachedCloudflareZones(superID, client)
 	if err != nil {
 		s.writeJSON(w, http.StatusBadGateway, jsonResponse{"error": "Cloudflare did not answer: " + err.Error()})
 		return

@@ -21,7 +21,7 @@ import { useWindowStore } from '@/store/windowStore'
 export const APP_CATALOG_QUERY_KEY = ['app-catalog'] as const
 export const APP_CATALOG_UPDATES_QUERY_KEY = ['app-catalog-updates'] as const
 
-export function useAppCatalog(enabledOverride?: boolean) {
+export function useAppCatalog(enabledOverride?: boolean, pollIntervalMs: number | false = false) {
   const user = useAuthStore((s) => s.user)
   const isDemo = user?.role?.toLowerCase() === 'demo'
   const enabled = (enabledOverride ?? true) && Boolean(user) && !isDemo
@@ -31,7 +31,7 @@ export function useAppCatalog(enabledOverride?: boolean) {
     queryFn: () => getAppCatalog(false),
     enabled,
     staleTime: 15_000,
-    refetchInterval: enabled ? 30_000 : false,
+    refetchInterval: enabled ? pollIntervalMs : false,
   })
 }
 

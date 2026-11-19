@@ -10,6 +10,7 @@ import { FilterMenu } from '@/components/ui/FilterMenu'
 import { IconButton } from '@/components/ui/IconButton'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 
 const TONE: Record<OutboxStatus, 'warning' | 'info' | 'success' | 'danger' | 'neutral'> = {
@@ -31,8 +32,9 @@ const plain = (text: string) => text.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<
 export function OutboxList() {
   const { t } = useI18n()
   const qc = useQueryClient()
+  const pollingActive = useWindowPollingActive()
   const [filter, setFilter] = useState<'' | OutboxStatus>('')
-  const list = useQuery({ queryKey: ['notify', 'outbox', filter], queryFn: () => listOutbox(filter), retry: 0, refetchInterval: 4000 })
+  const list = useQuery({ queryKey: ['notify', 'outbox', filter], queryFn: () => listOutbox(filter), retry: 0, refetchInterval: pollingActive ? 4000 : false })
 
   const retry = useMutation({
     mutationFn: (id: number) => retryOutbox(id),

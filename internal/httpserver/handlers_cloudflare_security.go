@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"regexp"
 	"strings"
+	"sync"
 
 	cloudflareapi "github.com/friskipradana/panel-desktop-ui/internal/cloudflare"
 )
@@ -101,16 +102,34 @@ func (s *Server) handleCloudflareZoneSecurity(w http.ResponseWriter, r *http.Req
 		CustomRules: []cloudflareapi.FirewallCustomRule{},
 	}
 
-	if bm, err := client.GetBotManagement(zone.ID); err != nil {
-		res.BotError = err.Error()
-		res.BotPermissionError = cloudflareapi.IsAuthOrPermissionError(err)
+	var (
+		bm     *cloudflareapi.BotManagementSettings
+		bmErr  error
+		rules  []cloudflareapi.FirewallCustomRule
+		wafErr error
+		wg     sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		bm, bmErr = client.GetBotManagement(zone.ID)
+	}()
+	go func() {
+		defer wg.Done()
+		rules, wafErr = client.ListFirewallCustomRules(zone.ID)
+	}()
+	wg.Wait()
+
+	if bmErr != nil {
+		res.BotError = bmErr.Error()
+		res.BotPermissionError = cloudflareapi.IsAuthOrPermissionError(bmErr)
 	} else {
 		res.BotManagement = bm
 	}
 
-	if rules, err := client.ListFirewallCustomRules(zone.ID); err != nil {
-		res.WafError = err.Error()
-		res.WafPermissionError = cloudflareapi.IsAuthOrPermissionError(err)
+	if wafErr != nil {
+		res.WafError = wafErr.Error()
+		res.WafPermissionError = cloudflareapi.IsAuthOrPermissionError(wafErr)
 	} else {
 		res.CustomRules = rules
 	}

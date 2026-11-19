@@ -530,10 +530,15 @@ func (m *Manager) MustChangePassword(userID int64) bool {
 	if !m.IsConnected() {
 		return false
 	}
+	now := time.Now()
+	if cached, ok := m.auth.getMustChange(userID, now); ok {
+		return cached
+	}
 	var pending bool
 	if err := m.db.QueryRow(`SELECT must_change_password FROM users WHERE id = $1`, userID).Scan(&pending); err != nil {
 		return false
 	}
+	m.auth.setMustChange(userID, pending, now)
 	return pending
 }
 
@@ -542,6 +547,9 @@ func (m *Manager) SetMustChangePassword(userID int64, pending bool) error {
 		return fmt.Errorf("database not connected")
 	}
 	_, err := m.db.Exec(`UPDATE users SET must_change_password = $2, updated_at = NOW() WHERE id = $1`, userID, pending)
+	if err == nil {
+		m.auth.setMustChange(userID, pending, time.Now())
+	}
 	return err
 }
 

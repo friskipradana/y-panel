@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Modal } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/states'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 
 const TONE = { info: 'info', success: 'success', warning: 'warning', error: 'danger' } as const
@@ -17,8 +18,9 @@ const KEY = ['mobile-notifications']
 export function MobileNotifications() {
   const { t } = useI18n()
   const client = useQueryClient()
+  const pollingActive = useWindowPollingActive()
   const [open, setOpen] = useState(false)
-  const query = useQuery({ queryKey: KEY, queryFn: listNotifications, refetchInterval: 30_000 })
+  const query = useQuery({ queryKey: KEY, queryFn: listNotifications, refetchInterval: pollingActive ? 30_000 : false })
   const items = (query.data ?? []).slice(0, 20)
   const unread = (query.data ?? []).filter((n) => !n.isRead).length
 

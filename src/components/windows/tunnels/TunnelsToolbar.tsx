@@ -4,8 +4,14 @@ import { openCloudflareSettings, useCanOpenCloudflareSettings } from './openClou
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { TunnelsWindowState } from './useTunnelsWindow'
 
+interface ExtraTabItem {
+  key: string
+  label: string
+  onSelect: () => void
+}
+
 // The bar of the Cloudflare / Tunnels window: which list, its main action, search, refresh, and whether the token works
-export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
+export function TunnelsToolbar({ tw, extraTab }: { tw: TunnelsWindowState; extraTab?: ExtraTabItem }) {
   const isMobile = useIsMobileLayout()
   const {
     t,
@@ -35,10 +41,18 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
   const onDomains = tab === 'domains'
   const onSecurity = tab === 'security'
   const tabItems = [
+    ...(extraTab ? [{ key: extraTab.key, label: extraTab.label }] : []),
     { key: 'domains', label: t('tunnels.domainTab'), count: safeDomains.length },
     { key: 'tunnels', label: t('tunnels.tunnelsTab'), count: safeProfiles.length },
     { key: 'security', label: t('tunnels.securityTab') },
   ]
+  const handleTabChange = (key: string) => {
+    if (extraTab && key === extraTab.key) {
+      extraTab.onSelect()
+      return
+    }
+    setTab(key as 'domains' | 'tunnels' | 'security')
+  }
   const current = onDomains ? lists.dns : lists.routes
   const searchValue = onSecurity ? securitySearch : current.text
   const setSearchValue = onSecurity ? setSecuritySearch : current.setText
@@ -55,12 +69,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
     return (
       <div className="docker-topbar docker-topbar--mobile">
         <div className="docker-topbar__mobile-row">
-          <FilterMenu
-            label={t('tunnels.tabs')}
-            value={tab}
-            onChange={(key) => setTab(key as 'domains' | 'tunnels' | 'security')}
-            items={tabItems}
-          />
+          <FilterMenu label={t('tunnels.tabs')} value={tab} onChange={handleTabChange} items={tabItems} />
           {!onSecurity ? (
             <button
               type="button"
@@ -130,12 +139,7 @@ export function TunnelsToolbar({ tw }: { tw: TunnelsWindowState }) {
   return (
     <div className="docker-topbar">
       <div className="docker-topbar__left">
-        <FilterMenu
-          label={t('tunnels.tabs')}
-          value={tab}
-          onChange={(key) => setTab(key as 'domains' | 'tunnels' | 'security')}
-          items={tabItems}
-        />
+        <FilterMenu label={t('tunnels.tabs')} value={tab} onChange={handleTabChange} items={tabItems} />
         {!onSecurity ? (
           <button
             type="button"

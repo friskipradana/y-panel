@@ -77,6 +77,17 @@ type Server struct {
 	capturedNotificationsWSConns map[int64][]*wsConn
 	rateLimitMu                  sync.Mutex
 	rateLimits                   map[string]*rateLimitEntry
+	rateLimitsLastSweep          time.Time
+	workloadHostsMu              sync.RWMutex
+	workloadHosts                map[string]struct{}
+	workloadHostsAt              time.Time
+	cfZonesMu                    sync.Mutex
+	cfZonesCache                 map[int64]cfZonesCacheEntry
+	revisionMu                   sync.Mutex
+	revisionCachedAt             time.Time
+	revisionCached               string
+	versionCached                string
+	appCatalogChecked            sync.Map
 	bgCtx                        context.Context
 	bgCancel                     context.CancelFunc
 	recoveryWG                   sync.WaitGroup
@@ -511,33 +522,50 @@ func (s *Server) handleFrontendRevision(w http.ResponseWriter, _ *http.Request) 
 	})
 }
 
-// appVersion is the installed panel version written by the installer ("" when unknown).
-func (s *Server) appVersion() string {
-	if v := strings.TrimSpace(os.Getenv("PANEL_VERSION")); v != "" {
-		return v
+const revisionCacheTTL = 2 * time.Second
+
+func (s *Server) cachedRevisionAndVersion() (string, string) {
+	now := time.Now()
+	s.revisionMu.Lock()
+	defer s.revisionMu.Unlock()
+	if !s.revisionCachedAt.IsZero() && now.Sub(s.revisionCachedAt) < revisionCacheTTL {
+		return s.revisionCached, s.versionCached
 	}
-	candidates := []string{runtimepath.VersionFile()}
-	if s.cfg.FrontendDir != "" {
-		candidates = append([]string{filepath.Join(filepath.Dir(s.cfg.FrontendDir), "VERSION")}, candidates...)
+	rev := "unknown"
+	indexPath := filepath.Join(s.cfg.FrontendDir, "index.html")
+	if info, err := os.Stat(indexPath); err == nil {
+		rev = fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
 	}
-	for _, path := range candidates {
-		if b, err := os.ReadFile(path); err == nil {
-			if v := strings.TrimSpace(string(b)); v != "" {
-				return v
+	ver := strings.TrimSpace(os.Getenv("PANEL_VERSION"))
+	if ver == "" {
+		candidates := []string{runtimepath.VersionFile()}
+		if s.cfg.FrontendDir != "" {
+			candidates = append([]string{filepath.Join(filepath.Dir(s.cfg.FrontendDir), "VERSION")}, candidates...)
+		}
+		for _, path := range candidates {
+			if b, err := os.ReadFile(path); err == nil {
+				if v := strings.TrimSpace(string(b)); v != "" {
+					ver = v
+					break
+				}
 			}
 		}
 	}
-	return ""
+	s.revisionCached = rev
+	s.versionCached = ver
+	s.revisionCachedAt = now
+	return rev, ver
+}
+
+// appVersion is the installed panel version written by the installer ("" when unknown).
+func (s *Server) appVersion() string {
+	_, ver := s.cachedRevisionAndVersion()
+	return ver
 }
 
 func (s *Server) frontendRevision() string {
-	indexPath := filepath.Join(s.cfg.FrontendDir, "index.html")
-	info, err := os.Stat(indexPath)
-	if err != nil {
-		return "unknown"
-	}
-
-	return fmt.Sprintf("%d-%d", info.ModTime().UTC().Unix(), info.Size())
+	rev, _ := s.cachedRevisionAndVersion()
+	return rev
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

@@ -17,8 +17,8 @@ import (
 
 const firewallComment = "Reneo"
 
-// protectedPorts are the ports the owner needs to get back in: SSH, the panel itself, and the web ports while the public proxy is on.
-func (s *Server) protectedPorts() []ufw.Protected {
+// protectedPortsFromListeners derives protected ports without re-invoking ss/socketlist.
+func (s *Server) protectedPortsFromListeners(listeners []socketlist.Listener) []ufw.Protected {
 	list := []ufw.Protected{}
 	seen := map[int]bool{}
 	add := func(port int, reason string) {
@@ -28,12 +28,10 @@ func (s *Server) protectedPorts() []ufw.Protected {
 		}
 	}
 	ssh := 22
-	if listeners, err := socketlist.List(); err == nil {
-		for _, l := range listeners {
-			if l.Proto == "tcp" && l.Process == "sshd" {
-				ssh = l.Port
-				break
-			}
+	for _, l := range listeners {
+		if l.Proto == "tcp" && l.Process == "sshd" {
+			ssh = l.Port
+			break
 		}
 	}
 	add(ssh, "ssh")
@@ -48,6 +46,12 @@ func (s *Server) protectedPorts() []ufw.Protected {
 		}
 	}
 	return list
+}
+
+// protectedPorts are the ports the owner needs to get back in: SSH, the panel itself, and the web ports while the public proxy is on.
+func (s *Server) protectedPorts() []ufw.Protected {
+	listeners, _ := socketlist.List()
+	return s.protectedPortsFromListeners(listeners)
 }
 
 type listenerView struct {
@@ -74,11 +78,10 @@ func exposureOf(l socketlist.Listener, d ufw.Detail) string {
 
 func (s *Server) firewallState() jsonResponse {
 	d := ufw.Inspect()
-	listeners := []listenerView{}
-	if list, err := socketlist.List(); err == nil {
-		for _, l := range list {
-			listeners = append(listeners, listenerView{Listener: l, Exposure: exposureOf(l, d)})
-		}
+	rawListeners, _ := socketlist.List()
+	listeners := make([]listenerView, 0, len(rawListeners))
+	for _, l := range rawListeners {
+		listeners = append(listeners, listenerView{Listener: l, Exposure: exposureOf(l, d)})
 	}
 	databases := []jsonResponse{}
 	if s.database != nil && s.database.IsConnected() {
@@ -90,7 +93,7 @@ func (s *Server) firewallState() jsonResponse {
 			}
 		}
 	}
-	return jsonResponse{"ufw": d, "protected": s.protectedPorts(), "listeners": listeners, "databases": databases}
+	return jsonResponse{"ufw": d, "protected": s.protectedPortsFromListeners(rawListeners), "listeners": listeners, "databases": databases}
 }
 
 func (s *Server) handleFirewall(w http.ResponseWriter, _ *http.Request) {

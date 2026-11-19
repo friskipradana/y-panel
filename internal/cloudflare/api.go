@@ -13,10 +13,24 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const baseURL = "https://api.cloudflare.com/client/v4"
+
+var sharedHTTPClient = &http.Client{
+	Timeout: 15 * time.Second,
+	Transport: &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		MaxIdleConns:          32,
+		MaxIdleConnsPerHost:   16,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	},
+}
 
 // Client is an authenticated Cloudflare API client for a specific user.
 type Client struct {
@@ -33,7 +47,7 @@ func NewClient(apiToken, accountID, zoneID string) *Client {
 		apiToken:  apiToken,
 		accountID: accountID,
 		zoneID:    zoneID,
-		http:      &http.Client{Timeout: 15 * time.Second},
+		http:      sharedHTTPClient,
 		base:      baseURL,
 	}
 }
@@ -99,59 +113,121 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 	perm.Valid = true
 	perm.Status = "active"
 
-	// 2. Test Zone:Read
-	zones, err := c.ListZones()
-	if err == nil {
+	// 2. Test Zone:Read & Account:Cloudflare Tunnel:Edit concurrently
+	var zones []ZoneInfo
+	var zonesErr error
+	var tunnelErr error
+
+	var topWG sync.WaitGroup
+	topWG.Add(1)
+	go func() {
+		defer topWG.Done()
+		zones, zonesErr = c.ListZones()
+	}()
+	if c.accountID != "" {
+		topWG.Add(1)
+		go func() {
+			defer topWG.Done()
+			_, tunnelErr = c.ListTunnels()
+		}()
+	}
+	topWG.Wait()
+
+	if zonesErr == nil {
 		perm.CanReadZones = true
-		// 3. Test DNS on first zone if available
+		// 3. Probe zone-level capabilities with bounded concurrency
 		if len(zones) > 0 {
-			_, dnsErr := c.ListDNSRecords(zones[0].ID)
-			if dnsErr == nil {
-				perm.CanManageDNS = true
-			} else {
+			var dnsOK atomic.Bool
+			var redirOK atomic.Bool
+			var botOK atomic.Bool
+			var wafOK atomic.Bool
+			var chOK atomic.Bool
+
+			secLimit := min(len(zones), 10)
+			chLimit := min(len(zones), 20)
+			type chProbeResult struct {
+				zoneName string
+				err      error
+			}
+			chErrors := make([]chProbeResult, chLimit)
+
+			sem := make(chan struct{}, 6)
+			var probeWG sync.WaitGroup
+			runProbe := func(fn func()) {
+				probeWG.Add(1)
+				go func() {
+					defer probeWG.Done()
+					sem <- struct{}{}
+					defer func() { <-sem }()
+					fn()
+				}()
+			}
+
+			runProbe(func() {
+				if _, err := c.ListDNSRecords(zones[0].ID); err == nil {
+					dnsOK.Store(true)
+				}
+			})
+			runProbe(func() {
+				if _, err := c.ListRedirectRules(zones[0].ID); err == nil {
+					redirOK.Store(true)
+				}
+			})
+			for i := 0; i < secLimit; i++ {
+				zone := zones[i]
+				runProbe(func() {
+					if botOK.Load() {
+						return
+					}
+					if _, err := c.GetBotManagement(zone.ID); err == nil {
+						botOK.Store(true)
+					}
+				})
+				runProbe(func() {
+					if wafOK.Load() {
+						return
+					}
+					if _, err := c.ListFirewallCustomRules(zone.ID); err == nil {
+						wafOK.Store(true)
+					}
+				})
+			}
+			for i := 0; i < chLimit; i++ {
+				idx := i
+				zone := zones[i]
+				runProbe(func() {
+					if chOK.Load() {
+						return
+					}
+					if probe := c.ProbeCustomHostnames(zone.ID); probe == nil {
+						chOK.Store(true)
+					} else {
+						chErrors[idx] = chProbeResult{zoneName: zone.Name, err: probe}
+					}
+				})
+			}
+			probeWG.Wait()
+
+			perm.CanManageDNS = dnsOK.Load()
+			if !perm.CanManageDNS {
 				perm.MissingScopes = append(perm.MissingScopes, "Zone:DNS:Edit")
 			}
-			// Redirect rules are optional: report them separately instead of failing the token
-			if _, redirErr := c.ListRedirectRules(zones[0].ID); redirErr == nil {
-				perm.CanManageRedirects = true
-			}
-			// Security controls (Bot Management & Zone WAF) are optional capabilities probed across accessible zones.
-			for i, zone := range zones {
-				if i >= 10 {
-					break
-				}
-				if !perm.CanManageBotManagement {
-					if _, botErr := c.GetBotManagement(zone.ID); botErr == nil {
-						perm.CanManageBotManagement = true
+			perm.CanManageRedirects = redirOK.Load()
+			perm.CanManageBotManagement = botOK.Load()
+			perm.CanManageWAF = wafOK.Load()
+			if chOK.Load() {
+				perm.CanManageCustomHostnames = true
+			} else {
+				for _, item := range chErrors {
+					if item.err == nil {
+						continue
 					}
-				}
-				if !perm.CanManageWAF {
-					if _, wafErr := c.ListFirewallCustomRules(zone.ID); wafErr == nil {
-						perm.CanManageWAF = true
+					reason := customHostnamesReason(item.err)
+					// reaching the feature means the permission is there, so "quota" wins over what the first zone said
+					if perm.CustomHostnamesError == "" || (reason == "quota" && perm.CustomHostnamesReason != "quota") {
+						perm.CustomHostnamesError = item.zoneName + ": " + item.err.Error()
+						perm.CustomHostnamesReason = reason
 					}
-				}
-				if perm.CanManageBotManagement && perm.CanManageWAF {
-					break
-				}
-			}
-			// so are custom hostnames: they matter only to the seller of hosting. The permission can be given to some zones only,
-			// and the feature is switched on per zone, so any zone that answers is enough to know the token can do it.
-			for i, zone := range zones {
-				if i >= 20 {
-					break
-				}
-				probe := c.ProbeCustomHostnames(zone.ID)
-				if probe == nil {
-					perm.CanManageCustomHostnames = true
-					perm.CustomHostnamesError = ""
-					perm.CustomHostnamesReason = ""
-					break
-				}
-				reason := customHostnamesReason(probe)
-				// reaching the feature means the permission is there, so "quota" wins over what the first zone said
-				if perm.CustomHostnamesError == "" || (reason == "quota" && perm.CustomHostnamesReason != "quota") {
-					perm.CustomHostnamesError = zone.Name + ": " + probe.Error()
-					perm.CustomHostnamesReason = reason
 				}
 			}
 		} else {
@@ -161,9 +237,8 @@ func (c *Client) VerifyTokenPermissions() TokenPermissions {
 		perm.MissingScopes = append(perm.MissingScopes, "Zone:Zone:Read")
 	}
 
-	// 4. Test Cloudflare Tunnel access
+	// 4. Record Cloudflare Tunnel access result
 	if c.accountID != "" {
-		_, tunnelErr := c.ListTunnels()
 		if tunnelErr == nil {
 			perm.CanEditTunnels = true
 		} else {

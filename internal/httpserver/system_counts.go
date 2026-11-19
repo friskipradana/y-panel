@@ -74,6 +74,19 @@ var (
 	cloudflareCountCache countCache[cloudflareCounts]
 )
 
+func containerStatesByName(containers []docker.Container) map[string]string {
+	states := make(map[string]string, len(containers))
+	for _, c := range containers {
+		for _, rawName := range c.Names {
+			name := strings.TrimPrefix(strings.TrimSpace(rawName), "/")
+			if name != "" {
+				states[name] = c.State
+			}
+		}
+	}
+	return states
+}
+
 func countRunning(containers []docker.Container) int {
 	running := 0
 	for _, c := range containers {
@@ -129,7 +142,12 @@ func (s *Server) systemCounts(viewer *database.User) map[string]any {
 
 	if s.database != nil && s.database.IsConnected() {
 		if list, err := s.database.ListManagedDatabases(0, true); err == nil {
-			states := userdb.States()
+			var states map[string]string
+			if whole.Reachable {
+				states = containerStatesByName(whole.Containers)
+			} else {
+				states = userdb.States()
+			}
 			total, running := 0, 0
 			for _, item := range list {
 				if !scope.has(item.UserID) {

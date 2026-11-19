@@ -3,6 +3,7 @@ import { RefreshCw, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { agentApi } from '@/api/client'
 import { useListQuery } from '@/hooks/useListQuery'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { listParams, listQueryKey, type TableResult } from '@/lib/listQuery'
 import { useI18n } from '@/lib/i18n'
 import type { UiTone } from '@/components/ui/IconBadge'
@@ -16,6 +17,7 @@ export const indexLabel = (index: number) => String(index + 1).padStart(2, '0')
 
 // A list of the Hosting settings as the agent sorts and filters it: the state of its search, order and column filters, and its rows
 export function useHostingTable<T>(name: HostingTableName, refetchMs = 20_000) {
+  const pollingActive = useWindowPollingActive()
   const list = useListQuery()
   // the routes of the public proxy are listed by the agent the same way, from their own address
   const path = name === 'public-routes' ? '/api/v1/public-proxy/routes' : `/api/v1/hosting/${name}/table`
@@ -23,7 +25,7 @@ export function useHostingTable<T>(name: HostingTableName, refetchMs = 20_000) {
     queryKey: name === 'public-routes' ? ['public-proxy', 'routes', listQueryKey(list.query)] : ['hosting', name, 'table', listQueryKey(list.query)],
     queryFn: () => agentApi.get<TableResult<T>>(path, { params: listParams(list.query) }).then((r) => r.data),
     retry: 0,
-    refetchInterval: refetchMs,
+    refetchInterval: pollingActive ? refetchMs : false,
     placeholderData: (previous) => previous,
   })
   const items = query.data?.items ?? []

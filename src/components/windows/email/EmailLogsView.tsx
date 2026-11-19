@@ -17,6 +17,7 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { Select } from '@/components/ui/Select'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/states'
 import { Tabs } from '@/components/ui/Tabs'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useI18n } from '@/lib/i18n'
 
 const DEFAULT_SERVICE_OPTIONS: EmailLogServiceOption[] = [
@@ -84,6 +85,7 @@ function Highlight({ text, term }: { text: string; term: string }) {
 
 export function EmailLogsView() {
   const { t } = useI18n()
+  const pollingActive = useWindowPollingActive()
 
   const [service, setService] = useState('auto')
   const [limit, setLimit] = useState(160)
@@ -97,7 +99,7 @@ export function EmailLogsView() {
   const query = useQuery({
     queryKey: ['email-logs', service, limit],
     queryFn: () => getEmailLogs(service, limit),
-    refetchInterval: live ? 5000 : false,
+    refetchInterval: live && pollingActive ? 5000 : false,
     retry: 1,
   })
 

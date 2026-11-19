@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { formatRupiah, listAllSubdomains, listHostingDomains, listHostingOrders, listHostingPlans, listHostingVouchers } from '@/api/hosting'
 import { Button } from '@/components/ui/Button'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { formatDateTimeID } from '@/lib/datetime'
 import { useI18n } from '@/lib/i18n'
 import type { HostingSection } from './HostingChecklist'
@@ -11,7 +12,8 @@ const TONE = { pending: 'warning', review: 'info', paid: 'success', expired: 'ne
 // What is going on in the business, from the same lists the sections use: what waits for a decision, the latest orders, and what is for sale
 export function HostingSummary({ onGo }: { onGo: (section: HostingSection) => void }) {
   const { t } = useI18n()
-  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, refetchInterval: 15_000 })
+  const pollingActive = useWindowPollingActive()
+  const orders = useQuery({ queryKey: ['hosting', 'orders', ''], queryFn: () => listHostingOrders(''), retry: 0, refetchInterval: pollingActive ? 15_000 : false })
   const plans = useQuery({ queryKey: ['hosting', 'plans'], queryFn: listHostingPlans, retry: 0 })
   const domains = useQuery({ queryKey: ['hosting', 'domains'], queryFn: listHostingDomains, retry: 0 })
   const subdomains = useQuery({ queryKey: ['hosting', 'subdomains'], queryFn: listAllSubdomains, retry: 0 })

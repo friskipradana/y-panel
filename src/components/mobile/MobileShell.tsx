@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { useSystemSampler } from '@/hooks/useSystemSampler'
 import { useWidgetSync } from '@/hooks/useWidgetSync'
+import { WindowPollingProvider } from '@/hooks/useWindowPollingActive'
 import { setUiMode } from '@/hooks/useIsMobileLayout'
 import { useAlertStore } from '@/store/alertStore'
 import { useAuthStore } from '@/store/authStore'
@@ -190,7 +191,11 @@ export function MobileShell({ authenticated, onLogout }: MobileShellProps) {
               <div className={`min-h-0 flex-1 ${owns ? 'overflow-hidden' : 'overflow-auto'}`}>
                 <div className="flex h-full flex-col">
                   <WindowErrorBoundary>
-                    <Suspense fallback={<WindowFallback />}>{renderContent(win, authenticated)}</Suspense>
+                    <Suspense fallback={<WindowFallback />}>
+                      <WindowPollingProvider win={win} forceActive={isCurrent}>
+                        {renderContent(win, authenticated)}
+                      </WindowPollingProvider>
+                    </Suspense>
                   </WindowErrorBoundary>
                 </div>
               </div>

@@ -35,6 +35,7 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { useWindowStore } from '@/store/windowStore'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 
@@ -66,8 +67,9 @@ export function AppCatalogWindow() {
   const { t } = useI18n()
   const qc = useQueryClient()
   const isMobile = useIsMobileLayout()
+  const pollingActive = useWindowPollingActive()
   const isSuperadmin = useAuthStore((s) => s.user?.role === 'superadmin')
-  const { data, isLoading, isError, isFetching } = useAppCatalog()
+  const { data, isLoading, isError, isFetching } = useAppCatalog(true, pollingActive ? 30_000 : false)
   const { actionMutation, upgradeMutation, rollbackMutation, uninstallMutation } = useAppCatalogMutations()
 
   const [tab, setTab] = useState<CatalogTab>('catalog')

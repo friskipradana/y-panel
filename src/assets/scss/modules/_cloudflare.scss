@@ -446,6 +446,10 @@
     display: none;
   }
 
+  .cloudflare-security__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .cloudflare-security__table {
     border: none;
     border-radius: 0;
@@ -454,7 +458,39 @@
     .docker-table {
       padding: 0;
     }
+
+    .docker-table-scroll > .p-8 {
+      padding: 18px 12px;
+    }
   }
+}
+
+// Security & WAF cards: flat divider rows flush with card header and inset notice bar
+.cloudflare-security-card.settings-card {
+  padding: 14px;
+  gap: 10px;
+
+  .setting-row {
+    padding: 9px 0;
+  }
+
+  > .setting-row:first-of-type {
+    padding-top: 10px;
+    border-top: 1px solid var(--win-border);
+  }
+}
+
+.cloudflare-perm-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--panel-warning-text);
+  background: var(--panel-warning-bg);
+  color: var(--panel-warning-text);
 }
 
 // Security & WAF custom rules table embedded inside the scrollable Security tab
@@ -470,5 +506,9 @@
 
   .docker-table-scroll {
     overflow: visible;
+
+    > .p-8 {
+      padding: 20px 16px;
+    }
   }
 }
