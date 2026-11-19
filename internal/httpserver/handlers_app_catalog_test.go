@@ -315,6 +315,11 @@ func TestAppLicensePlansAndOrderEndpoints(t *testing.T) {
 func TestAppGatewayPublicReneoCrmPaths(t *testing.T) {
 	publicURLs := []string{
 		"/app/reneo-crm/",
+		"/app/reneo-crm/landing",
+		"/app/reneo-crm/robots.txt",
+		"/app/reneo-crm/sitemap.xml",
+		"/app/reneo-crm/llms.txt",
+		"/app/reneo-crm/llms-full.txt",
 		"/app/reneo-crm/assets/index-xYEAWOux.css",
 		"/app/reneo-crm/assets/index-abc123.js",
 		"/app/reneo-crm/api/auth/status",

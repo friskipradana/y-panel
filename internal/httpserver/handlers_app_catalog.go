@@ -4411,6 +4411,12 @@ func (s *Server) serveAppProxy(w http.ResponseWriter, r *http.Request, u *databa
 func isPublicReneoCrmPath(rest string) bool {
 	p := "/" + strings.TrimPrefix(strings.TrimSpace(rest), "/")
 	return p == "/" ||
+		p == "/landing" ||
+		strings.HasPrefix(p, "/landing/") ||
+		p == "/robots.txt" ||
+		p == "/sitemap.xml" ||
+		p == "/llms.txt" ||
+		p == "/llms-full.txt" ||
 		p == "/csat" ||
 		strings.HasPrefix(p, "/csat/") ||
 		p == "/connect-channel" ||
@@ -4420,7 +4426,11 @@ func isPublicReneoCrmPath(rest string) bool {
 		strings.HasPrefix(p, "/icons/") ||
 		p == "/logo.svg" ||
 		p == "/manifest.webmanifest" ||
-		p == "/favicon.ico"
+		p == "/favicon.ico" ||
+		p == "/favicon.png" ||
+		p == "/favicon.svg" ||
+		p == "/og-image.png" ||
+		p == "/og-image.svg"
 }
 
 func (s *Server) enforceAppLicenseNotSuspended(w http.ResponseWriter, r *http.Request, app *database.InstalledApp, rest string) bool {
