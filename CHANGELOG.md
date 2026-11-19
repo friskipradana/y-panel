@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.17] - 2026-11-19
+
+Resolve unusedparams, unusedfunc, and staticcheck S1017 diagnostics.
+
+### Pemeliharaan
+- **lint:** Resolve unusedparams, unusedfunc, and staticcheck S1017 diagnostics ([`a0aadb7`](https://github.com/friskipradana/y-panel/commit/a0aadb7))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.16...v1.88.17
+
 ## [1.88.16] - 2026-11-19
 
 Optimize DB hot-paths, Cloudflare pooling/caching, and polling; fix(cloudflare): responsive WAF & security UI.
