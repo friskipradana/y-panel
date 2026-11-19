@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.16] - 2026-11-19
+
+Optimize DB hot-paths, Cloudflare pooling/caching, and polling; fix(cloudflare): responsive WAF & security UI.
+
+### Performa
+- **runtime:** Optimize DB hot-paths, Cloudflare pooling/caching, and polling; fix(cloudflare): responsive WAF & security UI ([`d070e0c`](https://github.com/friskipradana/y-panel/commit/d070e0c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.15...v1.88.16
+
 ## [1.88.15] - 2026-11-19
 
 Add Bot Management, AI crawler skip preset, and custom WAF controls.
