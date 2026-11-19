@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -654,6 +655,65 @@ func TestParseNextRegistryLink(t *testing.T) {
 	}
 	if got := parseNextRegistryLink(`</v2/repo/tags/list>; rel="prev"`, "ghcr.io"); got != "" {
 		t.Fatalf("expected empty when rel!=next, got %q", got)
+	}
+}
+
+func TestCollectAllowedAppHostsAndLicenseAuthFlags(t *testing.T) {
+	t.Setenv("PUBLIC_URL", "https://panel.reneo.my.id")
+	srv := &Server{
+		cfg: config.Config{
+			SessionSecret:  "test-session-secret-0123456789",
+			BaseDomain:     "reneo.my.id",
+			AllowedHosts:   []string{"panel.reneo.my.id", "admin.toko.id"},
+			AllowedOrigins: []string{"https://crm.klien.id"},
+		},
+	}
+
+	csv := srv.mergeAllowedAppHostCSV("*,custom.crm.id:8443", 42, "reneo-crm", 7, "extra.host:8080")
+	for _, want := range []string{"panel.reneo.my.id", "admin.toko.id", "crm.klien.id", "*.reneo.my.id", "custom.crm.id", "extra.host"} {
+		if !strings.Contains(csv, want) {
+			t.Fatalf("expected allowed host CSV to contain %q, got %q", want, csv)
+		}
+	}
+	if strings.Contains(csv, "*,") || strings.HasSuffix(csv, ",*") || csv == "*" {
+		t.Fatalf("wildcard '*' must never enter allowed host CSV: %q", csv)
+	}
+
+	// Unauthenticated license request reports authenticated=false, reneoVerified=false
+	unauthReq := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/license/reneo-crm", nil)
+	unauthRec := httptest.NewRecorder()
+	srv.handleAppCatalogLicense(unauthRec, unauthReq)
+	var unauthBody map[string]any
+	if err := json.Unmarshal(unauthRec.Body.Bytes(), &unauthBody); err != nil {
+		t.Fatalf("unmarshal unauthenticated response: %v", err)
+	}
+	if authed, _ := unauthBody["authenticated"].(bool); authed {
+		t.Fatalf("expected authenticated=false without X-Reneo-App-Token")
+	}
+	if verified, _ := unauthBody["reneoVerified"].(bool); verified {
+		t.Fatalf("expected reneoVerified=false without X-Reneo-App-Token")
+	}
+
+	// Authenticated app token reports authenticated=true, reneoVerified=true, and allowedHosts even when unlicensed
+	tok := srv.signAppToken(42, "reneo-crm", 7)
+	authReq := httptest.NewRequest(http.MethodGet, "/api/v1/app-catalog/license/reneo-crm", nil)
+	authReq.Host = "panel.reneo.my.id"
+	authReq.Header.Set("X-Reneo-App-Token", tok)
+	authRec := httptest.NewRecorder()
+	srv.handleAppCatalogLicense(authRec, authReq)
+	var authBody map[string]any
+	if err := json.Unmarshal(authRec.Body.Bytes(), &authBody); err != nil {
+		t.Fatalf("unmarshal authenticated response: %v", err)
+	}
+	if authed, _ := authBody["authenticated"].(bool); !authed {
+		t.Fatalf("expected authenticated=true with valid X-Reneo-App-Token")
+	}
+	if verified, _ := authBody["reneoVerified"].(bool); !verified {
+		t.Fatalf("expected reneoVerified=true with valid X-Reneo-App-Token")
+	}
+	hostsRaw, ok := authBody["allowedHosts"].([]any)
+	if !ok || len(hostsRaw) == 0 {
+		t.Fatalf("expected allowedHosts array in verified response, got %#v", authBody["allowedHosts"])
 	}
 }
 

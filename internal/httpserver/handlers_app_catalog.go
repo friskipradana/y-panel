@@ -28,6 +28,8 @@ import (
 	"github.com/friskipradana/panel-desktop-ui/internal/crypto"
 	"github.com/friskipradana/panel-desktop-ui/internal/database"
 	"github.com/friskipradana/panel-desktop-ui/internal/docker"
+	"github.com/friskipradana/panel-desktop-ui/internal/publicproxy"
+	"github.com/friskipradana/panel-desktop-ui/internal/runtimepath"
 	"github.com/friskipradana/panel-desktop-ui/internal/userdb"
 )
 
@@ -1311,6 +1313,10 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "aplikasi ini memerlukan hak superadmin"})
 		return
 	}
+	if spec.ID == "reneo-crm" && !s.isHostAllowed(r.Host) {
+		s.writeJSON(w, http.StatusForbidden, jsonResponse{"error": "Reneo CRM hanya dapat diinstal dari hostname dan domain yang diizinkan di lingkungan Reneo"})
+		return
+	}
 
 	requestedVersion := strings.TrimSpace(req.Version)
 	if requestedVersion == "" && isFloatingImageTag(extractImageTag(spec.Image)) {
@@ -1479,6 +1485,11 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		}
 		if appTok := s.signAppToken(actor.ID, spec.ID, created.ID); appTok != "" {
 			envMap["RENEO_APP_TOKEN"] = appTok
+		}
+		envMap["CRM_ENFORCE_DOMAIN"] = "true"
+		envMap["CRM_REQUIRE_RENEO_ENV"] = "true"
+		if allowedCSV := s.mergeAllowedAppHostCSV(envMap["CRM_ALLOWED_DOMAINS"], actor.ID, spec.ID, created.ID, normalizeHost(r.Host)); allowedCSV != "" {
+			envMap["CRM_ALLOWED_DOMAINS"] = allowedCSV
 		}
 		userSession := strings.TrimSpace(actor.Username)
 		if userSession == "" {
@@ -2126,6 +2137,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				updatedCompose = upsertComposeEnvVar(updatedCompose, "RENEO_APP_TOKEN", appTok)
 			}
+			updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ENFORCE_DOMAIN", "true")
+			updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_REQUIRE_RENEO_ENV", "true")
+			if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
+				updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ALLOWED_DOMAINS", allowedCSV)
+			}
 		}
 		if valErr := docker.ValidateCompose(owner, app.ContainerName, updatedCompose); valErr != nil {
 			return http.StatusUnprocessableEntity, valErr
@@ -2167,6 +2183,11 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if app.CatalogID == "reneo-crm" {
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				nextEnv = upsertSliceEnvVar(nextEnv, "RENEO_APP_TOKEN", appTok)
+			}
+			nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ENFORCE_DOMAIN", "true")
+			nextEnv = upsertSliceEnvVar(nextEnv, "CRM_REQUIRE_RENEO_ENV", "true")
+			if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
+				nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ALLOWED_DOMAINS", allowedCSV)
 			}
 		}
 		deployNet := cfg.Network
@@ -4813,6 +4834,15 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 	}
 
 	userID, appID, authenticated := s.resolveLicenseAppActor(r, catalogID)
+	serverHost, _ := os.Hostname()
+	serverHost = strings.TrimSpace(serverHost)
+
+	var publicUrls []string
+	var allowedHosts []string
+	if authenticated && userID > 0 {
+		publicUrls = s.collectAppPublicUrls(userID, catalogID, appID)
+		allowedHosts = s.collectAllowedAppHosts(userID, catalogID, appID, normalizeHost(r.Host))
+	}
 
 	if authenticated && userID > 0 && s.database != nil && s.database.IsConnected() {
 		lic, err := s.database.GetAppLicense(userID, catalogID)
@@ -4823,32 +4853,37 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			if isLocked {
 				features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":0,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"maxTemplates":0,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":false,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":false,"apiAccess":false}`)
 			}
-			publicUrls := s.collectAppPublicUrls(userID, catalogID, appID)
 			s.writeJSON(w, http.StatusOK, jsonResponse{
-				"ok":            true,
-				"catalogId":     lic.CatalogID,
-				"status":        lic.Status,
-				"plan":          lic.PlanName,
-				"period":        lic.Period,
-				"priceAmount":   lic.PriceAmount,
-				"startedAt":     lic.StartedAt,
-				"expiresAt":     lic.ExpiresAt,
-				"daysRemaining": lic.DaysLeft,
-				"daysLeft":      lic.DaysLeft,
-				"isExpired":     isLocked,
-				"isSuspended":   isSuspended,
-				"licenseKey":    lic.LicenseKey,
-				"billingUrl":    "/hosting",
-				"features":      features,
-				"publicUrls":    publicUrls,
+				"ok":             true,
+				"authenticated":  true,
+				"reneoVerified":  true,
+				"serverHostname": serverHost,
+				"catalogId":      lic.CatalogID,
+				"status":         lic.Status,
+				"plan":           lic.PlanName,
+				"period":         lic.Period,
+				"priceAmount":    lic.PriceAmount,
+				"startedAt":      lic.StartedAt,
+				"expiresAt":      lic.ExpiresAt,
+				"daysRemaining":  lic.DaysLeft,
+				"daysLeft":       lic.DaysLeft,
+				"isExpired":      isLocked,
+				"isSuspended":    isSuspended,
+				"licenseKey":     lic.LicenseKey,
+				"billingUrl":     "/hosting",
+				"features":       features,
+				"publicUrls":     publicUrls,
+				"allowedHosts":   allowedHosts,
 			})
 			return
 		}
 	}
 
 	now := time.Now()
-	s.writeJSON(w, http.StatusOK, jsonResponse{
+	resp := jsonResponse{
 		"ok":            true,
+		"authenticated": authenticated,
+		"reneoVerified": authenticated,
 		"catalogId":     catalogID,
 		"status":        "UNLICENSED",
 		"plan":          "Belum Diaktivasi",
@@ -4881,7 +4916,116 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 			"wahaSync":             false,
 			"apiAccess":            false,
 		},
-	})
+	}
+	if authenticated {
+		resp["serverHostname"] = serverHost
+		resp["publicUrls"] = publicUrls
+		resp["allowedHosts"] = allowedHosts
+	}
+	s.writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) mergeAllowedAppHostCSV(existingCSV string, userID int64, catalogID string, appID int64, extras ...string) string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0)
+	addHost := func(raw string) {
+		h := strings.TrimSpace(strings.ToLower(raw))
+		h = strings.TrimPrefix(strings.TrimPrefix(h, "https://"), "http://")
+		if idx := strings.Index(h, "/"); idx >= 0 {
+			h = h[:idx]
+		}
+		h = normalizeHost(h)
+		if h == "" || h == "*" {
+			return
+		}
+		if _, ok := seen[h]; ok {
+			return
+		}
+		seen[h] = struct{}{}
+		out = append(out, h)
+	}
+	for _, part := range strings.Split(existingCSV, ",") {
+		addHost(part)
+	}
+	for _, h := range s.collectAllowedAppHosts(userID, catalogID, appID, extras...) {
+		addHost(h)
+	}
+	return strings.Join(out, ",")
+}
+
+func (s *Server) collectAllowedAppHosts(userID int64, catalogID string, appID int64, extras ...string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0)
+	add := func(raw string) {
+		h := strings.TrimSpace(strings.ToLower(raw))
+		if h == "" || h == "*" {
+			return
+		}
+		h = strings.TrimPrefix(strings.TrimPrefix(h, "https://"), "http://")
+		if idx := strings.Index(h, "/"); idx >= 0 {
+			h = h[:idx]
+		}
+		h = normalizeHost(h)
+		if h == "" || h == "*" {
+			return
+		}
+		if _, ok := seen[h]; ok {
+			return
+		}
+		seen[h] = struct{}{}
+		out = append(out, h)
+	}
+
+	if hostName, err := os.Hostname(); err == nil {
+		add(hostName)
+		if dot := strings.Index(hostName, "."); dot > 0 {
+			add(hostName[:dot])
+		}
+	}
+	if pubURL := strings.TrimSpace(runtimepath.Getenv("PUBLIC_URL")); pubURL != "" {
+		if parsed, err := url.Parse(pubURL); err == nil && parsed.Host != "" {
+			add(parsed.Host)
+		} else {
+			add(pubURL)
+		}
+	}
+	for _, h := range s.allowedHosts() {
+		add(h)
+	}
+	for _, o := range s.allowedOrigins() {
+		if parsed, err := url.Parse(strings.TrimSpace(o)); err == nil && parsed.Host != "" {
+			add(parsed.Host)
+		} else {
+			add(o)
+		}
+	}
+	if bd := strings.TrimSpace(strings.ToLower(s.cfg.BaseDomain)); bd != "" {
+		add(bd)
+		if !strings.HasPrefix(bd, "*.") {
+			add("*." + bd)
+		}
+	}
+	for _, ex := range extras {
+		add(ex)
+	}
+	for _, u := range s.collectAppPublicUrls(userID, catalogID, appID) {
+		if parsed, err := url.Parse(u); err == nil && parsed.Host != "" {
+			add(parsed.Host)
+		}
+	}
+	for host, route := range s.publicRoutesSnapshot() {
+		if route.Kind == publicproxy.KindPanel || strings.Contains(host, ".") {
+			add(host)
+		}
+	}
+	if s.database != nil && s.database.IsConnected() && userID > 0 {
+		if tunnels, _, err := s.database.ListTunnelsFiltered(userID, "", 500, 0); err == nil {
+			for _, t := range tunnels {
+				add(t.CFHostname)
+			}
+		}
+	}
+	return out
 }
 
 func (s *Server) collectAppPublicUrls(userID int64, catalogID string, appID int64) []string {
