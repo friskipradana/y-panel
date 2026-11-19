@@ -13,6 +13,7 @@ export function TunnelModalHost({ tw }: { tw: TunnelsWindowState }) {
     protocolOptions,
     profileOptions,
     tunnelProjects,
+    tunnelTargets,
     projectOptions,
     createTunnelMut,
     updateTunnelMut,
@@ -31,6 +32,7 @@ export function TunnelModalHost({ tw }: { tw: TunnelsWindowState }) {
       profileOptions={profileOptions}
       projectOptions={projectOptions}
       projects={tunnelProjects}
+      targets={tunnelTargets}
       onClose={closeTunnelModal}
       onSubmit={() => editingTunnelId ? updateTunnelMut.mutate(tunnelForm) : createTunnelMut.mutate(tunnelPayload(tunnelForm))}
       pending={createTunnelMut.isPending || updateTunnelMut.isPending}

@@ -26,6 +26,8 @@ import {
   type CloudflareTunnelProfile,
   type Tunnel,
 } from '@/api/agent'
+import { getAppCatalog } from '@/api/appCatalog'
+import { listContainers } from '@/api/docker'
 import { alertLib } from '@/lib/alert'
 import { useWindowPollingActive } from '@/hooks/useWindowPollingActive'
 import { useListQuery } from '@/hooks/useListQuery'
@@ -39,6 +41,7 @@ import {
   emptyProfileForm,
   type DnsForm,
   type TunnelForm,
+  type TunnelTargetPreset,
   type DomainForm,
   type ProfileForm,
   buildTunnelFormFromTunnel,
@@ -97,6 +100,8 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[1] === selectedProfileId ? previous : undefined),
   })
   const { data: projectData } = useQuery({ queryKey: ['projects', { tunnelTargets: true }], queryFn: () => listProjects({ all: true, limit: 100, offset: 0 }), enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
+  const { data: appCatalogData } = useQuery({ queryKey: ['app-catalog', { tunnelTargets: true }], queryFn: () => getAppCatalog(false), enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
+  const { data: containerData } = useQuery({ queryKey: ['containers', { tunnelTargets: true }], queryFn: listContainers, enabled: !cfNotConfigured && (tab === 'tunnels' || showTunnelModal) })
   const securityQuery = useQuery({
     queryKey: ['cloudflare-zone-security', selectedDomainId],
     queryFn: () => getCloudflareZoneSecurity(selectedDomainId),
@@ -149,16 +154,95 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
   const protocolOptions = useMemo(() => [{ value: 'http', label: 'http://' }, { value: 'https', label: 'https://' }], [])
   const profileOptions = useMemo(() => safeProfiles.map((p) => ({ value: p.id, label: p.name || p.id })), [safeProfiles])
   const tunnelProjects = useMemo(() => safeProjects.filter((project) => project.assignedPort > 0), [safeProjects])
+  const tunnelTargets = useMemo<TunnelTargetPreset[]>(() => {
+    const items: TunnelTargetPreset[] = []
+    for (const project of tunnelProjects) {
+      items.push({
+        value: String(project.id),
+        label: `${project.name} :${project.assignedPort}`,
+        description: `Project \u00b7 ${project.projectType}${project.running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+        name: project.name,
+        subdomain: slugifyRoutePart(project.slug || project.name),
+        protocol: 'http',
+        ip: 'localhost',
+        port: String(project.assignedPort),
+      })
+    }
+
+    const installedApps = Array.isArray(appCatalogData?.installed) ? appCatalogData.installed : []
+    const appContainerKeys = new Set<string>()
+    for (const app of installedApps) {
+      if (app.containerName) appContainerKeys.add(app.containerName.toLowerCase())
+      if (app.containerId) appContainerKeys.add(app.containerId.toLowerCase())
+
+      let protocol = 'http'
+      let ip = 'localhost'
+      let port = app.hostPort > 0 ? String(app.hostPort) : ''
+      if (!port && app.targetUrl) {
+        try {
+          const parsed = new URL(app.targetUrl)
+          protocol = parsed.protocol.replace(':', '') || 'http'
+          ip = parsed.hostname || 'localhost'
+          port = parsed.port || (protocol === 'https' ? '443' : '80')
+        } catch {
+          // skip malformed targetUrl
+        }
+      }
+      if (!port) continue
+      const running = app.containerState === 'running'
+      items.push({
+        value: `app:${app.id}`,
+        label: `${app.name} :${port}`,
+        description: `${t('window.app-catalog')}${running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+        name: app.name,
+        subdomain: slugifyRoutePart(app.slug || app.name),
+        protocol,
+        ip,
+        port,
+      })
+    }
+
+    const containers = Array.isArray(containerData) ? containerData : []
+    for (const c of containers) {
+      const rawName = (c.Names?.[0] || '').replace(/^\//, '').trim() || c.Id.slice(0, 12)
+      if (
+        appContainerKeys.has(rawName.toLowerCase()) ||
+        appContainerKeys.has(c.Id.toLowerCase()) ||
+        (c.ProjectName && appContainerKeys.has(c.ProjectName.toLowerCase()))
+      ) {
+        continue
+      }
+      const seenPorts = new Set<number>()
+      for (const p of c.Ports || []) {
+        const pub = p.PublicPort ?? 0
+        if (pub <= 0 || seenPorts.has(pub)) continue
+        seenPorts.add(pub)
+        const displayName = c.ProjectName ? `${c.ProjectName} (${rawName})` : rawName
+        items.push({
+          value: `docker:${c.Id}:${pub}`,
+          label: `${displayName} :${pub}`,
+          description: `Docker${c.State === 'running' ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+          name: displayName,
+          subdomain: slugifyRoutePart(c.ProjectName || rawName),
+          protocol: 'http',
+          ip: 'localhost',
+          port: String(pub),
+        })
+      }
+    }
+    return items
+  }, [appCatalogData?.installed, containerData, t, tunnelProjects])
+
   const projectOptions = useMemo(
     () => [
       { value: '', label: t('tunnels.manualTarget') },
-      ...tunnelProjects.map((project) => ({
-        value: String(project.id),
-        label: `${project.name} :${project.assignedPort}`,
-        description: `${project.projectType}${project.running ? ` \u00b7 ${t('tunnels.projectRunning')}` : ''}`,
+      ...tunnelTargets.map((target) => ({
+        value: target.value,
+        label: target.label,
+        description: target.description,
       })),
     ],
-    [t, tunnelProjects],
+    [t, tunnelTargets],
   )
 
   const dnsPayload = (): CloudflareDNSRecordPayload => ({
@@ -374,7 +458,7 @@ export function useTunnelsWindow({ win }: { win?: WindowState }) {
     domainsLoading, domainsError, dnsError, profilesError, routesError, refetchDomains, domainsFetching,
     dnsLoading, profilesLoading, refetchProfiles, profilesFetching, routesLoading, safeCfZones, safeDomains,
     safeProfiles, selectedDomain, selectedProfile, lists, dnsData, routesData, filteredDns, filteredRoutes,
-    zoneOptions, protocolOptions, profileOptions, tunnelProjects, projectOptions, createDomainMut,
+    zoneOptions, protocolOptions, profileOptions, tunnelProjects, tunnelTargets, projectOptions, createDomainMut,
     checkCreatedDomainMut, createDnsMut, updateDnsMut, deleteDnsMut, deleteDomainMut, createProfileMut,
     deleteProfileMut, createTunnelMut, updateTunnelMut, deleteTunnelMut, syncMut, openDnsModal,
     closeTunnelModal, closeDomainModal, openTunnelModal, handleSync,

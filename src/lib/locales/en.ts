@@ -2605,7 +2605,7 @@ export const en: Record<string, string> = {
   'tunnels.subdomainInvalid': "Use lowercase letters, digits and dashes, or @ for the domain itself.",
   'tunnels.pickProfile': "Choose a profile",
   'tunnels.pickDomain': "Choose a domain",
-  'tunnels.searchProject': "Search projects...",
+  'tunnels.searchProject': "Search projects, Docker, or apps...",
   'tunnels.noProfileHint': "No tunnel profile yet. Create one first.",
   'projects.domain.hint': "Connects a domain of your Cloudflare account to this project through a tunnel, without opening a port to the internet.",
   'projects.domain.noPort': "This project has no port yet. Start or save the project again, then set its domain.",

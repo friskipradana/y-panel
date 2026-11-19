@@ -2605,7 +2605,7 @@ export const id: Record<string, string> = {
   'tunnels.subdomainInvalid': "Pakai huruf kecil, angka, dan tanda hubung, atau @ untuk domain utama.",
   'tunnels.pickProfile': "Pilih profil",
   'tunnels.pickDomain': "Pilih domain",
-  'tunnels.searchProject': "Cari project...",
+  'tunnels.searchProject': "Cari project, Docker, atau aplikasi...",
   'tunnels.noProfileHint': "Belum ada profil tunnel. Buat satu dulu.",
   'projects.domain.hint': "Menghubungkan domain Cloudflare Anda ke project ini lewat tunnel, tanpa membuka port ke internet.",
   'projects.domain.noPort': "Project ini belum punya port. Jalankan atau simpan ulang project-nya, lalu atur domainnya.",

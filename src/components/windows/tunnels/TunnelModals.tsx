@@ -7,6 +7,7 @@ import {
   DNS_TYPES,
   type DnsForm,
   type TunnelForm,
+  type TunnelTargetPreset,
   type DomainForm,
   type ProfileForm,
   SUBDOMAIN_RE,
@@ -218,6 +219,7 @@ interface TunnelModalProps {
   profileOptions: { value: string; label: string }[]
   projectOptions: { value: string; label: string; description?: string }[]
   projects: Project[]
+  targets?: TunnelTargetPreset[]
   onClose: () => void
   onSubmit: () => void
   pending: boolean
@@ -225,11 +227,24 @@ interface TunnelModalProps {
 
 // A route of a tunnel profile, laid out like the "Atur domain" dialog of the Docker window: where it goes
 // (profile, protocol), what it points at, then the address it gets
-export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, projectOptions, projects, onClose, onSubmit, pending }: TunnelModalProps) {
+export function TunnelModal({ form, setForm, editing, zoneOptions, cfZones, protocolOptions, profileOptions, projectOptions, projects, targets, onClose, onSubmit, pending }: TunnelModalProps) {
   const { t } = useI18n()
 
-  // a project fills in what it can (its port, a name, a subdomain) and leaves the rest to be edited
+  // a selected target (project, app catalog, or Docker container) fills in port, name, and subdomain
   const selectProject = (projectId: string) => {
+    const target = targets?.find((item) => item.value === projectId)
+    if (target) {
+      setForm((current) => ({
+        ...current,
+        projectId,
+        name: current.name || target.name,
+        subdomain: current.subdomain || target.subdomain,
+        protocol: target.protocol,
+        ip: target.ip,
+        port: target.port,
+      }))
+      return
+    }
     const project = projects.find((item) => String(item.id) === projectId)
     setForm((current) => {
       if (!project) return { ...current, projectId }

@@ -30,6 +30,17 @@ export type DomainForm = typeof emptyDomainForm
 
 export type ProfileForm = typeof emptyProfileForm
 
+export interface TunnelTargetPreset {
+  value: string
+  label: string
+  description?: string
+  name: string
+  subdomain: string
+  protocol: string
+  ip: string
+  port: string
+}
+
 export function buildTunnelFormFromTunnel(t: Tunnel, cfZones: { id: string; name: string }[]): TunnelForm {
   let protocol = 'http'
   let ip = 'localhost'

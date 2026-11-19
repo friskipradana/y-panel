@@ -116,9 +116,10 @@ type createAppLicenseOrderRequest struct {
 }
 
 type startAppLicenseTrialRequest struct {
-	CatalogID string `json:"catalogId"`
-	PlanSlug  string `json:"planSlug"`
-	TrialDays int    `json:"trialDays"`
+	CatalogID  string `json:"catalogId"`
+	PlanSlug   string `json:"planSlug"`
+	TrialDays  int    `json:"trialDays"`
+	BuyerPhone string `json:"buyerPhone"`
 }
 
 type payAppLicenseOrderRequest struct {
@@ -334,6 +335,23 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": err.Error()})
 		return
+	}
+
+	normalizedPhone := ""
+	if s.database != nil && s.database.IsConnected() && s.notify != nil && userID > 0 && strings.TrimSpace(req.BuyerPhone) != "" {
+		if phone, normErr := notify.NormalizePhone(req.BuyerPhone); normErr == nil && phone != "" {
+			normalizedPhone = phone
+			if buyerKind := s.notify.BuyerChannel(); buyerKind != "" {
+				_ = s.database.SaveBuyerContact(userID, buyerKind, phone)
+			}
+		}
+	}
+	if normalizedPhone != "" {
+		s.notifyAllAdmins(
+			"Trial Lisensi Diaktifkan",
+			fmt.Sprintf("Trial %s (%s, %d hari) diaktifkan. WhatsApp: %s.", appName, planName, trialDays, normalizedPhone),
+			"info",
+		)
 	}
 
 	s.writeJSON(w, http.StatusOK, jsonResponse{
