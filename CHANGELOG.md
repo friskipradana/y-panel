@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.19] - 2026-11-19
+
+Serve cached remote tags non-blocking with background warmup and negative cache.
+
+### Performa
+- **app-catalog:** Serve cached remote tags non-blocking with background warmup and negative cache ([`ba91f6b`](https://github.com/friskipradana/y-panel/commit/ba91f6b))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.18...v1.88.19
+
 ## [1.88.18] - 2026-11-19
 
 Protect fakeCloudflare recorded slice with mutex for concurrent probes.
