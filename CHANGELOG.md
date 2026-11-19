@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.21] - 2026-11-19
+
+Add public inquiry endpoint notifying panel admins and buyer via WhatsApp.
+
+### Fitur baru
+- **app-catalog:** Add public inquiry endpoint notifying panel admins and buyer via WhatsApp ([`f518f86`](https://github.com/friskipradana/y-panel/commit/f518f86))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.20...v1.88.21
+
 ## [1.88.20] - 2026-11-19
 
 Detect Docker & App Catalog tunnel targets and accept buyerPhone on CRM trial.
