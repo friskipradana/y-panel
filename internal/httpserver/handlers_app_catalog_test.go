@@ -465,11 +465,190 @@ func TestCompareVersionsDesc(t *testing.T) {
 		{"v2.0.0", "1.99.99", true},
 		{"1.6.10", "1.6.2", true},
 		{"1.6.2", "1.6.10", false},
+		{"1.6.39", "1.6.39-rc.1", true},
+		{"1.6.39-rc.1", "1.6.39", false},
+		{"2", "2-slim", true},
+		{"1.6.39", "20250101", true},
 	}
 	for _, tc := range cases {
 		if got := compareVersionsDesc(tc.a, tc.b); got != tc.want {
 			t.Fatalf("compareVersionsDesc(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
 		}
+	}
+}
+
+func TestOrderImageTagsAndPickers(t *testing.T) {
+	raw := []string{
+		"latest",
+		"main",
+		"sha-abc1234",
+		"1.6.38",
+		"1.6.39.sig",
+		"1.6.39",
+		"1.6.40-rc.1",
+		"1.6.39-amd64",
+		"1.6",
+		"rootless",
+	}
+	ordered := orderImageTags(raw)
+	if len(ordered) < 2 {
+		t.Fatalf("expected ordered tags, got %v", ordered)
+	}
+	for _, tag := range ordered {
+		if strings.HasPrefix(tag, "sha-") || strings.HasSuffix(tag, ".sig") {
+			t.Fatalf("unexpected non-release artifact tag in ordered result: %q (%v)", tag, ordered)
+		}
+	}
+	// Release versions must precede floating tags like latest and main
+	idxLatest := -1
+	idx1639 := -1
+	idxMain := -1
+	for i, tag := range ordered {
+		switch tag {
+		case "latest":
+			idxLatest = i
+		case "1.6.39":
+			idx1639 = i
+		case "main":
+			idxMain = i
+		}
+	}
+	if idx1639 < 0 || idxLatest < 0 || idx1639 >= idxLatest {
+		t.Fatalf("expected concrete release 1.6.39 before latest, got %v", ordered)
+	}
+	if idxMain >= 0 && idxLatest >= idxMain {
+		t.Fatalf("expected latest before other floating tags, got %v", ordered)
+	}
+
+	if got := pickLatestReleaseTag(ordered); got != "1.6.39" {
+		t.Fatalf("pickLatestReleaseTag(%v) = %q, want 1.6.39", ordered, got)
+	}
+	if got := pickPreferredReleaseTag(ordered); got != "1.6.39" {
+		t.Fatalf("pickPreferredReleaseTag(%v) = %q, want 1.6.39", ordered, got)
+	}
+
+	// Non-dotted variant lists (like nextcloud: ["latest", "apache", "30"]) keep floating default
+	if got := pickPreferredReleaseTag([]string{"30", "apache", "latest"}); got != "" {
+		t.Fatalf("expected empty auto-preferred dotted semver for variant list, got %q", got)
+	}
+}
+
+func TestEvaluateAppUpdateStatus(t *testing.T) {
+	tags := []string{"1.6.39", "1.6.38", "1.6", "latest"}
+	digest1639 := "sha256:16391639163916391639163916391639"
+	digest1638 := "sha256:16381638163816381638163816381638"
+	digestMain := "sha256:0000aaaa1111bbbb2222cccc3333dddd"
+
+	// 1. Pinned 1.6.39 must NOT falsely report HasUpdate even if catalog spec image is :latest
+	resPinnedLatest := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:1.6.39",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + digest1639},
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digest1639},
+		RemoteLatestDigests:    []string{digest1639},
+	})
+	if resPinnedLatest.HasUpdate {
+		t.Fatalf("expected HasUpdate=false when pinned to latest release 1.6.39, got %+v", resPinnedLatest)
+	}
+	if resPinnedLatest.IsFloatingTag || resPinnedLatest.ResolvedVersion != "1.6.39" || resPinnedLatest.LatestVersion != "1.6.39" {
+		t.Fatalf("unexpected metadata for pinned latest: %+v", resPinnedLatest)
+	}
+	if resPinnedLatest.TargetImage != "ghcr.io/aknalre/crm-services:1.6.39" {
+		t.Fatalf("expected target image 1.6.39, got %q", resPinnedLatest.TargetImage)
+	}
+
+	// 2. Pinned 1.6.38 behind 1.6.39 must report HasUpdate=true
+	resPinnedOld := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:1.6.38",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + digest1638},
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digest1638},
+		RemoteLatestDigests:    []string{digest1639},
+	})
+	if !resPinnedOld.HasUpdate || resPinnedOld.LatestVersion != "1.6.39" {
+		t.Fatalf("expected HasUpdate=true for 1.6.38 -> 1.6.39, got %+v", resPinnedOld)
+	}
+
+	// 3. Old :latest with OCI label 1.6.38 resolves actual version and reports update to 1.6.39
+	resFloatingLabeled := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:latest",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + digest1638},
+		ContainerLabels:        map[string]string{"org.opencontainers.image.version": "1.6.38"},
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digest1639},
+		RemoteLatestDigests:    []string{digest1639},
+	})
+	if !resFloatingLabeled.HasUpdate || !resFloatingLabeled.IsFloatingTag || resFloatingLabeled.ResolvedVersion != "1.6.38" {
+		t.Fatalf("expected floating :latest at 1.6.38 to resolve version and require update, got %+v", resFloatingLabeled)
+	}
+
+	// 4. Old :latest pointing to stale "main" build (even if remote :latest was temporarily overwritten with main!) still flags mismatch vs 1.6.39
+	resFloatingMain := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:latest",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + digestMain},
+		ContainerLabels:        map[string]string{"org.opencontainers.image.version": "main"},
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digestMain},
+		RemoteLatestDigests:    []string{digest1639},
+	})
+	if !resFloatingMain.HasUpdate || resFloatingMain.ResolvedVersion != "" || resFloatingMain.LatestVersion != "1.6.39" {
+		t.Fatalf("expected stale :latest (main) to flag update to 1.6.39 without trusting 'main' as version, got %+v", resFloatingMain)
+	}
+
+	// 5. :latest matching multi-arch child manifest digest of 1.6.39 resolves version cleanly and stays green
+	platformDigest1639 := "sha256:99998888777766665555444433332222"
+	resFloatingUpToDate := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:latest",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + platformDigest1639},
+		ContainerImageID:       "sha256:container1",
+		TagImageID:             "sha256:container1",
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digest1639, platformDigest1639},
+		RemoteLatestDigests:    []string{digest1639, platformDigest1639},
+	})
+	if resFloatingUpToDate.HasUpdate || resFloatingUpToDate.ResolvedVersion != "1.6.39" {
+		t.Fatalf("expected up-to-date multi-arch :latest to resolve 1.6.39 with HasUpdate=false, got %+v", resFloatingUpToDate)
+	}
+
+	// 6. Running container using stale ImageID vs pulled local tag must report HasUpdate=true
+	resStaleContainer := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "ghcr.io/aknalre/crm-services:latest",
+		CatalogSpecImage:       "ghcr.io/aknalre/crm-services:latest",
+		LocalDigests:           []string{"ghcr.io/aknalre/crm-services@" + digest1638},
+		ContainerImageID:       "sha256:oldcontainer",
+		TagImageID:             "sha256:newpulledtag",
+		RemoteTags:             tags,
+		RemoteInstalledDigests: []string{digest1639},
+		RemoteLatestDigests:    []string{digest1639},
+	})
+	if !resStaleContainer.HasUpdate {
+		t.Fatalf("expected stale container ImageID vs tag ImageID to report HasUpdate=true, got %+v", resStaleContainer)
+	}
+
+	// 7. Rolling-only image compares digests directly
+	resRollingOnly := evaluateAppUpdateStatus(appUpdateEvalInput{
+		InstalledImage:         "adguard/adguardhome:latest",
+		CatalogSpecImage:       "adguard/adguardhome:latest",
+		LocalDigests:           []string{"adguard/adguardhome@" + digestMain},
+		RemoteTags:             []string{"latest"},
+		RemoteInstalledDigests: []string{digest1639},
+	})
+	if !resRollingOnly.HasUpdate || !resRollingOnly.IsFloatingTag {
+		t.Fatalf("expected rolling-only digest mismatch to flag update, got %+v", resRollingOnly)
+	}
+}
+
+func TestParseNextRegistryLink(t *testing.T) {
+	if got := parseNextRegistryLink(`</v2/aknalre/crm-services/tags/list?last=1.5.0&n=1000>; rel="next"`, "ghcr.io"); got != "https://ghcr.io/v2/aknalre/crm-services/tags/list?last=1.5.0&n=1000" {
+		t.Fatalf("unexpected relative Link parse: %q", got)
+	}
+	if got := parseNextRegistryLink(`</v2/repo/tags/list>; rel="prev"`, "ghcr.io"); got != "" {
+		t.Fatalf("expected empty when rel!=next, got %q", got)
 	}
 }
 

@@ -6,6 +6,11 @@ import { Badge } from '@/components/ui/Badge'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListState, ListTable } from '@/components/ui/ListTable'
 import type { CatalogViewMode } from '@/components/windows/app-catalog/CatalogAppsView'
+import {
+  extractTagFromImageRef,
+  formatSingleVersionTag,
+  formatVersionDisplay,
+} from '@/components/windows/app-catalog/versionHelpers'
 import { openInstalledAppWindow } from '@/hooks/useAppCatalog'
 import { useI18n } from '@/lib/i18n'
 
@@ -36,6 +41,18 @@ function appStatusTone(app: InstalledApp): 'success' | 'warning' | 'danger' | 'n
   if (app.containerState === 'running') return 'success'
   if (app.containerState === 'missing') return 'danger'
   return 'warning'
+}
+
+function buildAppVersionSummary(app: InstalledApp, updateStatus?: AppUpdateStatus) {
+  const tag = updateStatus?.currentVersion || app.versionTag || extractTagFromImageRef(app.image)
+  const resolved = updateStatus?.resolvedVersion || app.resolvedVersion
+  const displayVer = formatVersionDisplay(tag, resolved)
+  const digest = updateStatus?.localDigest || app.currentDigest
+  const versionText = displayVer
+    ? `${displayVer}${digest ? ` · ${digest}` : ''}`
+    : digest || ''
+  const targetVer = updateStatus?.latestVersion ? formatSingleVersionTag(updateStatus.latestVersion) : ''
+  return { displayVer, versionText, targetVer }
 }
 
 export function InstalledAppsView({
@@ -189,9 +206,7 @@ export function InstalledAppsView({
                   ? app.targetUrl
                   : `127.0.0.1:${app.hostPort}${app.openPath}`
               const updateStatus = updatesById?.[app.id]
-              const versionText = app.versionTag
-                ? `${app.versionTag}${app.currentDigest ? ` · ${app.currentDigest}` : ''}`
-                : app.currentDigest
+              const { displayVer, versionText, targetVer } = buildAppVersionSummary(app, updateStatus)
               return (
                 <article key={app.id} className="app-catalog-card">
                   <div className="space-y-2.5 min-w-0">
@@ -211,8 +226,8 @@ export function InstalledAppsView({
                                 tone="warning"
                                 size="sm"
                                 title={
-                                  updateStatus.latestVersion
-                                    ? `${t('appCatalog.currentVersionLabel')}: ${updateStatus.currentVersion || app.versionTag || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${updateStatus.latestVersion}`
+                                  targetVer
+                                    ? `${t('appCatalog.currentVersionLabel')}: ${displayVer || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${targetVer}`
                                     : undefined
                                 }
                               >
@@ -284,9 +299,7 @@ export function InstalledAppsView({
               ? app.targetUrl
               : `127.0.0.1:${app.hostPort}${app.openPath}`
           const updateStatus = updatesById?.[app.id]
-          const versionText = app.versionTag
-            ? `${app.versionTag}${app.currentDigest ? ` · ${app.currentDigest}` : ''}`
-            : app.currentDigest
+          const { displayVer, versionText, targetVer } = buildAppVersionSummary(app, updateStatus)
           return (
             <div key={app.id} className="docker-row">
               <div className="docker-row__num">{String(idx + 1).padStart(2, '0')}</div>
@@ -305,8 +318,8 @@ export function InstalledAppsView({
                         tone="warning"
                         size="sm"
                         title={
-                          updateStatus.latestVersion
-                            ? `${t('appCatalog.currentVersionLabel')}: ${updateStatus.currentVersion || app.versionTag || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${updateStatus.latestVersion}`
+                          targetVer
+                            ? `${t('appCatalog.currentVersionLabel')}: ${displayVer || 'latest'} → ${t('appCatalog.targetVersionLabel')}: ${targetVer}`
                             : undefined
                         }
                       >

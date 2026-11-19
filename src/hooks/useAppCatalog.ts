@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import {
   checkInstalledAppUpdates,
   getAppCatalog,
@@ -28,7 +28,7 @@ export function useAppCatalog(enabledOverride?: boolean) {
 
   return useQuery({
     queryKey: APP_CATALOG_QUERY_KEY,
-    queryFn: getAppCatalog,
+    queryFn: () => getAppCatalog(false),
     enabled,
     staleTime: 15_000,
     refetchInterval: enabled ? 30_000 : false,
@@ -42,10 +42,38 @@ export function useInstalledAppUpdates(enabledOverride?: boolean) {
 
   return useQuery({
     queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
-    queryFn: checkInstalledAppUpdates,
+    queryFn: () => checkInstalledAppUpdates(false),
     enabled,
     staleTime: 120_000,
     refetchOnWindowFocus: false,
+  })
+}
+
+export async function forceRefreshAppCatalog(qc: QueryClient, checkUpdates: boolean) {
+  const tasks: Promise<unknown>[] = [
+    qc.fetchQuery({
+      queryKey: APP_CATALOG_QUERY_KEY,
+      queryFn: () => getAppCatalog(true),
+      staleTime: 0,
+    }),
+  ]
+  if (checkUpdates) {
+    tasks.push(
+      qc.fetchQuery({
+        queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+        queryFn: () => checkInstalledAppUpdates(true),
+        staleTime: 0,
+      }),
+    )
+  }
+  await Promise.all(tasks)
+}
+
+export async function forceRefreshAppUpdates(qc: QueryClient) {
+  return qc.fetchQuery({
+    queryKey: APP_CATALOG_UPDATES_QUERY_KEY,
+    queryFn: () => checkInstalledAppUpdates(true),
+    staleTime: 0,
   })
 }
 
@@ -75,9 +103,14 @@ export function useAppCatalogMutations() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
 
+  const invalidateWithUpdates = () => {
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
+    void qc.invalidateQueries({ queryKey: APP_CATALOG_UPDATES_QUERY_KEY })
+  }
+
   const installMutation = useMutation({
     mutationFn: (payload: InstallCatalogAppPayload) => installCatalogApp(payload),
-    onSuccess: invalidate,
+    onSuccess: invalidateWithUpdates,
   })
 
   const updateMutation = useMutation({
@@ -104,11 +137,6 @@ export function useAppCatalogMutations() {
       runInstalledAppAction(id, action),
     onSuccess: invalidate,
   })
-
-  const invalidateWithUpdates = () => {
-    void qc.invalidateQueries({ queryKey: APP_CATALOG_QUERY_KEY })
-    void qc.invalidateQueries({ queryKey: APP_CATALOG_UPDATES_QUERY_KEY })
-  }
 
   const upgradeMutation = useMutation({
     mutationFn: ({ id, version }: { id: number; version?: string }) =>

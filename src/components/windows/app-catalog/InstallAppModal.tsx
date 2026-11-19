@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowUpCircle, Box, Globe, HardDrive, Layers, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   CatalogApp,
@@ -19,6 +19,13 @@ import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Select } from '@/components/ui/Select'
 import { Tabs, type TabItem } from '@/components/ui/Tabs'
 import { useAppCatalog, useAppCatalogMutations } from '@/hooks/useAppCatalog'
+import {
+  formatSingleVersionTag,
+  formatVersionDisplay,
+  isFloatingTag,
+  orderCatalogVersionChoices,
+  pickPreferredCatalogVersion,
+} from '@/components/windows/app-catalog/versionHelpers'
 import { alertLib } from '@/lib/alert'
 import { useI18n } from '@/lib/i18n'
 import { useAuthStore } from '@/store/authStore'
@@ -190,7 +197,7 @@ export function InstallAppModal({
     }
     if (catalogApp) {
       const { tag: defaultTag } = splitImageRepoTag(catalogApp.image)
-      const initialVersion = catalogApp.versions?.[0] || defaultTag
+      const initialVersion = pickPreferredCatalogVersion(catalogApp.versions, defaultTag)
       const defaultSlug = catalogApp.id || slugify(catalogApp.name) || 'app'
       setName(catalogApp.name)
       setTagline(language === 'id' ? catalogApp.taglineId : catalogApp.taglineEn)
@@ -288,44 +295,60 @@ export function InstallAppModal({
     })
   }, [catalogApp?.env, isReneoCrm])
 
-  const { imageRepo, defaultTag, versionOptions, effectiveVersion, resolvedImage } = useMemo(() => {
-    const sourceImage = catalogApp
-      ? catalogApp.image
-      : editingApp && editingApp.kind !== 'custom-url'
-        ? editingApp.image
-        : ''
-    if (!sourceImage) {
-      return {
-        imageRepo: '',
-        defaultTag: '',
-        versionOptions: [] as { value: string; label: string }[],
-        effectiveVersion: '',
-        resolvedImage: '',
+  const { imageRepo, defaultTag, versionOptions, effectiveVersion, resolvedImage, latestConcreteVersion } =
+    useMemo(() => {
+      const sourceImage = catalogApp
+        ? catalogApp.image
+        : editingApp && editingApp.kind !== 'custom-url'
+          ? editingApp.image
+          : ''
+      if (!sourceImage) {
+        return {
+          imageRepo: '',
+          defaultTag: '',
+          versionOptions: [] as { value: string; label: string }[],
+          effectiveVersion: '',
+          resolvedImage: '',
+          latestConcreteVersion: '',
+        }
       }
-    }
-    const parsed = splitImageRepoTag(sourceImage)
-    const presetSource = catalogApp?.versions ?? editingCatalogApp?.versions ?? []
-    const rawList = presetSource.length ? presetSource : [parsed.tag]
-    const unique = rawList.includes(parsed.tag) ? rawList : [parsed.tag, ...rawList]
-    const options = [
-      ...unique.map((v) => ({
-        value: v,
-        label: v === parsed.tag ? `${v} ${t('appCatalog.versionDefaultSuffix')}` : v,
-      })),
-      { value: CUSTOM_VERSION_SENTINEL, label: t('appCatalog.versionCustomOption') },
-    ]
-    const chosen =
-      selectedVersion === CUSTOM_VERSION_SENTINEL
-        ? customVersion.trim() || parsed.tag
-        : selectedVersion || parsed.tag
-    return {
-      imageRepo: parsed.repo,
-      defaultTag: parsed.tag,
-      versionOptions: options,
-      effectiveVersion: chosen,
-      resolvedImage: `${parsed.repo}:${chosen}`,
-    }
-  }, [catalogApp, editingApp, editingCatalogApp, selectedVersion, customVersion, t])
+      const parsed = splitImageRepoTag(sourceImage)
+      const presetSource = catalogApp?.versions ?? editingCatalogApp?.versions ?? []
+      const { ordered, latestConcrete } = orderCatalogVersionChoices(presetSource, parsed.tag)
+      const options = [
+        ...ordered.map((v) => {
+          if (isFloatingTag(v)) {
+            return { value: v, label: `${v} ${t('appCatalog.versionRollingSuffix')}` }
+          }
+          if (latestConcrete && v === latestConcrete) {
+            return {
+              value: v,
+              label: `${formatSingleVersionTag(v)} ${t('appCatalog.versionRecommendedSuffix')}`,
+            }
+          }
+          if (!latestConcrete && v === parsed.tag) {
+            return {
+              value: v,
+              label: `${formatSingleVersionTag(v)} ${t('appCatalog.versionDefaultSuffix')}`,
+            }
+          }
+          return { value: v, label: formatSingleVersionTag(v) }
+        }),
+        { value: CUSTOM_VERSION_SENTINEL, label: t('appCatalog.versionCustomOption') },
+      ]
+      const chosen =
+        selectedVersion === CUSTOM_VERSION_SENTINEL
+          ? customVersion.trim() || parsed.tag
+          : selectedVersion || latestConcrete || parsed.tag
+      return {
+        imageRepo: parsed.repo,
+        defaultTag: parsed.tag,
+        versionOptions: options,
+        effectiveVersion: chosen,
+        resolvedImage: `${parsed.repo}:${chosen}`,
+        latestConcreteVersion: latestConcrete,
+      }
+    }, [catalogApp, editingApp, editingCatalogApp, selectedVersion, customVersion, t])
 
   const modeTabs: TabItem<InstallMode>[] = [
     { key: 'existing-container', label: t('appCatalog.modeExistingContainer'), icon: <Box className="h-3.5 w-3.5" /> },
@@ -730,34 +753,51 @@ export function InstallAppModal({
         </div>
 
         {catalogApp && !editingApp ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field
-              label={t('appCatalog.versionLabel')}
-              hint={t('appCatalog.versionImageHint', { image: `${imageRepo}:${effectiveVersion}` })}
-            >
-              <Select
-                value={selectedVersion || defaultTag}
-                onChange={setSelectedVersion}
-                options={versionOptions}
-              />
-            </Field>
-            {selectedVersion === CUSTOM_VERSION_SENTINEL ? (
-              <Field label={t('appCatalog.versionCustomOption')}>
-                <TextInput
-                  mono
-                  value={customVersion}
-                  onChange={(e) => setCustomVersion(e.target.value)}
-                  placeholder={t('appCatalog.versionCustomPlaceholder')}
-                  required
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field
+                label={t('appCatalog.versionLabel')}
+                hint={t('appCatalog.versionImageHint', { image: `${imageRepo}:${effectiveVersion}` })}
+              >
+                <Select
+                  value={selectedVersion || defaultTag}
+                  onChange={setSelectedVersion}
+                  options={versionOptions}
                 />
               </Field>
+              {selectedVersion === CUSTOM_VERSION_SENTINEL ? (
+                <Field label={t('appCatalog.versionCustomOption')}>
+                  <TextInput
+                    mono
+                    value={customVersion}
+                    onChange={(e) => setCustomVersion(e.target.value)}
+                    placeholder={t('appCatalog.versionCustomPlaceholder')}
+                    required
+                  />
+                </Field>
+              ) : null}
+            </div>
+            {latestConcreteVersion && isFloatingTag(effectiveVersion) ? (
+              <div className="panel-alert text-[12px]">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  {t('appCatalog.floatingTagInstallHint', {
+                    tag: effectiveVersion,
+                    version: formatSingleVersionTag(latestConcreteVersion),
+                  })}
+                </span>
+              </div>
             ) : null}
           </div>
         ) : showEditDockerVersion ? (
           <div className="app-catalog-volume-list space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="panel-mono text-[11.5px] text-[var(--win-text)] truncate">
-                {t('appCatalog.versionCurrentLabel', { image: editingApp?.image || '' })}
+                {t('appCatalog.versionCurrentLabel', {
+                  image: editingApp?.resolvedVersion && isFloatingTag(editingApp?.versionTag)
+                    ? `${editingApp?.image || ''} (${formatVersionDisplay(editingApp?.versionTag, editingApp?.resolvedVersion)})`
+                    : editingApp?.image || '',
+                })}
               </span>
               <Button
                 type="button"
@@ -794,6 +834,17 @@ export function InstallAppModal({
                 </Field>
               ) : null}
             </div>
+            {latestConcreteVersion && isFloatingTag(effectiveVersion) ? (
+              <div className="panel-alert text-[12px]">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  {t('appCatalog.floatingTagInstallHint', {
+                    tag: effectiveVersion,
+                    version: formatSingleVersionTag(latestConcreteVersion),
+                  })}
+                </span>
+              </div>
+            ) : null}
             <p className="text-[11.5px] text-[var(--text-secondary)] m-0">
               {t('appCatalog.versionKeepDataHint')}
             </p>

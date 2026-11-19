@@ -68,9 +68,12 @@ export interface InstalledApp {
   containerStatus?: string
   containerState?: string
   versionTag?: string
+  resolvedVersion?: string
+  isFloatingTag?: boolean
   currentDigest?: string
   previousImage?: string
   previousDigest?: string
+  previousVersion?: string
   canRollback?: boolean
   createdAt: string
   updatedAt: string
@@ -79,6 +82,8 @@ export interface InstalledApp {
 export interface AppUpdateStatus {
   hasUpdate: boolean
   currentVersion?: string
+  resolvedVersion?: string
+  isFloatingTag?: boolean
   latestVersion?: string
   availableVersions?: string[]
   localDigest?: string
@@ -121,8 +126,10 @@ export interface UpdateInstalledAppPayload {
   useProxy?: boolean
 }
 
-export async function getAppCatalog(): Promise<AppCatalogResponse> {
-  const { data } = await agentApi.get<AppCatalogResponse>('/api/v1/app-catalog')
+export async function getAppCatalog(forceRefresh = false): Promise<AppCatalogResponse> {
+  const { data } = await agentApi.get<AppCatalogResponse>('/api/v1/app-catalog', {
+    params: forceRefresh ? { refresh: '1' } : undefined,
+  })
   return {
     catalog: Array.isArray(data?.catalog) ? data.catalog : [],
     installed: Array.isArray(data?.installed) ? data.installed : [],
@@ -172,9 +179,14 @@ export async function rollbackInstalledApp(id: number): Promise<InstalledApp> {
   return data.app
 }
 
-export async function checkInstalledAppUpdates(): Promise<Record<number, AppUpdateStatus>> {
+export async function checkInstalledAppUpdates(
+  forceRefresh = false,
+): Promise<Record<number, AppUpdateStatus>> {
   const { data } = await agentApi.get<{ updates: Record<number, AppUpdateStatus> }>(
     '/api/v1/app-catalog/installed/updates',
+    {
+      params: forceRefresh ? { refresh: '1' } : undefined,
+    },
   )
   return data.updates ?? {}
 }

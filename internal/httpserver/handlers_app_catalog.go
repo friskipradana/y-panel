@@ -3,6 +3,8 @@ package httpserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -324,7 +327,7 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
-		Versions:        []string{"latest", "1.6.27", "1.6.26", "1.6.25", "1.6.24", "1.6.23", "1.6.22", "1.6.21", "1.6.20", "1.6.19", "1.6.18", "1.6.17", "1.6.16", "1.6.15", "1.6.14", "1.6.13", "1.6.12", "1.6.11", "1.6.10", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5"},
+		Versions:        []string{"1.6.39", "1.6.38", "1.6.37", "1.6.36", "1.6.35", "1.6.34", "1.6.33", "1.6.32", "1.6.31", "1.6.30", "1.6.29", "1.6.28", "1.6.27", "1.6.26", "1.6.25", "1.6.24", "1.6.23", "1.6.22", "1.6.21", "1.6.20", "1.6.19", "1.6.18", "1.6.17", "1.6.16", "1.6.15", "1.6.14", "1.6.13", "1.6.12", "1.6.11", "1.6.10", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5", "latest"},
 		ContainerPort:   80,
 		DefaultHostPort: 18011,
 		OpenPath:        "/",
@@ -770,19 +773,24 @@ type installedAppView struct {
 	ContainerStatus string `json:"containerStatus,omitempty"`
 	ContainerState  string `json:"containerState,omitempty"`
 	VersionTag      string `json:"versionTag,omitempty"`
+	ResolvedVersion string `json:"resolvedVersion,omitempty"`
+	IsFloatingTag   bool   `json:"isFloatingTag,omitempty"`
 	CurrentDigest   string `json:"currentDigest,omitempty"`
 	PreviousImage   string `json:"previousImage,omitempty"`
 	PreviousDigest  string `json:"previousDigest,omitempty"`
+	PreviousVersion string `json:"previousVersion,omitempty"`
 	CanRollback     bool   `json:"canRollback,omitempty"`
 }
 
 type appConfigMeta struct {
-	KeepPrefix     bool   `json:"keepPrefix,omitempty"`
-	NotesID        string `json:"notesId,omitempty"`
-	NotesEN        string `json:"notesEn,omitempty"`
-	PreviousImage  string `json:"previousImage,omitempty"`
-	PreviousDigest string `json:"previousDigest,omitempty"`
-	CurrentDigest  string `json:"currentDigest,omitempty"`
+	KeepPrefix      bool   `json:"keepPrefix,omitempty"`
+	NotesID         string `json:"notesId,omitempty"`
+	NotesEN         string `json:"notesEn,omitempty"`
+	PreviousImage   string `json:"previousImage,omitempty"`
+	PreviousDigest  string `json:"previousDigest,omitempty"`
+	PreviousVersion string `json:"previousVersion,omitempty"`
+	CurrentDigest   string `json:"currentDigest,omitempty"`
+	ResolvedVersion string `json:"resolvedVersion,omitempty"`
 }
 
 func parseAppConfigMeta(raw string) appConfigMeta {
@@ -1038,21 +1046,31 @@ func (s *Server) buildInstalledAppView(app database.InstalledApp, containers []d
 			}
 		}
 	}
+	tag := extractImageTag(app.Image)
+	isFloating := isFloatingImageTag(tag)
+	resolvedVer := resolveInstalledVersion(tag, meta.ResolvedVersion, nil)
+
 	view := installedAppView{
-		InstalledApp:   app,
-		KeepPrefix:     effectiveKeepPrefix(app, meta),
-		ProxyPath:      proxyPath,
-		VersionTag:     extractImageTag(app.Image),
-		CurrentDigest:  shortDigest(meta.CurrentDigest),
-		PreviousImage:  meta.PreviousImage,
-		PreviousDigest: shortDigest(meta.PreviousDigest),
-		CanRollback:    strings.TrimSpace(meta.PreviousImage) != "" || strings.TrimSpace(meta.PreviousDigest) != "",
+		InstalledApp:    app,
+		KeepPrefix:      effectiveKeepPrefix(app, meta),
+		ProxyPath:       proxyPath,
+		VersionTag:      tag,
+		ResolvedVersion: resolvedVer,
+		IsFloatingTag:   isFloating,
+		CurrentDigest:   shortDigest(meta.CurrentDigest),
+		PreviousImage:   meta.PreviousImage,
+		PreviousDigest:  shortDigest(meta.PreviousDigest),
+		PreviousVersion: meta.PreviousVersion,
+		CanRollback:     strings.TrimSpace(meta.PreviousImage) != "" || strings.TrimSpace(meta.PreviousDigest) != "",
 	}
 	if app.Kind == "docker" || app.Kind == "existing-container" {
 		if matched := matchContainerForApp(app, containers, scope); matched != nil {
 			view.ContainerID = matched.ID
 			view.ContainerStatus = matched.Status
 			view.ContainerState = matched.State
+			if v := resolveInstalledVersion(tag, meta.ResolvedVersion, matched.Labels); v != "" {
+				view.ResolvedVersion = v
+			}
 		} else {
 			view.ContainerState = "missing"
 		}
@@ -1086,22 +1104,13 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 		catalog = append(catalog, item)
 	}
 
+	bypassCache := r.URL.Query().Get("refresh") == "1" || strings.EqualFold(r.URL.Query().Get("refresh"), "true")
+
 	// Dynamically augment versions from container registry if available
 	for i := range catalog {
 		if strings.HasPrefix(catalog[i].Image, "ghcr.io/") || strings.Contains(catalog[i].Image, "/") {
-			if dynTags, err := s.fetchRemoteImageTags(r.Context(), catalog[i].Image); err == nil && len(dynTags) > 1 {
-				merged := append([]string{}, dynTags...)
-				seenV := make(map[string]bool)
-				for _, v := range merged {
-					seenV[v] = true
-				}
-				for _, v := range catalog[i].Versions {
-					if !seenV[v] {
-						merged = append(merged, v)
-						seenV[v] = true
-					}
-				}
-				catalog[i].Versions = merged
+			if dynTags, err := s.fetchRemoteImageTags(r.Context(), catalog[i].Image, bypassCache); err == nil && len(dynTags) > 0 {
+				catalog[i].Versions = mergeOrderedImageTags(dynTags, catalog[i].Versions)
 			}
 		}
 	}
@@ -1303,7 +1312,19 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
-	imageRef, imgErr := resolveCatalogImage(spec.Image, req.Version)
+	requestedVersion := strings.TrimSpace(req.Version)
+	if requestedVersion == "" && isFloatingImageTag(extractImageTag(spec.Image)) {
+		versions := spec.Versions
+		if strings.HasPrefix(spec.Image, "ghcr.io/") || strings.Contains(spec.Image, "/") {
+			if dynTags, dynErr := s.fetchRemoteImageTags(r.Context(), spec.Image, false); dynErr == nil && len(dynTags) > 0 {
+				versions = mergeOrderedImageTags(dynTags, spec.Versions)
+			}
+		}
+		if preferred := pickPreferredReleaseTag(versions); preferred != "" {
+			requestedVersion = preferred
+		}
+	}
+	imageRef, imgErr := resolveCatalogImage(spec.Image, requestedVersion)
 	if imgErr != nil {
 		s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": imgErr.Error()})
 		return
@@ -1524,11 +1545,32 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	}
 
 	ensureAppVolumePermissions(owner, containerProject)
+	docker.InvalidateAll()
 	waitForAppHTTPReady([]string{net.JoinHostPort("127.0.0.1", strconv.Itoa(hostPort))}, 2500*time.Millisecond)
 
-	s.auditSensitiveAction(r, actor, "appcatalog.install", "ok", map[string]any{"catalogId": spec.ID, "image": imageRef, "name": name, "port": hostPort})
 	containers, _ := docker.ListContainers()
-	view := s.buildInstalledAppView(*created, containers, s.ownerScopeFor(actor))
+	scope := s.ownerScopeFor(actor)
+	matched := matchContainerForApp(*created, containers, scope)
+	localInfo := inspectLocalImageForApp(imageRef, matched)
+	var containerLabels map[string]string
+	if matched != nil {
+		containerLabels = matched.Labels
+	}
+	installedMeta := parseAppConfigMeta(created.ConfigJSON)
+	if localInfo.PrimaryDigest != "" {
+		installedMeta.CurrentDigest = localInfo.PrimaryDigest
+	}
+	if rv := resolveVersionFromTagOrInfo(extractImageTag(imageRef), localInfo, containerLabels); rv != "" {
+		installedMeta.ResolvedVersion = rv
+	}
+	if updatedMetaBytes, mErr := json.Marshal(installedMeta); mErr == nil {
+		if saved, saveErr := s.database.UpdateInstalledApp(created.ID, map[string]any{"config_json": string(updatedMetaBytes)}); saveErr == nil && saved != nil {
+			created = saved
+		}
+	}
+
+	s.auditSensitiveAction(r, actor, "appcatalog.install", "ok", map[string]any{"catalogId": spec.ID, "image": imageRef, "name": name, "port": hostPort})
+	view := s.buildInstalledAppView(*created, containers, scope)
 	s.writeJSON(w, http.StatusCreated, jsonResponse{"ok": true, "app": view})
 }
 
@@ -1600,6 +1642,12 @@ func (s *Server) installFromExistingContainer(w http.ResponseWriter, r *http.Req
 	}
 	slug := s.uniqueAppSlug(actor.ID, slugCandidate)
 
+	localInfo := inspectLocalImageForApp(matched.Image, matched)
+	initMetaBytes, _ := json.Marshal(appConfigMeta{
+		CurrentDigest:   localInfo.PrimaryDigest,
+		ResolvedVersion: resolveVersionFromTagOrInfo(extractImageTag(matched.Image), localInfo, matched.Labels),
+	})
+
 	created, err := s.database.CreateInstalledApp(&database.InstalledApp{
 		UserID:        actor.ID,
 		Slug:          slug,
@@ -1617,7 +1665,7 @@ func (s *Server) installFromExistingContainer(w http.ResponseWriter, r *http.Req
 		OpenPath:      normalizeOpenPath(req.OpenPath, slug),
 		TargetURL:     "",
 		UseProxy:      true,
-		ConfigJSON:    "{}",
+		ConfigJSON:    string(initMetaBytes),
 	})
 	if err != nil {
 		s.writeError(w, http.StatusInternalServerError, err)
@@ -1934,13 +1982,28 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	baseImage := strings.TrimSpace(app.Image)
+	prevImage := strings.TrimSpace(app.Image)
+	specImage := ""
 	if spec, ok := s.findCatalogAppByID(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
-		baseImage = strings.TrimSpace(spec.Image)
+		specImage = strings.TrimSpace(spec.Image)
+	}
+	baseImage := prevImage
+	if baseImage == "" {
+		baseImage = specImage
+	}
+	if specImage != "" {
+		repoFromSpec, _ := splitImageRepoTag(specImage)
+		if repoFromSpec != "" && baseImage == "" {
+			baseImage = specImage
+		}
 	}
 	targetImage := baseImage
 	if strings.TrimSpace(body.Version) != "" {
-		resolved, verErr := resolveCatalogImage(baseImage, body.Version)
+		versionBase := baseImage
+		if specImage != "" {
+			versionBase = specImage
+		}
+		resolved, verErr := resolveCatalogImage(versionBase, body.Version)
 		if verErr != nil {
 			s.writeJSON(w, http.StatusBadRequest, jsonResponse{"error": verErr.Error()})
 			return
@@ -1952,8 +2015,16 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	prevImage := strings.TrimSpace(app.Image)
-	prevDigest, _ := inspectLocalImageDigest(prevImage)
+	preContainers, _ := docker.ListContainers()
+	scope := s.ownerScopeFor(actor)
+	preMatched := matchContainerForApp(*app, preContainers, scope)
+	prevInfo := inspectLocalImageForApp(prevImage, preMatched)
+	prevDigest := prevInfo.PrimaryDigest
+	var preLabels map[string]string
+	if preMatched != nil {
+		preLabels = preMatched.Labels
+	}
+	prevResolvedVer := resolveVersionFromTagOrInfo(extractImageTag(prevImage), prevInfo, preLabels)
 
 	if err := docker.PullImage(targetImage, nil); err != nil {
 		s.writeError(w, http.StatusBadGateway, err)
@@ -1965,7 +2036,16 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	nextDigest, _ := inspectLocalImageDigest(targetImage)
+	nextContainers, _ := docker.ListContainers()
+	nextMatched := matchContainerForApp(*app, nextContainers, scope)
+	nextInfo := inspectLocalImageForApp(targetImage, nextMatched)
+	nextDigest := nextInfo.PrimaryDigest
+	var nextLabels map[string]string
+	if nextMatched != nil {
+		nextLabels = nextMatched.Labels
+	}
+	nextResolvedVer := resolveVersionFromTagOrInfo(extractImageTag(targetImage), nextInfo, nextLabels)
+
 	if prevDigest != "" && nextDigest != "" && prevDigest != nextDigest {
 		if inUse, _ := docker.IsImageInUse(prevDigest, ""); !inUse {
 			_ = docker.RemoveImage(prevDigest)
@@ -1978,9 +2058,13 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	if prevDigest != "" {
 		meta.PreviousDigest = prevDigest
 	}
+	if prevResolvedVer != "" {
+		meta.PreviousVersion = prevResolvedVer
+	}
 	if nextDigest != "" {
 		meta.CurrentDigest = nextDigest
 	}
+	meta.ResolvedVersion = nextResolvedVer
 	metaBytes, _ := json.Marshal(meta)
 
 	patch := map[string]any{"config_json": string(metaBytes)}
@@ -1993,15 +2077,15 @@ func (s *Server) handleAppCatalogUpgrade(w http.ResponseWriter, r *http.Request)
 	}
 
 	s.auditSensitiveAction(r, actor, "appcatalog.upgrade", "ok", map[string]any{
-		"appId":      app.ID,
-		"name":       app.Name,
-		"prevImage":  app.Image,
-		"nextImage":  targetImage,
-		"prevDigest": shortDigest(prevDigest),
-		"nextDigest": shortDigest(nextDigest),
+		"appId":       app.ID,
+		"name":        app.Name,
+		"prevImage":   app.Image,
+		"nextImage":   targetImage,
+		"prevDigest":  shortDigest(prevDigest),
+		"nextDigest":  shortDigest(nextDigest),
+		"nextVersion": nextResolvedVer,
 	})
-	nextContainers, _ := docker.ListContainers()
-	view := s.buildInstalledAppView(*updatedApp, nextContainers, s.ownerScopeFor(actor))
+	view := s.buildInstalledAppView(*updatedApp, nextContainers, scope)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
 }
 
@@ -2106,8 +2190,8 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 	}
 
 	ensureAppVolumePermissions(owner, app.ContainerName)
+	docker.InvalidateAll()
 	if app.CatalogID == "reneo-crm" {
-		docker.InvalidateAll()
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
@@ -2151,7 +2235,16 @@ func (s *Server) handleAppCatalogRollback(w http.ResponseWriter, r *http.Request
 	}
 
 	currentImage := strings.TrimSpace(app.Image)
-	currentDigest, _ := inspectLocalImageDigest(currentImage)
+	preContainers, _ := docker.ListContainers()
+	scope := s.ownerScopeFor(actor)
+	preMatched := matchContainerForApp(*app, preContainers, scope)
+	currentInfo := inspectLocalImageForApp(currentImage, preMatched)
+	currentDigest := currentInfo.PrimaryDigest
+	var preLabels map[string]string
+	if preMatched != nil {
+		preLabels = preMatched.Labels
+	}
+	currentResolvedVer := resolveVersionFromTagOrInfo(extractImageTag(currentImage), currentInfo, preLabels)
 
 	if _, localID := inspectLocalImageDigest(rollbackTarget); localID == "" {
 		if pullErr := docker.PullImage(rollbackTarget, nil); pullErr != nil {
@@ -2173,20 +2266,38 @@ func (s *Server) handleAppCatalogRollback(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	nextMeta := meta
-	nextMeta.PreviousImage = currentImage
-	nextMeta.PreviousDigest = currentDigest
-	if nextD, _ := inspectLocalImageDigest(rollbackTarget); nextD != "" {
-		nextMeta.CurrentDigest = nextD
-	} else {
-		nextMeta.CurrentDigest = rollbackTarget
-	}
-	metaBytes, _ := json.Marshal(nextMeta)
+	nextContainers, _ := docker.ListContainers()
+	nextMatched := matchContainerForApp(*app, nextContainers, scope)
 
 	nextImageName := meta.PreviousImage
 	if nextImageName == "" {
 		nextImageName = rollbackTarget
 	}
+	nextInfo := inspectLocalImageForApp(nextImageName, nextMatched)
+	if len(nextInfo.RepoDigests) == 0 && nextImageName != rollbackTarget {
+		nextInfo = inspectLocalImageForApp(rollbackTarget, nextMatched)
+	}
+	var nextLabels map[string]string
+	if nextMatched != nil {
+		nextLabels = nextMatched.Labels
+	}
+
+	nextMeta := meta
+	nextMeta.PreviousImage = currentImage
+	nextMeta.PreviousDigest = currentDigest
+	nextMeta.PreviousVersion = currentResolvedVer
+	if nextInfo.PrimaryDigest != "" {
+		nextMeta.CurrentDigest = nextInfo.PrimaryDigest
+	} else {
+		nextMeta.CurrentDigest = rollbackTarget
+	}
+	if rv := resolveVersionFromTagOrInfo(extractImageTag(nextImageName), nextInfo, nextLabels); rv != "" {
+		nextMeta.ResolvedVersion = rv
+	} else {
+		nextMeta.ResolvedVersion = meta.PreviousVersion
+	}
+	metaBytes, _ := json.Marshal(nextMeta)
+
 	updatedApp := app
 	if saved, saveErr := s.database.UpdateInstalledApp(app.ID, map[string]any{
 		"image":       nextImageName,
@@ -2200,21 +2311,176 @@ func (s *Server) handleAppCatalogRollback(w http.ResponseWriter, r *http.Request
 		"name":        app.Name,
 		"fromImage":   currentImage,
 		"targetImage": rollbackTarget,
+		"nextVersion": nextMeta.ResolvedVersion,
 	})
-	nextContainers, _ := docker.ListContainers()
-	view := s.buildInstalledAppView(*updatedApp, nextContainers, s.ownerScopeFor(actor))
+	view := s.buildInstalledAppView(*updatedApp, nextContainers, scope)
 	s.writeJSON(w, http.StatusOK, jsonResponse{"ok": true, "app": view})
 }
 
 type appUpdateCheckEntry struct {
 	HasUpdate         bool     `json:"hasUpdate"`
 	CurrentVersion    string   `json:"currentVersion,omitempty"`
+	ResolvedVersion   string   `json:"resolvedVersion,omitempty"`
+	IsFloatingTag     bool     `json:"isFloatingTag,omitempty"`
 	LatestVersion     string   `json:"latestVersion,omitempty"`
 	AvailableVersions []string `json:"availableVersions,omitempty"`
 	LocalDigest       string   `json:"localDigest,omitempty"`
 	RemoteDigest      string   `json:"remoteDigest,omitempty"`
 	TargetImage       string   `json:"targetImage"`
 	Error             string   `json:"error,omitempty"`
+}
+
+type localImageInfo struct {
+	RepoDigests   []string
+	PrimaryDigest string
+	ImageID       string
+	TagImageID    string
+	Labels        map[string]string
+	ResolvedVer   string
+}
+
+type appUpdateEvalInput struct {
+	InstalledImage            string
+	CatalogSpecImage          string
+	LocalDigests              []string
+	ContainerImageID          string
+	TagImageID                string
+	ContainerLabels           map[string]string
+	ImageLabels               map[string]string
+	StoredMeta                appConfigMeta
+	RemoteTags                []string
+	RemoteInstalledDigests    []string
+	RemoteInstalledErr        error
+	RemoteLatestDigests       []string
+	RemoteLatestErr           error
+	MatchedReleaseTagByDigest string
+}
+
+func evaluateAppUpdateStatus(in appUpdateEvalInput) appUpdateCheckEntry {
+	currentTag := extractImageTag(in.InstalledImage)
+	isFloating := isFloatingImageTag(currentTag)
+	latestVer := pickLatestReleaseTag(in.RemoteTags)
+
+	repo, _ := splitImageRepoTag(strings.TrimSpace(in.InstalledImage))
+	if repo == "" && strings.TrimSpace(in.CatalogSpecImage) != "" {
+		repo, _ = splitImageRepoTag(strings.TrimSpace(in.CatalogSpecImage))
+	}
+	targetImg := strings.TrimSpace(in.InstalledImage)
+	if latestVer != "" && repo != "" {
+		targetImg = repo + ":" + latestVer
+	} else if strings.TrimSpace(in.CatalogSpecImage) != "" {
+		targetImg = strings.TrimSpace(in.CatalogSpecImage)
+	}
+
+	localDigests := make([]string, 0, len(in.LocalDigests)+1)
+	for _, d := range in.LocalDigests {
+		if n := normalizeDigest(d); n != "" {
+			localDigests = append(localDigests, n)
+		}
+	}
+	if len(localDigests) == 0 && strings.TrimSpace(in.StoredMeta.CurrentDigest) != "" {
+		if n := normalizeDigest(in.StoredMeta.CurrentDigest); n != "" {
+			localDigests = append(localDigests, n)
+		}
+	}
+	localDigestDisplay := firstNonEmptyString(localDigests)
+	if localDigestDisplay == "" {
+		localDigestDisplay = strings.TrimSpace(in.ContainerImageID)
+	}
+
+	resolvedVer := ""
+	if !isFloating && currentTag != "" {
+		resolvedVer = normalizeVersionLabel(currentTag)
+	} else if isFloating {
+		if m := strings.TrimSpace(in.MatchedReleaseTagByDigest); m != "" && !isFloatingImageTag(m) {
+			resolvedVer = normalizeVersionLabel(m)
+		} else if latestVer != "" && digestsOverlap(localDigests, in.RemoteLatestDigests) {
+			resolvedVer = normalizeVersionLabel(latestVer)
+		} else if v := extractConcreteVersionFromLabels(in.ContainerLabels); v != "" {
+			resolvedVer = v
+		} else if v := extractConcreteVersionFromLabels(in.ImageLabels); v != "" {
+			resolvedVer = v
+		} else if isConcreteVersionTag(in.StoredMeta.ResolvedVersion) {
+			resolvedVer = normalizeVersionLabel(in.StoredMeta.ResolvedVersion)
+		}
+	}
+
+	remoteDigestDisplay := ""
+	if latestVer != "" && len(in.RemoteLatestDigests) > 0 {
+		remoteDigestDisplay = firstNonEmptyString(in.RemoteLatestDigests)
+	} else if len(in.RemoteInstalledDigests) > 0 {
+		remoteDigestDisplay = firstNonEmptyString(in.RemoteInstalledDigests)
+	}
+
+	entry := appUpdateCheckEntry{
+		CurrentVersion:    currentTag,
+		ResolvedVersion:   resolvedVer,
+		IsFloatingTag:     isFloating,
+		LatestVersion:     latestVer,
+		AvailableVersions: in.RemoteTags,
+		LocalDigest:       shortDigest(localDigestDisplay),
+		RemoteDigest:      shortDigest(remoteDigestDisplay),
+		TargetImage:       targetImg,
+	}
+
+	containerBehindTag := strings.TrimSpace(in.ContainerImageID) != "" &&
+		strings.TrimSpace(in.TagImageID) != "" &&
+		strings.TrimSpace(in.ContainerImageID) != strings.TrimSpace(in.TagImageID)
+
+	if containerBehindTag {
+		entry.HasUpdate = true
+		return entry
+	}
+
+	if !isFloating {
+		if latestVer != "" && currentTag != "" && compareVersionsDesc(latestVer, currentTag) {
+			entry.HasUpdate = true
+			return entry
+		}
+		// Only inspect remote digest for current pinned tag when no newer semver tag exists
+		if len(localDigests) > 0 && len(in.RemoteInstalledDigests) > 0 && !digestsOverlap(localDigests, in.RemoteInstalledDigests) {
+			entry.HasUpdate = true
+			return entry
+		}
+		if latestVer == "" && in.RemoteInstalledErr != nil {
+			entry.Error = in.RemoteInstalledErr.Error()
+		}
+		return entry
+	}
+
+	// Floating tag (e.g. :latest / :stable / :main)
+	if latestVer != "" {
+		if resolvedVer != "" && compareVersionsDesc(latestVer, resolvedVer) {
+			entry.HasUpdate = true
+			return entry
+		}
+		if len(in.RemoteLatestDigests) > 0 {
+			if len(localDigests) == 0 || !digestsOverlap(localDigests, in.RemoteLatestDigests) {
+				entry.HasUpdate = true
+			}
+			return entry
+		}
+		if len(in.RemoteInstalledDigests) > 0 {
+			if len(localDigests) == 0 || !digestsOverlap(localDigests, in.RemoteInstalledDigests) {
+				entry.HasUpdate = true
+			}
+			return entry
+		}
+		if resolvedVer == "" || !versionsEqual(resolvedVer, latestVer) {
+			entry.HasUpdate = true
+		}
+		return entry
+	}
+
+	// Rolling-only repository (no concrete semver release tags available)
+	if len(in.RemoteInstalledDigests) > 0 {
+		if len(localDigests) > 0 && !digestsOverlap(localDigests, in.RemoteInstalledDigests) {
+			entry.HasUpdate = true
+		}
+	} else if in.RemoteInstalledErr != nil {
+		entry.Error = in.RemoteInstalledErr.Error()
+	}
+	return entry
 }
 
 func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Request) {
@@ -2229,7 +2495,11 @@ func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	bypassCache := r.URL.Query().Get("refresh") == "1" || strings.EqualFold(r.URL.Query().Get("refresh"), "true")
+	containers, _ := docker.ListContainers()
+	scope := s.ownerScopeFor(actor)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
 	results := make(map[int64]appUpdateCheckEntry)
@@ -2240,54 +2510,110 @@ func (s *Server) handleAppCatalogCheckUpdates(w http.ResponseWriter, r *http.Req
 		if app.Kind != "docker" && app.Kind != "existing-container" {
 			continue
 		}
-		targetImage := strings.TrimSpace(app.Image)
-		if spec, ok := s.findCatalogAppByID(app.CatalogID); ok && strings.TrimSpace(spec.Image) != "" {
-			targetImage = strings.TrimSpace(spec.Image)
+		installedImg := strings.TrimSpace(app.Image)
+		specImage := installedImg
+		var specVersions []string
+		if spec, ok := s.findCatalogAppByID(app.CatalogID); ok {
+			if strings.TrimSpace(spec.Image) != "" {
+				specImage = strings.TrimSpace(spec.Image)
+			}
+			specVersions = spec.Versions
 		}
-		if targetImage == "" {
+		if installedImg == "" && specImage == "" {
 			continue
 		}
+		if installedImg == "" {
+			installedImg = specImage
+		}
+		matched := matchContainerForApp(app, containers, scope)
+
 		wg.Add(1)
-		go func(installedApp database.InstalledApp, installedImg, targetImg string) {
+		go func(installedApp database.InstalledApp, curImg, catImg string, fallbackTags []string, cont *docker.Container) {
 			defer wg.Done()
-			localDigest, _ := inspectLocalImageDigest(installedImg)
-			remoteDigest, remErr := fetchRemoteImageDigest(ctx, targetImg)
+			localInfo := inspectLocalImageForApp(curImg, cont)
+			meta := parseAppConfigMeta(installedApp.ConfigJSON)
 
-			currentVer := extractImageTag(installedImg)
-			dynTags, _ := s.fetchRemoteImageTags(ctx, targetImg)
-			latestVer := ""
-			for _, t := range dynTags {
-				if t != "latest" && !strings.HasPrefix(t, "sha-") && !strings.HasPrefix(t, "sha256-") {
-					latestVer = t
-					break
+			tagLookupImg := curImg
+			if tagLookupImg == "" {
+				tagLookupImg = catImg
+			}
+			dynTags, _ := s.fetchRemoteImageTags(ctx, tagLookupImg, bypassCache)
+			mergedTags := mergeOrderedImageTags(dynTags, fallbackTags)
+			latestVer := pickLatestReleaseTag(mergedTags)
+
+			var (
+				remoteInstalledDigests []string
+				remInstalledErr        error
+				remoteLatestDigests    []string
+				remLatestErr           error
+			)
+
+			var fetchWg sync.WaitGroup
+			fetchWg.Add(1)
+			go func() {
+				defer fetchWg.Done()
+				remoteInstalledDigests, remInstalledErr = fetchRemoteImageDigests(ctx, curImg)
+			}()
+
+			currentTag := extractImageTag(curImg)
+			isFloating := isFloatingImageTag(currentTag)
+			repo, _ := splitImageRepoTag(curImg)
+			if repo == "" {
+				repo, _ = splitImageRepoTag(catImg)
+			}
+			if latestVer != "" && repo != "" && (isFloating || !versionsEqual(currentTag, latestVer)) {
+				fetchWg.Add(1)
+				go func(targetVer string) {
+					defer fetchWg.Done()
+					remoteLatestDigests, remLatestErr = fetchRemoteImageDigests(ctx, repo+":"+targetVer)
+				}(latestVer)
+			} else if latestVer != "" && versionsEqual(currentTag, latestVer) {
+				// Pinned to latestVer already: remoteLatestDigests == remoteInstalledDigests
+			}
+			fetchWg.Wait()
+
+			if latestVer != "" && versionsEqual(currentTag, latestVer) && len(remoteLatestDigests) == 0 {
+				remoteLatestDigests = remoteInstalledDigests
+				remLatestErr = remInstalledErr
+			}
+
+			var contLabels map[string]string
+			var contImgID string
+			if cont != nil {
+				contLabels = cont.Labels
+				contImgID = cont.ImageID
+			}
+
+			matchedByDigest := ""
+			if isFloating && len(localInfo.RepoDigests) > 0 && repo != "" {
+				if latestVer != "" && digestsOverlap(localInfo.RepoDigests, remoteLatestDigests) {
+					matchedByDigest = latestVer
+				} else if extractConcreteVersionFromLabels(contLabels) == "" && extractConcreteVersionFromLabels(localInfo.Labels) == "" {
+					matchedByDigest = findMatchingReleaseTagByDigest(ctx, repo, mergedTags, latestVer, localInfo.RepoDigests)
 				}
 			}
 
-			entry := appUpdateCheckEntry{
-				CurrentVersion:    currentVer,
-				LatestVersion:     latestVer,
-				AvailableVersions: dynTags,
-				LocalDigest:       shortDigest(localDigest),
-				RemoteDigest:      shortDigest(remoteDigest),
-				TargetImage:       targetImg,
-			}
-			if remErr != nil {
-				entry.Error = remErr.Error()
-			} else if remoteDigest != "" {
-				if installedImg != targetImg {
-					entry.HasUpdate = true
-				} else if localDigest != "" && !strings.HasSuffix(localDigest, "@"+remoteDigest) {
-					entry.HasUpdate = true
-				} else if latestVer != "" && currentVer != "" && currentVer != "latest" && compareVersionsDesc(latestVer, currentVer) {
-					entry.HasUpdate = true
-				}
-			} else if latestVer != "" && currentVer != "" && currentVer != "latest" && compareVersionsDesc(latestVer, currentVer) {
-				entry.HasUpdate = true
-			}
+			entry := evaluateAppUpdateStatus(appUpdateEvalInput{
+				InstalledImage:            curImg,
+				CatalogSpecImage:          catImg,
+				LocalDigests:              localInfo.RepoDigests,
+				ContainerImageID:          contImgID,
+				TagImageID:                localInfo.TagImageID,
+				ContainerLabels:           contLabels,
+				ImageLabels:               localInfo.Labels,
+				StoredMeta:                meta,
+				RemoteTags:                mergedTags,
+				RemoteInstalledDigests:    remoteInstalledDigests,
+				RemoteInstalledErr:        remInstalledErr,
+				RemoteLatestDigests:       remoteLatestDigests,
+				RemoteLatestErr:           remLatestErr,
+				MatchedReleaseTagByDigest: matchedByDigest,
+			})
+
 			mu.Lock()
 			results[installedApp.ID] = entry
 			mu.Unlock()
-		}(app, strings.TrimSpace(app.Image), targetImage)
+		}(app, installedImg, specImage, specVersions, matched)
 	}
 	wg.Wait()
 
@@ -2327,26 +2653,79 @@ func shortDigest(raw string) string {
 	return s
 }
 
-func inspectLocalImageDigest(imageRef string) (repoDigest string, imageID string) {
+func inspectLocalImageRaw(imageRef string) localImageInfo {
 	ref := strings.TrimSpace(imageRef)
 	if ref == "" {
-		return "", ""
+		return localImageInfo{}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{json .RepoDigests}}|{{.Id}}", ref).Output()
+	out, err := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{json .RepoDigests}}|{{.Id}}|{{json .Config.Labels}}", ref).Output()
 	if err != nil {
-		return "", ""
+		return localImageInfo{}
 	}
-	parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
-	if len(parts) == 2 {
-		imageID = strings.TrimSpace(parts[1])
+	parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 3)
+	var info localImageInfo
+	if len(parts) >= 2 {
+		info.ImageID = strings.TrimSpace(parts[1])
 	}
 	var digests []string
-	if len(parts) >= 1 && json.Unmarshal([]byte(parts[0]), &digests) == nil && len(digests) > 0 {
-		repoDigest = strings.TrimSpace(digests[0])
+	if len(parts) >= 1 && json.Unmarshal([]byte(parts[0]), &digests) == nil {
+		for _, d := range digests {
+			if trimmed := strings.TrimSpace(d); trimmed != "" {
+				info.RepoDigests = append(info.RepoDigests, trimmed)
+			}
+		}
 	}
-	return repoDigest, imageID
+	if len(info.RepoDigests) > 0 {
+		info.PrimaryDigest = info.RepoDigests[0]
+	}
+	if len(parts) >= 3 {
+		var lbls map[string]string
+		if json.Unmarshal([]byte(parts[2]), &lbls) == nil {
+			info.Labels = lbls
+		}
+	}
+	return info
+}
+
+func inspectLocalImageForApp(imageRef string, matched *docker.Container) localImageInfo {
+	info := inspectLocalImageRaw(imageRef)
+	tagImageID := info.ImageID
+
+	if matched != nil && strings.TrimSpace(matched.ImageID) != "" {
+		if info.ImageID == "" || strings.TrimSpace(matched.ImageID) != info.ImageID {
+			contInfo := inspectLocalImageRaw(strings.TrimSpace(matched.ImageID))
+			if contInfo.ImageID != "" {
+				info = contInfo
+			}
+		}
+		if len(matched.Labels) > 0 {
+			if info.Labels == nil {
+				info.Labels = make(map[string]string, len(matched.Labels))
+			}
+			for k, v := range matched.Labels {
+				if strings.TrimSpace(v) != "" && info.Labels[k] == "" {
+					info.Labels[k] = v
+				}
+			}
+		}
+	}
+	info.TagImageID = tagImageID
+	if info.PrimaryDigest == "" && len(info.RepoDigests) > 0 {
+		info.PrimaryDigest = info.RepoDigests[0]
+	}
+	var matchedLabels map[string]string
+	if matched != nil {
+		matchedLabels = matched.Labels
+	}
+	info.ResolvedVer = resolveVersionFromTagOrInfo(extractImageTag(imageRef), info, matchedLabels)
+	return info
+}
+
+func inspectLocalImageDigest(imageRef string) (repoDigest string, imageID string) {
+	info := inspectLocalImageRaw(imageRef)
+	return info.PrimaryDigest, info.ImageID
 }
 
 func parseOCIRef(imageRef string) (registry, repo, tag string) {
@@ -2377,16 +2756,24 @@ func parseOCIRef(imageRef string) (registry, repo, tag string) {
 }
 
 func fetchRemoteImageDigest(ctx context.Context, imageRef string) (string, error) {
+	digests, err := fetchRemoteImageDigests(ctx, imageRef)
+	if err != nil || len(digests) == 0 {
+		return "", err
+	}
+	return digests[0], nil
+}
+
+func fetchRemoteImageDigests(ctx context.Context, imageRef string) ([]string, error) {
 	registry, repo, tag := parseOCIRef(imageRef)
 	if repo == "" {
-		return "", errors.New("empty image repo")
+		return nil, errors.New("empty image repo")
 	}
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 6 * time.Second}
 	manifestURL := fmt.Sprintf("https://%s/v2/%s/manifests/%s", registry, repo, tag)
 	accept := "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json"
 
-	doHead := func(token string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodHead, manifestURL, nil)
+	doGet := func(token string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -2397,31 +2784,68 @@ func fetchRemoteImageDigest(ctx context.Context, imageRef string) (string, error
 		return client.Do(req)
 	}
 
-	resp, err := doHead("")
+	resp, err := doGet("")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		authHeader := resp.Header.Get("Www-Authenticate")
 		resp.Body.Close()
 		token, tokErr := fetchOCIBearerToken(ctx, client, authHeader, registry, repo)
 		if tokErr != nil {
-			return "", tokErr
+			return nil, tokErr
 		}
-		resp, err = doHead(token)
+		resp, err = doGet(token)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("registry HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("registry HTTP %d", resp.StatusCode)
 	}
-	digest := strings.TrimSpace(resp.Header.Get("Docker-Content-Digest"))
-	if digest == "" {
-		digest = strings.Trim(strings.TrimSpace(resp.Header.Get("ETag")), `"`)
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	var digests []string
+	seen := make(map[string]bool)
+	addDigest := func(raw string) {
+		if d := normalizeDigest(raw); d != "" && !seen[d] {
+			seen[d] = true
+			digests = append(digests, d)
+		}
 	}
-	return digest, nil
+
+	topDigest := strings.TrimSpace(resp.Header.Get("Docker-Content-Digest"))
+	if topDigest == "" {
+		topDigest = strings.Trim(strings.TrimSpace(resp.Header.Get("ETag")), `"`)
+	}
+	if topDigest == "" && len(body) > 0 {
+		sum := sha256.Sum256(body)
+		topDigest = "sha256:" + hex.EncodeToString(sum[:])
+	}
+	addDigest(topDigest)
+
+	// Extract matching platform manifest digest from multi-arch OCI index / manifest list
+	var indexPayload struct {
+		Manifests []struct {
+			Digest   string `json:"digest"`
+			Platform struct {
+				Architecture string `json:"architecture"`
+				OS           string `json:"os"`
+			} `json:"platform"`
+		} `json:"manifests"`
+	}
+	if len(body) > 0 && json.Unmarshal(body, &indexPayload) == nil && len(indexPayload.Manifests) > 0 {
+		hostArch := runtime.GOARCH
+		for _, m := range indexPayload.Manifests {
+			osName := strings.ToLower(strings.TrimSpace(m.Platform.OS))
+			arch := strings.ToLower(strings.TrimSpace(m.Platform.Architecture))
+			if osName == "linux" && (arch == hostArch || (hostArch == "" && (arch == "amd64" || arch == "arm64"))) {
+				addDigest(m.Digest)
+			}
+		}
+	}
+	return digests, nil
 }
 
 func fetchOCIBearerToken(ctx context.Context, client *http.Client, wwwAuth, registry, repo string) (string, error) {
@@ -2501,21 +2925,35 @@ type cachedTagsEntry struct {
 }
 
 func parseSemverNumbers(v string) []int {
-	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	v = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v), "v"), "V")
+	if idx := strings.IndexAny(v, "-+"); idx >= 0 {
+		v = v[:idx]
+	}
+	if v == "" {
+		return nil
+	}
 	parts := strings.Split(v, ".")
 	nums := make([]int, 0, len(parts))
 	for _, p := range parts {
-		numStr := p
-		if idx := strings.IndexAny(p, "-+"); idx >= 0 {
-			numStr = p[:idx]
+		if p == "" {
+			return nil
 		}
-		n, err := strconv.Atoi(numStr)
-		if err != nil {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
 			return nil
 		}
 		nums = append(nums, n)
 	}
+	// Avoid treating un-dotted YYYYMMDD build timestamps/PR numbers as higher than dotted semver
+	if len(nums) == 1 && nums[0] >= 10000 {
+		return nil
+	}
 	return nums
+}
+
+func hasVersionSuffix(v string) bool {
+	trimmed := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(v), "v"), "V")
+	return strings.ContainsAny(trimmed, "-+")
 }
 
 func compareVersionsDesc(a, b string) bool {
@@ -2542,6 +2980,12 @@ func compareVersionsDesc(a, b string) bool {
 				return valA > valB
 			}
 		}
+		// Canonical release tags (e.g. 1.6.39) rank higher than suffixed variants (e.g. 1.6.39-rc.1, 2-slim)
+		sufA := hasVersionSuffix(a)
+		sufB := hasVersionSuffix(b)
+		if sufA != sufB {
+			return !sufA
+		}
 		return a > b
 	}
 	if numsA != nil {
@@ -2553,91 +2997,419 @@ func compareVersionsDesc(a, b string) bool {
 	return a > b
 }
 
-func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string) ([]string, error) {
+func isFloatingImageTag(tag string) bool {
+	switch strings.ToLower(strings.TrimSpace(tag)) {
+	case "", "latest", "stable", "main", "master", "edge", "nightly", "dev", "rolling", "next", "canary":
+		return true
+	}
+	return false
+}
+
+func isNonReleaseImageTag(tag string) bool {
+	t := strings.TrimSpace(tag)
+	if t == "" {
+		return true
+	}
+	lower := strings.ToLower(t)
+	if strings.HasPrefix(lower, "sha-") || strings.HasPrefix(lower, "sha256-") {
+		return true
+	}
+	for _, suf := range []string{".sig", ".att", ".sbom", ".pem", ".crt"} {
+		if strings.HasSuffix(lower, suf) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPrereleaseSuffix(tag string) bool {
+	lower := strings.ToLower(strings.TrimSpace(tag))
+	for _, token := range []string{"-alpha", "-beta", "-rc", "-dev", "-canary", "-nightly", "-snapshot", "-pre"} {
+		if strings.Contains(lower, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasArchSuffix(tag string) bool {
+	lower := strings.ToLower(strings.TrimSpace(tag))
+	for _, suf := range []string{"-amd64", "-arm64", "-armv7", "-arm", "-386", "-ppc64le", "-s390x", "-linux-amd64", "-linux-arm64"} {
+		if strings.HasSuffix(lower, suf) {
+			return true
+		}
+	}
+	return false
+}
+
+func isConcreteVersionTag(raw string) bool {
+	t := strings.TrimSpace(raw)
+	if t == "" || isFloatingImageTag(t) || isNonReleaseImageTag(t) {
+		return false
+	}
+	return parseSemverNumbers(t) != nil
+}
+
+func normalizeVersionLabel(raw string) string {
+	t := strings.TrimSpace(raw)
+	if t == "" {
+		return ""
+	}
+	if (strings.HasPrefix(t, "v") || strings.HasPrefix(t, "V")) && len(t) > 1 && t[1] >= '0' && t[1] <= '9' {
+		return t[1:]
+	}
+	return t
+}
+
+func versionsEqual(a, b string) bool {
+	na := normalizeVersionLabel(a)
+	nb := normalizeVersionLabel(b)
+	return na != "" && na == nb
+}
+
+func pickLatestReleaseTag(tags []string) string {
+	fallback := ""
+	for _, raw := range tags {
+		t := strings.TrimSpace(raw)
+		if !isConcreteVersionTag(t) || hasArchSuffix(t) {
+			continue
+		}
+		if hasPrereleaseSuffix(t) {
+			if fallback == "" {
+				fallback = t
+			}
+			continue
+		}
+		return t
+	}
+	return fallback
+}
+
+func pickPreferredReleaseTag(tags []string) string {
+	for _, raw := range tags {
+		t := strings.TrimSpace(raw)
+		if !isConcreteVersionTag(t) || hasArchSuffix(t) || hasPrereleaseSuffix(t) {
+			continue
+		}
+		// Require dotted semver (e.g. 1.6.39 or 1.23) for automatic default tag selection
+		if strings.Contains(t, ".") {
+			return t
+		}
+	}
+	return ""
+}
+
+func mergeOrderedImageTags(primaryTags, fallbackTags []string) []string {
+	seen := make(map[string]bool)
+	var all []string
+	add := func(t string) {
+		t = strings.TrimSpace(t)
+		if t == "" || isNonReleaseImageTag(t) || seen[t] {
+			return
+		}
+		seen[t] = true
+		all = append(all, t)
+	}
+	for _, t := range primaryTags {
+		add(t)
+	}
+	for _, t := range fallbackTags {
+		add(t)
+	}
+	return orderImageTags(all)
+}
+
+func orderImageTags(tags []string) []string {
+	var releaseTags []string
+	var otherTags []string
+	var floatingTags []string
+	seen := make(map[string]bool)
+	hasLatest := false
+
+	for _, raw := range tags {
+		t := strings.TrimSpace(raw)
+		if t == "" || isNonReleaseImageTag(t) || seen[t] {
+			continue
+		}
+		seen[t] = true
+		if t == "latest" {
+			hasLatest = true
+			continue
+		}
+		if isFloatingImageTag(t) {
+			floatingTags = append(floatingTags, t)
+		} else if parseSemverNumbers(t) != nil {
+			releaseTags = append(releaseTags, t)
+		} else {
+			otherTags = append(otherTags, t)
+		}
+	}
+
+	sort.Slice(releaseTags, func(i, j int) bool {
+		return compareVersionsDesc(releaseTags[i], releaseTags[j])
+	})
+
+	result := make([]string, 0, len(releaseTags)+len(otherTags)+len(floatingTags)+1)
+	result = append(result, releaseTags...)
+	result = append(result, otherTags...)
+	if hasLatest {
+		result = append(result, "latest")
+	}
+	result = append(result, floatingTags...)
+	return result
+}
+
+func normalizeDigest(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if idx := strings.Index(s, "@"); idx != -1 {
+		s = s[idx+1:]
+	}
+	return strings.TrimSpace(s)
+}
+
+func digestsOverlap(a, b []string) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return false
+	}
+	set := make(map[string]bool, len(b))
+	for _, d := range b {
+		if n := normalizeDigest(d); n != "" {
+			set[n] = true
+		}
+	}
+	for _, d := range a {
+		if n := normalizeDigest(d); n != "" && set[n] {
+			return true
+		}
+	}
+	return false
+}
+
+func firstNonEmptyString(items []string) string {
+	for _, s := range items {
+		if trimmed := strings.TrimSpace(s); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func extractConcreteVersionFromLabels(labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	for _, key := range []string{"org.opencontainers.image.version", "org.label-schema.version", "version"} {
+		val := strings.TrimSpace(labels[key])
+		if val == "" || isFloatingImageTag(val) {
+			continue
+		}
+		if isConcreteVersionTag(val) {
+			return normalizeVersionLabel(val)
+		}
+	}
+	return ""
+}
+
+func resolveInstalledVersion(tag, storedResolved string, labels map[string]string) string {
+	if !isFloatingImageTag(tag) && strings.TrimSpace(tag) != "" {
+		return normalizeVersionLabel(tag)
+	}
+	if v := extractConcreteVersionFromLabels(labels); v != "" {
+		return v
+	}
+	if isConcreteVersionTag(storedResolved) {
+		return normalizeVersionLabel(storedResolved)
+	}
+	return ""
+}
+
+func resolveVersionFromTagOrInfo(tag string, info localImageInfo, containerLabels map[string]string) string {
+	if !isFloatingImageTag(tag) && strings.TrimSpace(tag) != "" {
+		return normalizeVersionLabel(tag)
+	}
+	if v := extractConcreteVersionFromLabels(containerLabels); v != "" {
+		return v
+	}
+	if v := extractConcreteVersionFromLabels(info.Labels); v != "" {
+		return v
+	}
+	return ""
+}
+
+func findMatchingReleaseTagByDigest(ctx context.Context, repo string, orderedTags []string, skipTag string, localDigests []string) string {
+	if repo == "" || len(localDigests) == 0 || len(orderedTags) == 0 {
+		return ""
+	}
+	const maxCandidates = 5
+	candidates := make([]string, 0, maxCandidates)
+	for _, raw := range orderedTags {
+		t := strings.TrimSpace(raw)
+		if t == "" || t == skipTag || !isConcreteVersionTag(t) || hasArchSuffix(t) || hasPrereleaseSuffix(t) {
+			continue
+		}
+		candidates = append(candidates, t)
+		if len(candidates) >= maxCandidates {
+			break
+		}
+	}
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+
+	matched := make([]string, len(candidates))
+	var wg sync.WaitGroup
+	for i, tag := range candidates {
+		wg.Add(1)
+		go func(idx int, verTag string) {
+			defer wg.Done()
+			digs, err := fetchRemoteImageDigests(probeCtx, repo+":"+verTag)
+			if err == nil && digestsOverlap(localDigests, digs) {
+				matched[idx] = verTag
+			}
+		}(i, tag)
+	}
+	wg.Wait()
+
+	for _, tag := range matched {
+		if tag != "" {
+			return tag
+		}
+	}
+	return ""
+}
+
+func parseNextRegistryLink(linkHeader, registry string) string {
+	for _, segment := range strings.Split(linkHeader, ",") {
+		parts := strings.Split(segment, ";")
+		if len(parts) < 2 {
+			continue
+		}
+		isNext := false
+		for _, p := range parts[1:] {
+			if strings.Contains(strings.ToLower(p), `rel="next"`) || strings.Contains(strings.ToLower(p), "rel=next") {
+				isNext = true
+				break
+			}
+		}
+		if !isNext {
+			continue
+		}
+		rawURL := strings.TrimSpace(parts[0])
+		rawURL = strings.TrimPrefix(rawURL, "<")
+		rawURL = strings.TrimSuffix(rawURL, ">")
+		if rawURL == "" {
+			continue
+		}
+		if strings.HasPrefix(rawURL, "/") {
+			return fmt.Sprintf("https://%s%s", registry, rawURL)
+		}
+		if strings.HasPrefix(rawURL, "http://") || strings.HasPrefix(rawURL, "https://") {
+			return rawURL
+		}
+	}
+	return ""
+}
+
+func (s *Server) fetchRemoteImageTags(ctx context.Context, imageRef string, bypassCache bool) ([]string, error) {
 	registry, repo, _ := parseOCIRef(imageRef)
 	if repo == "" {
 		return nil, errors.New("empty repo")
 	}
 
 	cacheKey := registry + "/" + repo
-	remoteTagsCacheMu.RLock()
-	cached, ok := remoteTagsCache[cacheKey]
-	remoteTagsCacheMu.RUnlock()
-	if ok && time.Since(cached.fetchedAt) < 5*time.Minute && len(cached.tags) > 0 {
-		return cached.tags, nil
+	if !bypassCache {
+		remoteTagsCacheMu.RLock()
+		cached, ok := remoteTagsCache[cacheKey]
+		remoteTagsCacheMu.RUnlock()
+		if ok && time.Since(cached.fetchedAt) < 5*time.Minute && len(cached.tags) > 0 {
+			cp := make([]string, len(cached.tags))
+			copy(cp, cached.tags)
+			return cp, nil
+		}
 	}
 
 	client := &http.Client{Timeout: 8 * time.Second}
-	tagsURL := fmt.Sprintf("https://%s/v2/%s/tags/list?n=1000", registry, repo)
+	nextURL := fmt.Sprintf("https://%s/v2/%s/tags/list?n=1000", registry, repo)
+	token := ""
+	var allTags []string
 
-	doGet := func(token string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, tagsURL, nil)
+	for page := 0; page < 5 && nextURL != ""; page++ {
+		doGet := func(tok string) (*http.Response, error) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, nextURL, nil)
+			if err != nil {
+				return nil, err
+			}
+			req.Header.Set("Accept", "application/json")
+			if tok != "" {
+				req.Header.Set("Authorization", "Bearer "+tok)
+			}
+			return client.Do(req)
+		}
+
+		resp, err := doGet(token)
 		if err != nil {
+			if len(allTags) > 0 {
+				break
+			}
 			return nil, err
 		}
-		req.Header.Set("Accept", "application/json")
-		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
+		if resp.StatusCode == http.StatusUnauthorized {
+			authHeader := resp.Header.Get("Www-Authenticate")
+			resp.Body.Close()
+			tok, tokErr := fetchOCIBearerToken(ctx, client, authHeader, registry, repo)
+			if tokErr != nil {
+				if len(allTags) > 0 {
+					break
+				}
+				return nil, tokErr
+			}
+			token = tok
+			resp, err = doGet(token)
+			if err != nil {
+				if len(allTags) > 0 {
+					break
+				}
+				return nil, err
+			}
 		}
-		return client.Do(req)
-	}
+		if resp.StatusCode != http.StatusOK {
+			code := resp.StatusCode
+			resp.Body.Close()
+			if len(allTags) > 0 {
+				break
+			}
+			return nil, fmt.Errorf("registry HTTP %d", code)
+		}
 
-	resp, err := doGet("")
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		authHeader := resp.Header.Get("Www-Authenticate")
+		var payload struct {
+			Tags []string `json:"tags"`
+		}
+		decErr := json.NewDecoder(resp.Body).Decode(&payload)
+		linkHeader := resp.Header.Get("Link")
 		resp.Body.Close()
-		token, tokErr := fetchOCIBearerToken(ctx, client, authHeader, registry, repo)
-		if tokErr != nil {
-			return nil, tokErr
+		if decErr != nil {
+			if len(allTags) > 0 {
+				break
+			}
+			return nil, decErr
 		}
-		resp, err = doGet(token)
-		if err != nil {
-			return nil, err
-		}
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("registry HTTP %d", resp.StatusCode)
+		allTags = append(allTags, payload.Tags...)
+		nextURL = parseNextRegistryLink(linkHeader, registry)
 	}
 
-	var payload struct {
-		Tags []string `json:"tags"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, err
-	}
-
-	var semverTags []string
-	hasLatest := false
-	for _, t := range payload.Tags {
-		t = strings.TrimSpace(t)
-		if t == "" || strings.HasPrefix(t, "sha-") || strings.HasPrefix(t, "sha256-") {
-			continue
-		}
-		if t == "latest" {
-			hasLatest = true
-			continue
-		}
-		semverTags = append(semverTags, t)
-	}
-
-	sort.Slice(semverTags, func(i, j int) bool {
-		return compareVersionsDesc(semverTags[i], semverTags[j])
-	})
-
-	result := make([]string, 0, len(semverTags)+1)
-	if hasLatest {
-		result = append(result, "latest")
-	}
-	result = append(result, semverTags...)
-
+	result := orderImageTags(allTags)
 	if len(result) > 0 {
+		cp := make([]string, len(result))
+		copy(cp, result)
 		remoteTagsCacheMu.Lock()
 		remoteTagsCache[cacheKey] = cachedTagsEntry{
-			tags:      result,
+			tags:      cp,
 			fetchedAt: time.Now(),
 		}
 		remoteTagsCacheMu.Unlock()

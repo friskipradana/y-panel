@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Search } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import type { CatalogApp, InstalledApp } from '@/api/appCatalog'
+import type { AppUpdateStatus, CatalogApp, InstalledApp } from '@/api/appCatalog'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field } from '@/components/ui/Field'
@@ -16,6 +18,15 @@ import {
   type BusyCatalogAction,
 } from '@/components/windows/app-catalog/InstalledAppsView'
 import {
+  extractTagFromImageRef,
+  formatSingleVersionTag,
+  formatVersionDisplay,
+  isFloatingTag,
+  orderCatalogVersionChoices,
+} from '@/components/windows/app-catalog/versionHelpers'
+import {
+  forceRefreshAppCatalog,
+  forceRefreshAppUpdates,
   openInstalledAppWindow,
   useAppCatalog,
   useAppCatalogMutations,
@@ -42,35 +53,30 @@ function readStoredViewMode(): CatalogViewMode {
 interface UpgradeTargetModalState {
   app: InstalledApp
   currentVersion: string
+  resolvedVersion: string
+  isFloating: boolean
+  latestVersion: string
   targetVersion: string
   availableVersions: string[]
-}
-
-function extractTagFromRef(ref: string): string {
-  const trimmed = ref.trim()
-  if (!trimmed) return 'latest'
-  const noDigest = trimmed.split('@')[0]
-  const lastSlash = noDigest.lastIndexOf('/')
-  const lastColon = noDigest.lastIndexOf(':')
-  if (lastColon > lastSlash) {
-    return noDigest.substring(lastColon + 1)
-  }
-  return 'latest'
+  localDigest?: string
+  remoteDigest?: string
 }
 
 export function AppCatalogWindow() {
   const { t } = useI18n()
+  const qc = useQueryClient()
   const isMobile = useIsMobileLayout()
   const isSuperadmin = useAuthStore((s) => s.user?.role === 'superadmin')
-  const { data, isLoading, isError, refetch, isFetching } = useAppCatalog()
+  const { data, isLoading, isError, isFetching } = useAppCatalog()
   const { actionMutation, upgradeMutation, rollbackMutation, uninstallMutation } = useAppCatalogMutations()
 
   const [tab, setTab] = useState<CatalogTab>('catalog')
   const {
     data: updatesById,
-    refetch: refetchUpdates,
     isFetching: isCheckingUpdates,
   } = useInstalledAppUpdates(tab === 'installed')
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false)
+  const upgradeTargetEditedRef = useRef(false)
   const [viewMode, setViewMode] = useState<CatalogViewMode>(readStoredViewMode)
   const [category, setCategory] = useState<string>('all')
   const [search, setSearch] = useState('')
@@ -177,43 +183,62 @@ export function AppCatalogWindow() {
     }
   }
 
-  const handleUpgradeApp = (app: InstalledApp) => {
-    const updateStatus = updatesById?.[app.id]
+  const buildUpgradeState = (
+    app: InstalledApp,
+    updateStatus?: AppUpdateStatus,
+  ): UpgradeTargetModalState => {
     const currentVersion =
-      updateStatus?.currentVersion || app.versionTag || extractTagFromRef(app.image) || 'latest'
+      updateStatus?.currentVersion || app.versionTag || extractTagFromImageRef(app.image) || 'latest'
+    const resolvedVersion = updateStatus?.resolvedVersion || app.resolvedVersion || ''
+    const isFloating = updateStatus?.isFloatingTag ?? app.isFloatingTag ?? isFloatingTag(currentVersion)
 
     const spec = catalog.find((c) => c.id === app.catalogId)
     const versionsFromSpec = spec?.versions ?? []
     const versionsFromUpdate = updateStatus?.availableVersions ?? []
-
-    const seen = new Set<string>()
-    const mergedVersions: string[] = []
-
-    for (const v of [...versionsFromUpdate, ...versionsFromSpec]) {
-      const trimmed = v.trim()
-      if (trimmed && !seen.has(trimmed)) {
-        seen.add(trimmed)
-        mergedVersions.push(trimmed)
-      }
-    }
-
-    if (updateStatus?.latestVersion && !seen.has(updateStatus.latestVersion)) {
-      mergedVersions.unshift(updateStatus.latestVersion)
-      seen.add(updateStatus.latestVersion)
-    }
-
+    const { ordered, latestConcrete } = orderCatalogVersionChoices(
+      [...versionsFromUpdate, ...versionsFromSpec, ...(updateStatus?.latestVersion ? [updateStatus.latestVersion] : [])],
+      currentVersion,
+    )
+    const latestVersion = updateStatus?.latestVersion || latestConcrete
     const defaultTarget =
-      updateStatus?.latestVersion ||
-      mergedVersions.find((v) => v !== 'latest' && v !== currentVersion) ||
-      mergedVersions[0] ||
+      latestVersion ||
+      ordered.find((v) => !isFloatingTag(v) && v !== currentVersion) ||
+      ordered[0] ||
       'latest'
 
-    setUpgradeTarget({
+    return {
       app,
       currentVersion,
+      resolvedVersion,
+      isFloating,
+      latestVersion,
       targetVersion: defaultTarget,
-      availableVersions: mergedVersions.length > 0 ? mergedVersions : [defaultTarget],
-    })
+      availableVersions: ordered.length > 0 ? ordered : [defaultTarget],
+      localDigest: updateStatus?.localDigest || app.currentDigest,
+      remoteDigest: updateStatus?.remoteDigest,
+    }
+  }
+
+  const handleUpgradeApp = (app: InstalledApp) => {
+    upgradeTargetEditedRef.current = false
+    const initialState = buildUpgradeState(app, updatesById?.[app.id])
+    setUpgradeTarget(initialState)
+    void forceRefreshAppUpdates(qc)
+      .then((freshMap) => {
+        const fresh = freshMap?.[app.id]
+        if (!fresh) return
+        setUpgradeTarget((prev) => {
+          if (!prev || prev.app.id !== app.id) return prev
+          const updated = buildUpgradeState(app, fresh)
+          return {
+            ...updated,
+            targetVersion: upgradeTargetEditedRef.current ? prev.targetVersion : updated.targetVersion,
+          }
+        })
+      })
+      .catch(() => {
+        // Pertahankan data modal yang sudah tersedia bila refresh latar gagal
+      })
   }
 
   const handleConfirmUpgrade = async () => {
@@ -366,24 +391,30 @@ export function AppCatalogWindow() {
     <ViewModeToggle mode={viewMode} onChange={updateViewMode} isMobile={mobile} />
   )
 
-  const refreshButton = (cls = 'docker-icon-btn') => (
-    <button
-      type="button"
-      className={cls}
-      title={t('common.refresh')}
-      aria-label={t('common.refresh')}
-      onClick={() => {
-        void refetch()
-        if (tab === 'installed') void refetchUpdates()
-      }}
-      disabled={(isFetching && !isLoading) || isCheckingUpdates}
-    >
-      <RefreshCw
-        className={`h-3.5 w-3.5 ${(isFetching && !isLoading) || isCheckingUpdates ? 'animate-spin' : ''}`}
-        strokeWidth={1.75}
-      />
-    </button>
-  )
+  const refreshButton = (cls = 'docker-icon-btn') => {
+    const refreshing = isManualRefreshing || (isFetching && !isLoading) || isCheckingUpdates
+    return (
+      <button
+        type="button"
+        className={cls}
+        title={t('common.refresh')}
+        aria-label={t('common.refresh')}
+        onClick={() => {
+          if (refreshing) return
+          setIsManualRefreshing(true)
+          void forceRefreshAppCatalog(qc, tab === 'installed').finally(() => {
+            setIsManualRefreshing(false)
+          })
+        }}
+        disabled={refreshing}
+      >
+        <RefreshCw
+          className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+          strokeWidth={1.75}
+        />
+      </button>
+    )
+  }
 
   return (
     <div className="panel-window docker-window-root flex flex-col h-full min-h-0 overflow-hidden">
@@ -626,38 +657,89 @@ export function AppCatalogWindow() {
         {upgradeTarget && (
           <div className="space-y-4 text-[13px]">
             <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-[var(--panel-surface-subtle)] border border-[var(--panel-border)]">
-              <div>
+              <div className="min-w-0">
                 <span className="text-[11px] font-medium text-[var(--text-secondary)] block mb-1">
                   {t('appCatalog.currentVersionLabel')}
                 </span>
-                <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">
-                  {upgradeTarget.currentVersion === 'latest'
-                    ? 'latest'
-                    : `v${upgradeTarget.currentVersion.replace(/^v/, '')}`}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                  <span className="panel-mono text-[13px] font-semibold text-[var(--win-text)]">
+                    {formatVersionDisplay(upgradeTarget.currentVersion, upgradeTarget.resolvedVersion)}
+                  </span>
+                  {upgradeTarget.isFloating ? (
+                    <Badge tone="warning" size="sm">
+                      {t('appCatalog.floatingTagBadge')}
+                    </Badge>
+                  ) : null}
+                </div>
+                {upgradeTarget.localDigest ? (
+                  <span className="panel-mono text-[11px] text-[var(--text-secondary)] block mt-1 truncate">
+                    {upgradeTarget.localDigest}
+                  </span>
+                ) : null}
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-[11px] font-medium text-[var(--text-secondary)] block mb-1">
                   {t('appCatalog.targetVersionLabel')}
                 </span>
-                <span className="panel-mono text-[13px] font-semibold text-[var(--panel-primary)]">
-                  {upgradeTarget.targetVersion === 'latest'
-                    ? 'latest'
-                    : `v${upgradeTarget.targetVersion.replace(/^v/, '')}`}
+                <span className="panel-mono text-[13px] font-semibold text-[var(--panel-primary)] block truncate">
+                  {formatSingleVersionTag(upgradeTarget.targetVersion)}
                 </span>
+                {upgradeTarget.remoteDigest &&
+                upgradeTarget.targetVersion === upgradeTarget.latestVersion ? (
+                  <span className="panel-mono text-[11px] text-[var(--text-secondary)] block mt-1 truncate">
+                    {upgradeTarget.remoteDigest}
+                  </span>
+                ) : null}
               </div>
             </div>
+
+            {upgradeTarget.isFloating ? (
+              <div className="panel-alert text-[12px]">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  {upgradeTarget.resolvedVersion
+                    ? t('appCatalog.upgradeFloatingResolvedNotice', {
+                        tag: upgradeTarget.currentVersion,
+                        resolved: formatSingleVersionTag(upgradeTarget.resolvedVersion),
+                        target: formatSingleVersionTag(
+                          upgradeTarget.latestVersion || upgradeTarget.targetVersion,
+                        ),
+                      })
+                    : t('appCatalog.upgradeFloatingUnverifiedNotice', {
+                        tag: upgradeTarget.currentVersion,
+                        target: formatSingleVersionTag(
+                          upgradeTarget.latestVersion || upgradeTarget.targetVersion,
+                        ),
+                      })}
+                </span>
+              </div>
+            ) : null}
 
             <Field label={t('appCatalog.targetVersionLabel')}>
               <Select
                 value={upgradeTarget.targetVersion}
-                onChange={(val) =>
+                onChange={(val) => {
+                  upgradeTargetEditedRef.current = true
                   setUpgradeTarget((prev) => (prev ? { ...prev, targetVersion: val } : null))
-                }
-                options={upgradeTarget.availableVersions.map((v) => ({
-                  value: v,
-                  label: v === 'latest' ? 'latest (Terbaru)' : `v${v.replace(/^v/, '')}`,
-                }))}
+                }}
+                options={upgradeTarget.availableVersions.map((v) => {
+                  if (isFloatingTag(v)) {
+                    return {
+                      value: v,
+                      label: `${v} ${t('appCatalog.versionRollingSuffix')}`,
+                    }
+                  }
+                  if (upgradeTarget.latestVersion && v === upgradeTarget.latestVersion) {
+                    return {
+                      value: v,
+                      label: `${formatSingleVersionTag(v)} ${t('appCatalog.versionRecommendedSuffix')}`,
+                    }
+                  }
+                  return {
+                    value: v,
+                    label: formatSingleVersionTag(v),
+                  }
+                })}
               />
             </Field>
 
