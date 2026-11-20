@@ -36,6 +36,10 @@ interface InstalledAppsViewProps {
   onUninstall: (app: InstalledApp) => void
 }
 
+function isOfficialReneoApp(catalogId?: string): boolean {
+  return catalogId === 'reneo-crm' || catalogId === 'reneo-sidesa'
+}
+
 function appStatusTone(app: InstalledApp): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
   if (app.kind === 'custom-url') return app.useProxy ? 'info' : 'neutral'
   if (app.containerState === 'running') return 'success'
@@ -216,7 +220,7 @@ export function InstalledAppsView({
                         <div className="app-catalog-card__titles">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="docker-app-name" title={app.name}>{app.name}</span>
-                            {app.catalogId === 'reneo-crm' ? (
+                            {isOfficialReneoApp(app.catalogId) ? (
                               <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
                                 {t('appCatalog.officialBadge')}
                               </Badge>
@@ -308,7 +312,7 @@ export function InstalledAppsView({
                 <div className="docker-row__text">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="docker-app-name" title={app.name}>{app.name}</span>
-                    {app.catalogId === 'reneo-crm' ? (
+                    {isOfficialReneoApp(app.catalogId) ? (
                       <Badge tone="primary" size="sm" title={t('appCatalog.officialTooltip')}>
                         {t('appCatalog.officialBadge')}
                       </Badge>
