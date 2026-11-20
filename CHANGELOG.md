@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.28] - 2026-11-20
+
+Register Reneo SIDesa official service (reneo-sidesa).
+
+### Fitur baru
+- **app-catalog:** Register Reneo SIDesa official service (reneo-sidesa) ([`6ab7d53`](https://github.com/friskipradana/y-panel/commit/6ab7d53))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.27...v1.88.28
+
 ## [1.88.27] - 2026-11-20
 
 Use in-memory HTTP transport in TestCachedCloudflareZonesAndRevisionCache.
