@@ -13,7 +13,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import type { AppShortcut, WidgetType } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
-import { installedAppWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { WindowPollingProvider } from '@/hooks/useWindowPollingActive'
 
@@ -47,7 +47,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const isMobile = useIsMobileLayout()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
-  const { installedApps } = useInstalledApps()
+  const { installedApps, sharedCrm } = useInstalledApps()
   const visibleWindows = useMemo(
     () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [userRole, windows],
@@ -63,18 +63,33 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
         label,
       }
     })
+    const hasInstalledCrm = installedApps.some((app) => app.catalogId === 'reneo-crm')
     const dynamicApps: AppShortcut[] = canAccessWindow('installed-app', userRole)
-      ? installedApps.map((app) => ({
-          id: `installed-app-${app.id}`,
-          label: app.name,
-          iconKey: app.iconKey,
-          iconColor: app.iconColor,
-          windowId: 'installed-app',
-          params: installedAppWindowParams(app),
-        }))
+      ? [
+          ...installedApps.map((app) => ({
+            id: `installed-app-${app.id}`,
+            label: app.name,
+            iconKey: app.iconKey,
+            iconColor: app.iconColor,
+            windowId: 'installed-app' as const,
+            params: installedAppWindowParams(app),
+          })),
+          ...(!hasInstalledCrm && sharedCrm
+            ? [
+                {
+                  id: 'shared-reneo-crm',
+                  label: sharedCrm.name || 'Reneo CRM',
+                  iconKey: sharedCrm.iconKey || 'reneo-crm',
+                  iconColor: sharedCrm.iconColor || 'emerald',
+                  windowId: 'installed-app' as const,
+                  params: sharedCrmWindowParams(sharedCrm),
+                },
+              ]
+            : []),
+        ]
       : []
     return [...base, ...dynamicApps]
-  }, [installedApps, userRole, t, language])
+  }, [installedApps, sharedCrm, userRole, t, language])
 
   useEffect(() => {
     if (!authenticated || !user?.username) return

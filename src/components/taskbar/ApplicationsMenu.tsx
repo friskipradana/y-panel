@@ -7,7 +7,7 @@ import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { AppIcon } from '@/components/common/AppIcon'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind } from '@/types'
-import { installedAppWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { CATEGORIES, MENU_ITEMS, type CategoryKey } from './appCatalog'
 
@@ -48,7 +48,7 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     }
   }, [isOpen])
 
-  const { installedApps } = useInstalledApps()
+  const { installedApps, sharedCrm } = useInstalledApps()
 
   const accessibleItems = useMemo(() => {
     // the same access rules as the desktop icons, the dock and the palette
@@ -59,6 +59,11 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     () => (canAccessWindow('installed-app', role) ? installedApps : []),
     [installedApps, role],
   )
+
+  const accessibleSharedCrm = useMemo(() => {
+    if (!canAccessWindow('installed-app', role) || !sharedCrm) return null
+    return installedApps.some((app) => app.catalogId === 'reneo-crm') ? null : sharedCrm
+  }, [installedApps, sharedCrm, role])
 
   const filteredItems = useMemo(() => {
     return accessibleItems.filter((item) => {
@@ -120,10 +125,11 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
                   </div>
                   {CATEGORIES.map((cat) => {
                     const isActive = activeCategory === cat.key
+                    const installedTotal = accessibleInstalled.length + (accessibleSharedCrm ? 1 : 0)
                     const count = cat.key === 'all'
-                      ? accessibleItems.length + accessibleInstalled.length
+                      ? accessibleItems.length + installedTotal
                       : cat.key === 'installed'
-                        ? accessibleInstalled.length
+                        ? installedTotal
                         : accessibleItems.filter((i) => i.category === cat.key).length
 
                     return (
@@ -193,6 +199,32 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
                       <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </button>
                   ))}
+                  {accessibleSharedCrm && (activeCategory === 'all' || activeCategory === 'installed') ? (
+                    <button
+                      key="shared-reneo-crm"
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', sharedCrmWindowParams(accessibleSharedCrm))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon
+                          kind="installed-app"
+                          iconKey={accessibleSharedCrm.iconKey}
+                          iconColor={accessibleSharedCrm.iconColor}
+                          size={22}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {accessibleSharedCrm.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {accessibleSharedCrm.openUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ) : null}
                 </div>
               </div>
 

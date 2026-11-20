@@ -83,6 +83,7 @@ export function useInstalledApps() {
     ...query,
     installedApps: query.data?.installed ?? [],
     catalogApps: query.data?.catalog ?? [],
+    sharedCrm: query.data?.sharedCrm ?? null,
   }
 }
 

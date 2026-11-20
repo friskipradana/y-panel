@@ -92,9 +92,18 @@ export interface AppUpdateStatus {
   error?: string
 }
 
+export interface SharedCrmApp {
+  name: string
+  slug: string
+  iconKey: string
+  iconColor: string
+  openUrl: string
+}
+
 export interface AppCatalogResponse {
   catalog: CatalogApp[]
   installed: InstalledApp[]
+  sharedCrm?: SharedCrmApp | null
 }
 
 export interface InstallCatalogAppPayload {
@@ -133,6 +142,7 @@ export async function getAppCatalog(forceRefresh = false): Promise<AppCatalogRes
   return {
     catalog: Array.isArray(data?.catalog) ? data.catalog : [],
     installed: Array.isArray(data?.installed) ? data.installed : [],
+    sharedCrm: data?.sharedCrm ?? null,
   }
 }
 
@@ -256,6 +266,24 @@ export function installedAppWindowParams(app: InstalledApp): Record<string, unkn
     iconKey: app.iconKey,
     iconColor: app.iconColor,
     slug: app.slug,
+  }
+}
+
+export function sharedCrmWindowParams(crm: SharedCrmApp): Record<string, unknown> {
+  const base = (import.meta.env.VITE_AGENT_BASE || '').replace(/\/+$/, '')
+  const raw = crm.openUrl || `/app/${crm.slug || 'reneo-crm'}/`
+  const openUrl =
+    raw.startsWith('http://') || raw.startsWith('https://')
+      ? raw
+      : base
+        ? `${base}${raw}`
+        : raw
+  return {
+    sharedCrm: true,
+    appName: crm.name || 'Reneo CRM',
+    iconKey: crm.iconKey || 'reneo-crm',
+    iconColor: crm.iconColor || 'emerald',
+    openUrl,
   }
 }
 

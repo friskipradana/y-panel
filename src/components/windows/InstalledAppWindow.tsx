@@ -60,8 +60,15 @@ function clearSavedAppUrl(appId: number) {
 export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const { t } = useI18n()
   const isMobile = useIsMobileLayout()
+  const isSharedCrm = win.params?.sharedCrm === true
+  const sharedCrmOpenUrl = typeof win.params?.openUrl === 'string' && win.params.openUrl.trim()
+    ? win.params.openUrl.trim()
+    : '/app/reneo-crm/'
+  const sharedCrmTitle = typeof win.params?.appName === 'string' && win.params.appName.trim()
+    ? win.params.appName.trim()
+    : 'Reneo CRM'
   const appId = Number(win.params?.appId || 0)
-  const { data, isLoading, isError, error, refetch, isFetching } = useAppCatalog()
+  const { data, isLoading, isError, error, refetch, isFetching } = useAppCatalog(!isSharedCrm)
   const { actionMutation, updateMutation } = useAppCatalogMutations()
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
@@ -72,10 +79,10 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
   const [homeOverride, setHomeOverride] = useState(false)
 
   const app = data?.installed.find((item) => item.id === appId)
-  const openUrl = app ? installedAppOpenUrl(app) : ''
+  const openUrl = isSharedCrm ? sharedCrmOpenUrl : app ? installedAppOpenUrl(app) : ''
 
   const syncCurrentIframeUrl = useCallback(() => {
-    if (!app || !openUrl) return
+    if (isSharedCrm || !app || !openUrl) return
     try {
       const href = iframeRef.current?.contentWindow?.location?.href
       if (href && href !== 'about:blank') {
@@ -84,13 +91,64 @@ export function InstalledAppWindow({ win }: InstalledAppWindowProps) {
     } catch {
       // Cross-origin iframes block location access
     }
-  }, [app, openUrl])
+  }, [isSharedCrm, app, openUrl])
 
   useEffect(() => {
     return () => {
       syncCurrentIframeUrl()
     }
   }, [syncCurrentIframeUrl])
+
+  if (isSharedCrm) {
+    const sharedFrameLoading = loadedNonce !== reloadNonce
+    return (
+      <div className="installed-app-shell">
+        <div className={`installed-app-toolbar ${isMobile ? 'installed-app-toolbar--mobile' : ''}`}>
+          <div className="installed-app-toolbar__meta">
+            <Badge tone="success" size="sm" dot>
+              {t('appCatalog.statusRunning')}
+            </Badge>
+            <span className="installed-app-endpoint panel-mono" title={sharedCrmOpenUrl}>
+              {sharedCrmOpenUrl}
+            </span>
+          </div>
+
+          <div className="installed-app-toolbar__actions">
+            <IconButton
+              label={t('common.refresh')}
+              onClick={() => setReloadNonce((n) => n + 1)}
+            >
+              <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </IconButton>
+
+            <IconButton
+              label={t('appCatalog.openNewTab')}
+              onClick={() => window.open(sharedCrmOpenUrl, '_blank', 'noopener,noreferrer')}
+            >
+              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </IconButton>
+          </div>
+        </div>
+
+        <div className="installed-app-viewport">
+          {sharedFrameLoading ? (
+            <div className="installed-app-loading" aria-live="polite">
+              <LoadingState>{t('appCatalog.loadingAppView')}</LoadingState>
+            </div>
+          ) : null}
+          <iframe
+            ref={iframeRef}
+            key={`shared-crm-${reloadNonce}`}
+            src={sharedCrmOpenUrl}
+            title={sharedCrmTitle}
+            onLoad={() => setLoadedNonce(reloadNonce)}
+            className="installed-app-frame"
+            allow="clipboard-read; clipboard-write; fullscreen"
+          />
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading && !app) {
     return <LoadingState>{t('appCatalog.loading')}</LoadingState>

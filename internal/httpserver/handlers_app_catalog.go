@@ -327,6 +327,7 @@ var builtinCatalogApps = []CatalogApp{
 		Category:        "automation",
 		IconKey:         "reneo-crm",
 		IconColor:       "emerald",
+		SuperadminOnly:  true,
 		Official:        true,
 		Image:           "ghcr.io/aknalre/crm-services:latest",
 		Versions:        []string{"1.6.39", "1.6.38", "1.6.37", "1.6.36", "1.6.35", "1.6.34", "1.6.33", "1.6.32", "1.6.31", "1.6.30", "1.6.29", "1.6.28", "1.6.27", "1.6.26", "1.6.25", "1.6.24", "1.6.23", "1.6.22", "1.6.21", "1.6.20", "1.6.19", "1.6.18", "1.6.17", "1.6.16", "1.6.15", "1.6.14", "1.6.13", "1.6.12", "1.6.11", "1.6.10", "1.6.9", "1.6.8", "1.6.7", "1.6.6", "1.6.5", "1.6.4", "1.6.3", "1.6.2", "1.6.1", "1.6.0", "1.5.6", "1.3.3", "1.3.2", "1.3.1", "1.3.0", "1.0.7", "1.0.6", "1.0.5", "latest"},
@@ -1164,10 +1165,45 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 		views = append(views, s.buildInstalledAppView(item, containers, scope))
 	}
 
-	s.writeJSON(w, http.StatusOK, jsonResponse{
+	hasOwnCrm := false
+	for _, item := range installed {
+		if item.CatalogID == "reneo-crm" {
+			hasOwnCrm = true
+			break
+		}
+	}
+
+	resp := jsonResponse{
 		"catalog":   catalog,
 		"installed": views,
-	})
+	}
+	if !hasOwnCrm {
+		if shared := s.resolveSharedReneoCrmApp(); shared != nil {
+			openPath := strings.TrimSpace(shared.OpenPath)
+			if openPath == "" || openPath == "/" {
+				openPath = "/"
+			} else if !strings.HasPrefix(openPath, "/") {
+				openPath = "/" + openPath
+			}
+			resp["sharedCrm"] = jsonResponse{
+				"name":      shared.Name,
+				"slug":      shared.Slug,
+				"iconKey":   shared.IconKey,
+				"iconColor": shared.IconColor,
+				"openUrl":   "/app/" + shared.Slug + openPath,
+			}
+		}
+	}
+
+	s.writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) resolveSharedReneoCrmApp() *database.InstalledApp {
+	app, err := s.database.GetInstalledAppBySlugForAdmin("reneo-crm")
+	if err != nil || app == nil || app.CatalogID != "reneo-crm" || strings.TrimSpace(app.Slug) == "" {
+		return nil
+	}
+	return app
 }
 
 type installCatalogAppRequest struct {
@@ -4708,6 +4744,7 @@ func (s *Server) appGatewayProxy() http.Handler {
 
 		var app *database.InstalledApp
 		var err error
+		isSharedMultiTenantCrm := false
 		if hostOwnerID > 0 {
 			app, err = s.database.GetInstalledAppBySlug(hostOwnerID, slug)
 		} else {
@@ -4717,10 +4754,16 @@ func (s *Server) appGatewayProxy() http.Handler {
 			}
 		}
 		if app == nil {
+			if shared := s.resolveSharedReneoCrmApp(); shared != nil && strings.EqualFold(shared.Slug, slug) {
+				app = shared
+				isSharedMultiTenantCrm = true
+			}
+		}
+		if app == nil {
 			http.NotFound(w, r)
 			return
 		}
-		if app.UserID != u.ID && !s.ownerScopeFor(u).has(app.UserID) {
+		if !isSharedMultiTenantCrm && app.UserID != u.ID && !s.ownerScopeFor(u).has(app.UserID) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
-import { installedAppWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MobileAppsGrid } from '@/components/mobile/MobileAppsGrid'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
@@ -67,7 +67,8 @@ function Meter({ label, percent, detail }: { label: string; percent?: number; de
 export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
-  const { installedApps } = useInstalledApps()
+  const { installedApps, sharedCrm } = useInstalledApps()
+  const showSharedCrm = Boolean(sharedCrm && !installedApps.some((app) => app.catalogId === 'reneo-crm'))
   const placed = useWidgetStore((s) => s.placedWidgets)
   const mobile = useWidgetStore((s) => s.mobile)
   const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
@@ -107,7 +108,7 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
 
       <MobileAppsGrid apps={apps} onLaunch={onLaunch} />
 
-      {canAccessWindow('installed-app', role) && installedApps.length > 0 ? (
+      {canAccessWindow('installed-app', role) && (installedApps.length > 0 || showSharedCrm) ? (
         <section aria-label={t('appCatalog.tabInstalled')} className="space-y-2.5">
           <h2 className="text-[0.75rem] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
             {t('appCatalog.tabInstalled')}
@@ -126,6 +127,24 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
                 </span>
               </button>
             ))}
+            {showSharedCrm && sharedCrm ? (
+              <button
+                key="shared-reneo-crm"
+                type="button"
+                onClick={() => onLaunch('installed-app', sharedCrmWindowParams(sharedCrm))}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-center active:scale-95 transition"
+              >
+                <AppIcon
+                  kind="installed-app"
+                  iconKey={sharedCrm.iconKey}
+                  iconColor={sharedCrm.iconColor}
+                  size={28}
+                />
+                <span className="w-full truncate text-[0.75rem] font-medium text-[var(--win-text)]">
+                  {sharedCrm.name}
+                </span>
+              </button>
+            ) : null}
           </div>
         </section>
       ) : null}

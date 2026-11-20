@@ -70,13 +70,18 @@ export const useWindowStore = create<WindowStore>()(
         set((state) => {
           const def = DEFAULTS[kind];
           const appIdParam = kind === 'installed-app' && params?.appId ? Number(params.appId) : null;
+          const isSharedCrmParam = kind === 'installed-app' && params?.sharedCrm === true;
           const existing = appIdParam
             ? state.windows.find(
                 (w) => w.kind === 'installed-app' && Number(w.params?.appId) === appIdParam,
               )
-            : def.singleton
-              ? state.windows.find((w) => w.kind === kind)
-              : undefined;
+            : isSharedCrmParam
+              ? state.windows.find(
+                  (w) => w.kind === 'installed-app' && w.params?.sharedCrm === true,
+                )
+              : def.singleton
+                ? state.windows.find((w) => w.kind === kind)
+                : undefined;
 
           if (existing) {
             existing.isMinimized = false;
