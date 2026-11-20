@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.31] - 2026-11-20
+
+3 perubahan, utamanya use public ghcr.io/aknalre/reneo-sidesa image and auto-provision PostgreSQL & internal network.
+
+### Perbaikan
+- **appcatalog:** Use public ghcr.io/aknalre/reneo-sidesa image and auto-provision PostgreSQL & internal network ([`401fc52`](https://github.com/friskipradana/y-panel/commit/401fc52))
+
+### Dokumentasi
+- **brand:** Tambah diagram visual pembentukan logo CRM dan SIDesa ([`86a58d1`](https://github.com/friskipradana/y-panel/commit/86a58d1))
+- **brand:** Tambah dokumentasi filosofi logo produk Reneo (CRM & SIDesa) ([`f60c98c`](https://github.com/friskipradana/y-panel/commit/f60c98c))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.30...v1.88.31
+
 ## [1.88.30] - 2026-11-20
 
 Update Reneo SIDesa app icon with Reneo R monogram.
