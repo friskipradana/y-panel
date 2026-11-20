@@ -95,6 +95,9 @@ func resolveCatalogAppName(q sqlExecutor, userID int64, catalogID string) string
 	if cleanID == "reneo-crm" {
 		return "Reneo CRM Services"
 	}
+	if cleanID == "reneo-sidesa" {
+		return "Reneo SIDesa Services"
+	}
 	if q != nil && cleanID != "" {
 		var name string
 		if userID > 0 {
