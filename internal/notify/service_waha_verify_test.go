@@ -9,7 +9,9 @@ func TestVerifyHashBindsTheCodeToTheAccount(t *testing.T) {
 	if verifyHash(1, "123456") == verifyHash(2, "123456") {
 		t.Error("the same code must hash differently for two accounts")
 	}
-	if verifyHash(1, "123456") != verifyHash(1, "123456") {
+	first := verifyHash(1, "123456")
+	second := verifyHash(1, "123456")
+	if first != second {
 		t.Error("the hash must be stable")
 	}
 	if verifyHash(1, "123456") == verifyHash(1, "654321") {

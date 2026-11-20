@@ -739,15 +739,6 @@ func (s *Service) DisconnectWhatsApp(ctx context.Context, userID int64) error {
 	return s.db.DeleteWhatsAppSession(userID)
 }
 
-// SessionOf is the name of the session of an account, for the channel
-func (s *Service) sessionOf(userID int64) (string, error) {
-	row, err := s.db.GetWhatsAppSession(userID)
-	if err != nil || row == nil {
-		return "", err
-	}
-	return row.SessionName, nil
-}
-
 // BuyerWhatsAppReady says whether a notice to a buyer can go out through WAHA: it is on and a superadmin's session is connected
 func (s *Service) BuyerWhatsAppReady() bool {
 	if !s.ready() {
