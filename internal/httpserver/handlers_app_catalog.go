@@ -5039,37 +5039,82 @@ func (s *Server) handleAppCatalogLicense(w http.ResponseWriter, r *http.Request)
 	}
 
 	if authenticated && userID > 0 && s.database != nil && s.database.IsConnected() {
-		lic, err := s.database.GetAppLicense(userID, catalogID)
-		if err == nil && lic != nil {
-			isSuspended := strings.EqualFold(lic.Status, "SUSPENDED")
-			isLocked := lic.IsExpired || isSuspended
-			features := lic.Features
-			if isLocked {
-				features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":0,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"maxTemplates":0,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":false,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":false,"apiAccess":false}`)
+		queryEmail := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("email")))
+		isSuperadminBypass := false
+		if queryEmail != "" {
+			if u, uErr := s.database.GetUserByEmail(queryEmail); uErr == nil && u != nil && strings.EqualFold(u.Role, "superadmin") && !strings.EqualFold(u.Status, "suspended") {
+				isSuperadminBypass = true
 			}
+		} else {
+			if u, uErr := s.database.GetUserByID(userID); uErr == nil && u != nil && strings.EqualFold(u.Role, "superadmin") && !strings.EqualFold(u.Status, "suspended") {
+				isSuperadminBypass = true
+			}
+		}
+
+		if isSuperadminBypass {
+			now := time.Now()
+			exp := now.AddDate(10, 0, 0)
+			unlimitedFeatures := json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":100,"multiAgent":true,"maxAgents":100,"maxUsers":100,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":1048576,"maxAttachmentSizeMb":250}`)
 			s.writeJSON(w, http.StatusOK, jsonResponse{
-				"ok":             true,
-				"authenticated":  true,
-				"reneoVerified":  true,
-				"serverHostname": serverHost,
-				"catalogId":      lic.CatalogID,
-				"status":         lic.Status,
-				"plan":           lic.PlanName,
-				"period":         lic.Period,
-				"priceAmount":    lic.PriceAmount,
-				"startedAt":      lic.StartedAt,
-				"expiresAt":      lic.ExpiresAt,
-				"daysRemaining":  lic.DaysLeft,
-				"daysLeft":       lic.DaysLeft,
-				"isExpired":      isLocked,
-				"isSuspended":    isSuspended,
-				"licenseKey":     lic.LicenseKey,
-				"billingUrl":     "/hosting",
-				"features":       features,
-				"publicUrls":     publicUrls,
-				"allowedHosts":   allowedHosts,
+				"ok":                 true,
+				"authenticated":      true,
+				"reneoVerified":      true,
+				"isSuperadminBypass": true,
+				"serverHostname":     serverHost,
+				"catalogId":          catalogID,
+				"status":             "ACTIVE",
+				"plan":               "Superadmin Hosting",
+				"planSlug":           "superadmin-unlimited",
+				"period":             "annual",
+				"priceAmount":        0,
+				"startedAt":          now.Format(time.RFC3339),
+				"expiresAt":          exp.Format(time.RFC3339),
+				"daysRemaining":      3650,
+				"daysLeft":           3650,
+				"isExpired":          false,
+				"isSuspended":        false,
+				"licenseKey":         "RN-SUPERADMIN-HOSTING",
+				"billingUrl":         "/hosting",
+				"features":           unlimitedFeatures,
+				"publicUrls":         publicUrls,
+				"allowedHosts":       allowedHosts,
 			})
 			return
+		}
+
+		if queryEmail == "" {
+			lic, err := s.database.GetAppLicense(userID, catalogID)
+			if err == nil && lic != nil {
+				isSuspended := strings.EqualFold(lic.Status, "SUSPENDED")
+				isLocked := lic.IsExpired || isSuspended
+				features := lic.Features
+				if isLocked {
+					features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":0,"birthdayBot":false,"liveChat":false,"multiSession":false,"maxSessions":0,"multiAgent":false,"maxAgents":0,"maxContacts":0,"maxTemplates":0,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":false,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":false,"apiAccess":false}`)
+				}
+				s.writeJSON(w, http.StatusOK, jsonResponse{
+					"ok":             true,
+					"authenticated":  true,
+					"reneoVerified":  true,
+					"serverHostname": serverHost,
+					"catalogId":      lic.CatalogID,
+					"status":         lic.Status,
+					"plan":           lic.PlanName,
+					"period":         lic.Period,
+					"priceAmount":    lic.PriceAmount,
+					"startedAt":      lic.StartedAt,
+					"expiresAt":      lic.ExpiresAt,
+					"daysRemaining":  lic.DaysLeft,
+					"daysLeft":       lic.DaysLeft,
+					"isExpired":      isLocked,
+					"isSuspended":    isSuspended,
+					"licenseKey":     lic.LicenseKey,
+					"billingUrl":     "/hosting",
+					"features":       features,
+					"publicUrls":     publicUrls,
+					"allowedHosts":   allowedHosts,
+				})
+				return
+			}
 		}
 	}
 
