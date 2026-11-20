@@ -2,6 +2,18 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.23] - 2026-11-20
+
+2 perubahan, utamanya include renewal checkout/invoice links and signup credentials in buyer WhatsApp notices.
+
+### Fitur baru
+- **notify:** Include renewal checkout/invoice links and signup credentials in buyer WhatsApp notices ([`10f1633`](https://github.com/friskipradana/y-panel/commit/10f1633))
+
+### Pemeliharaan
+- **notify:** Fix SA4000 test comparison and remove unused sessionOf method ([`a135c96`](https://github.com/friskipradana/y-panel/commit/a135c96))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.22...v1.88.23
+
 ## [1.88.22] - 2026-11-20
 
 3 perubahan, utamanya hide reneo-crm for non-superadmin and add shared CRM desktop window.
