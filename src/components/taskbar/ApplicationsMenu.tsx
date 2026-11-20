@@ -7,7 +7,7 @@ import { useI18n, windowTitleKey } from '@/lib/i18n'
 import { AppIcon } from '@/components/common/AppIcon'
 import { canAccessWindow } from '@/components/desktop/windowRegistry'
 import type { WindowKind } from '@/types'
-import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams, sharedSidesaWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { CATEGORIES, MENU_ITEMS, type CategoryKey } from './appCatalog'
 
@@ -48,7 +48,7 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     }
   }, [isOpen])
 
-  const { installedApps, sharedCrm } = useInstalledApps()
+  const { installedApps, sharedCrm, sharedSidesa } = useInstalledApps()
 
   const accessibleItems = useMemo(() => {
     // the same access rules as the desktop icons, the dock and the palette
@@ -64,6 +64,11 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
     if (!canAccessWindow('installed-app', role) || !sharedCrm) return null
     return installedApps.some((app) => app.catalogId === 'reneo-crm') ? null : sharedCrm
   }, [installedApps, sharedCrm, role])
+
+  const accessibleSharedSidesa = useMemo(() => {
+    if (!canAccessWindow('installed-app', role) || !sharedSidesa) return null
+    return installedApps.some((app) => app.catalogId === 'reneo-sidesa') ? null : sharedSidesa
+  }, [installedApps, sharedSidesa, role])
 
   const filteredItems = useMemo(() => {
     return accessibleItems.filter((item) => {
@@ -220,6 +225,32 @@ export function ApplicationsMenu({ role }: ApplicationsMenuProps) {
                         </div>
                         <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
                           {accessibleSharedCrm.openUrl}
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ) : null}
+                  {accessibleSharedSidesa && (activeCategory === 'all' || activeCategory === 'installed') ? (
+                    <button
+                      key="shared-reneo-sidesa"
+                      type="button"
+                      onClick={() => handleLaunch('installed-app', sharedSidesaWindowParams(accessibleSharedSidesa))}
+                      className="group flex items-center gap-3 w-full p-2.5 rounded-xl text-left transition-all duration-150 hover:bg-[var(--panel-surface-hover)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--panel-surface)] border border-[var(--win-border)] shadow-xs transition-transform duration-150 group-hover:scale-105">
+                        <AppIcon
+                          kind="installed-app"
+                          iconKey={accessibleSharedSidesa.iconKey}
+                          iconColor={accessibleSharedSidesa.iconColor}
+                          size={22}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12.5px] font-semibold text-[var(--win-text)] group-hover:text-[var(--panel-primary-text)] transition-colors">
+                          {accessibleSharedSidesa.name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-secondary)] truncate leading-snug mt-0.5">
+                          {accessibleSharedSidesa.openUrl}
                         </div>
                       </div>
                       <ChevronRight size={14} className="text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 group-hover:text-[var(--panel-primary-text)] group-hover:translate-x-0.5 transition-all shrink-0" />

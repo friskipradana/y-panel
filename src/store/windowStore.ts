@@ -71,13 +71,17 @@ export const useWindowStore = create<WindowStore>()(
           const def = DEFAULTS[kind];
           const appIdParam = kind === 'installed-app' && params?.appId ? Number(params.appId) : null;
           const isSharedCrmParam = kind === 'installed-app' && params?.sharedCrm === true;
+          const sharedAppKeyParam = typeof params?.sharedAppKey === 'string' ? params.sharedAppKey : 'reneo-crm';
           const existing = appIdParam
             ? state.windows.find(
                 (w) => w.kind === 'installed-app' && Number(w.params?.appId) === appIdParam,
               )
             : isSharedCrmParam
               ? state.windows.find(
-                  (w) => w.kind === 'installed-app' && w.params?.sharedCrm === true,
+                  (w) =>
+                    w.kind === 'installed-app' &&
+                    w.params?.sharedCrm === true &&
+                    (typeof w.params?.sharedAppKey === 'string' ? w.params.sharedAppKey : 'reneo-crm') === sharedAppKeyParam,
                 )
               : def.singleton
                 ? state.windows.find((w) => w.kind === kind)

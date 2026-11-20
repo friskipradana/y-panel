@@ -1196,10 +1196,13 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hasOwnCrm := false
+	hasOwnSidesa := false
 	for _, item := range installed {
 		if item.CatalogID == "reneo-crm" {
 			hasOwnCrm = true
-			break
+		}
+		if item.CatalogID == "reneo-sidesa" {
+			hasOwnSidesa = true
 		}
 	}
 
@@ -1224,6 +1227,23 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if !hasOwnSidesa {
+		if shared := s.resolveSharedReneoSidesaApp(); shared != nil {
+			openPath := strings.TrimSpace(shared.OpenPath)
+			if openPath == "" || openPath == "/" {
+				openPath = "/"
+			} else if !strings.HasPrefix(openPath, "/") {
+				openPath = "/" + openPath
+			}
+			resp["sharedSidesa"] = jsonResponse{
+				"name":      shared.Name,
+				"slug":      shared.Slug,
+				"iconKey":   shared.IconKey,
+				"iconColor": shared.IconColor,
+				"openUrl":   "/app/" + shared.Slug + openPath,
+			}
+		}
+	}
 
 	s.writeJSON(w, http.StatusOK, resp)
 }
@@ -1231,6 +1251,14 @@ func (s *Server) handleAppCatalogList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) resolveSharedReneoCrmApp() *database.InstalledApp {
 	app, err := s.database.GetInstalledAppBySlugForAdmin("reneo-crm")
 	if err != nil || app == nil || app.CatalogID != "reneo-crm" || strings.TrimSpace(app.Slug) == "" {
+		return nil
+	}
+	return app
+}
+
+func (s *Server) resolveSharedReneoSidesaApp() *database.InstalledApp {
+	app, err := s.database.GetInstalledAppBySlugForAdmin("reneo-sidesa")
+	if err != nil || app == nil || app.CatalogID != "reneo-sidesa" || strings.TrimSpace(app.Slug) == "" {
 		return nil
 	}
 	return app
@@ -4815,6 +4843,9 @@ func (s *Server) appGatewayProxy() http.Handler {
 		}
 		if app == nil {
 			if shared := s.resolveSharedReneoCrmApp(); shared != nil && strings.EqualFold(shared.Slug, slug) {
+				app = shared
+				isSharedMultiTenantCrm = true
+			} else if shared := s.resolveSharedReneoSidesaApp(); shared != nil && strings.EqualFold(shared.Slug, slug) {
 				app = shared
 				isSharedMultiTenantCrm = true
 			}

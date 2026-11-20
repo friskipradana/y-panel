@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { ArrowDown, ArrowUp, Lock, Trash2, Unlock } from 'lucide-react'
-import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams, sharedSidesaWindowParams } from '@/api/appCatalog'
 import { AppIcon } from '@/components/common/AppIcon'
 import { MobileAppsGrid } from '@/components/mobile/MobileAppsGrid'
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetContainer'
@@ -67,8 +67,9 @@ function Meter({ label, percent, detail }: { label: string; percent?: number; de
 export function MobileHome({ role, onLaunch }: MobileHomeProps) {
   const { t } = useI18n()
   const { data: summary } = useSystemSummary()
-  const { installedApps, sharedCrm } = useInstalledApps()
+  const { installedApps, sharedCrm, sharedSidesa } = useInstalledApps()
   const showSharedCrm = Boolean(sharedCrm && !installedApps.some((app) => app.catalogId === 'reneo-crm'))
+  const showSharedSidesa = Boolean(sharedSidesa && !installedApps.some((app) => app.catalogId === 'reneo-sidesa'))
   const placed = useWidgetStore((s) => s.placedWidgets)
   const mobile = useWidgetStore((s) => s.mobile)
   const moveMobileWidget = useWidgetStore((s) => s.moveMobileWidget)
@@ -142,6 +143,24 @@ export function MobileHome({ role, onLaunch }: MobileHomeProps) {
                 />
                 <span className="w-full truncate text-[0.75rem] font-medium text-[var(--win-text)]">
                   {sharedCrm.name}
+                </span>
+              </button>
+            ) : null}
+            {showSharedSidesa && sharedSidesa ? (
+              <button
+                key="shared-reneo-sidesa"
+                type="button"
+                onClick={() => onLaunch('installed-app', sharedSidesaWindowParams(sharedSidesa))}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3 text-center active:scale-95 transition"
+              >
+                <AppIcon
+                  kind="installed-app"
+                  iconKey={sharedSidesa.iconKey}
+                  iconColor={sharedSidesa.iconColor}
+                  size={28}
+                />
+                <span className="w-full truncate text-[0.75rem] font-medium text-[var(--win-text)]">
+                  {sharedSidesa.name}
                 </span>
               </button>
             ) : null}

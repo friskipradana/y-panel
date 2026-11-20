@@ -13,7 +13,7 @@ import { useThemeStore } from '@/store/themeStore'
 import { useAuthStore } from '@/store/authStore'
 import type { AppShortcut, WidgetType } from '@/types'
 import { useI18n, windowTitleKey } from '@/lib/i18n'
-import { installedAppWindowParams, sharedCrmWindowParams } from '@/api/appCatalog'
+import { installedAppWindowParams, sharedCrmWindowParams, sharedSidesaWindowParams } from '@/api/appCatalog'
 import { useInstalledApps } from '@/hooks/useAppCatalog'
 import { WindowPollingProvider } from '@/hooks/useWindowPollingActive'
 
@@ -47,7 +47,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
   const isMobile = useIsMobileLayout()
   const user = useAuthStore((s) => s.user)
   const userRole = user?.role ?? null
-  const { installedApps, sharedCrm } = useInstalledApps()
+  const { installedApps, sharedCrm, sharedSidesa } = useInstalledApps()
   const visibleWindows = useMemo(
     () => windows.filter((win) => canAccessWindow(win.kind, userRole)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [userRole, windows],
@@ -64,6 +64,7 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
       }
     })
     const hasInstalledCrm = installedApps.some((app) => app.catalogId === 'reneo-crm')
+    const hasInstalledSidesa = installedApps.some((app) => app.catalogId === 'reneo-sidesa')
     const dynamicApps: AppShortcut[] = canAccessWindow('installed-app', userRole)
       ? [
           ...installedApps.map((app) => ({
@@ -86,10 +87,22 @@ export function Desktop({ onLogout, authenticated }: DesktopProps) {
                 },
               ]
             : []),
+          ...(!hasInstalledSidesa && sharedSidesa
+            ? [
+                {
+                  id: 'shared-reneo-sidesa',
+                  label: sharedSidesa.name || 'Reneo SIDesa',
+                  iconKey: sharedSidesa.iconKey || 'reneo-sidesa',
+                  iconColor: sharedSidesa.iconColor || 'emerald',
+                  windowId: 'installed-app' as const,
+                  params: sharedSidesaWindowParams(sharedSidesa),
+                },
+              ]
+            : []),
         ]
       : []
     return [...base, ...dynamicApps]
-  }, [installedApps, sharedCrm, userRole, t, language])
+  }, [installedApps, sharedCrm, sharedSidesa, userRole, t, language])
 
   useEffect(() => {
     if (!authenticated || !user?.username) return

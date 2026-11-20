@@ -104,6 +104,7 @@ export interface AppCatalogResponse {
   catalog: CatalogApp[]
   installed: InstalledApp[]
   sharedCrm?: SharedCrmApp | null
+  sharedSidesa?: SharedCrmApp | null
 }
 
 export interface InstallCatalogAppPayload {
@@ -143,6 +144,7 @@ export async function getAppCatalog(forceRefresh = false): Promise<AppCatalogRes
     catalog: Array.isArray(data?.catalog) ? data.catalog : [],
     installed: Array.isArray(data?.installed) ? data.installed : [],
     sharedCrm: data?.sharedCrm ?? null,
+    sharedSidesa: data?.sharedSidesa ?? null,
   }
 }
 
@@ -280,9 +282,29 @@ export function sharedCrmWindowParams(crm: SharedCrmApp): Record<string, unknown
         : raw
   return {
     sharedCrm: true,
+    sharedAppKey: 'reneo-crm',
     appName: crm.name || 'Reneo CRM',
     iconKey: crm.iconKey || 'reneo-crm',
     iconColor: crm.iconColor || 'emerald',
+    openUrl,
+  }
+}
+
+export function sharedSidesaWindowParams(sidesa: SharedCrmApp): Record<string, unknown> {
+  const base = (import.meta.env.VITE_AGENT_BASE || '').replace(/\/+$/, '')
+  const raw = sidesa.openUrl || `/app/${sidesa.slug || 'reneo-sidesa'}/`
+  const openUrl =
+    raw.startsWith('http://') || raw.startsWith('https://')
+      ? raw
+      : base
+        ? `${base}${raw}`
+        : raw
+  return {
+    sharedCrm: true,
+    sharedAppKey: 'reneo-sidesa',
+    appName: sidesa.name || 'Reneo SIDesa',
+    iconKey: sidesa.iconKey || 'reneo-sidesa',
+    iconColor: sidesa.iconColor || 'emerald',
     openUrl,
   }
 }
