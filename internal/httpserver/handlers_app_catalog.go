@@ -361,7 +361,7 @@ var builtinCatalogApps = []CatalogApp{
 		SuperadminOnly:  true,
 		Official:        true,
 		Image:           "ghcr.io/aknalre/reneo-sidesa:latest",
-		Versions:        []string{"1.0.5", "1.0.4", "1.0.3", "1.0.2", "1.0.1", "latest"},
+		Versions:        []string{"1.0.6", "1.0.5", "1.0.4", "1.0.3", "1.0.2", "1.0.1", "latest"},
 		ContainerPort:   80,
 		DefaultHostPort: 18022,
 		OpenPath:        "/",
