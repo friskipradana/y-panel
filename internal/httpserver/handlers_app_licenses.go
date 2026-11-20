@@ -108,6 +108,9 @@ type renewLicenseRequest struct {
 type createAppLicenseOrderRequest struct {
 	CatalogID     string `json:"catalogId"`
 	PlanSlug      string `json:"planSlug"`
+	PlanName      string `json:"planName,omitempty"`
+	Months        int    `json:"months,omitempty"`
+	AmountList    int64  `json:"amountList,omitempty"`
 	Quantity      int    `json:"quantity"`
 	PaymentMethod string `json:"paymentMethod"`
 	BuyerName     string `json:"buyerName"`
@@ -488,7 +491,9 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 	}
 
 	appName := "Reneo CRM Services"
-	if req.CatalogID != "reneo-crm" {
+	if req.CatalogID == "reneo-sidesa" {
+		appName = "Reneo SIDesa"
+	} else if req.CatalogID != "reneo-crm" {
 		appName = req.CatalogID
 	}
 
@@ -507,6 +512,21 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		period = plan.Period
 		months = plan.Months
 		priceAmount = plan.PriceAmount
+	} else if req.CatalogID == "reneo-sidesa" && req.AmountList > 0 {
+		planName = strings.TrimSpace(req.PlanName)
+		if planName == "" {
+			planName = "Langganan Reneo SIDesa"
+		}
+		months = req.Months
+		if months < 1 {
+			months = 1
+		}
+		if months >= 12 {
+			period = "annual"
+		} else {
+			period = "monthly"
+		}
+		priceAmount = req.AmountList
 	} else if req.PlanSlug == "starter-monthly" {
 		planName = "Starter Bulanan"
 		period = "monthly"
