@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.36] - 2026-11-20
+
+Bump Reneo SIDesa default version to 1.0.6.
+
+### Fitur baru
+- **appcatalog:** Bump Reneo SIDesa default version to 1.0.6 ([`901a55d`](https://github.com/friskipradana/y-panel/commit/901a55d))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.35...v1.88.36
+
 ## [1.88.35] - 2026-11-20
 
 Bump Reneo SIDesa to v1.0.5 with /desa/sugihwaras path routing.
