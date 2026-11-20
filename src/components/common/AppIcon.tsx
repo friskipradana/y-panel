@@ -67,6 +67,7 @@ const BRAND_ICON_MAP: Record<string, string> = {
   gitea: '/icons/apps/gitea.svg',
   memos: '/icons/apps/memos.png',
   'reneo-crm': '/icons/apps/reneo-crm.svg?v=3',
+  'reneo-sidesa': '/icons/apps/reneo-sidesa.svg',
   'adguard-home': '/icons/apps/adguard-home.svg',
   jellyfin: '/icons/apps/jellyfin.svg',
   nextcloud: '/icons/apps/nextcloud.svg',
