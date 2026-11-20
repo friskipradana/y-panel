@@ -66,18 +66,27 @@ func TestContainerStatesByNameAndProtectedPortsFromListeners(t *testing.T) {
 	}
 }
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
+}
+
 func TestCachedCloudflareZonesAndRevisionCache(t *testing.T) {
 	var hits atomic.Int32
-	fakeCF := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/zones" {
-			hits.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"success":true,"errors":[],"result":[{"id":"z1","name":"example.com","status":"active"}]}`))
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	defer fakeCF.Close()
+	fakeClient := &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			rec := httptest.NewRecorder()
+			if r.URL.Path == "/zones" {
+				hits.Add(1)
+				rec.Header().Set("Content-Type", "application/json")
+				_, _ = rec.WriteString(`{"success":true,"errors":[],"result":[{"id":"z1","name":"example.com","status":"active"}]}`)
+			} else {
+				http.NotFound(rec, r)
+			}
+			return rec.Result(), nil
+		}),
+	}
 
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte("<html>ok</html>"), 0o600); err != nil {
@@ -86,7 +95,9 @@ func TestCachedCloudflareZonesAndRevisionCache(t *testing.T) {
 	t.Setenv("PANEL_VERSION", "v1.88.99")
 
 	srv := &Server{cfg: config.Config{FrontendDir: dir}}
-	client := cloudflareapi.NewClient("tok", "acct", "").WithBaseURL(fakeCF.URL)
+	client := cloudflareapi.NewClient("tok", "acct", "").
+		WithBaseURL("http://cloudflare.test").
+		WithHTTPClient(fakeClient)
 
 	z1, err := srv.cachedCloudflareZones(1, client)
 	if err != nil || len(z1) != 1 || z1[0].ID != "z1" {

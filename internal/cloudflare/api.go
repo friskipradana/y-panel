@@ -58,6 +58,14 @@ func (c *Client) WithBaseURL(base string) *Client {
 	return c
 }
 
+// WithHTTPClient replaces the underlying HTTP client; tests use it for in-memory transports without binding TCP sockets.
+func (c *Client) WithHTTPClient(hc *http.Client) *Client {
+	if hc != nil {
+		c.http = hc
+	}
+	return c
+}
+
 // VerifyToken validates the API token against the Cloudflare /user/tokens/verify endpoint.
 func (c *Client) VerifyToken() error {
 	resp, err := c.get("/user/tokens/verify")
