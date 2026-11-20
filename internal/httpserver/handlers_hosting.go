@@ -529,6 +529,39 @@ func (s *Server) remindPlans(now time.Time) {
 	}
 }
 
+// remindAppLicenses notifies buyers whose app licenses (e.g. Reneo CRM) are expiring within 3 days or just expired,
+// including direct renewal checkout and invoice links.
+func (s *Server) remindAppLicenses(now time.Time) {
+	if s.database == nil || !s.database.IsConnected() {
+		return
+	}
+	items, err := s.database.ListExpiringAppLicenses(now, planReminderWindow, 48*time.Hour)
+	if err != nil {
+		log.Printf("[licenses] reminder check failed: %v", err)
+		return
+	}
+	for _, lic := range items {
+		if lic.UserID <= 0 || strings.TrimSpace(lic.ExpiresAt) == "" {
+			continue
+		}
+		ends, err := time.Parse(time.RFC3339, lic.ExpiresAt)
+		if err != nil {
+			continue
+		}
+		user, _ := s.database.GetUserByID(lic.UserID)
+		if user == nil || user.Role == auth.SuperadminRole {
+			continue
+		}
+		left := ends.Sub(now)
+		if left > 0 {
+			days := int((left + 24*time.Hour - 1) / (24 * time.Hour))
+			s.buyerAppLicenseReminder(user, lic, ends, days)
+		} else {
+			s.buyerAppLicenseEnded(user, lic, ends)
+		}
+	}
+}
+
 // syncHostingRoutesIfOn repairs the subdomain routes (a restart, a failed call, a project that got its port)
 func (s *Server) syncHostingRoutesIfOn() {
 	if s.hostingEnabled() {
@@ -561,6 +594,7 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration, stop <-chan struct{})
 	s.expireOrders(time.Now())
 	s.endPlanTrials(time.Now())
 	s.remindPlans(time.Now())
+	s.remindAppLicenses(time.Now())
 	s.refreshPendingCustomDomains()
 	if s.hostingEnabled() {
 		// an install that had hosting mode on before the example plans existed gets them too
@@ -578,6 +612,7 @@ func (s *Server) runPlanExpiryLoop(interval time.Duration, stop <-chan struct{})
 			s.expireOrders(time.Now())
 			s.endPlanTrials(time.Now())
 			s.remindPlans(time.Now())
+			s.remindAppLicenses(time.Now())
 			s.refreshPendingCustomDomains()
 			s.syncHostingRoutesIfOn()
 		}

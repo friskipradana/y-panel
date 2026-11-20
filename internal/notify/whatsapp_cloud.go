@@ -197,6 +197,7 @@ var sampleValues = map[string]string{
 	"time": "20/10/2026 10:00", "ip": "203.0.113.5", "browser": "Chrome", "count": "5", "minutes": "10", "ips": "3", "samples": "203.0.113.5",
 	"name": "deploy", "order": "12", "reason": "perlu persetujuan", "variantLine": "Meningkat ke tingkat 2.",
 	"period": "3 bulan", "kind": "baru", "voucher": "HEMAT10", "address": "andi.reneo.my.id", "until": "20/11/2026 10:00", "days": "7", "by": "pemilik akun",
+	"password": "Reneo#2026", "invoice": "https://panel.example.com/order/abc123/invoice",
 }
 
 // Templates is every template the catalog needs, in both languages

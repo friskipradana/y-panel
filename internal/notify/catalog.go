@@ -41,20 +41,20 @@ var catalog = map[string]texts{
 		en: "<b>A buyer domain has a problem</b>\nDomain: {hostname}\nOwner: {username}\nProblem: {note}\n\nCheck it in Hosting > Domains.",
 	},
 	EventBuyerOrderCreated: {
-		id: "<b>Pesanan {plan} diterima</b>\nTerima kasih sudah memesan. Selesaikan pembayaran sebelum {deadline}.\n\nPaket: {plan}, {period}\nTotal transfer: {amount}\nTujuan: {bank} {account}\nAtas nama: {holder}\n\nTransfer harus persis {amount}, sampai angka terakhir, supaya pembayaran Anda terbaca otomatis. Bank atau e-wallet lain dan status pesanan ada di sini:\n{url}",
-		en: "<b>Order for {plan} received</b>\nThank you for ordering. Please pay before {deadline}.\n\nPlan: {plan}, {period}\nAmount to transfer: {amount}\nTo: {bank} {account}\nAccount holder: {holder}\n\nTransfer exactly {amount}, down to the last digit, so your payment is read by itself. Other banks and e-wallets, and the status of the order, are here:\n{url}",
+		id: "<b>Pesanan {plan} diterima</b>\nTerima kasih sudah memesan. Selesaikan pembayaran sebelum {deadline}.\n\nAkun: {username}\nKata sandi: {password}\nPaket: {plan}, {period}\nTotal transfer: {amount}\nTujuan: {bank} {account}\nAtas nama: {holder}\n\nTransfer harus persis {amount}, sampai angka terakhir, supaya pembayaran Anda terbaca otomatis.\nCheckout & pembayaran: {url}\nInvoice: {invoice}",
+		en: "<b>Order for {plan} received</b>\nThank you for ordering. Please pay before {deadline}.\n\nAccount: {username}\nPassword: {password}\nPlan: {plan}, {period}\nAmount to transfer: {amount}\nTo: {bank} {account}\nAccount holder: {holder}\n\nTransfer exactly {amount}, down to the last digit, so your payment is read by itself.\nCheckout & payment: {url}\nInvoice: {invoice}",
 	},
 	EventBuyerOrderPaid: {
-		id: "<b>Pembayaran diterima, akun aktif</b>\nTerima kasih. Paket {plan} sudah aktif.\n\nAkun: {username}\nBerlaku sampai: {until}\nMasuk di: {url}\n\nPakai kata sandi yang Anda buat saat memesan.",
-		en: "<b>Payment received, your account is active</b>\nThank you. The {plan} plan is active.\n\nAccount: {username}\nValid until: {until}\nSign in at: {url}\n\nUse the password you made when you ordered.",
+		id: "<b>Pembayaran diterima, akun aktif</b>\nTerima kasih. Paket {plan} sudah aktif.\n\nAkun: {username}\nKata sandi: {password}\nBerlaku sampai: {until}\nMasuk di: {url}\nInvoice: {invoice}",
+		en: "<b>Payment received, your account is active</b>\nThank you. The {plan} plan is active.\n\nAccount: {username}\nPassword: {password}\nValid until: {until}\nSign in at: {url}\nInvoice: {invoice}",
 	},
 	EventBuyerPlanReminder: {
-		id: "<b>Paket {plan} segera berakhir</b>\nAkun: {username}\nBerakhir: {until} (sekitar {days} hari lagi)\n\nMasuk ke panel Anda, buka Profil > Paket saya, lalu pilih Perpanjang supaya akun tidak ditangguhkan.",
-		en: "<b>Your {plan} plan is running out</b>\nAccount: {username}\nEnds: {until} (about {days} days from now)\n\nSign in to your panel, open Profile > My plan, and choose Renew so the account is not suspended.",
+		id: "<b>Paket {plan} segera berakhir</b>\nAkun: {username}\nBerakhir: {until} (sekitar {days} hari lagi)\n\nPerpanjang langsung di sini:\nCheckout: {url}\nInvoice: {invoice}\n\nAtau masuk ke panel Anda, buka Profil > Paket saya, lalu pilih Perpanjang supaya layanan tidak ditangguhkan.",
+		en: "<b>Your {plan} plan is running out</b>\nAccount: {username}\nEnds: {until} (about {days} days from now)\n\nRenew directly here:\nCheckout: {url}\nInvoice: {invoice}\n\nOr sign in to your panel, open Profile > My plan, and choose Renew so your service is not suspended.",
 	},
 	EventBuyerPlanEnded: {
-		id: "<b>Paket {plan} berakhir</b>\nAkun: {username}\nStatus: ditangguhkan karena paket berakhir\n\nHubungi penjual untuk memperpanjang. Akun aktif kembali begitu perpanjangan dibayar.",
-		en: "<b>Your {plan} plan ended</b>\nAccount: {username}\nStatus: suspended because the plan ended\n\nContact the seller to renew. The account is active again once the renewal is paid.",
+		id: "<b>Paket {plan} berakhir</b>\nAkun: {username}\nStatus: ditangguhkan karena paket berakhir\n\nPerpanjang langsung di sini:\nCheckout: {url}\nInvoice: {invoice}\n\nLayanan aktif kembali otomatis begitu pembayaran perpanjangan diterima.",
+		en: "<b>Your {plan} plan ended</b>\nAccount: {username}\nStatus: suspended because the plan ended\n\nRenew directly here:\nCheckout: {url}\nInvoice: {invoice}\n\nYour service will reactivate automatically once the renewal payment is received.",
 	},
 	EventLoginFailed: {
 		id: "<b>Peringatan keamanan: login gagal</b>\nAkun: {username}\nPercobaan gagal: {count} dalam {minutes} menit\nAlamat IP: {ips} berbeda (terakhir {ip})\n\nBukan Anda? Ganti kata sandi sekarang.",

@@ -133,7 +133,7 @@ func TestIntegrationSellerChangesANoticeText(t *testing.T) {
 		t.Fatalf("rendered: %q", out)
 	}
 	for _, bad := range []struct{ event, locale, body, want string }{
-		{notify.EventBuyerOrderPaid, "id", "Kata sandi {password}", "unknown variable"},
+		{notify.EventBuyerOrderPaid, "id", "Token {secretToken}", "unknown variable"},
 		{notify.EventBuyerOrderPaid, "id", "<script>", "only the tags"},
 		{notify.EventBuyerOrderPaid, "fr", "x", "not found"},
 		{"nope", "id", "x", "not found"},

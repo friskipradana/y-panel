@@ -451,6 +451,39 @@ func (m *Manager) ListAppLicenses(userID int64, catalogID string) ([]AppLicense,
 	return out, rows.Err()
 }
 
+// ListExpiringAppLicenses returns active/trial licenses whose expiry falls within [now-endedWindow, now+reminderWindow].
+func (m *Manager) ListExpiringAppLicenses(now time.Time, reminderWindow, endedWindow time.Duration) ([]AppLicense, error) {
+	if m == nil || !m.IsConnected() {
+		return []AppLicense{}, nil
+	}
+	from := now.UTC().Add(-endedWindow)
+	to := now.UTC().Add(reminderWindow)
+	rows, err := m.db.Query(
+		`SELECT `+appLicenseCols+` FROM app_licenses
+		 WHERE user_id > 0
+		   AND UPPER(status) IN ('ACTIVE', 'TRIAL')
+		   AND expires_at IS NOT NULL
+		   AND expires_at >= $1
+		   AND expires_at <= $2
+		 ORDER BY expires_at ASC`,
+		from, to,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]AppLicense, 0)
+	for rows.Next() {
+		item, err := scanAppLicense(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *item)
+	}
+	return out, rows.Err()
+}
+
 // GetAppLicense retrieves the latest license for a specific catalog app.
 func (m *Manager) GetAppLicense(userID int64, catalogID string) (*AppLicense, error) {
 	if m == nil || !m.IsConnected() {

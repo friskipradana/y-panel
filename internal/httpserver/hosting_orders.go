@@ -554,7 +554,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	}
 
 	if req.Kind == database.OrderTrial && !settings.TrialApproval {
-		if err := s.fulfillOrder(created, nil, "trial"); err != nil {
+		if err := s.fulfillOrderWithPassword(created, nil, "trial", req.Password); err != nil {
 			log.Printf("[orders] trial of %q could not be switched on: %v", u.Username, err)
 		}
 		if refreshed, _ := s.database.GetHostingOrder(created.ID); refreshed != nil {
@@ -563,7 +563,7 @@ func (s *Server) handlePublicCreateOrder(w http.ResponseWriter, r *http.Request)
 	} else {
 		s.notifyAllAdmins("Pesanan hosting baru", fmt.Sprintf("%s memesan paket %s (%s).", u.Username, plan.Name, orderKindLabel(created)), "info")
 		s.emitOrderCreated(created, u.Username, plan.Name)
-		s.buyerOrderCreated(created, plan.Name)
+		s.buyerOrderCreated(created, u.Username, req.Password, plan.Name)
 		if created.Status == database.OrderReview {
 			s.emitOrderReview(created.ID, u.Username, notify.Localized{"id": "pesanan ini menunggu persetujuan Anda.", "en": "this order waits for your approval."})
 		}
@@ -752,7 +752,7 @@ func (s *Server) handleRenewMyPlan(w http.ResponseWriter, r *http.Request) {
 		s.notifyAllAdmins("Perpanjangan hosting", fmt.Sprintf("%s memperpanjang paket %s (Rp %d).", user.Username, plan.Name, created.AmountTotal), "info")
 	}
 	s.emitOrderCreated(created, user.Username, plan.Name)
-	s.buyerOrderCreated(created, plan.Name)
+	s.buyerOrderCreated(created, user.Username, "", plan.Name)
 	s.writeJSON(w, http.StatusCreated, s.orderViewFor(*created))
 }
 
@@ -921,6 +921,10 @@ func (s *Server) dropUnpaidAccount(order *database.HostingOrder) {
 // fulfillOrder switches the account and the plan on for a paid order. It is safe to call twice: the order
 // closes once, and only the call that closed it does the work.
 func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note string) error {
+	return s.fulfillOrderWithPassword(order, notifID, note, "")
+}
+
+func (s *Server) fulfillOrderWithPassword(order *database.HostingOrder, notifID *int64, note, rawPassword string) error {
 	changed, err := s.database.MarkOrderPaid(order.ID, notifID, note)
 	if err != nil {
 		return err
@@ -1018,7 +1022,7 @@ func (s *Server) fulfillOrder(order *database.HostingOrder, notifID *int64, note
 	s.recordRuntimeLog("info", "hosting order paid", map[string]any{"order": order.ID, "user": user.Username, "plan": plan.Name, "kind": order.Kind})
 	s.notifyAllAdmins("Pesanan terbayar", fmt.Sprintf("%s: paket %s aktif (%s).", user.Username, plan.Name, note), "success")
 	s.emitOrderPaid(order, user.Username, plan.Name, note)
-	s.buyerOrderPaid(order, user, plan.Name)
+	s.buyerOrderPaid(order, user, plan.Name, rawPassword)
 	s.notifyBuyerOrderDone(order, user, plan, ends, upgraded)
 	go s.syncHostingRoutes()
 	return nil
