@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.24] - 2026-11-20
+
+Add storage and attachment size quotas to reneo-crm license plans.
+
+### Fitur baru
+- **app-licenses:** Add storage and attachment size quotas to reneo-crm license plans ([`21d1021`](https://github.com/friskipradana/y-panel/commit/21d1021))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.23...v1.88.24
+
 ## [1.88.23] - 2026-11-20
 
 2 perubahan, utamanya include renewal checkout/invoice links and signup credentials in buyer WhatsApp notices.
