@@ -360,8 +360,8 @@ var builtinCatalogApps = []CatalogApp{
 		IconColor:       "emerald",
 		SuperadminOnly:  true,
 		Official:        true,
-		Image:           "ghcr.io/aknalre/sidesa-services:latest",
-		Versions:        []string{"1.0.0", "latest"},
+		Image:           "ghcr.io/aknalre/reneo-sidesa:latest",
+		Versions:        []string{"1.0.1", "latest"},
 		ContainerPort:   80,
 		DefaultHostPort: 18022,
 		OpenPath:        "/",
@@ -936,7 +936,7 @@ func (s *Server) uniqueAppSlug(userID int64, base string) string {
 }
 
 func effectiveKeepPrefix(app database.InstalledApp, meta appConfigMeta) bool {
-	if app.CatalogID == "n8n" || app.CatalogID == "stirling-pdf" || app.CatalogID == "reneo-crm" {
+	if app.CatalogID == "n8n" || app.CatalogID == "stirling-pdf" || app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
 		return false
 	}
 	return meta.KeepPrefix
@@ -1526,9 +1526,13 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		}
 	}
 
-	if spec.ID == "reneo-crm" {
+	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" {
+		dbName := "reneo-crm-db"
+		if spec.ID == "reneo-sidesa" {
+			dbName = "reneo-sidesa-db"
+		}
 		if v, ok := envMap["DATABASE_URL"]; !ok || strings.TrimSpace(v) == "" {
-			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", "reneo-crm-db")
+			pgURL, pgErr := s.ensureManagedDependencyDB(actor, "postgres", dbName)
 			if pgErr != nil {
 				_ = s.database.DeleteInstalledApp(created.ID)
 				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan PostgreSQL bawaan Reneo: " + pgErr.Error()})
@@ -1536,14 +1540,16 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 			}
 			envMap["DATABASE_URL"] = pgURL
 		}
-		if v, ok := envMap["REDIS_URL"]; !ok || strings.TrimSpace(v) == "" {
-			redisURL, redisErr := s.ensureManagedDependencyDB(actor, "redis", "reneo-crm-redis")
-			if redisErr != nil {
-				_ = s.database.DeleteInstalledApp(created.ID)
-				s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan Redis bawaan Reneo: " + redisErr.Error()})
-				return
+		if spec.ID == "reneo-crm" {
+			if v, ok := envMap["REDIS_URL"]; !ok || strings.TrimSpace(v) == "" {
+				redisURL, redisErr := s.ensureManagedDependencyDB(actor, "redis", "reneo-crm-redis")
+				if redisErr != nil {
+					_ = s.database.DeleteInstalledApp(created.ID)
+					s.writeJSON(w, http.StatusInternalServerError, jsonResponse{"error": "gagal menyiapkan Redis bawaan Reneo: " + redisErr.Error()})
+					return
+				}
+				envMap["REDIS_URL"] = redisURL
 			}
-			envMap["REDIS_URL"] = redisURL
 		}
 		if v, ok := envMap["RENEO_PANEL_URL"]; !ok || strings.TrimSpace(v) == "" {
 			port := listenPort(s.cfg.BindAddr)
@@ -1555,10 +1561,12 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		if appTok := s.signAppToken(actor.ID, spec.ID, created.ID); appTok != "" {
 			envMap["RENEO_APP_TOKEN"] = appTok
 		}
-		envMap["CRM_ENFORCE_DOMAIN"] = "true"
-		envMap["CRM_REQUIRE_RENEO_ENV"] = "true"
-		if allowedCSV := s.mergeAllowedAppHostCSV(envMap["CRM_ALLOWED_DOMAINS"], actor.ID, spec.ID, created.ID, normalizeHost(r.Host)); allowedCSV != "" {
-			envMap["CRM_ALLOWED_DOMAINS"] = allowedCSV
+		if spec.ID == "reneo-crm" {
+			envMap["CRM_ENFORCE_DOMAIN"] = "true"
+			envMap["CRM_REQUIRE_RENEO_ENV"] = "true"
+			if allowedCSV := s.mergeAllowedAppHostCSV(envMap["CRM_ALLOWED_DOMAINS"], actor.ID, spec.ID, created.ID, normalizeHost(r.Host)); allowedCSV != "" {
+				envMap["CRM_ALLOWED_DOMAINS"] = allowedCSV
+			}
 		}
 		userSession := strings.TrimSpace(actor.Username)
 		if userSession == "" {
@@ -1570,8 +1578,10 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 		if b, ok := envMap["WAHA_BASE_URL"]; !ok || strings.TrimSpace(b) == "" {
 			envMap["WAHA_BASE_URL"] = "http://reneo-waha:3000"
 		}
-		if u, ok := envMap["WEBHOOK_URL"]; !ok || strings.TrimSpace(u) == "" {
-			envMap["WEBHOOK_URL"] = fmt.Sprintf("http://%s/api/waha/webhook", containerProject)
+		if spec.ID == "reneo-crm" {
+			if u, ok := envMap["WEBHOOK_URL"]; !ok || strings.TrimSpace(u) == "" {
+				envMap["WEBHOOK_URL"] = fmt.Sprintf("http://%s/api/waha/webhook", containerProject)
+			}
 		}
 		if k, ok := envMap["WAHA_API_KEY"]; !ok || strings.TrimSpace(k) == "" {
 			if s.notify != nil {
@@ -1600,7 +1610,7 @@ func (s *Server) installFromCatalog(w http.ResponseWriter, r *http.Request, acto
 	}
 
 	deployNetwork := ""
-	if spec.ID == "reneo-crm" {
+	if spec.ID == "reneo-crm" || spec.ID == "reneo-sidesa" {
 		deployNetwork = "reneo-internal"
 		_ = docker.EnsureContainerOnNetwork(deployNetwork, "reneo-waha")
 	}
@@ -1970,9 +1980,13 @@ func (s *Server) handleAppCatalogAction(w http.ResponseWriter, r *http.Request) 
 		ensureAppVolumePermissions(owner, app.ContainerName)
 	}
 
-	if (actionName == "start" || actionName == "restart") && app.CatalogID == "reneo-crm" {
-		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
-		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+	if (actionName == "start" || actionName == "restart") && (app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa") {
+		if app.CatalogID == "reneo-sidesa" {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+		} else {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+		}
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", matched.ID)
 	}
@@ -2199,17 +2213,23 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 		if !ok {
 			return http.StatusUnprocessableEntity, errors.New("gagal memperbarui baris image di compose.yml aplikasi")
 		}
-		if app.CatalogID == "reneo-crm" {
-			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
-			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
+			if app.CatalogID == "reneo-sidesa" {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+			} else {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+			}
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				updatedCompose = upsertComposeEnvVar(updatedCompose, "RENEO_APP_TOKEN", appTok)
 			}
-			updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ENFORCE_DOMAIN", "true")
-			updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_REQUIRE_RENEO_ENV", "true")
-			if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
-				updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ALLOWED_DOMAINS", allowedCSV)
+			if app.CatalogID == "reneo-crm" {
+				updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ENFORCE_DOMAIN", "true")
+				updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_REQUIRE_RENEO_ENV", "true")
+				if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
+					updatedCompose = upsertComposeEnvVar(updatedCompose, "CRM_ALLOWED_DOMAINS", allowedCSV)
+				}
 			}
 		}
 		if valErr := docker.ValidateCompose(owner, app.ContainerName, updatedCompose); valErr != nil {
@@ -2249,21 +2269,27 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 			return delCode, delErr
 		}
 		nextEnv := filterNonDefaultEnvVars(cfg.Env)
-		if app.CatalogID == "reneo-crm" {
+		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
 			if appTok := s.signAppToken(app.UserID, app.CatalogID, app.ID); appTok != "" {
 				nextEnv = upsertSliceEnvVar(nextEnv, "RENEO_APP_TOKEN", appTok)
 			}
-			nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ENFORCE_DOMAIN", "true")
-			nextEnv = upsertSliceEnvVar(nextEnv, "CRM_REQUIRE_RENEO_ENV", "true")
-			if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
-				nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ALLOWED_DOMAINS", allowedCSV)
+			if app.CatalogID == "reneo-crm" {
+				nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ENFORCE_DOMAIN", "true")
+				nextEnv = upsertSliceEnvVar(nextEnv, "CRM_REQUIRE_RENEO_ENV", "true")
+				if allowedCSV := s.mergeAllowedAppHostCSV("", app.UserID, app.CatalogID, app.ID); allowedCSV != "" {
+					nextEnv = upsertSliceEnvVar(nextEnv, "CRM_ALLOWED_DOMAINS", allowedCSV)
+				}
 			}
 		}
 		deployNet := cfg.Network
-		if app.CatalogID == "reneo-crm" {
+		if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
 			deployNet = "reneo-internal"
-			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
-			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+			if app.CatalogID == "reneo-sidesa" {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+			} else {
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+				_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+			}
 			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 		}
 		if _, deployErr := docker.DeployFromImage(owner, docker.DeployImageRequest{
@@ -2281,9 +2307,13 @@ func (s *Server) redeployAppWithImage(actor *database.User, owner docker.OwnerCo
 
 	ensureAppVolumePermissions(owner, app.ContainerName)
 	docker.InvalidateAll()
-	if app.CatalogID == "reneo-crm" {
-		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
-		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+	if app.CatalogID == "reneo-crm" || app.CatalogID == "reneo-sidesa" {
+		if app.CatalogID == "reneo-sidesa" {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-sidesa-db")
+		} else {
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-db")
+			_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-crm-redis")
+		}
 		_ = docker.EnsureContainerOnNetwork("reneo-internal", "reneo-waha")
 		if nextContainers, listErr := docker.ListContainers(); listErr == nil {
 			if matched := matchContainerForApp(*app, nextContainers, s.ownerScopeFor(actor)); matched != nil {
@@ -4161,7 +4191,7 @@ func sanitizeExistingAppCompose(composeYAML, projectName, catalogID string) (str
 		changed = true
 	}
 
-	if catalogID == "reneo-crm" && !strings.Contains(updated, "reneo-internal") {
+	if (catalogID == "reneo-crm" || catalogID == "reneo-sidesa") && !strings.Contains(updated, "reneo-internal") {
 		if strings.Contains(updated, "    extra_hosts:\n") {
 			updated = strings.Replace(updated, "    extra_hosts:\n", "    networks:\n      - reneo-internal\n    extra_hosts:\n", 1)
 			changed = true
@@ -4751,8 +4781,8 @@ func (s *Server) appGatewayProxy() http.Handler {
 			if !s.enforceAppLicenseNotSuspended(w, r, app, rest) {
 				return
 			}
-			// Allow public CSAT rating link and public CRM landing/auth endpoints for Reneo CRM without panel login
-			if app.CatalogID == "reneo-crm" && isPublicReneoCrmPath(rest) {
+			// Allow public CSAT rating link and public CRM landing/auth endpoints for Reneo CRM, or public village portal for Reneo SIDesa without panel login
+			if (app.CatalogID == "reneo-crm" && isPublicReneoCrmPath(rest)) || app.CatalogID == "reneo-sidesa" {
 				s.serveAppProxy(w, r, nil, app, "/app/"+slug, rest)
 				return
 			}
