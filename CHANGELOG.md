@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.27] - 2026-11-20
+
+Use in-memory HTTP transport in TestCachedCloudflareZonesAndRevisionCache.
+
+### Perbaikan
+- **test:** Use in-memory HTTP transport in TestCachedCloudflareZonesAndRevisionCache ([`d8f818e`](https://github.com/friskipradana/y-panel/commit/d8f818e))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.26...v1.88.27
+
 ## [1.88.26] - 2026-11-20
 
 Adjust default document and media storage quotas on reneo-crm license plans to realistic tiers.
