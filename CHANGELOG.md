@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.34] - 2026-11-20
+
+Bump Reneo SIDesa default version to 1.0.4.
+
+### Fitur baru
+- **appcatalog:** Bump Reneo SIDesa default version to 1.0.4 ([`ba8b994`](https://github.com/friskipradana/y-panel/commit/ba8b994))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.33...v1.88.34
+
 ## [1.88.33] - 2026-11-20
 
 Show Official Reneo badge on installed Reneo SIDesa and bump version to 1.0.3.
