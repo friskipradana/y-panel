@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.22] - 2026-11-20
+
+3 perubahan, utamanya hide reneo-crm for non-superadmin and add shared CRM desktop window.
+
+### Fitur baru
+- **app-catalog:** Hide reneo-crm for non-superadmin and add shared CRM desktop window ([`db68eca`](https://github.com/friskipradana/y-panel/commit/db68eca))
+
+### Dokumentasi
+- **rules:** Sync and tighten anti-slop skill across agents, claude, and GEMINI rules ([`16a8b90`](https://github.com/friskipradana/y-panel/commit/16a8b90))
+- **skills:** Install design-ui-audit skill ([`c1a47fd`](https://github.com/friskipradana/y-panel/commit/c1a47fd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.21...v1.88.22
+
 ## [1.88.21] - 2026-11-19
 
 Add public inquiry endpoint notifying panel admins and buyer via WhatsApp.
