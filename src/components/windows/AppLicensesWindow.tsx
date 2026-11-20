@@ -100,6 +100,17 @@ function formatFeatureBadge(key: string, value: unknown): string | null {
     const n = Number(value)
     return n === 0 ? 'Kontak Tanpa Batas' : `${n.toLocaleString('id-ID')} Kontak`
   }
+  if (k === 'maxstoragemb') {
+    const n = Number(value)
+    if (n <= 0) return null
+    if (n >= 1024 && n % 1024 === 0) return `Storage: ${n / 1024} GB`
+    return `Storage: ${n.toLocaleString('id-ID')} MB`
+  }
+  if (k === 'maxattachmentsizemb') {
+    const n = Number(value)
+    return n > 0 ? `Maks File: ${n} MB` : null
+  }
+  if (k === 'allowedmenus') return null
   if (k === 'supportpriority') return `Support: ${String(value).toUpperCase()}`
   if (typeof value === 'boolean') {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim()

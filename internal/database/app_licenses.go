@@ -290,46 +290,46 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		{
 			slug:        "starter-monthly",
 			name:        "Starter Bulanan",
-			tagline:     "Untuk UMKM pemula: broadcast terjadwal, kontak terpusat, & auto-reply dasar.",
+			tagline:     "Untuk usaha rintisan: kontak terpusat, siaran promo terjadwal, auto-reply, & bot ulang tahun.",
 			period:      "monthly",
 			months:      1,
 			price:       79000,
 			highlighted: false,
 			sortOrder:   1,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard"}`,
+			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`,
 		},
 		{
 			slug:        "pro-monthly",
 			name:        "Growth Pro Bulanan",
-			tagline:     "Terlaris untuk tim CS: Live Chat CRM, Multi-Sesi WA, Omnichannel, Story WA & CSAT.",
+			tagline:     "Terlaris untuk tim CS: Inbox Live Chat CRM, Multi-Nomor WA, Omnichannel Sosial, Jadwal Post/Story & CSAT.",
 			period:      "monthly",
 			months:      1,
 			price:       179000,
 			highlighted: true,
 			sortOrder:   2,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":5120,"maxAttachmentSizeMb":25}`,
 		},
 		{
 			slug:        "business-monthly",
 			name:        "Business AI Bulanan",
-			tagline:     "Skala bisnis penuh: Agent AI Multi-Model, Knowledge Book, MCP Tools & akses API.",
+			tagline:     "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 20 GB dokumen & API.",
 			period:      "monthly",
 			months:      1,
 			price:       349000,
 			highlighted: false,
 			sortOrder:   3,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority"}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":20480,"maxAttachmentSizeMb":50}`,
 		},
 		{
 			slug:        "enterprise-annual",
 			name:        "Enterprise Tahunan",
-			tagline:     "Paket tahunan hemat 17% (gratis 2 bln): kontak & kanal tanpa batas, 25 sesi WA & support VIP.",
+			tagline:     "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI, kontak & kanal tanpa batas, 100 GB dokumen & VIP.",
 			period:      "annual",
 			months:      12,
 			price:       3490000,
 			highlighted: false,
 			sortOrder:   4,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip"}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":102400,"maxAttachmentSizeMb":100}`,
 		},
 	}
 
@@ -337,7 +337,9 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		_, _ = m.db.Exec(`
 			INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order)
 			VALUES ($1, $2, $3, $4, $5, $6, 7, $7, $8::jsonb, $9, true, $10)
-			ON CONFLICT (catalog_id, slug) DO NOTHING
+			ON CONFLICT (catalog_id, slug) DO UPDATE
+			SET features = $8::jsonb || app_license_plans.features
+			WHERE NOT (app_license_plans.features ? 'maxStorageMb')
 		`, catalogID, p.slug, p.name, p.tagline, p.period, p.months, p.price, p.features, p.highlighted, p.sortOrder)
 	}
 
@@ -351,26 +353,26 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 		return []AppLicensePlan{
 			{
 				ID: 1, CatalogID: catalogID, Slug: "starter-monthly", Name: "Starter Bulanan",
-				Tagline: "Untuk UMKM pemula: broadcast terjadwal, kontak terpusat, & auto-reply dasar.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 79000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard"}`),
+				Tagline: "Untuk usaha rintisan: kontak terpusat, siaran promo terjadwal, auto-reply, & bot ulang tahun.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 79000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`),
 				Highlighted: false, IsActive: true, SortOrder: 1,
 			},
 			{
 				ID: 2, CatalogID: catalogID, Slug: "pro-monthly", Name: "Growth Pro Bulanan",
-				Tagline: "Terlaris untuk tim CS: Live Chat CRM, Multi-Sesi WA, Omnichannel, Story WA & CSAT.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 179000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast"}`),
+				Tagline: "Terlaris untuk tim CS: Inbox Live Chat CRM, Multi-Nomor WA, Omnichannel Sosial, Jadwal Post/Story & CSAT.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 179000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":5120,"maxAttachmentSizeMb":25}`),
 				Highlighted: true, IsActive: true, SortOrder: 2,
 			},
 			{
 				ID: 3, CatalogID: catalogID, Slug: "business-monthly", Name: "Business AI Bulanan",
-				Tagline: "Skala bisnis penuh: Agent AI Multi-Model, Knowledge Book, MCP Tools & akses API.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 349000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority"}`),
+				Tagline: "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 20 GB dokumen & API.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 349000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":20480,"maxAttachmentSizeMb":50}`),
 				Highlighted: false, IsActive: true, SortOrder: 3,
 			},
 			{
 				ID: 4, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise Tahunan",
-				Tagline: "Paket tahunan hemat 17% (gratis 2 bln): kontak & kanal tanpa batas, 25 sesi WA & support VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3490000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip"}`),
+				Tagline: "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI, kontak & kanal tanpa batas, 100 GB dokumen & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3490000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":102400,"maxAttachmentSizeMb":100}`),
 				Highlighted: false, IsActive: true, SortOrder: 4,
 			},
 		}, nil

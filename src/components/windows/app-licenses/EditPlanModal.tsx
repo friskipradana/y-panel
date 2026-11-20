@@ -48,6 +48,8 @@ export function EditPlanModal({
   const [wahaSync, setWahaSync] = useState(true)
   const [apiAccess, setApiAccess] = useState(false)
   const [supportPriority, setSupportPriority] = useState<string>('standard')
+  const [maxStorageMb, setMaxStorageMb] = useState<number>(5120)
+  const [maxAttachmentSizeMb, setMaxAttachmentSizeMb] = useState<number>(25)
 
   const [loading, setLoading] = useState(false)
 
@@ -85,6 +87,8 @@ export function EditPlanModal({
       setWahaSync(Boolean(feats.wahaSync))
       setApiAccess(Boolean(feats.apiAccess))
       setSupportPriority(String(feats.supportPriority || 'standard').toLowerCase())
+      setMaxStorageMb(Number(feats.maxStorageMb ?? 5120) || 5120)
+      setMaxAttachmentSizeMb(Number(feats.maxAttachmentSizeMb ?? 25) || 25)
     }
   }, [open, plan])
 
@@ -132,6 +136,8 @@ export function EditPlanModal({
         wahaSync,
         apiAccess,
         supportPriority,
+        maxStorageMb: Math.max(100, maxStorageMb),
+        maxAttachmentSizeMb: Math.max(1, maxAttachmentSizeMb),
       }
 
       await updateAppLicensePlan(plan.id, {
@@ -529,6 +535,32 @@ export function EditPlanModal({
                 <option value="priority">Priority</option>
                 <option value="vip">VIP</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Kapasitas Penyimpanan Media (MB) <span className="text-[11px] font-normal text-[var(--text-secondary)]">(5120 = 5 GB)</span>
+              </label>
+              <input
+                type="number"
+                min={100}
+                value={maxStorageMb}
+                onChange={(e) => setMaxStorageMb(Math.max(100, Number(e.target.value)))}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--win-text)] mb-1">
+                Maks. Ukuran Berkas / Dokumen (MB)
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={maxAttachmentSizeMb}
+                onChange={(e) => setMaxAttachmentSizeMb(Math.max(1, Number(e.target.value)))}
+                className="panel-input panel-input--mono w-full text-xs"
+              />
             </div>
           </div>
         </div>
