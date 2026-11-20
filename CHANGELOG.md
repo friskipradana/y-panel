@@ -2,6 +2,24 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.26] - 2026-11-20
+
+Adjust default document and media storage quotas on reneo-crm license plans to realistic tiers.
+
+### Perbaikan
+- **app-licenses:** Adjust default storage quotas (250 MB / 1 GB / 3 GB / 10 GB) and per-file attachment limits (5 / 10 / 20 / 35 MB) across Starter, Growth Pro, Business AI, and Enterprise tiers
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.25...v1.88.26
+
+## [1.88.25] - 2026-11-20
+
+Auto-bypass app license checks for active hosting superadmin accounts.
+
+### Fitur baru
+- **app-catalog:** Auto-bypass app license for hosting superadmin accounts ([`b567fca`](https://github.com/friskipradana/y-panel/commit/b567fca))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.24...v1.88.25
+
 ## [1.88.24] - 2026-11-20
 
 Add storage and attachment size quotas to reneo-crm license plans.

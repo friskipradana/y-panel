@@ -252,7 +252,7 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 	}
 
 	planName := "Growth Pro Bulanan"
-	features := json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":5120,"maxAttachmentSizeMb":25}`)
+	features := json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":10}`)
 
 	if s.database != nil && s.database.IsConnected() {
 		if plan, _ := s.database.GetAppLicensePlan(req.CatalogID, req.PlanSlug); plan != nil {
@@ -269,13 +269,13 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 			trialDays = plan.TrialDays
 		} else if req.PlanSlug == "starter-monthly" {
 			planName = "Starter Bulanan"
-			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`)
+			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":250,"maxAttachmentSizeMb":5}`)
 		} else if req.PlanSlug == "business-monthly" {
 			planName = "Business AI Bulanan"
-			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":20480,"maxAttachmentSizeMb":50}`)
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":3072,"maxAttachmentSizeMb":20}`)
 		} else if req.PlanSlug == "enterprise-annual" {
 			planName = "Enterprise Tahunan"
-			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":102400,"maxAttachmentSizeMb":100}`)
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":35}`)
 		}
 
 		existing, _ := s.database.ListAppLicenses(userID, req.CatalogID)
