@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.32] - 2026-11-20
+
+Bump Reneo SIDesa default catalog version to 1.0.2 with SaaS landing flow.
+
+### Fitur baru
+- **appcatalog:** Bump Reneo SIDesa default catalog version to 1.0.2 with SaaS landing flow ([`54fc1cd`](https://github.com/friskipradana/y-panel/commit/54fc1cd))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.31...v1.88.32
+
 ## [1.88.31] - 2026-11-20
 
 3 perubahan, utamanya use public ghcr.io/aknalre/reneo-sidesa image and auto-provision PostgreSQL & internal network.
