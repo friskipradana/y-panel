@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 356" width="960" height="356" role="img" aria-label="Tahap Pembentukan Logo Reneo CRM">
+  <defs>
+    <style>
+      .title { font: 700 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; fill: #F1F5F9; }
+      .sub { font: 400 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; fill: #94A3B8; }
+      .label { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; fill: #CBD5E1; }
+      .mono { font: 500 10.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #94A3B8; }
+    </style>
+    <g id="reneo-r">
+      <rect x="146.0" y="150.0" width="220.0" height="152.0" rx="62.0" fill="#0B2A57"/>
+      <rect x="146.0" y="150.0" width="62.0" height="62.0" fill="#0B2A57"/>
+      <rect x="146.0" y="240.0" width="62.0" height="62.0" fill="#0B2A57"/>
+      <rect x="146.0" y="150.0" width="60.0" height="216.0" fill="#0B2A57"/>
+      <polygon points="238.0,296.0 300.0,296.0 378.0,366.0 310.0,366.0" fill="#0B2A57"/>
+      <rect x="146.0" y="212.0" width="160.0" height="16.0" rx="8.0" fill="#FFFFFF"/>
+      <rect x="146.0" y="212.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+      <rect x="146.0" y="220.0" width="8.0" height="8.0" fill="#FFFFFF"/>
+      <polygon points="206.0,302.0 244.0,302.0 300.0,366.0 206.0,366.0" fill="#FFFFFF"/>
+    </g>
+    <g id="crm-full">
+      <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+      <path d="M270 106H354C383.8 106 408 130.2 408 160V212C408 228.5 400.6 243.3 389 253.2L404 286L364.5 266H270C240.2 266 216 241.8 216 212V160C216 130.2 240.2 106 270 106Z" fill="#10B981"/>
+      <path d="M168 154H292C327.3 154 356 182.7 356 218V304C356 339.3 327.3 368 292 368H186L114 408L136 359.5C116.7 348.7 104 328 104 304V218C104 182.7 132.7 154 168 154Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="18" stroke-linejoin="round"/>
+      <use href="#reneo-r" transform="translate(83.3, 116.5) scale(0.56)"/>
+    </g>
+    <g id="sidesa-full">
+      <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+      <path d="M96 352C148 310 212 296 276 314C324 328 370 314 416 278V376C416 398.1 398.1 416 376 416H136C113.9 416 96 398.1 96 376V352Z" fill="#10B981"/>
+      <circle cx="372" cy="144" r="26" fill="#10B981"/>
+      <path d="M256 104L336 162H176L256 104Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10" stroke-linejoin="round"/>
+      <path d="M114 216L176 162H336L398 216H114Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10" stroke-linejoin="round"/>
+      <rect x="148" y="224" width="216" height="148" rx="22" fill="#FFFFFF" stroke="#0B2A57" stroke-width="10"/>
+      <use href="#reneo-r" transform="translate(130.2, 174.2) scale(0.48)"/>
+      <rect x="128" y="366" width="256" height="18" rx="9" fill="#FFFFFF"/>
+    </g>
+  </defs>
+
+  <!-- Outer Board -->
+  <rect x="0" y="0" width="960" height="356" rx="16" fill="#141820"/>
+
+  <!-- Step 1 Card -->
+  <rect x="20" y="20" width="218" height="232" rx="12" fill="#1E2430" stroke="#2D3648" stroke-width="1.5"/>
+  <g transform="translate(65, 36) scale(0.25)">
+    <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+  </g>
+  <text x="129" y="198" text-anchor="middle" class="title">1. Wadah Reneo</text>
+  <text x="129" y="220" text-anchor="middle" class="sub">Squircle Navy #0B2A57</text>
+
+  <!-- Step 2 Card -->
+  <rect x="254" y="20" width="218" height="232" rx="12" fill="#1E2430" stroke="#2D3648" stroke-width="1.5"/>
+  <g transform="translate(299, 36) scale(0.25)">
+    <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+    <path d="M270 106H354C383.8 106 408 130.2 408 160V212C408 228.5 400.6 243.3 389 253.2L404 286L364.5 266H270C240.2 266 216 241.8 216 212V160C216 130.2 240.2 106 270 106Z" fill="#10B981"/>
+  </g>
+  <text x="363" y="198" text-anchor="middle" class="title">2. Kanal Masuk</text>
+  <text x="363" y="220" text-anchor="middle" class="sub">Balon Pesan #10B981</text>
+
+  <!-- Step 3 Card -->
+  <rect x="488" y="20" width="218" height="232" rx="12" fill="#1E2430" stroke="#2D3648" stroke-width="1.5"/>
+  <g transform="translate(533, 36) scale(0.25)">
+    <rect x="40" y="40" width="432" height="432" rx="92" fill="#0B2A57"/>
+    <path d="M270 106H354C383.8 106 408 130.2 408 160V212C408 228.5 400.6 243.3 389 253.2L404 286L364.5 266H270C240.2 266 216 241.8 216 212V160C216 130.2 240.2 106 270 106Z" fill="#10B981"/>
+    <path d="M168 154H292C327.3 154 356 182.7 356 218V304C356 339.3 327.3 368 292 368H186L114 408L136 359.5C116.7 348.7 104 328 104 304V218C104 182.7 132.7 154 168 154Z" fill="#FFFFFF" stroke="#0B2A57" stroke-width="18" stroke-linejoin="round"/>
+  </g>
+  <text x="597" y="198" text-anchor="middle" class="title">3. Respons Utama</text>
+  <text x="597" y="220" text-anchor="middle" class="sub">Balon Putih + Cutout Navy</text>
+
+  <!-- Step 4 Card (Final Highlight) -->
+  <rect x="722" y="20" width="218" height="232" rx="12" fill="#1E2430" stroke="#0EA5E9" stroke-width="1.8"/>
+  <use href="#crm-full" transform="translate(767, 36) scale(0.25)"/>
+  <text x="831" y="198" text-anchor="middle" class="title">4. Final + Monogram R</text>
+  <text x="831" y="220" text-anchor="middle" class="sub">Identitas Resmi Reneo</text>
+
+  <!-- Divider -->
+  <line x1="20" y1="274" x2="940" y2="274" stroke="#2D3648" stroke-width="1"/>
+
+  <!-- Footer Comparison -->
+  <use href="#crm-full" transform="translate(24, 290) scale(0.095)"/>
+  <text x="84" y="311" class="title">Reneo CRM</text>
+  <text x="84" y="328" class="sub">Bubble + Monogram R</text>
+
+  <text x="242" y="320" text-anchor="middle" class="sub">vs</text>
+
+  <use href="#sidesa-full" transform="translate(274, 290) scale(0.095)"/>
+  <text x="334" y="311" class="title">Reneo SIDesa</text>
+  <text x="334" y="328" class="sub">Pendopo + Monogram R</text>
+
+  <!-- Scale Preview -->
+  <text x="760" y="320" text-anchor="end" class="label">Skala:</text>
+  <use href="#crm-full" transform="translate(778, 306) scale(0.039)"/>
+  <text x="788" y="340" text-anchor="middle" class="mono">20px</text>
+  <use href="#crm-full" transform="translate(822, 300) scale(0.058)"/>
+  <text x="837" y="340" text-anchor="middle" class="mono">30px</text>
+  <use href="#crm-full" transform="translate(876, 290) scale(0.086)"/>
+  <text x="898" y="340" text-anchor="middle" class="mono">44px</text>
+</svg>

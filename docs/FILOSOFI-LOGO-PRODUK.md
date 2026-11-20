@@ -23,6 +23,8 @@ Setiap layanan resmi Reneo (*first-party service*) harus langsung dikenali sebag
 ### A. Reneo CRM (`public/icons/apps/reneo-crm.svg`)
 **Tema**: Percakapan dua arah & manajemen relasi pelanggan.
 
+![Tahap Pembentukan Logo Reneo CRM](./images/crm-logo-evolution.svg)
+
 | Tahap | Lapisan Visual | Warna | Filosofi |
 | :--- | :--- | :--- | :--- |
 | **1. Wadah** | Squircle dasar (`rx=92`) | `#0B2A57` | Ruang kerja terpusat untuk semua kanal & data pelanggan |
@@ -36,6 +38,8 @@ Dokumentasi lengkap di repositori CRM: `crm-services/docs/FILOSOFI-LOGO.md`.
 
 ### B. Reneo SIDesa (`public/icons/apps/reneo-sidesa.svg`)
 **Tema**: Pelayanan publik desa, transparansi, dan potensi wilayah Nusantara.
+
+![Tahap Pembentukan Logo Reneo SIDesa](./images/sidesa-logo-evolution.svg)
 
 | Tahap | Lapisan Visual | Warna | Filosofi |
 | :--- | :--- | :--- | :--- |
