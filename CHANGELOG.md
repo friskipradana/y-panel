@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.29] - 2026-11-20
+
+Add Reneo SIDesa app icon in catalog and desktop.
+
+### Fitur baru
+- **icons:** Add Reneo SIDesa app icon in catalog and desktop ([`becdd76`](https://github.com/friskipradana/y-panel/commit/becdd76))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.28...v1.88.29
+
 ## [1.88.28] - 2026-11-20
 
 Register Reneo SIDesa official service (reneo-sidesa).
