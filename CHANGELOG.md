@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.30] - 2026-11-20
+
+Update Reneo SIDesa app icon with Reneo R monogram.
+
+### Fitur baru
+- **brand:** Update Reneo SIDesa app icon with Reneo R monogram ([`5ca3bc2`](https://github.com/friskipradana/y-panel/commit/5ca3bc2))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.29...v1.88.30
+
 ## [1.88.29] - 2026-11-20
 
 Add Reneo SIDesa app icon in catalog and desktop.
