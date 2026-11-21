@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.45] - 2026-11-21
+
+Optimize mobile view with collapsible feature details and expandable order summary.
+
+### Fitur baru
+- **order:** Optimize mobile view with collapsible feature details and expandable order summary ([`70588cc`](https://github.com/friskipradana/y-panel/commit/70588cc))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.44...v1.88.45
+
 ## [1.88.44] - 2026-11-21
 
 Align default subscription plans and correct enterprise annual pricing.
