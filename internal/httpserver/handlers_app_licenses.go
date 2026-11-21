@@ -282,6 +282,9 @@ func (s *Server) handleAppLicenseStartTrial(w http.ResponseWriter, r *http.Reque
 		} else if req.PlanSlug == "starter-monthly" {
 			planName = "Starter Bulanan"
 			features = json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":250,"maxAttachmentSizeMb":5}`)
+		} else if req.PlanSlug == "pro-annual" {
+			planName = "Growth Pro Tahunan"
+			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":10}`)
 		} else if req.PlanSlug == "business-monthly" {
 			planName = "Business AI Bulanan"
 			features = json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":3072,"maxAttachmentSizeMb":20}`)
@@ -540,7 +543,12 @@ func (s *Server) handleAppLicenseCreateOrder(w http.ResponseWriter, r *http.Requ
 		planName = "Starter Bulanan"
 		period = "monthly"
 		months = 1
-		priceAmount = 79000
+		priceAmount = 49000
+	} else if req.PlanSlug == "pro-annual" {
+		planName = "Growth Pro Tahunan"
+		period = "annual"
+		months = 12
+		priceAmount = 990000
 	} else if req.PlanSlug == "business-monthly" {
 		planName = "Business AI Bulanan"
 		period = "monthly"

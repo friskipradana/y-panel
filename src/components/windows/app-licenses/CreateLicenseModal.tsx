@@ -77,7 +77,7 @@ export function CreateLicenseModal({
       setPlanName('6 Bulan (Pro)')
       setPriceAmount(540000)
     } else if (m === 12) {
-      setPlanName('Tahunan (Enterprise)')
+      setPlanName('Tahunan (Pro)')
       setPriceAmount(990000)
     } else if (m === 0) {
       setPlanName('Lifetime (Selamanya)')
