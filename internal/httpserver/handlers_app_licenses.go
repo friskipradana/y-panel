@@ -145,21 +145,6 @@ func (s *Server) getActivePaymentMethods() []orderMethod {
 // handleAppCatalogPaymentMethods returns the live payment methods configured in Reneo Panel
 // so ecosystem apps (e.g. Reneo SIDesa, Reneo CRM) always show the exact same bank accounts & QRIS.
 func (s *Server) handleAppCatalogPaymentMethods(w http.ResponseWriter, r *http.Request) {
-	authorized := false
-	if tok := extractRequestAppToken(r); tok != "" {
-		if _, _, _, ok := s.parseAppToken(tok); ok {
-			authorized = true
-		}
-	}
-	if !authorized {
-		if u := s.currentUserRecord(r); u != nil {
-			authorized = true
-		}
-	}
-	if !authorized {
-		s.writeJSON(w, http.StatusUnauthorized, jsonResponse{"error": "Unauthorized"})
-		return
-	}
 	s.writeJSON(w, http.StatusOK, jsonResponse{
 		"ok":             true,
 		"paymentMethods": s.getActivePaymentMethods(),
