@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.44] - 2026-11-21
+
+Align default subscription plans and correct enterprise annual pricing.
+
+### Perbaikan
+- **license:** Align default subscription plans and correct enterprise annual pricing ([`99e4269`](https://github.com/friskipradana/y-panel/commit/99e4269))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.43...v1.88.44
+
 ## [1.88.43] - 2026-11-21
 
 Rapikan layout halaman order hosting untuk desktop 2-kolom dan mobile.
