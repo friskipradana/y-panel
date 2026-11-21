@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.43] - 2026-11-21
+
+Rapikan layout halaman order hosting untuk desktop 2-kolom dan mobile.
+
+### Fitur baru
+- **order:** Rapikan layout halaman order hosting untuk desktop 2-kolom dan mobile ([`0c6e9e5`](https://github.com/friskipradana/y-panel/commit/0c6e9e5))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.42...v1.88.43
+
 ## [1.88.42] - 2026-11-21
 
 Pembaruan rutin stabilitas dan pemeliharaan sistem Reneo.
