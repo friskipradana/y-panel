@@ -1122,6 +1122,8 @@ export const id: Record<string, string> = {
   'order.loading': "Memuat...",
   'order.title':"Pesan paket hosting",
   'order.subtitle': "Daftar, bayar lewat transfer, dan akun Anda aktif otomatis begitu pembayaran terbaca.",
+  'order.summary.title': "Ringkasan pesanan",
+  'order.summary.autoActivate': "Akun & layanan aktif otomatis begitu pembayaran transfer terverifikasi.",
   'order.plan': "Paket",
   'order.mode': "Jenis pesanan",
   'order.buy': "Beli",

@@ -30,11 +30,15 @@ export function PeriodPicker({ plan, value, onChange, maxPeriods, kind = 'new' }
   if (choices.length < 2) return null
 
   return (
-    <div role="group" aria-label={t('order.periods')} className="grid gap-1.5">
+    <div
+      role="group"
+      aria-label={t('order.periods')}
+      className={`grid gap-2 ${choices.length >= 3 ? 'sm:grid-cols-2' : ''}`}
+    >
       {choices.map((count) => {
         const price = priceFor(plan, count, null, kind)
         return (
-          <SelectableCard key={count} selected={value === count} onClick={() => onChange(count)} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-left">
+          <SelectableCard key={count} selected={value === count} onClick={() => onChange(count)} className="flex items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 text-left">
             <span className="flex min-w-0 items-center gap-2">
               <span className="text-[0.875rem] font-semibold text-[var(--win-text)]">{label(count)}</span>
               {price.durationPercent > 0 ? <Badge tone="success" size="sm">{t('order.save', { percent: price.durationPercent })}</Badge> : null}

@@ -20,14 +20,17 @@ export interface StepperProps<K extends string | number> {
 export function Stepper<K extends string | number>({ items, value, onChange, canSelect, label, className = '' }: StepperProps<K>) {
   const currentIndex = items.findIndex((item) => item.key === value)
   return (
-    <ol className={`flex items-center gap-1 overflow-x-auto ${className}`.trim()} aria-label={label}>
+    <ol
+      className={`flex items-center gap-1 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className}`.trim()}
+      aria-label={label}
+    >
       {items.map((item, index) => {
         const done = index < currentIndex
         const current = index === currentIndex
         const selectable = canSelect ? canSelect(item.key, index) : true
         return (
-          <li key={String(item.key)} className="flex items-center gap-1">
-            {index > 0 ? <span className="h-px w-3 bg-[var(--win-border)] sm:w-8" aria-hidden="true" /> : null}
+          <li key={String(item.key)} className="flex shrink-0 items-center gap-1">
+            {index > 0 ? <span className="h-px w-2.5 bg-[var(--win-border)] sm:w-5 lg:w-6" aria-hidden="true" /> : null}
             <button
               type="button"
               aria-current={current ? 'step' : undefined}
@@ -44,7 +47,7 @@ export function Stepper<K extends string | number>({ items, value, onChange, can
               }`}
             >
               <span
-                className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10.5px] font-semibold ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10.5px] font-semibold ${
                   current || done ? 'border-[var(--panel-primary-solid)] text-[var(--panel-primary-text)]' : 'border-[var(--win-border)]'
                 }`}
               >

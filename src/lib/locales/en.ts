@@ -1122,6 +1122,8 @@ export const en: Record<string, string> = {
   'order.loading': "Loading...",
   'order.title':"Order a hosting plan",
   'order.subtitle': "Sign up, pay by bank transfer, and your account switches on as soon as the payment is read.",
+  'order.summary.title': "Order summary",
+  'order.summary.autoActivate': "Your account and services activate automatically once your transfer is verified.",
   'order.plan': "Plan",
   'order.mode': "Order type",
   'order.buy': "Buy",
