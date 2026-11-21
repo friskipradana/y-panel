@@ -1,4 +1,5 @@
-import { Check, Minus, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react'
 import { formatRupiah, type PublicAppAddonLicense } from '@/api/hosting'
 import { AppIcon } from '@/components/common/AppIcon'
 import { Badge } from '@/components/ui/Badge'
@@ -19,6 +20,8 @@ function licenseUnitLabel(lp: PublicAppAddonLicense, t: (key: string, params?: R
 // Step 2: optional app + license catalog picker with full tier benefits and synced/independent duration
 export function OrderStepAddon({ order }: { order: OrderFormState }) {
   const { t, language } = useI18n()
+  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({})
+  const [bundledExpanded, setBundledExpanded] = useState(false)
   const {
     plan, hostingMonths, planIncludesApp, bundledApp, bundledLicense,
     choosableAddons, addonSelected, selectedAddonApp, selectedAddonLicense, selectAddonPlan,
@@ -57,14 +60,26 @@ export function OrderStepAddon({ order }: { order: OrderFormState }) {
           </div>
           <p className="text-[0.75rem] text-[var(--text-secondary)]">{t('order.addon.includedHint')}</p>
           {bundledLicense ? (
-            <ul className="grid gap-1 pt-1 text-[0.75rem] sm:grid-cols-2">
-              {describeLicenseFeatures(bundledLicense.features, t).map((feat) => (
-                <li key={feat} className="flex items-start gap-1.5 text-[var(--win-text)]">
-                  <Check size={13} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
-                  <span>{feat}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="pt-0.5">
+              <button
+                type="button"
+                onClick={() => setBundledExpanded((v) => !v)}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--panel-success-text)] hover:underline focus-visible:outline-none"
+              >
+                <span>{bundledExpanded ? t('order.details.hide') : t('order.details.show')}</span>
+                {bundledExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+              {bundledExpanded ? (
+                <ul className="grid gap-1 pt-2 text-[0.75rem] sm:grid-cols-2">
+                  {describeLicenseFeatures(bundledLicense.features, t).map((feat) => (
+                    <li key={feat} className="flex items-start gap-1.5 text-[var(--win-text)]">
+                      <Check size={13} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -115,6 +130,7 @@ export function OrderStepAddon({ order }: { order: OrderFormState }) {
                     {app.licensePlans.map((lp) => {
                       const lpSelected = isThisApp && selectedAddonLicense?.slug === lp.slug
                       const feats = describeLicenseFeatures(lp.features, t)
+                      const isExpanded = expandedTiers[lp.slug] ?? lpSelected
                       return (
                         <SelectableCard
                           key={lp.slug}
@@ -142,14 +158,29 @@ export function OrderStepAddon({ order }: { order: OrderFormState }) {
                             </div>
                           </div>
                           {feats.length > 0 ? (
-                            <ul className="mt-2.5 grid gap-1 border-t border-[var(--win-border)]/70 pt-2.5 text-[0.75rem] sm:grid-cols-2">
-                              {feats.map((feat) => (
-                                <li key={feat} className="flex items-start gap-1.5 text-[var(--win-text)]">
-                                  <Check size={13} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
-                                  <span className="leading-snug">{feat}</span>
-                                </li>
-                              ))}
-                            </ul>
+                            <div className="mt-2.5 border-t border-[var(--win-border)]/70 pt-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setExpandedTiers((prev) => ({ ...prev, [lp.slug]: !isExpanded }))
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--panel-primary-text)] hover:underline focus-visible:outline-none rounded"
+                              >
+                                <span>{isExpanded ? t('order.details.hide') : t('order.details.show')}</span>
+                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              </button>
+                              {isExpanded ? (
+                                <ul className="mt-2 grid gap-1 text-[0.75rem] sm:grid-cols-2">
+                                  {feats.map((feat) => (
+                                    <li key={feat} className="flex items-start gap-1.5 text-[var(--win-text)]">
+                                      <Check size={13} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
+                                      <span className="leading-snug">{feat}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
                           ) : null}
                         </SelectableCard>
                       )
@@ -187,7 +218,7 @@ export function OrderStepAddon({ order }: { order: OrderFormState }) {
                     </div>
 
                     {effectiveAddonMode === 'custom' ? (
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--win-border)] bg-[var(--win-bg-soft)] p-2.5">
+                      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-[var(--win-border)] bg-[var(--win-bg-soft)] p-2.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                           {customChoices.map((qtyChoice) => (
                             <Button
@@ -201,30 +232,33 @@ export function OrderStepAddon({ order }: { order: OrderFormState }) {
                             </Button>
                           ))}
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={addonCount <= 1}
-                            onClick={() => setAddonUnits(String(Math.max(1, addonCount - 1)))}
-                            aria-label={t('order.addon.qtyDecrease')}
-                          >
-                            <Minus size={13} strokeWidth={1.75} />
-                          </Button>
-                          <span className="panel-mono min-w-[4.5rem] text-center text-[0.8125rem] font-semibold text-[var(--win-text)]">
-                            {monthsLabel(t, addonMonths)}
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={addonCount >= maxAddonUnits}
-                            onClick={() => setAddonUnits(String(Math.min(maxAddonUnits, addonCount + 1)))}
-                            aria-label={t('order.addon.qtyIncrease')}
-                          >
-                            <Plus size={13} strokeWidth={1.75} />
-                          </Button>
+                        <div className="flex items-center justify-between sm:justify-end gap-1.5 pt-1.5 sm:pt-0 border-t border-[var(--win-border)]/60 sm:border-t-0">
+                          <span className="text-[0.75rem] text-[var(--text-secondary)] sm:hidden">{t('order.addon.durationTitle')}:</span>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={addonCount <= 1}
+                              onClick={() => setAddonUnits(String(Math.max(1, addonCount - 1)))}
+                              aria-label={t('order.addon.qtyDecrease')}
+                            >
+                              <Minus size={13} strokeWidth={1.75} />
+                            </Button>
+                            <span className="panel-mono min-w-[4.5rem] text-center text-[0.8125rem] font-semibold text-[var(--win-text)]">
+                              {monthsLabel(t, addonMonths)}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={addonCount >= maxAddonUnits}
+                              onClick={() => setAddonUnits(String(Math.min(maxAddonUnits, addonCount + 1)))}
+                              aria-label={t('order.addon.qtyIncrease')}
+                            >
+                              <Plus size={13} strokeWidth={1.75} />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ) : null}

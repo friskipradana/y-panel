@@ -60,8 +60,8 @@ export function OrderForm() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <div className="rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] p-4 sm:p-6 space-y-5">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="rounded-xl border border-[var(--win-border)] bg-[var(--win-bg)] p-3.5 sm:p-6 space-y-4 sm:space-y-5">
           {step === 'plan' ? <OrderStepPlan order={order} /> : null}
           {step === 'addon' ? <OrderStepAddon order={order} /> : null}
           {step === 'address' ? (

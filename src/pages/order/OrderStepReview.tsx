@@ -14,16 +14,16 @@ import type { OrderFormState, OrderStep } from './useOrderForm'
 // One group of the review: its facts as label and value, and a single pencil that goes back to the step they came from
 function Group({ rows, onEdit, editLabel }: { rows: { label: string; value: ReactNode; mono?: boolean }[]; onEdit: () => void; editLabel: string }) {
   return (
-    <div className="flex items-start gap-2 py-2.5">
-      <dl className="grid min-w-0 flex-1 grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-[0.8125rem]">
+    <div className="flex items-start justify-between gap-2 py-2.5">
+      <dl className="grid min-w-0 flex-1 grid-cols-1 gap-y-1 text-[0.8125rem] sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-1">
         {rows.map((row) => (
           <div key={row.label} className="contents">
-            <dt className="text-[var(--text-secondary)]">{row.label}</dt>
+            <dt className="text-[0.75rem] text-[var(--text-secondary)] sm:text-[0.8125rem]">{row.label}</dt>
             <dd className={`min-w-0 font-medium text-[var(--win-text)] ${row.mono ? 'panel-mono break-all' : 'break-words'}`}>{row.value}</dd>
           </div>
         ))}
       </dl>
-      <IconButton label={editLabel} onClick={onEdit} className="shrink-0">
+      <IconButton label={editLabel} onClick={onEdit} className="shrink-0 -mr-1">
         <Pencil className="h-3.5 w-3.5" />
       </IconButton>
     </div>

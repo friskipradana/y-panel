@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { formatRupiah } from '@/api/hosting'
 import { useDurationLabel } from '@/components/hosting/PeriodPicker'
 import { Badge } from '@/components/ui/Badge'
@@ -8,6 +10,7 @@ import type { OrderFormState } from './useOrderForm'
 // Live sticky order summary for desktop sidebar and compact mobile strip
 export function OrderSummary({ order, compact = false }: { order: OrderFormState; compact?: boolean }) {
   const { t } = useI18n()
+  const [expanded, setExpanded] = useState(false)
   const {
     plan, count, isTrial, basePrice, total,
     planIncludesApp, bundledApp, bundledLicense,
@@ -23,22 +26,88 @@ export function OrderSummary({ order, compact = false }: { order: OrderFormState
 
   if (compact) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--win-border)] bg-[var(--panel-surface)] px-3.5 py-2.5 lg:hidden">
-        <div className="min-w-0">
-          <p className="truncate text-[0.8125rem] font-semibold text-[var(--win-text)]">
-            {plan.name}
-            {!isTrial && plan.period !== 'once' ? ` · ${durationLabel(count)}` : ''}
-          </p>
-          {addonSelected && selectedAddonApp && selectedAddonLicense ? (
-            <p className="truncate text-[0.75rem] text-[var(--text-secondary)]">
-              + {selectedAddonApp.name} ({selectedAddonLicense.name})
+      <div className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] lg:hidden">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left focus-visible:outline-none"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="truncate text-[0.8125rem] font-semibold text-[var(--win-text)]">
+                {plan.name}
+                {!isTrial && plan.period !== 'once' ? ` · ${durationLabel(count)}` : ''}
+              </p>
+              {isTrial ? <Badge tone="primary" size="sm">{t('order.trial', { days: plan.trialDays })}</Badge> : null}
+            </div>
+            {addonSelected && selectedAddonApp && selectedAddonLicense ? (
+              <p className="truncate text-[0.75rem] text-[var(--text-secondary)]">
+                + {selectedAddonApp.name} ({selectedAddonLicense.name})
+              </p>
+            ) : null}
+            <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--panel-primary-text)]">
+              <span>{expanded ? t('order.summary.hideBreakdown') : t('order.summary.showBreakdown')}</span>
+              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </span>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-[0.6875rem] text-[var(--text-secondary)]">{t('order.addon.estimatedTotal')}</p>
+            <p className="panel-mono text-[0.875rem] font-bold text-[var(--win-text)]">{totalFormatted}</p>
+          </div>
+        </button>
+
+        {expanded ? (
+          <div className="border-t border-[var(--win-border)] px-3.5 pb-3.5 pt-2.5 space-y-3">
+            <dl className="space-y-2.5 text-[0.8125rem]">
+              <div className="flex items-start justify-between gap-3">
+                <dt className="min-w-0 text-[var(--text-secondary)]">
+                  <span className="block font-medium text-[var(--win-text)]">{t('order.addon.hostingLine', { plan: plan.name })}</span>
+                  {!isTrial && plan.period !== 'once' ? (
+                    <span className="text-[0.75rem] text-[var(--text-secondary)]">{durationLabel(count)}</span>
+                  ) : null}
+                </dt>
+                <dd className="panel-mono shrink-0 font-semibold text-[var(--win-text)]">
+                  {isTrial || plan.priceAmount === 0 ? t('hosting.landing.free') : formatRupiah(basePrice.subtotal)}
+                </dd>
+              </div>
+
+              {planIncludesApp && bundledApp ? (
+                <div className="flex items-start justify-between gap-3 border-t border-[var(--win-border)]/70 pt-2">
+                  <dt className="min-w-0">
+                    <span className="block font-medium text-[var(--win-text)]">{bundledApp.name}</span>
+                    {bundledLicense ? <span className="text-[0.75rem] text-[var(--text-secondary)]">{bundledLicense.name}</span> : null}
+                  </dt>
+                  <dd className="shrink-0">
+                    <Badge tone="success" size="sm">{t('order.addon.includedBadge')}</Badge>
+                  </dd>
+                </div>
+              ) : null}
+
+              {addonSelected && selectedAddonApp && selectedAddonLicense ? (
+                <div className="flex items-start justify-between gap-3 border-t border-[var(--win-border)]/70 pt-2">
+                  <dt className="min-w-0">
+                    <span className="block font-medium text-[var(--win-text)]">{selectedAddonApp.name}</span>
+                    <span className="text-[0.75rem] text-[var(--text-secondary)]">
+                      {selectedAddonLicense.name} · {monthsLabel(t, addonMonths)}
+                    </span>
+                  </dt>
+                  <dd className="panel-mono shrink-0 font-semibold text-[var(--win-text)]">{formatRupiah(addonAmount)}</dd>
+                </div>
+              ) : null}
+
+              {fullHost ? (
+                <div className="border-t border-[var(--win-border)]/70 pt-2 space-y-0.5">
+                  <dt className="text-[0.75rem] text-[var(--text-secondary)]">{t('order.address')}</dt>
+                  <dd className="panel-mono truncate text-[0.75rem] font-medium text-[var(--win-text)]">{fullHost}</dd>
+                </div>
+              ) : null}
+            </dl>
+
+            <p className="border-t border-[var(--win-border)]/70 pt-2 text-[0.75rem] leading-relaxed text-[var(--text-secondary)]">
+              {t('order.summary.autoActivate')}
             </p>
-          ) : null}
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-[0.6875rem] text-[var(--text-secondary)]">{t('order.addon.estimatedTotal')}</p>
-          <p className="panel-mono text-[0.875rem] font-bold text-[var(--win-text)]">{totalFormatted}</p>
-        </div>
+          </div>
+        ) : null}
       </div>
     )
   }

@@ -17,7 +17,7 @@ export function OrderPage() {
   return (
     <PublicShell>
       <main
-        className={`mx-auto px-4 pb-12 pt-4 sm:px-6 sm:pt-8 ${
+        className={`mx-auto px-3.5 pb-10 pt-3 sm:px-6 sm:pt-8 ${
           publicId ? 'max-w-2xl' : 'max-w-5xl'
         }`}
       >

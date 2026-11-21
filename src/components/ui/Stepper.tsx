@@ -36,7 +36,7 @@ export function Stepper<K extends string | number>({ items, value, onChange, can
               aria-current={current ? 'step' : undefined}
               disabled={!selectable}
               onClick={() => onChange(item.key)}
-              className={`flex h-8 items-center gap-2 whitespace-nowrap rounded-lg border px-2.5 text-[12px] font-medium transition-colors disabled:cursor-default ${
+              className={`flex h-7.5 sm:h-8 items-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg border px-2 sm:px-2.5 text-[11px] sm:text-[12px] font-medium transition-colors disabled:cursor-default ${
                 selectable && !current ? 'cursor-pointer' : ''
               } ${
                 current

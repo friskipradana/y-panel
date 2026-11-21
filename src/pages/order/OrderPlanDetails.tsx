@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatRupiah, type PublicPlan } from '@/api/hosting'
 import { Badge } from '@/components/ui/Badge'
 import { formatDateID } from '@/lib/datetime'
@@ -14,6 +15,7 @@ export function OrderPlanDetails({ plan, mainDomain, periods = 1, isTrial = fals
   isTrial?: boolean
 }) {
   const { t } = useI18n()
+  const [expanded, setExpanded] = useState(false)
   const limits = getPlanLimits(plan, t, mainDomain)
   const promo = !isTrial && promoActive(plan, 'new') ? priceFor(plan, periods, null, 'new') : null
   const perUnit = !isTrial && promoActive(plan, 'new') ? priceFor(plan, 1, null, 'new') : null
@@ -22,11 +24,11 @@ export function OrderPlanDetails({ plan, mainDomain, periods = 1, isTrial = fals
   return (
     <section
       aria-label={t('order.planDetailsTitle')}
-      className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-4 space-y-3"
+      className="rounded-xl border border-[var(--win-border)] bg-[var(--panel-surface)] p-3.5 sm:p-4 space-y-3"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <h2 className="text-[0.9375rem] font-semibold text-[var(--win-text)]">{plan.name}</h2>
             {plan.highlighted ? <Badge tone="primary" size="sm">{t('hosting.landing.recommended')}</Badge> : null}
             {promo ? <Badge tone="success" size="sm">{t('order.price.promo', { percent: promo.promoPercent })}</Badge> : null}
@@ -61,34 +63,59 @@ export function OrderPlanDetails({ plan, mainDomain, periods = 1, isTrial = fals
         </p>
       ) : null}
 
-      <div className="border-t border-[var(--win-border)] pt-3">
-        <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-          {t('hosting.landing.limitsLabel')}
-        </p>
-        <ul className="panel-mono grid gap-x-4 gap-y-1 text-[0.75rem] text-[var(--win-text)] sm:grid-cols-2">
-          {limits.map((limit) => (
-            <li key={limit} className="truncate">
-              {limit}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {expanded ? (
+        <div className="space-y-3 pt-1">
+          <div className="border-t border-[var(--win-border)] pt-3">
+            <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+              {t('hosting.landing.limitsLabel')}
+            </p>
+            <ul className="panel-mono grid gap-x-4 gap-y-1 text-[0.75rem] text-[var(--win-text)] sm:grid-cols-2">
+              {limits.map((limit) => (
+                <li key={limit} className="truncate">
+                  {limit}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-      {plan.features.length > 0 ? (
-        <div className="border-t border-[var(--win-border)] pt-3">
-          <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-            {t('order.planBenefitsLabel')}
-          </p>
-          <ul className="grid gap-1.5 text-[0.8125rem] sm:grid-cols-2">
-            {plan.features.map((feature) => (
-              <li key={feature} className="flex items-start gap-2 text-[var(--win-text)]">
-                <Check size={14} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
-                <span className="leading-snug">{feature}</span>
+          {plan.features.length > 0 ? (
+            <div className="border-t border-[var(--win-border)] pt-3">
+              <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+                {t('order.planBenefitsLabel')}
+              </p>
+              <ul className="grid gap-1.5 text-[0.8125rem] sm:grid-cols-2">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-[var(--win-text)]">
+                    <Check size={14} className="mt-0.5 shrink-0 text-[var(--panel-success-text)]" strokeWidth={1.75} aria-hidden="true" />
+                    <span className="leading-snug">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="border-t border-[var(--win-border)] pt-2.5">
+          <ul className="panel-mono flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.75rem] text-[var(--text-secondary)]">
+            {limits.slice(0, 3).map((limit) => (
+              <li key={limit} className="truncate">
+                • {limit}
               </li>
             ))}
           </ul>
         </div>
-      ) : null}
+      )}
+
+      <div className="pt-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-[var(--panel-primary-text)] hover:underline focus-visible:outline-none"
+        >
+          <span>{expanded ? t('order.details.hideAll') : t('order.details.showAll')}</span>
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        </button>
+      </div>
     </section>
   )
 }
