@@ -2,6 +2,15 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.49] - 2026-11-22
+
+Set starter baseline to 1000 contacts, 250MB, 2000 broadcasts, no live chat/CSAT.
+
+### Perbaikan
+- **license:** Set starter baseline to 1000 contacts, 250MB, 2000 broadcasts, no live chat/CSAT ([`1100c03`](https://github.com/friskipradana/y-panel/commit/1100c03))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.48...v1.88.49
+
 ## [1.88.48] - 2026-11-22
 
 Add original price, discount badge, promo validity, and identity switch limit controls in plan modals and UI.
