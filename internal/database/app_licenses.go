@@ -38,21 +38,24 @@ type AppLicense struct {
 
 // AppLicensePlan represents an available pricing tier / package for an application.
 type AppLicensePlan struct {
-	ID          int64           `json:"id"`
-	CatalogID   string          `json:"catalogId"`
-	Slug        string          `json:"slug"`
-	Name        string          `json:"name"`
-	Tagline     string          `json:"tagline"`
-	Period      string          `json:"period"` // "monthly", "quarterly", "annual", "trial"
-	Months      int             `json:"months"`
-	TrialDays   int             `json:"trialDays"`
-	PriceAmount int64           `json:"priceAmount"`
-	Features    json.RawMessage `json:"features"`
-	Highlighted bool            `json:"highlighted"`
-	IsActive    bool            `json:"isActive"`
-	SortOrder   int             `json:"sortOrder"`
-	CreatedAt   string          `json:"createdAt"`
-	UpdatedAt   string          `json:"updatedAt"`
+	ID                  int64           `json:"id"`
+	CatalogID           string          `json:"catalogId"`
+	Slug                string          `json:"slug"`
+	Name                string          `json:"name"`
+	Tagline             string          `json:"tagline"`
+	Period              string          `json:"period"` // "monthly", "quarterly", "annual", "trial"
+	Months              int             `json:"months"`
+	TrialDays           int             `json:"trialDays"`
+	PriceAmount         int64           `json:"priceAmount"`
+	OriginalPriceAmount int64           `json:"originalPriceAmount"`
+	DiscountPercent     int             `json:"discountPercent"`
+	PromoValidUntil     string          `json:"promoValidUntil"`
+	Features            json.RawMessage `json:"features"`
+	Highlighted         bool            `json:"highlighted"`
+	IsActive            bool            `json:"isActive"`
+	SortOrder           int             `json:"sortOrder"`
+	CreatedAt           string          `json:"createdAt"`
+	UpdatedAt           string          `json:"updatedAt"`
 }
 
 // AppLicenseOrder represents an order / invoice issued for an application license subscription.
@@ -82,7 +85,7 @@ type AppLicenseOrder struct {
 }
 
 const appLicenseCols = `id, user_id, catalog_id, app_name, license_key, status, plan_name, period, price_amount, started_at, expires_at, features, created_at, updated_at`
-const appLicensePlanCols = `id, catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order, created_at, updated_at`
+const appLicensePlanCols = `id, catalog_id, slug, name, tagline, period, months, trial_days, price_amount, original_price_amount, discount_percent, promo_valid_until, features, highlighted, is_active, sort_order, created_at, updated_at`
 const appLicenseOrderCols = `id, public_id, invoice_number, user_id, catalog_id, app_name, plan_slug, plan_name, period, months, amount_list, unique_code, amount_total, status, payment_method, buyer_name, buyer_email, buyer_phone, created_at, expires_at, paid_at, created_ip`
 
 type sqlExecutor interface {
@@ -189,7 +192,8 @@ func scanAppLicensePlan(row interface{ Scan(dest ...any) error }) (*AppLicensePl
 
 	err := row.Scan(
 		&p.ID, &p.CatalogID, &p.Slug, &p.Name, &p.Tagline, &p.Period, &p.Months, &p.TrialDays,
-		&p.PriceAmount, &featuresBytes, &p.Highlighted, &p.IsActive, &p.SortOrder,
+		&p.PriceAmount, &p.OriginalPriceAmount, &p.DiscountPercent, &p.PromoValidUntil,
+		&featuresBytes, &p.Highlighted, &p.IsActive, &p.SortOrder,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -274,7 +278,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 	}
 
 	// 1. One-time data correction: sync pricing to smooth charm-pricing ladder:
-	// Starter: 49k | Pro: 99k (990k/thn) | Business: 199k (1.99jt/thn) | Enterprise: 399k (3.99jt/thn)
+	// Starter: 49k (coret 99k) | Pro: 99k / 990k (coret 199k / 2.388k) | Business: 199k / 1.99m (coret 399k / 4.788k) | Enterprise: 399k / 3.99m (coret 799k / 9.588k)
 	_, _ = m.db.Exec(`
 		UPDATE app_license_plans
 		SET price_amount = CASE
@@ -286,6 +290,30 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		      WHEN slug = 'enterprise-monthly' THEN 399000
 		      WHEN slug = 'enterprise-annual' THEN 3990000
 		      ELSE price_amount
+		    END,
+		    original_price_amount = CASE
+		      WHEN slug = 'starter-monthly' THEN 99000
+		      WHEN slug = 'pro-monthly' THEN 199000
+		      WHEN slug = 'pro-annual' THEN 2388000
+		      WHEN slug = 'business-monthly' THEN 399000
+		      WHEN slug = 'business-annual' THEN 4788000
+		      WHEN slug = 'enterprise-monthly' THEN 799000
+		      WHEN slug = 'enterprise-annual' THEN 9588000
+		      ELSE original_price_amount
+		    END,
+		    discount_percent = CASE
+		      WHEN slug = 'starter-monthly' THEN 51
+		      WHEN slug = 'pro-monthly' THEN 50
+		      WHEN slug = 'pro-annual' THEN 59
+		      WHEN slug = 'business-monthly' THEN 50
+		      WHEN slug = 'business-annual' THEN 58
+		      WHEN slug = 'enterprise-monthly' THEN 50
+		      WHEN slug = 'enterprise-annual' THEN 58
+		      ELSE discount_percent
+		    END,
+		    promo_valid_until = CASE
+		      WHEN promo_valid_until = '' THEN '30 November 2026'
+		      ELSE promo_valid_until
 		    END,
 		    tagline = CASE
 		      WHEN slug = 'starter-monthly' THEN 'Paket dasar solopreneur: 1 Sesi WA, 1 CS, Live Chat CRM, 2.500 kontak, 2.500 siaran & auto-reply.'
@@ -311,109 +339,136 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 	`)
 
 	defaultPlans := []struct {
-		slug        string
-		name        string
-		tagline     string
-		period      string
-		months      int
-		price       int64
-		highlighted bool
-		sortOrder   int
-		features    string
+		slug            string
+		name            string
+		tagline         string
+		period          string
+		months          int
+		price           int64
+		originalPrice   int64
+		discountPercent int
+		promoValidUntil string
+		highlighted     bool
+		sortOrder       int
+		features        string
 	}{
 		{
-			slug:        "starter-monthly",
-			name:        "Starter Bulanan",
-			tagline:     "Paket dasar solopreneur: 1 Sesi WA, 1 CS, Live Chat CRM, 2.500 kontak, 2.500 siaran & auto-reply.",
-			period:      "monthly",
-			months:      1,
-			price:       49000,
-			highlighted: false,
-			sortOrder:   1,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":2500,"unlimitedContacts":false,"maxContacts":2500,"birthdayBot":true,"liveChat":true,"multiSession":false,"maxSessions":1,"maxSessionIdentitySwitches":2,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":15,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`,
+			slug:            "starter-monthly",
+			name:            "Starter Bulanan",
+			tagline:         "Paket dasar solopreneur: 1 Sesi WA, 1 CS, Live Chat CRM, 2.500 kontak, 2.500 siaran & auto-reply.",
+			period:          "monthly",
+			months:          1,
+			price:           49000,
+			originalPrice:   99000,
+			discountPercent: 51,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       1,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":2500,"unlimitedContacts":false,"maxContacts":2500,"birthdayBot":true,"liveChat":true,"multiSession":false,"maxSessions":1,"maxSessionIdentitySwitches":2,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":15,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`,
 		},
 		{
-			slug:        "pro-monthly",
-			name:        "Growth Pro Bulanan",
-			tagline:     "Untuk tim CS kecil: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln, omnichannel & jadwal konten.",
-			period:      "monthly",
-			months:      1,
-			price:       99000,
-			highlighted: true,
-			sortOrder:   2,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}`,
+			slug:            "pro-monthly",
+			name:            "Growth Pro Bulanan",
+			tagline:         "Untuk tim CS kecil: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln, omnichannel & jadwal konten.",
+			period:          "monthly",
+			months:          1,
+			price:           99000,
+			originalPrice:   199000,
+			discountPercent: 50,
+			promoValidUntil: "30 November 2026",
+			highlighted:     true,
+			sortOrder:       2,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}`,
 		},
 		{
-			slug:        "pro-annual",
-			name:        "Growth Pro Tahunan",
-			tagline:     "Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln & omnichannel.",
-			period:      "annual",
-			months:      12,
-			price:       990000,
-			highlighted: false,
-			sortOrder:   3,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}`,
+			slug:            "pro-annual",
+			name:            "Growth Pro Tahunan",
+			tagline:         "Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln & omnichannel.",
+			period:          "annual",
+			months:          12,
+			price:           990000,
+			originalPrice:   2388000,
+			discountPercent: 59,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       3,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}`,
 		},
 		{
-			slug:        "business-monthly",
-			name:        "Business AI Bulanan",
-			tagline:     "Skala bisnis berkembang: 5 Sesi WA, 7 CS, 12.500 kontak, 15.000 siaran/bln, AI Agent & MCP Tools.",
-			period:      "monthly",
-			months:      1,
-			price:       199000,
-			highlighted: false,
-			sortOrder:   4,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12500,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}`,
+			slug:            "business-monthly",
+			name:            "Business AI Bulanan",
+			tagline:         "Skala bisnis berkembang: 5 Sesi WA, 7 CS, 12.500 kontak, 15.000 siaran/bln, AI Agent & MCP Tools.",
+			period:          "monthly",
+			months:          1,
+			price:           199000,
+			originalPrice:   399000,
+			discountPercent: 50,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       4,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12500,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}`,
 		},
 		{
-			slug:        "business-annual",
-			name:        "Business AI Tahunan",
-			tagline:     "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 15.000 kontak, 15.000 siaran & AI Agent.",
-			period:      "annual",
-			months:      12,
-			price:       1990000,
-			highlighted: false,
-			sortOrder:   5,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":15000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}`,
+			slug:            "business-annual",
+			name:            "Business AI Tahunan",
+			tagline:         "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 15.000 kontak, 15.000 siaran & AI Agent.",
+			period:          "annual",
+			months:          12,
+			price:           1990000,
+			originalPrice:   4788000,
+			discountPercent: 58,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       5,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":15000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}`,
 		},
 		{
-			slug:        "enterprise-monthly",
-			name:        "Enterprise AI Bulanan",
-			tagline:     "Skala korporasi: 10 Sesi WA Dedicated, 15 CS, 30.000 kontak, 35.000 siaran, AI Agent & VIP.",
-			period:      "monthly",
-			months:      1,
-			price:       399000,
-			highlighted: false,
-			sortOrder:   6,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":30000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}`,
+			slug:            "enterprise-monthly",
+			name:            "Enterprise AI Bulanan",
+			tagline:         "Skala korporasi: 10 Sesi WA Dedicated, 15 CS, 30.000 kontak, 35.000 siaran, AI Agent & VIP.",
+			period:          "monthly",
+			months:          1,
+			price:           399000,
+			originalPrice:   799000,
+			discountPercent: 50,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       6,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":30000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}`,
 		},
 		{
-			slug:        "enterprise-annual",
-			name:        "Enterprise AI Tahunan",
-			tagline:     "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 40.000 kontak, 45.000 siaran & VIP.",
-			period:      "annual",
-			months:      12,
-			price:       3990000,
-			highlighted: false,
-			sortOrder:   7,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":40000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}`,
+			slug:            "enterprise-annual",
+			name:            "Enterprise AI Tahunan",
+			tagline:         "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 40.000 kontak, 45.000 siaran & VIP.",
+			period:          "annual",
+			months:          12,
+			price:           3990000,
+			originalPrice:   9588000,
+			discountPercent: 58,
+			promoValidUntil: "30 November 2026",
+			highlighted:     false,
+			sortOrder:       7,
+			features:        `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":40000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}`,
 		},
 	}
 
 	for _, p := range defaultPlans {
 		_, _ = m.db.Exec(`
-			INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order)
-			VALUES ($1, $2, $3, $4, $5, $6, 7, $7, $8::jsonb, $9, true, $10)
+			INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, original_price_amount, discount_percent, promo_valid_until, features, highlighted, is_active, sort_order)
+			VALUES ($1, $2, $3, $4, $5, $6, 7, $7, $8, $9, $10, $11::jsonb, $12, true, $13)
 			ON CONFLICT (catalog_id, slug) DO UPDATE
 			SET name = EXCLUDED.name,
 			    tagline = EXCLUDED.tagline,
 			    period = EXCLUDED.period,
 			    months = EXCLUDED.months,
 			    price_amount = EXCLUDED.price_amount,
+			    original_price_amount = EXCLUDED.original_price_amount,
+			    discount_percent = EXCLUDED.discount_percent,
+			    promo_valid_until = EXCLUDED.promo_valid_until,
 			    features = EXCLUDED.features,
 			    highlighted = EXCLUDED.highlighted,
 			    sort_order = EXCLUDED.sort_order;
-		`, catalogID, p.slug, p.name, p.tagline, p.period, p.months, p.price, p.features, p.highlighted, p.sortOrder)
+		`, catalogID, p.slug, p.name, p.tagline, p.period, p.months, p.price, p.originalPrice, p.discountPercent, p.promoValidUntil, p.features, p.highlighted, p.sortOrder)
 	}
 
 	return nil
@@ -426,43 +481,43 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 		return []AppLicensePlan{
 			{
 				ID: 1, CatalogID: catalogID, Slug: "starter-monthly", Name: "Starter Bulanan",
-				Tagline: "Paket dasar solopreneur: 1 Sesi WA, 1 CS, Live Chat CRM, 2.500 kontak, 2.500 siaran & auto-reply.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 49000,
+				Tagline: "Paket dasar solopreneur: 1 Sesi WA, 1 CS, Live Chat CRM, 2.500 kontak, 2.500 siaran & auto-reply.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 49000, OriginalPriceAmount: 99000, DiscountPercent: 51, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":2500,"unlimitedContacts":false,"maxContacts":2500,"birthdayBot":true,"liveChat":true,"multiSession":false,"maxSessions":1,"maxSessionIdentitySwitches":2,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":15,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":500,"maxAttachmentSizeMb":10}`),
 				Highlighted: false, IsActive: true, SortOrder: 1,
 			},
 			{
 				ID: 2, CatalogID: catalogID, Slug: "pro-monthly", Name: "Growth Pro Bulanan",
-				Tagline: "Untuk tim CS kecil: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln, omnichannel & jadwal konten.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 99000,
+				Tagline: "Untuk tim CS kecil: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln, omnichannel & jadwal konten.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 99000, OriginalPriceAmount: 199000, DiscountPercent: 50, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":15}`),
 				Highlighted: true, IsActive: true, SortOrder: 2,
 			},
 			{
 				ID: 3, CatalogID: catalogID, Slug: "pro-annual", Name: "Growth Pro Tahunan",
-				Tagline: "Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln & omnichannel.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 990000,
+				Tagline: "Paket tahunan hemat 2 bln: 2 Sesi WA, 3 CS, 5.000 kontak, 5.000 siaran/bln & omnichannel.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 990000, OriginalPriceAmount: 2388000, DiscountPercent: 59, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":5000,"unlimitedContacts":false,"maxContacts":5000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":2,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":3,"maxUsers":3,"maxTemplates":30,"customRoles":true,"omnichannel":true,"maxChannels":3,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":15}`),
 				Highlighted: false, IsActive: true, SortOrder: 3,
 			},
 			{
 				ID: 4, CatalogID: catalogID, Slug: "business-monthly", Name: "Business AI Bulanan",
-				Tagline: "Skala bisnis berkembang: 5 Sesi WA, 7 CS, 12.500 kontak, 15.000 siaran/bln, AI Agent & MCP Tools.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 199000,
+				Tagline: "Skala bisnis berkembang: 5 Sesi WA, 7 CS, 12.500 kontak, 15.000 siaran/bln, AI Agent & MCP Tools.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 199000, OriginalPriceAmount: 399000, DiscountPercent: 50, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":12500,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":2560,"maxAttachmentSizeMb":25}`),
 				Highlighted: false, IsActive: true, SortOrder: 4,
 			},
 			{
 				ID: 5, CatalogID: catalogID, Slug: "business-annual", Name: "Business AI Tahunan",
-				Tagline: "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 15.000 kontak, 15.000 siaran & AI Agent.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 1990000,
+				Tagline: "Paket tahunan hemat 2 bln: 5 Sesi WA, 7 CS, 15.000 kontak, 15.000 siaran & AI Agent.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 1990000, OriginalPriceAmount: 4788000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":15000,"unlimitedContacts":false,"maxContacts":15000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":5,"maxSessionIdentitySwitches":10,"multiAgent":true,"maxAgents":7,"maxUsers":7,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":6,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":4096,"maxAttachmentSizeMb":25}`),
 				Highlighted: false, IsActive: true, SortOrder: 5,
 			},
 			{
 				ID: 6, CatalogID: catalogID, Slug: "enterprise-monthly", Name: "Enterprise AI Bulanan",
-				Tagline: "Skala korporasi: 10 Sesi WA Dedicated, 15 CS, 30.000 kontak, 35.000 siaran, AI Agent & VIP.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 399000,
+				Tagline: "Skala korporasi: 10 Sesi WA Dedicated, 15 CS, 30.000 kontak, 35.000 siaran, AI Agent & VIP.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 399000, OriginalPriceAmount: 799000, DiscountPercent: 50, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":35000,"unlimitedContacts":false,"maxContacts":30000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":20,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":6144,"maxAttachmentSizeMb":40}`),
 				Highlighted: false, IsActive: true, SortOrder: 6,
 			},
 			{
 				ID: 7, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise AI Tahunan",
-				Tagline: "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 40.000 kontak, 45.000 siaran & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3990000,
+				Tagline: "Paket korporasi hemat 2 bln: 12 Sesi WA Dedicated, 18 CS, 40.000 kontak, 45.000 siaran & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3990000, OriginalPriceAmount: 9588000, DiscountPercent: 58, PromoValidUntil: "30 November 2026",
 				Features: json.RawMessage(`{"unlimitedBroadcast":false,"maxBroadcastPerMonth":45000,"unlimitedContacts":false,"maxContacts":40000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":12,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":18,"maxUsers":18,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":50}`),
 				Highlighted: false, IsActive: true, SortOrder: 7,
 			},
@@ -1091,8 +1146,8 @@ func (m *Manager) CreateAppLicensePlan(p AppLicensePlan) (*AppLicensePlan, error
 	}
 	var id int64
 	err := m.db.QueryRow(`
-		INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, features, highlighted, is_active, sort_order)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
+		INSERT INTO app_license_plans (catalog_id, slug, name, tagline, period, months, trial_days, price_amount, original_price_amount, discount_percent, promo_valid_until, features, highlighted, is_active, sort_order)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
 		ON CONFLICT (catalog_id, slug) DO UPDATE
 		SET name = EXCLUDED.name,
 		    tagline = EXCLUDED.tagline,
@@ -1100,12 +1155,15 @@ func (m *Manager) CreateAppLicensePlan(p AppLicensePlan) (*AppLicensePlan, error
 		    months = EXCLUDED.months,
 		    trial_days = EXCLUDED.trial_days,
 		    price_amount = EXCLUDED.price_amount,
+		    original_price_amount = EXCLUDED.original_price_amount,
+		    discount_percent = EXCLUDED.discount_percent,
+		    promo_valid_until = EXCLUDED.promo_valid_until,
 		    features = EXCLUDED.features,
 		    highlighted = EXCLUDED.highlighted,
 		    is_active = EXCLUDED.is_active,
 		    updated_at = NOW()
 		RETURNING id
-	`, p.CatalogID, p.Slug, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, p.SortOrder).Scan(&id)
+	`, p.CatalogID, p.Slug, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, p.OriginalPriceAmount, p.DiscountPercent, p.PromoValidUntil, featJSON, p.Highlighted, p.IsActive, p.SortOrder).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -1133,12 +1191,15 @@ func (m *Manager) UpdateAppLicensePlan(id int64, p AppLicensePlan) (*AppLicenseP
 		    months = $4,
 		    trial_days = CASE WHEN $5 >= 0 THEN $5 ELSE trial_days END,
 		    price_amount = CASE WHEN $6 >= 0 THEN $6 ELSE price_amount END,
-		    features = $7::jsonb,
-		    highlighted = $8,
-		    is_active = $9,
+		    original_price_amount = CASE WHEN $7 >= 0 THEN $7 ELSE original_price_amount END,
+		    discount_percent = CASE WHEN $8 >= 0 THEN $8 ELSE discount_percent END,
+		    promo_valid_until = COALESCE(NULLIF($9, ''), promo_valid_until),
+		    features = $10::jsonb,
+		    highlighted = $11,
+		    is_active = $12,
 		    updated_at = NOW()
-		WHERE id = $10
-	`, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, featJSON, p.Highlighted, p.IsActive, id)
+		WHERE id = $13
+	`, p.Name, p.Tagline, p.Period, p.Months, p.TrialDays, p.PriceAmount, p.OriginalPriceAmount, p.DiscountPercent, p.PromoValidUntil, featJSON, p.Highlighted, p.IsActive, id)
 	if err != nil {
 		return nil, err
 	}
