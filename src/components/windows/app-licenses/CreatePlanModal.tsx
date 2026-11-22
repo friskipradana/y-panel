@@ -29,16 +29,19 @@ export function CreatePlanModal({
   const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly')
   const [months, setMonths] = useState<number>(1)
   const [trialDays, setTrialDays] = useState<number>(7)
-  const [priceAmount, setPriceAmount] = useState<number>(179000)
+  const [priceAmount, setPriceAmount] = useState<number>(99000)
+  const [originalPriceAmount, setOriginalPriceAmount] = useState<number>(199000)
+  const [promoValidUntil, setPromoValidUntil] = useState<string>('30 November 2026')
   const [highlighted, setHighlighted] = useState(false)
 
   // Custom features & quotas
-  const [maxContacts, setMaxContacts] = useState(10000)
-  const [featBroadcast, setFeatBroadcast] = useState(true)
-  const [maxBroadcastPerMonth, setMaxBroadcastPerMonth] = useState(0)
+  const [maxContacts, setMaxContacts] = useState(5000)
+  const [featBroadcast, setFeatBroadcast] = useState(false)
+  const [maxBroadcastPerMonth, setMaxBroadcastPerMonth] = useState(5000)
   const [featLiveChat, setFeatLiveChat] = useState(true)
   const [featMultiSession, setFeatMultiSession] = useState(true)
-  const [maxSessions, setMaxSessions] = useState(3)
+  const [maxSessions, setMaxSessions] = useState(2)
+  const [maxSessionIdentitySwitches, setMaxSessionIdentitySwitches] = useState(5)
   const [maxTemplates, setMaxTemplates] = useState(50)
   const [maxUsers, setMaxUsers] = useState(5)
   const [featCustomRoles, setFeatCustomRoles] = useState(true)
@@ -100,7 +103,13 @@ export function CreatePlanModal({
         period,
         months,
         trialDays: Math.max(0, trialDays),
-        priceAmount,
+        priceAmount: Math.max(0, priceAmount),
+        originalPriceAmount: Math.max(0, originalPriceAmount),
+        discountPercent:
+          originalPriceAmount > priceAmount
+            ? Math.round(((originalPriceAmount - priceAmount) / originalPriceAmount) * 100)
+            : 0,
+        promoValidUntil: promoValidUntil.trim(),
         highlighted,
         isActive: true,
         features: {
@@ -111,6 +120,7 @@ export function CreatePlanModal({
           liveChat: featLiveChat,
           multiSession: featMultiSession || maxSessions > 1,
           maxSessions: Math.max(1, maxSessions),
+          maxSessionIdentitySwitches: Math.max(1, maxSessionIdentitySwitches),
           maxTemplates: Math.max(0, maxTemplates),
           maxUsers: Math.max(1, maxUsers),
           maxAgents: Math.max(1, maxUsers),
@@ -275,11 +285,11 @@ export function CreatePlanModal({
           </div>
         </div>
 
-        {/* Trial & Price & Highlight */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+        {/* Trial & Price & Promo */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
           <div>
             <label className="block font-medium text-[var(--win-text)] mb-1">
-              Harga Paket (Rp):
+              Harga Promo / Jual (Rp):
             </label>
             <input
               type="number"
@@ -288,6 +298,39 @@ export function CreatePlanModal({
               value={priceAmount}
               onChange={(e) => setPriceAmount(Number(e.target.value))}
               className="panel-input panel-input--mono w-full text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-[var(--win-text)] mb-1">
+              Harga Asli / Coret (Rp):{' '}
+              {originalPriceAmount > priceAmount && (
+                <span className="text-[11px] font-semibold text-[var(--panel-danger-text)]">
+                  (Hemat {Math.round(((originalPriceAmount - priceAmount) / originalPriceAmount) * 100)}%)
+                </span>
+              )}
+            </label>
+            <input
+              type="number"
+              step={1000}
+              min={0}
+              value={originalPriceAmount}
+              onChange={(e) => setOriginalPriceAmount(Math.max(0, Number(e.target.value)))}
+              placeholder="0 = tanpa coret"
+              className="panel-input panel-input--mono w-full text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-[var(--win-text)] mb-1">
+              Promo Berlaku Sampai:
+            </label>
+            <input
+              type="text"
+              value={promoValidUntil}
+              onChange={(e) => setPromoValidUntil(e.target.value)}
+              placeholder="Contoh: 30 November 2026"
+              className="panel-input w-full text-xs"
             />
           </div>
 
@@ -304,7 +347,7 @@ export function CreatePlanModal({
             />
           </div>
 
-          <div className="pt-4">
+          <div className="sm:col-span-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -313,7 +356,7 @@ export function CreatePlanModal({
                 className="rounded border-[var(--win-border)] accent-[var(--panel-primary)]"
               />
               <span className="font-medium text-[var(--win-text)]">
-                Tandai "Populer"
+                Tandai &quot;Populer&quot;
               </span>
             </label>
           </div>
@@ -351,6 +394,18 @@ export function CreatePlanModal({
                     setMaxSessions(v)
                     if (v > 1) setFeatMultiSession(true)
                   }}
+                  className="panel-input panel-input--mono w-full text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-[var(--text-secondary)] mb-1">
+                  Batas Ganti Nomor / Sesi (x kali)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={maxSessionIdentitySwitches}
+                  onChange={(e) => setMaxSessionIdentitySwitches(Math.max(1, Number(e.target.value)))}
                   className="panel-input panel-input--mono w-full text-xs"
                 />
               </div>

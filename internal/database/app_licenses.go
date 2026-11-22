@@ -1193,7 +1193,7 @@ func (m *Manager) UpdateAppLicensePlan(id int64, p AppLicensePlan) (*AppLicenseP
 		    price_amount = CASE WHEN $6 >= 0 THEN $6 ELSE price_amount END,
 		    original_price_amount = CASE WHEN $7 >= 0 THEN $7 ELSE original_price_amount END,
 		    discount_percent = CASE WHEN $8 >= 0 THEN $8 ELSE discount_percent END,
-		    promo_valid_until = COALESCE(NULLIF($9, ''), promo_valid_until),
+		    promo_valid_until = $9,
 		    features = $10::jsonb,
 		    highlighted = $11,
 		    is_active = $12,

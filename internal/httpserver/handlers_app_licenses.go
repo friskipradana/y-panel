@@ -1436,6 +1436,12 @@ func (s *Server) handleAppLicensePlansCreate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	plan := input.AppLicensePlan
+	if plan.OriginalPriceAmount > plan.PriceAmount && plan.DiscountPercent <= 0 {
+		plan.DiscountPercent = int(((plan.OriginalPriceAmount - plan.PriceAmount) * 100) / plan.OriginalPriceAmount)
+	} else if plan.OriginalPriceAmount <= plan.PriceAmount {
+		plan.DiscountPercent = 0
+	}
+	plan.PromoValidUntil = strings.TrimSpace(plan.PromoValidUntil)
 	if input.TrialDays != nil {
 		d := *input.TrialDays
 		if d < 0 {
@@ -1493,6 +1499,12 @@ func (s *Server) handleAppLicensePlansUpdate(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	plan := input.AppLicensePlan
+	if plan.OriginalPriceAmount > plan.PriceAmount && plan.DiscountPercent <= 0 {
+		plan.DiscountPercent = int(((plan.OriginalPriceAmount - plan.PriceAmount) * 100) / plan.OriginalPriceAmount)
+	} else if plan.OriginalPriceAmount <= plan.PriceAmount {
+		plan.DiscountPercent = 0
+	}
+	plan.PromoValidUntil = strings.TrimSpace(plan.PromoValidUntil)
 	if input.TrialDays != nil {
 		d := *input.TrialDays
 		if d < 0 {

@@ -29,6 +29,9 @@ export interface AppLicensePlan {
   months: number
   trialDays?: number
   priceAmount: number
+  originalPriceAmount?: number
+  discountPercent?: number
+  promoValidUntil?: string
   features: Record<string, boolean | number | string>
   highlighted: boolean
   isActive: boolean
@@ -114,6 +117,9 @@ export interface CreateAppPlanPayload {
   months?: number
   trialDays?: number
   priceAmount: number
+  originalPriceAmount?: number
+  discountPercent?: number
+  promoValidUntil?: string
   features?: Record<string, boolean | number | string>
   highlighted?: boolean
   isActive?: boolean
