@@ -273,15 +273,23 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 		return nil
 	}
 
-	// 1. One-time data correction: If legacy enterprise-annual was seeded with < 2.000.000 (e.g. 990.000), fix it to 3.490.000
+	// 1. One-time data correction: sync business-monthly, enterprise-monthly, and enterprise-annual to healthy, profitable prices
 	_, _ = m.db.Exec(`
 		UPDATE app_license_plans
-		SET price_amount = 3490000,
-		    tagline = 'Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI, kontak masif, 25 sesi WA, 10 GB dokumen & VIP.',
-		    sort_order = 5
+		SET price_amount = CASE
+		      WHEN slug = 'business-monthly' THEN 299000
+		      WHEN slug = 'enterprise-monthly' THEN 699000
+		      WHEN slug = 'enterprise-annual' THEN 6990000
+		      ELSE price_amount
+		    END,
+		    tagline = CASE
+		      WHEN slug = 'business-monthly' THEN 'Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 5 GB dokumen & API.'
+		      WHEN slug = 'enterprise-monthly' THEN 'Skala korporasi fleksibel bulanan: 20 Sesi WA Dedicated, 30 CS, 100.000 kontak, AI Agent, 20 GB dokumen & VIP.'
+		      WHEN slug = 'enterprise-annual' THEN 'Paket korporasi hemat 17% (gratis 2 bln): 25 Sesi WA Dedicated, 35 CS, 150.000 kontak, AI Agent, 35 GB dokumen & VIP.'
+		      ELSE tagline
+		    END
 		WHERE catalog_id = 'reneo-crm'
-		  AND slug = 'enterprise-annual'
-		  AND price_amount < 2000000
+		  AND (slug = 'business-monthly' OR slug = 'enterprise-monthly' OR (slug = 'enterprise-annual' AND price_amount < 5000000))
 	`)
 
 	defaultPlans := []struct {
@@ -304,7 +312,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       49000,
 			highlighted: false,
 			sortOrder:   1,
-			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":250,"maxAttachmentSizeMb":5}`,
+			features:    `{"unlimitedBroadcast":false,"maxBroadcastPerMonth":1500,"unlimitedContacts":false,"maxContacts":1500,"birthdayBot":true,"liveChat":false,"multiSession":false,"maxSessions":1,"maxSessionIdentitySwitches":2,"multiAgent":false,"maxAgents":1,"maxUsers":1,"maxTemplates":10,"customRoles":false,"omnichannel":false,"maxChannels":0,"scheduledPosts":false,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":false,"wahaSync":true,"apiAccess":false,"supportPriority":"standard","maxStorageMb":250,"maxAttachmentSizeMb":5}`,
 		},
 		{
 			slug:        "pro-monthly",
@@ -315,7 +323,7 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       99000,
 			highlighted: true,
 			sortOrder:   2,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":10}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1024,"maxAttachmentSizeMb":10}`,
 		},
 		{
 			slug:        "pro-annual",
@@ -326,29 +334,51 @@ func (m *Manager) EnsureDefaultAppLicensePlans(catalogID string) error {
 			price:       990000,
 			highlighted: false,
 			sortOrder:   3,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":10}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":10000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":3,"maxSessionIdentitySwitches":5,"multiAgent":true,"maxAgents":5,"maxUsers":5,"maxTemplates":50,"customRoles":true,"omnichannel":true,"maxChannels":4,"scheduledPosts":true,"autoReply":true,"aiAgent":false,"mcpTools":false,"exportReports":true,"wahaSync":true,"apiAccess":false,"supportPriority":"fast","maxStorageMb":1536,"maxAttachmentSizeMb":10}`,
 		},
 		{
 			slug:        "business-monthly",
 			name:        "Business AI Bulanan",
-			tagline:     "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 3 GB dokumen & API.",
+			tagline:     "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 5 GB dokumen & API.",
 			period:      "monthly",
 			months:      1,
-			price:       349000,
+			price:       299000,
 			highlighted: false,
 			sortOrder:   4,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":3072,"maxAttachmentSizeMb":20}`,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":15,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":5120,"maxAttachmentSizeMb":25}`,
+		},
+		{
+			slug:        "business-annual",
+			name:        "Business AI Tahunan",
+			tagline:     "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI Agent, 10 Sesi WA, 15 CS, 50.000 kontak, 8 GB dokumen & API.",
+			period:      "annual",
+			months:      12,
+			price:       2990000,
+			highlighted: false,
+			sortOrder:   5,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":15,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":8192,"maxAttachmentSizeMb":25}`,
+		},
+		{
+			slug:        "enterprise-monthly",
+			name:        "Enterprise AI Bulanan",
+			tagline:     "Skala korporasi fleksibel bulanan: 20 Sesi WA Dedicated, 30 CS, 100.000 kontak, AI Agent, 20 GB dokumen & VIP.",
+			period:      "monthly",
+			months:      1,
+			price:       699000,
+			highlighted: false,
+			sortOrder:   6,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":100000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":20,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":20480,"maxAttachmentSizeMb":35}`,
 		},
 		{
 			slug:        "enterprise-annual",
-			name:        "Enterprise Tahunan",
-			tagline:     "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI, kontak masif, 25 sesi WA, 10 GB dokumen & VIP.",
+			name:        "Enterprise AI Tahunan",
+			tagline:     "Paket korporasi hemat 17% (gratis 2 bln): 25 Sesi WA Dedicated, 35 CS, 150.000 kontak, AI Agent, 35 GB dokumen & VIP.",
 			period:      "annual",
 			months:      12,
-			price:       3490000,
+			price:       6990000,
 			highlighted: false,
-			sortOrder:   5,
-			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":35}`,
+			sortOrder:   7,
+			features:    `{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":150000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"maxSessionIdentitySwitches":35,"multiAgent":true,"maxAgents":35,"maxUsers":35,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":35840,"maxAttachmentSizeMb":50}`,
 		},
 	}
 
@@ -404,15 +434,27 @@ func (m *Manager) ListAppLicensePlans(catalogID string) ([]AppLicensePlan, error
 			},
 			{
 				ID: 4, CatalogID: catalogID, Slug: "business-monthly", Name: "Business AI Bulanan",
-				Tagline: "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 3 GB dokumen & API.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 349000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":35000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"multiAgent":true,"maxAgents":12,"maxUsers":12,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":3072,"maxAttachmentSizeMb":20}`),
+				Tagline: "Skala bisnis penuh: Semua menu terbuka termasuk Agent AI & Knowledge Book, MCP Tools, 5 GB dokumen & API.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 299000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":15,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":5120,"maxAttachmentSizeMb":25}`),
 				Highlighted: false, IsActive: true, SortOrder: 4,
 			},
 			{
-				ID: 5, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise Tahunan",
-				Tagline: "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI, kontak masif, 25 sesi WA, 10 GB dokumen & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 3490000,
-				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":true,"maxContacts":0,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":10240,"maxAttachmentSizeMb":35}`),
+				ID: 5, CatalogID: catalogID, Slug: "business-annual", Name: "Business AI Tahunan",
+				Tagline: "Paket tahunan hemat 17% (gratis 2 bln): Semua menu + AI Agent, 10 Sesi WA, 15 CS, 50.000 kontak, 8 GB dokumen & API.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 2990000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":50000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":10,"maxSessionIdentitySwitches":15,"multiAgent":true,"maxAgents":15,"maxUsers":15,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":12,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"priority","maxStorageMb":8192,"maxAttachmentSizeMb":25}`),
 				Highlighted: false, IsActive: true, SortOrder: 5,
+			},
+			{
+				ID: 6, CatalogID: catalogID, Slug: "enterprise-monthly", Name: "Enterprise AI Bulanan",
+				Tagline: "Skala korporasi fleksibel bulanan: 20 Sesi WA Dedicated, 30 CS, 100.000 kontak, AI Agent, 20 GB dokumen & VIP.", Period: "monthly", Months: 1, TrialDays: 7, PriceAmount: 699000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":100000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":20,"maxSessionIdentitySwitches":25,"multiAgent":true,"maxAgents":30,"maxUsers":30,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":20480,"maxAttachmentSizeMb":35}`),
+				Highlighted: false, IsActive: true, SortOrder: 6,
+			},
+			{
+				ID: 7, CatalogID: catalogID, Slug: "enterprise-annual", Name: "Enterprise AI Tahunan",
+				Tagline: "Paket korporasi hemat 17% (gratis 2 bln): 25 Sesi WA Dedicated, 35 CS, 150.000 kontak, AI Agent, 35 GB dokumen & VIP.", Period: "annual", Months: 12, TrialDays: 7, PriceAmount: 6990000,
+				Features: json.RawMessage(`{"unlimitedBroadcast":true,"maxBroadcastPerMonth":0,"unlimitedContacts":false,"maxContacts":150000,"birthdayBot":true,"liveChat":true,"multiSession":true,"maxSessions":25,"maxSessionIdentitySwitches":35,"multiAgent":true,"maxAgents":35,"maxUsers":35,"maxTemplates":0,"customRoles":true,"omnichannel":true,"maxChannels":0,"scheduledPosts":true,"autoReply":true,"aiAgent":true,"mcpTools":true,"exportReports":true,"wahaSync":true,"apiAccess":true,"supportPriority":"vip","maxStorageMb":35840,"maxAttachmentSizeMb":50}`),
+				Highlighted: false, IsActive: true, SortOrder: 7,
 			},
 		}, nil
 	}
