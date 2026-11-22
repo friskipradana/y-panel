@@ -2,6 +2,19 @@
 
 Semua perubahan penting pada Reneo dicatat di berkas ini.
 
+## [1.88.47] - 2026-11-22
+
+3 perubahan, utamanya add original_price_amount, discount_percent, and promo_valid_until to app_license_plans.
+
+### Fitur baru
+- **database:** Add original_price_amount, discount_percent, and promo_valid_until to app_license_plans ([`ebbdac1`](https://github.com/friskipradana/y-panel/commit/ebbdac1))
+
+### Perbaikan
+- **license:** Update default plans to proportional ~2x benefit ladder and enforce features update ([`d66dce3`](https://github.com/friskipradana/y-panel/commit/d66dce3))
+- **license:** Calibrate charm-pricing ladder (49k/99k/199k/399k) and ensure plan sync in DB ([`e72ec73`](https://github.com/friskipradana/y-panel/commit/e72ec73))
+
+**Semua perubahan**: https://github.com/friskipradana/y-panel/compare/v1.88.46...v1.88.47
+
 ## [1.88.46] - 2026-11-22
 
 2 perubahan, utamanya align tiered benefit scaling and realistic quota progressions from starter baseline.
